@@ -44,17 +44,17 @@ impl HostSync for OpenCodeSync {
             !ctx.manifest.skills.is_empty() || !ctx.manifest.managed_mcp_servers.is_empty();
         if has_content {
             skills().apply(ctx.manifest)?;
-            write_mcp_blocks(&ctx.manifest.managed_mcp_servers)?;
+            write_mcp_blocks(ctx.loopback, &ctx.manifest.managed_mcp_servers)?;
         } else {
             skills().clear()?;
-            write_mcp_blocks(&[])?;
+            write_mcp_blocks(ctx.loopback, &[])?;
         }
         Ok(())
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         skills().clear()?;
-        write_mcp_blocks(&[])?;
+        write_mcp_blocks(ctx.loopback, &[])?;
         Ok(())
     }
 }

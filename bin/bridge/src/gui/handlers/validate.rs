@@ -14,7 +14,7 @@ use crate::{i18n, validate};
 pub(crate) fn on_validate_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("validate-running"));
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let report = validate::run().await;
         proxy.send_event(UiEvent::ValidateFinished { report, reply_to });
     });

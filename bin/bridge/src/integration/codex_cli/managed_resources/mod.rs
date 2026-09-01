@@ -21,6 +21,7 @@ use async_trait::async_trait;
 
 use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::proxy::LoopbackEndpoint;
 
 use super::config::codex_home;
 
@@ -48,18 +49,18 @@ impl HostSync for CodexCliSync {
         let has_content =
             !ctx.manifest.skills.is_empty() || !ctx.manifest.managed_mcp_servers.is_empty();
         if has_content {
-            write_marketplace_tree(ctx.manifest)?;
-            write_config_blocks(true, &ctx.manifest.managed_mcp_servers)?;
+            write_marketplace_tree(ctx.loopback, ctx.manifest)?;
+            write_config_blocks(ctx.loopback, true, &ctx.manifest.managed_mcp_servers)?;
         } else {
             remove_marketplace_tree()?;
-            write_config_blocks(false, &[])?;
+            write_config_blocks(ctx.loopback, false, &[])?;
         }
         Ok(())
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         remove_marketplace_tree()?;
-        write_config_blocks(false, &[])?;
+        write_config_blocks(ctx.loopback, false, &[])?;
         Ok(())
     }
 }
@@ -84,10 +85,13 @@ fn cache_plugin_dir() -> PathBuf {
         .join(PLUGIN_NAME)
 }
 
-fn write_marketplace_tree(manifest: &SignedManifest) -> Result<(), ApplyError> {
+fn write_marketplace_tree(
+    loopback: &LoopbackEndpoint,
+    manifest: &SignedManifest,
+) -> Result<(), ApplyError> {
     let root = marketplace_root();
     let plugin_dir = plugin_src_dir();
-    let version = bundle_version(manifest);
+    let version = bundle_version(loopback, manifest);
 
     let source_current = read_existing_version(&plugin_dir).as_deref() == Some(version.as_str())
         && root.join(".agents/plugins/marketplace.json").is_file();

@@ -1,4 +1,5 @@
 use systemprompt_bridge::cli::doctor::{self, Status};
+use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use systemprompt_bridge::validate::{self, CheckLevel};
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
@@ -110,7 +111,7 @@ fn doctor_run_checks_returns_named_checks() {
     let (_server, uri) = health_server(200, true);
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
-        let (checks, any_fail) = block_on(doctor::run_checks());
+        let (checks, any_fail) = block_on(doctor::run_checks(&loopback()));
         assert!(!checks.is_empty(), "doctor must emit checks");
 
         let names: Vec<&str> = checks.iter().map(|c| c.name).collect();
@@ -144,4 +145,8 @@ fn doctor_run_checks_returns_named_checks() {
             "no credential source should make doctor report a failure"
         );
     });
+}
+
+fn loopback() -> LoopbackEndpoint {
+    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
 }

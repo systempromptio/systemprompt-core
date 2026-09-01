@@ -48,8 +48,9 @@ pub(crate) fn on_probe_requested(
     }
     let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
-        let Ok(snap) = tokio::task::spawn_blocking(move || Box::new(host.probe())).await else {
+    let env = app.probe_env();
+    app.ctx.spawn(async move {
+        let Ok(snap) = tokio::task::spawn_blocking(move || Box::new(host.probe(&env))).await else {
             return;
         };
         proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
@@ -68,7 +69,7 @@ pub(crate) fn on_probe_finished(
     snapshot: &HostAppSnapshot,
     reply_to: ReplyId,
 ) {
-    let summary = describe_snapshot(snapshot);
+    let summary = describe_snapshot(snapshot, app.ctx.proxy.port());
     let prev = app
         .state
         .snapshot()
@@ -81,7 +82,9 @@ pub(crate) fn on_probe_finished(
     emit::emit_host_changed(app, host_id);
     let log_line = match cause {
         ProbeCause::Manual => Some(format!("[{host_id}] re-verify complete — {summary}")),
-        ProbeCause::Tick => state_change_line(host_id, prev.as_ref(), snapshot),
+        ProbeCause::Tick => {
+            state_change_line(host_id, prev.as_ref(), snapshot, app.ctx.proxy.port())
+        },
     };
     if let Some(line) = log_line {
         app.append_log(line);
@@ -98,6 +101,7 @@ fn state_change_line(
     host_id: &HostId,
     prev: Option<&HostAppSnapshot>,
     next: &HostAppSnapshot,
+    proxy_port: u16,
 ) -> Option<String> {
     let prev = prev?;
     let profile_changed =
@@ -108,7 +112,7 @@ fn state_change_line(
     }
     Some(format!(
         "[{host_id}] state changed — {}",
-        describe_snapshot(next)
+        describe_snapshot(next, proxy_port)
     ))
 }
 
@@ -121,7 +125,7 @@ const fn profile_state_kind(s: &ProfileState) -> &'static str {
     }
 }
 
-fn describe_snapshot(snap: &HostAppSnapshot) -> String {
+fn describe_snapshot(snap: &HostAppSnapshot, proxy_port: u16) -> String {
     use crate::integration::{ProfileState, StaleReason};
     let profile = match &snap.profile_state {
         ProfileState::Installed => "profile installed".to_owned(),
@@ -134,8 +138,8 @@ fn describe_snapshot(snap: &HostAppSnapshot) -> String {
                 "profile secret out of date (re-apply required)".to_owned()
             },
             StaleReason::ProxyPort => format!(
-                "profile points at the wrong proxy port — this proxy is on {} (re-apply required)",
-                crate::proxy::resolved_port()
+                "profile points at the wrong proxy port — this proxy is on {proxy_port} \
+                 (re-apply required)"
             ),
         },
     };
@@ -161,7 +165,7 @@ pub(crate) fn on_proxy_probe_requested(app: &GuiApp, reply_to: ReplyId) {
         return;
     }
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let Ok(health) =
             tokio::task::spawn_blocking(move || Box::new(proxy_probe::probe(url.as_deref()))).await
         else {

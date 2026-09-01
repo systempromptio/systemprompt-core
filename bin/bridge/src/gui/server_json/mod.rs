@@ -16,8 +16,8 @@ use payloads::{
 use crate::gui::state::{AppStateSnapshot, HealthCode, IdentityCode, OverallCode, TokenCode};
 use crate::verdict::{Tone, Verdict};
 
-pub fn snapshot_value(snap: &AppStateSnapshot) -> Value {
-    serde_json::to_value(StatePayload::from(snap)).unwrap_or(Value::Null)
+pub fn snapshot_value(snap: &AppStateSnapshot, proxy: &crate::proxy::ProxyHandle) -> Value {
+    serde_json::to_value(StatePayload::build(snap, proxy)).unwrap_or(Value::Null)
 }
 
 pub fn identity_value(snap: &AppStateSnapshot) -> Value {
@@ -46,8 +46,8 @@ pub fn mcp_auth_value(snap: &AppStateSnapshot) -> Value {
     })
 }
 
-pub fn proxy_stats_value() -> Value {
-    serde_json::to_value(ProxyStatsPayload::current()).unwrap_or(Value::Null)
+pub fn proxy_stats_value(proxy: &crate::proxy::ProxyHandle) -> Value {
+    serde_json::to_value(ProxyStatsPayload::current(proxy)).unwrap_or(Value::Null)
 }
 
 #[derive(Serialize)]
@@ -91,8 +91,8 @@ struct StatePayload<'a> {
     hosts: crate::gui::hosts::serde::HostsPayload<'a>,
 }
 
-impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
-    fn from(snap: &'a AppStateSnapshot) -> Self {
+impl<'a> StatePayload<'a> {
+    fn build(snap: &'a AppStateSnapshot, proxy: &crate::proxy::ProxyHandle) -> Self {
         Self {
             gateway_url: snap.gateway_url.as_str(),
             config_file: snap.config_file.as_str(),
@@ -123,7 +123,7 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             overall: snap.overall_verdict(),
             signed_in: snap.signed_in(),
             last_probe_at_unix: snap.last_probe_at_unix,
-            proxy_stats: ProxyStatsPayload::current(),
+            proxy_stats: ProxyStatsPayload::current(proxy),
             mcp_auth: mcp_servers_payload(snap),
             mcp_auth_probe_in_flight: snap.mcp_auth_probe_in_flight,
             mcp_auth_tone: snap.mcp_auth_tone(),

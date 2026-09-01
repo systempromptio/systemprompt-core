@@ -9,6 +9,7 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
+use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
 
 struct Sandbox {
@@ -88,6 +89,26 @@ fn mcp(name: &str) -> ManagedMcpServer {
     }
 }
 
+
+static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
+    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+});
+
+fn clear(root: &Path) -> Result<(), ApplyError> {
+    let client = GatewayClient::new(ValidatedUrl::try_new("http://127.0.0.1:0").unwrap());
+    let plugin_mcp_servers = std::collections::BTreeMap::new();
+    let m = manifest_with(Vec::new(), Vec::new());
+    let ctx = HostSyncCtx {
+        manifest: &m,
+        org_plugins_root: root,
+        plugin_mcp_servers: &plugin_mcp_servers,
+        client: &client,
+        bearer: "",
+        loopback: &LOOPBACK,
+    };
+    OpenCodeSync.clear(&ctx)
+}
+
 fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
     let client = GatewayClient::new(ValidatedUrl::try_new("http://127.0.0.1:0").unwrap());
     let plugin_mcp_servers = std::collections::BTreeMap::new();
@@ -97,6 +118,7 @@ fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
         bearer: "",
+        loopback: &LOOPBACK,
     };
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -150,7 +172,7 @@ fn user_authored_config_survives_apply_and_clear() {
         );
         assert!(doc["mcp"]["primary"].is_object());
 
-        OpenCodeSync.clear().unwrap();
+        clear(&sb.skills).unwrap();
         let doc = read_json(&sb.config);
         assert_eq!(
             doc["mcp"]["mine"]["url"], "https://example.com/mcp",
@@ -255,7 +277,7 @@ fn a_dropped_skill_is_pruned_but_a_users_own_skill_is_kept() {
         );
         assert!(mine.exists(), "a user-authored skill is never touched");
 
-        OpenCodeSync.clear().unwrap();
+        clear(&sb.skills).unwrap();
         assert!(!sb.skills.join("one").exists());
         assert!(mine.exists());
         assert!(!sb.skills.join(".systemprompt-managed.json").exists());

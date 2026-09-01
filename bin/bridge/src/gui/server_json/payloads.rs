@@ -116,11 +116,11 @@ pub(crate) struct ProxyStatsPayload {
 }
 
 impl ProxyStatsPayload {
-    pub(super) fn current() -> Self {
-        let Some(handle) = crate::proxy::handle() else {
+    pub(super) fn current(proxy: &crate::proxy::ProxyHandle) -> Self {
+        let Some(served) = proxy.served() else {
             return Self::default();
         };
-        let s = &handle.stats;
+        let s = &served.stats;
         Self {
             forwarded_total: s.forwarded_total.load(Ordering::Relaxed),
             messages_total: s.messages_total.load(Ordering::Relaxed),

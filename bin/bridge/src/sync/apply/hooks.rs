@@ -16,10 +16,12 @@
 use super::ApplyError;
 use super::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 use crate::gateway::manifest::{HookEntry as ManifestHookEntry, PluginEntry};
+use crate::proxy::LoopbackEndpoint;
 use std::fs;
 use std::path::Path;
 
 pub(super) fn write_hooks_json(
+    loopback: &LoopbackEndpoint,
     plugin: &PluginEntry,
     plugin_dir: &Path,
     hook_pool: &[ManifestHookEntry],
@@ -34,7 +36,7 @@ pub(super) fn write_hooks_json(
     let body = if plugin.hooks.is_empty() {
         HooksFile::empty()
     } else {
-        build_hooks_file(plugin, hook_pool)?
+        build_hooks_file(loopback, plugin, hook_pool)?
     };
 
     let bytes = serde_json::to_vec_pretty(&body).map_err(|e| ApplyError::Serialize {
@@ -58,15 +60,16 @@ fn comms_drain_command() -> Option<String> {
 }
 
 fn build_hooks_file(
+    loopback: &LoopbackEndpoint,
     plugin: &PluginEntry,
     hook_pool: &[ManifestHookEntry],
 ) -> Result<HooksFile, ApplyError> {
     let plugin_id = &plugin.id;
-    let authorization = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+    let authorization = loopback.bearer().map_err(|e| ApplyError::Io {
         context: format!("loopback secret for hooks.json ({plugin_id})"),
         source: e,
     })?;
-    let origin = crate::proxy::loopback_origin();
+    let origin = loopback.origin();
 
     let mut body = if plugin.hooks.governance {
         let govern_url = format!("{origin}/api/public/hooks/govern?plugin_id={plugin_id}");

@@ -12,6 +12,7 @@ use serde_yaml::Value;
 
 use crate::gateway::manifest::ManagedMcpServer;
 use crate::host_sync::ApplyError;
+use crate::proxy::LoopbackEndpoint;
 
 use super::super::config::{config_yaml_path, skills_dir};
 use super::super::probe::write_dotted;
@@ -32,6 +33,7 @@ fn yaml_err(what: &str, e: serde_yaml::Error) -> ApplyError {
 }
 
 pub(super) fn write_config_blocks(
+    loopback: &LoopbackEndpoint,
     enabled: bool,
     mcp_servers: &[ManagedMcpServer],
 ) -> Result<(), ApplyError> {
@@ -39,12 +41,12 @@ pub(super) fn write_config_blocks(
     let mut value = read_or_empty(&path)?;
     let original = value.clone();
 
-    strip_bridge_mcp_servers(&mut value);
+    strip_bridge_mcp_servers(loopback, &mut value);
     remove_external_dir(&mut value);
 
     if enabled {
         add_external_dir(&mut value);
-        write_mcp_servers(&mut value, mcp_servers)?;
+        write_mcp_servers(loopback, &mut value, mcp_servers)?;
     }
 
     if value == original {
@@ -56,11 +58,15 @@ pub(super) fn write_config_blocks(
         .map_err(|e| io_err("write config.yaml", &path, e))
 }
 
-fn write_mcp_servers(value: &mut Value, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+fn write_mcp_servers(
+    loopback: &LoopbackEndpoint,
+    value: &mut Value,
+    servers: &[ManagedMcpServer],
+) -> Result<(), ApplyError> {
     if servers.is_empty() {
         return Ok(());
     }
-    let bearer = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+    let bearer = loopback.bearer().map_err(|e| ApplyError::Io {
         context: "read loopback secret for hermes mcp_servers".into(),
         source: e,
     })?;
@@ -69,7 +75,7 @@ fn write_mcp_servers(value: &mut Value, servers: &[ManagedMcpServer]) -> Result<
         write_dotted(
             value,
             &format!("{MCP_TABLE}.{slug}.url"),
-            Value::String(crate::proxy::mcp_url(&slug)),
+            Value::String(loopback.mcp_url(&slug)),
         );
         write_dotted(
             value,
@@ -102,14 +108,14 @@ fn read_or_empty(path: &Path) -> Result<Value, ApplyError> {
     }
 }
 
-fn strip_bridge_mcp_servers(root: &mut Value) {
+fn strip_bridge_mcp_servers(loopback: &LoopbackEndpoint, root: &mut Value) {
     let Value::Mapping(top) = root else {
         return;
     };
     let Some(Value::Mapping(servers)) = top.get_mut(key(MCP_TABLE)) else {
         return;
     };
-    let prefix = format!("{}/mcp/", crate::proxy::loopback_origin());
+    let prefix = format!("{}/mcp/", loopback.origin());
     let ours: Vec<Value> = servers
         .iter()
         .filter_map(|(name, entry)| {

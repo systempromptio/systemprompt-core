@@ -23,6 +23,7 @@ pub struct HostSyncCtx<'a> {
     pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
     pub client: &'a GatewayClient,
     pub bearer: &'a str,
+    pub loopback: &'a crate::proxy::LoopbackEndpoint,
 }
 
 // Why: the `Any` bound lets the registry dedup by concrete emitter type —
@@ -33,7 +34,7 @@ pub struct HostSyncCtx<'a> {
 pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn host_id(&self) -> &'static str;
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
-    fn clear(&self) -> Result<(), ApplyError>;
+    fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError>;
 }
 
 #[derive(Clone, Copy)]

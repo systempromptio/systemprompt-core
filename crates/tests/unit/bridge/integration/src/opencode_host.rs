@@ -2,11 +2,19 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, ConfigFormat, HostApp, HostKind, ProfileGenInputs, ProfileState, StaleReason,
+    AppInstallState, ConfigFormat, HostApp, HostKind, ProbeEnv, ProfileGenInputs, ProfileState,
+    StaleReason,
 };
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
 use systemprompt_models::profile::ApiSurface;
 use tempfile::TempDir;
+
+fn probe_env() -> ProbeEnv {
+    ProbeEnv {
+        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+        loopback_secret_fingerprint: None,
+    }
+}
 
 fn sandbox<R>(managed_json: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
     let root = TempDir::new().expect("sandbox");
@@ -53,7 +61,7 @@ const COMPLETE: &str = r#"{
 
 #[test]
 fn an_absent_managed_config_probes_as_absent() {
-    let snapshot = sandbox(None, |_| OPENCODE_HOST.probe());
+    let snapshot = sandbox(None, |_| OPENCODE_HOST.probe(&probe_env()));
     assert_eq!(snapshot.host_id, "opencode");
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
@@ -71,7 +79,7 @@ fn an_absent_managed_config_probes_as_absent() {
 
 #[test]
 fn a_complete_managed_config_probes_as_installed_with_models_listed_by_name() {
-    let snapshot = sandbox(Some(COMPLETE), |_| OPENCODE_HOST.probe());
+    let snapshot = sandbox(Some(COMPLETE), |_| OPENCODE_HOST.probe(&probe_env()));
     assert!(
         matches!(snapshot.profile_state, ProfileState::Installed),
         "{:?}",
@@ -116,7 +124,7 @@ fn a_complete_managed_config_probes_as_installed_with_models_listed_by_name() {
 fn a_partial_managed_config_lists_the_missing_required_keys() {
     let snapshot = sandbox(
         Some(r#"{ "provider": { "systemprompt": { "npm": "@ai-sdk/openai-compatible" } } }"#),
-        |_| OPENCODE_HOST.probe(),
+        |_| OPENCODE_HOST.probe(&probe_env()),
     );
     match snapshot.profile_state {
         ProfileState::Partial { missing_required } => assert_eq!(
@@ -130,7 +138,7 @@ fn a_partial_managed_config_lists_the_missing_required_keys() {
 #[test]
 fn a_stale_loopback_port_is_reported_as_stale() {
     let body = COMPLETE.replace("48217", "1");
-    let snapshot = sandbox(Some(&body), |_| OPENCODE_HOST.probe());
+    let snapshot = sandbox(Some(&body), |_| OPENCODE_HOST.probe(&probe_env()));
     assert!(
         matches!(
             snapshot.profile_state,
@@ -145,7 +153,9 @@ fn a_stale_loopback_port_is_reported_as_stale() {
 
 #[test]
 fn a_malformed_managed_config_falls_back_to_an_empty_read() {
-    let snapshot = sandbox(Some("{ this is [not json"), |_| OPENCODE_HOST.probe());
+    let snapshot = sandbox(Some("{ this is [not json"), |_| {
+        OPENCODE_HOST.probe(&probe_env())
+    });
     assert!(matches!(snapshot.profile_state, ProfileState::Absent));
     assert!(snapshot.profile_keys.is_empty());
 }
@@ -159,7 +169,7 @@ fn a_jsonc_only_managed_dir_is_reported_as_the_source_but_never_read() {
             "// comment\n{ \"provider\": { \"systemprompt\": {} } }",
         )
         .expect("seed jsonc");
-        OPENCODE_HOST.probe()
+        OPENCODE_HOST.probe(&probe_env())
     });
     assert!(matches!(snapshot.profile_state, ProfileState::Absent));
     assert!(
@@ -178,7 +188,7 @@ fn a_user_scope_provider_block_is_not_governance() {
         let user = root.join("config").join("opencode");
         std::fs::create_dir_all(&user).expect("user dir");
         std::fs::write(user.join("opencode.json"), COMPLETE).expect("seed user config");
-        OPENCODE_HOST.probe()
+        OPENCODE_HOST.probe(&probe_env())
     });
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
@@ -193,7 +203,7 @@ fn the_binary_is_found_in_a_known_install_prefix_outside_path() {
         let bin = root.join(".opencode").join("bin");
         std::fs::create_dir_all(&bin).expect("prefix");
         std::fs::write(bin.join("opencode"), "#!/bin/sh\n").expect("stub binary");
-        OPENCODE_HOST.probe()
+        OPENCODE_HOST.probe(&probe_env())
     });
     assert_eq!(snapshot.app_installed, AppInstallState::Installed);
 }

@@ -136,7 +136,7 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     }
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::GatewayProbe);
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let outcome = tokio::select! {
             () = token.cancelled() => None,
             outcome = run_probe() => Some(outcome),

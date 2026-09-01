@@ -13,6 +13,28 @@ pub use crate::integration::profile_state::{
     AppInstallState, ProfileCode, ProfileState, StaleReason,
 };
 
+/// What a host probe needs to know about the proxy to judge a profile fresh:
+/// the port the proxy is on and the fingerprint of the secret it accepts.
+///
+/// A value built by the caller from the [`crate::proxy::LoopbackEndpoint`],
+/// so a probe never reaches for process state and a test can hand it any
+/// port it likes.
+#[derive(Debug, Clone)]
+pub struct ProbeEnv {
+    pub proxy_port: u16,
+    pub loopback_secret_fingerprint: Option<String>,
+}
+
+impl ProbeEnv {
+    #[must_use]
+    pub fn from_loopback(loopback: &crate::proxy::LoopbackEndpoint) -> Self {
+        Self {
+            proxy_port: loopback.port(),
+            loopback_secret_fingerprint: loopback.secret_fingerprint(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
     pub gateway_base_url: String,
@@ -83,7 +105,7 @@ pub trait HostApp: Send + Sync + 'static {
     fn id(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
     fn config_schema(&self) -> &'static HostConfigSchema;
-    fn probe(&self) -> HostAppSnapshot;
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot;
     fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile>;
     fn install_profile(&self, path: &str) -> std::io::Result<()>;
     fn install_action_label(&self) -> &'static str;

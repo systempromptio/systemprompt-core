@@ -42,7 +42,7 @@ impl HostSync for ClaudeCodeCliSync {
         apply_install(ctx)
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         clear_install()
     }
 }
@@ -120,8 +120,10 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
 
     // Why: `managed-mcp.json` suppresses plugin-provided servers, so writing both
     // it and per-plugin `.mcp.json` files leaves the latter inert and misleading.
-    let enforced = crate::install::managed_mcp::apply_policy(manifest.allow_claude_ai_connectors)
-        == crate::install::managed_mcp::PolicyOutcome::Enforced;
+    let enforced = crate::install::managed_mcp::apply_policy(
+        ctx.loopback,
+        manifest.allow_claude_ai_connectors,
+    ) == crate::install::managed_mcp::PolicyOutcome::Enforced;
 
     let mut ids = Vec::with_capacity(manifest.plugins.len());
     let mut entries = Vec::with_capacity(manifest.plugins.len());
@@ -135,8 +137,18 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
                 .get(id)
                 .map_or(&[][..], Vec::as_slice)
         };
-        mirror_plugin(&src, &source_plugin_dir(&plugins, id), mcp_servers)?;
-        mirror_plugin(&src, &cache_install_dir(&plugins, id), mcp_servers)?;
+        mirror_plugin(
+            ctx.loopback,
+            &src,
+            &source_plugin_dir(&plugins, id),
+            mcp_servers,
+        )?;
+        mirror_plugin(
+            ctx.loopback,
+            &src,
+            &cache_install_dir(&plugins, id),
+            mcp_servers,
+        )?;
         entries.push(marketplace::entry_for(&src, id, &plugin.version));
         ids.push(id);
     }

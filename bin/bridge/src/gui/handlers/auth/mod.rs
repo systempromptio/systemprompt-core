@@ -38,7 +38,7 @@ pub(crate) fn on_login_requested(
     app.append_log(i18n::t("login-saving"));
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Login);
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
@@ -67,7 +67,7 @@ pub(crate) fn on_login_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("login-pull-manifest"));
-            crate::proxy::reload_runtime_config();
+            app.ctx.proxy.reload_runtime_config();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
@@ -121,7 +121,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
     app.append_log(i18n::t_args("gateway-saving", &[("url", &trimmed)]));
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::SetGateway);
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
             setup::set_gateway_url(&trimmed)
                 .map(|_| ())
@@ -150,7 +150,7 @@ pub(crate) fn on_set_gateway_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("gateway-saved"));
-            crate::proxy::reload_runtime_config();
+            app.ctx.proxy.reload_runtime_config();
             app.state.reload();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             Ok(())
@@ -181,7 +181,7 @@ pub(crate) fn on_set_gateway_finished(
 pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("logout-running"));
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = match tokio::task::spawn_blocking(|| {
             setup::logout()
                 .map(|_| ())

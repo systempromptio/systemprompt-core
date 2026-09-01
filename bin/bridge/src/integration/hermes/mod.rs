@@ -29,7 +29,7 @@ pub mod contract {
 pub use install::{install_profile_into, remove_profile_from};
 
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
     ProfileGenInputs, ProfileRemoval, ProfileState,
 };
 
@@ -51,12 +51,13 @@ impl HostApp for HermesHost {
         &config::SCHEMA
     }
 
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
         // Why: like Codex, Hermes bakes `<origin>/v1`; the classifier ignores the
         // path and only checks that the loopback port still matches.
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
+            env.proxy_port,
         );
         let profile_state =
             ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);

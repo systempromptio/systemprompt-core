@@ -9,14 +9,15 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::plugin_oauth;
+use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::stdio::diag;
 use crate::{auth, config, stdio};
 
-pub fn cmd_oauth_client(args: &[String]) -> ExitCode {
+pub fn cmd_oauth_client(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     match args.get(2).map(String::as_str) {
         None | Some("status") => cmd_status(),
-        Some("rotate") => cmd_rotate(),
+        Some("rotate") => cmd_rotate(ctx),
         Some(other) => {
             diag(&format!("unknown oauth-client subcommand: {other}"));
             stdio::eprint_str(&format!(
@@ -54,26 +55,18 @@ fn cmd_status() -> ExitCode {
     }
 }
 
-fn cmd_rotate() -> ExitCode {
+fn cmd_rotate(ctx: &BridgeContext) -> ExitCode {
     let cfg = config::load();
     let base_url = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(base_url);
 
-    let result = crate::proxy::block_on(async move {
+    let outer = ctx.block_on(async move {
         let bearer = auth::obtain_live_token(&cfg, &SessionId::generate())
             .await
             .ok_or("no credential source configured (run `bridge login` first)")?;
         let creds = plugin_oauth::refresh_creds(&client, &bearer.token).await?;
         Ok::<_, Box<dyn std::error::Error>>(creds)
     });
-
-    let outer = match result {
-        Ok(o) => o,
-        Err(e) => {
-            diag(&format!("oauth-client rotate: runtime init failed: {e}"));
-            return ExitCode::from(70);
-        },
-    };
 
     match outer {
         Ok(creds) => {

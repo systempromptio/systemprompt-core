@@ -21,7 +21,7 @@ pub use shared::{ProfileGenInputs, default_models};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
     ProfileRemoval, ProfileState,
 };
 
@@ -46,11 +46,12 @@ impl HostApp for ClaudeDesktopHost {
         &shared::SCHEMA
     }
 
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = os::read_domain(shared::DESKTOP_DOMAIN);
-        let secret_fresh = shared::secret_freshness(read.api_key_fp.as_deref());
+        let secret_fresh = shared::secret_freshness(read.api_key_fp.as_deref(), env);
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get("inferenceGatewayBaseUrl").map(String::as_str),
+            env.proxy_port,
         );
         let profile_state = ProfileState::classify(
             shared::REQUIRED_KEYS,

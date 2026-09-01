@@ -22,6 +22,7 @@ auth
 validate update
 proxy_probe
 proxy
+context
 host_sync
 install
 integration

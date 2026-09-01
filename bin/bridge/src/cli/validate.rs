@@ -5,16 +5,11 @@
 
 use std::process::ExitCode;
 
+use crate::context::BridgeContext;
 use crate::{stdio, validate};
 
-pub fn cmd_validate() -> ExitCode {
-    let report = match crate::proxy::block_on(validate::run()) {
-        Ok(r) => r,
-        Err(e) => {
-            stdio::eprint_str(&format!("runtime init failed: {e}\n"));
-            return ExitCode::from(70);
-        },
-    };
+pub fn cmd_validate(ctx: &BridgeContext) -> ExitCode {
+    let report = ctx.block_on(validate::run());
     stdio::print_str(&report.rendered());
     if report.any_failed {
         ExitCode::from(1)

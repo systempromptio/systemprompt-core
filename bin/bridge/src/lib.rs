@@ -25,6 +25,7 @@ pub mod brand;
 pub mod buildinfo;
 pub mod cli;
 pub mod config;
+pub mod context;
 pub mod cowork_compat;
 #[cfg(feature = "dev-preview")]
 pub mod dev_preview;

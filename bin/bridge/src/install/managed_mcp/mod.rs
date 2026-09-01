@@ -41,9 +41,11 @@ pub(crate) fn policy_dir() -> PathBuf {
     }
 }
 
-pub(crate) fn server_map() -> Result<Map<String, Value>, std::io::Error> {
+pub(crate) fn server_map(
+    loopback: &crate::proxy::LoopbackEndpoint,
+) -> Result<Map<String, Value>, std::io::Error> {
     let registry = crate::mcp_registry::snapshot();
-    let bearer = crate::proxy::loopback_bearer()?;
+    let bearer = loopback.bearer()?;
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
     let mut map = Map::new();
@@ -52,7 +54,7 @@ pub(crate) fn server_map() -> Result<Map<String, Value>, std::io::Error> {
             slug.clone(),
             json!({
                 "type": "http",
-                "url": crate::proxy::mcp_url(slug.as_str()),
+                "url": loopback.mcp_url(slug.as_str()),
                 "headers": { "Authorization": bearer.clone() },
             }),
         );
@@ -71,9 +73,12 @@ pub(crate) enum PolicyOutcome {
     Declined,
 }
 
-pub(crate) fn apply_policy(allow_claude_ai_connectors: bool) -> PolicyOutcome {
+pub(crate) fn apply_policy(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    allow_claude_ai_connectors: bool,
+) -> PolicyOutcome {
     let dir = policy_dir();
-    let servers = match server_map() {
+    let servers = match server_map(loopback) {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!(

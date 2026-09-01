@@ -3,16 +3,22 @@
 //! `ExitCode` is opaque (no `PartialEq`, no accessor), so these tests assert
 //! observable side effects (config/PAT files created or removed) and that each
 //! command runs to completion without panicking inside a fully sandboxed
-//! environment. The command bodies internally drive `proxy::block_on`, so they
-//! are invoked directly from the synchronous `temp_env::with_vars` closure (no
-//! outer tokio runtime, which would nest-panic).
+//! environment. The command bodies drive the context's runtime with
+//! `block_on`, so they are invoked directly from the synchronous
+//! `temp_env::with_vars` closure (no outer tokio runtime, which would
+//! nest-panic).
 
 use systemprompt_bridge::cli::{
     clean, login, logout, oauth_client, status, sync, validate, whoami,
 };
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+fn ctx() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+}
 
 fn s(v: &str) -> Option<String> {
     Some(v.to_owned())
@@ -79,7 +85,7 @@ fn login_stores_pat_then_logout_and_clean_remove_it() {
             "login".to_owned(),
             "sp-live-testprefix.secretsecretsecretsecretsecret012345".to_owned(),
         ];
-        let _ = login::cmd_login(&args);
+        let _ = login::cmd_login(&ctx(), &args);
         let cfg_path = systemprompt_bridge::config::config_path().expect("config path resolvable");
         assert!(cfg_path.exists(), "login should create the config file");
 
@@ -99,7 +105,7 @@ fn login_without_a_terminal_fails_instead_of_waiting_for_a_person() {
     sandbox(None, || {
         let args = vec!["systemprompt-bridge".to_owned(), "login".to_owned()];
         assert_eq!(
-            login::cmd_login(&args),
+            login::cmd_login(&ctx(), &args),
             std::process::ExitCode::from(1),
             "bare `login` starts single sign-on, which cannot complete with no \
              terminal attached; it must report that rather than block on a \
@@ -126,7 +132,7 @@ fn status_renders_in_sandbox() {
 fn validate_runs_against_mock_gateway() {
     let (server, uri) = start_gateway();
     sandbox(Some(&uri), || {
-        let _ = validate::cmd_validate();
+        let _ = validate::cmd_validate(&ctx());
     });
     drop(server);
 }
@@ -137,7 +143,7 @@ fn whoami_runs_against_mock_gateway() {
     sandbox(Some(&uri), || {
         // No credential source in the sandbox, so this exercises the auth-failure
         // path of the wrapper; it must return an ExitCode without panicking.
-        let _ = whoami::cmd_whoami();
+        let _ = whoami::cmd_whoami(&ctx());
     });
     drop(server);
 }
@@ -151,7 +157,7 @@ fn sync_without_credentials_runs_error_path() {
             "sync".to_owned(),
             "--allow-unsigned".to_owned(),
         ];
-        let _ = sync::cmd_sync(&args);
+        let _ = sync::cmd_sync(&ctx(), &args);
     });
     drop(server);
 }
@@ -164,13 +170,13 @@ fn oauth_client_status_and_unknown_subcommand() {
             "oauth-client".to_owned(),
             "status".to_owned(),
         ];
-        let _ = oauth_client::cmd_oauth_client(&status_args);
+        let _ = oauth_client::cmd_oauth_client(&ctx(), &status_args);
 
         let bogus = vec![
             "systemprompt-bridge".to_owned(),
             "oauth-client".to_owned(),
             "no-such-subcommand".to_owned(),
         ];
-        let _ = oauth_client::cmd_oauth_client(&bogus);
+        let _ = oauth_client::cmd_oauth_client(&ctx(), &bogus);
     });
 }

@@ -80,7 +80,6 @@ members = [
     "unit/bridge/proxy",
     "unit/bridge/proxy-harness",
     "unit/bridge/proxy-module",
-    "unit/bridge/proxy-port-fallback",
     "unit/bridge/auth",
     "unit/bridge/config",
     "unit/bridge/cowork-plugins",

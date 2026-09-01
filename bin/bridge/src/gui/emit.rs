@@ -35,7 +35,7 @@ pub(crate) fn send_reply_payload(app: &GuiApp, id: u64, payload: &IpcReplyPayloa
 }
 
 pub(crate) fn emit_proxy_stats(app: &GuiApp) {
-    let value = crate::gui::server_json::proxy_stats_value();
+    let value = crate::gui::server_json::proxy_stats_value(&app.ctx.proxy);
     send_emit(app, "proxy.stats", &value);
 }
 
@@ -89,7 +89,7 @@ pub(crate) fn emit_first_run_progress(app: &GuiApp) {
 
 pub(crate) fn emit_state(app: &mut GuiApp) {
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::snapshot_value(&snap);
+    let value = crate::gui::server_json::snapshot_value(&snap, &app.ctx.proxy);
     let hash = semantic_hash(&value);
     if app.last_state_hash == Some(hash) {
         return;

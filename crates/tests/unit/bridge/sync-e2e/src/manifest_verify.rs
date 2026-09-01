@@ -15,6 +15,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
+use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -211,7 +212,12 @@ fn run_verified_sync(
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(systemprompt_bridge::sync::run_once(false, true, allow_tofu))
+                .block_on(systemprompt_bridge::sync::run_once(
+                    &loopback(),
+                    false,
+                    true,
+                    allow_tofu,
+                ))
                 .map_err(|e| e.to_string())
         },
     )
@@ -396,4 +402,8 @@ fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_versio
         Err(ManifestError::BridgeTooOld { local, .. }) => assert_eq!(local, COMPAT_VERSION),
         other => panic!("expected BridgeTooOld carrying the compat line, got {other:?}"),
     }
+}
+
+fn loopback() -> LoopbackEndpoint {
+    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
 }

@@ -17,7 +17,7 @@ use systemprompt_identifiers::SessionId;
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_update_check_requested(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = check().await.map_err(Arc::new);
         proxy.send_event(UiEvent::UpdateCheckFinished { result, reply_to });
     });
@@ -67,7 +67,7 @@ pub(crate) fn on_update_install_requested(app: &mut GuiApp, reply_to: ReplyId) {
     emit::emit_state(app);
 
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let progress_proxy = proxy.clone();
         let progress_version = version.clone();
         let on_progress = move |p: update::DownloadProgress| {

@@ -7,6 +7,7 @@
 #![cfg(target_os = "macos")]
 
 use crate::install::xml;
+use crate::proxy::LoopbackEndpoint;
 use std::path::Path;
 
 use super::MdmError;
@@ -22,8 +23,9 @@ const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
 const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
     include_str!("../templates/mobileconfig_pubkey_line.tmpl");
 
-fn loopback_api_key() -> String {
-    crate::proxy::secret::for_profile()
+fn loopback_api_key(loopback: &LoopbackEndpoint) -> String {
+    loopback
+        .secret()
         .map(crate::ids::LoopbackSecret::into_inner)
         .unwrap_or_default()
 }
@@ -38,15 +40,19 @@ fn egress_plist_block(indent: &str) -> String {
     clippy::literal_string_with_formatting_args,
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
-pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
+pub fn build_prefs_plist(
+    loopback: &LoopbackEndpoint,
+    gateway: &str,
+    pubkey: Option<&str>,
+) -> String {
     let pubkey_block = pubkey
         .map(|pk| PREFS_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
         .unwrap_or_default();
     PREFS_PLIST_TMPL
         .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
+        .replace("{api_key_esc}", &xml::escape(&loopback_api_key(loopback)))
         .replace("{egress_block}", &egress_plist_block("  "))
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block())
+        .replace("{managed_mcp_block}", &managed_mcp_plist_block(loopback))
         .replace("{pubkey_block}", &pubkey_block)
 }
 
@@ -54,7 +60,11 @@ pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
     clippy::literal_string_with_formatting_args,
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
-pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
+pub fn build_mobileconfig(
+    loopback: &LoopbackEndpoint,
+    gateway: &str,
+    pubkey: Option<&str>,
+) -> String {
     let pubkey_block = pubkey
         .map(|pk| MOBILECONFIG_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
         .unwrap_or_default();
@@ -64,15 +74,15 @@ pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
         .replace("{inner_uuid}", &xml::stable_uuid(INNER_PAYLOAD_IDENTIFIER))
         .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
         .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
+        .replace("{api_key_esc}", &xml::escape(&loopback_api_key(loopback)))
         .replace("{egress_block}", &egress_plist_block("      "))
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block())
+        .replace("{managed_mcp_block}", &managed_mcp_plist_block(loopback))
         .replace("{pubkey_block}", &pubkey_block)
 }
 
 // Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do
 // well-known discovery"; omitting the key disables discovery entirely.
-fn managed_mcp_plist_block() -> String {
+fn managed_mcp_plist_block(loopback: &LoopbackEndpoint) -> String {
     let registry = crate::mcp_registry::snapshot();
     if registry.is_empty() {
         return String::new();
@@ -117,12 +127,16 @@ fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
     Ok(())
 }
 
-pub(crate) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
+pub(crate) fn apply(
+    loopback: &LoopbackEndpoint,
+    gateway: &str,
+    pubkey: Option<&str>,
+) -> Result<Vec<String>, MdmError> {
     use std::fs;
 
     validate_gateway(gateway)?;
 
-    let plist = build_prefs_plist(gateway, pubkey);
+    let plist = build_prefs_plist(loopback, gateway, pubkey);
     let tmp_path =
         std::env::temp_dir().join(format!("{}.prefs.plist", crate::brand::brand().binary_name));
     fs::write(&tmp_path, plist.as_bytes()).map_err(|e| MdmError::Io {
@@ -218,6 +232,7 @@ fn apply_summary(
 }
 
 pub(crate) fn apply_mobileconfig(
+    loopback: &LoopbackEndpoint,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
@@ -226,7 +241,7 @@ pub(crate) fn apply_mobileconfig(
 
     validate_gateway(gateway)?;
 
-    let mobileconfig = build_mobileconfig(gateway, pubkey);
+    let mobileconfig = build_mobileconfig(loopback, gateway, pubkey);
     let out_path = std::env::temp_dir().join(format!(
         "{}.mobileconfig",
         crate::brand::brand().binary_name

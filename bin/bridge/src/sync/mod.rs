@@ -41,6 +41,7 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
 
 #[tracing::instrument(level = "info")]
 pub async fn run_once(
+    loopback: &crate::proxy::LoopbackEndpoint,
     allow_unsigned: bool,
     force_replay: bool,
     allow_tofu: bool,
@@ -102,9 +103,15 @@ pub async fn run_once(
         check_skew(&synced.not_before, now)?;
     }
 
-    let report = apply::apply_manifest(&fetch.client, fetch.bearer.expose(), &synced, &location)
-        .await
-        .map_err(SyncError::ApplyFailed)?;
+    let report = apply::apply_manifest(
+        &fetch.client,
+        fetch.bearer.expose(),
+        loopback,
+        &synced,
+        &location,
+    )
+    .await
+    .map_err(SyncError::ApplyFailed)?;
 
     seed_default_model_from_profile(&fetch.client).await;
 

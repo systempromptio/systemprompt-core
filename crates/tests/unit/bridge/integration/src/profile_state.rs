@@ -119,11 +119,14 @@ fn a_wrong_secret_is_named_ahead_of_a_wrong_port() {
 
 #[test]
 fn endpoint_freshness_ignores_anything_that_is_not_a_loopback_url() {
-    assert_eq!(ProfileState::endpoint_freshness(None), None);
-    assert_eq!(ProfileState::endpoint_freshness(Some("")), None);
+    assert_eq!(ProfileState::endpoint_freshness(None, 48217), None);
+    assert_eq!(ProfileState::endpoint_freshness(Some(""), 48217), None);
     assert_eq!(
-        ProfileState::endpoint_freshness(Some("https://gateway.example.com/v1")),
+        ProfileState::endpoint_freshness(Some("https://gateway.example.com/v1"), 48217),
         None
     );
-    assert_eq!(ProfileState::endpoint_freshness(Some("garbage")), None);
+    assert_eq!(
+        ProfileState::endpoint_freshness(Some("garbage"), 48217),
+        None
+    );
 }

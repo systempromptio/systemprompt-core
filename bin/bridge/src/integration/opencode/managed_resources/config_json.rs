@@ -10,19 +10,23 @@ use serde_json::{Map, Value, json};
 use crate::gateway::manifest::ManagedMcpServer;
 use crate::host_sync::ApplyError;
 use crate::integration::claude_code_cli::json_io::{object_entry, read_json_object, write_json};
+use crate::proxy::LoopbackEndpoint;
 
 use super::super::config::user_config_path;
 
 const MCP_TABLE: &str = "mcp";
 
-pub(super) fn write_mcp_blocks(servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+pub(super) fn write_mcp_blocks(
+    loopback: &LoopbackEndpoint,
+    servers: &[ManagedMcpServer],
+) -> Result<(), ApplyError> {
     let path = user_config_path();
     let original = read_json_object(&path)?;
     let mut value = original.clone();
 
-    strip_bridge_servers(&mut value);
+    strip_bridge_servers(loopback, &mut value);
     if !servers.is_empty() {
-        let bearer = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+        let bearer = loopback.bearer().map_err(|e| ApplyError::Io {
             context: "read loopback secret for opencode mcp".into(),
             source: e,
         })?;
@@ -35,7 +39,7 @@ pub(super) fn write_mcp_blocks(servers: &[ManagedMcpServer]) -> Result<(), Apply
                 slug.clone(),
                 json!({
                     "type": "remote",
-                    "url": crate::proxy::mcp_url(&slug),
+                    "url": loopback.mcp_url(&slug),
                     "headers": { "Authorization": bearer },
                     "enabled": true,
                 }),
@@ -49,11 +53,11 @@ pub(super) fn write_mcp_blocks(servers: &[ManagedMcpServer]) -> Result<(), Apply
     write_json(&path, &Value::Object(value))
 }
 
-fn strip_bridge_servers(root: &mut Map<String, Value>) {
+fn strip_bridge_servers(loopback: &LoopbackEndpoint, root: &mut Map<String, Value>) {
     let Some(Value::Object(table)) = root.get_mut(MCP_TABLE) else {
         return;
     };
-    let prefix = format!("{}/mcp/", crate::proxy::loopback_origin());
+    let prefix = format!("{}/mcp/", loopback.origin());
     table.retain(|_, entry| {
         !entry
             .get("url")

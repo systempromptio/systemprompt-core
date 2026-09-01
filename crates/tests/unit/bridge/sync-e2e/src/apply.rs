@@ -26,6 +26,7 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::mcp_registry::normalize_key;
+use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use systemprompt_bridge::sync::run_once;
 use systemprompt_identifiers::HookId;
 use systemprompt_models::services::PluginHooksRef;
@@ -272,7 +273,7 @@ fn run_sync(dirs: &SandboxDirs) -> Result<systemprompt_bridge::sync::SyncSummary
             .enable_all()
             .build()
             .unwrap()
-            .block_on(run_once(true, true, true))
+            .block_on(run_once(&loopback(), true, true, true))
             .map_err(|e| e.to_string())
     })
 }
@@ -1292,4 +1293,8 @@ fn sync_fails_only_when_a_freshly_minted_token_is_also_rejected() {
         err.contains(".pat"),
         "the PAT file the bridge actually read is named: {err}"
     );
+}
+
+fn loopback() -> LoopbackEndpoint {
+    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
 }

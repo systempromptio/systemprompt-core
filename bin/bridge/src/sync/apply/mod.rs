@@ -19,6 +19,7 @@ use crate::config::{self as config};
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
 use crate::host_sync::{self, HostSyncCtx};
+use crate::proxy::LoopbackEndpoint;
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
@@ -29,13 +30,21 @@ pub(crate) use plugin::PluginApplyOutcome as ApplyReport;
 pub(crate) async fn apply_manifest(
     client: &GatewayClient,
     bearer: &str,
+    loopback: &LoopbackEndpoint,
     manifest: &SignedManifest,
     location: &OrgPluginsLocation,
 ) -> Result<ApplyReport, ApplyError> {
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
 
-    let mut report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
+    let plugin_ctx = plugin::PluginSyncCtx {
+        client,
+        bearer,
+        loopback,
+        root,
+        staging_root: &staging_root,
+    };
+    let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
 
     _ = fs::remove_dir_all(&staging_root);
     prune_legacy_state();
@@ -54,6 +63,7 @@ pub(crate) async fn apply_manifest(
         plugin_mcp_servers: &plugin_mcp_servers,
         client,
         bearer,
+        loopback,
     };
     for emitter in host_sync::registry() {
         let host_id = emitter.host_id();
@@ -64,7 +74,7 @@ pub(crate) async fn apply_manifest(
         let outcome = if enabled {
             emitter.apply(&ctx).await
         } else {
-            emitter.clear()
+            emitter.clear(&ctx)
         };
         if let Err(e) = &outcome {
             report.host_failures.push(HostFailure {

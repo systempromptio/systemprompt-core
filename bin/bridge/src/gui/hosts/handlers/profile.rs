@@ -34,8 +34,9 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, repl
     let host_id_owned = host_id.clone();
     let overrides = app.state.snapshot().host_model_protocols;
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
-        let result = generate_profile_for(host, &overrides)
+    let loopback = app.ctx.proxy.loopback().clone();
+    app.ctx.spawn(async move {
+        let result = generate_profile_for(host, &loopback, &overrides)
             .await
             .map_err(Arc::new);
         proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
@@ -121,7 +122,7 @@ pub(crate) fn on_profile_install_requested(
     let host_id_owned = host_id.clone();
     let path_clone = path.clone();
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = match tokio::task::spawn_blocking(move || {
             host.install_profile(&path)
                 .map(|()| path_clone)
@@ -192,20 +193,21 @@ pub(crate) fn on_profile_install_finished(
 
 async fn generate_profile_for(
     host: &'static dyn crate::integration::HostApp,
+    loopback: &crate::proxy::LoopbackEndpoint,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
     let cfg = config::load();
 
     // Why: a proxy that had to move off the default port is still perfectly
-    // usable, and `loopback_origin` finds it. Refusing on a missing in-process
+    // usable, and the endpoint names it. Refusing on a missing in-process
     // handle used to make a GUI that lost the port race unable to write any
     // profile at all.
-    let gateway_base_url = crate::proxy::loopback_origin();
+    let gateway_base_url = loopback.origin();
 
     // Why: a foreign install on our port must still refuse — writing *our*
     // loopback secret against *their* port produces exactly the 403 this
     // profile is supposed to prevent.
-    let port = crate::proxy::resolved_port();
+    let port = loopback.port();
     if let crate::proxy::peer::PeerIdentity::Foreign(who) = crate::proxy::peer::probe_identity(port)
     {
         return Err(GuiError::Profile {
@@ -222,7 +224,8 @@ async fn generate_profile_for(
         });
     }
 
-    let loopback_secret = crate::proxy::secret::for_profile()
+    let loopback_secret = loopback
+        .secret()
         .map(crate::ids::LoopbackSecret::into_inner)
         .map_err(|e| GuiError::Profile {
             context: "loopback secret".into(),

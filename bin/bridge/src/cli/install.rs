@@ -8,12 +8,13 @@ use std::process::ExitCode;
 use systemprompt_identifiers::ValidatedUrl;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
+use crate::context::BridgeContext;
 use crate::ids::PinnedPubKey;
 use crate::schedule::Os;
 use crate::stdio::diag;
 use crate::{install, stdio};
 
-pub(super) fn cmd_install(args: &[String]) -> ExitCode {
+pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let print_mdm = parse_opt_flag(args, "--print-mdm")
         .as_deref()
         .and_then(Os::parse);
@@ -40,15 +41,18 @@ pub(super) fn cmd_install(args: &[String]) -> ExitCode {
     _ = install::set_egress_allowed_hosts(
         parse_opt_flag(args, "--egress-allowed-hosts").as_deref(),
     );
-    match install::install(&install::InstallOptions {
-        print_mdm,
-        emit_schedule_template: emit_sched,
-        gateway_url: gateway,
-        pubkey,
-        apply,
-        apply_mobileconfig,
-        apply_schedule,
-    }) {
+    match install::install(
+        &install::InstallOptions {
+            print_mdm,
+            emit_schedule_template: emit_sched,
+            gateway_url: gateway,
+            pubkey,
+            apply,
+            apply_mobileconfig,
+            apply_schedule,
+        },
+        ctx.proxy.loopback(),
+    ) {
         Ok(summary) => {
             stdio::print_str(&install::render_install_summary(&summary));
             ExitCode::SUCCESS

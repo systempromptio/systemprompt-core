@@ -8,12 +8,13 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::ChainError;
+use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::stdio::diag;
 use crate::{auth, config, stdio};
 
-pub fn cmd_whoami() -> ExitCode {
-    match crate::proxy::block_on(async {
+pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
+    ctx.block_on(async {
         let cfg = config::load();
         let gateway = config::gateway_url_or_default(&cfg);
         let out = match auth::acquire_bearer(&cfg, &SessionId::generate()).await {
@@ -47,11 +48,5 @@ pub fn cmd_whoami() -> ExitCode {
                 ExitCode::from(3)
             },
         }
-    }) {
-        Ok(code) => code,
-        Err(e) => {
-            diag(&format!("runtime init failed: {e}"));
-            ExitCode::from(70)
-        },
-    }
+    })
 }

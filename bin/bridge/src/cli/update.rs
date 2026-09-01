@@ -12,6 +12,7 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::ChainError;
+use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::stdio::diag;
 use crate::update::{self, UpdateStatus};
@@ -47,7 +48,7 @@ pub fn parse(argv: &[String]) -> Result<Args, ArgsError> {
     Ok(args)
 }
 
-pub fn cmd_update(argv: &[String]) -> ExitCode {
+pub fn cmd_update(ctx: &BridgeContext, argv: &[String]) -> ExitCode {
     let args = match parse(argv) {
         Ok(a) => a,
         Err(e) => {
@@ -56,13 +57,7 @@ pub fn cmd_update(argv: &[String]) -> ExitCode {
         },
     };
 
-    match crate::proxy::block_on(async move { run(&args).await }) {
-        Ok(code) => code,
-        Err(e) => {
-            diag(&format!("runtime init failed: {e}"));
-            ExitCode::from(70)
-        },
-    }
+    ctx.block_on(async move { run(&args).await })
 }
 
 async fn run(args: &Args) -> ExitCode {

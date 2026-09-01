@@ -9,25 +9,27 @@ pub mod forward;
 pub mod heartbeat;
 pub mod identity;
 pub mod keepalive;
+pub mod loopback;
 pub mod mcp_probe;
 pub mod peer;
 pub mod portfile;
-mod runtime;
 pub mod secret;
 pub mod server;
 pub mod session;
 pub mod token_cache;
 pub mod usage;
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
+use tokio::runtime::Handle;
+
+use crate::config::{self, RuntimeConfig, SharedRuntimeConfig};
 use crate::stdio::diag;
 use peer::PeerIdentity;
 
-use runtime::runtime;
-pub use runtime::{block_on, reload_runtime_config, runtime_config, runtime_handle};
-pub use server::{ProxyHandle, ProxyStats};
+pub use loopback::LoopbackEndpoint;
+pub use server::{ProxyStats, ServedProxy};
 
 pub const DEFAULT_PROXY_PORT: u16 = 48217;
 const REFRESH_TICK: Duration = Duration::from_mins(1);
@@ -35,19 +37,18 @@ pub use forward::REFRESH_THRESHOLD_SECS;
 use session::SessionContext;
 use token_cache::TokenCache;
 
-static HANDLE: OnceLock<ProxyHandle> = OnceLock::new();
-static RESOLVED_PORT: OnceLock<u16> = OnceLock::new();
-
 pub const MAX_CANDIDATE_PORT: u16 = DEFAULT_PROXY_PORT + 9;
 
-/// What happened when this process tried to own a loopback port.
+/// What this process's relationship to the loopback port turned out to be.
 ///
-/// `Option<&ProxyHandle>` could not express the middle case: our own proxy is
-/// already serving, which is a success for the caller even though this process
-/// bound nothing.
+/// `Option<&ServedProxy>` could not express the middle cases: a sibling window
+/// of this same install already serving the port is a success for the caller
+/// even though this process bound nothing, and a process that never tried to
+/// bind (`install`, `sync`, `doctor`) is not a failure either.
 #[derive(Debug)]
-pub enum StartOutcome {
-    Started(&'static ProxyHandle),
+pub enum ProxyRole {
+    Serving(ServedProxy),
+    Attached,
     AlreadyRunning {
         port: u16,
         pid: u32,
@@ -59,19 +60,25 @@ pub enum StartOutcome {
     },
 }
 
-impl StartOutcome {
-    #[must_use]
-    pub const fn port(&self) -> Option<u16> {
-        match self {
-            Self::Started(h) => Some(h.port),
-            Self::AlreadyRunning { port, .. } => Some(*port),
-            Self::Failed { .. } => None,
-        }
-    }
+/// The proxy as owned by one process: its role, the loopback endpoint every
+/// writer is handed, and the hot-swappable runtime config.
+///
+/// Built once by the composition root (the bridge context) and
+/// injected; nothing below the context reaches it ambiently.
+pub struct ProxyHandle {
+    role: ProxyRole,
+    loopback: LoopbackEndpoint,
+    runtime: Handle,
+    runtime_config: SharedRuntimeConfig,
+    token_cache: Option<Arc<TokenCache>>,
+}
 
-    #[must_use]
-    pub const fn is_usable(&self) -> bool {
-        self.port().is_some()
+impl std::fmt::Debug for ProxyHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyHandle")
+            .field("role", &self.role)
+            .field("loopback", &self.loopback)
+            .finish_non_exhaustive()
     }
 }
 
@@ -93,31 +100,170 @@ pub fn candidate_ports() -> Vec<u16> {
     ports
 }
 
-pub fn start_default() -> StartOutcome {
-    if let Some(h) = HANDLE.get() {
-        return StartOutcome::Started(h);
+enum Bind {
+    Listener(tokio::net::TcpListener),
+    Sibling {
+        port: u16,
+        pid: u32,
+        config_dir: String,
+    },
+    Exhausted,
+}
+
+impl ProxyHandle {
+    // Why: the outcome is recorded in `role` rather than returned as an error
+    // because a GUI that lost the port race is still a useful GUI.
+    #[must_use]
+    pub fn serve(rt: &Handle) -> Self {
+        crate::mcp_registry::rehydrate_from_disk();
+        let runtime_config = config::shared_from_loaded();
+        let mut tried = Vec::new();
+        let mut last_error = "no candidate port could be bound".to_owned();
+
+        let listener = match bind_candidate(rt, &mut tried, &mut last_error) {
+            Bind::Listener(l) => l,
+            Bind::Sibling {
+                port,
+                pid,
+                config_dir,
+            } => {
+                return Self::not_serving(
+                    rt,
+                    runtime_config,
+                    port,
+                    ProxyRole::AlreadyRunning {
+                        port,
+                        pid,
+                        config_dir,
+                    },
+                );
+            },
+            Bind::Exhausted => {
+                return Self::failed(rt, runtime_config, tried, last_error);
+            },
+        };
+
+        let loopback_secret = match secret::proxy_init() {
+            Ok(s) => s,
+            Err(e) => return Self::failed(rt, runtime_config, tried, e.to_string()),
+        };
+        let session_context = Arc::new(SessionContext::new());
+        let token_cache = Arc::new(TokenCache::default_for_runtime(
+            session_context.session_id().clone(),
+        ));
+        let parts = server::ServerParts {
+            loopback: loopback_secret.clone(),
+            runtime_config: Arc::clone(&runtime_config),
+            token_cache: Arc::clone(&token_cache),
+            session: session_context,
+        };
+        let served = match server::start_with_listener(rt, listener, parts) {
+            Ok(s) => s,
+            Err(e) => return Self::failed(rt, runtime_config, tried, e.to_string()),
+        };
+
+        persist_and_announce(served.port);
+        rt.spawn(refresh_loop(Arc::clone(&token_cache)));
+
+        Self {
+            loopback: LoopbackEndpoint::new(served.port, Some(loopback_secret)),
+            role: ProxyRole::Serving(served),
+            runtime: rt.clone(),
+            runtime_config,
+            token_cache: Some(token_cache),
+        }
     }
-    crate::mcp_registry::rehydrate_from_disk();
-    let rt = match runtime() {
-        Ok(rt) => rt,
-        Err(e) => {
-            diag(&format!("proxy: tokio runtime build failed: {e}"));
-            return StartOutcome::Failed {
-                tried: Vec::new(),
-                last_error: format!("tokio runtime build failed: {e}"),
-            };
-        },
-    };
 
-    let mut tried = Vec::new();
-    let mut last_error = "no candidate port could be bound".to_owned();
-    let mut listener = None;
+    // Why: `install --apply`, `sync` and `doctor` run beside a serving bridge
+    // and must find its port, not race it — so nothing is bound here.
+    #[must_use]
+    pub fn attach(rt: &Handle) -> Self {
+        let port = portfile_port().unwrap_or(DEFAULT_PROXY_PORT);
+        Self::not_serving(rt, config::shared_from_loaded(), port, ProxyRole::Attached)
+    }
 
+    fn failed(
+        rt: &Handle,
+        runtime_config: SharedRuntimeConfig,
+        tried: Vec<u16>,
+        last_error: String,
+    ) -> Self {
+        let port = portfile_port().unwrap_or(DEFAULT_PROXY_PORT);
+        Self::not_serving(
+            rt,
+            runtime_config,
+            port,
+            ProxyRole::Failed { tried, last_error },
+        )
+    }
+
+    fn not_serving(
+        rt: &Handle,
+        runtime_config: SharedRuntimeConfig,
+        port: u16,
+        role: ProxyRole,
+    ) -> Self {
+        Self {
+            role,
+            loopback: LoopbackEndpoint::new(port, None),
+            runtime: rt.clone(),
+            runtime_config,
+            token_cache: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn role(&self) -> &ProxyRole {
+        &self.role
+    }
+
+    #[must_use]
+    pub const fn served(&self) -> Option<&ServedProxy> {
+        match &self.role {
+            ProxyRole::Serving(s) => Some(s),
+            ProxyRole::Attached | ProxyRole::AlreadyRunning { .. } | ProxyRole::Failed { .. } => {
+                None
+            },
+        }
+    }
+
+    #[must_use]
+    pub const fn is_serving(&self) -> bool {
+        self.served().is_some()
+    }
+
+    #[must_use]
+    pub const fn loopback(&self) -> &LoopbackEndpoint {
+        &self.loopback
+    }
+
+    #[must_use]
+    pub const fn port(&self) -> u16 {
+        self.loopback.port()
+    }
+
+    #[must_use]
+    pub const fn runtime_config(&self) -> &SharedRuntimeConfig {
+        &self.runtime_config
+    }
+
+    pub fn reload_runtime_config(&self) {
+        self.runtime_config
+            .store(Arc::new(RuntimeConfig::from_loaded()));
+        if let Some(cache) = &self.token_cache {
+            let cache = Arc::clone(cache);
+            self.runtime.spawn(async move { cache.invalidate().await });
+        }
+        tracing::info!(target: "bridge::config", "runtime config swapped");
+    }
+}
+
+fn bind_candidate(rt: &Handle, tried: &mut Vec<u16>, last_error: &mut String) -> Bind {
     for port in candidate_ports() {
         if port != 0 {
             match peer::probe_identity(port) {
                 PeerIdentity::Ours(who) => {
-                    return StartOutcome::AlreadyRunning {
+                    return Bind::Sibling {
                         port: who.port,
                         pid: who.pid,
                         config_dir: who.config_dir,
@@ -148,50 +294,14 @@ pub fn start_default() -> StartOutcome {
         // Why: bind anyway even after a clean probe — another process can take
         // the port between the two calls.
         match rt.block_on(server::try_bind(port)) {
-            Ok(l) => {
-                listener = Some(l);
-                break;
-            },
+            Ok(l) => return Bind::Listener(l),
             Err(e) => {
-                last_error = e.to_string();
+                *last_error = e.to_string();
                 tried.push(port);
             },
         }
     }
-
-    let Some(listener) = listener else {
-        return StartOutcome::Failed { tried, last_error };
-    };
-
-    let shared = runtime_config();
-    let session_context = Arc::new(SessionContext::new());
-    let token_cache = Arc::new(TokenCache::default_for_runtime(
-        session_context.session_id().clone(),
-    ));
-    runtime::remember_token_cache(&token_cache);
-
-    let handle = match server::start_with_listener(
-        rt,
-        listener,
-        Arc::clone(&shared),
-        Arc::clone(&token_cache),
-        Arc::clone(&session_context),
-    ) {
-        Ok(h) => h,
-        Err(e) => {
-            return StartOutcome::Failed {
-                tried,
-                last_error: e.to_string(),
-            };
-        },
-    };
-
-    persist_and_announce(handle.port);
-    rt.spawn(refresh_loop(token_cache));
-
-    // Why: `get_or_init` hands back the `'static` reference in the same call
-    // that stores it, so there is no "set then get" gap to reason about.
-    StartOutcome::Started(HANDLE.get_or_init(|| handle))
+    Bind::Exhausted
 }
 
 fn persist_and_announce(port: u16) {
@@ -223,25 +333,6 @@ fn persist_and_announce(port: u16) {
     }
 }
 
-pub fn handle() -> Option<&'static ProxyHandle> {
-    HANDLE.get()
-}
-
-#[must_use]
-pub fn mcp_url(slug: &str) -> String {
-    format!("{}/mcp/{slug}", loopback_origin())
-}
-
-#[must_use]
-pub fn resolved_port() -> u16 {
-    if let Some(h) = handle() {
-        return h.port;
-    }
-    // Why: cached because `mcp_url` is called in loops and must not re-probe
-    // each time.
-    *RESOLVED_PORT.get_or_init(|| portfile_port().unwrap_or(DEFAULT_PROXY_PORT))
-}
-
 fn portfile_port() -> Option<u16> {
     let record = portfile::read()?;
     match peer::probe_identity(record.port) {
@@ -259,15 +350,6 @@ fn portfile_port() -> Option<u16> {
             None
         },
     }
-}
-
-#[must_use]
-pub fn loopback_origin() -> String {
-    format!("http://127.0.0.1:{}", resolved_port())
-}
-
-pub fn loopback_bearer() -> std::io::Result<String> {
-    secret::proxy_init().map(|s| format!("Bearer {}", s.as_str()))
 }
 
 async fn refresh_loop(cache: Arc<TokenCache>) {

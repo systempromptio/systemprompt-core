@@ -10,6 +10,7 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::codex_cli::CodexCliSync;
+use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
@@ -91,7 +92,20 @@ fn ctx<'a>(
         plugin_mcp_servers,
         client,
         bearer,
+        loopback: &LOOPBACK,
     }
+}
+
+
+static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
+    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+});
+
+fn clear(home: &Path) -> Result<(), systemprompt_bridge::host_sync::ApplyError> {
+    let client = stub_client();
+    let plugin_mcp_servers = std::collections::BTreeMap::new();
+    let m = manifest_with(Vec::new(), Vec::new(), Vec::new());
+    CodexCliSync.clear(&ctx(&m, home, &client, "", &plugin_mcp_servers))
 }
 
 fn stub_client() -> GatewayClient {
@@ -389,7 +403,7 @@ fn clear_removes_marketplace_tree_and_config_blocks() {
         );
         assert!(plugin_src(home).is_dir());
 
-        CodexCliSync.clear().unwrap();
+        clear(home).unwrap();
 
         assert!(
             !marketplace_root(home).exists(),
@@ -583,9 +597,7 @@ fn a_deleted_marketplace_json_forces_the_source_tree_to_be_rewritten() {
 #[test]
 fn clearing_a_codex_home_that_was_never_written_is_a_no_op() {
     with_codex_home(|home| {
-        CodexCliSync
-            .clear()
-            .expect("clear on a clean home succeeds");
+        clear(home).expect("clear on a clean home succeeds");
         assert!(
             !marketplace_root(home).exists(),
             "nothing is created by a clear"

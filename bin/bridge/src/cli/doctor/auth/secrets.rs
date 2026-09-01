@@ -29,7 +29,7 @@ pub fn check_loopback_secret() -> Check {
 }
 
 #[must_use]
-pub fn check_host_profile_secrets() -> Option<Check> {
+pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) -> Option<Check> {
     use crate::integration::ProfileState;
 
     use crate::integration::StaleReason;
@@ -38,7 +38,7 @@ pub fn check_host_profile_secrets() -> Option<Check> {
     let mut wrong_port: Vec<&'static str> = Vec::new();
     let mut any_installed = false;
     for host in crate::integration::host_apps() {
-        match host.probe().profile_state {
+        match host.probe(env).profile_state {
             ProfileState::Stale {
                 reason: StaleReason::LoopbackSecret,
             } => stale.push(host.display_name()),
@@ -55,7 +55,7 @@ pub fn check_host_profile_secrets() -> Option<Check> {
             format!(
                 "{} points at a proxy port this install no longer holds (the proxy is on {}); {}",
                 wrong_port.join(", "),
-                crate::proxy::resolved_port(),
+                env.proxy_port,
                 proxy_secret::reapply_hint()
             ),
         ));

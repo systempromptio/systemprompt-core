@@ -8,6 +8,8 @@ use std::time::{Duration, Instant};
 
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 
+use crate::proxy::LoopbackEndpoint;
+
 mod rpc;
 mod types;
 
@@ -20,7 +22,7 @@ pub(super) const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 pub(super) const SESSION_HEADER: &str = "mcp-session-id";
 
 #[must_use]
-pub async fn probe_all() -> Vec<McpServerAuth> {
+pub async fn probe_all(loopback: &LoopbackEndpoint) -> Vec<McpServerAuth> {
     let registry = crate::mcp_registry::snapshot();
     let probed_at_unix = now_unix();
 
@@ -48,7 +50,7 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
                 .iter()
                 .map(|slug| McpServerAuth {
                     id: (*slug).clone(),
-                    url: crate::proxy::mcp_url(slug),
+                    url: loopback.mcp_url(slug),
                     state: McpAuthState::LocalError,
                     tools: Vec::new(),
                     http_status: None,
@@ -63,7 +65,7 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
 
     let mut out = Vec::with_capacity(slugs.len());
     for slug in slugs {
-        out.push(probe_one(&client, slug).await);
+        out.push(probe_one(loopback, &client, slug).await);
     }
     out
 }
@@ -76,7 +78,7 @@ pub fn build_client() -> reqwest::Result<reqwest::Client> {
 }
 
 #[must_use]
-pub async fn probe_slug(slug: &str) -> Option<McpServerAuth> {
+pub async fn probe_slug(loopback: &LoopbackEndpoint, slug: &str) -> Option<McpServerAuth> {
     if !crate::mcp_registry::snapshot().contains_key(slug) {
         return None;
     }
@@ -85,7 +87,7 @@ pub async fn probe_slug(slug: &str) -> Option<McpServerAuth> {
         Err(e) => {
             return Some(McpServerAuth {
                 id: slug.to_owned(),
-                url: crate::proxy::mcp_url(slug),
+                url: loopback.mcp_url(slug),
                 state: McpAuthState::LocalError,
                 tools: Vec::new(),
                 http_status: None,
@@ -96,13 +98,17 @@ pub async fn probe_slug(slug: &str) -> Option<McpServerAuth> {
             });
         },
     };
-    Some(probe_one(&client, slug).await)
+    Some(probe_one(loopback, &client, slug).await)
 }
 
-async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
-    let url = crate::proxy::mcp_url(slug);
+async fn probe_one(
+    loopback: &LoopbackEndpoint,
+    client: &reqwest::Client,
+    slug: &str,
+) -> McpServerAuth {
+    let url = loopback.mcp_url(slug);
     let probed_at_unix = now_unix();
-    let bearer = match crate::proxy::loopback_bearer() {
+    let bearer = match loopback.bearer() {
         Ok(b) => b,
         Err(e) => {
             return result(

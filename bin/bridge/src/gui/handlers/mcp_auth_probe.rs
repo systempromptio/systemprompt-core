@@ -29,10 +29,11 @@ pub(crate) fn on_mcp_auth_probe_requested(
 
 fn spawn_probe(app: &GuiApp, server_id: Option<String>, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    let loopback = app.ctx.proxy.loopback().clone();
+    app.ctx.spawn(async move {
         let results = match server_id {
-            Some(slug) => McpProbeResults::One(mcp_probe::probe_slug(&slug).await),
-            None => McpProbeResults::All(mcp_probe::probe_all().await),
+            Some(slug) => McpProbeResults::One(mcp_probe::probe_slug(&loopback, &slug).await),
+            None => McpProbeResults::All(mcp_probe::probe_all(&loopback).await),
         };
         proxy.send_event(UiEvent::McpAuthProbeFinished { results, reply_to });
     });

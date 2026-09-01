@@ -33,11 +33,12 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     emit::emit_sync_progress(app, "started", None);
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Sync);
-    app.runtime.spawn(async move {
+    let loopback = app.ctx.proxy.loopback().clone();
+    app.ctx.spawn(async move {
         let allow_tofu = config::pinned_pubkey().is_none();
         let result = tokio::select! {
             () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
-            outcome = sync::run_once(false, false, allow_tofu) => {
+            outcome = sync::run_once(&loopback, false, false, allow_tofu) => {
                 outcome.map_err(GuiError::from).map_err(Arc::new)
             }
         };

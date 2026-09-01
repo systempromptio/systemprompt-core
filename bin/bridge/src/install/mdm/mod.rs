@@ -42,13 +42,16 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
         reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
     )
 )]
-pub(crate) fn refresh_managed_mcp_servers() -> Result<String, MdmError> {
+pub(crate) fn refresh_managed_mcp_servers(
+    loopback: &crate::proxy::LoopbackEndpoint,
+) -> Result<String, MdmError> {
     #[cfg(target_os = "windows")]
     {
-        windows::refresh_managed_mcp_servers()
+        windows::refresh_managed_mcp_servers(loopback)
     }
     #[cfg(not(target_os = "windows"))]
     {
+        _ = loopback;
         Ok("managedMcpServers refresh skipped (non-Windows)".into())
     }
 }
@@ -89,9 +92,9 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
 
     async fn apply(
         &self,
-        _ctx: &crate::host_sync::HostSyncCtx<'_>,
+        ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
-        match refresh_managed_mcp_servers() {
+        match refresh_managed_mcp_servers(ctx.loopback) {
             Ok(line) => {
                 tracing::info!(
                     target: "bridge::mdm",
@@ -107,7 +110,10 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         }
     }
 
-    fn clear(&self) -> Result<(), crate::host_sync::ApplyError> {
+    fn clear(
+        &self,
+        _ctx: &crate::host_sync::HostSyncCtx<'_>,
+    ) -> Result<(), crate::host_sync::ApplyError> {
         match write_empty_managed_mcp_servers() {
             Ok(line) => {
                 tracing::info!(
@@ -127,9 +133,13 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
 
 pub(crate) fn apply_mdm(
     os: Os,
+    loopback: &crate::proxy::LoopbackEndpoint,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
+    // Why: only the macOS payload embeds the loopback endpoint; the Windows
+    // policy carries it through `refresh_managed_mcp_servers` on sync instead.
+    _ = loopback;
     match os {
         #[cfg(target_os = "windows")]
         Os::Windows => windows::apply(gateway, pubkey),
@@ -139,7 +149,7 @@ pub(crate) fn apply_mdm(
             Err(MdmError::WrongHostOs { os: "Windows" })
         },
         #[cfg(target_os = "macos")]
-        Os::Mac => macos::apply(gateway, pubkey),
+        Os::Mac => macos::apply(loopback, gateway, pubkey),
         #[cfg(not(target_os = "macos"))]
         Os::Mac => Err(MdmError::WrongHostOs { os: "macOS" }),
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -198,12 +208,14 @@ pub fn windows_policy_values(
 // servers must point at the loopback proxy that injects the gateway JWT.
 #[cfg(target_os = "windows")]
 #[must_use]
-pub(crate) fn managed_mcp_servers_json() -> Option<String> {
+pub(crate) fn managed_mcp_servers_json(
+    loopback: &crate::proxy::LoopbackEndpoint,
+) -> Option<String> {
     let registry = crate::mcp_registry::snapshot();
     if registry.is_empty() {
         return Some("[]".to_owned());
     }
-    let bearer = match crate::proxy::loopback_bearer() {
+    let bearer = match loopback.bearer() {
         Ok(b) => b,
         Err(e) => {
             tracing::warn!(
@@ -221,7 +233,7 @@ pub(crate) fn managed_mcp_servers_json() -> Option<String> {
         .map(|slug| {
             serde_json::json!({
                 "name": slug,
-                "url": crate::proxy::mcp_url(slug.as_str()),
+                "url": loopback.mcp_url(slug.as_str()),
                 "transport": "http",
                 "headers": { "Authorization": bearer.clone() },
             })

@@ -14,6 +14,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
+use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use systemprompt_bridge::sync::run_once;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
@@ -153,7 +154,7 @@ fn run_sync(dirs: &HostSandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(true, true, true))
+                .block_on(run_once(&loopback(), true, true, true))
                 .map_err(|e| e.to_string())
         },
     )
@@ -436,4 +437,8 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
     assert!(cowork_settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")].is_null());
 
     assert!(!dirs.session_org_dir.join("cowork_artifacts").exists());
+}
+
+fn loopback() -> LoopbackEndpoint {
+    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
 }

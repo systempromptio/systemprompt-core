@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
+    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
     ProfileGenInputs, ProfileState,
 };
 use systemprompt_bridge::integration::{find_host_by_id, host_apps};
@@ -100,7 +100,7 @@ impl HostApp for DummyHost {
     fn config_schema(&self) -> &'static HostConfigSchema {
         &DUMMY_SCHEMA
     }
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
         HostAppSnapshot {
             host_id: "dummy-test-host",
             display_name: "Dummy Test Host",
@@ -153,7 +153,7 @@ impl HostApp for ShadowCodexHost {
     fn config_schema(&self) -> &'static HostConfigSchema {
         &DUMMY_SCHEMA
     }
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
         HostAppSnapshot {
             host_id: "codex-cli",
             display_name: "Shadowed Codex",

@@ -6,15 +6,17 @@
 use std::process::ExitCode;
 use std::sync::mpsc::channel;
 
+use crate::context::BridgeContext;
+use crate::proxy::ProxyRole;
 use crate::stdio;
 use crate::stdio::diag;
 
-pub(super) fn cmd_proxy() -> ExitCode {
-    match crate::proxy::start_default() {
-        crate::proxy::StartOutcome::Started(_) => {},
+pub(super) fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
+    match ctx.proxy.role() {
+        ProxyRole::Serving(_) => {},
         // Why: our own proxy already serving is the outcome this command wants,
         // not a failure. Starting a second one would only split the traffic.
-        crate::proxy::StartOutcome::AlreadyRunning {
+        ProxyRole::AlreadyRunning {
             port,
             pid,
             config_dir,
@@ -26,16 +28,20 @@ pub(super) fn cmd_proxy() -> ExitCode {
             ));
             return ExitCode::SUCCESS;
         },
-        crate::proxy::StartOutcome::Failed { tried, last_error } => {
+        ProxyRole::Failed { tried, last_error } => {
             diag(&format!(
                 "proxy: failed to start; tried ports {tried:?}: {last_error}"
             ));
             return ExitCode::from(1);
         },
+        ProxyRole::Attached => {
+            diag("proxy: internal error — the proxy command was started in attach mode");
+            return ExitCode::from(70);
+        },
     }
 
-    let origin = crate::proxy::loopback_origin();
-    let secret = match crate::proxy::secret::for_profile() {
+    let origin = ctx.proxy.loopback().origin();
+    let secret = match ctx.proxy.loopback().secret() {
         Ok(s) => s.into_inner(),
         Err(e) => {
             diag(&format!(

@@ -5,6 +5,9 @@
 
 use std::process::ExitCode;
 
+use crate::context::BridgeContext;
+use crate::integration::host_app::ProbeEnv;
+use crate::proxy::LoopbackEndpoint;
 use crate::{config, stdio};
 
 pub mod auth;
@@ -51,26 +54,19 @@ impl Check {
     }
 }
 
-pub(super) fn cmd_doctor() -> ExitCode {
-    let result = crate::proxy::block_on(async { run_checks().await });
-    match result {
-        Ok((checks, any_fail)) => {
-            render(&checks);
-            if any_fail {
-                ExitCode::from(11)
-            } else {
-                ExitCode::SUCCESS
-            }
-        },
-        Err(e) => {
-            stdio::diag(&format!("doctor: runtime init failed: {e}"));
-            ExitCode::from(70)
-        },
+pub(super) fn cmd_doctor(ctx: &BridgeContext) -> ExitCode {
+    let (checks, any_fail) = ctx.block_on(run_checks(ctx.proxy.loopback()));
+    render(&checks);
+    if any_fail {
+        ExitCode::from(11)
+    } else {
+        ExitCode::SUCCESS
     }
 }
 
-pub async fn run_checks() -> (Vec<Check>, bool) {
+pub async fn run_checks(loopback: &LoopbackEndpoint) -> (Vec<Check>, bool) {
     let cfg = config::load();
+    let env = ProbeEnv::from_loopback(loopback);
     let mut checks: Vec<Check> = vec![
         auth::check_config_file(),
         auth::check_credential_source(&cfg),
@@ -81,12 +77,12 @@ pub async fn run_checks() -> (Vec<Check>, bool) {
     let client = auth::check_gateway_reachable(&cfg, &mut checks).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;
     checks.push(auth::check_loopback_secret());
-    checks.push(proxy::check_proxy_listening());
-    checks.extend(proxy::check_proxy_client_config());
+    checks.push(proxy::check_proxy_listening(loopback));
+    checks.extend(proxy::check_proxy_client_config(&env));
     if let Some(check) = proxy::check_proxy_service() {
         checks.push(check);
     }
-    if let Some(check) = auth::check_host_profile_secrets() {
+    if let Some(check) = auth::check_host_profile_secrets(&env) {
         checks.push(check);
     }
     checks.push(auth::check_pinned_pubkey());

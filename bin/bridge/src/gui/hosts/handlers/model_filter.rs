@@ -45,7 +45,7 @@ pub(crate) fn on_model_filter_set_requested(
     }
     let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = push_model_filter(&host_id_owned, protocols.as_deref())
             .await
             .map_err(Arc::new);

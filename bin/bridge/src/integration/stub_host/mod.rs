@@ -8,7 +8,8 @@
 use std::collections::BTreeMap;
 
 use crate::integration::host_app::{
-    GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProfileGenInputs, ProfileState,
+    GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv, ProfileGenInputs,
+    ProfileState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -34,7 +35,7 @@ impl HostApp for StubHost {
         &SCHEMA
     }
 
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),

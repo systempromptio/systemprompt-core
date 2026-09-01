@@ -1,6 +1,15 @@
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
-use systemprompt_bridge::integration::host_app::{ConfigFormat, HostApp, HostKind, ProfileState};
+use systemprompt_bridge::integration::host_app::{
+    ConfigFormat, HostApp, HostKind, ProbeEnv, ProfileState,
+};
 use tempfile::TempDir;
+
+fn probe_env() -> ProbeEnv {
+    ProbeEnv {
+        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+        loopback_secret_fingerprint: None,
+    }
+}
 
 fn hermes_sandbox<R>(config_yaml: Option<&str>, f: impl FnOnce() -> R) -> R {
     let home = TempDir::new().expect("hermes home");
@@ -17,13 +26,13 @@ fn hermes_sandbox<R>(config_yaml: Option<&str>, f: impl FnOnce() -> R) -> R {
 fn loopback_v1() -> String {
     format!(
         "http://127.0.0.1:{}/v1",
-        systemprompt_bridge::proxy::resolved_port()
+        systemprompt_bridge::proxy::DEFAULT_PROXY_PORT
     )
 }
 
 #[test]
 fn an_absent_hermes_config_probes_as_absent() {
-    let snapshot = hermes_sandbox(None, || HERMES_HOST.probe());
+    let snapshot = hermes_sandbox(None, || HERMES_HOST.probe(&probe_env()));
     assert_eq!(snapshot.host_id, "hermes");
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
@@ -50,7 +59,7 @@ fn a_complete_hermes_config_probes_as_installed_with_the_model_keys() {
          systemprompt-gateway:\n    base_url: {base_url}\n    api_mode: chat_completions\n    \
          key_env: OPENAI_API_KEY\nother: kept\n"
     );
-    let snapshot = hermes_sandbox(Some(&body), || HERMES_HOST.probe());
+    let snapshot = hermes_sandbox(Some(&body), || HERMES_HOST.probe(&probe_env()));
     assert!(
         matches!(snapshot.profile_state, ProfileState::Installed),
         "every required key is present, got {:?}",
@@ -105,7 +114,7 @@ fn a_partial_hermes_config_lists_the_missing_required_keys() {
          base_url: {}\n",
         loopback_v1()
     );
-    let snapshot = hermes_sandbox(Some(&body), || HERMES_HOST.probe());
+    let snapshot = hermes_sandbox(Some(&body), || HERMES_HOST.probe(&probe_env()));
     match snapshot.profile_state {
         ProfileState::Partial { missing_required } => {
             assert_eq!(
@@ -123,7 +132,9 @@ fn a_partial_hermes_config_lists_the_missing_required_keys() {
 
 #[test]
 fn a_malformed_hermes_config_falls_back_to_an_empty_read() {
-    let snapshot = hermes_sandbox(Some("model: [not: yaml\n  : :"), || HERMES_HOST.probe());
+    let snapshot = hermes_sandbox(Some("model: [not: yaml\n  : :"), || {
+        HERMES_HOST.probe(&probe_env())
+    });
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
         "a YAML parse failure degrades to Absent, got {:?}",

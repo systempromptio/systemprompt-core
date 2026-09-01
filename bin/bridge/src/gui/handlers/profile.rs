@@ -23,7 +23,7 @@ pub const fn is_logged_out_error(err: &GuiError) -> bool {
 pub(crate) fn on_profile_fetch_requested(app: &GuiApp, reply_to: ReplyId) {
     let snapshot = app.state.snapshot();
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = build_profile(snapshot).await.map_err(Arc::new);
         proxy.send_event(UiEvent::ProfileFetchFinished { result, reply_to });
     });

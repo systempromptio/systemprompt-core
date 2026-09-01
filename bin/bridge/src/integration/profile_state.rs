@@ -98,10 +98,10 @@ impl ProfileState {
     }
 
     #[must_use]
-    pub fn endpoint_freshness(configured_url: Option<&str>) -> Option<bool> {
+    pub fn endpoint_freshness(configured_url: Option<&str>, proxy_port: u16) -> Option<bool> {
         use crate::proxy_probe::{PortMatch, classify_configured_port};
         let url = configured_url.filter(|u| !u.is_empty())?;
-        match classify_configured_port(url, crate::proxy::resolved_port()) {
+        match classify_configured_port(url, proxy_port) {
             PortMatch::Match => Some(true),
             PortMatch::Mismatch { .. } => Some(false),
             PortMatch::NotLoopback | PortMatch::Unparseable => None,

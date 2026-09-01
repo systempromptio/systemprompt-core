@@ -47,10 +47,11 @@ struct Inner {
 #[derive(Debug)]
 pub struct AppState {
     inner: RwLock<Inner>,
+    ctx: Arc<crate::context::BridgeContext>,
 }
 
 impl AppState {
-    pub fn new_loaded() -> Arc<Self> {
+    pub fn new_loaded(ctx: Arc<crate::context::BridgeContext>) -> Arc<Self> {
         let mut snap = AppStateSnapshot::default();
         reload::reload_into(&mut snap);
         Arc::new(Self {
@@ -59,6 +60,7 @@ impl AppState {
                 cancels: CancelTokens::default(),
                 pre_probe_status: None,
             }),
+            ctx,
         })
     }
 
@@ -272,8 +274,8 @@ impl AppState {
 
 
     pub fn first_configured_proxy_url(&self) -> Option<String> {
-        if crate::proxy::handle().is_some() {
-            return Some(crate::proxy::loopback_origin());
+        if self.ctx.proxy.is_serving() {
+            return Some(self.ctx.proxy.loopback().origin());
         }
         let guard = parking_lot::RwLockReadGuard::map(self.inner.read(), |i| &i.snapshot);
         guard

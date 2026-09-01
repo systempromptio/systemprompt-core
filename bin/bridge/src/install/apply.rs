@@ -11,13 +11,17 @@ use super::{
 use crate::config::paths::{self, Scope};
 use crate::config::{self as config};
 use crate::ids::PinnedPubKey;
+use crate::proxy::LoopbackEndpoint;
 use crate::schedule::Os;
 use crate::stdio::diag;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::ValidatedUrl;
 
 #[tracing::instrument(level = "info", skip(opts))]
-pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
+pub fn install(
+    opts: &InstallOptions,
+    loopback: &LoopbackEndpoint,
+) -> Result<InstallSummary, InstallError> {
     let binary = resolve_binary_path()?;
     let location = resolve_org_plugins()?;
 
@@ -28,11 +32,10 @@ pub fn install(opts: &InstallOptions) -> Result<InstallSummary, InstallError> {
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
     // Why: `inferenceGatewayBaseUrl` must stay loopback — the upstream gateway
-    // URL must never be exposed to Cowork. `loopback_origin` also finds a proxy
+    // URL must never be exposed to Cowork. The endpoint already names a proxy
     // that had to move off the default port, which this command cannot see
     // in-process because it runs separately from the proxy itself.
-    let inference_base_url = crate::proxy::loopback_origin();
-    let mdm = run_mdm_step(opts, target_os, &inference_base_url)?;
+    let mdm = run_mdm_step(opts, target_os, loopback)?;
 
     let schedule = run_schedule_step(opts, &binary)?;
 
@@ -117,33 +120,36 @@ fn persist_optional_config(gateway_url: Option<&str>, pubkey: Option<&str>) {
 fn run_mdm_step(
     opts: &InstallOptions,
     target_os: Os,
-    inference_base_url: &str,
+    loopback: &LoopbackEndpoint,
 ) -> Result<MdmDisplay, InstallError> {
     let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
+    let inference_base_url = loopback.origin();
     if opts.apply_mobileconfig {
-        return run_apply_mobileconfig(inference_base_url, pubkey_str);
+        return run_apply_mobileconfig(loopback, &inference_base_url, pubkey_str);
     }
     if opts.apply {
-        return run_apply(target_os, inference_base_url, pubkey_str);
+        return run_apply(target_os, loopback, &inference_base_url, pubkey_str);
     }
     Ok(MdmDisplay::Snippet {
         os: target_os,
-        snippet: mdm::snippet(target_os, Some(inference_base_url)),
+        snippet: mdm::snippet(target_os, Some(&inference_base_url)),
     })
 }
 
 #[cfg(target_os = "macos")]
 fn run_apply_mobileconfig(
+    loopback: &LoopbackEndpoint,
     inference_base_url: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
-    mdm::macos::apply_mobileconfig(inference_base_url, pubkey)
+    mdm::macos::apply_mobileconfig(loopback, inference_base_url, pubkey)
         .map(|lines| MdmDisplay::MobileconfigApplied { lines })
         .map_err(InstallError::MobileconfigApply)
 }
 
 #[cfg(not(target_os = "macos"))]
 const fn run_apply_mobileconfig(
+    _loopback: &LoopbackEndpoint,
     _inference_base_url: &str,
     _pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
@@ -152,10 +158,11 @@ const fn run_apply_mobileconfig(
 
 fn run_apply(
     target_os: Os,
+    loopback: &LoopbackEndpoint,
     inference_base_url: &str,
     pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {
-    mdm::apply_mdm(target_os, inference_base_url, pubkey)
+    mdm::apply_mdm(target_os, loopback, inference_base_url, pubkey)
         .map(|lines| MdmDisplay::Applied {
             os: target_os,
             lines,

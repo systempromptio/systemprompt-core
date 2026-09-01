@@ -38,9 +38,10 @@ pub(super) fn meta_dispatch(
     _reply_id: ReplyId,
 ) -> Option<CommandOutcome> {
     Some(match cmd {
-        "state.snapshot" => {
-            CommandOutcome::Sync(Ok(server_json::snapshot_value(&app.state.snapshot())))
-        },
+        "state.snapshot" => CommandOutcome::Sync(Ok(server_json::snapshot_value(
+            &app.state.snapshot(),
+            &app.ctx.proxy,
+        ))),
         "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing(app))),
         "activity.recent" => CommandOutcome::Sync(Ok(json!({
             "entries": crate::activity::activity_log().snapshot_recent(recent_limit(args)),
@@ -284,6 +285,7 @@ pub(super) fn diagnostics_dispatch(
 
 fn marketplace_listing(app: &GuiApp) -> Value {
     let snap = app.state.snapshot();
-    let listing = crate::gui::server_marketplace::build_listing(&snap.mcp_auth);
+    let listing =
+        crate::gui::server_marketplace::build_listing(app.ctx.proxy.loopback(), &snap.mcp_auth);
     crate::gui::server_marketplace::listing_to_value(&listing).unwrap_or(Value::Null)
 }

@@ -22,7 +22,7 @@ pub(crate) fn on_session_login_requested(
     app.append_log(i18n::t("login-saving"));
     let proxy = app.proxy.clone();
     let cancel = app.state.install_cancel(CancelScope::Login);
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = run_session_login(gateway, keep_signed_in, &cancel)
             .await
             .map_err(GuiError::from)

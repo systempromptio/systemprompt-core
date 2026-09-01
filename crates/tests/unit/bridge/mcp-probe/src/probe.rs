@@ -13,6 +13,7 @@ use systemprompt_bridge::ids::McpSessionId;
 use systemprompt_bridge::proxy::mcp_probe::{
     McpAuthState, build_client, probe_all, probe_endpoint,
 };
+use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -231,7 +232,7 @@ async fn tools_list_failure_does_not_downgrade() {
 
 #[tokio::test]
 async fn probe_all_empty_registry_yields_no_servers() {
-    let results = probe_all().await;
+    let results = probe_all(&loopback()).await;
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].state, McpAuthState::NoServers);
 }
@@ -280,7 +281,7 @@ fn probe_all_walks_the_registry_and_reports_each_server() {
             .enable_all()
             .build()
             .expect("runtime")
-            .block_on(probe_all());
+            .block_on(probe_all(&loopback()));
 
         let ids: Vec<&str> = results.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(
@@ -320,4 +321,8 @@ fn probe_all_walks_the_registry_and_reports_each_server() {
             "the probe mints the loopback secret it needs"
         );
     });
+}
+
+fn loopback() -> LoopbackEndpoint {
+    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
 }

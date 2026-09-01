@@ -5,7 +5,6 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -14,8 +13,6 @@ use rand::Rng as _;
 use crate::ids::{LoopbackSecret, ProxySecret};
 
 const LOOPBACK_FILENAME: &str = "bridge-loopback.key";
-
-static SECRET: OnceLock<LoopbackSecret> = OnceLock::new();
 
 #[must_use]
 pub fn secret_path() -> Option<PathBuf> {
@@ -74,9 +71,6 @@ fn mint(path: &std::path::Path) -> std::io::Result<LoopbackSecret> {
 }
 
 pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
-    if let Some(s) = SECRET.get() {
-        return Ok(s.clone());
-    }
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
     let secret = if let Some(s) = load(&path)? {
@@ -91,14 +85,10 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
         );
         s
     };
-    _ = SECRET.set(secret.clone());
     Ok(secret)
 }
 
 pub fn for_profile() -> std::io::Result<LoopbackSecret> {
-    if let Some(s) = SECRET.get() {
-        return Ok(s.clone());
-    }
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
     load(&path)?.map_or_else(

@@ -7,8 +7,10 @@
 
 use super::error::MdmError;
 
-pub(super) fn refresh_managed_mcp_servers() -> Result<String, MdmError> {
-    let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_owned());
+pub(super) fn refresh_managed_mcp_servers(
+    loopback: &crate::proxy::LoopbackEndpoint,
+) -> Result<String, MdmError> {
+    let value = super::managed_mcp_servers_json(loopback).unwrap_or_else(|| "[]".to_owned());
     write_managed_mcp_servers_value(&value)
 }
 

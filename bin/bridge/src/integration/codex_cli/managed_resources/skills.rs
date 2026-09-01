@@ -20,7 +20,10 @@ pub(super) fn targets_codex(skill: &SkillEntry) -> bool {
     skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "codex" || h == "codex-cli")
 }
 
-pub(super) fn bundle_version(manifest: &SignedManifest) -> String {
+pub(super) fn bundle_version(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    manifest: &SignedManifest,
+) -> String {
     let mut skills: Vec<&SkillEntry> = manifest
         .skills
         .iter()
@@ -42,7 +45,7 @@ pub(super) fn bundle_version(manifest: &SignedManifest) -> String {
         .iter()
         .map(|s| {
             let slug = crate::mcp_registry::normalize_key(s.name.as_str());
-            let url = crate::proxy::mcp_url(&slug);
+            let url = loopback.mcp_url(&slug);
             (slug, url)
         })
         .collect();

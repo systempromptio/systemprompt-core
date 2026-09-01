@@ -45,7 +45,7 @@ impl HostSync for CoworkArtifactsSync {
         emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(dir) = emit::resolve_artifacts_dir() else {
             return Ok(());
         };

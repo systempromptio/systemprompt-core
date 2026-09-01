@@ -96,10 +96,3 @@ fn plain_id_display_equals_as_str() {
     let value = PrefsValue::new("dark");
     assert_eq!(format!("{value}"), value.as_str());
 }
-
-#[test]
-fn plain_id_from_str_and_string() {
-    let owned: PrefsValue = String::from("dark").into();
-    let borrowed: PrefsValue = "dark".into();
-    assert_eq!(owned, borrowed);
-}

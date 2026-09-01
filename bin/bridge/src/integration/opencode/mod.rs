@@ -20,7 +20,7 @@ mod probe;
 pub use managed_resources::OpenCodeSync;
 
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
     ProfileGenInputs, ProfileRemoval, ProfileState,
 };
 
@@ -42,12 +42,13 @@ impl HostApp for OpenCodeHost {
         &config::SCHEMA
     }
 
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
         // Why: like Codex, OpenCode bakes `<origin>/v1`; the classifier ignores
         // the path and only checks that the loopback port still matches.
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
+            env.proxy_port,
         );
         let profile_state =
             ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);

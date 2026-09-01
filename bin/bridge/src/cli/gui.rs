@@ -4,9 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::process::ExitCode;
+use std::sync::Arc;
+
+use crate::context::BridgeContext;
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
-pub(crate) fn cmd_gui() -> ExitCode {
+pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
     #[cfg(target_os = "windows")]
     {
         crate::winproc::detach_console();
@@ -45,16 +48,16 @@ pub(crate) fn cmd_gui() -> ExitCode {
         },
         crate::single_instance::SingletonResult::Error(e) => {
             crate::stdio::diag(&format!("gui: singleton check failed: {e}; continuing"));
-            return crate::gui::run();
+            return crate::gui::run(ctx);
         },
     };
-    let exit = crate::gui::run();
+    let exit = crate::gui::run(ctx);
     crate::single_instance::clear_running_port();
     exit
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub(super) fn cmd_gui() -> ExitCode {
+pub(super) fn cmd_gui(_ctx: Arc<BridgeContext>) -> ExitCode {
     crate::stdio::diag("gui not supported on this platform");
     ExitCode::from(64)
 }

@@ -52,10 +52,13 @@ pub(super) struct DomainRead {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) fn secret_freshness(installed_api_key_fp: Option<&str>) -> Option<bool> {
+pub(super) fn secret_freshness(
+    installed_api_key_fp: Option<&str>,
+    env: &crate::integration::host_app::ProbeEnv,
+) -> Option<bool> {
     let installed = installed_api_key_fp?;
-    let live = crate::proxy::secret::for_profile().ok()?;
-    Some(installed == crate::proxy::secret::fingerprint(live.as_str()))
+    let live = env.loopback_secret_fingerprint.as_deref()?;
+    Some(installed == live)
 }
 
 pub use crate::integration::host_app::ProfileGenInputs;

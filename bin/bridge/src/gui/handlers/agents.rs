@@ -81,7 +81,7 @@ pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) 
             ))
         },
         |host| {
-            let snapshot = host.probe();
+            let snapshot = host.probe(&app.probe_env());
             snapshot.profile_source.as_ref().map_or_else(
                 || {
                     let msg = format!(

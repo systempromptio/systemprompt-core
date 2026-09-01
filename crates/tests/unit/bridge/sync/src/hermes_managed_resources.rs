@@ -9,6 +9,7 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::hermes::HermesSync;
+use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
 
 // Why: the MCP writer mints the loopback secret under the bridge config dir;
@@ -99,7 +100,22 @@ fn ctx<'a>(
         plugin_mcp_servers,
         client,
         bearer,
+        loopback: &LOOPBACK,
     }
+}
+
+
+static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
+    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+});
+
+fn clear(home: &Path) {
+    let client = stub_client();
+    let plugin_mcp_servers = std::collections::BTreeMap::new();
+    let m = full_manifest();
+    HermesSync
+        .clear(&ctx(&m, home, &client, "", &plugin_mcp_servers))
+        .unwrap();
 }
 
 fn stub_client() -> GatewayClient {
@@ -169,7 +185,7 @@ fn a_skill_and_an_mcp_server_land_in_the_skills_dir_and_config_yaml() {
         assert_eq!(sidecar_ids(home), vec!["research".to_owned()]);
 
         let cfg = read_cfg(home);
-        let expected_url = systemprompt_bridge::proxy::mcp_url("primary");
+        let expected_url = LOOPBACK.mcp_url("primary");
         assert!(
             expected_url.starts_with("http://127.0.0.1:") && expected_url.ends_with("/mcp/primary"),
             "the loopback MCP url shape: {expected_url}"
@@ -221,7 +237,7 @@ fn user_authored_config_keys_survive_apply_and_clear() {
         );
         assert!(cfg.contains("primary:"), "bridge MCP missing: {cfg}");
 
-        HermesSync.clear().unwrap();
+        clear(home);
         let cfg = read_cfg(home);
         assert!(
             cfg.contains("url: https://example.com/mcp"),
@@ -344,7 +360,7 @@ fn clear_removes_managed_skills_the_sidecar_and_the_config_blocks() {
         apply(&full_manifest(), home);
         assert!(sidecar(home).is_file());
 
-        HermesSync.clear().unwrap();
+        clear(home);
 
         assert!(
             !skills_dir(home).join("research").exists(),

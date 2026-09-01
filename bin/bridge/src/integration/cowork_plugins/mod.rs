@@ -56,7 +56,7 @@ impl HostSync for CoworkSync {
         Ok(())
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(target) = resolve_target() else {
             return Ok(());
         };

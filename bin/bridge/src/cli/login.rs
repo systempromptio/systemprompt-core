@@ -18,12 +18,13 @@ use crate::auth::loopback::LoopbackServer;
 use crate::auth::providers::session::{capture_on, device_link_url};
 use crate::auth::setup;
 use crate::cli::args::{has_flag, parse_opt_flag};
+use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::gateway::types::SessionPatRequest;
 use crate::stdio;
 use crate::stdio::diag;
 
-pub fn cmd_login(args: &[String]) -> ExitCode {
+pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let gateway = parse_opt_flag(args, "--gateway");
     let device_name = parse_opt_flag(args, "--device-name");
     let pasted_pat = args.get(2).filter(|t| !t.is_empty() && !t.starts_with('-'));
@@ -31,7 +32,7 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
     let code = if let Some(code) = parse_opt_flag(args, "--code") {
         Some(code)
     } else if pasted_pat.is_none() {
-        match sso_code(gateway.as_deref(), has_flag(args, "--no-browser")) {
+        match sso_code(ctx, gateway.as_deref(), has_flag(args, "--no-browser")) {
             Ok(c) => Some(c),
             Err(e) => {
                 diag(&format!("login: single sign-on failed: {e}"));
@@ -43,7 +44,7 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
     };
 
     let token = if let Some(code) = code {
-        match redeem_code(&code, gateway.as_deref(), device_name) {
+        match redeem_code(ctx, &code, gateway.as_deref(), device_name) {
             Ok(pat) => pat,
             Err(e) => {
                 diag(&format!("login: could not redeem the exchange code: {e}"));
@@ -94,7 +95,11 @@ fn usage() -> String {
     )
 }
 
-fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
+fn sso_code(
+    ctx: &BridgeContext,
+    gateway: Option<&str>,
+    no_browser: bool,
+) -> Result<String, String> {
     // Why: both SSO paths need a person — one waits on a browser callback, the
     // other on a pasted code. Detached from a terminal neither can ever
     // complete, so they would block until the caller gives up rather than
@@ -112,15 +117,14 @@ fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
     let base_url = resolve_gateway(gateway)?;
 
     if !no_browser {
-        return crate::proxy::block_on(async move {
+        return ctx.block_on(async move {
             let server = LoopbackServer::bind()
                 .await
                 .map_err(|e| format!("could not bind the loopback callback listener: {e}"))?;
             capture_on(server, &base_url)
                 .await
                 .map_err(|e| e.to_string())
-        })
-        .map_err(|e| format!("runtime init: {e}"))?;
+        });
     }
 
     let url = device_link_url(base_url.as_str(), None);
@@ -221,6 +225,7 @@ fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
 }
 
 fn redeem_code(
+    ctx: &BridgeContext,
     code: &str,
     gateway: Option<&str>,
     device_name: Option<String>,
@@ -231,12 +236,11 @@ fn redeem_code(
         device_name: device_name.or_else(default_device_name),
     };
     let client = GatewayClient::new(base_url);
-    crate::proxy::block_on(async move {
+    ctx.block_on(async move {
         client
             .session_pat_exchange(&req, &SessionId::generate())
             .await
     })
-    .map_err(|e| format!("runtime init: {e}"))?
     .map_err(|e| e.to_string())
 }
 

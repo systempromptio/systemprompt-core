@@ -16,8 +16,10 @@ use serde_json::json;
 
 use super::io_err;
 use crate::host_sync::ApplyError;
+use crate::proxy::LoopbackEndpoint;
 
 pub(super) fn mirror_plugin(
+    loopback: &LoopbackEndpoint,
     src: &Path,
     dst: &Path,
     mcp_servers: &[String],
@@ -28,7 +30,7 @@ pub(super) fn mirror_plugin(
     copy_dir_all(src, dst)?;
     drop_standard_hooks_pointer(dst)?;
     if !mcp_servers.is_empty() {
-        write_mcp_json(dst, mcp_servers)?;
+        write_mcp_json(loopback, dst, mcp_servers)?;
     }
     Ok(())
 }
@@ -106,8 +108,13 @@ pub(super) fn remove_dir(path: &Path) -> Result<(), ApplyError> {
     }
 }
 
-fn write_mcp_json(root: &Path, servers: &[String]) -> Result<(), ApplyError> {
-    let bearer = crate::proxy::loopback_bearer()
+fn write_mcp_json(
+    loopback: &LoopbackEndpoint,
+    root: &Path,
+    servers: &[String],
+) -> Result<(), ApplyError> {
+    let bearer = loopback
+        .bearer()
         .map_err(|e| io_err("read loopback secret for claude-code .mcp.json", e))?;
     let mut map = serde_json::Map::new();
     for name in servers {
@@ -116,7 +123,7 @@ fn write_mcp_json(root: &Path, servers: &[String]) -> Result<(), ApplyError> {
             slug.clone(),
             json!({
                 "type": "http",
-                "url": crate::proxy::mcp_url(&slug),
+                "url": loopback.mcp_url(&slug),
                 "headers": { "Authorization": bearer.clone() },
             }),
         );

@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
+use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use systemprompt_bridge::sync::run_once;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
@@ -146,7 +147,7 @@ fn run_gated(sandbox: &Sandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(true, false, true))
+                .block_on(run_once(&loopback(), true, false, true))
                 .map_err(|e| e.to_string())
         },
     )
@@ -247,4 +248,8 @@ fn a_successful_non_forced_apply_persists_the_replay_sentinel() {
 
     let err = run_gated(&sandbox).expect_err("the same version is now a replay");
     assert!(err.contains("manifest replay rejected"), "{err}");
+}
+
+fn loopback() -> LoopbackEndpoint {
+    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
 }
