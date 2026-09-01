@@ -149,7 +149,15 @@ pub mod proxies {
 pub mod env_vars {
     pub use systemprompt_models::paths::constants::env_vars::CUSTOM_SECRETS;
 
-    pub const SYSTEM_MANAGED: &[&str] = &["FLY_APP_NAME", "FLY_MACHINE_ID"];
+    // Why: platform-owned host identity. It is set by the deployment (or by the
+    // platform, in Fly's case), never by an operator's machine, so secret sync
+    // must not round-trip a laptop's value into a deployment — that would tell a
+    // container it is on a host it is not.
+    pub const SYSTEM_MANAGED: &[&str] = &[
+        systemprompt_models::subprocess::DEPLOYMENT_HOST_ENV,
+        "FLY_APP_NAME",
+        "FLY_MACHINE_ID",
+    ];
 
     pub const CLI_SYNCED: &[&str] = &[
         "SYSTEMPROMPT_API_TOKEN",

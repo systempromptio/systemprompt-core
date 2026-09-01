@@ -28,7 +28,7 @@ impl CredentialsBootstrap {
             return Err(CredentialsBootstrapError::AlreadyInitialized.into());
         }
 
-        if Self::is_fly_container() {
+        if Self::is_deployment_host() {
             tracing::debug!("Fly.io container detected, loading credentials from environment");
             let creds = Self::load_from_env();
             if let Some(ref c) = creds
@@ -103,8 +103,8 @@ impl CredentialsBootstrap {
             && age < Duration::seconds(crate::constants::credentials::VALIDATION_TTL_SECS)
     }
 
-    fn is_fly_container() -> bool {
-        std::env::var("FLY_APP_NAME").is_ok()
+    fn is_deployment_host() -> bool {
+        systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok())
     }
 
     fn allow_unvalidated() -> bool {

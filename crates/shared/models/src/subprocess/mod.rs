@@ -63,6 +63,75 @@ pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
 pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
 
+/// Names the deployment host this process is running on.
+///
+/// Set by the generated container image (see the cloud crate's Dockerfile
+/// authoring) to the host or app identifier, so a log line can say *which* host
+/// answered rather than merely that one did.
+///
+/// # Why this is an environment variable and not a profile field
+///
+/// The same profile YAML is used in two places that need opposite answers: on
+/// an operator's machine, where a cloud-profile command SHOULD route to the
+/// remote tenant, and inside the deployed container, where it must not — the
+/// container is already the tenant. The document is byte-identical in both, so
+/// the profile cannot distinguish them. Only the environment can.
+pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
+
+/// The Fly.io platform's own host marker.
+///
+/// Kept as a fallback so tenants deployed before [`DEPLOYMENT_HOST_ENV`] existed
+/// keep working without a redeploy. Fly injects it; nothing we generate does.
+const FLY_HOST_ENV: &str = "FLY_APP_NAME";
+
+/// Names the deployment host this process is on, if it is on one.
+///
+/// [`DEPLOYMENT_HOST_ENV`] wins over the Fly marker when both are set, because
+/// the one we generate is the one an operator can steer.
+///
+/// Takes a lookup rather than reading `std::env` so callers and tests can drive
+/// it without touching process-global state, matching
+/// [`crate::net::trusted_hosts_env_entry`].
+pub fn deployment_host(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
+    [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV].iter().find_map(|name| {
+        lookup(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    })
+}
+
+/// Is this process running on the host its profile describes?
+///
+/// A process that answers `false` here will try to reach its deployment host
+/// over the network. Answering `false` while actually on that host is what makes
+/// a server attempt to route a command to itself, so any one marker is proof and
+/// only their absence means "elsewhere".
+pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
+    deployment_host(lookup).is_some()
+}
+
+/// The environment a supervised child inherits from this process, unchanged.
+///
+/// Both spawners clear the child environment and rebuild it from an allowlist,
+/// and both need exactly this set. They used to hold a copy each; the copies
+/// drifted, the MCP one lost the host marker, and every MCP server on a deployed
+/// host concluded it was somewhere else. One list, one drift-free answer — each
+/// spawner adds its own service-specific variables on top.
+pub fn inherited_parent_env(
+    lookup: impl Fn(&str) -> Option<String>,
+) -> Vec<(String, String)> {
+    let mut env: Vec<(String, String)> = [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV, "PATH", "HOME"]
+        .iter()
+        .filter_map(|name| lookup(name).map(|value| ((*name).to_owned(), value)))
+        .collect();
+
+    if let Some(entry) = crate::net::trusted_hosts_env_entry(&lookup) {
+        env.push(entry);
+    }
+
+    env
+}
+
 type SpawnReply = Sender<std::io::Result<u32>>;
 
 pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {

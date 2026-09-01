@@ -36,21 +36,12 @@ pub fn build_environment(
 ) -> Vec<(String, String)> {
     let mut env = Vec::new();
 
-    // Why: `FLY_APP_NAME` is host identity, not configuration. The CLI reads it to
-    // decide it is already ON the machine its cloud profile describes and must run
-    // locally rather than route to a remote tenant. Dropping it here made every MCP
-    // subprocess believe it was off-host, so an MCP server that shells out to the
-    // CLI tried to route a command to the very host it was running on and
-    // failed on the tenant store no deployed container has. Do not prune it
-    // from this list.
-    for inherited in ["PATH", "HOME", "FLY_APP_NAME"] {
-        if let Some(value) = lookup(inherited) {
-            env.push((inherited.to_owned(), value));
-        }
-    }
-    if let Some(entry) = systemprompt_models::net::trusted_hosts_env_entry(&lookup) {
-        env.push(entry);
-    }
+    // Why: shared with the agent spawner rather than copied. This list once held
+    // a private copy that lost the deployment-host marker, so every MCP
+    // subprocess on a deployed host believed it was somewhere else and a server
+    // that shells out to the CLI tried to route a command to the host it was
+    // already running on.
+    env.extend(systemprompt_models::subprocess::inherited_parent_env(&lookup));
 
     env.push((
         "SYSTEMPROMPT_PROFILE".to_owned(),

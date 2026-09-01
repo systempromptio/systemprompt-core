@@ -22,10 +22,11 @@ use crate::bootstrap::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
 pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
-    let is_fly_environment = std::env::var("FLY_APP_NAME").is_ok();
+    let is_deployment_host =
+        systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
     let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
 
-    if (is_subprocess || is_fly_environment)
+    if (is_subprocess || is_deployment_host)
         && let Ok(pepper) = std::env::var("OAUTH_AT_REST_PEPPER")
         && pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH
     {
@@ -41,10 +42,11 @@ pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
         .as_ref()
         .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
 
-    let is_fly_environment = std::env::var("FLY_APP_NAME").is_ok();
+    let is_deployment_host =
+        systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
 
     match secrets_config.source {
-        SecretsSource::Env if is_fly_environment => {
+        SecretsSource::Env if is_deployment_host => {
             tracing::debug!("Loading secrets from environment (Fly.io container)");
             load_from_env()
         },

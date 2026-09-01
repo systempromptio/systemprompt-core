@@ -66,6 +66,43 @@ pub struct BuildAgentCommandParams<'a> {
     pub log_file: File,
 }
 
+/// The environment an agent child is spawned with.
+///
+/// Returned as pairs rather than applied straight onto a [`Command`] so it can
+/// be asserted on directly. The MCP spawner's equivalent already had this shape
+/// and was covered by tests that inject a lookup; this one only had a `Command`,
+/// which is why its copy of the inherited list could drift without anything
+/// noticing.
+pub fn build_agent_environment(
+    agent_name: &str,
+    port: u16,
+    profile_path: &str,
+    database_type: &str,
+    secrets: &Secrets,
+    lookup: impl Fn(&str) -> Option<String>,
+) -> Vec<(String, String)> {
+    // Why: shared with the MCP spawner rather than copied. The two lists drifted
+    // once already — this one kept the deployment-host marker through a bolt-on
+    // while the MCP one silently lost it, and every MCP server on a deployed
+    // host then believed it was somewhere else.
+    let mut env = systemprompt_models::subprocess::inherited_parent_env(lookup);
+
+    env.push(("SYSTEMPROMPT_PROFILE".to_owned(), profile_path.to_owned()));
+    env.push((
+        systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV.to_owned(),
+        "1".to_owned(),
+    ));
+    env.push((
+        systemprompt_models::subprocess::AGENT_NAME_ENV.to_owned(),
+        agent_name.to_owned(),
+    ));
+    env.push(("AGENT_PORT".to_owned(), port.to_string()));
+    env.push(("DATABASE_TYPE".to_owned(), database_type.to_owned()));
+    env.extend(secrets.to_subprocess_env());
+
+    env
+}
+
 pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     let BuildAgentCommandParams {
         binary_path,
@@ -86,34 +123,22 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .arg("--port")
         .arg(port.to_string())
         .env_clear();
-    if let Ok(path) = std::env::var("PATH") {
-        command.env("PATH", path);
-    }
-    if let Ok(home) = std::env::var("HOME") {
-        command.env("HOME", home);
-    }
-    if let Some((key, value)) =
-        systemprompt_models::net::trusted_hosts_env_entry(|name| std::env::var(name).ok())
-    {
+
+    for (key, value) in build_agent_environment(
+        agent_name,
+        port,
+        profile_path,
+        &config.database_type,
+        secrets,
+        |name| std::env::var(name).ok(),
+    ) {
         command.env(key, value);
     }
+
     command
-        .env("SYSTEMPROMPT_PROFILE", profile_path)
-        .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
-        .env(systemprompt_models::subprocess::AGENT_NAME_ENV, agent_name)
-        .env("AGENT_PORT", port.to_string())
-        .env("DATABASE_TYPE", &config.database_type)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
-
-    for (k, v) in secrets.to_subprocess_env() {
-        command.env(k, v);
-    }
-
-    if let Ok(fly_app) = std::env::var("FLY_APP_NAME") {
-        command.env("FLY_APP_NAME", fly_app);
-    }
 
     systemprompt_models::subprocess::place_in_own_process_group(&mut command);
 

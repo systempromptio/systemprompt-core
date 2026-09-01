@@ -202,6 +202,25 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         format!("\n# Copy MCP server binaries\n{}\n", lines.join("\n"))
     }
 
+    /// Marks the image as *being* a deployment host.
+    ///
+    /// Without this the binary inside the container has no way to know it is
+    /// already the deployment, and a cloud-profile command tries to route to the
+    /// host it is running on. Fly supplies `FLY_APP_NAME` and so happened to
+    /// work; every other platform supplies nothing, which is why this is
+    /// generated rather than left to the host.
+    ///
+    /// The value names the host as specifically as the image can — the profile
+    /// name, since the concrete app id is not known until the image is placed. A
+    /// platform that knows better may override it at runtime.
+    fn deployment_host_env(&self) -> String {
+        format!(
+            "    {}={} \\",
+            systemprompt_models::subprocess::DEPLOYMENT_HOST_ENV,
+            self.profile_name.unwrap_or("container")
+        )
+    }
+
     fn env_section(&self) -> String {
         let profile_env = self.profile_name.map_or_else(String::new, |name| {
             format!(
@@ -217,10 +236,12 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     PORT=8080 \
     RUST_LOG=info \
     PATH="{}:$PATH" \
+{}
     SYSTEMPROMPT_SERVICES_PATH={} \
     SYSTEMPROMPT_TEMPLATES_PATH={} \
     SYSTEMPROMPT_ASSETS_PATH={}"#,
                 container::BIN,
+                self.deployment_host_env(),
                 container::SERVICES,
                 container::TEMPLATES,
                 container::ASSETS
@@ -232,11 +253,13 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     RUST_LOG=info \
     PATH="{}:$PATH" \
 {}
+{}
     SYSTEMPROMPT_SERVICES_PATH={} \
     SYSTEMPROMPT_TEMPLATES_PATH={} \
     SYSTEMPROMPT_ASSETS_PATH={}"#,
                 container::BIN,
                 profile_env,
+                self.deployment_host_env(),
                 container::SERVICES,
                 container::TEMPLATES,
                 container::ASSETS
