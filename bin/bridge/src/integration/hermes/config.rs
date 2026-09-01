@@ -12,21 +12,21 @@ use crate::integration::host_app::HostConfigSchema;
 // `providers:`, selected by `model.provider`. Writing `model.base_url` with
 // `model.provider` left at its default `auto` does not route anything: Hermes
 // resolves the provider first and only then consults that provider's base_url.
-pub(super) const PROVIDER_ENTRY: &str = "systemprompt-gateway";
-pub(super) const MODEL_PROVIDER: &str = "model.provider";
+pub const PROVIDER_ENTRY: &str = "systemprompt-gateway";
+pub const MODEL_PROVIDER: &str = "model.provider";
 // Why: `model.default` — not `model.model`. Both names parse, but when the two
 // are present `default` wins, and Hermes' own installed config.yaml always
 // ships a `default`. Writing `model` alone is therefore silently inert.
-pub(super) const MODEL_NAME: &str = "model.default";
+pub const MODEL_NAME: &str = "model.default";
 
-pub(super) const PROVIDER_BASE_URL: &str = "providers.systemprompt-gateway.base_url";
-pub(super) const PROVIDER_API_MODE: &str = "providers.systemprompt-gateway.api_mode";
-pub(super) const PROVIDER_KEY_ENV: &str = "providers.systemprompt-gateway.key_env";
+pub const PROVIDER_BASE_URL: &str = "providers.systemprompt-gateway.base_url";
+pub const PROVIDER_API_MODE: &str = "providers.systemprompt-gateway.api_mode";
+pub const PROVIDER_KEY_ENV: &str = "providers.systemprompt-gateway.key_env";
 
 // Why: Hermes' api_mode vocabulary is `chat_completions` / `codex_responses` /
 // `anthropic_messages` (plus `bedrock_converse`). "openai" is not a member and
 // is silently discarded, so the wire format has to be named explicitly.
-pub(super) const API_MODE_VALUE: &str = "chat_completions";
+pub const API_MODE_VALUE: &str = "chat_completions";
 
 // Why: the loopback secret stays in `HERMES_HOME/.env` (0600) rather than in
 // config.yaml, and `key_env` is how a named provider reads it from there.
@@ -81,18 +81,25 @@ pub(super) fn hermes_home() -> PathBuf {
 }
 
 pub(super) fn config_yaml_path() -> PathBuf {
-    hermes_home().join("config.yaml")
+    config_yaml_path_in(&hermes_home())
 }
 
-pub(super) fn env_path() -> PathBuf {
-    hermes_home().join(".env")
+// Why: the install path is otherwise reachable only through `HERMES_HOME`, and
+// the crate denies `unsafe_code`, so a test cannot set that variable. Taking
+// the home explicitly lets the real install run against a temporary directory.
+pub(super) fn config_yaml_path_in(home: &std::path::Path) -> PathBuf {
+    home.join("config.yaml")
+}
+
+pub(super) fn env_path_in(home: &std::path::Path) -> PathBuf {
+    home.join(".env")
 }
 
 pub(super) fn skills_dir() -> PathBuf {
     hermes_home().join("skills")
 }
 
-pub(super) const ENV_API_KEY: &str = "OPENAI_API_KEY";
+pub const ENV_API_KEY: &str = "OPENAI_API_KEY";
 
 pub(super) fn now_unix() -> u64 {
     SystemTime::now()

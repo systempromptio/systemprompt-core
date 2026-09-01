@@ -15,6 +15,19 @@ mod probe;
 
 pub use managed_resources::HermesSync;
 
+/// The bridge-owned keys, re-exported so a test can assert the contract with
+/// Hermes by name rather than by copied string literal.
+#[doc(hidden)]
+pub mod contract {
+    pub use super::config::{
+        API_MODE_VALUE, ENV_API_KEY, MODEL_NAME, MODEL_PROVIDER, PROVIDER_API_MODE,
+        PROVIDER_BASE_URL, PROVIDER_ENTRY, PROVIDER_KEY_ENV,
+    };
+}
+
+#[doc(hidden)]
+pub use install::{install_profile_into, remove_profile_from};
+
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
     ProfileGenInputs, ProfileRemoval, ProfileState,
