@@ -52,7 +52,11 @@ exported=$(
 # One alternation rather than one grep per name: 105 names across 45 files is
 # 4,700 greps and half a minute of wall clock for a gate that has to be cheap
 # enough to keep in `just check`.
-names_alt=$(printf '%s' "$exported" | paste -sd'|')
+# Why: `-s -d '|' -` rather than `-sd'|'`. BSD paste (macOS) rejects the bundled
+# flag and needs an explicit `-` for stdin — without it the gate dies on its own
+# usage message and reports a false red to anyone verifying locally on a Mac.
+# CI is Ubuntu, so this stayed invisible there. See CLAUDE.md rule 7.
+names_alt=$(printf '%s' "$exported" | paste -s -d '|' -)
 
 fail=0
 unresolved_report=""
