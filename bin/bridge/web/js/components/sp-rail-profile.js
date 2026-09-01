@@ -1,18 +1,20 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { bridge } from "/assets/js/bridge.js";
-import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
-import { t } from "/assets/js/i18n.js";
+import { notifyErr } from "/assets/js/utils/notify.js";
 import { handleRovingKey, syncRoving } from "/assets/js/utils/roving.js";
 import { logout } from "/assets/js/services/session-service.js";
 import { profileInitials, railProfileSubtitle } from "/assets/js/utils/profile-format.js";
+import {
+  UPDATE_RECHECK_MS, updateStateOf, isUpdateBusy, maybeCheckForUpdate, installUpdate, restartForUpdate,
+} from "/assets/js/utils/update-check.js";
+import {
+  positionRailProfileMenu, renderRailProfileMenu, renderRailProfileCta, railProfileTriggerLabel,
+} from "/assets/js/utils/rail-profile-menu.js";
 
 const VERSION = (() => {
   const tag = document.querySelector('meta[name="sp-version"]');
   return (tag && tag.content) || "";
 })();
-
-/** Re-check interval. Updates are a background nicety, not a live feed. */
-const RECHECK_MS = 6 * 60 * 60 * 1000;
 
 export class SpRailProfile extends SpElement {
   constructor() {
@@ -34,25 +36,25 @@ export class SpRailProfile extends SpElement {
     this._onMenuKey = (e) => {
       if (!this.menuOpen) { return; }
       const items = this._menuItems();
-      const cur = items.indexOf(document.activeElement);
-      handleRovingKey(e, items, cur);
+      handleRovingKey(e, items, items.indexOf(document.activeElement));
     };
     // Capture phase: the rail itself scrolls, and a scroll event on it does not
     // bubble to window.
     this._onReposition = () => {
-      if (this.menuOpen) { this._positionMenu(); }
+      if (this.menuOpen) { positionRailProfileMenu(this); }
     };
+    this._registerActions();
+  }
+
+  _registerActions() {
     this.registerAction("toggle-menu", () => {
       this.menuOpen = !this.menuOpen;
       this._needsMenuFocus = this.menuOpen;
       if (!this.menuOpen) { this._returnFocusToTrigger(); }
     });
     this.registerAction("logout", () => this._onLogout());
-    this.registerAction("update-install", () => this._onUpdateInstall());
-    this.registerAction("update-restart", () => {
-      notifyOk(t("toast-update-restarting") || "Restarting to finish the update…");
-      bridge.updateRestart().catch((e) => notifyErr(e, t("rail-profile-restart-cta") || "Restart to finish updating"));
-    });
+    this.registerAction("update-install", () => installUpdate(this));
+    this.registerAction("update-restart", () => restartForUpdate());
     this.registerAction("open-external", (el, ev) => {
       const url = el && el.dataset && el.dataset.href;
       if (!url) { return; }
@@ -61,28 +63,18 @@ export class SpRailProfile extends SpElement {
     });
   }
 
-  /** The update phase carried on the state snapshot; see `UpdateUiState`. */
-  get _update() {
-    return (this.snapshot && this.snapshot.update) || { phase: "unknown" };
-  }
-
-  /** True while the update is mid-flight and the trigger must not act again. */
-  get _updateBusy() {
-    return ["downloading", "installing"].includes(this._update.phase);
-  }
-
   onConnect() {
     this.classList.add("sp-rail-profile");
     if (!this._baseVersion) {
       this._baseVersion = this.dataset.version || VERSION || "";
     }
-    this.useSnapshot((s) => { this.snapshot = s; this._maybeCheck(); });
+    this.useSnapshot((s) => { this.snapshot = s; maybeCheckForUpdate(this); });
     document.addEventListener("pointerdown", this._onDocPointer);
     document.addEventListener("keydown", this._onDocKey);
     this.addEventListener("keydown", this._onMenuKey);
     window.addEventListener("resize", this._onReposition);
     window.addEventListener("scroll", this._onReposition, true);
-    this._recheckTimer = setInterval(() => { this._checkedAt = 0; this._maybeCheck(); }, RECHECK_MS);
+    this._recheckTimer = setInterval(() => { this._checkedAt = 0; maybeCheckForUpdate(this); }, UPDATE_RECHECK_MS);
   }
 
   onDisconnect() {
@@ -91,21 +83,6 @@ export class SpRailProfile extends SpElement {
     window.removeEventListener("resize", this._onReposition);
     window.removeEventListener("scroll", this._onReposition, true);
     if (this._recheckTimer) { clearInterval(this._recheckTimer); this._recheckTimer = null; }
-  }
-
-  /**
-   * Checks once the gateway probe has settled and we are actually signed in —
-   * the endpoint is authenticated, so checking earlier just logs a 401. Cheap
-   * to call on every snapshot: the timestamp guard collapses the repeats.
-   */
-  _maybeCheck() {
-    const snap = this.snapshot;
-    if (!snap || !snap.signed_in) { return; }
-    if (this._updateBusy || this._update.can_restart) { return; }
-    const now = Date.now();
-    if (this._checkedAt && now - this._checkedAt < RECHECK_MS) { return; }
-    this._checkedAt = now;
-    bridge.updateCheck().catch((e) => console.debug("update check failed", e));
   }
 
   _menuItems() {
@@ -118,30 +95,11 @@ export class SpRailProfile extends SpElement {
   }
 
   afterRender() {
-    this._positionMenu();
+    positionRailProfileMenu(this);
     const items = this._menuItems();
     if (items.length === 0) { return; }
     syncRoving(items, 0);
     if (this._needsMenuFocus) { this._needsMenuFocus = false; items[0].focus(); }
-  }
-
-  // Why: the rail is a scroll container (`.sp-rail { overflow-y: auto }`), so
-  // the absolutely-positioned menu opening upward gets clipped into the rail's
-  // scroll overflow on short windows — leaving "Log out" rendered but
-  // unreachable. Re-anchor the menu to the viewport (fixed) so no ancestor
-  // overflow can ever swallow it; the stylesheet's absolute placement remains
-  // only as a fallback for the frame this runs in. Called on resize and scroll
-  // too, since a fixed menu does not travel with its trigger.
-  _positionMenu() {
-    const menu = this.querySelector(".sp-rail-profile__menu");
-    const trigger = this.querySelector(".sp-rail-profile__trigger");
-    if (!menu || !trigger) { return; }
-    const r = trigger.getBoundingClientRect();
-    menu.style.position = "fixed";
-    menu.style.left = `${Math.max(4, r.left)}px`;
-    menu.style.right = "auto";
-    menu.style.bottom = `${Math.max(4, window.innerHeight - r.top + 4)}px`;
-    menu.style.minWidth = `${Math.max(140, r.width)}px`;
   }
 
   async _onLogout() {
@@ -149,88 +107,26 @@ export class SpRailProfile extends SpElement {
     if (!this.logoutError) { this.menuOpen = false; }
   }
 
-  _onUpdateInstall() {
-    if (this._updateBusy) { return; }
-    this.menuOpen = false;
-    // Progress and failure both arrive on `state.changed`, so nothing to do
-    // with the resolved value here.
-    bridge.updateInstall().catch((e) => notifyErr(e, t("rail-profile-update-cta") || "Click here to update"));
-  }
-
   render() {
     const id = (this.snapshot && this.snapshot.verified_identity) || null;
     const signedIn = !!(id && (id.email || id.user_id));
-    const tenant = id && id.tenant_id;
     const idLabel = (id && (id.email || id.user_id)) || "bridge workspace";
-    const logoutLabel = escapeHtml(t("rail-profile-logout") || "Log out");
-    const u = this._update;
+    const update = updateStateOf(this.snapshot);
     const open = this.menuOpen && signedIn;
-
-    // An available or installed update turns the whole control into the call to
-    // action; the identity and Log out stay reachable through the menu, because
-    // this is the only place either is offered.
-    const cta = u.can_install
-      ? { action: "update-install", label: t("rail-profile-update-cta") || "Click here to update", sub: `v${u.version}` }
-      : u.can_restart
-        ? { action: "update-restart", label: t("rail-profile-restart-cta") || "Restart to finish updating", sub: `v${u.version}` }
-        : null;
-
-    const menuItems = [];
-    if (u.can_install) {
-      menuItems.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="update-install">${escapeHtml((t("rail-profile-update-to") || "Update to") + ` v${u.version}`)}</button>`);
-    }
-    if (u.can_restart) {
-      menuItems.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="update-restart">${escapeHtml(t("rail-profile-restart-cta") || "Restart to finish updating")}</button>`);
-    }
-    if (u.can_install && u.notes_url) {
-      menuItems.push(`<a class="sp-rail-profile__menu-item" role="menuitem" href="${escapeHtml(u.notes_url)}" data-href="${escapeHtml(u.notes_url)}" data-action="open-external">${escapeHtml(t("rail-profile-release-notes") || "Release notes")}</a>`);
-    }
-    menuItems.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="logout" data-l10n-id="rail-profile-logout">${logoutLabel}</button>`);
-
-    // Only a signed-in session has anything to offer here, so the trigger stays
-    // inert (and unfocusable) otherwise rather than opening an empty menu.
-    const menuMarkup = open
-      ? `
-        <div class="sp-rail-profile__menu" role="menu">
-          ${menuItems.join("")}
-          ${this.logoutError ? `<p class="sp-rail-profile__menu-error">${escapeHtml(this.logoutError)}</p>` : ""}
-        </div>
-      `
-      : "";
-
-    // The CTA is its own button rather than a re-labelled trigger so the menu
-    // (and Log out with it) keeps a target of its own.
-    const ctaMarkup = cta && signedIn
-      ? `
-        <button class="sp-rail-profile__cta" type="button" data-action="${cta.action}">
-          <span class="sp-rail-profile__cta-label">${escapeHtml(cta.label)}</span>
-          <span class="sp-rail-profile__cta-sub">${escapeHtml(cta.sub)}</span>
-        </button>
-      `
-      : "";
-
-    // Why: the visible identity lives in `.sp-rail-profile__meta`, which the
-    // icon-only breakpoint sets to `display: none` -- that removes it from the
-    // accessibility tree, not just from view, leaving the button unnamed. The
-    // name has to be on the button itself.
-    const triggerLabel = signedIn
-      ? `${t("rail-profile-aria") || "Account and workspace"} \u2014 ${idLabel}`
-      : (t("rail-profile-aria") || "Account and workspace");
-
     return `
-      ${ctaMarkup}
-      <button class="sp-rail-profile__trigger${this._updateBusy ? " is-busy" : ""}" type="button" data-action="toggle-menu"
+      ${renderRailProfileCta(update, signedIn)}
+      <button class="sp-rail-profile__trigger${isUpdateBusy(update) ? " is-busy" : ""}" type="button" data-action="toggle-menu"
               ${signedIn ? "" : "disabled"}
-              aria-label="${escapeHtml(triggerLabel)}"
+              aria-label="${escapeHtml(railProfileTriggerLabel(signedIn, idLabel))}"
               aria-haspopup="menu" aria-expanded="${open ? "true" : "false"}">
         <span class="sp-avatar__mark" aria-hidden="true"><span>${escapeHtml(profileInitials(id && (id.email || id.user_id)))}</span></span>
         <span class="sp-rail-profile__meta">
           <span class="sp-rail-profile__id">${escapeHtml(idLabel)}</span>
-          <span class="sp-rail-profile__sub">${escapeHtml(railProfileSubtitle(u, this._baseVersion, tenant))}</span>
+          <span class="sp-rail-profile__sub">${escapeHtml(railProfileSubtitle(update, this._baseVersion, id && id.tenant_id))}</span>
         </span>
         ${signedIn ? `<span class="sp-rail-profile__caret" aria-hidden="true">⌃</span>` : ""}
       </button>
-      ${menuMarkup}
+      ${renderRailProfileMenu(update, open, this.logoutError)}
     `;
   }
 }
