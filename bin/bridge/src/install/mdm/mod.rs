@@ -9,6 +9,10 @@ mod error;
 pub(crate) mod linux;
 #[cfg(target_os = "macos")]
 pub(super) mod macos;
+#[cfg(target_os = "macos")]
+mod macos_payload;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod sync;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -35,116 +39,15 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
 }
 
 #[derive(Debug, Clone, Copy)]
-#[cfg_attr(
-    not(any(target_os = "macos", target_os = "windows")),
-    expect(
-        dead_code,
-        reason = "only the macOS and Windows MDM payloads embed the managed-MCP servers"
-    )
-)]
 pub struct MdmPayloadInputs<'a> {
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
     pub registry: &'a crate::mcp_registry::McpRegistry,
     pub egress_allowed_hosts: Option<&'a [String]>,
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[cfg_attr(
-    target_os = "macos",
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
-    )
-)]
-pub(crate) fn refresh_managed_mcp_servers(mcp: &MdmPayloadInputs<'_>) -> Result<String, MdmError> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::refresh_managed_mcp_servers(mcp)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        _ = mcp;
-        Ok("managedMcpServers refresh skipped (non-Windows)".into())
-    }
-}
-
 #[cfg(target_os = "windows")]
 pub(crate) fn remove_windows_policy() -> Result<bool, MdmError> {
     windows::remove_policy()
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[cfg_attr(
-    target_os = "macos",
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
-    )
-)]
-fn write_empty_managed_mcp_servers() -> Result<String, MdmError> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::write_managed_mcp_servers_value("[]")
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        Ok("managedMcpServers clear skipped (non-Windows)".into())
-    }
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(crate) struct ClaudeDesktopMdmSync;
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[async_trait::async_trait]
-impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
-    fn host_id(&self) -> &'static str {
-        "claude-desktop"
-    }
-
-    async fn apply(
-        &self,
-        ctx: &crate::host_sync::HostSyncCtx<'_>,
-    ) -> Result<(), crate::host_sync::ApplyError> {
-        match refresh_managed_mcp_servers(&MdmPayloadInputs {
-            loopback: ctx.loopback,
-            registry: ctx.mcp_registry,
-            egress_allowed_hosts: None,
-        }) {
-            Ok(line) => {
-                tracing::info!(
-                    target: "bridge::mdm",
-                    written = %line,
-                    "managedMcpServers policy value refreshed"
-                );
-                Ok(())
-            },
-            Err(e) => Err(crate::host_sync::ApplyError::Io {
-                context: format!("mdm refresh: {e}"),
-                source: std::io::Error::other(e),
-            }),
-        }
-    }
-
-    fn clear(
-        &self,
-        _ctx: &crate::host_sync::HostSyncCtx<'_>,
-    ) -> Result<(), crate::host_sync::ApplyError> {
-        match write_empty_managed_mcp_servers() {
-            Ok(line) => {
-                tracing::info!(
-                    target: "bridge::mdm",
-                    written = %line,
-                    "managedMcpServers policy cleared"
-                );
-                Ok(())
-            },
-            Err(e) => Err(crate::host_sync::ApplyError::Io {
-                context: format!("mdm clear: {e}"),
-                source: std::io::Error::other(e),
-            }),
-        }
-    }
 }
 
 pub(crate) fn apply_mdm(
@@ -318,6 +221,3 @@ needs no rewrite. Rerun with --apply to write these directly.
         },
     }
 }
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-crate::register_host_sync!(ClaudeDesktopMdmSync);

@@ -28,8 +28,8 @@ pub use error::InstallError;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
 pub use mdm::{
-    MdmError, cowork_egress_allowed_hosts, is_uuid_like, parse_egress_allowed_hosts,
-    snippet as mdm_snippet,
+    MdmError, MdmPayloadInputs, cowork_egress_allowed_hosts, is_uuid_like,
+    parse_egress_allowed_hosts, snippet as mdm_snippet,
 };
 pub use schedule_apply::{
     ScheduleStatus, apply_gui_autostart, apply_schedule, gui_autostart_status,

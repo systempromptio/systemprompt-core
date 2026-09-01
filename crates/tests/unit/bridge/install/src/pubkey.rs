@@ -41,6 +41,7 @@ fn windows_policy_values_includes_pubkey_when_provided() {
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
         None,
+        None,
     );
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(names.contains(&"inferenceManifestPubkey"));
@@ -55,8 +56,12 @@ fn windows_policy_values_includes_pubkey_when_provided() {
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_omits_pubkey_when_absent() {
-    let values =
-        systemprompt_bridge::install::windows_policy_values("https://gateway.example", None, None);
+    let values = systemprompt_bridge::install::windows_policy_values(
+        "https://gateway.example",
+        None,
+        None,
+        None,
+    );
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(!names.contains(&"inferenceManifestPubkey"));
 }
@@ -68,6 +73,7 @@ fn windows_policy_values_includes_valid_org_uuid() {
         "https://gateway.example",
         None,
         Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963"),
+        None,
     );
     assert!(
         values
@@ -80,8 +86,12 @@ fn windows_policy_values_includes_valid_org_uuid() {
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_omits_missing_or_invalid_org_uuid() {
-    let none =
-        systemprompt_bridge::install::windows_policy_values("https://gateway.example", None, None);
+    let none = systemprompt_bridge::install::windows_policy_values(
+        "https://gateway.example",
+        None,
+        None,
+        None,
+    );
     assert!(
         !none
             .iter()
@@ -91,6 +101,7 @@ fn windows_policy_values_omits_missing_or_invalid_org_uuid() {
         "https://gateway.example",
         None,
         Some("garbage"),
+        None,
     );
     assert!(
         !bad.iter()
@@ -124,6 +135,7 @@ fn is_uuid_like_rejects_malformed() {
 #[test]
 fn macos_prefs_plist_includes_pubkey_when_provided() {
     let plist = systemprompt_bridge::install::build_macos_prefs_plist(
+        &mdm_inputs(),
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
     );
@@ -134,8 +146,11 @@ fn macos_prefs_plist_includes_pubkey_when_provided() {
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_prefs_plist_omits_pubkey_when_absent() {
-    let plist =
-        systemprompt_bridge::install::build_macos_prefs_plist("https://gateway.example", None);
+    let plist = systemprompt_bridge::install::build_macos_prefs_plist(
+        &mdm_inputs(),
+        "https://gateway.example",
+        None,
+    );
     assert!(!plist.contains("inferenceManifestPubkey"));
 }
 
@@ -143,6 +158,7 @@ fn macos_prefs_plist_omits_pubkey_when_absent() {
 #[test]
 fn macos_mobileconfig_includes_pubkey_when_provided() {
     let mc = systemprompt_bridge::install::build_macos_mobileconfig(
+        &mdm_inputs(),
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
     );
@@ -226,4 +242,25 @@ fn policy_pubkey_helper_returns_env_value() {
         std::env::remove_var("SP_BRIDGE_POLICY_PUBKEY");
     }
     assert_eq!(v.as_ref().map(|p| p.as_str()), Some("FROM-POLICY-DDDD"));
+}
+
+#[cfg(target_os = "macos")]
+static MDM_LOOPBACK: std::sync::LazyLock<systemprompt_bridge::proxy::LoopbackEndpoint> =
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::proxy::LoopbackEndpoint::new(
+            systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+            None,
+        )
+    });
+#[cfg(target_os = "macos")]
+static MDM_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
+    std::sync::LazyLock::new(std::collections::HashMap::new);
+
+#[cfg(target_os = "macos")]
+fn mdm_inputs() -> systemprompt_bridge::install::MdmPayloadInputs<'static> {
+    systemprompt_bridge::install::MdmPayloadInputs {
+        loopback: &MDM_LOOPBACK,
+        registry: &MDM_REGISTRY,
+        egress_allowed_hosts: None,
+    }
 }
