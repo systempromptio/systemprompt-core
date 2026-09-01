@@ -1,4 +1,4 @@
-import { escapeHtml } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 import { shortcut } from "/assets/js/utils/rail-tabs.js";
 import { MKT_CHILD_KIND_ORDER, mktKindSingular } from "/assets/js/utils/marketplace-kinds.js";

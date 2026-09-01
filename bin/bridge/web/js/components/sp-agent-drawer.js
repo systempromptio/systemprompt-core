@@ -1,4 +1,5 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 import { trapTab, setBackgroundInert } from "/assets/js/utils/focus-trap.js";
 import { renderAgentDrawerAdd } from "/assets/js/components/agent-drawer-add.js";

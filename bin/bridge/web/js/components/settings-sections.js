@@ -1,4 +1,4 @@
-import { escapeHtml } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 import { themePreference, contrastPreference, forcedDark } from "/assets/js/theme.js";
 import { gatewayUrlError } from "/assets/js/utils/settings-prefs.js";

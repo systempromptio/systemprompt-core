@@ -1,4 +1,4 @@
-import { escapeHtml } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { fmtRelative } from "/assets/js/utils/format.js";
 import {
   reachabilityView, identityView, cloudTokenSummary, cloudTokenDetail, canLogout,

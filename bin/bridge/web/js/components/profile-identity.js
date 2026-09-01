@@ -1,4 +1,4 @@
-import { escapeHtml } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { fmtDurationLong } from "/assets/js/utils/format.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtUnixUtc, decodeJwtClaims, profileExtraRows } from "/assets/js/utils/profile-format.js";

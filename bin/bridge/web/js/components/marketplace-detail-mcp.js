@@ -1,4 +1,4 @@
-import { escapeHtml } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative } from "/assets/js/utils/format.js";
 import { toneDot } from "/assets/js/utils/verdict.js";

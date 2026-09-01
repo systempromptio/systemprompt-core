@@ -1,4 +1,5 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { TAB_DEFS, TAB_GLYPHS, readInitialTab, persistTab, shortcut } from "/assets/js/utils/rail-tabs.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";

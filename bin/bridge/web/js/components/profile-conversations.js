@@ -1,4 +1,4 @@
-import { escapeHtml } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtCompactNumber, fmtIsoRelative } from "/assets/js/utils/profile-format.js";
 
