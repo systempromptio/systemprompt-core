@@ -77,9 +77,18 @@ while IFS= read -r file; do
             | grep -oE '^(export )?(async )?(function|class|const|let|var) [A-Za-z_$][A-Za-z0-9_$]*' \
             | awk '{print $NF}' | sort -u || true
     )
+    # Why: perl, not `grep -P` (GNU-only, rejected by BSD grep) and not the
+    # `grep -oE` + `sed` form CLAUDE.md rule 7 usually prescribes. That form
+    # replaces a `\K` lookbehind by capturing and stripping context; it cannot
+    # express a NEGATIVE lookbehind and lookahead over an overlapping identifier
+    # scan without re-deriving what the gate matches. Re-deriving it risks
+    # quietly changing which unimported helpers get caught, so the regex is kept
+    # verbatim and only the engine changes. `$` is escaped because perl would
+    # otherwise read `$]` and `$:` as its own variables.
     used=$(
         printf '%s' "$src" \
-            | grep -oP '(?<![.\w$])[A-Za-z_$][A-Za-z0-9_$]*(?![\w$:])' | sort -u || true
+            | perl -ne 'print "$&\n" while /(?<![.\w\$])[A-Za-z_\$][A-Za-z0-9_\$]*(?![\w\$:])/g' \
+            | sort -u || true
     )
 
     unresolved=$(
@@ -88,7 +97,11 @@ while IFS= read -r file; do
             | comm -23 - <(printf '%s\n' "$declared")
     )
     for name in $unresolved; do
-        line=$(grep -nP "(?<![.\w\$])$name(?![\w\$])" "$file" | head -1 | cut -d: -f1)
+        # Why: same PCRE-portability reason as above. The name arrives via the
+        # environment rather than being interpolated into the program text, so a
+        # helper called e.g. `x[0]` could not become part of the pattern; `\Q`
+        # keeps it literal, which is what the grep form meant for identifiers.
+        line=$(name="$name" perl -ne 'if (/(?<![.\w\$])\Q$ENV{name}\E(?![\w\$])/) { print "$.\n"; exit }' "$file")
         unresolved_report="$unresolved_report    $file:$line -- '$name' is used but never imported
 "
         fail=1

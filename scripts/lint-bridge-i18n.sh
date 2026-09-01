@@ -125,8 +125,17 @@ referenced=$(
         grep -rhoE '\bl10n: *"[a-z][a-z0-9-]*"' "$web" || true
         find "$web/js" -name '*.js' -exec awk '/_L10N *= *\{/,/^\};?$/' {} + \
             | grep -oE ': *"[a-z][a-z0-9-]*"' || true
+        # Why: perl, not `grep -P`. PCRE is a GNU grep extension; BSD grep
+        # (macOS) rejects -P outright, and because this arm ends in `|| true`
+        # it failed SILENTLY there — the Rust ids simply never joined the
+        # reference set, so check 1 could not catch a missing Rust-side key on
+        # a Mac at all. Measured 416 references on Linux against 383 on macOS.
+        # A false pass is worse than a false red: nothing tells you it happened.
+        # `grep -oE` cannot replace it because \s* has to match across newlines,
+        # which needs perl's -0777 slurp. Quotes are re-emitted so the shared
+        # `grep -oE '"..."'` downstream still sees the same shape.
         find "$bridge/src" -name '*.rs' -exec \
-            grep -Phzo 'i18n::t(_args)?\(\s*"[a-z][a-z0-9-]*"' {} + | tr '\0' '\n' || true
+            perl -0777 -ne 'print "\"$1\"\n" while /i18n::t(?:_args)?\(\s*"([a-z][a-z0-9-]*)"/g' {} + || true
     } | grep -oE '"[a-z][a-z0-9-]*"' | tr -d '"' | sort -u
 )
 
