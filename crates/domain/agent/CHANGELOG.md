@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Fixed
+
+- Agent subprocesses are told whether they are on the deployment host through the portable marker rather than through `FLY_APP_NAME` alone. A deployed non-Fly host answered the question wrongly and tried to route commands to the machine already running them.
+
 ## [0.30.1] - 2026-08-07
 
 ### Fixed

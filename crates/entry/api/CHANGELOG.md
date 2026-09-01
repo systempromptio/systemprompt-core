@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Fixed
+
+- **Security:** `GET /v1/bridge/plugins/{id}/{*path}` authorizes the caller, it no longer merely authenticates them. It checked for a valid token and then served any plugin's bytes, so any authenticated user could pull an admin plugin's bundle by path and read skills and dashboards their signed manifest never offered. The endpoint now resolves the caller's own manifest candidate through the same `ManifestService` and marketplace filter the manifest endpoint uses, and 404s a plugin that candidate does not carry.
+
+### Added
+
+- The bridge host route accepts `opencode`, and validates enabled hosts against `systemprompt_models::bridge::profile::KNOWN_HOSTS` rather than its own private list.
+
 ## [0.42.0] - 2026-08-31
 
 ### Changed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Changed
+
+- `is_fly` becomes `is_deployment_host` through `EnvOverrides`, `ExecutionEnvironment` and the routing policy, and answers from `SYSTEMPROMPT_DEPLOYMENT_HOST` or `FLY_APP_NAME`. The old name described the mechanism rather than the question, which is why the Fly-only assumption went unnoticed; profile routing on a self-hosted deployment now suppresses remote routing correctly.
+
 ## [0.42.0] - 2026-08-31
 
 ### Changed

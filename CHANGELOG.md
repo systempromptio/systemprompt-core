@@ -8,6 +8,13 @@
 
 - `opencode` is a known bridge host, so a tenant may enable the OpenCode coding agent alongside the existing hosts.
 - `systemprompt_models::bridge::profile::KNOWN_HOSTS` is the single list of host ids the gateway accepts from a bridge. It was a private constant in the API route; the bridge's registry test now asserts against it, so a host added on one side without the other fails a test instead of silently never being enabled.
+- `SYSTEMPROMPT_DEPLOYMENT_HOST` makes "am I running on the host my cloud profile describes?" a portable question. The only signal for it was `FLY_APP_NAME`, injected by the Fly platform, so the shipped image was portable while the routing suppression baked into it was not — every self-hosted target was one `target: cloud` profile away from the outage production had, and would have hit it with an error naming a tenant store rather than the missing signal. `systemprompt_models::subprocess::{deployment_host, is_deployment_host}` answer from the marker or from `FLY_APP_NAME`, so tenants deployed before it existed keep working with no redeploy; the generated Dockerfile writes it, and it joins `FLY_APP_NAME` in `SYSTEM_MANAGED` so a laptop cannot round-trip its value into a deployment.
+
+### Fixed
+
+- **Security:** `GET /v1/bridge/plugins/{id}/{*path}` authorizes the caller rather than merely authenticating them. It checked for a valid token and then served any plugin's bytes, so any authenticated user could pull an admin plugin's bundle by path and read the skills and dashboards their signed manifest never offered. The endpoint now resolves the caller's own manifest candidate through the same `ManifestService` and marketplace filter the manifest endpoint uses, and 404s a plugin that candidate does not carry.
+- MCP subprocesses no longer inherit the wrong host. The spawner rebuilds the child environment from an allowlist that held only `PATH` and `HOME`, so every MCP child on a deployed host believed it was off-host and tried to route each command to the machine already running it.
+- The bridge no longer reuses one gateway's OAuth identity for another. `PluginTokenCache` was keyed on plugin id alone and `oauth_client.json` recorded no gateway, so repointing a bridge kept serving the previously minted identity to a gateway that could not verify it.
 
 ### Changed
 

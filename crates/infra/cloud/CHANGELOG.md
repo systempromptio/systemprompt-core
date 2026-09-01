@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Added
+
+- The generated container Dockerfile writes `SYSTEMPROMPT_DEPLOYMENT_HOST` into both branches of its `ENV` section, so an image deployed anywhere carries the marker that tells a process it is already on the host its profile names. The marker joins `FLY_APP_NAME` in `SYSTEM_MANAGED`, so secret sync treats it as platform-owned and a laptop cannot round-trip its value into a deployment.
+
 ## [0.41.0] - 2026-08-28
 
 ### Changed

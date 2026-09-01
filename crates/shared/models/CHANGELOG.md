@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Added
+
+- `subprocess::deployment_host` / `is_deployment_host` answer "is this process running on the host its cloud profile describes?" from `SYSTEMPROMPT_DEPLOYMENT_HOST`, falling back to `FLY_APP_NAME`. The question had only one answer before, injected by the Fly platform, so the same image was portable while the routing suppression baked into it was not. An empty value counts as absent.
+- `PluginHooksRef::comms` (default `false`) opts a governance-owning plugin into the announcement-drain hooks. They were appended to every plugin that set `hooks.governance`.
+
+### Changed
+
+- **Breaking:** `cowork` is no longer in `bridge::profile::KNOWN_HOSTS`. Cowork is a mode of the Claude desktop app, not a host of its own; both of its sync emitters write into Claude Desktop's directories and now key on `claude-desktop`. A profile or `enabled_hosts` request naming `cowork` is rejected rather than silently ignored — drop it.
+- `opencode` joins `KNOWN_HOSTS`, and that constant is now the single list the gateway accepts from a bridge; it was a private constant in the API route.
+
 ## [0.42.0] - 2026-08-31
 
 ### Added
