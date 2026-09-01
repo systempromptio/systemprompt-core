@@ -152,7 +152,7 @@ check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-file-size
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -282,6 +282,12 @@ lint-bridge-verdicts:
 # fails on any `crate::<module>` reference that points upward.
 lint-bridge-layers:
     ./scripts/lint-bridge-layers.sh
+
+# The web tree has no bundler or type checker, so a file is only ever reviewed
+# by reading it. The standard caps JS at 150 lines and CSS at 300; this makes
+# the cap a failure instead of a note, so files are split before they sprawl.
+lint-bridge-file-size:
+    ./scripts/lint-bridge-file-size.sh
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:

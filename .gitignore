@@ -133,6 +133,7 @@ scripts/*
 !scripts/lint-bridge-verdicts.sh
 !scripts/check-bridge-bindings.sh
 !scripts/lint-bridge-layers.sh
+!scripts/lint-bridge-file-size.sh
 !scripts/lint-bridge-no-window.sh
 
 # Local-only review notes
