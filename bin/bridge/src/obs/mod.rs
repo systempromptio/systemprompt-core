@@ -3,23 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod output {
-    use crate::auth::types::HelperOutput;
-    use std::io::Write;
-
-    pub fn emit(output: &HelperOutput) -> std::io::Result<()> {
-        let json = serde_json::to_string(output)?;
-        let mut stdout = std::io::stdout().lock();
-        stdout.write_all(json.as_bytes())?;
-        stdout.write_all(b"\n")?;
-        stdout.flush()
-    }
-
-    pub fn diag(msg: &str) {
-        tracing::warn!(target: "systemprompt_bridge", "{msg}");
-    }
-}
-
 pub use tracing_init::{init, install_panic_hook, log_dir, log_file_path};
 
 mod format;

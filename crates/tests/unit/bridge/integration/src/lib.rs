@@ -12,11 +12,19 @@ mod cowork_artifacts;
 mod doctor_hook_token;
 #[cfg(test)]
 mod gateway_hook_token;
+#[cfg(test)]
+mod hermes_host;
+#[cfg(test)]
+mod hermes_merge;
 // The module under test is the Linux device-cert keystore; `platform_source`
 // resolves to the Keychain branch elsewhere, which answers `NotConfigured`
 // rather than reading `SP_BRIDGE_DEVICE_CERT` at all.
 #[cfg(all(test, target_os = "linux"))]
 mod keystore_linux;
+#[cfg(test)]
+mod opencode_host;
+#[cfg(test)]
+mod opencode_merge;
 #[cfg(test)]
 mod plugin_oauth;
 #[cfg(test)]

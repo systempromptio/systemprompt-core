@@ -8,13 +8,13 @@ use serde_json::{Value, json};
 
 use crate::gui::error::GuiError;
 use crate::gui::events::ReplyId;
-use crate::gui::ipc::IpcReplyPayload;
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::IpcReplyPayload;
 use crate::{config, install, update};
 
 pub(crate) fn on_settings_read(app: &GuiApp, reply_to: ReplyId) {
     if let Some(id) = reply_to {
-        let payload = IpcReplyPayload::ok(current());
+        let payload = IpcReplyPayload::ok(current(&app.ctx.schedule));
         emit::send_reply_payload(app, id, &payload);
     }
 }
@@ -26,14 +26,14 @@ pub(crate) fn on_settings_write(app: &mut GuiApp, key: &str, value: &Value, repl
         return;
     };
     let payload = match result {
-        Ok(()) => IpcReplyPayload::ok(current()),
-        Err(e) => IpcReplyPayload::err(crate::gui::ipc::BridgeError::internal(e.to_string())),
+        Ok(()) => IpcReplyPayload::ok(current(&app.ctx.schedule)),
+        Err(e) => IpcReplyPayload::err(crate::wire::ipc::BridgeError::internal(e.to_string())),
     };
     emit::send_reply_payload(app, id, &payload);
 }
 
 pub(crate) fn on_autostart_toggled(app: &mut GuiApp) {
-    let status = install::gui_autostart_status();
+    let status = install::gui_autostart_status(&app.ctx.schedule);
     if status == install::ScheduleStatus::Unknown {
         app.append_log_warn("start at login: could not ask the scheduler whether it is registered");
         return;
@@ -59,10 +59,8 @@ fn write_setting(app: &GuiApp, key: &str, value: &Value) -> Result<(), GuiError>
     }
     match key {
         "autostart" => set_autostart(app, as_bool(key, value)?),
-        "update_automatic" => config::set_update_automatic(as_bool(key, value)?)
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string()))),
-        "session_enabled" => config::set_session_enabled(as_bool(key, value)?)
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string()))),
+        "update_automatic" => Ok(config::set_update_automatic(as_bool(key, value)?)?),
+        "session_enabled" => Ok(config::set_session_enabled(as_bool(key, value)?)?),
         other => Err(GuiError::Io(std::io::Error::other(format!(
             "unknown setting: {other}"
         )))),
@@ -79,15 +77,13 @@ fn as_bool(key: &str, value: &Value) -> Result<bool, GuiError> {
 
 fn set_autostart(app: &GuiApp, enabled: bool) -> Result<(), GuiError> {
     if enabled {
-        let binary = update::installed_path()
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string())))?;
-        let lines = install::apply_gui_autostart(&binary)
-            .map_err(|e| GuiError::Io(std::io::Error::other(e.to_string())))?;
+        let binary = update::installed_path()?;
+        let lines = install::apply_gui_autostart(&app.ctx.schedule, &binary)?;
         for line in lines {
             app.append_log(line);
         }
     } else {
-        app.append_log(match install::remove_gui_autostart() {
+        app.append_log(match install::remove_gui_autostart(&app.ctx.schedule) {
             install::ScheduleRemoval::Removed(label) => {
                 format!("start at login disabled: {label}")
             },
@@ -102,12 +98,12 @@ fn set_autostart(app: &GuiApp, enabled: bool) -> Result<(), GuiError> {
     Ok(())
 }
 
-fn current() -> Value {
+fn current(schedule: &crate::schedule::status::ScheduleStatusCache) -> Value {
     let malformed = config::read().err().map(|e| e.to_string());
     let cfg = config::load();
     let claude = cfg.claude.as_ref();
     json!({
-        "autostart": install::gui_autostart_status(),
+        "autostart": autostart_value(schedule),
         "update_automatic": update::automatic_enabled(),
         "gateway_url": config::gateway_url_or_default(&cfg).as_str(),
         "session_enabled": cfg.session.and_then(|s| s.enabled).unwrap_or(false),
@@ -117,7 +113,7 @@ fn current() -> Value {
         "pinned_pubkey": pinned_pubkey_value(),
         "config_file": config::config_path().map(|p| p.display().to_string()),
         "config_malformed": malformed,
-        "schedule": schedule_value(),
+        "schedule": schedule_value(schedule),
     })
 }
 
@@ -137,9 +133,17 @@ fn pinned_pubkey_value() -> Value {
     json!({ "value": effective.as_str(), "source": source })
 }
 
-fn schedule_value() -> Value {
+fn autostart_value(schedule: &crate::schedule::status::ScheduleStatusCache) -> Value {
+    let status = install::gui_autostart_status(schedule);
     json!({
-        "state": install::schedule_status(),
+        "verdict": status.verdict(),
+        "installed": status == install::ScheduleStatus::Installed,
+    })
+}
+
+fn schedule_value(schedule: &crate::schedule::status::ScheduleStatusCache) -> Value {
+    json!({
+        "verdict": install::schedule_status(schedule).verdict(),
         "label": install::schedule_label(),
     })
 }

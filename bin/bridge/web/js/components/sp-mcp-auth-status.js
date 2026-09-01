@@ -1,131 +1,65 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
+import { t } from "/assets/js/i18n.js";
 import { publishSectionState } from "/assets/js/utils/format.js";
+import { runAction } from "/assets/js/utils/action.js";
+import { toneDot, toneSection } from "/assets/js/utils/verdict.js";
 
-// Maps a McpAuthState (serialized by Rust variant name) to display attributes.
-const VIEWS = {
-  Authenticated:       { s: "ok",      dot: "sp-dot--ok",      label: "authenticated" },
-  NoServers:           { s: "warn",    dot: "sp-dot--warn",    label: "no servers registered" },
-  LoopbackMismatch:    { s: "err",     dot: "sp-dot--err",     label: "bad loopback secret (403)" },
-  GatewayUnauthorized: { s: "err",     dot: "sp-dot--err",     label: "gateway unauthorized (401)" },
-  NotRegistered:       { s: "err",     dot: "sp-dot--err",     label: "not in proxy registry (404)" },
-  UpstreamError:       { s: "err",     dot: "sp-dot--err",     label: "upstream error" },
-  ProxyUnreachable:    { s: "err",     dot: "sp-dot--err",     label: "proxy unreachable" },
-  ProbeTimeout:        { s: "unknown", dot: "sp-dot--unknown", label: "did not answer in time" },
-  LocalError:          { s: "unknown", dot: "sp-dot--unknown", label: "could not be checked" },
-  ProtocolError:       { s: "err",     dot: "sp-dot--err",     label: "protocol error" },
-  Unknown:             { s: "unknown", dot: "sp-dot--unknown", label: "not checked yet" },
-};
-
-function viewFor(state) {
-  return VIEWS[state] || VIEWS.Unknown;
-}
-
-function rollUp(a, b) {
-  const order = { err: 4, warn: 3, probing: 2, unknown: 1, ok: 0 };
-  return (order[a] ?? 1) >= (order[b] ?? 1) ? a : b;
-}
-
-function sectionLabel(state) {
-  if (state === "ok") { return "authenticated"; }
-  if (state === "warn") { return "attention"; }
-  if (state === "err") { return "failing"; }
-  if (state === "probing") { return "checking…"; }
-  return "unknown";
-}
-
-function detailRows(srv) {
-  return [
-    srv.url ? ["url", escapeHtml(srv.url)] : null,
-    srv.session_id ? ["session", escapeHtml(srv.session_id)] : null,
-    srv.http_status != null ? ["http", String(srv.http_status)] : null,
-    srv.latency_ms != null ? ["latency", `${srv.latency_ms} ms`] : null,
-    srv.error ? ["error", escapeHtml(srv.error)] : null,
-  ].filter(Boolean);
-}
-
-function toolsBlock(srv) {
-  if (srv.state !== "Authenticated") { return ""; }
-  if (!srv.tools || srv.tools.length === 0) {
-    return `<p class="sp-kpi-card__label">Authenticated — no tools exposed.</p>`;
-  }
-  const chips = srv.tools.map((tool) => `<span class="sp-chip">${escapeHtml(tool)}</span>`).join("");
-  return `<p class="sp-kpi-card__label">Tools (${srv.tools.length})</p><div class="sp-chip-list sp-kpi-card__chips">${chips}</div>`;
-}
-
-function card(srv) {
-  const view = viewFor(srv.state);
-  const toolCount = srv.tools ? srv.tools.length : 0;
-  const rows = detailRows(srv);
-  const title = srv.id || "MCP servers";
+// The Status summary of MCP auth: one line per server, the bridge's verdict
+// beside it. The full picture — tools, identity, URLs, per-server re-check —
+// is the Marketplace's MCP detail; this pane only points there.
+function row(srv) {
+  const verdict = srv.verdict || { tone: "unknown", code: "unknown" };
+  const tools = srv.shows_tools ? (t("mcp-tools", { count: (srv.tools || []).length }) || "") : "";
   return `
-    <article class="sp-kpi-card" data-state="${view.s}">
-      <div class="sp-kpi-card__head">
-        <span>${escapeHtml(title)}</span>
-        <span class="sp-dot ${view.dot}" aria-hidden="true"></span>
-      </div>
-      <div class="sp-kpi-card__value">
-        <span>${srv.state === "Authenticated" ? toolCount : "—"}</span>
-        ${srv.state === "Authenticated" ? `<span class="sp-kpi-card__unit">${toolCount === 1 ? "tool" : "tools"}</span>` : ""}
-      </div>
-      <div class="sp-kpi-card__label">${escapeHtml(view.label)}</div>
-      ${srv.session_id ? `<p class="sp-kpi-card__label">session <code>${escapeHtml(srv.session_id)}</code></p>` : ""}
-      ${srv.error ? `<p class="sp-kpi-card__error">${escapeHtml(srv.error)}</p>` : ""}
-      ${toolsBlock(srv)}
-      ${rows.length ? `<details><summary>Details</summary><dl class="sp-kpi-card__details">${rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${v}</dd>`).join("")}</dl></details>` : ""}
-    </article>
-  `;
+    <li class="sp-status__row sp-mcp-row" data-state="${escapeHtml(verdict.tone)}">
+      <span class="sp-dot ${toneDot(verdict.tone)}" aria-hidden="true"></span>
+      <span class="sp-mcp-row__name">${escapeHtml(srv.id || "")}</span>
+      <span class="sp-mcp-row__label">${escapeHtml(t(`mcp-auth-${verdict.code}`) || "")}${tools ? ` · ${escapeHtml(tools)}` : ""}</span>
+    </li>`;
 }
 
 export class SpMcpAuthStatus extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
-    this.registerAction("recheck", () => {
-      bridge.invoke("mcp.auth.probe").catch((e) => console.warn("mcp.auth.probe failed", e));
+    this.registerAction("recheck", (trigger) => runAction(trigger, {
+      run: () => bridge.mcpAuthProbe(),
+      success: () => t("mcp-rechecked") || "MCP servers re-checked.",
+      context: t("mcp-recheck") || "Re-check",
+    }));
+    this.registerAction("open-marketplace", () => {
+      const rail = document.querySelector("sp-rail");
+      if (rail) { rail.activateTab("marketplace", { moveFocus: true }); }
     });
   }
 
   onConnect() {
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
-    this.bridgeSubscribe("mcp.changed", () => {
-      bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
-    });
+    this.useSnapshot((s) => { this.snapshot = s; });
   }
 
   render() {
     const snap = this.snapshot || {};
     const servers = snap.mcp_auth || [];
     const probing = !!snap.mcp_auth_probe_in_flight;
-    const recheck = `<button type="button" class="sp-btn sp-btn--ghost" data-action="recheck" ${probing ? "disabled" : ""}>${probing ? "Checking…" : "Recheck"}</button>`;
-
-    if (servers.length === 0) {
-      return `<div class="sp-kpi-grid">${card({ state: probing ? "Unknown" : "NoServers", tools: [] })}</div><div class="sp-kpi-card__foot"><span class="sp-kpi-card__foot-meta">Live round-trip through the loopback proxy.</span>${recheck}</div>`;
-    }
+    const recheckLabel = probing ? (t("mcp-checking") || "Checking…") : (t("mcp-recheck") || "Re-check");
+    const body = servers.length
+      ? `<ul class="sp-mcp-list">${servers.map(row).join("")}</ul>`
+      : `<p class="sp-u-muted">${escapeHtml(t(`mcp-auth-${probing ? "unknown" : "no-servers"}`) || "")}</p>`;
     return `
-      <div class="sp-kpi-grid">${servers.map(card).join("")}</div>
+      ${body}
       <div class="sp-kpi-card__foot">
-        <span class="sp-kpi-card__foot-meta">Live <code>initialize</code> + <code>tools/list</code> through the loopback proxy.</span>
-        ${recheck}
+        <span class="sp-kpi-card__foot-meta">${escapeHtml(t("mcp-live-roundtrip") || "")}</span>
+        <button type="button" class="sp-btn-ghost" data-action="open-marketplace">${escapeHtml(t("mcp-open-marketplace") || "")}</button>
+        <button type="button" class="sp-btn sp-btn--ghost" data-action="recheck" ${probing ? "disabled" : ""}>${escapeHtml(recheckLabel)}</button>
       </div>
     `;
   }
 
   afterRender() {
-    const snap = this.snapshot || {};
-    const servers = snap.mcp_auth || [];
-    const probing = !!snap.mcp_auth_probe_in_flight;
-    // Derive the section state from the servers' worst state. (Don't seed with
-    // "unknown" — rollUp ranks unknown above ok, so an authenticated server
-    // would never lift the badge to green.)
-    let overall;
-    if (servers.length) {
-      overall = servers.map((srv) => viewFor(srv.state).s).reduce(rollUp);
-    } else {
-      overall = probing ? "probing" : "warn";
-    }
-    publishSectionState(this, overall, sectionLabel(overall));
+    const tone = (this.snapshot && this.snapshot.mcp_auth_tone) || "unknown";
+    publishSectionState(this, tone, toneSection(tone));
   }
 }
 

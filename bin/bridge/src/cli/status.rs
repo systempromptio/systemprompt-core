@@ -9,16 +9,16 @@ use std::process::ExitCode;
 use serde::Deserialize;
 
 use crate::auth::setup;
-use crate::cli::output;
 use crate::config::paths;
-use crate::obs::output::diag;
+use crate::stdio;
+use crate::stdio::diag;
 
 fn status_line(label: &str, value: impl Display) {
-    output::print_line(&format!("{label}: {value}"));
+    stdio::print_line(&format!("{label}: {value}"));
 }
 
 fn status_indent(label: &str, value: impl Display) {
-    output::print_line(&format!("  {label}: {value}"));
+    stdio::print_line(&format!("  {label}: {value}"));
 }
 
 #[derive(Deserialize)]

@@ -211,3 +211,43 @@ mod linux {
         out
     }
 }
+
+// Why: every CLI host answers "is it running?" the same way — by binary name,
+// with the `.exe` suffix on Windows and the `.app` bundle on macOS. Three
+// hosts carried three byte-identical copies of this, which is how a fix to
+// one would have missed the other two.
+#[must_use]
+pub(crate) fn find_processes(binary: &str) -> Vec<String> {
+    let exe = format!("{binary}.exe");
+    let suffix = format!("/{binary}");
+    let bundle = format!("/{binary}.app/");
+    let mut hits: Vec<String> = list_processes()
+        .into_iter()
+        .filter_map(|p| {
+            let name_lower = p.name.to_ascii_lowercase();
+            let path_lower = p
+                .path
+                .as_deref()
+                .map(str::to_ascii_lowercase)
+                .unwrap_or_default();
+            if cfg!(target_os = "windows") {
+                if name_lower == exe {
+                    return Some(name_lower);
+                }
+            } else if path_lower.ends_with(&suffix)
+                || path_lower.contains(&bundle)
+                || name_lower == binary
+            {
+                return Some(if path_lower.is_empty() {
+                    name_lower
+                } else {
+                    path_lower
+                });
+            }
+            None
+        })
+        .collect();
+    hits.sort();
+    hits.dedup();
+    hits
+}

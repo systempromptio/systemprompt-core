@@ -5,16 +5,12 @@
 
 pub(crate) mod apply;
 mod error;
-pub(crate) mod hash;
-pub mod host_sync;
 mod manifest;
 mod replay;
 mod summary;
 
-pub use apply::{ApplyError, HostFailure, PLUGIN_INSTALLATION_PREFERENCE, TomlError};
+pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
-pub(crate) use hash::{safe_id_segment, sha256_hex};
-pub use host_sync::{HostSync, HostSyncCtx};
 pub use replay::{
     LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,
 };
@@ -45,11 +41,12 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
 
 #[tracing::instrument(level = "info")]
 pub async fn run_once(
+    bridge: &crate::context::BridgeContext,
     allow_unsigned: bool,
     force_replay: bool,
     allow_tofu: bool,
 ) -> Result<SyncSummary, SyncError> {
-    let fetch = manifest::fetch_authenticated_manifest().await?;
+    let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
 
     #[cfg_attr(
@@ -58,14 +55,14 @@ pub async fn run_once(
     )]
     let mut location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
     #[cfg(target_os = "windows")]
-    if let Err(err) = check_cowork_scope(&synced, &location) {
-        match heal_cowork_scope().await {
+    if let Err(err) = check_org_plugins_scope(&synced, &location) {
+        match heal_org_plugins_scope(bridge).await {
             Some(healed) => location = healed,
             None => return Err(err),
         }
     }
     #[cfg(not(target_os = "windows"))]
-    check_cowork_scope(&synced, &location)?;
+    check_org_plugins_scope(&synced, &location)?;
     if !location.path.is_dir() {
         // Why: only the macOS system path needs `sudo install --apply` — the
         // per-user location (Windows/Linux) is writable by this process, so a
@@ -106,9 +103,15 @@ pub async fn run_once(
         check_skew(&synced.not_before, now)?;
     }
 
-    let report = apply::apply_manifest(&fetch.client, fetch.bearer.expose(), &synced, &location)
-        .await
-        .map_err(SyncError::ApplyFailed)?;
+    let report = apply::apply_manifest(
+        &fetch.client,
+        fetch.bearer.expose(),
+        bridge,
+        &synced,
+        &location,
+    )
+    .await
+    .map_err(SyncError::ApplyFailed)?;
 
     seed_default_model_from_profile(&fetch.client).await;
 
@@ -117,15 +120,11 @@ pub async fn run_once(
     Ok(build_summary(&synced, report))
 }
 
-// Why: the fleet's default model is server policy, delivered by
-// `GET /v1/bridge/profile`. Applied here rather than in `install --apply`
-// because that path is synchronous and cannot fetch it, and because a policy
-// change should reach existing installs on their next scheduled sync rather
-// than waiting for a reinstall.
-//
-// Best-effort throughout: a gateway that omits the field, or is unreachable,
-// leaves the model choice exactly as it was. Nothing here should fail a sync
-// whose manifest already applied cleanly.
+// Why: the fleet's default model is server policy (`GET /v1/bridge/profile`),
+// applied on sync rather than in the synchronous `install --apply` so a policy
+// change reaches existing installs on their next scheduled sync. Best-effort
+// throughout: an absent field or an unreachable gateway leaves the model
+// choice as it was, and never fails a sync whose manifest applied cleanly.
 #[cfg(target_os = "linux")]
 async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient) {
     let Ok(profile) = client.fetch_bridge_profile().await else {
@@ -150,19 +149,19 @@ async fn seed_default_model_from_profile(_client: &crate::gateway::GatewayClient
 
 // Why: on Windows, Cowork scans only the system org-plugins path. Writing the
 // user-scope fallback there succeeds but is invisible to Cowork, so a sync
-// that targets the cowork host from a non-elevated process must fail loudly
-// instead of reporting success. Other platforms either have no fallback
+// that targets the Claude Desktop host from a non-elevated process must fail
+// loudly instead of reporting success. Other platforms either have no fallback
 // (macOS) or no Cowork desktop app, and the gateway enables all known hosts
 // by default, so the check cannot be platform-neutral.
 #[cfg(target_os = "windows")]
-fn check_cowork_scope(
+fn check_org_plugins_scope(
     manifest: &SignedManifest,
     location: &paths::OrgPluginsLocation,
 ) -> Result<(), SyncError> {
-    if manifest.enabled_hosts.iter().any(|h| h == "cowork")
+    if manifest.enabled_hosts.iter().any(|h| h == "claude-desktop")
         && let paths::FallbackReason::SystemUnwritable { system_path } = &location.reason
     {
-        return Err(SyncError::CoworkNeedsElevation {
+        return Err(SyncError::OrgPluginsNeedElevation {
             bin: crate::brand::brand().binary_name,
             system_path: system_path.display().to_string(),
         });
@@ -175,14 +174,16 @@ fn check_cowork_scope(
 // One attempt per process: a declined prompt must not re-fire from the GUI
 // auto-sync, tray retries, or a `sync --watch` loop.
 #[cfg(target_os = "windows")]
-async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    static ATTEMPTED: AtomicBool = AtomicBool::new(false);
-    if ATTEMPTED.swap(true, Ordering::SeqCst) {
+async fn heal_org_plugins_scope(
+    bridge: &crate::context::BridgeContext,
+) -> Option<paths::OrgPluginsLocation> {
+    if bridge
+        .elevation_attempted
+        .swap(true, std::sync::atomic::Ordering::SeqCst)
+    {
         return None;
     }
-    let org =
-        crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user()?;
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
     let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
     if let Err(e) = fs::create_dir_all(&stage_dir) {
         tracing::warn!(error = %e, "could not create staging dir for org-plugins provisioning");
@@ -192,13 +193,15 @@ async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
         path = %org.path.display(),
         "requesting one-time administrator approval to provision org-plugins for Cowork"
     );
-    let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+    let job = crate::install::elevated_job::ElevatedJob {
         clear_values: Vec::new(),
+        managed_files: Vec::new(),
+        remove_files: Vec::new(),
         reg_path: None,
         org_plugins: Some(org),
     };
     let outcome = tokio::task::spawn_blocking(move || {
-        crate::integration::claude_desktop::elevate::elevate_and_run(&stage_dir, &job)
+        crate::install::elevated_job::elevate_and_run(&stage_dir, &job)
     })
     .await;
     match outcome {
@@ -219,7 +222,7 @@ async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
     clippy::unnecessary_wraps,
     reason = "signature must match the windows variant so run_once stays cfg-free"
 )]
-const fn check_cowork_scope(
+const fn check_org_plugins_scope(
     _manifest: &SignedManifest,
     _location: &paths::OrgPluginsLocation,
 ) -> Result<(), SyncError> {
@@ -286,7 +289,5 @@ struct LastSyncSentinel<'a> {
 }
 
 fn current_iso8601() -> String {
-    time::OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Rfc3339)
-        .unwrap_or_else(|_| "unknown".into())
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
 }

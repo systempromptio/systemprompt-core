@@ -57,13 +57,13 @@ fn malformed_plugins_are_named_in_a_warning_suffix() {
 fn a_failing_host_downgrades_the_line_to_partial_and_keeps_one_error_line() {
     let mut s = summary();
     s.host_failures = vec![HostFailure {
-        host_id: "cowork".into(),
+        host_id: "claude-desktop".into(),
         error: "first line of the error\nsecond line that must not appear".into(),
     }];
     let line = s.one_line();
     assert!(line.starts_with("sync PARTIAL"), "{line}");
     assert!(
-        line.contains("1 host(s) failed: cowork (first line of the error)"),
+        line.contains("1 host(s) failed: claude-desktop (first line of the error)"),
         "{line}"
     );
     assert!(
@@ -78,7 +78,7 @@ fn several_failing_hosts_are_joined() {
     let mut s = summary();
     s.host_failures = vec![
         HostFailure {
-            host_id: "cowork".into(),
+            host_id: "claude-desktop".into(),
             error: "no session".into(),
         },
         HostFailure {
@@ -88,7 +88,9 @@ fn several_failing_hosts_are_joined() {
     ];
     let line = s.one_line();
     assert!(
-        line.contains("2 host(s) failed: cowork (no session); codex-cli (permission denied)"),
+        line.contains(
+            "2 host(s) failed: claude-desktop (no session); codex-cli (permission denied)"
+        ),
         "{line}"
     );
 }

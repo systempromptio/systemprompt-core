@@ -43,9 +43,9 @@ struct AgUiEnvelope {
 #[derive(Debug, Clone, Deserialize, serde::Serialize)]
 struct CommsAnnouncement {
     #[serde(rename = "messageId")]
-    message_id: String,
+    message_id: crate::ids::CommsMessageId,
     #[serde(rename = "sessionId")]
-    session_id: Option<String>,
+    session_id: Option<crate::ids::HookSessionId>,
     from: String,
     #[serde(rename = "deliveryClass")]
     delivery_class: String,
@@ -61,8 +61,9 @@ pub fn inbox_dir() -> Option<PathBuf> {
 // this knows only its own session id, and the isolation guarantee has to hold
 // even if the hook script is wrong. A message it must not see is not in a file
 // it can name.
-fn inbox_path(session_id: &str) -> Option<PathBuf> {
+fn inbox_path(session_id: &crate::ids::HookSessionId) -> Option<PathBuf> {
     let safe: String = session_id
+        .as_str()
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
         .collect();
@@ -76,7 +77,7 @@ fn append(announcement: &CommsAnnouncement) {
     // Why: An announcement with no session is inbox-class and must not be written:
     // it would surface in whichever session happened to read first, which is
     // exactly the interruption the delivery classes prevent.
-    let Some(session_id) = announcement.session_id.as_deref() else {
+    let Some(session_id) = announcement.session_id.as_ref() else {
         return;
     };
     let Some(path) = inbox_path(session_id) else {
@@ -145,15 +146,24 @@ pub async fn run_loop(
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+enum CommsError {
+    #[error("token: {0}")]
+    Token(#[from] crate::proxy::forward::ForwardError),
+    #[error("http: {0}")]
+    Http(#[from] reqwest::Error),
+    #[error("gateway rejected the comms subscription")]
+    Unauthorized,
+    #[error("gateway answered {0}")]
+    Status(reqwest::StatusCode),
+}
+
 async fn subscribe_once(
     gateway_base: &ValidatedUrl,
     token_cache: &TokenCache,
     client: &reqwest::Client,
-) -> Result<(), String> {
-    let token = token_cache
-        .current(AUTH_THRESHOLD_SECS)
-        .await
-        .map_err(|e| e.to_string())?;
+) -> Result<(), CommsError> {
+    let token = token_cache.current(AUTH_THRESHOLD_SECS).await?;
 
     let url = format!(
         "{base}/v1/bridge/stream",
@@ -164,22 +174,21 @@ async fn subscribe_once(
         .get(&url)
         .bearer_auth(token.token.expose())
         .send()
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         token_cache.invalidate().await;
-        return Err("gateway rejected the comms subscription".to_owned());
+        return Err(CommsError::Unauthorized);
     }
     if !response.status().is_success() {
-        return Err(format!("gateway answered {}", response.status()));
+        return Err(CommsError::Status(response.status()));
     }
 
     tracing::info!("comms stream open");
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
     while let Some(chunk) = stream.next().await {
-        let bytes = chunk.map_err(|e| e.to_string())?;
+        let bytes = chunk?;
         buffer.push_str(&String::from_utf8_lossy(&bytes));
         while let Some(idx) = buffer.find("\n\n") {
             let frame = buffer[..idx].to_owned();

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Fixed
+
+- **Security:** `GET /v1/bridge/plugins/{id}/{*path}` authorizes the caller, it no longer merely authenticates them. It checked for a valid token and then served any plugin's bytes, so any authenticated user could pull an admin plugin's bundle by path and read skills and dashboards their signed manifest never offered. The endpoint now resolves the caller's own manifest candidate through the same `ManifestService` and marketplace filter the manifest endpoint uses, and 404s a plugin that candidate does not carry.
+
+### Added
+
+- The bridge host route accepts `opencode`, and validates enabled hosts against `systemprompt_models::bridge::profile::KNOWN_HOSTS` rather than its own private list.
+
+## [0.42.0] - 2026-08-31
+
+### Changed
+
+- Establishing a session is bounded and degrades instead of failing. It reads and writes the database and runs as a global layer over every route including static content, so a database fault held each request for the pool's full 30-second acquire timeout and then returned `500` — for a public page view as much as for an API call. A request whose session cannot be established within two seconds is now served with an untracked, actor-less context and a throttled warning naming the path. Nothing is escalated by that context: it carries no auth token and no user, so every gate above `public` still refuses it, and `is_tracked` is false so the analytics sinks record no visit they cannot attribute. Measured against the live site with Postgres stopped: a page went from `500` after 30s to `200` in 2s.
+- The health probe is bounded and reports which version answered.
+- Gateway model resolution honours the server-side default model.
+
 ## [0.41.0] - 2026-08-28
 
 ### Changed

@@ -7,7 +7,9 @@ use std::fs;
 use std::path::Path;
 
 use crate::gateway::manifest::{SignedManifest, SkillEntry};
-use crate::sync::{ApplyError, safe_id_segment, sha256_hex};
+use crate::hash::{safe_id_segment, sha256_hex};
+use crate::host_sync::ApplyError;
+use crate::integration::managed_skills::skill_markdown;
 
 use super::io_err;
 
@@ -18,7 +20,10 @@ pub(super) fn targets_codex(skill: &SkillEntry) -> bool {
     skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "codex" || h == "codex-cli")
 }
 
-pub(super) fn bundle_version(manifest: &SignedManifest) -> String {
+pub(super) fn bundle_version(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    manifest: &SignedManifest,
+) -> String {
     let mut skills: Vec<&SkillEntry> = manifest
         .skills
         .iter()
@@ -40,7 +45,7 @@ pub(super) fn bundle_version(manifest: &SignedManifest) -> String {
         .iter()
         .map(|s| {
             let slug = crate::mcp_registry::normalize_key(s.name.as_str());
-            let url = crate::proxy::mcp_url(&slug);
+            let url = loopback.mcp_url(&slug);
             (slug, url)
         })
         .collect();
@@ -63,39 +68,4 @@ pub(super) fn write_skill(plugin_dir: &Path, skill: &SkillEntry) -> Result<(), A
     fs::create_dir_all(&dir).map_err(|e| io_err("create skill dir", &dir, e))?;
     let path = dir.join("SKILL.md");
     fs::write(&path, skill_markdown(skill)).map_err(|e| io_err("write SKILL.md", &path, e))
-}
-
-fn skill_markdown(skill: &SkillEntry) -> String {
-    let trimmed = skill.instructions.trim_start();
-    if trimmed.starts_with("---") {
-        return ensure_trailing_newline(skill.instructions.clone());
-    }
-    let mut out = String::new();
-    out.push_str("---\n");
-    out.push_str(&format!("name: {}\n", skill.name.as_str()));
-    out.push_str(&format!(
-        "description: {}\n",
-        yaml_scalar(&skill.description)
-    ));
-    out.push_str("---\n\n");
-    out.push_str(&skill.instructions);
-    ensure_trailing_newline(out)
-}
-
-fn ensure_trailing_newline(mut s: String) -> String {
-    if !s.ends_with('\n') {
-        s.push('\n');
-    }
-    s
-}
-
-fn yaml_scalar(s: &str) -> String {
-    let needs_quotes = s.contains(':')
-        || s.contains('#')
-        || s.starts_with(['-', '?', '!', '&', '*', '|', '>', '\'', '"', '%', '@', '`']);
-    if !needs_quotes {
-        return s.to_owned();
-    }
-    let escaped = s.replace('"', "\\\"");
-    format!("\"{escaped}\"")
 }

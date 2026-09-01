@@ -10,9 +10,8 @@ pub use crate::window_state as geometry;
 
 #[cfg(target_os = "windows")]
 mod dwm;
-#[cfg(target_os = "windows")]
-mod msgbox;
-
+// Why: `open_path` is not cfg-gated, so neither is its import — behind the
+// windows cfg it left the macOS build without `Path`.
 use std::path::Path;
 use std::process::Command;
 
@@ -37,35 +36,6 @@ pub fn open_path(path: &Path) {
 
 pub fn open_external_url(url: &str) {
     open_target(url);
-}
-
-pub fn alert_user(title: &str, message: &str) {
-    tracing::warn!(title = %title, message = %message, "alerting user");
-    #[cfg(target_os = "windows")]
-    {
-        msgbox::show(title, message);
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        // Why: the shells below are quote-delimited; dropping quotes from the
-        // interpolated text keeps the command well-formed without an escaper.
-        let title = title.replace(['"', '\''], "");
-        let message = message.replace(['"', '\''], "");
-        let spawned = std::cfg_select! {
-            target_os = "macos" => Command::new("/usr/bin/osascript")
-                .arg("-e")
-                .arg(format!(
-                    "display dialog \"{message}\" with title \"{title}\" buttons {{\"OK\"}} with icon stop"
-                ))
-                .status(),
-            _ => Command::new("notify-send")
-                .args(["--urgency=critical", &title, &message])
-                .status(),
-        };
-        if let Err(e) = spawned {
-            tracing::error!(error = %e, "failed to alert user");
-        }
-    }
 }
 
 pub fn notify_user(title: &str, message: &str) {

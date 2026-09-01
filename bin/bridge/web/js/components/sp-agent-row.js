@@ -1,7 +1,8 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
-import { hostStatus, badgeSuffix } from "/assets/js/utils/host-status.js";
+import { statusOf, badgeSuffix } from "/assets/js/utils/verdict.js";
 import { runHostAction } from "/assets/js/utils/host-actions.js";
 
 /**
@@ -52,17 +53,17 @@ export class SpAgentRow extends SpElement {
 
   render() {
     const host = this.host || {};
-    const status = hostStatus(host, this.snapshot);
+    const status = statusOf(host);
     const probing = !!host.probe_in_flight;
     const name = host.display_name || "—";
     const openLabel = t("agent-open-details", { name }) || `Open details for ${name}`;
 
     const actionMarkup = status.action
-      ? `<button class="${status.state === "ok" ? "sp-btn-ghost" : "sp-btn-primary"} sp-agent-row__action" type="button"
-                 data-action="primary" data-kind="${escapeHtml(status.action.kind)}"
+      ? `<button class="${status.tone === "ok" ? "sp-btn-ghost" : "sp-btn-primary"} sp-agent-row__action" type="button"
+                 data-action="primary" data-kind="${escapeHtml(status.action.code)}"
                  ${this.busy ? "disabled" : ""}>${escapeHtml(
                    this.busy ? (t("agent-action-working") || "Working…") : status.action.label
-                 )}${status.action.kind === "download" ? " ↗" : ""}</button>`
+                 )}${status.action.code === "download" ? " ↗" : ""}</button>`
       : "";
 
     return `

@@ -25,9 +25,6 @@ macro_rules! bridge_define_id {
             pub fn into_inner(self) -> String { self.0 }
         }
 
-        impl From<String> for $name { fn from(s: String) -> Self { Self(s) } }
-        impl From<&str> for $name { fn from(s: &str) -> Self { Self(s.to_owned()) } }
-
         $crate::bridge_id_common!($name);
     };
 
@@ -219,6 +216,12 @@ bridge_define_token!(ProxySecret);
 bridge_define_token!(PinnedPubKey);
 
 bridge_define_id!(HostId);
+// Why: three ids this process only ever relays — the MCP `Mcp-Session-Id`
+// header, the Claude Code hook session, and a comms message — are typed so
+// they cannot be passed for one another or for the platform's own ids.
+bridge_define_id!(McpSessionId);
+bridge_define_id!(HookSessionId);
+bridge_define_id!(CommsMessageId);
 bridge_define_id!(PrefsDomain, non_empty);
 bridge_define_id!(PrefsKey, non_empty);
 bridge_define_id!(ModelId, non_empty);

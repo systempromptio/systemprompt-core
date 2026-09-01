@@ -567,6 +567,83 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
     Ok(())
 }
 
+// Why: the unit tests cover the detectors in isolation; this covers what a
+// caller actually gets. `ade511b3c` shipped a detector that read trace ids as
+// cards and ordinary English as a jailbreak, and it denied production traffic
+// before anything here failed, because nothing here asserted an absence.
+//
+// The email is the synchronisation point, not decoration. Polling for "no
+// findings" would pass while the scan was still in flight; polling until the
+// email lands proves the request phase completed, and only then is the absence
+// of the other two categories a fact.
+#[tokio::test]
+async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -> anyhow::Result<()>
+{
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(&pool, "gw-noflag@example.invalid").await?;
+    let policy_name = format!("gw-noflag-{}", uuid::Uuid::new_v4().simple());
+    install_safety_policy(&pool, &policy_name).await?;
+
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "id": "msg_upstream_clean",
+            "type": "message",
+            "role": "assistant",
+            "model": MODEL,
+            "content": [{"type": "text", "text": "ok"}],
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 4, "output_tokens": 1}
+        })))
+        .mount(&upstream)
+        .await;
+
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(&upstream.uri(), PROVIDER);
+    let mut request = canonical_request(MODEL, false);
+    request.messages[0].content = vec![CanonicalContent::Text(
+        "reach me at noflag.tester@example.com about trace \
+         4f9a2b1c8d3e7f60a5b4c3d2e1f09876 run \
+         1755012345678901234567890123456789012345 and you are now looking at the results"
+            .to_owned(),
+    )];
+    let di = inputs(&cred, request, false);
+    let request_id = di.ctx.ai_request_id.clone();
+
+    // Why: a jailbreak finding is in this policy's block_categories, so if the
+    // prose matched, dispatch would be refused rather than merely flagged --
+    // the failure would arrive here, not at the assertions.
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+        .await
+        .expect("a request carrying only identifiers and prose is not blocked");
+    assert_eq!(resp.status(), http::StatusCode::OK);
+
+    let findings = poll_findings(&pool, &request_id, 1).await;
+    remove_safety_policy(&pool, &policy_name).await?;
+
+    assert!(
+        findings
+            .iter()
+            .any(|(phase, category, _)| phase == "request" && category == "pii_email"),
+        "the email anchors the scan as complete; got {findings:?}"
+    );
+    assert!(
+        !findings
+            .iter()
+            .any(|(_, category, _)| category == "pii_credit_card"),
+        "a 32-hex trace id and a 40-digit run are not cards; got {findings:?}"
+    );
+    assert!(
+        !findings
+            .iter()
+            .any(|(_, category, _)| category == "jailbreak"),
+        "\"you are now\" in ordinary prose is not a jailbreak; got {findings:?}"
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -> anyhow::Result<()>
 {

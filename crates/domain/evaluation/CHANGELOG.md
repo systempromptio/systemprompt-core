@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Added
+
+- `JudgeSpec` is exported from `services`.
+
 ## [0.31.0] - 2026-08-18
 
 ### Breaking

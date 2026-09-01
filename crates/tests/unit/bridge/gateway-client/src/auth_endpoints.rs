@@ -3,7 +3,7 @@
 //! Each test programs a `wiremock` mock and asserts either the decoded success
 //! payload or the specific `GatewayError` variant.
 
-use systemprompt_bridge::auth::types::{MtlsRequest, SessionExchangeRequest, SessionPatRequest};
+use systemprompt_bridge::gateway::types::{MtlsRequest, SessionExchangeRequest, SessionPatRequest};
 use systemprompt_bridge::gateway::{GatewayClient, GatewayError};
 use systemprompt_bridge::ids::{BearerToken, CertFingerprint, PatToken};
 use systemprompt_identifiers::{ClientId, PluginId, SessionId, ValidatedUrl};
@@ -11,7 +11,7 @@ use wiremock::matchers::{body_string_contains, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn client(server: &MockServer) -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new(server.uri()))
+    GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new())
 }
 
 fn session_id() -> SessionId {

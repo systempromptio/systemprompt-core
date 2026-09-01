@@ -44,7 +44,7 @@ pub fn ensure_present() -> bool {
         return true;
     }
     let app = crate::brand::brand().app_name;
-    crate::gui::window::alert_user(
+    crate::user_alert::alert_user(
         &format!("{app} needs the Microsoft WebView2 runtime"),
         "The Evergreen WebView2 runtime is not installed on this machine, so the app cannot \
          render its window. The download page will open now; install it and start the app again.",

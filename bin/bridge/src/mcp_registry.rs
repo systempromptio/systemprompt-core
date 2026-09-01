@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use systemprompt_identifiers::ValidatedUrl;
@@ -22,13 +22,16 @@ pub struct McpUpstream {
 
 pub type McpRegistry = HashMap<String, McpUpstream>;
 
-static REGISTRY: OnceLock<ArcSwap<McpRegistry>> = OnceLock::new();
+/// The hot-swappable registry a process owns: the proxy router reads it on
+/// every `/mcp/<name>` and sync replaces it wholesale.
+pub type McpRegistrySlot = ArcSwap<McpRegistry>;
 
-fn slot() -> &'static ArcSwap<McpRegistry> {
-    REGISTRY.get_or_init(|| ArcSwap::from_pointee(HashMap::new()))
+#[must_use]
+pub fn empty_slot() -> Arc<McpRegistrySlot> {
+    Arc::new(ArcSwap::from_pointee(HashMap::new()))
 }
 
-pub(crate) fn publish(servers: &[ManagedMcpServer]) {
+pub(crate) fn publish(slot: &McpRegistrySlot, servers: &[ManagedMcpServer]) {
     let mut next: McpRegistry = HashMap::with_capacity(servers.len());
     for s in servers {
         next.insert(
@@ -41,7 +44,7 @@ pub(crate) fn publish(servers: &[ManagedMcpServer]) {
             },
         );
     }
-    slot().store(Arc::new(next));
+    slot.store(Arc::new(next));
     tracing::info!(
         target: "bridge::proxy",
         count = servers.len(),
@@ -50,11 +53,11 @@ pub(crate) fn publish(servers: &[ManagedMcpServer]) {
 }
 
 #[must_use]
-pub fn snapshot() -> Arc<McpRegistry> {
-    slot().load_full()
+pub fn snapshot(slot: &McpRegistrySlot) -> Arc<McpRegistry> {
+    slot.load_full()
 }
 
-pub fn rehydrate_from_disk() {
+pub fn rehydrate_from_disk(slot: &McpRegistrySlot) {
     let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
         return;
     };
@@ -68,7 +71,7 @@ pub fn rehydrate_from_disk() {
         },
     };
     match serde_json::from_slice::<Vec<ManagedMcpServer>>(&bytes) {
-        Ok(servers) => publish(&servers),
+        Ok(servers) => publish(slot, &servers),
         Err(e) => {
             tracing::debug!(target: "bridge::proxy", error = %e, path = %path.display(), "mcp registry: parse fragment failed");
         },

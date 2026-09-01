@@ -7,13 +7,15 @@ use std::fs;
 use std::path::Path;
 
 use crate::gateway::manifest::ManagedMcpServer;
-use crate::sync::{ApplyError, TomlError};
+use crate::host_sync::{ApplyError, TomlError};
+use crate::proxy::LoopbackEndpoint;
 
 use super::super::config::user_config_path;
 use super::super::probe::write_dotted;
 use super::{MARKETPLACE, io_err, marketplace_root, plugin_id};
 
 pub(super) fn write_config_blocks(
+    loopback: &LoopbackEndpoint,
     enabled: bool,
     mcp_servers: &[ManagedMcpServer],
 ) -> Result<(), ApplyError> {
@@ -44,9 +46,9 @@ pub(super) fn write_config_blocks(
         remove_marketplace_registration(&mut value);
     }
 
-    strip_bridge_mcp_servers(&mut value);
+    strip_bridge_mcp_servers(loopback, &mut value);
     if enabled {
-        write_mcp_servers(&mut value, mcp_servers)?;
+        write_mcp_servers(loopback, &mut value, mcp_servers)?;
     }
 
     if value == original {
@@ -64,13 +66,14 @@ pub(super) fn write_config_blocks(
 }
 
 fn write_mcp_servers(
+    loopback: &LoopbackEndpoint,
     value: &mut toml::Value,
     servers: &[ManagedMcpServer],
 ) -> Result<(), ApplyError> {
     if servers.is_empty() {
         return Ok(());
     }
-    let bearer = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+    let bearer = loopback.bearer().map_err(|e| ApplyError::Io {
         context: "read loopback secret for codex mcp_servers".into(),
         source: e,
     })?;
@@ -79,7 +82,7 @@ fn write_mcp_servers(
         write_dotted(
             value,
             &format!("mcp_servers.{slug}.url"),
-            toml::Value::String(crate::proxy::mcp_url(&slug)),
+            toml::Value::String(loopback.mcp_url(&slug)),
         );
         write_dotted(
             value,
@@ -123,14 +126,14 @@ fn remove_marketplace_registration(root: &mut toml::Value) {
     }
 }
 
-fn strip_bridge_mcp_servers(root: &mut toml::Value) {
+fn strip_bridge_mcp_servers(loopback: &LoopbackEndpoint, root: &mut toml::Value) {
     let Some(top) = root.as_table_mut() else {
         return;
     };
     let Some(toml::Value::Table(servers)) = top.get_mut("mcp_servers") else {
         return;
     };
-    let prefix = format!("{}/mcp/", crate::proxy::loopback_origin());
+    let prefix = format!("{}/mcp/", loopback.origin());
     servers.retain(|_name, entry| {
         let is_ours = entry
             .get("url")

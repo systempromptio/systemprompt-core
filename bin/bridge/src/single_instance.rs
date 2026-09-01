@@ -54,10 +54,7 @@ mod unix {
     use std::os::unix::io::AsRawFd;
 
     pub(super) fn acquire() -> SingletonResult {
-        let path = match super::lock_path() {
-            Ok(p) => p,
-            Err(e) => return SingletonResult::Error(e),
-        };
+        let path = super::lock_path();
         if let Some(parent) = path.parent()
             && let Err(e) = std::fs::create_dir_all(parent)
         {
@@ -141,37 +138,27 @@ mod windows {
 }
 
 #[cfg(unix)]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "mirrors the fallible windows lock_path so the shared sidecar_path call site stays cfg-agnostic"
-)]
-pub(crate) fn lock_path() -> Result<PathBuf, String> {
+pub(crate) fn lock_path() -> PathBuf {
     let base = crate::basedirs::data_local_dir()
         .or_else(crate::basedirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);
-    Ok(base
-        .join(crate::brand::brand().config_dir)
-        .join("bridge.lock"))
+    base.join(crate::brand::brand().config_dir)
+        .join("bridge.lock")
 }
 
 #[cfg(windows)]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "mirrors the fallible unix lock_path so the shared sidecar_path call site stays cfg-agnostic"
-)]
-pub(crate) fn lock_path() -> Result<PathBuf, String> {
+pub(crate) fn lock_path() -> PathBuf {
     let base = crate::basedirs::data_local_dir()
         .or_else(crate::basedirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);
-    Ok(base
-        .join(crate::brand::brand().config_dir)
-        .join("bridge.lock"))
+    base.join(crate::brand::brand().config_dir)
+        .join("bridge.lock")
 }
 
-fn sidecar_path() -> Option<PathBuf> {
+fn sidecar_path() -> PathBuf {
     #[cfg(any(unix, windows))]
     {
-        lock_path().ok().map(|p| p.with_extension("json"))
+        lock_path().with_extension("json")
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -180,9 +167,7 @@ fn sidecar_path() -> Option<PathBuf> {
 }
 
 pub(crate) fn write_running_port(port: u16, csrf_token: &str) {
-    let Some(path) = sidecar_path() else {
-        return;
-    };
+    let path = sidecar_path();
     if let Some(parent) = path.parent() {
         _ = fs::create_dir_all(parent);
     }
@@ -197,9 +182,7 @@ pub(crate) fn write_running_port(port: u16, csrf_token: &str) {
 }
 
 pub(crate) fn clear_running_port() {
-    let Some(path) = sidecar_path() else {
-        return;
-    };
+    let path = sidecar_path();
     _ = fs::remove_file(path);
 }
 
@@ -211,7 +194,7 @@ struct RunningInstance {
 
 #[must_use]
 fn read_running_instance() -> Option<RunningInstance> {
-    let path = sidecar_path()?;
+    let path = sidecar_path();
     let raw = fs::read_to_string(path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
     let port = u16::try_from(v.get("port")?.as_u64()?).ok()?;

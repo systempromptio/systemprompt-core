@@ -8,11 +8,11 @@ use std::time::Instant;
 
 use systemprompt_identifiers::{ClientId, PluginId, SessionId, headers as sp_headers};
 
-use crate::auth::types::{
-    AuthResponse, DevicePatResponse, MtlsRequest, SessionExchangeRequest, SessionPatRequest,
-};
 use crate::gateway::errors::GatewayError;
-use crate::gateway::types::{BridgeOAuthClientResponse, HookTokenResponse};
+use crate::gateway::types::{
+    AuthResponse, BridgeOAuthClientResponse, DevicePatResponse, HookTokenResponse, MtlsRequest,
+    SessionExchangeRequest, SessionPatRequest,
+};
 use crate::gateway::{GatewayClient, record_span};
 use crate::ids::{BearerToken, PatToken};
 

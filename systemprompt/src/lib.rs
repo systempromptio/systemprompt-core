@@ -25,7 +25,7 @@
 //! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `evaluation`, `scheduler`, `generator`, `files`) | Building a product binary. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.42.0", features = ["full"] }
+//! systemprompt = { version = "0.43.0", features = ["full"] }
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -213,8 +213,8 @@ pub mod content {
 }
 
 /// Request, conversation, agent, tool, and cost metrics.
-#[cfg(feature = "full")]
-#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+#[cfg(feature = "analytics")]
+#[cfg_attr(docsrs, doc(cfg(feature = "analytics")))]
 pub mod analytics {
     pub use systemprompt_analytics::*;
 }

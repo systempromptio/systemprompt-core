@@ -1,4 +1,5 @@
 use systemprompt_bridge::cli::doctor::{self, Status};
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::validate::{self, CheckLevel};
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
@@ -57,7 +58,7 @@ fn validate_run_reports_healthy_gateway() {
     let (_server, uri) = health_server(200, false);
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
-        let report = block_on(validate::run());
+        let report = block_on(validate::run(&reqwest::Client::new()));
         assert!(!report.lines.is_empty(), "report must have lines");
 
         let rendered = report.rendered();
@@ -85,7 +86,7 @@ fn validate_run_reports_failing_gateway() {
     let (_server, uri) = health_server(503, false);
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
-        let report = block_on(validate::run());
+        let report = block_on(validate::run(&reqwest::Client::new()));
 
         let health = report
             .lines
@@ -110,7 +111,7 @@ fn doctor_run_checks_returns_named_checks() {
     let (_server, uri) = health_server(200, true);
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
-        let (checks, any_fail) = block_on(doctor::run_checks());
+        let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
         assert!(!checks.is_empty(), "doctor must emit checks");
 
         let names: Vec<&str> = checks.iter().map(|c| c.name).collect();
@@ -144,4 +145,8 @@ fn doctor_run_checks_returns_named_checks() {
             "no credential source should make doctor report a failure"
         );
     });
+}
+
+fn bridge() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }

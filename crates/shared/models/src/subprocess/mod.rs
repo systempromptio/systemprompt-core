@@ -63,6 +63,51 @@ pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
 pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
 
+// Why: an env var, not a profile field. The same profile YAML is used on the
+// operator's machine (must route to the remote tenant) and inside the container
+// (must not — it is the tenant); the document is byte-identical in both, so
+// only the environment can tell.
+pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
+
+// Why: fallback so tenants deployed before `DEPLOYMENT_HOST_ENV` existed keep
+// working without a redeploy. Fly injects it; nothing we generate does.
+const FLY_HOST_ENV: &str = "FLY_APP_NAME";
+
+// Why: `DEPLOYMENT_HOST_ENV` wins over the Fly marker because the one we
+// generate is the one an operator can steer; takes a lookup so tests never
+// touch process-global state.
+pub fn deployment_host(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
+    [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV].iter().find_map(|name| {
+        lookup(name)
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    })
+}
+
+// Why: a process that answers `false` here will try to reach its deployment
+// host over the network. Answering `false` while actually on that host is what
+// makes a server attempt to route a command to itself, so any one marker is
+// proof and only their absence means "elsewhere".
+pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
+    deployment_host(lookup).is_some()
+}
+
+// Why: both spawners clear the child environment and rebuild it from an
+// allowlist, and both need exactly this set. It lives here so the two cannot
+// diverge.
+pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
+    let mut env: Vec<(String, String)> = [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV, "PATH", "HOME"]
+        .iter()
+        .filter_map(|name| lookup(name).map(|value| ((*name).to_owned(), value)))
+        .collect();
+
+    if let Some(entry) = crate::net::trusted_hosts_env_entry(&lookup) {
+        env.push(entry);
+    }
+
+    env
+}
+
 type SpawnReply = Sender<std::io::Result<u32>>;
 
 pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {

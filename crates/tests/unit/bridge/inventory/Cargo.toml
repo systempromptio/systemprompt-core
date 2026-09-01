@@ -11,8 +11,10 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
 inventory = "0.3"
 serde_json = { workspace = true }
 async-trait = { workspace = true }

@@ -12,7 +12,6 @@ pub mod first_run;
 pub mod handlers;
 
 pub mod hosts;
-pub mod ipc;
 pub mod ipc_runtime;
 pub mod menu;
 pub mod notify;
@@ -37,12 +36,13 @@ use std::time::Instant;
 use parking_lot::Mutex;
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 
+use crate::context::BridgeContext;
 use crate::gui::events::UiEvent;
 use crate::gui::server::Server;
 use crate::gui::state::AppState;
 use crate::gui::window::SettingsWindow;
-use crate::obs::output::diag;
-use tokio::runtime::Handle;
+use crate::proxy::ProxyRole;
+use crate::stdio::diag;
 
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 
@@ -83,9 +83,7 @@ fn install_termination_handlers(proxy: UiEventProxy) {
 }
 
 #[tracing::instrument]
-pub fn run() -> ExitCode {
-    let proxy_outcome = crate::proxy::start_default();
-
+pub fn run(ctx: Arc<BridgeContext>) -> ExitCode {
     let event_loop = match EventLoop::new() {
         Ok(el) => el,
         Err(e) => {
@@ -97,7 +95,7 @@ pub fn run() -> ExitCode {
 
     let proxy = UiEventProxy::new(event_loop.create_proxy());
     install_termination_handlers(proxy.clone());
-    emit::install_log_emitter(proxy.clone());
+    emit::install_log_emitter(&ctx.activity, proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();
@@ -107,20 +105,16 @@ pub fn run() -> ExitCode {
         }
     });
 
-    let runtime = match crate::proxy::runtime_handle() {
-        Ok(h) => h,
-        Err(e) => {
-            diag(&format!("gui: tokio runtime unavailable: {e}"));
-            return ExitCode::from(1);
-        },
-    };
-    let app_state = AppState::new_loaded();
-    let app = GuiApp::new(app_state, tx, proxy, runtime);
+    let app_state = AppState::new_loaded(Arc::clone(&ctx));
+    let app = GuiApp::new(app_state, tx, proxy, ctx);
 
-    match &proxy_outcome {
-        crate::proxy::StartOutcome::Started(h) => {
-            app.append_log(format!("local proxy listening on 127.0.0.1:{}", h.port));
-            if h.port != crate::proxy::DEFAULT_PROXY_PORT {
+    match app.ctx.proxy.role() {
+        ProxyRole::Serving(served) => {
+            app.append_log(format!(
+                "local proxy listening on 127.0.0.1:{}",
+                served.port
+            ));
+            if served.port != crate::proxy::DEFAULT_PROXY_PORT {
                 app.append_log(format!(
                     "port {} was taken by another listener — host profiles written for it will be \
                      rejected until you re-apply them",
@@ -130,7 +124,7 @@ pub fn run() -> ExitCode {
         },
         // Why: a sibling window of this same install already serves the port.
         // Keep running — the GUI is still useful against that proxy.
-        crate::proxy::StartOutcome::AlreadyRunning {
+        ProxyRole::AlreadyRunning {
             port, config_dir, ..
         } => {
             app.append_log(format!(
@@ -139,11 +133,14 @@ pub fn run() -> ExitCode {
                 crate::brand::brand().app_name
             ));
         },
-        crate::proxy::StartOutcome::Failed { tried, last_error } => {
+        ProxyRole::Failed { tried, last_error } => {
             app.append_log(format!(
                 "local proxy FAILED to start — host requests will be refused. Tried ports \
                  {tried:?}: {last_error}"
             ));
+        },
+        ProxyRole::Attached => {
+            app.append_log_error("internal error: the GUI was started without owning the proxy");
         },
     }
 
@@ -162,7 +159,7 @@ pub(crate) struct GuiApp {
     #[cfg(target_os = "macos")]
     pub(crate) menu_bar: Option<menu::MenuBarHandles>,
     pub(crate) server: Option<Server>,
-    pub(crate) runtime: Handle,
+    pub(crate) ctx: Arc<BridgeContext>,
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
     pub(crate) last_event_loop_pass: Instant,
@@ -177,7 +174,7 @@ impl GuiApp {
         state: Arc<AppState>,
         tx: Sender<UiEvent>,
         proxy: UiEventProxy,
-        runtime: Handle,
+        ctx: Arc<BridgeContext>,
     ) -> Self {
         Self {
             state,
@@ -187,7 +184,7 @@ impl GuiApp {
             #[cfg(target_os = "macos")]
             menu_bar: None,
             server: None,
-            runtime,
+            ctx,
             settings_window: None,
             last_proxy_stats_tick: Instant::now(),
             last_event_loop_pass: Instant::now(),
@@ -198,10 +195,17 @@ impl GuiApp {
         }
     }
 
+    pub(crate) fn probe_env(&self) -> crate::integration::host_app::ProbeEnv {
+        crate::integration::host_app::ProbeEnv::new(
+            self.ctx.proxy.loopback(),
+            Arc::clone(&self.ctx.start_menu),
+        )
+    }
+
     pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
         if let Some(handles) = &mut self.tray {
-            tray::refresh(handles, &snap);
+            tray::refresh(handles, &snap, &self.ctx.schedule);
         }
     }
 
@@ -209,7 +213,9 @@ impl GuiApp {
         if self.server.is_none() {
             match Server::start(Arc::clone(&self.state), self.tx.clone()) {
                 Ok(s) => {
-                    Server::log().append(format!("settings ui served at {}", s.url()));
+                    self.ctx
+                        .activity
+                        .append(format!("settings ui served at {}", s.url()));
                     self.server = Some(s);
                 },
                 Err(e) => {
@@ -221,27 +227,15 @@ impl GuiApp {
         self.server.as_ref()
     }
 
-    #[expect(
-        clippy::unused_self,
-        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
-    )]
     pub(crate) fn append_log(&self, line: impl Into<String>) {
-        crate::activity::activity_log().append(line);
+        self.ctx.activity.append(line);
     }
 
-    #[expect(
-        clippy::unused_self,
-        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
-    )]
     pub(crate) fn append_log_warn(&self, line: impl Into<String>) {
-        crate::activity::activity_log().append_warn(line);
+        self.ctx.activity.append_warn(line);
     }
 
-    #[expect(
-        clippy::unused_self,
-        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
-    )]
     pub(crate) fn append_log_error(&self, line: impl Into<String>) {
-        crate::activity::activity_log().append_error(line);
+        self.ctx.activity.append_error(line);
     }
 }

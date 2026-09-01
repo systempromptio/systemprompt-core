@@ -6,7 +6,9 @@
 //! therefore fire N identical-but-not-deduplicated calls per tool call (the
 //! `?plugin_id=` query differs, so Claude Code's identical-command dedup does
 //! not apply). Exactly one plugin carries them — the one whose config sets
-//! `hooks.governance` — and every other plugin gets an empty hooks file.
+//! `hooks.governance` — and every other plugin gets an empty hooks file. The
+//! comms drain hooks ride on the same owner, and only when it also sets
+//! `hooks.comms`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,10 +16,12 @@
 use super::ApplyError;
 use super::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 use crate::gateway::manifest::{HookEntry as ManifestHookEntry, PluginEntry};
+use crate::proxy::LoopbackEndpoint;
 use std::fs;
 use std::path::Path;
 
 pub(super) fn write_hooks_json(
+    loopback: &LoopbackEndpoint,
     plugin: &PluginEntry,
     plugin_dir: &Path,
     hook_pool: &[ManifestHookEntry],
@@ -32,7 +36,7 @@ pub(super) fn write_hooks_json(
     let body = if plugin.hooks.is_empty() {
         HooksFile::empty()
     } else {
-        build_hooks_file(plugin, hook_pool)?
+        build_hooks_file(loopback, plugin, hook_pool)?
     };
 
     let bytes = serde_json::to_vec_pretty(&body).map_err(|e| ApplyError::Serialize {
@@ -56,15 +60,16 @@ fn comms_drain_command() -> Option<String> {
 }
 
 fn build_hooks_file(
+    loopback: &LoopbackEndpoint,
     plugin: &PluginEntry,
     hook_pool: &[ManifestHookEntry],
 ) -> Result<HooksFile, ApplyError> {
     let plugin_id = &plugin.id;
-    let authorization = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+    let authorization = loopback.bearer().map_err(|e| ApplyError::Io {
         context: format!("loopback secret for hooks.json ({plugin_id})"),
         source: e,
     })?;
-    let origin = crate::proxy::loopback_origin();
+    let origin = loopback.origin();
 
     let mut body = if plugin.hooks.governance {
         let govern_url = format!("{origin}/api/public/hooks/govern?plugin_id={plugin_id}");
@@ -74,7 +79,9 @@ fn build_hooks_file(
         // the governance hooks do: Claude Code runs plugin hooks
         // session-globally, so one owner means one drain per boundary rather
         // than one per installed plugin.
-        if let Some(command) = comms_drain_command() {
+        if plugin.hooks.comms
+            && let Some(command) = comms_drain_command()
+        {
             file.append_comms_hooks(&command);
         }
         file

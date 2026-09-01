@@ -33,6 +33,13 @@ pub(super) struct HostIdArgs {
     pub(super) host_id: HostId,
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub(super) struct McpProbeArgs {
+    #[serde(rename = "serverId")]
+    pub(super) server_id: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub(super) struct SettingsSetArgs {
     pub(super) key: String,

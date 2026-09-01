@@ -1,8 +1,8 @@
 //! The port the proxy actually bound, published for other processes.
 //!
-//! `proxy::handle()` is a process-global, so it is set only inside the
-//! long-running proxy. `doctor`, `install --apply` and `sync` each run as their
-//! own process and would otherwise fall back to
+//! Only the long-running proxy knows which port it bound. `doctor`,
+//! `install --apply` and `sync` each run as their own process and would
+//! otherwise fall back to
 //! [`crate::proxy::DEFAULT_PROXY_PORT`], which is wrong the moment the proxy
 //! has to move. This file is how they find it.
 //!
@@ -18,7 +18,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::identity;
+use super::identity::{self, InstallId};
 
 const PORTFILE_NAME: &str = "bridge-proxy.json";
 const SCHEMA: u32 = 1;
@@ -28,7 +28,7 @@ pub struct PortRecord {
     pub schema: u32,
     pub port: u16,
     pub pid: u32,
-    pub install_id: identity::InstallId,
+    pub install_id: InstallId,
     pub config_dir: String,
     pub bound_at_unix: u64,
     pub version: String,
@@ -44,7 +44,7 @@ pub fn portfile_path() -> Option<PathBuf> {
 }
 
 #[must_use]
-pub fn read() -> Option<PortRecord> {
+pub fn read(ours: &InstallId) -> Option<PortRecord> {
     let path = portfile_path()?;
     let bytes = fs::read(&path).ok()?;
     let record: PortRecord = serde_json::from_slice(&bytes)
@@ -60,8 +60,7 @@ pub fn read() -> Option<PortRecord> {
         );
         return None;
     }
-    let ours = identity::install_id();
-    if !record.install_id.same_install(&ours) {
+    if !record.install_id.same_install(ours) {
         tracing::debug!(
             path = %path.display(),
             recorded = %record.install_id,
@@ -74,11 +73,11 @@ pub fn read() -> Option<PortRecord> {
 }
 
 #[must_use]
-pub fn preferred_port() -> Option<u16> {
-    read().map(|r| r.port)
+pub fn preferred_port(ours: &InstallId) -> Option<u16> {
+    read(ours).map(|r| r.port)
 }
 
-pub fn write(port: u16) -> std::io::Result<()> {
+pub fn write(port: u16, ours: &InstallId) -> std::io::Result<()> {
     let path = portfile_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
     if let Some(parent) = path.parent() {
@@ -88,7 +87,7 @@ pub fn write(port: u16) -> std::io::Result<()> {
         schema: SCHEMA,
         port,
         pid: std::process::id(),
-        install_id: identity::install_id(),
+        install_id: ours.clone(),
         config_dir: identity::config_dir_display(),
         bound_at_unix: identity::now_unix(),
         version: crate::brand::brand().version.to_owned(),
@@ -109,11 +108,11 @@ pub fn write(port: u16) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn clear() {
+pub fn clear(ours: &InstallId) {
     let Some(path) = portfile_path() else {
         return;
     };
-    match read() {
+    match read(ours) {
         Some(record) if record.pid == std::process::id() => {
             if let Err(e) = fs::remove_file(&path)
                 && e.kind() != std::io::ErrorKind::NotFound

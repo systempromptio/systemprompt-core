@@ -14,14 +14,14 @@ use std::process::ExitCode;
 #[cfg(target_os = "windows")]
 pub(crate) fn cmd(args: &[String]) -> ExitCode {
     let (Some(job_path), Some(result_path)) = (args.get(2), args.get(3)) else {
-        crate::obs::output::diag("usage: __install-claude-policy <job-path> <result-path>");
+        crate::stdio::diag("usage: __install-claude-policy <job-path> <result-path>");
         return ExitCode::from(2);
     };
-    crate::integration::claude_desktop::elevate::perform_elevated_write(job_path, result_path)
+    crate::install::elevated_job::perform_elevated_write(job_path, result_path)
 }
 
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn cmd(_args: &[String]) -> ExitCode {
-    crate::obs::output::diag("__install-claude-policy is supported only on Windows");
+    crate::stdio::diag("__install-claude-policy is supported only on Windows");
     ExitCode::FAILURE
 }

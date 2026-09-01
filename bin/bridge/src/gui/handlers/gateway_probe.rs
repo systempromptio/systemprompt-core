@@ -8,12 +8,12 @@ use serde_json::json;
 use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::notify::Signal;
 use crate::gui::state::{
     CancelScope, GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
 };
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
@@ -136,19 +136,20 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     }
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::GatewayProbe);
-    app.runtime.spawn(async move {
+    let http = app.ctx.http.clone();
+    app.ctx.spawn(async move {
         let outcome = tokio::select! {
             () = token.cancelled() => None,
-            outcome = run_probe() => Some(outcome),
+            outcome = run_probe(&http) => Some(outcome),
         };
         proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
     });
 }
 
-async fn run_probe() -> GatewayProbeOutcome {
+async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
-    let client = GatewayClient::new(gateway);
+    let client = GatewayClient::new(gateway, http.clone());
 
     let started = std::time::Instant::now();
     let status = match client.health().await {
@@ -163,7 +164,7 @@ async fn run_probe() -> GatewayProbeOutcome {
     let identity = if matches!(status, GatewayStatus::Reachable { .. })
         && crate::auth::has_credential_source(&cfg)
     {
-        obtain_live_token(&cfg)
+        obtain_live_token(&cfg, http)
             .await
             .and_then(|tok| decode_jwt_identity_unverified(tok.expose()))
     } else {
@@ -191,8 +192,11 @@ async fn run_probe() -> GatewayProbeOutcome {
     }
 }
 
-async fn obtain_live_token(cfg: &config::Config) -> Option<crate::auth::secret::Secret> {
-    crate::auth::obtain_live_token(cfg, &systemprompt_identifiers::SessionId::generate())
+async fn obtain_live_token(
+    cfg: &config::Config,
+    http: &reqwest::Client,
+) -> Option<crate::auth::secret::Secret> {
+    crate::auth::obtain_live_token(cfg, &systemprompt_identifiers::SessionId::generate(), http)
         .await
         .map(|out| out.token)
 }

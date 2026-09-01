@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
-use crate::auth::types::HelperOutput;
 use crate::config::Config;
 use crate::gateway::GatewayClient;
+use crate::gateway::types::HelperOutput;
 use crate::ids::PatToken;
 use async_trait::async_trait;
 use std::{env, fs};
@@ -45,9 +45,13 @@ impl AuthProvider for PatProvider {
         "pat"
     }
 
-    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(
+        &self,
+        session_id: &SessionId,
+        http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError> {
         let pat = self.pat_source.as_ref().ok_or(AuthError::NotConfigured)?;
-        let client = GatewayClient::new(self.base_url.clone());
+        let client = GatewayClient::new(self.base_url.clone(), http.clone());
         let resp = client
             .pat_exchange(pat, session_id)
             .await

@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use systemprompt_bridge::config::{RuntimeConfig, SharedRuntimeConfig};
-use systemprompt_bridge::proxy::server::start;
+use systemprompt_bridge::proxy::secret;
+use systemprompt_bridge::proxy::server::{ServerParts, start};
 use systemprompt_bridge::proxy::session::SessionContext;
 use systemprompt_bridge::proxy::token_cache::TokenCache;
 use systemprompt_identifiers::ValidatedUrl;
@@ -22,11 +23,24 @@ fn empty_cache() -> Arc<TokenCache> {
     })))
 }
 
-/// One test, two scenarios, deliberately sequential.
-///
-/// `secret::proxy_init` caches in a process-global `OnceLock`, so only the
-/// first `start` in a process mints a file. Split across two `#[test]`s these
-/// race for that first mint and whichever loses sees an empty sandbox.
+fn parts(uri: &str) -> ServerParts {
+    ServerParts {
+        loopback: secret::proxy_init().expect("the sandbox mints a loopback secret"),
+        runtime_config: runtime_config(uri),
+        token_cache: empty_cache(),
+        session: Arc::new(SessionContext::new()),
+        deps: systemprompt_bridge::proxy::ProxyDeps {
+            install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
+            mcp_registry: systemprompt_bridge::mcp_registry::empty_slot(),
+            activity: systemprompt_bridge::activity::ActivityLog::new(),
+            http: reqwest::Client::new(),
+            plugin_tokens: Arc::new(
+                systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+            ),
+        },
+    }
+}
+
 #[test]
 fn start_binds_serves_and_survives_an_occupied_port() {
     let temp = tempfile::tempdir().unwrap();
@@ -37,14 +51,8 @@ fn start_binds_serves_and_survives_an_occupied_port() {
             .build()
             .unwrap();
 
-        let handle = start(
-            &rt,
-            0,
-            runtime_config("http://127.0.0.1:9"),
-            empty_cache(),
-            Arc::new(SessionContext::new()),
-        )
-        .expect("proxy must start on an ephemeral port");
+        let handle = start(rt.handle(), 0, parts("http://127.0.0.1:9"))
+            .expect("proxy must start on an ephemeral port");
         assert_ne!(handle.port, 0);
 
         let status = rt.block_on(async {
@@ -71,14 +79,8 @@ fn start_binds_serves_and_survives_an_occupied_port() {
         // An occupied v4 port still comes up, over v6 on the same port.
         let blocker = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let taken = blocker.local_addr().unwrap().port();
-        let second = start(
-            &rt,
-            taken,
-            runtime_config("http://127.0.0.1:9"),
-            empty_cache(),
-            Arc::new(SessionContext::new()),
-        )
-        .expect("occupied preferred port must still yield a listener");
+        let second = start(rt.handle(), taken, parts("http://127.0.0.1:9"))
+            .expect("occupied preferred port must still yield a listener");
         assert_ne!(
             second.port, 0,
             "listener must come up despite the v4 conflict"

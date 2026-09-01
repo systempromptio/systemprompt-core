@@ -164,8 +164,8 @@ function hostById(id) {
 }
 
 function touch(host) {
-  host.snapshot = host.snapshot || {};
-  host.snapshot.probed_at_unix = Math.floor(Date.now() / 1000);
+  host.health = host.health || {};
+  host.health.probed_at_unix = Math.floor(Date.now() / 1000);
   emit("host.changed", host);
   emit("state.changed", state);
 }
@@ -352,7 +352,10 @@ const COMMANDS = {
       exp_unix: Math.floor(Date.now() / 1000) + 3600,
       verified_at_unix: Math.floor(Date.now() / 1000),
     };
-    state.gateway_status = { state: "reachable", latency_ms: 38 };
+    state.gateway_status = { tone: "ok", code: "reachable", settled: true, latency_ms: 38 };
+    state.identity = { tone: "ok", code: "signed-in" };
+    state.overall = { tone: "ok", code: state.last_sync_summary ? "synced" : "ready" };
+    state.cloud_tone = "ok";
     emit("state.changed", state);
     return {};
   },
@@ -360,6 +363,9 @@ const COMMANDS = {
   "logout": () => {
     state.signed_in = false;
     state.verified_identity = null;
+    state.identity = { tone: "warn", code: "signed-out" };
+    state.overall = { tone: "warn", code: "needs-sign-in" };
+    state.cloud_tone = "warn";
     state.cached_token = null;
     emit("state.changed", state);
     return {};
@@ -374,18 +380,19 @@ const COMMANDS = {
   "agent.uninstall": ({ hostId }) => {
     const host = hostById(hostId);
     if (!host) { return { removed: false }; }
-    // Both hosts hand macOS a configuration profile the user must remove
-    // themselves; the reply carries that instruction rather than claiming a
-    // removal that did not happen.
-    if (host.config_format === "mobileconfig") {
+    // A macOS configuration profile is the user's to remove; the reply carries
+    // that instruction rather than claiming a removal that did not happen.
+    if (host.config_format === "plist") {
       return { removed: false, instruction: "Remove the profile under System Settings › Device Management." };
     }
-    host.snapshot = host.snapshot || {};
-    host.snapshot.profile_state = { kind: "absent" };
-    host.snapshot.profile_keys = {};
+    host.health = host.health || {};
+    host.health.profile = { tone: "err", code: "absent" };
+    host.health.missing_required = [];
+    host.health.inference_models = [];
+    host.verdict = { state: "not-set-up", tone: "warn", reason: { code: "absent" }, action: { code: "add" }, is_set_up: false, is_installed: false, is_running: !!host.health.host_running };
     host.last_generated_profile = null;
     touch(host);
-    return { removed: true, path: host.snapshot.profile_source };
+    return { removed: true, path: host.last_generated_profile && host.last_generated_profile.path };
   },
   "host.profile.generate": ({ hostId }) => {
     const host = hostById(hostId);
@@ -401,9 +408,11 @@ const COMMANDS = {
   "host.profile.install": ({ hostId }) => {
     const host = hostById(hostId);
     if (host) {
-      host.snapshot = host.snapshot || {};
-      host.snapshot.profile_state = { kind: "installed" };
-      host.snapshot.app_installed = host.snapshot.app_installed || "installed";
+      host.health = host.health || {};
+      host.health.profile = { tone: "ok", code: "installed" };
+      host.health.missing_required = [];
+      host.health.app = host.health.app || { tone: "ok", code: "installed" };
+      host.verdict = { state: "working", tone: "ok", reason: { code: "governed", when_unix: Math.floor(Date.now() / 1000) }, action: { code: "open" }, is_set_up: true, is_installed: true, is_running: !!host.health.host_running };
       touch(host);
     }
     return {};

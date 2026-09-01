@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::auth::types::HelperOutput;
 use crate::config;
+use crate::gateway::types::HelperOutput;
 use async_trait::async_trait;
 use systemprompt_identifiers::SessionId;
 use thiserror::Error;
@@ -61,10 +61,16 @@ impl AuthFailedSource {
     }
 }
 
+// Why: `#[async_trait]` because the chain holds `Vec<Box<dyn AuthProvider>>`
+// and tries each provider in order; a native `async fn` is not dyn-compatible.
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError>;
+    async fn authenticate(
+        &self,
+        session_id: &SessionId,
+        http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError>;
 }
 
 #[derive(Debug, Clone, Copy)]

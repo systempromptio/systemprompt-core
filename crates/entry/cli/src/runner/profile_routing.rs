@@ -15,7 +15,7 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use super::{args, bootstrap};
 use crate::cli_settings::CliConfig;
 use crate::commands::{admin, infrastructure};
-use crate::descriptor::CommandDescriptor;
+use crate::descriptor::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
 
@@ -48,9 +48,10 @@ async fn enforce_routing_policy(
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
 ) -> Result<()> {
-    if !ctx.env.is_fly && desc.remote_eligible() && !ctx.has_export {
+    let class = desc.routing_class();
+    if !ctx.env.is_deployment_host && class != RoutingClass::LocalOnly && !ctx.has_export {
         let profile = ProfileBootstrap::get()?;
-        try_remote_routing(cli, profile, cli_config).await?;
+        try_remote_routing(cli, profile, cli_config, class).await?;
         return Ok(());
     }
 
@@ -63,7 +64,7 @@ async fn enforce_routing_policy(
     }
 
     if ctx.is_cloud
-        && !ctx.env.is_fly
+        && !ctx.env.is_deployment_host
         && !ctx.external_db_access
         && !is_cloud_bypass_command(cli.command.as_ref())
     {
@@ -97,7 +98,7 @@ async fn initialize_post_routing(
         bootstrap::init_secrets()?;
     }
 
-    if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_fly {
+    if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_deployment_host {
         let secrets = SecretsBootstrap::get().context("Secrets required for external DB access")?;
         let db_url = secrets.effective_database_url(true).to_owned();
         return Ok(RoutingAction::ExternalDbUrl(db_url));
@@ -121,6 +122,7 @@ async fn try_remote_routing(
     cli: &args::Cli,
     profile: &systemprompt_models::Profile,
     cli_config: &CliConfig,
+    class: RoutingClass,
 ) -> Result<()> {
     use super::routing;
 
@@ -143,10 +145,10 @@ async fn try_remote_routing(
             return Ok(());
         },
         Ok(routing::ExecutionTarget::Local) if is_cloud => {
-            require_external_db_access(profile, "no tenant is configured")?;
+            allow_local_execution(profile, class, "no tenant is configured")?;
         },
         Err(e) if is_cloud => {
-            require_external_db_access(profile, &format!("routing failed: {}", e))?;
+            allow_local_execution(profile, class, &format!("routing failed: {}", e))?;
         },
         _ => {},
     }
@@ -188,20 +190,47 @@ fn confirm_remote_job_run(
     )
 }
 
-fn require_external_db_access(profile: &systemprompt_models::Profile, reason: &str) -> Result<()> {
+// Why: a read may proceed locally (a number with stated provenance beats an
+// error the caller cannot act on); a mutation refuses, since writing tenant
+// state to the wrong database is the failure this check exists to prevent.
+fn allow_local_execution(
+    profile: &systemprompt_models::Profile,
+    class: RoutingClass,
+    reason: &str,
+) -> Result<()> {
     if profile.database.external_db_access {
         tracing::debug!(
             profile_name = %profile.name,
             reason = reason,
             "Cloud profile allowing local execution via external_db_access"
         );
-        Ok(())
+        return Ok(());
+    }
+
+    if class == RoutingClass::ReadOnly {
+        tracing::warn!(
+            profile_name = %profile.name,
+            reason = reason,
+            "Cloud profile could not route remotely; reading local data instead"
+        );
+        return Ok(());
+    }
+
+    bail!(
+        "Cloud profile '{}' requires remote execution but {}.\n{}",
+        profile.name,
+        reason,
+        remediation_for(reason)
+    )
+}
+
+// Why: a tenant-store failure is not fixed by signing in (`resolve_tenant` runs
+// before the session is consulted), so the two cases get different advice.
+fn remediation_for(reason: &str) -> &'static str {
+    if reason.contains("load tenants") || reason.contains("tenant") {
+        "Run 'systemprompt cloud tenant list' to sync the tenant store, and check you are in the \
+         project directory this profile belongs to."
     } else {
-        bail!(
-            "Cloud profile '{}' requires remote execution but {}.\nRun 'systemprompt admin \
-             session login' to authenticate.",
-            profile.name,
-            reason
-        )
+        "Run 'systemprompt admin session login' to authenticate."
     }
 }

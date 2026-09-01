@@ -7,6 +7,7 @@ use crate::auth::cache;
 use crate::config;
 use crate::config::paths::{self, Scope};
 use crate::gateway::GatewayClient;
+use crate::verdict::{Tone, Verdict};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -15,6 +16,29 @@ pub enum CheckLevel {
     Warn,
     Fail,
     Info,
+}
+
+impl CheckLevel {
+    #[must_use]
+    pub const fn tone(self) -> Tone {
+        match self {
+            Self::Ok => Tone::Ok,
+            Self::Warn => Tone::Warn,
+            Self::Fail => Tone::Err,
+            Self::Info => Tone::Unknown,
+        }
+    }
+}
+
+/// How a validation report reads as a whole.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub enum ValidationCode {
+    Healthy,
+    Attention,
+    Failing,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -31,6 +55,17 @@ pub struct ValidationReport {
 }
 
 impl ValidationReport {
+    #[must_use]
+    pub fn verdict(&self) -> Verdict<ValidationCode> {
+        let tone = Tone::fold(self.lines.iter().map(|l| l.level.tone()), Tone::Ok);
+        let code = match tone {
+            Tone::Err => ValidationCode::Failing,
+            Tone::Warn => ValidationCode::Attention,
+            Tone::Ok | Tone::Unknown | Tone::Probing => ValidationCode::Healthy,
+        };
+        Verdict::new(tone, code)
+    }
+
     #[must_use]
     pub fn rendered(&self) -> String {
         let mut s = format!("{} validate\n", crate::brand::brand().binary_name);
@@ -56,11 +91,11 @@ impl ValidationReport {
     }
 }
 
-pub async fn run() -> ValidationReport {
+pub async fn run(http: &reqwest::Client) -> ValidationReport {
     let mut report = Report::new();
     check_binary(&mut report);
     check_org_plugins(&mut report);
-    check_gateway(&mut report).await;
+    check_gateway(&mut report, http).await;
     check_cached_token(&mut report);
     check_pinned_pubkey(&mut report);
     report.into_report()
@@ -126,14 +161,14 @@ fn check_last_sync(report: &mut Report, meta: &std::path::Path) {
     }
 }
 
-async fn check_gateway(report: &mut Report) {
+async fn check_gateway(report: &mut Report, http: &reqwest::Client) {
     let cfg = config::load();
     let Some(url) = cfg.gateway_url.as_ref() else {
         report.fail("gateway_url", "not set in config");
         return;
     };
     report.ok("gateway_url", url.as_str());
-    let client = GatewayClient::new(url.clone());
+    let client = GatewayClient::new(url.clone(), http.clone());
     match client.health().await {
         Ok(()) => report.ok("gateway /health", "reachable"),
         Err(e) => report.fail("gateway /health", &e.to_string()),

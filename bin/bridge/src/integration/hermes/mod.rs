@@ -15,8 +15,21 @@ mod probe;
 
 pub use managed_resources::HermesSync;
 
+/// The bridge-owned keys, re-exported so a test can assert the contract with
+/// Hermes by name rather than by copied string literal.
+#[doc(hidden)]
+pub mod contract {
+    pub use super::config::{
+        API_MODE_VALUE, ENV_API_KEY, MODEL_NAME, MODEL_PROVIDER, PROVIDER_API_MODE,
+        PROVIDER_BASE_URL, PROVIDER_ENTRY, PROVIDER_KEY_ENV,
+    };
+}
+
+#[doc(hidden)]
+pub use install::{install_profile_into, remove_profile_from};
+
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
     ProfileGenInputs, ProfileRemoval, ProfileState,
 };
 
@@ -38,12 +51,13 @@ impl HostApp for HermesHost {
         &config::SCHEMA
     }
 
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
         // Why: like Codex, Hermes bakes `<origin>/v1`; the classifier ignores the
         // path and only checks that the loopback port still matches.
         let endpoint_fresh = ProfileState::endpoint_freshness(
-            read.keys.get(config::MODEL_BASE_URL).map(String::as_str),
+            read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
+            env.proxy_port,
         );
         let profile_state =
             ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);
@@ -56,7 +70,10 @@ impl HostApp for HermesHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
-            app_installed: crate::integration::app_launch::is_installed(&locator()),
+            app_installed: crate::integration::app_launch::is_installed(
+                &locator(),
+                &env.start_menu,
+            ),
             probed_at_unix: config::now_unix(),
         }
     }
@@ -78,7 +95,8 @@ impl HostApp for HermesHost {
     }
 
     fn install_action_label(&self) -> &'static str {
-        "merged into HERMES_HOME/config.yaml (with OPENAI_API_KEY written to HERMES_HOME/.env)"
+        "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY \
+         written to HERMES_HOME/.env)"
     }
 
     fn kind(&self) -> HostKind {
@@ -123,3 +141,5 @@ const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
         msix_app_id: "App",
     }
 }
+
+crate::register_host_sync!(HermesSync);

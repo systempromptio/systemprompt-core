@@ -11,7 +11,7 @@ mod probe;
 pub use managed_resources::CodexCliSync;
 
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
     ProfileGenInputs, ProfileRemoval, ProfileState,
 };
 
@@ -33,11 +33,12 @@ impl HostApp for CodexCliHost {
         &config::SCHEMA
     }
 
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
         // Why: Codex bakes `<origin>/v1`, and the classifier ignores the path.
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
+            env.proxy_port,
         );
         let profile_state =
             ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None, endpoint_fresh);
@@ -50,7 +51,10 @@ impl HostApp for CodexCliHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
-            app_installed: crate::integration::app_launch::is_installed(&locator()),
+            app_installed: crate::integration::app_launch::is_installed(
+                &locator(),
+                &env.start_menu,
+            ),
             probed_at_unix: config::now_unix(),
         }
     }
@@ -129,3 +133,5 @@ const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
         msix_app_id: "App",
     }
 }
+
+crate::register_host_sync!(CodexCliSync);

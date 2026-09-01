@@ -1,4 +1,5 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { handleRovingKey, syncRoving } from "/assets/js/utils/roving.js";
 import { changeBadge, filterItems, groupItems } from "/assets/js/components/marketplace-list-groups.js";
 import { placeholderMarkup } from "/assets/js/components/marketplace-list-placeholder.js";

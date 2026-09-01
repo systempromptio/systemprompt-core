@@ -12,7 +12,7 @@
 
 use std::time::{Duration, Instant};
 
-use crate::integration::proxy_probe::{self, PeerIdentity};
+use crate::proxy::peer::{self as proxy_probe, PeerIdentity};
 
 const READY_TIMEOUT: Duration = Duration::from_secs(6);
 const READY_POLL: Duration = Duration::from_millis(250);
@@ -42,9 +42,9 @@ impl ProxyReadiness {
 }
 
 #[must_use]
-pub fn ensure_running() -> ProxyReadiness {
-    let port = crate::proxy::resolved_port();
-    if matches!(proxy_probe::probe_identity(port), PeerIdentity::Ours(_)) {
+pub fn ensure_running(proxy: &ProxyHandle) -> ProxyReadiness {
+    let port = proxy.port();
+    if matches!(proxy.peer(), PeerIdentity::Ours(_)) {
         return ProxyReadiness::Live(port);
     }
 
@@ -86,9 +86,10 @@ pub fn ensure_running() -> ProxyReadiness {
 fn wait_for_ready(resolved: u16) -> ProxyReadiness {
     let deadline = Instant::now() + READY_TIMEOUT;
     loop {
-        let candidate = crate::proxy::portfile::read().map_or(resolved, |r| r.port);
+        let candidate =
+            crate::proxy::portfile::read(proxy.install_id()).map_or(resolved, |r| r.port);
         if matches!(
-            proxy_probe::probe_identity(candidate),
+            proxy_probe::probe_identity(candidate, proxy.install_id()),
             PeerIdentity::Ours(_)
         ) {
             crate::proxy::set_resolved_port(candidate);
@@ -104,10 +105,10 @@ fn wait_for_ready(resolved: u16) -> ProxyReadiness {
     }
 }
 
-pub fn ensure_running_reported() -> ProxyReadiness {
-    let readiness = ensure_running();
+pub fn ensure_running_reported(proxy: &ProxyHandle) -> ProxyReadiness {
+    let readiness = ensure_running(proxy);
     if let ProxyReadiness::Unavailable { port, reason } = &readiness {
-        crate::obs::output::diag(&format!(
+        crate::stdio::diag(&format!(
             "proxy: nothing is listening on 127.0.0.1:{port} — {reason}. Client config written \
              now names that port and will be refused until the proxy is up; start it with `{bin} \
              proxy` or register the supervisor with `{bin} install --apply-schedule`.",

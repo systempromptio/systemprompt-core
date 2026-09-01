@@ -61,6 +61,7 @@ fn creds(client_id: &str) -> OAuthClientCreds {
         client_secret: "super-secret".into(),
         token_endpoint: "http://127.0.0.1:1/oauth/token".into(),
         scopes: vec!["hook:govern".into(), "hook:track".into()],
+        gateway: Some("http://127.0.0.1:1".into()),
     }
 }
 
@@ -195,7 +196,8 @@ fn ensure_creds_provisions_once_then_reuses_local_state() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let first = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -232,7 +234,8 @@ fn refresh_creds_always_reprovisions() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let out = plugin_oauth::refresh_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -283,8 +286,10 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let token = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -294,6 +299,7 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
             assert_eq!(token.access_token, "hook.jwt.rotated");
 
             let cached = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -336,8 +342,10 @@ fn mint_or_refresh_success_path_caches_token() {
                 .mount(&server)
                 .await;
 
-            let client = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             let first = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -345,6 +353,7 @@ fn mint_or_refresh_success_path_caches_token() {
             .await
             .unwrap();
             let second = mint_or_refresh_plugin_token(
+                &TOKENS,
                 &client,
                 &BearerToken::new("bridge-jwt"),
                 &PluginId::new(&plugin),
@@ -358,3 +367,109 @@ fn mint_or_refresh_success_path_caches_token() {
         });
     });
 }
+
+// Why: an OAuth client is registered with one gateway, and the hook tokens it
+// mints are signed by that gateway's authority. Reusing a production-registered
+// client while the bridge points at a local server made it mint from
+// production's token endpoint and present the result to the local governance
+// webhook, which rejected it as an unknown signing key and blocked every tool
+// call. Nothing expired, so it never recovered on its own.
+#[test]
+fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
+    let first_id = unique("client-gw-a");
+    let second_id = unique("client-gw-b");
+    let ((), _temp) = with_cache_home(|| {
+        block_on(async {
+            let gateway_a = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/oauth-client"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(provision_body(
+                    &gateway_a.uri(),
+                    &first_id,
+                    "secret-a",
+                )))
+                .expect(1)
+                .mount(&gateway_a)
+                .await;
+
+            let gateway_b = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/oauth-client"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(provision_body(
+                    &gateway_b.uri(),
+                    &second_id,
+                    "secret-b",
+                )))
+                .expect(1)
+                .mount(&gateway_b)
+                .await;
+
+            let client_a =
+                GatewayClient::new(ValidatedUrl::new(gateway_a.uri()), reqwest::Client::new());
+            let a = plugin_oauth::ensure_creds(&client_a, &BearerToken::new("bridge-jwt"))
+                .await
+                .unwrap();
+            assert_eq!(a.gateway.as_deref(), Some(gateway_a.uri().as_str()));
+
+            let client_b =
+                GatewayClient::new(ValidatedUrl::new(gateway_b.uri()), reqwest::Client::new());
+            let b = plugin_oauth::ensure_creds(&client_b, &BearerToken::new("bridge-jwt"))
+                .await
+                .unwrap();
+
+            assert_eq!(
+                b.client_secret, "secret-b",
+                "the second gateway must register its own client, not inherit the first's"
+            );
+            assert_eq!(
+                b.token_endpoint,
+                format!("{}/oauth/token", gateway_b.uri()),
+                "minting must go to the gateway the bridge is actually pointed at"
+            );
+            assert_eq!(b.gateway.as_deref(), Some(gateway_b.uri().as_str()));
+
+            plugin_oauth::delete_creds().unwrap();
+        });
+    });
+}
+
+// Why: a file written before the client became gateway-aware records no
+// gateway. Unknown is not "matches" — it is exactly the state that caused the
+// bug — so it re-provisions once rather than being trusted.
+#[test]
+fn a_stored_client_with_no_recorded_gateway_is_reprovisioned() {
+    let id = unique("client-legacy-gw");
+    let ((), _temp) = with_cache_home(|| {
+        block_on(async {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/auth/bridge/oauth-client"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(provision_body(
+                    &server.uri(),
+                    &id,
+                    "reprovisioned",
+                )))
+                .expect(1)
+                .mount(&server)
+                .await;
+
+            let mut stale = creds(&unique("client-stale"));
+            stale.gateway = None;
+            plugin_oauth::store_creds(&stale).unwrap();
+
+            let client =
+                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let out = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
+                .await
+                .unwrap();
+
+            assert_eq!(out.client_secret, "reprovisioned");
+            assert_eq!(out.gateway.as_deref(), Some(server.uri().as_str()));
+
+            plugin_oauth::delete_creds().unwrap();
+        });
+    });
+}
+
+static TOKENS: std::sync::LazyLock<systemprompt_bridge::auth::plugin_oauth::PluginTokenCache> =
+    std::sync::LazyLock::new(Default::default);

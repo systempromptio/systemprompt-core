@@ -89,7 +89,9 @@ async fn a_provider_without_a_session_section_is_not_configured() {
     assert_eq!(provider.name(), "session");
     assert!(
         matches!(
-            provider.authenticate(&SessionId::generate()).await,
+            provider
+                .authenticate(&SessionId::generate(), &reqwest::Client::new())
+                .await,
             Err(AuthError::NotConfigured)
         ),
         "no [session] section means the provider stands down"
@@ -113,7 +115,7 @@ async fn a_configured_provider_exchanges_the_captured_code_and_surfaces_a_reject
     let port = systemprompt_bridge::auth::loopback::LOOPBACK_PORT;
     let client = tokio::spawn(async move { deliver_callback(port, "code=device-code-1").await });
     let out = provider
-        .authenticate(&SessionId::generate())
+        .authenticate(&SessionId::generate(), &reqwest::Client::new())
         .await
         .expect("the session provider authenticates");
     client.await.expect("callback task");
@@ -140,7 +142,7 @@ async fn a_configured_provider_exchanges_the_captured_code_and_surfaces_a_reject
     let provider = SessionProvider::new(&session_config(&rejecting.uri()));
     let client = tokio::spawn(async move { deliver_callback(port, "code=device-code-2").await });
     let err = provider
-        .authenticate(&SessionId::generate())
+        .authenticate(&SessionId::generate(), &reqwest::Client::new())
         .await
         .expect_err("a 401 from the gateway fails the provider");
     client.await.expect("callback task");

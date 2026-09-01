@@ -12,16 +12,18 @@ use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
-use tokio::runtime::Runtime;
+use tokio::runtime::Handle;
 
 use crate::config::{RuntimeConfig, SharedRuntimeConfig};
-use crate::ids::ProxySecret;
+use crate::ids::{LoopbackSecret, ProxySecret};
 use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
-use crate::proxy::{dispatch, heartbeat, secret};
+use crate::proxy::{dispatch, heartbeat};
 
+/// A proxy this process bound and is serving: the port it actually got and
+/// the counters the Status pane reads.
 #[derive(Clone, Debug)]
-pub struct ProxyHandle {
+pub struct ServedProxy {
     pub port: u16,
     pub stats: Arc<ProxyStats>,
 }
@@ -51,6 +53,7 @@ pub struct ProxyContext {
     pub session: Arc<SessionContext>,
     pub port: u16,
     pub started_at_unix: u64,
+    pub deps: super::ProxyDeps,
 }
 
 impl ProxyContext {
@@ -59,27 +62,38 @@ impl ProxyContext {
     }
 }
 
-pub fn start(
-    rt: &Runtime,
-    port: u16,
-    runtime_config: SharedRuntimeConfig,
-    token_cache: Arc<TokenCache>,
-    session: Arc<SessionContext>,
-) -> std::io::Result<ProxyHandle> {
+/// What a proxy server is built from, besides the listener.
+#[expect(
+    missing_debug_implementations,
+    reason = "holds a TokenCache whose RefreshFn (Box<dyn Fn>) cannot derive Debug"
+)]
+pub struct ServerParts {
+    pub loopback: LoopbackSecret,
+    pub runtime_config: SharedRuntimeConfig,
+    pub token_cache: Arc<TokenCache>,
+    pub session: Arc<SessionContext>,
+    pub deps: super::ProxyDeps,
+}
+
+pub fn start(rt: &Handle, port: u16, parts: ServerParts) -> std::io::Result<ServedProxy> {
     let listener = rt.block_on(try_bind(port))?;
-    start_with_listener(rt, listener, runtime_config, token_cache, session)
+    start_with_listener(rt, listener, parts)
 }
 
 pub fn start_with_listener(
-    rt: &Runtime,
+    rt: &Handle,
     listener: TcpListener,
-    runtime_config: SharedRuntimeConfig,
-    token_cache: Arc<TokenCache>,
-    session: Arc<SessionContext>,
-) -> std::io::Result<ProxyHandle> {
+    parts: ServerParts,
+) -> std::io::Result<ServedProxy> {
+    let ServerParts {
+        loopback,
+        runtime_config,
+        token_cache,
+        session,
+        deps,
+    } = parts;
     let bound_port = listener.local_addr()?.port();
 
-    let loopback = secret::proxy_init()?;
     let proxy_secret = ProxySecret::new(loopback.into_inner());
     let stats = Arc::new(ProxyStats::default());
 
@@ -94,6 +108,7 @@ pub fn start_with_listener(
         session: Arc::clone(&session),
         port: bound_port,
         started_at_unix: crate::proxy::identity::now_unix(),
+        deps,
     };
 
     rt.spawn(run_listener(listener, ctx));
@@ -110,7 +125,7 @@ pub fn start_with_listener(
         client,
     ));
 
-    Ok(ProxyHandle {
+    Ok(ServedProxy {
         port: bound_port,
         stats,
     })

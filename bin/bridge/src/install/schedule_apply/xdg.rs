@@ -37,7 +37,7 @@ pub(super) fn register(
     // Why: activation needs a systemd user bus, which containers and
     // systemd-less WSL distros lack; the written units still stand.
     if let Err(e) = activate(unit, &proxy_unit) {
-        crate::obs::output::diag(&format!(
+        crate::stdio::diag(&format!(
             "warning: units written but not activated: {e}. Activate them yourself with: \
              systemctl --user daemon-reload && systemctl --user enable --now {unit}.timer \
              {proxy_unit}.service"

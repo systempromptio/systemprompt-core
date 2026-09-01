@@ -8,22 +8,53 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::integration::host_app::HostConfigSchema;
 
-// Why: the bridge-owned `model` keys are addressed with the same dotted
-// convention the Codex host uses for its TOML surface.
-pub(super) const MODEL_BASE_URL: &str = "model.base_url";
-pub(super) const MODEL_API_MODE: &str = "model.api_mode";
-pub(super) const MODEL_NAME: &str = "model.model";
+// Why: Hermes reaches a non-built-in endpoint through a *named* entry under
+// `providers:`, selected by `model.provider`. Writing `model.base_url` with
+// `model.provider` left at its default `auto` does not route anything: Hermes
+// resolves the provider first and only then consults that provider's base_url.
+pub const PROVIDER_ENTRY: &str = "systemprompt-gateway";
+pub const MODEL_PROVIDER: &str = "model.provider";
+// Why: `model.default` — not `model.model`. Both names parse, but when the two
+// are present `default` wins, and Hermes' own installed config.yaml always
+// ships a `default`. Writing `model` alone is therefore silently inert.
+pub const MODEL_NAME: &str = "model.default";
 
-// Why: `openai` selects the chat/completions wire format the gateway serves at
-// `/v1/chat/completions`, matching the host's single accepted surface.
-pub(super) const API_MODE_VALUE: &str = "openai";
+pub const PROVIDER_BASE_URL: &str = "providers.systemprompt-gateway.base_url";
+pub const PROVIDER_API_MODE: &str = "providers.systemprompt-gateway.api_mode";
+pub const PROVIDER_KEY_ENV: &str = "providers.systemprompt-gateway.key_env";
 
-pub(super) const KEYS_OF_INTEREST: &[&str] = &[MODEL_BASE_URL, MODEL_API_MODE, MODEL_NAME];
+// Why: Hermes' api_mode vocabulary is `chat_completions` / `codex_responses` /
+// `anthropic_messages` (plus `bedrock_converse`). "openai" is not a member and
+// is silently discarded, so the wire format has to be named explicitly.
+pub const API_MODE_VALUE: &str = "chat_completions";
 
-// Why: base_url and api_mode are what make Hermes route inference through the
-// bridge at all; without either the profile is not doing its job. The concrete
-// model name is optional (it may be selected in-app), so it is not required.
-pub(super) const REQUIRED_KEYS: &[&str] = &[MODEL_BASE_URL, MODEL_API_MODE];
+// Why: the loopback secret stays in `HERMES_HOME/.env` (0600) rather than in
+// config.yaml, and `key_env` is how a named provider reads it from there.
+// Hermes host-gates the bare `OPENAI_API_KEY` fallback to openai.com/azure, so
+// for a 127.0.0.1 endpoint an explicit `key_env` is the only path that resolves
+// the credential — without it Hermes sends its `no-key-required` placeholder
+// and the bridge proxy answers 403.
+pub(super) const KEY_ENV_VALUE: &str = ENV_API_KEY;
+
+pub(super) const KEYS_OF_INTEREST: &[&str] = &[
+    MODEL_PROVIDER,
+    MODEL_NAME,
+    PROVIDER_BASE_URL,
+    PROVIDER_API_MODE,
+    PROVIDER_KEY_ENV,
+];
+
+// Why: the provider selection, its endpoint and its wire format are what make
+// Hermes route inference through the bridge at all; without any of them the
+// profile is not doing its job. `key_env` is required too — the request reaches
+// the proxy without it and is rejected. The concrete model name stays optional
+// (it may be selected in-app).
+pub(super) const REQUIRED_KEYS: &[&str] = &[
+    MODEL_PROVIDER,
+    PROVIDER_BASE_URL,
+    PROVIDER_API_MODE,
+    PROVIDER_KEY_ENV,
+];
 
 pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
     required_keys: REQUIRED_KEYS,
@@ -50,18 +81,25 @@ pub(super) fn hermes_home() -> PathBuf {
 }
 
 pub(super) fn config_yaml_path() -> PathBuf {
-    hermes_home().join("config.yaml")
+    config_yaml_path_in(&hermes_home())
 }
 
-pub(super) fn env_path() -> PathBuf {
-    hermes_home().join(".env")
+// Why: the install path is otherwise reachable only through `HERMES_HOME`, and
+// the crate denies `unsafe_code`, so a test cannot set that variable. Taking
+// the home explicitly lets the real install run against a temporary directory.
+pub(super) fn config_yaml_path_in(home: &std::path::Path) -> PathBuf {
+    home.join("config.yaml")
+}
+
+pub(super) fn env_path_in(home: &std::path::Path) -> PathBuf {
+    home.join(".env")
 }
 
 pub(super) fn skills_dir() -> PathBuf {
     hermes_home().join("skills")
 }
 
-pub(super) const ENV_API_KEY: &str = "OPENAI_API_KEY";
+pub const ENV_API_KEY: &str = "OPENAI_API_KEY";
 
 pub(super) fn now_unix() -> u64 {
     SystemTime::now()

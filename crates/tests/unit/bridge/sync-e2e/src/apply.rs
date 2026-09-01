@@ -19,6 +19,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
     PluginEntry, PluginFile, SignedManifest, SkillEntry, UserInfo, ValidatedUrl,
@@ -129,6 +130,18 @@ fn governance_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
     PluginEntry {
         hooks: PluginHooksRef {
             governance: true,
+            comms: false,
+            include: vec![],
+        },
+        ..plugin(id, files)
+    }
+}
+
+fn comms_plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
+    PluginEntry {
+        hooks: PluginHooksRef {
+            governance: true,
+            comms: true,
             include: vec![],
         },
         ..plugin(id, files)
@@ -260,7 +273,7 @@ fn run_sync(dirs: &SandboxDirs) -> Result<systemprompt_bridge::sync::SyncSummary
             .enable_all()
             .build()
             .unwrap()
-            .block_on(run_once(true, true, true))
+            .block_on(run_once(&bridge(), true, true, true))
             .map_err(|e| e.to_string())
     })
 }
@@ -685,12 +698,12 @@ fn a_manifest_without_a_user_writes_a_null_user_fragment() {
 
 #[test]
 fn an_enabled_host_with_nothing_installed_is_a_no_op() {
-    let enabled = manifest_with(vec![], vec!["cowork".into()]);
+    let enabled = manifest_with(vec![], vec!["claude-desktop".into()]);
     let (server, dirs, pat_dir) = serve(&enabled, "pat-hosts");
     let summary = run_sync(&dirs).expect("sync applies");
     assert!(
         summary.one_line().contains("sync ok"),
-        "an enabled host with no Cowork install is a no-op, not a failure: {}",
+        "an enabled host with no Claude Desktop install is a no-op, not a failure: {}",
         summary.one_line()
     );
     let _ = (&server, &pat_dir);
@@ -775,6 +788,7 @@ fn plugin_with_include(id: &str, include: Vec<String>) -> PluginEntry {
     PluginEntry {
         hooks: PluginHooksRef {
             governance: false,
+            comms: false,
             include,
         },
         ..plugin(id, vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)])
@@ -814,6 +828,54 @@ fn an_included_hook_is_materialised_as_a_user_command_entry() {
     assert_eq!(entry["event"], "PreToolUse");
     assert_eq!(group[0]["matcher"], "*");
     let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn the_comms_drain_hooks_are_installed_only_when_the_owner_opts_in() {
+    for (label, entry, expected) in [
+        (
+            "pat-comms-off",
+            governance_plugin("acme-commons", vec![]),
+            false,
+        ),
+        ("pat-comms-on", comms_plugin("acme-commons", vec![]), true),
+    ] {
+        let m = manifest_of(vec![entry], vec![]);
+        let b = serve_plugins(
+            &m,
+            &[(
+                "acme-commons",
+                ".claude-plugin/plugin.json",
+                COMMONS_FILE_BODY,
+            )],
+            label,
+        );
+        run_sync(&b.dirs).expect("sync applies");
+
+        let hooks = hooks_json_of(&b.dirs, "acme-commons");
+        assert!(
+            hooks["hooks"]["PreToolUse"].is_array(),
+            "the governance owner always carries the govern hook: {hooks}"
+        );
+        for event in ["UserPromptSubmit", "Stop"] {
+            let present = hooks["hooks"][event].as_array().is_some_and(|groups| {
+                groups.iter().any(|g| {
+                    g["hooks"].as_array().is_some_and(|hs| {
+                        hs.iter().any(|h| {
+                            h["command"]
+                                .as_str()
+                                .is_some_and(|c| c.contains("comms-drain"))
+                        })
+                    })
+                })
+            });
+            assert_eq!(
+                present, expected,
+                "{label}: {event} comms-drain hook presence must follow hooks.comms: {hooks}"
+            );
+        }
+        let _ = (&b.server, &b.pat_dir);
+    }
 }
 
 #[test]
@@ -1132,7 +1194,7 @@ fn seed_stale_cache(dirs: &SandboxDirs, gateway: &str) {
             let url = systemprompt_identifiers::ValidatedUrl::try_new(gateway).unwrap();
             systemprompt_bridge::auth::cache::write(
                 &url,
-                &systemprompt_bridge::auth::types::HelperOutput {
+                &systemprompt_bridge::gateway::types::HelperOutput {
                     token: systemprompt_bridge::ids::BearerToken::new(STALE_TOKEN),
                     ttl: 3600,
                     headers: std::collections::HashMap::new(),
@@ -1231,4 +1293,8 @@ fn sync_fails_only_when_a_freshly_minted_token_is_also_rejected() {
         err.contains(".pat"),
         "the PAT file the bridge actually read is named: {err}"
     );
+}
+
+fn bridge() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }

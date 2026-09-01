@@ -20,7 +20,6 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -30,13 +29,22 @@ use serde::{Deserialize, Serialize};
 const INSTALL_ID_FILENAME: &str = "bridge-install.id";
 const UNKNOWN: &str = "unknown";
 
-static INSTALL_ID: OnceLock<InstallId> = OnceLock::new();
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct InstallId(String);
 
 impl InstallId {
+    // Why: an install that cannot establish an id still runs, but as `unknown`,
+    // which `same_install` never matches — so it can never stand down for a
+    // sibling it cannot prove is itself.
+    #[must_use]
+    pub fn establish() -> Self {
+        Self(load_or_mint().unwrap_or_else(|e| {
+            tracing::warn!(error = %e, install_id = UNKNOWN, "could not establish an install id");
+            UNKNOWN.to_owned()
+        }))
+    }
+
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -83,11 +91,11 @@ pub const WHOAMI_PRODUCT: &str = "systemprompt-bridge";
 
 impl WhoAmI {
     #[must_use]
-    pub fn current(port: u16, started_at_unix: u64) -> Self {
+    pub fn current(port: u16, started_at_unix: u64, install_id: &InstallId) -> Self {
         Self {
             schema: WHOAMI_SCHEMA,
             product: WHOAMI_PRODUCT.to_owned(),
-            install_id: install_id(),
+            install_id: install_id.clone(),
             config_dir: config_dir_display(),
             port,
             pid: std::process::id(),
@@ -97,8 +105,8 @@ impl WhoAmI {
     }
 
     #[must_use]
-    pub fn is_ours(&self) -> bool {
-        self.product == WHOAMI_PRODUCT && self.install_id.same_install(&install_id())
+    pub fn is_ours(&self, ours: &InstallId) -> bool {
+        self.product == WHOAMI_PRODUCT && self.install_id.same_install(ours)
     }
 }
 
@@ -121,19 +129,6 @@ pub fn config_dir_display() -> String {
                 .to_string()
         },
     )
-}
-
-#[must_use]
-pub fn install_id() -> InstallId {
-    if let Some(id) = INSTALL_ID.get() {
-        return id.clone();
-    }
-    let id = InstallId(load_or_mint().unwrap_or_else(|e| {
-        tracing::warn!(error = %e, "could not establish an install id; using {UNKNOWN}");
-        UNKNOWN.to_owned()
-    }));
-    _ = INSTALL_ID.set(id.clone());
-    id
 }
 
 #[must_use]

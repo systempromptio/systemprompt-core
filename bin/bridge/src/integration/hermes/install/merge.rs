@@ -1,8 +1,9 @@
-//! Merge the bridge-owned `model` keys into the user's Hermes `config.yaml`,
-//! stripping prior bridge-owned values first so removed keys don't linger and
-//! preserving every other key. Bridge-owned surface: `model.base_url`,
-//! `model.api_mode`, and `model.model`; the `model` table itself is removed
-//! only if it becomes empty. All other keys survive unchanged.
+//! Merge the bridge-owned keys into the user's Hermes `config.yaml`, stripping
+//! prior bridge-owned values first so removed keys don't linger and preserving
+//! every other key. Bridge-owned surface: `model.provider`, `model.default`,
+//! and the whole `providers.<PROVIDER_ENTRY>` entry; the `model` and
+//! `providers` tables are removed only if they become empty. All other keys
+//! survive unchanged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,8 +12,9 @@ use std::path::Path;
 
 use serde_yaml::Value;
 
-const OWNED_MODEL_KEYS: &[&str] = &["base_url", "api_mode", "model"];
+const OWNED_MODEL_KEYS: &[&str] = &["provider", "default"];
 const MODEL_TABLE: &str = "model";
+const PROVIDERS_TABLE: &str = "providers";
 
 fn yaml_key(k: &str) -> Value {
     Value::String(k.to_owned())
@@ -85,14 +87,21 @@ fn strip_owned(target: &mut Value) {
     let Value::Mapping(top) = target else {
         return;
     };
-    let Some(Value::Mapping(model)) = top.get_mut(yaml_key(MODEL_TABLE)) else {
-        return;
-    };
-    for k in OWNED_MODEL_KEYS {
-        model.remove(yaml_key(k));
+    // Why: only our own `providers:` entry is removed. A user's other named
+    // providers live in the same table and must survive an uninstall.
+    if let Some(Value::Mapping(providers)) = top.get_mut(yaml_key(PROVIDERS_TABLE)) {
+        providers.remove(yaml_key(super::super::config::PROVIDER_ENTRY));
+        if providers.is_empty() {
+            top.remove(yaml_key(PROVIDERS_TABLE));
+        }
     }
-    if model.is_empty() {
-        top.remove(yaml_key(MODEL_TABLE));
+    if let Some(Value::Mapping(model)) = top.get_mut(yaml_key(MODEL_TABLE)) {
+        for k in OWNED_MODEL_KEYS {
+            model.remove(yaml_key(k));
+        }
+        if model.is_empty() {
+            top.remove(yaml_key(MODEL_TABLE));
+        }
     }
 }
 

@@ -76,10 +76,11 @@ fn check_with_endpoint(
                 client_secret: "shh-secret".into(),
                 token_endpoint: format!("{}/v1/oauth/token", server.uri()),
                 scopes: vec!["hook:govern".into(), "hook:track".into()],
+                gateway: Some(server.uri()),
             })
             .expect("store creds");
 
-            let gateway = GatewayClient::new(ValidatedUrl::new(server.uri()));
+            let gateway = GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
             check_hook_token_mint(&gateway).await
         })
     })

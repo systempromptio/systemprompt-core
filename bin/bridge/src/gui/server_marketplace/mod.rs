@@ -31,7 +31,11 @@ use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::read_last_sync;
 use source::{MarketplaceCategory, MarketplaceSourceCtx, MarketplaceSourceRegistration};
 
-pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
+pub fn build_listing(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
+    mcp_auth: &[McpServerAuth],
+) -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
     let plugins_root: Option<PathBuf> = loc.as_ref().map(|l| l.path.clone());
@@ -71,7 +75,7 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
                 agents.extend(own(components::list_agents(&dir.join("agents"))));
                 hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
             }
-            let mcp = components::list_registry_mcp(mcp_auth);
+            let mcp = components::list_registry_mcp(loopback, registry);
             (
                 plugins,
                 dedup_by_id(skills),

@@ -1,4 +1,4 @@
-//! Plugin hook-token minting and the process-wide freshness cache.
+//! Plugin hook-token minting and the per-context freshness cache.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use systemprompt_identifiers::PluginId;
-use tokio::sync::OnceCell;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
@@ -40,6 +39,21 @@ impl CachedHookToken {
     }
 }
 
+const KEY_SEP: char = '\u{1f}';
+
+fn cache_key(gateway: &str, plugin_id: &PluginId) -> String {
+    format!("{gateway}{KEY_SEP}{}", plugin_id.as_str())
+}
+
+/// Hook tokens held in memory, keyed on the gateway that minted them as well as
+/// the plugin they were minted for.
+///
+/// Why the gateway is part of the key: a hook token is signed by one gateway's
+/// RSA authority and is meaningless to any other. Keyed on the plugin alone,
+/// repointing the bridge from production to a local server handed the
+/// still-fresh production token to the local governance webhook, which rejected
+/// it as an unknown signing key and blocked every tool call — with nothing to
+/// invalidate the entry, so it never recovered.
 #[derive(Debug, Default)]
 pub struct PluginTokenCache {
     entries: Mutex<HashMap<String, CachedHookToken>>,
@@ -54,26 +68,28 @@ impl PluginTokenCache {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    pub fn get(&self, plugin_id: &PluginId, threshold_secs: u64) -> Option<CachedHookToken> {
-        let cached = self.entries().get(plugin_id.as_str())?.clone();
+    pub fn get(
+        &self,
+        gateway: &str,
+        plugin_id: &PluginId,
+        threshold_secs: u64,
+    ) -> Option<CachedHookToken> {
+        let cached = self.entries().get(&cache_key(gateway, plugin_id))?.clone();
         cached.is_fresh(threshold_secs).then_some(cached)
     }
 
-    pub fn put(&self, plugin_id: &PluginId, token: CachedHookToken) {
-        self.entries().insert(plugin_id.as_str().to_owned(), token);
+    pub fn put(&self, gateway: &str, plugin_id: &PluginId, token: CachedHookToken) {
+        self.entries().insert(cache_key(gateway, plugin_id), token);
     }
 
-    pub fn invalidate(&self, plugin_id: &PluginId) {
-        self.entries().remove(plugin_id.as_str());
+    pub fn invalidate(&self, gateway: &str, plugin_id: &PluginId) {
+        self.entries().remove(&cache_key(gateway, plugin_id));
     }
-}
 
-static GLOBAL_CACHE: OnceCell<PluginTokenCache> = OnceCell::const_new();
-
-pub async fn global_cache() -> &'static PluginTokenCache {
-    GLOBAL_CACHE
-        .get_or_init(|| async { PluginTokenCache::default() })
-        .await
+    pub fn invalidate_plugin(&self, plugin_id: &PluginId) {
+        let suffix = format!("{KEY_SEP}{}", plugin_id.as_str());
+        self.entries().retain(|key, _| !key.ends_with(&suffix));
+    }
 }
 
 async fn mint(
@@ -120,12 +136,13 @@ fn gateway_aligned_endpoint(raw: &str, gateway: &str) -> String {
 }
 
 pub async fn mint_or_refresh_plugin_token(
+    cache: &PluginTokenCache,
     gateway: &GatewayClient,
     bearer: &BearerToken,
     plugin_id: &PluginId,
 ) -> Result<CachedHookToken, PluginOAuthError> {
-    let cache = global_cache().await;
-    if let Some(cached) = cache.get(plugin_id, REFRESH_THRESHOLD_SECS) {
+    let gateway_key = gateway.base_url_str().to_owned();
+    if let Some(cached) = cache.get(&gateway_key, plugin_id, REFRESH_THRESHOLD_SECS) {
         return Ok(cached);
     }
     let creds = ensure_creds(gateway, bearer).await?;
@@ -142,6 +159,6 @@ pub async fn mint_or_refresh_plugin_token(
         Err(e) => return Err(e.into()),
     };
     let cached = CachedHookToken::from_response(response);
-    cache.put(plugin_id, cached.clone());
+    cache.put(&gateway_key, plugin_id, cached.clone());
     Ok(cached)
 }

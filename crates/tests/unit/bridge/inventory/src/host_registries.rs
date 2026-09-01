@@ -1,19 +1,47 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
+    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
     ProfileGenInputs, ProfileState,
 };
 use systemprompt_bridge::integration::{find_host_by_id, host_apps};
-use systemprompt_bridge::register_host_app;
-use systemprompt_bridge::sync::host_sync;
+use systemprompt_bridge::{host_sync, register_host_app};
 
 #[test]
 fn host_apps_contains_builtins() {
     let ids: Vec<&str> = host_apps().iter().map(|h| h.id()).collect();
-    assert!(
-        ids.contains(&"codex-cli"),
-        "codex-cli built-in host missing; registry = {ids:?}"
+    for expected in ["codex-cli", "hermes", "opencode"] {
+        assert!(
+            ids.contains(&expected),
+            "{expected} built-in host missing; registry = {ids:?}"
+        );
+    }
+}
+
+// Why: the gateway only offers the bridge hosts it knows; a host registered
+// here but absent there is never enabled, and one known there with no
+// implementation here silently vanishes from the GUI.
+#[test]
+fn known_hosts_cover_every_local_and_sync_only_agent() {
+    use systemprompt_bridge::integration::SYNC_ONLY_AGENTS;
+    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+
+    let mut bridge: Vec<&str> = host_apps()
+        .iter()
+        .map(|h| h.id())
+        .filter(|id| !id.starts_with("dummy-"))
+        .chain(SYNC_ONLY_AGENTS.iter().map(|a| a.id))
+        .collect();
+    bridge.sort_unstable();
+    bridge.dedup();
+    let mut known: Vec<&str> = KNOWN_HOSTS.to_vec();
+    if !cfg!(any(target_os = "macos", target_os = "windows")) {
+        known.retain(|id| *id != "claude-desktop");
+    }
+    known.sort_unstable();
+    assert_eq!(
+        bridge, known,
+        "bridge registries and the gateway KNOWN_HOSTS list have drifted"
     );
 }
 
@@ -28,7 +56,13 @@ fn host_apps_are_sorted_by_id() {
 #[test]
 fn host_sync_registry_contains_builtins() {
     let ids: Vec<&str> = host_sync::registry().iter().map(|s| s.host_id()).collect();
-    for expected in ["codex-cli", "claude-code", "cowork"] {
+    for expected in [
+        "codex-cli",
+        "claude-code",
+        "claude-desktop",
+        "hermes",
+        "opencode",
+    ] {
         assert!(
             ids.contains(&expected),
             "{expected} host sync missing; registry = {ids:?}"
@@ -37,14 +71,14 @@ fn host_sync_registry_contains_builtins() {
 }
 
 #[test]
-fn host_sync_registry_keeps_both_cowork_facets() {
+fn host_sync_registry_keeps_both_claude_desktop_facets() {
     let cowork = host_sync::registry()
         .iter()
-        .filter(|s| s.host_id() == "cowork")
+        .filter(|s| s.host_id() == "claude-desktop")
         .count();
     assert_eq!(
         cowork, 2,
-        "the Cowork plugins and artifacts emitters share host_id \"cowork\" and \
+        "the Cowork plugins and artifacts emitters share host_id \"claude-desktop\" and \
          must both survive dedup (dedup keys on concrete type, not host_id)"
     );
 }
@@ -66,7 +100,7 @@ impl HostApp for DummyHost {
     fn config_schema(&self) -> &'static HostConfigSchema {
         &DUMMY_SCHEMA
     }
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
         HostAppSnapshot {
             host_id: "dummy-test-host",
             display_name: "Dummy Test Host",
@@ -119,7 +153,7 @@ impl HostApp for ShadowCodexHost {
     fn config_schema(&self) -> &'static HostConfigSchema {
         &DUMMY_SCHEMA
     }
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
         HostAppSnapshot {
             host_id: "codex-cli",
             display_name: "Shadowed Codex",

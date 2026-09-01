@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Changed
+
+- Identifier quoting moved onto the validated `Identifier` type as `quoted()`, so it cannot be reached with an unvalidated string. It had been a free function duplicated across the admin and `services/postgres` introspection modules, and the second copy took a bare `&str` — correct only because of where its caller happened to obtain the value, which is a property that survives exactly until the next caller.
+
 ## [0.32.0] - 2026-08-19
 
 ### Breaking

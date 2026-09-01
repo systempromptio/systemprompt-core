@@ -2,9 +2,9 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use systemprompt_bridge::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::auth::{ChainError, evaluate_chain};
 use systemprompt_bridge::gateway::GatewayError;
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_identifiers::SessionId;
 
@@ -34,7 +34,11 @@ impl AuthProvider for StubProvider {
         self.name
     }
 
-    async fn authenticate(&self, _session_id: &SessionId) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(
+        &self,
+        _session_id: &SessionId,
+        _http: &reqwest::Client,
+    ) -> Result<HelperOutput, AuthError> {
         let mut calls = self.calls.lock().expect("calls lock");
         *calls += 1;
         drop(calls);
@@ -75,9 +79,14 @@ async fn transient_failure_on_preferred_mtls_does_not_fall_through_to_pat() {
     let pat = StubProvider::new("pat", Ok(ok_token()));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let err = evaluate_chain(&chain, Some("mtls"), &SessionId::generate())
-        .await
-        .expect_err("must short-circuit");
+    let err = evaluate_chain(
+        &chain,
+        Some("mtls"),
+        &SessionId::generate(),
+        &reqwest::Client::new(),
+    )
+    .await
+    .expect_err("must short-circuit");
 
     assert!(
         matches!(
@@ -109,9 +118,14 @@ async fn terminal_failure_on_preferred_falls_through() {
     let pat = StubProvider::new("pat", Ok(ok_token()));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let token = evaluate_chain(&chain, Some("mtls"), &SessionId::generate())
-        .await
-        .expect("must fall through to PAT");
+    let token = evaluate_chain(
+        &chain,
+        Some("mtls"),
+        &SessionId::generate(),
+        &reqwest::Client::new(),
+    )
+    .await
+    .expect("must fall through to PAT");
     assert_eq!(token.token.expose(), "stub");
     assert_eq!(pat.call_count(), 1);
 }
@@ -122,9 +136,14 @@ async fn transient_failure_on_non_preferred_falls_through() {
     let pat = StubProvider::new("pat", Ok(ok_token()));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let token = evaluate_chain(&chain, None, &SessionId::generate())
-        .await
-        .expect("transient on non-preferred must fall through");
+    let token = evaluate_chain(
+        &chain,
+        None,
+        &SessionId::generate(),
+        &reqwest::Client::new(),
+    )
+    .await
+    .expect("transient on non-preferred must fall through");
     assert_eq!(token.token.expose(), "stub");
     assert_eq!(pat.call_count(), 1);
 }
@@ -135,9 +154,14 @@ async fn no_provider_succeeds_yields_none_succeeded() {
     let pat = StubProvider::new("pat", Err(AuthError::NotConfigured));
 
     let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let err = evaluate_chain(&chain, None, &SessionId::generate())
-        .await
-        .expect_err("nothing configured");
+    let err = evaluate_chain(
+        &chain,
+        None,
+        &SessionId::generate(),
+        &reqwest::Client::new(),
+    )
+    .await
+    .expect_err("nothing configured");
     assert!(matches!(err, ChainError::NoneSucceeded));
 }
 

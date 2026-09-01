@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Fixed
+
+- The MCP spawner passes the deployment-host marker through to child processes. `build_environment` clears the child environment and rebuilds it from an allowlist, so every MCP subprocess on a deployed host believed it was off-host and died resolving a tenant store no deployed container has.
+
+## [0.42.0] - 2026-08-31
+
+### Fixed
+
+- Chart SVG scales no longer mis-place ticks on a degenerate domain.
+
+### Changed
+
+- Client elicitation and the chart-SVG templates follow the rustdoc placement rule.
+
 ## [0.41.0] - 2026-08-28
 
 ### Added

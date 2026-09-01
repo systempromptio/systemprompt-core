@@ -4,17 +4,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::integration::proxy_probe::{self, PeerIdentity, PortMatch};
+use crate::integration::host_app::ProbeEnv;
+use crate::proxy::ProxyHandle;
+use crate::proxy::peer::PeerIdentity;
+use crate::proxy_probe::{self, PortMatch};
 
 use super::Check;
 
 #[must_use]
-pub fn check_proxy_listening() -> Check {
-    let port = crate::proxy::resolved_port();
-    let url = crate::proxy::loopback_origin();
+pub fn check_proxy_listening(proxy: &ProxyHandle) -> Check {
+    let port = proxy.port();
+    let url = proxy.loopback().origin();
     let bin = crate::brand::brand().binary_name;
 
-    match proxy_probe::probe_identity(port) {
+    match proxy.peer() {
         PeerIdentity::Ours(_) => {
             let health = proxy_probe::probe(Some(&url));
             let latency = health.latency_ms.unwrap_or_default();
@@ -57,13 +60,13 @@ pub fn check_proxy_listening() -> Check {
 }
 
 #[must_use]
-pub fn check_proxy_client_config() -> Vec<Check> {
-    let actual = crate::proxy::resolved_port();
+pub fn check_proxy_client_config(env: &ProbeEnv) -> Vec<Check> {
+    let actual = env.proxy_port;
     let bin = crate::brand::brand().binary_name;
     let mut checks = Vec::new();
 
     for host in crate::integration::registry::host_apps() {
-        let snapshot = host.probe();
+        let snapshot = host.probe(env);
         let Some(configured) = snapshot
             .profile_keys
             .get("inferenceGatewayBaseUrl")

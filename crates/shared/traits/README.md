@@ -37,14 +37,14 @@ The contract layer every other crate answers to. Nothing in infra, domain, app, 
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.42"
+systemprompt-traits = "0.43"
 ```
 
 Enable the `web` feature to pull in the `axum`-backed `ApiModule` trait:
 
 ```toml
 [dependencies]
-systemprompt-traits = { version = "0.42", features = ["web"] }
+systemprompt-traits = { version = "0.43", features = ["web"] }
 ```
 
 ## Example

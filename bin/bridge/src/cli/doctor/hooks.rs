@@ -12,13 +12,12 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use crate::integration::proxy_probe::{self, PortMatch};
+use crate::proxy_probe::{self, PortMatch};
 
 use super::Check;
 
 #[must_use]
-pub fn check_hook_urls() -> Option<Check> {
-    let actual = crate::proxy::resolved_port();
+pub fn check_hook_urls(actual: u16) -> Option<Check> {
     let bin = crate::brand::brand().binary_name;
     let files = hook_files()?;
     if files.is_empty() {

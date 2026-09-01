@@ -11,6 +11,7 @@ use futures_util::Stream;
 use hyper::body::Frame;
 use serde::Deserialize;
 
+use crate::activity::ActivityLog;
 use crate::proxy::server::ProxyStats;
 
 const JSON_BUFFER_LIMIT: usize = 256 * 1024;
@@ -23,6 +24,7 @@ pub fn wrap_response_stream<S>(
     content_type: &str,
     enabled: bool,
     stats: Arc<ProxyStats>,
+    activity: ActivityLog,
     stream: S,
 ) -> impl Stream<Item = std::io::Result<Frame<Bytes>>> + Send + use<S>
 where
@@ -30,7 +32,7 @@ where
 {
     use futures_util::{StreamExt, future};
     let tap = if enabled {
-        UsageTap::for_content_type(content_type, Sink { stats })
+        UsageTap::for_content_type(content_type, Sink { stats, activity })
     } else {
         UsageTap::Disabled
     };
@@ -56,6 +58,7 @@ impl Drop for TapGuard {
 
 struct Sink {
     stats: Arc<ProxyStats>,
+    activity: ActivityLog,
 }
 
 enum UsageTap {
@@ -245,7 +248,7 @@ fn record_usage(sink: &Sink, usage: &StreamUsage) {
             .fetch_add(output, Ordering::Relaxed);
     }
     let total = sink.stats.messages_total.load(Ordering::Relaxed);
-    crate::activity::activity_log().append(format!(
+    sink.activity.append(format!(
         "tokens: +{input} in / +{output} out (total {total} msgs)"
     ));
 }

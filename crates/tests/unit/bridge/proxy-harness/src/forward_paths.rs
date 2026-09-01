@@ -9,8 +9,8 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::config::{Config, RuntimeConfig, SharedRuntimeConfig};
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::{BearerToken, ProxySecret};
 use systemprompt_bridge::proxy::dispatch::handle_request;
 use systemprompt_bridge::proxy::server::{ProxyContext, ProxyStats};
@@ -69,6 +69,7 @@ async fn spawn_with_base(gateway: MockServer, base: Option<String>) -> Harness {
         session: Arc::new(SessionContext::new()),
         port,
         started_at_unix: 0,
+        deps: test_deps(),
     };
 
     tokio::spawn(async move {
@@ -566,6 +567,7 @@ async fn a_request_that_cannot_mint_a_token_is_reported_as_service_unavailable()
         session: Arc::new(SessionContext::new()),
         port: 0,
         started_at_unix: 0,
+        deps: test_deps(),
     };
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
         .await
@@ -680,7 +682,7 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
                 .to_string(),
             )
             .expect("mcp fragment");
-            systemprompt_bridge::mcp_registry::rehydrate_from_disk();
+            systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY);
 
             let h = spawn_harness().await;
             let resp = h.authed_post("/mcp/salesforce-mcp", "{}").await;
@@ -769,4 +771,19 @@ fn a_hook_route_mints_a_plugin_scoped_token_and_a_401_spares_the_shared_jwt() {
             );
         });
     });
+}
+
+static REGISTRY: std::sync::LazyLock<Arc<systemprompt_bridge::mcp_registry::McpRegistrySlot>> =
+    std::sync::LazyLock::new(systemprompt_bridge::mcp_registry::empty_slot);
+
+fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
+    systemprompt_bridge::proxy::ProxyDeps {
+        install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
+        mcp_registry: Arc::clone(&REGISTRY),
+        activity: systemprompt_bridge::activity::ActivityLog::new(),
+        http: reqwest::Client::new(),
+        plugin_tokens: Arc::new(
+            systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+        ),
+    }
 }

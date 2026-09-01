@@ -17,13 +17,13 @@ use systemprompt_identifiers::{SessionId, ValidatedUrl};
 use crate::auth::loopback::LoopbackServer;
 use crate::auth::providers::session::{capture_on, device_link_url};
 use crate::auth::setup;
-use crate::auth::types::SessionPatRequest;
 use crate::cli::args::{has_flag, parse_opt_flag};
-use crate::cli::output;
-use crate::gateway::GatewayClient;
-use crate::obs::output::diag;
+use crate::context::BridgeContext;
+use crate::gateway::types::SessionPatRequest;
+use crate::stdio;
+use crate::stdio::diag;
 
-pub fn cmd_login(args: &[String]) -> ExitCode {
+pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let gateway = parse_opt_flag(args, "--gateway");
     let device_name = parse_opt_flag(args, "--device-name");
     let pasted_pat = args.get(2).filter(|t| !t.is_empty() && !t.starts_with('-'));
@@ -31,7 +31,7 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
     let code = if let Some(code) = parse_opt_flag(args, "--code") {
         Some(code)
     } else if pasted_pat.is_none() {
-        match sso_code(gateway.as_deref(), has_flag(args, "--no-browser")) {
+        match sso_code(ctx, gateway.as_deref(), has_flag(args, "--no-browser")) {
             Ok(c) => Some(c),
             Err(e) => {
                 diag(&format!("login: single sign-on failed: {e}"));
@@ -43,7 +43,7 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
     };
 
     let token = if let Some(code) = code {
-        match redeem_code(&code, gateway.as_deref(), device_name) {
+        match redeem_code(ctx, &code, gateway.as_deref(), device_name) {
             Ok(pat) => pat,
             Err(e) => {
                 diag(&format!("login: could not redeem the exchange code: {e}"));
@@ -61,10 +61,11 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
     match setup::login(token.as_str(), gateway.as_deref()) {
         Ok(paths) => {
             let bin = crate::brand::brand().binary_name;
-            output::print_line(&format!("Stored PAT for {bin} helper."));
-            output::print_line(&format!("  config: {}", paths.config_file.display()));
-            output::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
-            output::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
+            stdio::print_line(&format!("Stored PAT for {bin} helper."));
+            stdio::print_line(&format!("  config: {}", paths.config_file.display()));
+            stdio::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
+            stdio::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
+            reapply_after_login(ctx, has_flag(args, "--no-reapply"));
             ExitCode::SUCCESS
         },
         Err(e) => {
@@ -77,7 +78,7 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
 fn usage() -> String {
     format!(
         "usage: {bin} login [--gateway <url>] [--no-browser] [--device-name <name>]\n   \
-         or: {bin} login <sp-live-...> [--gateway <url>]\n   \
+         or: {bin} login <sp-live-...> [--gateway <url>] [--no-reapply]\n   \
          or: {bin} login --code <exchange-code> [--gateway <url>] [--device-name <name>]\n\
          \n\
          With no token or code, signs in through the gateway's device-link page:\n\
@@ -94,7 +95,11 @@ fn usage() -> String {
     )
 }
 
-fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
+fn sso_code(
+    ctx: &BridgeContext,
+    gateway: Option<&str>,
+    no_browser: bool,
+) -> Result<String, String> {
     // Why: both SSO paths need a person — one waits on a browser callback, the
     // other on a pasted code. Detached from a terminal neither can ever
     // complete, so they would block until the caller gives up rather than
@@ -112,24 +117,23 @@ fn sso_code(gateway: Option<&str>, no_browser: bool) -> Result<String, String> {
     let base_url = resolve_gateway(gateway)?;
 
     if !no_browser {
-        return crate::proxy::block_on(async move {
+        return ctx.block_on(async move {
             let server = LoopbackServer::bind()
                 .await
                 .map_err(|e| format!("could not bind the loopback callback listener: {e}"))?;
             capture_on(server, &base_url)
                 .await
                 .map_err(|e| e.to_string())
-        })
-        .map_err(|e| format!("runtime init: {e}"))?;
+        });
     }
 
     let url = device_link_url(base_url.as_str(), None);
-    output::print_line("Open this URL on a machine with a browser and sign in:");
-    output::print_line("");
-    output::print_line(&format!("    {url}"));
-    output::print_line("");
-    output::print_line("After approving, the page shows a one-time code. Paste it here:");
-    output::print_line("");
+    stdio::print_line("Open this URL on a machine with a browser and sign in:");
+    stdio::print_line("");
+    stdio::print_line(&format!("    {url}"));
+    stdio::print_line("");
+    stdio::print_line("After approving, the page shows a one-time code. Paste it here:");
+    stdio::print_line("");
 
     let mut line = String::new();
     std::io::stdin()
@@ -221,6 +225,7 @@ fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
 }
 
 fn redeem_code(
+    ctx: &BridgeContext,
     code: &str,
     gateway: Option<&str>,
     device_name: Option<String>,
@@ -230,13 +235,12 @@ fn redeem_code(
         code: code.trim().to_owned(),
         device_name: device_name.or_else(default_device_name),
     };
-    let client = GatewayClient::new(base_url);
-    crate::proxy::block_on(async move {
+    let client = ctx.gateway_client(base_url);
+    ctx.block_on(async move {
         client
             .session_pat_exchange(&req, &SessionId::generate())
             .await
     })
-    .map_err(|e| format!("runtime init: {e}"))?
     .map_err(|e| e.to_string())
 }
 
@@ -251,4 +255,32 @@ fn default_device_name() -> Option<String> {
                 .map(|h| h.trim().to_owned())
                 .filter(|h| !h.is_empty())
         })
+}
+
+// Why: signing in re-mints the credential and can move the gateway, but
+// installed host profiles keep the loopback secret they were written with —
+// see `integration::reapply`. The TTY gate is the load-bearing part here: an
+// interactive sign-in can answer the administrator prompt a managed profile
+// may raise, a scripted one cannot, and must not stall on a dialog nobody is
+// there to see.
+fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
+    use std::io::IsTerminal as _;
+
+    if opted_out {
+        return;
+    }
+    if !std::io::stdin().is_terminal() {
+        stdio::print_line(
+            "Not a terminal \u{2014} skipping host-profile repair. Run `install --apply` to \
+             refresh any profile whose loopback secret has moved on.",
+        );
+        return;
+    }
+    let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+    let reports = ctx.block_on(crate::integration::reapply::reapply_stale_profiles(
+        ctx, &overrides,
+    ));
+    if !reports.is_empty() {
+        stdio::print_str(&crate::integration::reapply::render(&reports));
+    }
 }

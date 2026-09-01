@@ -7,17 +7,12 @@ use http::{HeaderName, HeaderValue};
 use rmcp::model::{ClientCapabilities, ClientJsonRpcMessage, GetMeta, ProtocolVersion};
 use std::collections::HashMap;
 
-// Why: SEP-2575. From 2026-07-28 a server rejects any non-initialize request
-// whose `_meta` omits the negotiated protocol version and the client's
-// capabilities — "request _meta is missing or has malformed required fields" —
-// because a stateless server has no session to remember them from. rmcp's
-// client sets the `MCP-Protocol-Version` HEADER but never the matching `_meta`
-// fields, so without this every call fails at the transport, before any
-// handler runs. Below 2026-07-28 nothing is stamped and nothing changes.
-//
-// Stamping here also settles the SEP-2243 headers: rmcp derives `Mcp-Method`
-// and `Mcp-Name` from the negotiated version, which is 2026-07-28 exactly when
-// this applies, so it adds them itself.
+// Why: SEP-2575. From 2026-07-28 a stateless server rejects any non-initialize
+// request whose `_meta` omits the negotiated protocol version and client
+// capabilities ("request _meta is missing or has malformed required fields").
+// rmcp sets the `MCP-Protocol-Version` header but never the `_meta` fields,
+// so without this every call fails at the transport. Below 2026-07-28 nothing
+// is stamped. The SEP-2243 headers need no help: rmcp adds them itself.
 pub(super) fn stamp_request_metadata(
     message: &mut ClientJsonRpcMessage,
     custom_headers: &HashMap<HeaderName, HeaderValue>,

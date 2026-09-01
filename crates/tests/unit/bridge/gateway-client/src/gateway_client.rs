@@ -11,7 +11,7 @@ use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn client(server: &MockServer) -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new(server.uri()))
+    GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new())
 }
 
 const BEARER: &str = "test-bearer-token";
@@ -488,7 +488,10 @@ async fn clearing_the_host_model_filter_sends_a_null_protocol_list() {
 }
 
 fn dead_client() -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new("http://127.0.0.1:1".to_owned()))
+    GatewayClient::new(
+        ValidatedUrl::new("http://127.0.0.1:1".to_owned()),
+        reqwest::Client::new(),
+    )
 }
 
 #[tokio::test]

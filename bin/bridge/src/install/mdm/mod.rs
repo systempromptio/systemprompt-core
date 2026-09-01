@@ -9,10 +9,14 @@ mod error;
 pub(crate) mod linux;
 #[cfg(target_os = "macos")]
 pub(super) mod macos;
+#[cfg(target_os = "macos")]
+mod macos_payload;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod sync;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub use egress::{cowork_egress_allowed_hosts, set_egress_allowed_hosts};
+pub use egress::{cowork_egress_allowed_hosts, parse_egress_allowed_hosts};
 pub use error::MdmError;
 
 use crate::schedule::Os;
@@ -34,112 +38,38 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[cfg_attr(
-    target_os = "macos",
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
-    )
-)]
-pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::refresh_managed_mcp_servers()
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        Ok("managedMcpServers refresh skipped (non-Windows)".into())
-    }
+#[derive(Debug, Clone, Copy)]
+pub struct MdmPayloadInputs<'a> {
+    pub loopback: &'a crate::proxy::LoopbackEndpoint,
+    pub registry: &'a crate::mcp_registry::McpRegistry,
+    pub egress_allowed_hosts: Option<&'a [String]>,
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) fn remove_windows_policy() -> Result<bool, String> {
+pub(crate) fn remove_windows_policy() -> Result<bool, MdmError> {
     windows::remove_policy()
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[cfg_attr(
-    target_os = "macos",
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
-    )
-)]
-fn write_empty_managed_mcp_servers() -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    {
-        windows::write_managed_mcp_servers_value("[]")
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        Ok("managedMcpServers clear skipped (non-Windows)".into())
-    }
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(crate) struct ClaudeDesktopMdmSync;
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[async_trait::async_trait]
-impl crate::sync::host_sync::HostSync for ClaudeDesktopMdmSync {
-    fn host_id(&self) -> &'static str {
-        "claude-desktop"
-    }
-
-    async fn apply(
-        &self,
-        _ctx: &crate::sync::host_sync::HostSyncCtx<'_>,
-    ) -> Result<(), crate::sync::ApplyError> {
-        match refresh_managed_mcp_servers() {
-            Ok(line) => {
-                tracing::info!(
-                    target: "bridge::mdm",
-                    written = %line,
-                    "managedMcpServers policy value refreshed"
-                );
-                Ok(())
-            },
-            Err(e) => Err(crate::sync::ApplyError::Io {
-                context: format!("mdm refresh: {e}"),
-                source: std::io::Error::other(e),
-            }),
-        }
-    }
-
-    fn clear(&self) -> Result<(), crate::sync::ApplyError> {
-        match write_empty_managed_mcp_servers() {
-            Ok(line) => {
-                tracing::info!(
-                    target: "bridge::mdm",
-                    written = %line,
-                    "managedMcpServers policy cleared"
-                );
-                Ok(())
-            },
-            Err(e) => Err(crate::sync::ApplyError::Io {
-                context: format!("mdm clear: {e}"),
-                source: std::io::Error::other(e),
-            }),
-        }
-    }
 }
 
 pub(crate) fn apply_mdm(
     os: Os,
+    mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
+    // Why: the Linux snippet embeds neither the loopback endpoint nor the
+    // egress allowlist; Windows carries MCP through `refresh_managed_mcp_servers`.
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let _ = mcp;
     match os {
         #[cfg(target_os = "windows")]
-        Os::Windows => windows::apply(gateway, pubkey).map_err(MdmError::Windows),
+        Os::Windows => windows::apply(mcp, gateway, pubkey),
         #[cfg(not(target_os = "windows"))]
         Os::Windows => {
             _ = (gateway, pubkey);
             Err(MdmError::WrongHostOs { os: "Windows" })
         },
         #[cfg(target_os = "macos")]
-        Os::Mac => macos::apply(gateway, pubkey),
+        Os::Mac => macos::apply(mcp, gateway, pubkey),
         #[cfg(not(target_os = "macos"))]
         Os::Mac => Err(MdmError::WrongHostOs { os: "macOS" }),
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -155,6 +85,7 @@ pub fn windows_policy_values(
     _gateway: &str,
     pubkey: Option<&str>,
     org_uuid: Option<&str>,
+    egress_allowed_hosts: Option<&[String]>,
 ) -> Vec<(&'static str, &'static str, String)> {
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
@@ -169,7 +100,7 @@ pub fn windows_policy_values(
     // Why: omitted by default so Cowork keeps its own unrestricted egress. A
     // pinned allowlist here left agents with no internet at all; it is now an
     // explicit opt-in for regulated deployments.
-    if let Some(hosts) = cowork_egress_allowed_hosts() {
+    if let Some(hosts) = cowork_egress_allowed_hosts(egress_allowed_hosts) {
         values.push((
             "coworkEgressAllowedHosts",
             "REG_SZ",
@@ -198,12 +129,14 @@ pub fn windows_policy_values(
 // servers must point at the loopback proxy that injects the gateway JWT.
 #[cfg(target_os = "windows")]
 #[must_use]
-pub(crate) fn managed_mcp_servers_json() -> Option<String> {
-    let registry = crate::mcp_registry::snapshot();
+pub(crate) fn managed_mcp_servers_json(mcp: &MdmPayloadInputs<'_>) -> Option<String> {
+    let MdmPayloadInputs {
+        loopback, registry, ..
+    } = *mcp;
     if registry.is_empty() {
         return Some("[]".to_owned());
     }
-    let bearer = match crate::proxy::loopback_bearer() {
+    let bearer = match loopback.bearer() {
         Ok(b) => b,
         Err(e) => {
             tracing::warn!(
@@ -221,7 +154,7 @@ pub(crate) fn managed_mcp_servers_json() -> Option<String> {
         .map(|slug| {
             serde_json::json!({
                 "name": slug,
-                "url": crate::proxy::mcp_url(slug.as_str()),
+                "url": loopback.mcp_url(slug.as_str()),
                 "transport": "http",
                 "headers": { "Authorization": bearer.clone() },
             })

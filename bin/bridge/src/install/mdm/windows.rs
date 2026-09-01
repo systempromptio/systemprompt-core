@@ -5,12 +5,16 @@
 
 #![cfg(target_os = "windows")]
 
-pub(super) fn refresh_managed_mcp_servers() -> Result<String, String> {
-    let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_owned());
+use super::error::MdmError;
+
+pub(super) fn refresh_managed_mcp_servers(
+    mcp: &super::MdmPayloadInputs<'_>,
+) -> Result<String, MdmError> {
+    let value = super::managed_mcp_servers_json(mcp).unwrap_or_else(|| "[]".to_owned());
     write_managed_mcp_servers_value(&value)
 }
 
-pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
+pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, MdmError> {
     // Why: HKLM writes need elevation — hence the drift-only UAC.
     let hkcu = crate::cowork_compat::HKCU_POLICY_KEY;
     let key = crate::cowork_compat::HKLM_POLICY_KEY;
@@ -39,12 +43,12 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
             "/f",
         ])
         .status()
-        .map_err(|e| format!("reg add managedMcpServers: {e}"))?;
+        .map_err(|e| MdmError::Windows(format!("reg add managedMcpServers: {e}")))?;
     if !status.success() {
-        return Err(format!(
+        return Err(MdmError::Windows(format!(
             "reg add managedMcpServers exited with {}",
             status.code().unwrap_or(-1)
-        ));
+        )));
     }
     _ = crate::winproc::reg_command()
         .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
@@ -66,40 +70,49 @@ fn current_value() -> Option<String> {
     }
 }
 
-fn elevated_write(value: &str) -> Result<(), String> {
+fn elevated_write(value: &str) -> Result<(), MdmError> {
     let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("create staging dir: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|source| MdmError::Io {
+        action: "create staging dir",
+        path: dir.clone(),
+        source,
+    })?;
     let path = dir.join("managed-mcp-servers.reg");
-    let body = crate::integration::claude_desktop::reg_profile::render_reg_values(
+    let body = crate::install::reg_values::render_reg_values(
         true,
         &[("managedMcpServers", value.to_owned())],
     );
-    std::fs::write(&path, body).map_err(|e| format!("stage managedMcpServers profile: {e}"))?;
+    std::fs::write(&path, body).map_err(|source| MdmError::Io {
+        action: "stage managedMcpServers profile",
+        path: path.clone(),
+        source,
+    })?;
     tracing::info!(
         target: "bridge::install::mdm",
         path = %path.display(),
         "managed MCP server list drifted; requesting elevation to update HKLM policy"
     );
-    let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+    let job = crate::install::elevated_job::ElevatedJob {
         clear_values: Vec::new(),
+        managed_files: Vec::new(),
+        remove_files: Vec::new(),
         reg_path: Some(path.to_string_lossy().into_owned()),
-        org_plugins:
-            crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user(),
+        org_plugins: crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user(),
     };
-    crate::integration::claude_desktop::elevate::elevate_and_run(&dir, &job).map_err(|e| {
-        format!(
+    crate::install::elevated_job::elevate_and_run(&dir, &job).map_err(|e| {
+        MdmError::Windows(format!(
             "the MCP connector list could not be updated: {e}. Re-run the Bridge as \
                  Administrator to apply it."
-        )
+        ))
     })
 }
 
-pub(super) fn remove_policy() -> Result<bool, String> {
+pub(super) fn remove_policy() -> Result<bool, MdmError> {
     let hkcu = crate::winproc::reg_command()
         .args(["delete", crate::cowork_compat::HKCU_POLICY_KEY, "/f"])
         .status()
         .map(|s| s.success())
-        .map_err(|e| format!("reg delete HKCU Policies\\Claude: {e}"))?;
+        .map_err(|e| MdmError::Windows(format!("reg delete HKCU Policies\\Claude: {e}")))?;
     let hklm = crate::winproc::reg_command()
         .args([
             "delete",
@@ -113,7 +126,11 @@ pub(super) fn remove_policy() -> Result<bool, String> {
     Ok(hkcu || hklm)
 }
 
-pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
+pub(super) fn apply(
+    inputs: &super::MdmPayloadInputs<'_>,
+    gateway: &str,
+    pubkey: Option<&str>,
+) -> Result<Vec<String>, MdmError> {
     let elevated = crate::winproc::is_elevated();
     let key = if elevated {
         r"HKLM\SOFTWARE\Policies\Claude"
@@ -121,19 +138,24 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
         r"HKCU\SOFTWARE\Policies\Claude"
     };
     let org_uuid = crate::config::load().deployment_organization_uuid;
-    let values = super::windows_policy_values(gateway, pubkey, org_uuid.as_deref());
+    let values = super::windows_policy_values(
+        gateway,
+        pubkey,
+        org_uuid.as_deref(),
+        inputs.egress_allowed_hosts,
+    );
     let mut summary = Vec::with_capacity(values.len() + 2);
     summary.push(format!("registry key: {key}"));
     for (name, kind, data) in &values {
         let status = crate::winproc::reg_command()
             .args(["add", key, "/v", name, "/t", kind, "/d", data, "/f"])
             .status()
-            .map_err(|e| format!("reg add {name}: {e}"))?;
+            .map_err(|e| MdmError::Windows(format!("reg add {name}: {e}")))?;
         if !status.success() {
-            return Err(format!(
+            return Err(MdmError::Windows(format!(
                 "reg add {name} exited with {}",
                 status.code().unwrap_or(-1)
-            ));
+            )));
         }
         summary.push(format!("wrote {name} ({kind})"));
     }
@@ -154,15 +176,11 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
             },
         }
     }
-    let org_job =
-        crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user();
+    let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
     if elevated {
         if let Some(org) = org_job {
-            crate::integration::claude_desktop::elevate::provision_org_plugins(
-                &org.path,
-                &org.grant_user,
-            )
-            .map_err(|e| format!("org-plugins provisioning failed: {e}"))?;
+            crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
+                .map_err(|e| MdmError::Windows(format!("org-plugins provisioning failed: {e}")))?;
             summary.push(format!(
                 "provisioned {} with a Modify grant for {}",
                 org.path.display(),
@@ -190,27 +208,37 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
 // policy and grants the invoking user Modify on org-plugins.
 fn stage_elevated_apply(
     values: &[(&'static str, &'static str, String)],
-    org_plugins: Option<crate::integration::claude_desktop::elevate::OrgPluginsJob>,
-) -> Result<String, String> {
+    org_plugins: Option<crate::install::elevated_job::OrgPluginsJob>,
+) -> Result<String, MdmError> {
     let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("create staging dir: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|source| MdmError::Io {
+        action: "create staging dir",
+        path: dir.clone(),
+        source,
+    })?;
     let entries: Vec<(&str, String)> = values.iter().map(|(n, _, d)| (*n, d.clone())).collect();
-    let body = crate::integration::claude_desktop::reg_profile::render_reg_values(true, &entries);
+    let body = crate::install::reg_values::render_reg_values(true, &entries);
     let path = dir.join("bridge-policy-apply.reg");
-    std::fs::write(&path, body).map_err(|e| format!("stage policy profile: {e}"))?;
-    let job = crate::integration::claude_desktop::elevate::ElevatedJob {
+    std::fs::write(&path, body).map_err(|source| MdmError::Io {
+        action: "stage policy profile",
+        path: path.clone(),
+        source,
+    })?;
+    let job = crate::install::elevated_job::ElevatedJob {
         clear_values: Vec::new(),
+        managed_files: Vec::new(),
+        remove_files: Vec::new(),
         reg_path: Some(path.to_string_lossy().into_owned()),
         org_plugins,
     };
-    crate::integration::claude_desktop::elevate::elevate_and_run(&dir, &job)
+    crate::install::elevated_job::elevate_and_run(&dir, &job)
         .map(|()| {
             "elevated step complete: HKLM policy written and org-plugins provisioned".to_owned()
         })
         .map_err(|e| {
-            format!(
+            MdmError::Windows(format!(
                 "elevated step did not complete ({e}); policy applied per-user (HKCU) and \
                  org-plugins was not provisioned — Cowork sync may fail"
-            )
+            ))
         })
 }

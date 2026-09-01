@@ -8,16 +8,10 @@ use winit::event_loop::ActiveEventLoop;
 use crate::gui::events::UiEvent;
 use crate::gui::{GuiApp, handlers};
 
-fn event_kind(event: &UiEvent) -> &'static str {
-    request_kind(event)
-        .or_else(|| finish_kind(event))
-        .or_else(|| lifecycle_kind(event))
-        .or_else(|| ipc_kind(event))
-        .unwrap_or("Unknown")
-}
-
-const fn request_kind(event: &UiEvent) -> Option<&'static str> {
-    Some(match event {
+// Why: exhaustive on purpose — a new variant that is not named here is a
+// compile error, not an event logged as "Unknown" forever.
+const fn event_kind(event: &UiEvent) -> &'static str {
+    match event {
         UiEvent::OpenSettings => "OpenSettings",
         UiEvent::SyncRequested { .. } => "SyncRequested",
         UiEvent::ValidateRequested { .. } => "ValidateRequested",
@@ -37,12 +31,6 @@ const fn request_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::AutostartToggleRequested => "AutostartToggleRequested",
         UiEvent::SettingsReadRequested { .. } => "SettingsReadRequested",
         UiEvent::SettingsWriteRequested { .. } => "SettingsWriteRequested",
-        _ => return None,
-    })
-}
-
-const fn finish_kind(event: &UiEvent) -> Option<&'static str> {
-    Some(match event {
         UiEvent::SyncStarted => "SyncStarted",
         UiEvent::SyncFinished { .. } => "SyncFinished",
         UiEvent::ValidateFinished { .. } => "ValidateFinished",
@@ -56,12 +44,6 @@ const fn finish_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::UpdateCheckFinished { .. } => "UpdateCheckFinished",
         UiEvent::UpdateInstallFinished { .. } => "UpdateInstallFinished",
         UiEvent::UpdateProgress { .. } => "UpdateProgress",
-        _ => return None,
-    })
-}
-
-const fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
-    Some(match event {
         UiEvent::Quit => "Quit",
         UiEvent::StateRefreshed => "StateRefreshed",
         UiEvent::AgentUninstall { .. } => "AgentUninstall",
@@ -72,18 +54,11 @@ const fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::FocusWindow => "FocusWindow",
         UiEvent::Host(_) => "Host",
         UiEvent::ProxyStatsTick => "ProxyStatsTick",
-        _ => return None,
-    })
-}
-
-const fn ipc_kind(event: &UiEvent) -> Option<&'static str> {
-    Some(match event {
         UiEvent::IpcInbound(_) => "IpcInbound",
         UiEvent::IpcEmit { .. } => "IpcEmit",
         UiEvent::IpcReply { .. } => "IpcReply",
         UiEvent::CancelInFlight { .. } => "CancelInFlight",
-        _ => return None,
-    })
+    }
 }
 
 #[tracing::instrument(
@@ -167,8 +142,11 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
         UiEvent::GatewayProbeRequested { reply_to } => {
             handlers::gateway_probe::on_gateway_probe_requested(app, reply_to);
         },
-        UiEvent::McpAuthProbeRequested { reply_to } => {
-            handlers::mcp_auth_probe::on_mcp_auth_probe_requested(app, reply_to);
+        UiEvent::McpAuthProbeRequested {
+            server_id,
+            reply_to,
+        } => {
+            handlers::mcp_auth_probe::on_mcp_auth_probe_requested(app, server_id, reply_to);
         },
         UiEvent::ProfileFetchRequested { reply_to } => {
             handlers::profile::on_profile_fetch_requested(app, reply_to);

@@ -103,11 +103,18 @@ pub struct PluginConfig {
 /// with a `*` matcher fires for every tool call regardless of which plugin
 /// contributed the tool. One plugin therefore carries the governance hooks for
 /// the whole instance; every other plugin emits an empty hooks file.
+///
+/// `comms` is an opt-in on that same owner: when set, the bridge also installs
+/// the `UserPromptSubmit`/`Stop` hooks that drain gateway announcements into
+/// the session. Off by default — a tenant that publishes no announcements has
+/// no reason to run a command on every prompt.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PluginHooksRef {
     #[serde(default)]
     pub governance: bool,
+    #[serde(default)]
+    pub comms: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub include: Vec<String>,
 }
@@ -115,7 +122,7 @@ pub struct PluginHooksRef {
 impl PluginHooksRef {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        !self.governance && self.include.is_empty()
+        !self.governance && !self.comms && self.include.is_empty()
     }
 }
 

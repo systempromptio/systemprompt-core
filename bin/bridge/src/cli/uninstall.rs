@@ -6,15 +6,16 @@
 use std::process::ExitCode;
 
 use crate::cli::args::has_flag;
-use crate::cli::output;
-use crate::install;
-use crate::obs::output::diag;
+use crate::context::BridgeContext;
+use crate::stdio::diag;
+use crate::{install, stdio};
 
-pub(super) fn cmd_uninstall(args: &[String]) -> ExitCode {
+pub(super) fn cmd_uninstall(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let purge = has_flag(args, "--purge");
-    match install::uninstall(purge) {
+    match install::uninstall(purge, ctx) {
         Ok(summary) => {
-            output::print_str(&install::render_uninstall_summary(&summary));
+            crate::integration::uninstall::clear_hosts();
+            stdio::print_str(&install::render_uninstall_summary(&summary));
             ExitCode::SUCCESS
         },
         Err(err) => {

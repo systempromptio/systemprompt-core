@@ -75,7 +75,10 @@ pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
+pub(crate) fn is_installed(
+    loc: &AppLocator<'_>,
+    _start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
     if macos_bundles(loc.macos_name).iter().any(|p| p.exists()) {
         AppInstallState::Installed
     } else {
@@ -84,7 +87,10 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
+pub(crate) fn is_installed(
+    loc: &AppLocator<'_>,
+    start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
     if loc.windows_candidates.iter().any(|p| p.exists()) {
         return AppInstallState::Installed;
     }
@@ -96,7 +102,7 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
     {
         return AppInstallState::Installed;
     }
-    match start_menu_present_cached(loc.windows_name) {
+    match start_menu_present_cached(start_menu, loc.windows_name) {
         Some(true) => AppInstallState::Installed,
         Some(false) => AppInstallState::NotInstalled,
         None => AppInstallState::Unknown,
@@ -104,7 +110,10 @@ pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub(crate) fn is_installed(loc: &AppLocator<'_>) -> AppInstallState {
+pub(crate) fn is_installed(
+    loc: &AppLocator<'_>,
+    _start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
     // Why: with no PATH to search, the scan proves nothing either way. Saying
     // `NotInstalled` there would permanently skip the host during first use on
     // the strength of a question we never got to ask.
@@ -137,5 +146,26 @@ fn run(cmd: &mut Command, what: &str) -> io::Result<()> {
             "failed to open {what} (exit {})",
             status.code().unwrap_or(-1)
         )))
+    }
+}
+
+// Why: a CLI host has no `.app` bundle or Start-menu entry to find, and the
+// GUI's PATH is the login-shell minimum — `~/.opencode/bin`, Homebrew and npm
+// prefixes are routinely absent from it — so the well-known install prefixes
+// are searched alongside PATH. No PATH at all proves nothing either way.
+pub(crate) fn cli_installed(binary: &str, extra_dirs: &[PathBuf]) -> AppInstallState {
+    let Some(paths) = std::env::var_os("PATH") else {
+        return AppInstallState::Unknown;
+    };
+    let present = |dir: &std::path::Path| {
+        let candidate = dir.join(binary);
+        candidate.is_file() || (cfg!(windows) && candidate.with_extension("exe").is_file())
+    };
+    if std::env::split_paths(&paths).any(|dir| present(&dir))
+        || extra_dirs.iter().any(|dir| present(dir))
+    {
+        AppInstallState::Installed
+    } else {
+        AppInstallState::NotInstalled
     }
 }

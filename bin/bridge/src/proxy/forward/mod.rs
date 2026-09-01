@@ -81,6 +81,10 @@ pub(crate) struct ForwardDeps<'a> {
     pub token_cache: &'a TokenCache,
     pub session_context: &'a SessionContext,
     pub stats: Arc<ProxyStats>,
+    pub activity: crate::activity::ActivityLog,
+    pub mcp_registry: Arc<crate::mcp_registry::McpRegistrySlot>,
+    pub gateway_http: reqwest::Client,
+    pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
 }
 
 #[tracing::instrument(
@@ -103,38 +107,46 @@ pub(crate) async fn forward(
         token_cache,
         session_context,
         stats,
+        activity,
+        mcp_registry,
+        gateway_http,
+        plugin_tokens,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_owned();
 
-    let (route, upstream_bearer, is_hook) = match resolve_route(&parts.uri, gateway_base) {
+    // Why: `hook_plugin` is carried out of the match: a hook token rejected
+    // upstream has to be evicted by the plugin it was minted for, and the match
+    // arm is the only place that name exists.
+    let mut hook_plugin = None;
+    let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
         RouteResolution::Gateway(url) => (
             Route {
                 url,
                 extra_headers: BTreeMap::new(),
             },
             token.token.expose().to_owned(),
-            false,
         ),
-        RouteResolution::Mcp(route) => (route, token.token.expose().to_owned(), false),
+        RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
-            let gw = crate::gateway::GatewayClient::new(gateway_base.clone());
+            let gw = crate::gateway::GatewayClient::new(gateway_base.clone(), gateway_http);
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
+                &plugin_tokens,
                 &gw,
                 &token.token,
                 &plugin_id,
             )
             .await
             .map_err(|e| ForwardError::Auth(format!("hook token mint for {plugin_id}: {e}")))?;
+            hook_plugin = Some(plugin_id);
             (
                 Route {
                     url,
                     extra_headers: BTreeMap::new(),
                 },
                 hook.access_token,
-                true,
             )
         },
         RouteResolution::UnknownMcp(name) => {
@@ -177,8 +189,16 @@ pub(crate) async fn forward(
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
-        if status == StatusCode::UNAUTHORIZED && !is_hook {
-            token_cache.invalidate().await;
+        if status == StatusCode::UNAUTHORIZED {
+            if let Some(plugin_id) = hook_plugin.as_ref() {
+                // Why: the mint path already retries a 401, but a token that
+                // minted cleanly and was then refused in use had nothing to
+                // evict it, so the cache served the same rejected token until
+                // it expired.
+                plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
+            } else {
+                token_cache.invalidate().await;
+            }
         }
     }
 
@@ -199,7 +219,8 @@ pub(crate) async fn forward(
         .bytes_stream()
         .map_ok(Frame::data)
         .map_err(std::io::Error::other);
-    let wrapped = usage::wrap_response_stream(&content_type, tap_enabled, stats, upstream_stream);
+    let wrapped =
+        usage::wrap_response_stream(&content_type, tap_enabled, stats, activity, upstream_stream);
     let body: ProxyBody = if content_type.contains("text/event-stream") {
         StreamBody::new(keepalive::SseKeepalive::new(
             Box::pin(wrapped),

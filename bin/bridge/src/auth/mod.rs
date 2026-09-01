@@ -11,12 +11,11 @@ pub mod plugin_oauth;
 pub mod providers;
 pub mod secret;
 pub mod setup;
-pub mod types;
 
 use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider, AuthProviderRegistration};
-use crate::auth::types::HelperOutput;
 use crate::config;
-use crate::obs::output::diag;
+use crate::gateway::types::HelperOutput;
+use crate::stdio::diag;
 use systemprompt_identifiers::{SessionId, headers as sp_headers};
 use thiserror::Error;
 
@@ -35,32 +34,41 @@ pub enum ChainError {
 pub async fn acquire_bearer(
     cfg: &config::Config,
     session_id: &SessionId,
+    http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
     if let Some(out) = read_cached(cfg, 30, None) {
         return Ok(out);
     }
-    run_chain(cfg, true, session_id).await
+    run_chain(cfg, true, session_id, http).await
 }
 
 pub async fn obtain_live_token(
     cfg: &config::Config,
     session_id: &SessionId,
+    http: &reqwest::Client,
 ) -> Option<HelperOutput> {
     if let Some(out) = read_cached(cfg, 30, None) {
         return Some(out);
     }
-    mint_fresh(cfg, session_id).await.ok()
+    mint_fresh(cfg, session_id, http)
+        .await
+        .inspect_err(|e| tracing::warn!(error = %e, "could not mint a fresh session token"))
+        .ok()
 }
 
 pub async fn read_or_refresh(
     cfg: &config::Config,
     threshold_secs: u64,
     session_id: &SessionId,
+    http: &reqwest::Client,
 ) -> Option<HelperOutput> {
     if let Some(out) = read_cached(cfg, threshold_secs, Some(session_id)) {
         return Some(out);
     }
-    mint_fresh(cfg, session_id).await.ok()
+    mint_fresh(cfg, session_id, http)
+        .await
+        .inspect_err(|e| tracing::warn!(error = %e, "could not mint a fresh session token"))
+        .ok()
 }
 
 fn read_cached(
@@ -139,8 +147,9 @@ pub fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
 pub async fn mint_fresh(
     cfg: &config::Config,
     session_id: &SessionId,
+    http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
-    run_chain(cfg, true, session_id).await
+    run_chain(cfg, true, session_id, http).await
 }
 
 fn preferred_provider(cfg: &config::Config) -> Option<&'static str> {
@@ -158,11 +167,12 @@ async fn run_chain(
     cfg: &config::Config,
     write_cache: bool,
     session_id: &SessionId,
+    http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
     let chain = provider_chain(cfg);
     let preferred = preferred_provider(cfg);
     let providers: Vec<&dyn AuthProvider> = chain.iter().map(AsRef::as_ref).collect();
-    let result = evaluate_chain(&providers, preferred, session_id).await;
+    let result = evaluate_chain(&providers, preferred, session_id, http).await;
     if write_cache
         && let Ok(out) = result.as_ref()
         && let Err(e) = cache::write(&config::gateway_url_or_default(cfg), out)
@@ -176,9 +186,10 @@ pub async fn evaluate_chain(
     chain: &[&dyn AuthProvider],
     preferred: Option<&'static str>,
     session_id: &SessionId,
+    http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
     for p in chain {
-        match p.authenticate(session_id).await {
+        match p.authenticate(session_id, http).await {
             Ok(out) => return Ok(out),
             Err(AuthError::NotConfigured) => {},
             Err(AuthError::Failed { provider, source }) => {

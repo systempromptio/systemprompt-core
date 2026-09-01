@@ -7,9 +7,14 @@
 use std::time::{Duration, Instant};
 
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use serde::Serialize;
+
+use crate::mcp_registry::McpRegistry;
+use crate::proxy::LoopbackEndpoint;
 
 mod rpc;
+mod types;
+
+pub use types::{McpAuthState, McpServerAuth, McpTool};
 
 use rpc::{initialize_body, list_tools};
 
@@ -17,65 +22,8 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
 pub(super) const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 pub(super) const SESSION_HEADER: &str = "mcp-session-id";
 
-#[derive(Debug, Clone, Serialize)]
-pub struct McpServerAuth {
-    pub id: String,
-    pub url: String,
-    pub state: McpAuthState,
-    pub tools: Vec<String>,
-    pub http_status: Option<u16>,
-    pub latency_ms: Option<u64>,
-    pub error: Option<String>,
-    pub session_id: Option<String>,
-    pub probed_at_unix: u64,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
-pub enum McpAuthState {
-    #[default]
-    Unknown,
-    NoServers,
-    Authenticated,
-    LoopbackMismatch,
-    GatewayUnauthorized,
-    NotRegistered,
-    UpstreamError,
-    ProxyUnreachable,
-    // Why: The probe ran out of time. Distinct from `ProxyUnreachable`: a server
-    // too slow to answer in six seconds is not a server that is down, and is
-    // certainly not one that needs signing in to.
-    ProbeTimeout,
-    // Why: Something on *this* machine stopped the probe before it reached the
-    // server -- no HTTP client, no loopback secret. Says nothing about the
-    // server at all.
-    LocalError,
-    ProtocolError,
-}
-
-impl McpAuthState {
-    // Why: The single answer to "must the user sign in to this server again?".
-    //
-    // Why one function: this predicate drives the desktop notification, the
-    // Home "waiting on you" card, and the per-server panel. When each surface
-    // derived it separately they disagreed, and the UI told users to re-auth
-    // four healthy servers.
-    #[must_use]
-    pub const fn needs_sign_in(self) -> bool {
-        matches!(self, Self::GatewayUnauthorized | Self::NotRegistered)
-    }
-
-    #[must_use]
-    pub const fn is_conclusive(self) -> bool {
-        !matches!(
-            self,
-            Self::Unknown | Self::ProxyUnreachable | Self::ProbeTimeout | Self::LocalError
-        )
-    }
-}
-
 #[must_use]
-pub async fn probe_all() -> Vec<McpServerAuth> {
-    let registry = crate::mcp_registry::snapshot();
+pub async fn probe_all(loopback: &LoopbackEndpoint, registry: &McpRegistry) -> Vec<McpServerAuth> {
     let probed_at_unix = now_unix();
 
     if registry.is_empty() {
@@ -102,7 +50,7 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
                 .iter()
                 .map(|slug| McpServerAuth {
                     id: (*slug).clone(),
-                    url: crate::proxy::mcp_url(slug),
+                    url: loopback.mcp_url(slug),
                     state: McpAuthState::LocalError,
                     tools: Vec::new(),
                     http_status: None,
@@ -117,7 +65,7 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
 
     let mut out = Vec::with_capacity(slugs.len());
     for slug in slugs {
-        out.push(probe_one(&client, slug).await);
+        out.push(probe_one(loopback, &client, slug).await);
     }
     out
 }
@@ -129,10 +77,42 @@ pub fn build_client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
-async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
-    let url = crate::proxy::mcp_url(slug);
+#[must_use]
+pub async fn probe_slug(
+    loopback: &LoopbackEndpoint,
+    registry: &McpRegistry,
+    slug: &str,
+) -> Option<McpServerAuth> {
+    if !registry.contains_key(slug) {
+        return None;
+    }
+    let client = match build_client() {
+        Ok(c) => c,
+        Err(e) => {
+            return Some(McpServerAuth {
+                id: slug.to_owned(),
+                url: loopback.mcp_url(slug),
+                state: McpAuthState::LocalError,
+                tools: Vec::new(),
+                http_status: None,
+                latency_ms: None,
+                error: Some(format!("probe client build failed: {e}")),
+                session_id: None,
+                probed_at_unix: now_unix(),
+            });
+        },
+    };
+    Some(probe_one(loopback, &client, slug).await)
+}
+
+async fn probe_one(
+    loopback: &LoopbackEndpoint,
+    client: &reqwest::Client,
+    slug: &str,
+) -> McpServerAuth {
+    let url = loopback.mcp_url(slug);
     let probed_at_unix = now_unix();
-    let bearer = match crate::proxy::loopback_bearer() {
+    let bearer = match loopback.bearer() {
         Ok(b) => b,
         Err(e) => {
             return result(
@@ -222,10 +202,16 @@ pub async fn probe_endpoint(
         .headers()
         .get(SESSION_HEADER)
         .and_then(|v| v.to_str().ok())
-        .map(str::to_owned);
+        .map(crate::ids::McpSessionId::new);
     _ = resp.text().await;
 
-    let tools = list_tools(client, url, bearer, session.as_deref()).await;
+    let tools = list_tools(
+        client,
+        url,
+        bearer,
+        session.as_ref().map(crate::ids::McpSessionId::as_str),
+    )
+    .await;
 
     McpServerAuth {
         id: slug.to_owned(),

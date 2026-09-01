@@ -65,7 +65,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 // missing — each part behaving reasonably, combining into total silence.
 #[cfg(target_os = "macos")]
 fn notify_profile_pending() {
-    crate::gui::window::alert_user(
+    crate::user_alert::alert_user(
         &format!("{} needs approval", crate::brand::brand().app_name),
         "Approve the Codex configuration profile in System Settings → General → Device \
          Management to finish installing it.",

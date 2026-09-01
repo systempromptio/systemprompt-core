@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.42.0] - 2026-08-31
+
+### Added
+
+- Skill and artifact catalog entries record the plugins that ship them. Ownership is intersected with the plugins that survive access filtering, so a plugin the filter removed is never reported as owning something it no longer grants.
+
 ## [0.41.0] - 2026-08-28
 
 ### Added

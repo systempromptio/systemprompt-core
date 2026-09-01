@@ -36,13 +36,20 @@ while IFS= read -r file; do
         crates/tests/*) continue ;;
         */build.rs) continue ;;
     esac
-    FOUND=$(awk '
+    FOUND=$(awk -v MAX_WHY_LINES="${MAX_WHY_LINES:-6}" '
         /^[[:space:]]*\/\/\// { prev_allowed = 0; if (!in_doc) doc_line = FNR; in_doc = 1; next }
         /^[[:space:]]*\/\/!/ { prev_allowed = 0; next }
         /^[[:space:]]*\/\// {
             in_doc = 0
-            if ($0 ~ /^[[:space:]]*\/\/ (Why|JSON|SAFETY):/) { prev_allowed = 1; next }
-            if (prev_allowed) { next }
+            if ($0 ~ /^[[:space:]]*\/\/ (Why|JSON|SAFETY):/) { prev_allowed = 1; why_lines = 0; next }
+            if (prev_allowed) {
+                why_lines++
+                if (why_lines > MAX_WHY_LINES) {
+                    print FILENAME ":" FNR ": `// Why:` block longer than " MAX_WHY_LINES " continuation lines — a rationale that long belongs in the module `//!` head"
+                    prev_allowed = 0
+                }
+                next
+            }
             print FILENAME ":" FNR ":" $0
             next
         }

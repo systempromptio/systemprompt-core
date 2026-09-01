@@ -81,6 +81,43 @@ fn path_and_home_are_inherited_when_present() {
     assert_eq!(map.get("HOME").copied(), Some("/home/sp"));
 }
 
+// Why: the deployment-host marker is how a process knows it is already ON the
+// machine its cloud profile describes. The CLI reads it to skip remote routing
+// and run locally. While it was missing from the inherit list, every MCP
+// subprocess on a deployed host believed it was off-host, so a server that
+// shells out to the CLI tried to route a command to the host it was already
+// running on and died on a tenant store no container has — which took out all
+// three admin dashboards in production.
+#[test]
+fn host_identity_reaches_the_child_so_it_does_not_route_back_to_itself() {
+    let config = internal_mcp_config("host-server", 9009);
+    let env = build_environment(&spec_for(&config), &[], |name| {
+        (name == "SYSTEMPROMPT_DEPLOYMENT_HOST").then(|| "sp-tenant".to_owned())
+    });
+
+    assert_eq!(
+        env_map(&env).get("SYSTEMPROMPT_DEPLOYMENT_HOST").copied(),
+        Some("sp-tenant"),
+        "without this the child cannot tell it is already on the target host"
+    );
+}
+
+// Why: Fly injects its own marker and nothing we generate does, so a tenant
+// deployed before the generated marker existed still depends on this one being
+// forwarded.
+#[test]
+fn flys_own_marker_is_forwarded_too_so_existing_tenants_need_no_redeploy() {
+    let config = internal_mcp_config("fly-server", 9010);
+    let env = build_environment(&spec_for(&config), &[], |name| {
+        (name == "FLY_APP_NAME").then(|| "sp-tenant".to_owned())
+    });
+
+    assert_eq!(
+        env_map(&env).get("FLY_APP_NAME").copied(),
+        Some("sp-tenant")
+    );
+}
+
 #[test]
 fn an_unset_inherited_var_is_omitted_rather_than_passed_as_empty() {
     let config = internal_mcp_config("empty-server", 9003);
@@ -92,6 +129,12 @@ fn an_unset_inherited_var_is_omitted_rather_than_passed_as_empty() {
         "an absent PATH must stay absent; an empty one reads as a real value"
     );
     assert!(!map.contains_key("HOME"));
+    assert!(!map.contains_key("FLY_APP_NAME"));
+    assert!(
+        !map.contains_key("SYSTEMPROMPT_DEPLOYMENT_HOST"),
+        "off a Fly host the name must stay absent; an empty one would read as \
+         being on-host and wrongly suppress remote routing"
+    );
 }
 
 // Why: a declared-but-unset optional var must be omitted, not passed empty. A
@@ -214,4 +257,39 @@ fn rotating_a_log_that_does_not_exist_is_a_no_op() {
 
     assert!(!missing.exists(), "rotation must not create the log");
     assert!(!dir.path().join("never-written.log.old").exists());
+}
+
+// Why: this is the test that stops the outage recurring. The MCP spawner and
+// the agent spawner each build a child environment; the inherited-from-parent
+// half is supposed to be identical, and for a long time it silently was not —
+// the agent forwarded the deployment-host marker through a bolt-on and the MCP
+// one did not forward it at all, so every MCP server on a deployed host
+// believed it was somewhere else and tried to route commands to the host it was
+// already on.
+//
+// Neither side's own tests could catch that, because a test only ever saw one
+// side. This one fails the moment either grows a variable the other lacks.
+#[test]
+fn both_spawners_inherit_exactly_the_same_environment() {
+    let parent = |name: &str| -> Option<String> {
+        match name {
+            "PATH" => Some("/usr/bin".to_owned()),
+            "HOME" => Some("/home/sp".to_owned()),
+            "SYSTEMPROMPT_DEPLOYMENT_HOST" => Some("sp-tenant".to_owned()),
+            "FLY_APP_NAME" => Some("sp-fly".to_owned()),
+            _ => None,
+        }
+    };
+
+    let shared = systemprompt_models::subprocess::inherited_parent_env(parent);
+
+    let mcp_config = internal_mcp_config("parity-server", 9011);
+    let mcp = build_environment(&spec_for(&mcp_config), &[], parent);
+
+    for (key, value) in &shared {
+        assert!(
+            mcp.contains(&(key.clone(), value.clone())),
+            "the MCP spawner dropped {key}, which the agent spawner keeps"
+        );
+    }
 }

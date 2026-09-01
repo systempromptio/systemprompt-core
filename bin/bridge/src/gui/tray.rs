@@ -66,7 +66,10 @@ fn tray_image() -> Result<image::RgbaImage, image::ImageError> {
     }
 }
 
-pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
+pub fn build(
+    initial: &AppStateSnapshot,
+    schedule: &crate::schedule::status::ScheduleStatusCache,
+) -> GuiResult<TrayHandles> {
     let menu = Menu::new();
 
     let identity_item = MenuItem::new(format_identity(initial), false, None);
@@ -76,7 +79,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     let update_item = MenuItem::new(i18n::t("tray-check-updates"), true, None);
     let open_settings_item = MenuItem::new(i18n::t("tray-open-settings"), true, None);
     let open_folder_item = MenuItem::new(i18n::t("tray-open-config"), true, None);
-    let autostart = crate::install::gui_autostart_status();
+    let autostart = crate::install::gui_autostart_status(schedule);
     let autostart_item = CheckMenuItem::new(
         i18n::t("tray-autostart"),
         autostart != ScheduleStatus::Unknown,
@@ -151,7 +154,11 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     })
 }
 
-pub fn refresh(handles: &mut TrayHandles, snap: &AppStateSnapshot) {
+pub fn refresh(
+    handles: &mut TrayHandles,
+    snap: &AppStateSnapshot,
+    schedule: &crate::schedule::status::ScheduleStatusCache,
+) {
     handles.identity_item.set_text(format_identity(snap));
     handles.last_sync_item.set_text(format_last_sync(snap));
     handles.sync_item.set_enabled(!snap.sync_in_flight);
@@ -164,7 +171,7 @@ pub fn refresh(handles: &mut TrayHandles, snap: &AppStateSnapshot) {
     // Why: a tick box cannot say "I could not ask the scheduler". Greying it out
     // is the difference between a box the user has not ticked and one that will
     // silently refuse to tick.
-    let autostart = crate::install::gui_autostart_status();
+    let autostart = crate::install::gui_autostart_status(schedule);
     handles
         .autostart_item
         .set_enabled(autostart != ScheduleStatus::Unknown);

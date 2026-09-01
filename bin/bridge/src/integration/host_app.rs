@@ -6,7 +6,39 @@
 use std::collections::BTreeMap;
 
 use serde::Serialize;
+
 use systemprompt_models::profile::ApiSurface;
+
+pub use crate::integration::profile_state::{
+    AppInstallState, ProfileCode, ProfileState, StaleReason,
+};
+
+/// What a host probe needs to know about the proxy to judge a profile fresh:
+/// the port the proxy is on and the fingerprint of the secret it accepts.
+///
+/// A value built by the caller from the [`crate::proxy::LoopbackEndpoint`],
+/// so a probe never reaches for process state and a test can hand it any
+/// port it likes.
+#[derive(Debug, Clone)]
+pub struct ProbeEnv {
+    pub proxy_port: u16,
+    pub loopback_secret_fingerprint: Option<String>,
+    pub start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
+}
+
+impl ProbeEnv {
+    #[must_use]
+    pub fn new(
+        loopback: &crate::proxy::LoopbackEndpoint,
+        start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
+    ) -> Self {
+        Self {
+            proxy_port: loopback.port(),
+            loopback_secret_fingerprint: loopback.secret_fingerprint(),
+            start_menu,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
@@ -17,107 +49,10 @@ pub struct ProfileGenInputs {
     pub headers: BTreeMap<String, String>,
 }
 
-/// Why a complete profile still cannot work.
-///
-/// Both reasons produce an identical symptom — every request 403s with "bad
-/// loopback secret" — and an identical fix, so they share a state. They are
-/// distinguished only so the message can name the cause.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum StaleReason {
-    LoopbackSecret,
-    ProxyPort,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ProfileState {
-    Absent,
-    Partial { missing_required: Vec<String> },
-    Installed,
-    Stale { reason: StaleReason },
-}
-
-impl ProfileState {
-    #[must_use]
-    pub const fn is_installed(&self) -> bool {
-        matches!(self, Self::Installed)
-    }
-
-    #[must_use]
-    pub fn classify(
-        required: &[&str],
-        present: &BTreeMap<String, String>,
-        secret_fresh: Option<bool>,
-        endpoint_fresh: Option<bool>,
-    ) -> Self {
-        match Self::from_keys(required, present) {
-            Self::Installed if secret_fresh == Some(false) => Self::Stale {
-                reason: StaleReason::LoopbackSecret,
-            },
-            Self::Installed if endpoint_fresh == Some(false) => Self::Stale {
-                reason: StaleReason::ProxyPort,
-            },
-            state => state,
-        }
-    }
-
-    #[must_use]
-    pub fn endpoint_freshness(configured_url: Option<&str>) -> Option<bool> {
-        use crate::integration::proxy_probe::{PortMatch, classify_configured_port};
-        let url = configured_url.filter(|u| !u.is_empty())?;
-        match classify_configured_port(url, crate::proxy::resolved_port()) {
-            PortMatch::Match => Some(true),
-            PortMatch::Mismatch { .. } => Some(false),
-            PortMatch::NotLoopback | PortMatch::Unparseable => None,
-        }
-    }
-
-    fn from_keys(required: &[&str], present: &BTreeMap<String, String>) -> Self {
-        if present.is_empty() {
-            return Self::Absent;
-        }
-        let missing: Vec<String> = required
-            .iter()
-            .filter(|k| !present.contains_key(**k))
-            .map(|k| (*k).to_owned())
-            .collect();
-        if missing.is_empty() {
-            Self::Installed
-        } else {
-            Self::Partial {
-                missing_required: missing,
-            }
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct HostConfigSchema {
     pub required_keys: &'static [&'static str],
     pub display_keys: &'static [&'static str],
-}
-
-/// Outcome of looking for the host's application on disk.
-///
-/// [`Self::Unknown`] is not a synonym for "absent": it means every detector we
-/// tried was inconclusive (a bounded probe timed out, a registry hive was
-/// unreadable). Callers must never render it as "not installed" — an
-/// inconclusive probe masking an otherwise healthy host is the bug this
-/// tri-state exists to prevent.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum AppInstallState {
-    Installed,
-    NotInstalled,
-    Unknown,
-}
-
-impl AppInstallState {
-    #[must_use]
-    pub const fn is_installed(self) -> bool {
-        matches!(self, Self::Installed)
-    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -134,6 +69,8 @@ pub struct HostAppSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct GeneratedProfile {
     pub path: String,
     pub bytes: usize,
@@ -142,7 +79,9 @@ pub struct GeneratedProfile {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum HostKind {
     DesktopApp,
     CliTool,
@@ -150,6 +89,8 @@ pub enum HostKind {
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum ConfigFormat {
     Json,
     Toml,
@@ -175,7 +116,7 @@ pub trait HostApp: Send + Sync + 'static {
     fn id(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
     fn config_schema(&self) -> &'static HostConfigSchema;
-    fn probe(&self) -> HostAppSnapshot;
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot;
     fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile>;
     fn install_profile(&self, path: &str) -> std::io::Result<()>;
     fn install_action_label(&self) -> &'static str;
@@ -194,6 +135,12 @@ pub trait HostApp: Send + Sync + 'static {
             std::io::ErrorKind::Unsupported,
             "open not implemented",
         ))
+    }
+
+    // Why: a terminal-only CLI has nothing to bring to the foreground, and the
+    // verdict must not offer an Open button whose only outcome is an error.
+    fn can_open(&self) -> bool {
+        true
     }
 
     fn kind(&self) -> HostKind {
@@ -223,7 +170,6 @@ pub trait HostApp: Send + Sync + 'static {
 
 /// `checked` is false when there was no provider health to evaluate
 /// (distinguishes "nothing usable" from "not yet checked").
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct HostModelView {
     pub compatible_models: Vec<String>,
@@ -232,10 +178,9 @@ pub struct HostModelView {
     pub unconfigured_providers: Vec<String>,
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn host_model_view(
-    health: &[crate::auth::types::ProviderHealth],
+    health: &[crate::gateway::types::ProviderHealth],
     accepted: &[ApiSurface],
 ) -> HostModelView {
     let mut seen = std::collections::HashSet::new();
@@ -262,7 +207,6 @@ pub fn host_model_view(
     view
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn effective_surfaces(
     host_id: &str,
@@ -279,7 +223,6 @@ pub fn effective_surfaces(
     )
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn has_surface_override(host_id: &str, overrides: &BTreeMap<String, Vec<String>>) -> bool {
     overrides.contains_key(host_id)

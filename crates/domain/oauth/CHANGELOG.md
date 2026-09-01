@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Fixed
+
+- The bridge OAuth service keys its persisted client on the gateway that minted it. A hook token is signed by one gateway's authority and is meaningless to any other, but the cache was keyed on plugin id alone and `oauth_client.json` recorded no gateway, so repointing a bridge kept serving the previous gateway's identity.
+
 ## [0.41.0] - 2026-08-28
 
 ### Added

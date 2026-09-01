@@ -9,9 +9,9 @@ use serde_json::json;
 
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::{config, i18n, sync};
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -33,11 +33,12 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     emit::emit_sync_progress(app, "started", None);
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Sync);
-    app.runtime.spawn(async move {
+    let bridge = Arc::clone(&app.ctx);
+    app.ctx.spawn(async move {
         let allow_tofu = config::pinned_pubkey().is_none();
         let result = tokio::select! {
             () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
-            outcome = sync::run_once(false, false, allow_tofu) => {
+            outcome = sync::run_once(&bridge, false, false, allow_tofu) => {
                 outcome.map_err(GuiError::from).map_err(Arc::new)
             }
         };
@@ -166,8 +167,10 @@ pub(crate) fn on_sync_finished(
     }
     emit::emit_state(app);
     if succeeded {
-        app.proxy
-            .send_event(UiEvent::McpAuthProbeRequested { reply_to: None });
+        app.proxy.send_event(UiEvent::McpAuthProbeRequested {
+            server_id: None,
+            reply_to: None,
+        });
     }
     // Why: only a user-initiated sync (reply_to set) may raise the settings
     // window for re-auth; a background sync popping a window would steal focus.

@@ -13,6 +13,9 @@ use std::collections::HashMap;
 
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
+/// `is_deployment_host` means the process runs on the host the active profile
+/// describes, so a command must run locally instead of routing to the
+/// deployment it is already inside.
 #[derive(Debug, Clone, Default)]
 pub struct EnvOverrides {
     pub output_format: Option<String>,
@@ -21,7 +24,7 @@ pub struct EnvOverrides {
     pub non_interactive: bool,
     pub profile: Option<String>,
     pub rust_log: Option<String>,
-    pub is_fly: bool,
+    pub is_deployment_host: bool,
     pub is_remote_cli: bool,
     pub editor: Option<String>,
     pub database_url: Option<String>,
@@ -65,7 +68,7 @@ impl EnvOverrides {
             non_interactive: lookup("SYSTEMPROMPT_NON_INTERACTIVE").is_some(),
             profile: lookup("SYSTEMPROMPT_PROFILE"),
             rust_log: lookup("RUST_LOG"),
-            is_fly: lookup("FLY_APP_NAME").is_some(),
+            is_deployment_host: systemprompt_models::subprocess::is_deployment_host(&lookup),
             is_remote_cli: lookup("SYSTEMPROMPT_CLI_REMOTE").is_some(),
             editor: lookup("VISUAL").or_else(|| lookup("EDITOR")),
             database_url: lookup("DATABASE_URL"),

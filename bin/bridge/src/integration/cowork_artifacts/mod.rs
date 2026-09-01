@@ -27,8 +27,7 @@ pub mod sink;
 
 use async_trait::async_trait;
 
-use crate::sync::apply::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkArtifactsSync;
@@ -36,7 +35,7 @@ pub struct CoworkArtifactsSync;
 #[async_trait]
 impl HostSync for CoworkArtifactsSync {
     fn host_id(&self) -> &'static str {
-        "cowork"
+        "claude-desktop"
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
@@ -46,10 +45,12 @@ impl HostSync for CoworkArtifactsSync {
         emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(dir) = emit::resolve_artifacts_dir() else {
             return Ok(());
         };
         emit::remove_dir(&dir)
     }
 }
+
+crate::register_host_sync!(CoworkArtifactsSync);

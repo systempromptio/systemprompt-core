@@ -43,7 +43,7 @@ pub struct GatewayProbeOutcome {
     pub status: GatewayStatus,
     pub identity: Option<VerifiedIdentity>,
     pub at_unix: u64,
-    pub provider_health: Vec<crate::auth::types::ProviderHealth>,
+    pub provider_health: Vec<crate::gateway::types::ProviderHealth>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -71,7 +71,7 @@ pub struct AppStateSnapshot {
     pub first_run: crate::gui::first_run::state::FirstRunState,
     pub enabled_hosts: Vec<String>,
     pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
-    pub provider_health: Vec<crate::auth::types::ProviderHealth>,
+    pub provider_health: Vec<crate::gateway::types::ProviderHealth>,
 
     pub hosts: HostsState,
 

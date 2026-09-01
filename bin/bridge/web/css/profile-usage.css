@@ -1,0 +1,163 @@
+/* Three rigid `1fr` tracks floor at the widest tile's min-content -- a 24px
+   display-font figure plus an unwrapped "9.9k tokens - 2 req" line -- so the
+   row forced itself wider than the card rather than reflowing. auto-fit plus a
+   shrinkable minimum lets it drop to two tiles, then one. */
+.sp-profile-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(84px, 100%), 1fr));
+  gap: var(--sp-space-3);
+}
+
+.sp-profile-tile {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+  padding: var(--sp-space-2-5) var(--sp-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-1);
+  transition: border-color var(--sp-dur-fast) var(--sp-ease-out),
+              transform var(--sp-dur-fast) var(--sp-ease-spring);
+}
+
+.sp-profile-tile:hover {
+  border-color: var(--sp-accent-ring);
+  transform: translateY(-1px);
+}
+
+.sp-profile-tile__label {
+  font-family: var(--sp-font-display);
+  font-size: 11px;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--sp-muted);
+}
+
+.sp-profile-tile__value {
+  font-family: var(--sp-font-display);
+  /* Costs render at full precision ("$0.00001"), so the figure has to give a
+     little before the tile does -- but it must never break mid-number, which is
+     why this scales rather than wrapping. */
+  font-size: clamp(14px, 4.4cqi, 24px);
+  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sp-text);
+  line-height: 1.1;
+}
+
+.sp-profile-tile__sub {
+  font-size: 11px;
+  line-height: 1.35;
+  text-wrap: pretty;
+  color: var(--sp-muted-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-profile-tile__delta {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--sp-accent-text);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--sp-space-0-5);
+}
+
+.sp-profile-models {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Four fixed tracks plus gaps reserved ~274px before the name column was
+   offered anything, inside a card whose content box can be under 300px. The
+   figures size to their content now, and below the threshold the row breaks
+   into two lines rather than scrolling or clipping. */
+.sp-profile-model {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
+  gap: var(--sp-space-2-5);
+  align-items: center;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  padding: var(--sp-space-2) var(--sp-space-1);
+  border-bottom: 1px solid var(--sp-line-soft);
+  border-radius: var(--sp-corners-xs);
+  transition: background var(--sp-dur-fast) var(--sp-ease-out);
+}
+
+.sp-profile-model:hover { background: var(--sp-bg-elev-2); }
+.sp-profile-model:last-child { border-bottom: 0; }
+.sp-profile-model > * { min-width: 0; }
+
+
+.sp-profile-model__rank {
+  font-family: var(--sp-font-display);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--sp-accent-text);
+  text-align: center;
+}
+
+.sp-profile-model[data-rank="1"] .sp-profile-model__rank { color: var(--sp-accent-text); }
+.sp-profile-model[data-rank="2"] .sp-profile-model__rank,
+.sp-profile-model[data-rank="3"] .sp-profile-model__rank { color: var(--sp-accent-deep); }
+
+.sp-profile-model__name {
+  color: var(--sp-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--sp-font-mono);
+  font-size: 12px;
+}
+
+.sp-profile-model__share {
+  color: var(--sp-accent-text);
+  text-align: right;
+  font-weight: 600;
+}
+
+.sp-profile-model__tokens,
+.sp-profile-model__cost {
+  color: var(--sp-muted-strong);
+  text-align: right;
+}
+
+/* Between these widths the row still fits on one line, but only by eating the
+   model name. Token count is the least load-bearing of the three figures --
+   share and cost both survive -- so it yields first. */
+@container sp-card (max-width: 470px) {
+  .sp-profile-model__tokens { display: none; }
+}
+
+/* Below this the name and three figures cannot share a line without the name
+   collapsing to an ellipsis, so the figures drop to a meta line under it.
+   Must come after the alignment rules above -- a container query adds no
+   specificity of its own. */
+@container sp-card (max-width: 330px) {
+  /* Name on the first line, the figures as one meta line beneath it. They get
+     explicit cells rather than `display: inline` -- a grid child is blockified,
+     so inline would stack them one per line. */
+  .sp-profile-model {
+    grid-template-columns: 28px auto auto minmax(0, 1fr);
+    row-gap: var(--sp-space-0-5);
+    padding-block: var(--sp-space-2-5);
+  }
+  .sp-profile-model__rank  { grid-row: 1 / span 2; align-self: start; }
+  .sp-profile-model__name  { grid-column: 2 / -1; grid-row: 1; }
+  .sp-profile-model__share { grid-column: 2; grid-row: 2; text-align: left; }
+  .sp-profile-model__tokens { grid-column: 3; grid-row: 2; display: block; text-align: left; }
+  .sp-profile-model__cost  { grid-column: 4; grid-row: 2; text-align: left; }
+  .sp-profile-model__share,
+  .sp-profile-model__tokens,
+  .sp-profile-model__cost { font-size: 11px; }
+}

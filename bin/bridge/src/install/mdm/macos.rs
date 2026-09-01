@@ -6,104 +6,15 @@
 
 #![cfg(target_os = "macos")]
 
-use crate::install::xml;
 use std::path::Path;
 
-use super::MdmError;
+pub use super::macos_payload::{build_mobileconfig, build_prefs_plist};
+use super::{MdmError, MdmPayloadInputs};
 
 pub(crate) const PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm";
-const INNER_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm.inference";
+pub(super) const INNER_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm.inference";
 pub(crate) const MANAGED_PREFS_PATH: &str =
     "/Library/Managed Preferences/com.anthropic.claudefordesktop.plist";
-
-const PREFS_PLIST_TMPL: &str = include_str!("../templates/prefs.plist.tmpl");
-const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("../templates/prefs_pubkey_line.tmpl");
-const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
-const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
-    include_str!("../templates/mobileconfig_pubkey_line.tmpl");
-
-fn loopback_api_key() -> String {
-    crate::proxy::secret::for_profile()
-        .map(crate::ids::LoopbackSecret::into_inner)
-        .unwrap_or_default()
-}
-
-fn egress_plist_block(indent: &str) -> String {
-    super::egress::cowork_egress_allowed_hosts()
-        .map(|hosts| super::egress::macos_plist_block(&hosts, indent))
-        .unwrap_or_default()
-}
-
-#[expect(
-    clippy::literal_string_with_formatting_args,
-    reason = "these braces are template placeholders substituted with str::replace, not format args"
-)]
-pub fn build_prefs_plist(gateway: &str, pubkey: Option<&str>) -> String {
-    let pubkey_block = pubkey
-        .map(|pk| PREFS_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
-        .unwrap_or_default();
-    PREFS_PLIST_TMPL
-        .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
-        .replace("{egress_block}", &egress_plist_block("  "))
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block())
-        .replace("{pubkey_block}", &pubkey_block)
-}
-
-#[expect(
-    clippy::literal_string_with_formatting_args,
-    reason = "these braces are template placeholders substituted with str::replace, not format args"
-)]
-pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
-    let pubkey_block = pubkey
-        .map(|pk| MOBILECONFIG_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
-        .unwrap_or_default();
-    MOBILECONFIG_TMPL
-        .replace("{inner_payload_identifier}", INNER_PAYLOAD_IDENTIFIER)
-        .replace("{outer_payload_identifier}", PAYLOAD_IDENTIFIER)
-        .replace("{inner_uuid}", &xml::stable_uuid(INNER_PAYLOAD_IDENTIFIER))
-        .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
-        .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace("{api_key_esc}", &xml::escape(&loopback_api_key()))
-        .replace("{egress_block}", &egress_plist_block("      "))
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block())
-        .replace("{pubkey_block}", &pubkey_block)
-}
-
-// Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do
-// well-known discovery"; omitting the key disables discovery entirely.
-fn managed_mcp_plist_block() -> String {
-    let registry = crate::mcp_registry::snapshot();
-    if registry.is_empty() {
-        return String::new();
-    }
-    let mut slugs: Vec<&String> = registry.keys().collect();
-    slugs.sort();
-
-    let mut out = String::new();
-    out.push_str("  <key>managedMcpServers</key>\n");
-    out.push_str("  <array>\n");
-    for slug in slugs {
-        let Some(upstream) = registry.get(slug) else {
-            continue;
-        };
-        out.push_str("    <dict>\n");
-        out.push_str(&format!(
-            "      <key>name</key><string>{}</string>\n",
-            xml::escape(slug)
-        ));
-        out.push_str(&format!(
-            "      <key>url</key><string>{}</string>\n",
-            xml::escape(upstream.url.as_str())
-        ));
-        out.push_str("      <key>transport</key><string>http</string>\n");
-        out.push_str("      <key>oauth</key>\n");
-        out.push_str("      <dict/>\n");
-        out.push_str("    </dict>\n");
-    }
-    out.push_str("  </array>\n");
-    out
-}
 
 fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
     if gateway.starts_with("http://")
@@ -117,12 +28,16 @@ fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
     Ok(())
 }
 
-pub(crate) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, MdmError> {
+pub(crate) fn apply(
+    mcp: &MdmPayloadInputs<'_>,
+    gateway: &str,
+    pubkey: Option<&str>,
+) -> Result<Vec<String>, MdmError> {
     use std::fs;
 
     validate_gateway(gateway)?;
 
-    let plist = build_prefs_plist(gateway, pubkey);
+    let plist = build_prefs_plist(mcp, gateway, pubkey);
     let tmp_path =
         std::env::temp_dir().join(format!("{}.prefs.plist", crate::brand::brand().binary_name));
     fs::write(&tmp_path, plist.as_bytes()).map_err(|e| MdmError::Io {
@@ -218,6 +133,7 @@ fn apply_summary(
 }
 
 pub(crate) fn apply_mobileconfig(
+    mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
@@ -226,7 +142,7 @@ pub(crate) fn apply_mobileconfig(
 
     validate_gateway(gateway)?;
 
-    let mobileconfig = build_mobileconfig(gateway, pubkey);
+    let mobileconfig = build_mobileconfig(mcp, gateway, pubkey);
     let out_path = std::env::temp_dir().join(format!(
         "{}.mobileconfig",
         crate::brand::brand().binary_name

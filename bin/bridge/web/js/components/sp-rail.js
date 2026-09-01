@@ -1,4 +1,5 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { TAB_DEFS, TAB_GLYPHS, readInitialTab, persistTab, shortcut } from "/assets/js/utils/rail-tabs.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
@@ -33,12 +34,9 @@ export class SpRail extends SpElement {
     this.setAttribute("aria-label", "Sections");
     this.setAttribute("aria-orientation", "vertical");
     this.dataset.activeReady = "false";
-    this.bridgeSubscribe("state.changed", (s) => {
+    this.useSnapshot((s) => {
       this.agentCount = ((s && s.host_apps) || []).filter((h) => h.enabled === true).length;
     });
-    bridge.stateSnapshot().then((s) => {
-      this.agentCount = ((s && s.host_apps) || []).filter((h) => h.enabled === true).length;
-    }).catch((e) => console.warn("snapshot failed", e));
     this._unsubMkt = onBridgeEvent("mkt:count", this._onMktCount);
     window.addEventListener("resize", this._onResize);
     this.addEventListener("keydown", this._onRailKey);

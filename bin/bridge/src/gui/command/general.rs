@@ -6,13 +6,13 @@
 use serde_json::{Value, json};
 
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
-    CancelArgs, GatewaySetArgs, LoginArgs, OpenExternalUrlArgs, RecentArgs, SessionLoginArgs,
-    SettingsSetArgs,
+    CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,
+    SessionLoginArgs, SettingsSetArgs,
 };
 use super::{CommandOutcome, parse, send};
 
@@ -38,12 +38,13 @@ pub(super) fn meta_dispatch(
     _reply_id: ReplyId,
 ) -> Option<CommandOutcome> {
     Some(match cmd {
-        "state.snapshot" => {
-            CommandOutcome::Sync(Ok(server_json::snapshot_value(&app.state.snapshot())))
-        },
+        "state.snapshot" => CommandOutcome::Sync(Ok(server_json::snapshot_value(
+            &app.state.snapshot(),
+            &app.ctx.proxy,
+        ))),
         "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing(app))),
         "activity.recent" => CommandOutcome::Sync(Ok(json!({
-            "entries": crate::activity::activity_log().snapshot_recent(recent_limit(args)),
+            "entries": app.ctx.activity.snapshot_recent(recent_limit(args)),
         }))),
         "setup.complete" => {
             send(app, UiEvent::SetupComplete);
@@ -92,7 +93,18 @@ pub(super) fn gateway_dispatch(
             CommandOutcome::Async
         },
         "mcp.auth.probe" => {
-            send(app, UiEvent::McpAuthProbeRequested { reply_to: reply_id });
+            let server_id = parse::<McpProbeArgs>(args)
+                .inspect_err(|e| tracing::warn!(error = ?e, "malformed mcp.auth.probe args"))
+                .ok()
+                .and_then(|a| a.server_id)
+                .filter(|s| !s.is_empty());
+            send(
+                app,
+                UiEvent::McpAuthProbeRequested {
+                    server_id,
+                    reply_to: reply_id,
+                },
+            );
             CommandOutcome::Async
         },
         _ => return None,
@@ -261,12 +273,12 @@ pub(super) fn diagnostics_dispatch(
         },
         "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
             "version": crate::brand::brand().version,
-            "git_sha": crate::cli::diagnostics::short_sha(),
-            "git_sha_full": crate::cli::diagnostics::GIT_SHA,
-            "build_date": crate::cli::diagnostics::GIT_COMMIT_DATE,
-            "build_timestamp": crate::cli::diagnostics::BUILD_TIMESTAMP,
-            "branch": crate::cli::diagnostics::GIT_BRANCH,
-            "rendered": crate::cli::diagnostics::render(),
+            "git_sha": crate::buildinfo::short_sha(),
+            "git_sha_full": crate::buildinfo::GIT_SHA,
+            "build_date": crate::buildinfo::GIT_COMMIT_DATE,
+            "build_timestamp": crate::buildinfo::BUILD_TIMESTAMP,
+            "branch": crate::buildinfo::GIT_BRANCH,
+            "rendered": crate::buildinfo::render(),
         }))),
         _ => return None,
     })
@@ -274,6 +286,10 @@ pub(super) fn diagnostics_dispatch(
 
 fn marketplace_listing(app: &GuiApp) -> Value {
     let snap = app.state.snapshot();
-    let listing = crate::gui::server_marketplace::build_listing(&snap.mcp_auth);
+    let listing = crate::gui::server_marketplace::build_listing(
+        app.ctx.proxy.loopback(),
+        &app.ctx.mcp_registry(),
+        &snap.mcp_auth,
+    );
     crate::gui::server_marketplace::listing_to_value(&listing).unwrap_or(Value::Null)
 }

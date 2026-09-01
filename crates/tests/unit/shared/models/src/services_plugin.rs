@@ -246,6 +246,14 @@ fn plugin_hooks_ref_defaults_to_no_hooks() {
 }
 
 #[test]
+fn plugin_hooks_ref_comms_is_off_unless_opted_in() {
+    let owner: PluginHooksRef = serde_yaml::from_str("governance: true").unwrap();
+    assert!(!owner.comms, "comms hooks are opt-in");
+    let opted: PluginHooksRef = serde_yaml::from_str("governance: true\ncomms: true").unwrap();
+    assert!(opted.comms);
+}
+
+#[test]
 fn plugin_hooks_ref_parses_governance_owner() {
     let parsed: PluginHooksRef = serde_yaml::from_str("governance: true").unwrap();
     assert!(parsed.governance);
@@ -266,4 +274,15 @@ fn plugin_hooks_ref_parses_custom_hook_includes() {
 fn plugin_hooks_ref_rejects_unknown_fields() {
     let err = serde_yaml::from_str::<PluginHooksRef>("governence: true");
     assert!(err.is_err(), "misspelled hook key must not parse");
+}
+
+#[test]
+fn plugin_hooks_ref_declaring_only_comms_is_not_empty() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("comms: true").unwrap();
+    assert!(parsed.comms);
+    assert!(!parsed.governance);
+    assert!(
+        !parsed.is_empty(),
+        "a comms-only owner must materialise hooks; an empty verdict writes an empty hooks.json"
+    );
 }

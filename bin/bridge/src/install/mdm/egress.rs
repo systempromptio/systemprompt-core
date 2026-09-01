@@ -3,22 +3,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::OnceLock;
-
 const LOOPBACK_ALIAS: &str = "loopback";
 const LOOPBACK_HOST: &str = "127.0.0.1";
 const ENV_SUFFIX: &str = "EGRESS_ALLOWED_HOSTS";
 
-static OVERRIDE: OnceLock<Option<Vec<String>>> = OnceLock::new();
-
-pub fn set_egress_allowed_hosts(raw: Option<&str>) -> bool {
-    OVERRIDE.set(raw.and_then(parse)).is_ok()
+#[must_use]
+pub fn parse_egress_allowed_hosts(raw: &str) -> Option<Vec<String>> {
+    parse(raw)
 }
 
 #[must_use]
-pub fn cowork_egress_allowed_hosts() -> Option<Vec<String>> {
-    if let Some(from_flag) = OVERRIDE.get() {
-        return from_flag.clone();
+pub fn cowork_egress_allowed_hosts(from_flag: Option<&[String]>) -> Option<Vec<String>> {
+    if let Some(hosts) = from_flag {
+        return Some(hosts.to_vec());
     }
     std::env::var(crate::brand::brand().env(ENV_SUFFIX))
         .ok()

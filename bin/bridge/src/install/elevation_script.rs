@@ -75,3 +75,23 @@ pub fn clear_policy_script(
     }
     script
 }
+
+#[must_use]
+pub fn write_managed_file_script(dir: &Path, staged: &Path, dest: &Path) -> String {
+    format!(
+        "set -e\n\
+         /bin/mkdir -p {dir}\n\
+         /usr/bin/install -m 0644 {staged} {dest}\n",
+        dir = shell_quote(&dir.to_string_lossy()),
+        staged = shell_quote(&staged.to_string_lossy()),
+        dest = shell_quote(&dest.to_string_lossy()),
+    )
+}
+
+#[must_use]
+pub fn remove_managed_file_script(dest: &Path) -> String {
+    format!(
+        "set -e\n/bin/rm -f {}\n",
+        shell_quote(&dest.to_string_lossy())
+    )
+}

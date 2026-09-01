@@ -10,9 +10,9 @@ use serde_json::{Value, json};
 
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::AppStateSnapshot;
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 #[must_use]
 pub const fn is_logged_out_error(err: &GuiError) -> bool {
@@ -23,8 +23,9 @@ pub const fn is_logged_out_error(err: &GuiError) -> bool {
 pub(crate) fn on_profile_fetch_requested(app: &GuiApp, reply_to: ReplyId) {
     let snapshot = app.state.snapshot();
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
-        let result = build_profile(snapshot).await.map_err(Arc::new);
+    let http = app.ctx.http.clone();
+    app.ctx.spawn(async move {
+        let result = build_profile(snapshot, http).await.map_err(Arc::new);
         proxy.send_event(UiEvent::ProfileFetchFinished { result, reply_to });
     });
 }
@@ -76,13 +77,16 @@ pub(crate) fn on_profile_fetch_finished(
     emit::send_reply_payload(app, id, &payload);
 }
 
-async fn build_profile(snapshot: AppStateSnapshot) -> Result<Value, GuiError> {
+async fn build_profile(
+    snapshot: AppStateSnapshot,
+    http: reqwest::Client,
+) -> Result<Value, GuiError> {
     use crate::config;
     use crate::gateway::GatewayClient;
 
     let cfg = config::load();
     let gateway_url = config::gateway_url_or_default(&cfg);
-    let client = GatewayClient::new(gateway_url.clone());
+    let client = GatewayClient::new(gateway_url.clone(), http);
 
     let bearer_value = crate::auth::cache::read_valid(&gateway_url).map(|out| out.token);
     let bearer = bearer_value

@@ -9,9 +9,11 @@
 //! registry and loopback secret, so it lives in a single sequential test that
 //! owns both.
 
+use systemprompt_bridge::ids::McpSessionId;
 use systemprompt_bridge::proxy::mcp_probe::{
     McpAuthState, build_client, probe_all, probe_endpoint,
 };
+use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, LoopbackEndpoint};
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -68,8 +70,17 @@ async fn authenticated_json() {
 
     let auth = probe(&server).await;
     assert_eq!(auth.state, McpAuthState::Authenticated);
-    assert_eq!(auth.tools, vec!["a".to_owned(), "b".to_owned()]);
-    assert_eq!(auth.session_id.as_deref(), Some("sess-123"));
+    assert_eq!(
+        auth.tools
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect::<Vec<_>>(),
+        ["a", "b"]
+    );
+    assert_eq!(
+        auth.session_id.as_ref().map(McpSessionId::as_str),
+        Some("sess-123")
+    );
     assert_eq!(auth.http_status, Some(200));
     assert!(auth.error.is_none());
 }
@@ -111,7 +122,13 @@ async fn authenticated_sse() {
 
     let auth = probe(&server).await;
     assert_eq!(auth.state, McpAuthState::Authenticated);
-    assert_eq!(auth.tools, vec!["sse_tool".to_owned()]);
+    assert_eq!(
+        auth.tools
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect::<Vec<_>>(),
+        ["sse_tool"]
+    );
 }
 
 async fn assert_error_status(status: u16, expected: McpAuthState) {
@@ -215,7 +232,7 @@ async fn tools_list_failure_does_not_downgrade() {
 
 #[tokio::test]
 async fn probe_all_empty_registry_yields_no_servers() {
-    let results = probe_all().await;
+    let results = probe_all(&loopback(), &std::collections::HashMap::new()).await;
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].state, McpAuthState::NoServers);
 }
@@ -252,7 +269,7 @@ fn seed_registry(state: &std::path::Path, names: &[&str]) {
         serde_json::to_vec(&servers).expect("servers json"),
     )
     .expect("write fragment");
-    systemprompt_bridge::mcp_registry::rehydrate_from_disk();
+    systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY);
 }
 
 #[test]
@@ -264,7 +281,10 @@ fn probe_all_walks_the_registry_and_reports_each_server() {
             .enable_all()
             .build()
             .expect("runtime")
-            .block_on(probe_all());
+            .block_on(probe_all(
+                &loopback(),
+                &systemprompt_bridge::mcp_registry::snapshot(&REGISTRY),
+            ));
 
         let ids: Vec<&str> = results.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(
@@ -304,4 +324,12 @@ fn probe_all_walks_the_registry_and_reports_each_server() {
             "the probe mints the loopback secret it needs"
         );
     });
+}
+
+static REGISTRY: std::sync::LazyLock<
+    std::sync::Arc<systemprompt_bridge::mcp_registry::McpRegistrySlot>,
+> = std::sync::LazyLock::new(systemprompt_bridge::mcp_registry::empty_slot);
+
+fn loopback() -> LoopbackEndpoint {
+    LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
 }

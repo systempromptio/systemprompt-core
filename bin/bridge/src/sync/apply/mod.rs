@@ -3,12 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod error;
 mod hooks;
 pub(crate) mod hooks_schema;
 mod plugin;
 
-pub use error::{ApplyError, TomlError};
+pub(crate) use crate::host_sync::ApplyError;
 pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
@@ -17,9 +16,10 @@ const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::config::{self as config};
+use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
-use crate::sync::host_sync::{self, HostSyncCtx};
+use crate::host_sync::{self, HostSyncCtx};
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
@@ -30,13 +30,23 @@ pub(crate) use plugin::PluginApplyOutcome as ApplyReport;
 pub(crate) async fn apply_manifest(
     client: &GatewayClient,
     bearer: &str,
+    bridge: &BridgeContext,
     manifest: &SignedManifest,
     location: &OrgPluginsLocation,
 ) -> Result<ApplyReport, ApplyError> {
+    let loopback = bridge.proxy.loopback();
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
 
-    let mut report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
+    let plugin_ctx = plugin::PluginSyncCtx {
+        client,
+        bearer,
+        loopback,
+        plugin_tokens: &bridge.plugin_tokens,
+        root,
+        staging_root: &staging_root,
+    };
+    let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
 
     _ = fs::remove_dir_all(&staging_root);
     prune_legacy_state();
@@ -46,7 +56,8 @@ pub(crate) async fn apply_manifest(
     write_user(&meta_dir, manifest.user.as_ref())?;
     write_mcp_servers(&meta_dir, &mcp_servers)?;
 
-    crate::mcp_registry::publish(&mcp_servers);
+    crate::mcp_registry::publish(&bridge.mcp_registry, &mcp_servers);
+    let registry = bridge.mcp_registry();
 
     let plugin_mcp_servers = report.mcp_servers_by_plugin.clone();
     let ctx = HostSyncCtx {
@@ -55,6 +66,8 @@ pub(crate) async fn apply_manifest(
         plugin_mcp_servers: &plugin_mcp_servers,
         client,
         bearer,
+        loopback,
+        mcp_registry: &registry,
     };
     for emitter in host_sync::registry() {
         let host_id = emitter.host_id();
@@ -65,7 +78,7 @@ pub(crate) async fn apply_manifest(
         let outcome = if enabled {
             emitter.apply(&ctx).await
         } else {
-            emitter.clear()
+            emitter.clear(&ctx)
         };
         if let Err(e) = &outcome {
             report.host_failures.push(HostFailure {
@@ -91,6 +104,9 @@ fn prune_legacy_state() {
     }
 }
 
+// Why: the synthetic aggregate plugin and the old metadata markers were last
+// written by 0.24.0; this one-way prune can go once 0.36.0 is the oldest
+// bridge still updating itself.
 fn remove_legacy_dir(path: &Path, what: &str) {
     if !path.exists() {
         return;

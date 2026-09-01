@@ -1,6 +1,7 @@
 /** @typedef {import("./types/BridgeError").BridgeError} BridgeError */
 /** @typedef {import("./types/IpcReplyPayload").IpcReplyPayload} IpcReplyPayload */
 /** @typedef {import("./types/IpcRequest").IpcRequest} IpcRequest */
+/** @typedef {import("./types/StatePayload").StatePayload} StatePayload */
 
 let nextId = 1;
 
@@ -52,6 +53,7 @@ export function subscribe(channel, cb) {
 export const bridge = {
   invoke,
   subscribe,
+  /** @returns {Promise<StatePayload>} */
   stateSnapshot:        ()                  => invoke("state.snapshot"),
   gatewaySet:           (url)               => invoke("gateway.set", { url }),
   gatewayProbe:         ()                  => invoke("gateway.probe"),
@@ -67,6 +69,7 @@ export const bridge = {
   hostProfileGenerate:  (hostId)            => invoke("host.profile.generate", { hostId }),
   hostProfileInstall:   (hostId, path)      => invoke("host.profile.install", { hostId, path }),
   hostProxyProbe:       ()                  => invoke("host.proxy.probe"),
+  mcpAuthProbe:         (serverId)          => invoke("mcp.auth.probe", serverId ? { serverId } : {}),
   hostModelFilterSet:   (hostId, protocols) => invoke("host.model-filter.set", { hostId, protocols }),
   agentUninstall:       (hostId)            => invoke("agent.uninstall", { hostId }),
   agentOpenConfig:      (hostId)            => invoke("agent.openConfig", { hostId }),

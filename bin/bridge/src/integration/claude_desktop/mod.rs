@@ -6,8 +6,6 @@
 pub mod reg_profile;
 mod shared;
 
-#[cfg(target_os = "windows")]
-pub(crate) mod elevate;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "windows")]
@@ -22,7 +20,7 @@ pub use shared::{ProfileGenInputs, default_models};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
     ProfileRemoval, ProfileState,
 };
 
@@ -47,11 +45,12 @@ impl HostApp for ClaudeDesktopHost {
         &shared::SCHEMA
     }
 
-    fn probe(&self) -> HostAppSnapshot {
+    fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = os::read_domain(shared::DESKTOP_DOMAIN);
-        let secret_fresh = shared::secret_freshness(read.api_key_fp.as_deref());
+        let secret_fresh = shared::secret_freshness(read.api_key_fp.as_deref(), env);
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get("inferenceGatewayBaseUrl").map(String::as_str),
+            env.proxy_port,
         );
         let profile_state = ProfileState::classify(
             shared::REQUIRED_KEYS,
@@ -68,9 +67,10 @@ impl HostApp for ClaudeDesktopHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
-            app_installed: crate::integration::app_launch::is_installed(&locator(
-                &claude_app_candidates(),
-            )),
+            app_installed: crate::integration::app_launch::is_installed(
+                &locator(&claude_app_candidates()),
+                &env.start_menu,
+            ),
             probed_at_unix: shared::now_unix(),
         }
     }

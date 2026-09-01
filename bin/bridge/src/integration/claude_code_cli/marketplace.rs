@@ -17,7 +17,7 @@ use super::json_io::{object_entry, read_json_object, read_optional_object, write
 use super::{MARKETPLACE, cache_install_dir, io_err, marketplace_dir, plugin_key};
 use crate::config::paths;
 use crate::gateway::manifest::SignedManifest;
-use crate::sync::ApplyError;
+use crate::host_sync::ApplyError;
 
 #[derive(Debug)]
 pub struct MarketplaceEntry {

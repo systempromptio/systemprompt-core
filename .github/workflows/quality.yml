@@ -91,33 +91,75 @@ jobs:
     name: Schema / SQL / comment / header / typed-ID linters
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 because check-crate-changelogs diffs each crate against
+      # the newest release tag. A shallow checkout has neither the tag nor the
+      # history, and every crate would read as unchanged -- a gate that passes
+      # because it could not run. It exits 2 rather than 0 in that case, so this
+      # is what keeps it green for the right reason.
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
-      - run: sudo apt-get update && sudo apt-get install -y ripgrep
+          fetch-depth: 0
+      # bridge-bindings-check compiles the bridge to run the ts-rs export, so
+      # this job needs the keyring backend's libdbus-sys like every other job
+      # that builds it -- without it the gate fails on a missing `dbus-1.pc`
+      # and says nothing about bindings.
+      - run: sudo apt-get update && sudo apt-get install -y ripgrep libdbus-1-dev pkg-config
       - uses: extractions/setup-just@v2
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-machete
+      # Why: without a condition, the job stops at the first failing gate and
+      # the rest never execute — so one standing-red gate silently switches off
+      # every gate below it. A standing i18n failure would have taken
+      # check-crate-changelogs and lint-bridge-js-imports dark, the two most
+      # likely to catch the work that caused it. `!cancelled()` rather than
+      # `always()` so a superseding push still cancels the run.
       - run: just lint-schema
+        if: ${{ !cancelled() }}
       - run: just lint-extensions
+        if: ${{ !cancelled() }}
       - run: just lint-comments
+        if: ${{ !cancelled() }}
       - run: just lint-inline-tests
+        if: ${{ !cancelled() }}
       - run: just lint-raw-ids
+        if: ${{ !cancelled() }}
       - run: just check-headers
+        if: ${{ !cancelled() }}
       - run: just lint-sqlx
+        if: ${{ !cancelled() }}
       - run: just lint-http-errors
+        if: ${{ !cancelled() }}
       - run: just lint-test-value
+        if: ${{ !cancelled() }}
       - run: just lint-no-untyped-admin
+        if: ${{ !cancelled() }}
       - run: just lint-layers
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-lints-sync
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-css-tokens
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-i18n
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-js-imports
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-no-window
+      - run: just lint-bridge-verdicts
+      - run: just lint-bridge-layers
+      - run: just lint-bridge-globals
+      - run: just lint-bridge-file-size
+      - run: just bridge-bindings-check
+        if: ${{ !cancelled() }}
       - run: just lint-repo-construction
+        if: ${{ !cancelled() }}
       - run: just check-release-tag
+        if: ${{ !cancelled() }}
+      - run: just check-crate-changelogs
+        if: ${{ !cancelled() }}
       - run: just machete
+        if: ${{ !cancelled() }}
 
   msrv:
     name: MSRV check (Rust 1.96)

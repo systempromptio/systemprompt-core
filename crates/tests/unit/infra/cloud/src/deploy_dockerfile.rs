@@ -7,6 +7,7 @@ const BASE_ENV_SECTION: &str = r#"ENV HOST=0.0.0.0 \
     PORT=8080 \
     RUST_LOG=info \
     PATH="/app/bin:$PATH" \
+    SYSTEMPROMPT_DEPLOYMENT_HOST=container \
     SYSTEMPROMPT_SERVICES_PATH=/app/services \
     SYSTEMPROMPT_TEMPLATES_PATH=/app/services/web/templates \
     SYSTEMPROMPT_ASSETS_PATH=/app/services/web/assets"#;
@@ -16,6 +17,7 @@ const PROFILE_ENV_SECTION: &str = r#"ENV HOST=0.0.0.0 \
     RUST_LOG=info \
     PATH="/app/bin:$PATH" \
     SYSTEMPROMPT_PROFILE=/app/services/profiles/prod/profile.yaml \
+    SYSTEMPROMPT_DEPLOYMENT_HOST=prod \
     SYSTEMPROMPT_SERVICES_PATH=/app/services \
     SYSTEMPROMPT_TEMPLATES_PATH=/app/services/web/templates \
     SYSTEMPROMPT_ASSETS_PATH=/app/services/web/assets"#;
@@ -122,5 +124,31 @@ fn test_builder_and_helper_agree() {
     assert_eq!(
         generate_dockerfile_content(temp.path()),
         DockerfileBuilder::new(temp.path()).build()
+    );
+}
+
+// Why: the marker is what tells the binary inside the container that it IS the
+// deployment and must not try to route commands to itself. Fly happened to work
+// because the platform injects its own; every other platform injects nothing,
+// so on those the marker is the only signal there is. Both branches are
+// asserted because the two are built from separate format strings and a
+// variable added to one is easy to miss in the other — which is the shape of
+// the original bug.
+#[test]
+fn both_env_branches_mark_the_image_as_a_deployment_host() {
+    let temp = TempDir::new().unwrap();
+
+    let without_profile = generate_dockerfile_content(temp.path());
+    assert!(
+        without_profile.contains("SYSTEMPROMPT_DEPLOYMENT_HOST="),
+        "a profile-less image is still a deployment host"
+    );
+
+    let with_profile = DockerfileBuilder::new(temp.path())
+        .with_profile("prod")
+        .build();
+    assert!(
+        with_profile.contains("SYSTEMPROMPT_DEPLOYMENT_HOST=prod"),
+        "the marker should name the host as specifically as the image can"
     );
 }

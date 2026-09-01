@@ -68,6 +68,11 @@ runtime = ["cli", "dep:systemprompt-extension"]
 # Evaluation framework (judge runs, replay, auto-improve loop)
 evaluation = ["dep:systemprompt-evaluation"]
 
+# Granular access to the analytics domain for consumers that need request /
+# cost metrics without pulling the whole product surface — a server-rendered
+# admin extension, say. `full` implies it.
+analytics = ["dep:systemprompt-analytics"]
+
 # Slack integration (inbound Events API / slash commands / interactivity).
 # Fully opt-in: excluded from `default` and `full`.
 slack = ["dep:systemprompt-slack"]
@@ -88,7 +93,7 @@ full = [
     "dep:systemprompt-oauth",
     "dep:systemprompt-users",
     "dep:systemprompt-content",
-    "dep:systemprompt-analytics",
+    "analytics",
     "evaluation",
     "dep:systemprompt-marketplace",
     "dep:systemprompt-scheduler",

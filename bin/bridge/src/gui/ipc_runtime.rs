@@ -6,7 +6,7 @@
 use crate::gui::GuiApp;
 use crate::gui::command::{self, CommandOutcome};
 use crate::gui::emit::send_reply_payload;
-use crate::gui::ipc::IpcRequest;
+use crate::wire::ipc::IpcRequest;
 
 pub(crate) fn handle_inbound(app: &GuiApp, raw: &str) {
     let req: IpcRequest = match serde_json::from_str(raw) {

@@ -47,6 +47,17 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 }
 
 pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
+    install_profile_into(generated_path, &config::hermes_home())
+}
+
+// Why: public because the crate denies `unsafe_code`, so a test cannot set the
+// `HERMES_HOME` variable the env-resolving path goes through. This is the same
+// code with the directory passed in.
+#[doc(hidden)]
+pub fn install_profile_into(
+    generated_path: &str,
+    hermes_home: &std::path::Path,
+) -> std::io::Result<()> {
     let source_text = std::fs::read_to_string(generated_path)?;
     let mut source: Value = serde_yaml::from_str(&source_text)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -55,10 +66,10 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     // remove the marker so only the `model` block reaches config.yaml.
     let api_key = take_api_key_marker(&mut source);
     if let Some(key) = api_key {
-        write_env_key(&config::env_path(), config::ENV_API_KEY, &key)?;
+        write_env_key(&config::env_path_in(hermes_home), config::ENV_API_KEY, &key)?;
     }
 
-    let target = config::config_yaml_path();
+    let target = config::config_yaml_path_in(hermes_home);
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -66,9 +77,16 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
 }
 
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
-    let target = config::config_yaml_path();
+    remove_profile_from(&config::hermes_home())
+}
+
+// Why: public as the counterpart to `install_profile_into`, for the same
+// reason.
+#[doc(hidden)]
+pub fn remove_profile_from(hermes_home: &std::path::Path) -> std::io::Result<ProfileRemoval> {
+    let target = config::config_yaml_path_in(hermes_home);
     let removed_config = merge::uninstall(&target)?;
-    let removed_env = remove_env_key(&config::env_path(), config::ENV_API_KEY)?;
+    let removed_env = remove_env_key(&config::env_path_in(hermes_home), config::ENV_API_KEY)?;
     Ok(if removed_config || removed_env {
         ProfileRemoval::Removed {
             path: Some(target.display().to_string()),

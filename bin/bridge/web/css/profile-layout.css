@@ -1,0 +1,154 @@
+/* `.sp-content` supplies the scrolling and the padding for every pane. This
+   used to declare both again, which gave the tab two nested scrollbars and two
+   stacked gutters. */
+sp-profile {
+  display: block;
+  color: var(--sp-text);
+  padding-bottom: var(--sp-space-2);
+  animation: sp-profile-in var(--sp-dur-normal) var(--sp-ease-out);
+}
+
+@keyframes sp-profile-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* `minmax(320px, …)` floors every track at 320px, so once the pane is narrower
+   than the tracks the grid resolved to, the surplus is simply painted outside
+   it -- which is how cards ended up clipped by the window edge. `min(320px,
+   100%)` lets the last track give way instead. */
+.sp-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: var(--sp-space-4);
+  align-items: start;
+}
+
+.sp-profile-card {
+  position: relative;
+  min-width: 0;
+  container: sp-card / inline-size;
+  background-image: linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-md);
+  padding: var(--sp-space-4) var(--sp-space-4-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-3);
+  box-shadow: var(--sp-shadow-1), var(--sp-shadow-inner-glow);
+  transition: border-color var(--sp-dur-fast) var(--sp-ease-out),
+              box-shadow var(--sp-dur-fast) var(--sp-ease-out),
+              transform var(--sp-dur-fast) var(--sp-ease-out);
+}
+
+.sp-profile-card:hover {
+  border-color: var(--sp-accent-ring);
+  box-shadow: var(--sp-shadow-2), var(--sp-shadow-inner-glow);
+}
+
+.sp-profile-card > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-space-2) var(--sp-space-3);
+  padding-bottom: var(--sp-space-2-5);
+  border-bottom: 1px solid var(--sp-line-soft);
+}
+
+.sp-profile-card > header h2 {
+  min-width: 0;
+  font-family: var(--sp-font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin: 0;
+  color: var(--sp-muted);
+}
+
+.sp-profile-card__count {
+  font-size: 11px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--sp-muted-strong);
+  background: var(--sp-bg-elev-2);
+  border: 1px solid var(--sp-line);
+  padding: var(--sp-space-px) var(--sp-space-2);
+  border-radius: var(--sp-corners-pill);
+  line-height: 1.5;
+}
+
+.sp-profile-card[data-state="empty"],
+.sp-profile-card[data-state="probing"] {
+  opacity: 0.7;
+}
+
+.sp-profile-card[data-state="probing"] {
+  background-image: linear-gradient(120deg,
+    var(--sp-bg-elev-1) 0%,
+    var(--sp-bg-elev-2) 50%,
+    var(--sp-bg-elev-1) 100%);
+  background-size: 200% 100%;
+  animation: sp-profile-shimmer 1.6s linear infinite;
+}
+
+@keyframes sp-profile-shimmer {
+  from { background-position: 100% 0; }
+  to   { background-position: -100% 0; }
+}
+
+/* Was a viewport media query, which never fired: the pane is the window minus
+   the 220px rail and the activity column, so a 1200px window gives a ~580px
+   pane and the 720px threshold sat well above it. Container queries measure the
+   thing that actually constrains the layout. */
+.sp-profile-card--identity,
+.sp-profile-card--conversations {
+  grid-column: span 2;
+}
+
+@container sp-pane (max-width: 700px) {
+  .sp-profile-card--identity,
+  .sp-profile-card--conversations {
+    grid-column: span 1;
+  }
+}
+
+.sp-profile-error {
+  background: var(--sp-bg-elev-1);
+  border: 1px solid var(--sp-err);
+  border-left: 3px solid var(--sp-err);
+  border-radius: var(--sp-corners-md);
+  padding: var(--sp-space-4) var(--sp-space-4-5);
+  color: var(--sp-text);
+  box-shadow: var(--sp-shadow-1);
+}
+
+.sp-profile-error p:first-child {
+  font-family: var(--sp-font-display);
+  font-weight: 600;
+  margin: 0 0 var(--sp-space-1);
+  color: var(--sp-err);
+}
+
+.sp-profile-error .sp-u-muted {
+  font-family: var(--sp-font-mono);
+  font-size: 12px;
+  margin: 0;
+  color: var(--sp-muted-strong);
+}
+
+.sp-profile-empty {
+  background: var(--sp-bg-elev-1);
+  border: 1px dashed var(--sp-line);
+  border-radius: var(--sp-corners-md);
+  padding: var(--sp-space-7) var(--sp-space-5);
+  text-align: center;
+  color: var(--sp-muted);
+}
+
+.sp-u-muted {
+  color: var(--sp-muted);
+  font-size: 12.5px;
+  margin: 0;
+}

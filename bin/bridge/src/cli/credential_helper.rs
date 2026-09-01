@@ -16,17 +16,18 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::ChainError;
-use crate::{auth, config, proxy};
+use crate::context::BridgeContext;
+use crate::{auth, config};
 
-pub(super) fn cmd_credential_helper(args: &[String]) -> ExitCode {
+pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let Some(host) = parse_host(args) else {
         eprintln!("{}", error_json("missing required --host <id>"));
         return ExitCode::from(64);
     };
 
     match host.as_str() {
-        "codex-cli" => emit_codex(),
-        "claude-desktop" => emit_claude_via_chain(),
+        "codex-cli" => emit_codex(ctx),
+        "claude-desktop" => emit_claude_via_chain(ctx),
         other => {
             eprintln!("{}", error_json(&format!("unknown host id: {other}")));
             ExitCode::from(64)
@@ -34,15 +35,13 @@ pub(super) fn cmd_credential_helper(args: &[String]) -> ExitCode {
     }
 }
 
-fn emit_claude_via_chain() -> ExitCode {
+fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     let cfg = config::load();
-    let acquired = match proxy::block_on(auth::acquire_bearer(&cfg, &SessionId::generate())) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("{}", error_json(&format!("runtime init failed: {e}")));
-            return ExitCode::from(70);
-        },
-    };
+    let acquired = ctx.block_on(auth::acquire_bearer(
+        &cfg,
+        &SessionId::generate(),
+        &ctx.http,
+    ));
     let out = match acquired {
         Ok(out) => out,
         Err(ChainError::PreferredTransient { provider, source }) => {
@@ -66,10 +65,10 @@ fn emit_claude_via_chain() -> ExitCode {
     emit_claude(&out)
 }
 
-fn emit_codex() -> ExitCode {
+fn emit_codex(ctx: &BridgeContext) -> ExitCode {
     // Why: Codex authenticates against the loopback proxy, not the upstream
     // gateway, so it needs the loopback secret.
-    let secret = match proxy::secret::for_profile() {
+    let secret = match ctx.proxy.loopback().secret() {
         Ok(s) => s,
         Err(e) => {
             eprintln!(
@@ -87,7 +86,7 @@ fn emit_codex() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn emit_claude(out: &auth::types::HelperOutput) -> ExitCode {
+fn emit_claude(out: &crate::gateway::types::HelperOutput) -> ExitCode {
     match serde_json::to_string(out) {
         Ok(s) => {
             println!("{s}");

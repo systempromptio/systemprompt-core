@@ -1,14 +1,18 @@
 use std::fs;
 use std::path::PathBuf;
 
-use systemprompt_bridge::mcp_registry::{rehydrate_from_disk, snapshot};
+use std::sync::Arc;
+
+use systemprompt_bridge::mcp_registry::{
+    McpRegistrySlot, empty_slot, rehydrate_from_disk, snapshot,
+};
 
 fn metadata_dir(state_home: &std::path::Path) -> PathBuf {
     state_home.join("systemprompt-bridge").join("metadata")
 }
 
-fn sorted_keys() -> Vec<String> {
-    let mut keys: Vec<String> = snapshot().keys().cloned().collect();
+fn sorted_keys(slot: &McpRegistrySlot) -> Vec<String> {
+    let mut keys: Vec<String> = snapshot(slot).keys().cloned().collect();
     keys.sort();
     keys
 }
@@ -27,9 +31,10 @@ fn rehydrates_published_servers_from_fragment() {
     )
     .unwrap();
 
+    let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
-        rehydrate_from_disk();
-        let registry = snapshot();
+        rehydrate_from_disk(&slot);
+        let registry = snapshot(&slot);
         assert_eq!(registry.len(), 2);
         let first = registry.get("my-server").expect("normalized key present");
         assert_eq!(first.url.as_str(), "https://gw.example.com/mcp/one");
@@ -45,10 +50,11 @@ fn rehydrates_published_servers_from_fragment() {
 #[test]
 fn missing_fragment_leaves_registry_untouched() {
     let state = tempfile::tempdir().unwrap();
+    let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
-        let before = sorted_keys();
-        rehydrate_from_disk();
-        assert_eq!(sorted_keys(), before);
+        let before = sorted_keys(&slot);
+        rehydrate_from_disk(&slot);
+        assert_eq!(sorted_keys(&slot), before);
     });
 }
 
@@ -59,9 +65,10 @@ fn malformed_fragment_leaves_registry_untouched() {
     fs::create_dir_all(&meta).unwrap();
     fs::write(meta.join("mcp-servers.json"), b"not json").unwrap();
 
+    let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
-        let before = sorted_keys();
-        rehydrate_from_disk();
-        assert_eq!(sorted_keys(), before);
+        let before = sorted_keys(&slot);
+        rehydrate_from_disk(&slot);
+        assert_eq!(sorted_keys(&slot), before);
     });
 }

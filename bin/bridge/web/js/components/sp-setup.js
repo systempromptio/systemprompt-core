@@ -1,26 +1,13 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { notifyErr } from "/assets/js/utils/notify.js";
+import { stepsFromSnapshot } from "/assets/js/utils/setup-steps.js";
+import { clearSettleTimer, trackSettle, retrySettle } from "/assets/js/utils/setup-settle.js";
+import { renderSetupHero, renderSetupAgentsStep, renderSetupSettleNotice, renderSetupFooter } from "/assets/js/components/setup-sections.js";
 import "/assets/js/components/sp-setup-gateway.js";
 import "/assets/js/components/sp-setup-agents.js";
-
-const STEP_LABEL = {
-  connect: () => t("setup-step-label-connect") || "Step 1 of 2",
-  agents: () => t("setup-step-label-agents") || "Step 2 of 2",
-};
-
-// How long the wizard waits for every host to report before it says so. The
-// gate had no timeout and no error path at all: one host that never reported
-// left the user on onboarding indefinitely, with nothing on screen to say why.
-const SETTLE_TIMEOUT_MS = 12_000;
-
-function isConfigured(snap) {
-  const reachable = snap.gateway_status && snap.gateway_status.state === "reachable";
-  const id = snap.verified_identity;
-  return !!(reachable && id && id.user_id);
-}
 
 export class SpSetup extends SpElement {
   constructor() {
@@ -33,25 +20,15 @@ export class SpSetup extends SpElement {
     this.confirmEmptyFinish = false;
     this._settleTimer = null;
     this._finished = false;
-    /** Latched once the app proper is on screen; see `_applySnapshot`. */
+    /** Latched once the app proper is on screen; see `stepsFromSnapshot`. */
     this._leftSetup = false;
     this._logoFragment = null;
     this._onSetupOpen = () => { document.body.classList.add("is-setup-mode"); };
     this.registerAction("finish", () => this._finish());
     this.registerAction("finish-anyway", () => { this.confirmEmptyFinish = false; this._finish(true); });
-    this.registerAction("retry-settle", () => {
-      this.settleTimedOut = false;
-      this._armSettleTimer();
-      bridge.gatewayProbe().catch((e) => notifyErr(e, t("setup-retry") || "Check again"));
-      for (const h of (this.snapshot && this.snapshot.host_apps) || []) {
-        bridge.hostProbe(h.id).catch(() => {});
-      }
-    });
-    this.registerAction("continue-anyway", () => {
-      this._leftSetup = true;
-      document.body.classList.remove("is-setup-mode");
-    });
-    this.registerAction("open-bridge", () => { this._leftSetup = true; document.body.classList.remove("is-setup-mode"); });
+    this.registerAction("retry-settle", () => retrySettle(this));
+    this.registerAction("continue-anyway", () => this._leaveSetup());
+    this.registerAction("open-bridge", () => this._leaveSetup());
   }
 
   onConnect() {
@@ -60,82 +37,30 @@ export class SpSetup extends SpElement {
       this._logoFragment = tpl.content;
       tpl.remove();
     }
-    bridge.stateSnapshot().then((s) => this._applySnapshot(s)).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => this._applySnapshot(s));
+    this.useSnapshot((s) => this._applySnapshot(s));
     this._unsubOpen = onBridgeEvent("setup-open", this._onSetupOpen);
   }
 
   onDisconnect() {
     if (this._unsubOpen) { this._unsubOpen(); this._unsubOpen = null; }
-    this._clearSettleTimer();
+    clearSettleTimer(this);
   }
 
-  _clearSettleTimer() {
-    if (this._settleTimer) { clearTimeout(this._settleTimer); this._settleTimer = null; }
-  }
-
-  _armSettleTimer() {
-    this._clearSettleTimer();
-    this._settleTimer = setTimeout(() => {
-      this._settleTimer = null;
-      this.settleTimedOut = true;
-    }, SETTLE_TIMEOUT_MS);
+  _leaveSetup() {
+    this._leftSetup = true;
+    document.body.classList.remove("is-setup-mode");
   }
 
   _applySnapshot(snap) {
     this.snapshot = snap;
     if (!snap) { return; }
-    const configured = isConfigured(snap);
-    const hosts = snap.host_apps || [];
-    // Install state for a host is only KNOWN once its probe has completed, at
-    // which point `snapshot` is populated. Until every host has a snapshot the
-    // result is "unknown" — we must not show onboarding then, or it flashes
-    // before detection resolves (the bug where it appeared with agents already
-    // installed). Once settled, show the agents step only when none are
-    // installed; installing one (anyInstalled) drops straight into the app.
-    const settled = hosts.length > 0 && hosts.every((h) => h.snapshot);
-    if (settled) {
-      this._clearSettleTimer();
-      this.settleTimedOut = false;
-    } else if (!this._settleTimer && !this.settleTimedOut) {
-      this._armSettleTimer();
-    }
-    const anyInstalled = hosts.some((h) => h.snapshot?.profile_state?.kind === "installed");
-    this.anyInstalled = anyInstalled;
-    this.step = configured ? "agents" : "connect";
-
-    // First-use provisioning pins the wizard open. Checked before the
-    // settled/latched guards below: a run is exactly the window in which host
-    // snapshots are still arriving, so those guards would return early and let
-    // the app show over a half-installed machine.
-    this.firstRunActive = !!(snap.first_run && snap.first_run.active);
-    if (this.firstRunActive) {
-      this._leftSetup = false;
-      document.body.classList.add("is-setup-mode");
-      return;
-    }
-
-    // Signing out is the one thing that legitimately sends us back to the
-    // splash. Clear the latch so it can.
-    if (!snap.verified_identity || !snap.verified_identity.user_id) { this._leftSetup = false; }
-
-    // Everything below decides whether to show a full-screen overlay, so it must
-    // only ever run on a settled snapshot. `configured` and `anyInstalled` each
-    // start out false and flip true as the gateway probe and then the host
-    // probes land — evaluating on those partial snapshots is what made the
-    // window flick splash → app → splash → app during startup.
-    const gatewayProbing = !snap.gateway_status || snap.gateway_status.state === "probing"
-      || snap.gateway_status.state === "unknown";
-    if (gatewayProbing || !settled) { return; }
-
-    // One-way latch: once the app proper has been shown, a later probe result
-    // must not yank the user back into onboarding mid-session.
-    if (this._leftSetup) { return; }
-
-    const needAgents = !anyInstalled && !this._finished;
-    const inSetup = !configured || needAgents;
-    if (!inSetup) { this._leftSetup = true; }
-    document.body.classList.toggle("is-setup-mode", inSetup);
+    const model = stepsFromSnapshot(snap, { leftSetup: this._leftSetup, finished: this._finished });
+    trackSettle(this, model.settled);
+    this.anyInstalled = model.anyInstalled;
+    this.step = model.step;
+    this.firstRunActive = model.firstRunActive;
+    this._leftSetup = model.leftSetup;
+    if (model.setupMode !== null) { document.body.classList.toggle("is-setup-mode", model.setupMode); }
   }
 
   async _finish(force = false) {
@@ -154,8 +79,7 @@ export class SpSetup extends SpElement {
       return;
     }
     this._finished = true;
-    this._leftSetup = true;
-    document.body.classList.remove("is-setup-mode");
+    this._leaveSetup();
   }
 
   afterRender() {
@@ -166,72 +90,16 @@ export class SpSetup extends SpElement {
     }
   }
 
-  _settleNotice() {
-    if (!this.settleTimedOut) { return ""; }
-    const snap = this.snapshot || {};
-    const unreachable = snap.gateway_status && snap.gateway_status.state === "unreachable";
-    const line = unreachable
-      ? t("setup-settle-unreachable", { gateway: snap.gateway_url || "" })
-      : t("setup-settle-slow") || "Still checking this computer. Some agents have not reported yet.";
-    return `
-      <div class="sp-setup__note sp-setup__note--warn" role="alert">
-        <p>${escapeHtml(line)}</p>
-        <div class="sp-setup__actions">
-          <button class="sp-btn-ghost" type="button" data-action="retry-settle">${escapeHtml(t("setup-retry") || "Check again")}</button>
-          <button class="sp-btn-ghost" type="button" data-action="continue-anyway">${escapeHtml(t("setup-continue-anyway") || "Continue anyway")}</button>
-        </div>
-      </div>
-    `;
-  }
-
   render() {
-    const step = this.step;
-    const stepLabel = (STEP_LABEL[step] || (() => ""))();
-    const version = this.dataset.version || "";
-    const platform = this.dataset.platform || "linux";
-    const platformDisplay = this.dataset.platformDisplay || "";
-    // Finish is enabled except while first-use provisioning is running. Host
-    // install-state is probe-driven and can lag or misreport (e.g. the card
-    // shows "Installed ✓" while `anyInstalled` is still false), which trapped
-    // the user on this step with no way forward — so it is never gated on that.
-    // An in-flight run is different: it is a bounded operation that reports its
-    // own completion, and leaving mid-run is what produced a broken app.
-    const finishDisabled = this.firstRunActive ? "disabled" : "";
     return `
       <div class="sp-setup__card">
-        <div class="sp-setup__hero">
-          <div class="sp-setup__mark" data-logo-slot data-preserve></div>
-          <div class="sp-setup__eyebrow"><span data-l10n-id="setup-eyebrow-prefix">DEMO BUILD</span> · v${escapeHtml(version)} · <span>${escapeHtml(stepLabel)}</span></div>
-          <h1 data-l10n-id="setup-heading">Welcome to systemprompt bridge</h1>
-          <p class="sp-setup__lede" data-l10n-id="setup-lede">systemprompt bridge routes one or more coding agents through your enterprise gateway.</p>
-        </div>
-        <div class="sp-setup__step" data-step="connect" ${step !== "connect" ? "hidden" : ""}>
+        ${renderSetupHero(this)}
+        <div class="sp-setup__step" data-step="connect" ${this.step !== "connect" ? "hidden" : ""}>
           <sp-setup-gateway></sp-setup-gateway>
         </div>
-        <div class="sp-setup__step" data-step="agents" ${step !== "agents" ? "hidden" : ""}>
-          <p class="sp-setup__lede" data-l10n-id="setup-agents-lede">Pick the coding agents you want systemprompt bridge to govern.</p>
-          <sp-setup-agents></sp-setup-agents>
-          ${this.confirmEmptyFinish
-            ? `<p class="sp-setup__note" role="alert">${escapeHtml(t("setup-finish-empty-warning") || "You have not added an agent yet, so nothing will be routed through systemprompt.")}</p>`
-            : ""}
-          <div class="sp-setup__actions">
-            ${this.confirmEmptyFinish
-              ? `<button class="sp-btn-primary" type="button" data-action="finish-anyway">${escapeHtml(t("setup-finish-anyway") || "Finish anyway")}</button>`
-              : `<button class="sp-btn-primary" type="button" data-l10n-id="setup-finish" data-action="finish" ${finishDisabled}>Finish</button>`}
-          </div>
-        </div>
-        ${this._settleNotice()}
-        <aside class="sp-setup__warning" role="note">
-          <strong data-l10n-id="setup-warning-strong">Demo software.</strong>
-          <span data-l10n-id="setup-warning-body">This build is provided for demonstration purposes only and is not licensed for production use.</span>
-        </aside>
-        <p class="sp-setup__meta">
-          <a class="sp-setup__docs" href="https://systemprompt.io/docs/bridge/${escapeHtml(platform)}" target="_blank" rel="noopener noreferrer">
-            Documentation for ${escapeHtml(platformDisplay)} →
-          </a>
-          <span class="sp-setup__meta-sep">·</span>
-          <span>Licensing — <a href="mailto:ed@systemprompt.io?subject=systemprompt%20bridge%20licensing">ed@systemprompt.io</a></span>
-        </p>
+        ${renderSetupAgentsStep(this)}
+        ${renderSetupSettleNotice(this)}
+        ${renderSetupFooter(this)}
       </div>
     `;
   }

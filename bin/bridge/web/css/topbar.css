@@ -19,7 +19,6 @@
 body.is-platform-macos .sp-topbar { padding-left: 92px; }
 
 .sp-topbar__left   { display: flex; align-items: center; gap: var(--sp-space-3); min-width: 0; }
-.sp-topbar__center { display: flex; align-items: center; justify-content: center; min-width: 0; }
 .sp-topbar__right  { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-space-2); min-width: 0; }
 
 .sp-brand {

@@ -12,7 +12,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn gateway_for(server: &MockServer) -> GatewayClient {
     let base = ValidatedUrl::try_new(server.uri()).expect("valid wiremock uri");
-    GatewayClient::new(base)
+    GatewayClient::new(base, reqwest::Client::new())
 }
 
 #[tokio::test(flavor = "multi_thread")]

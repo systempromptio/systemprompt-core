@@ -8,19 +8,14 @@ use std::process::ExitCode;
 use systemprompt_identifiers::SessionId;
 
 use crate::auth::ChainError;
-use crate::obs::output::{diag, emit};
+use crate::context::BridgeContext;
+use crate::stdio::{diag, emit_json};
 use crate::{auth, config};
 
-pub(super) fn cmd_run() -> ExitCode {
+pub(super) fn cmd_run(ctx: &BridgeContext) -> ExitCode {
     let cfg = config::load();
     let session_id = SessionId::generate();
-    let acquired = match crate::proxy::block_on(auth::acquire_bearer(&cfg, &session_id)) {
-        Ok(r) => r,
-        Err(e) => {
-            diag(&format!("runtime init failed: {e}"));
-            return ExitCode::from(70);
-        },
-    };
+    let acquired = ctx.block_on(auth::acquire_bearer(&cfg, &session_id, &ctx.http));
     let out = match acquired {
         Ok(out) => out,
         Err(ChainError::PreferredTransient { provider, source }) => {
@@ -38,7 +33,7 @@ pub(super) fn cmd_run() -> ExitCode {
             return ExitCode::from(5);
         },
     };
-    if emit(&out).is_err() {
+    if emit_json(&out).is_err() {
         return ExitCode::from(2);
     }
     ExitCode::SUCCESS

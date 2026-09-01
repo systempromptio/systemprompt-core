@@ -202,6 +202,18 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         format!("\n# Copy MCP server binaries\n{}\n", lines.join("\n"))
     }
 
+    // Why: without this a cloud-profile command inside the container routes to the
+    // host it is already on. Fly happened to supply `FLY_APP_NAME`; other
+    // platforms supply nothing. The profile name is the most specific value
+    // known before the image is placed.
+    fn deployment_host_env(&self) -> String {
+        format!(
+            "    {}={} \\",
+            systemprompt_models::subprocess::DEPLOYMENT_HOST_ENV,
+            self.profile_name.unwrap_or("container")
+        )
+    }
+
     fn env_section(&self) -> String {
         let profile_env = self.profile_name.map_or_else(String::new, |name| {
             format!(
@@ -217,10 +229,12 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     PORT=8080 \
     RUST_LOG=info \
     PATH="{}:$PATH" \
+{}
     SYSTEMPROMPT_SERVICES_PATH={} \
     SYSTEMPROMPT_TEMPLATES_PATH={} \
     SYSTEMPROMPT_ASSETS_PATH={}"#,
                 container::BIN,
+                self.deployment_host_env(),
                 container::SERVICES,
                 container::TEMPLATES,
                 container::ASSETS
@@ -232,11 +246,13 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     RUST_LOG=info \
     PATH="{}:$PATH" \
 {}
+{}
     SYSTEMPROMPT_SERVICES_PATH={} \
     SYSTEMPROMPT_TEMPLATES_PATH={} \
     SYSTEMPROMPT_ASSETS_PATH={}"#,
                 container::BIN,
                 profile_env,
+                self.deployment_host_env(),
                 container::SERVICES,
                 container::TEMPLATES,
                 container::ASSETS

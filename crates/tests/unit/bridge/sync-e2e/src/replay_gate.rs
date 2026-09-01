@@ -7,6 +7,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::sync::run_once;
@@ -146,7 +147,7 @@ fn run_gated(sandbox: &Sandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(true, false, true))
+                .block_on(run_once(&bridge(), true, false, true))
                 .map_err(|e| e.to_string())
         },
     )
@@ -247,4 +248,8 @@ fn a_successful_non_forced_apply_persists_the_replay_sentinel() {
 
     let err = run_gated(&sandbox).expect_err("the same version is now a replay");
     assert!(err.contains("manifest replay rejected"), "{err}");
+}
+
+fn bridge() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }

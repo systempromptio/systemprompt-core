@@ -57,7 +57,9 @@ impl UpdateStatus {
 /// What the GUI shows for the update affordance. Carried on the state snapshot
 /// so it rides the existing `state.changed` event.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "phase", rename_all = "snake_case")]
+#[serde(tag = "phase", rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub enum UpdateUiState {
     #[default]
     Unknown,
@@ -83,6 +85,33 @@ pub enum UpdateUiState {
 }
 
 impl UpdateUiState {
+    #[must_use]
+    pub const fn tone(&self) -> crate::verdict::Tone {
+        use crate::verdict::Tone;
+        match self {
+            Self::Unknown => Tone::Unknown,
+            Self::Current => Tone::Ok,
+            Self::Available { .. } | Self::Ready { .. } => Tone::Warn,
+            Self::Downloading { .. } | Self::Installing { .. } => Tone::Probing,
+            Self::Failed { .. } => Tone::Err,
+        }
+    }
+
+    #[must_use]
+    pub const fn can_install(&self) -> bool {
+        matches!(self, Self::Available { .. })
+    }
+
+    #[must_use]
+    pub const fn can_restart(&self) -> bool {
+        matches!(self, Self::Ready { .. })
+    }
+
+    #[must_use]
+    pub const fn in_progress(&self) -> bool {
+        matches!(self, Self::Downloading { .. } | Self::Installing { .. })
+    }
+
     #[must_use]
     pub fn version(&self) -> Option<&str> {
         match self {
@@ -193,7 +222,7 @@ pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
 }
 
 
-pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
+pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str, http: &reqwest::Client) {
     if !automatic_enabled() {
         tracing::warn!(
             "a newer bridge is required but automatic updates are disabled by policy; \
@@ -201,7 +230,7 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str) {
         );
         return;
     }
-    let client = GatewayClient::new(gateway.clone());
+    let client = GatewayClient::new(gateway.clone(), http.clone());
     let (status, manifest) = match check(&client, bearer).await {
         Ok(pair) => pair,
         Err(e) => {

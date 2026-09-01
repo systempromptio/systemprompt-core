@@ -97,36 +97,18 @@ mod winreg {
     }
 }
 
-pub(super) fn start_menu_present_cached(display_name: &str) -> Option<bool> {
-    use std::collections::HashMap;
-    use std::sync::{Mutex, OnceLock};
-    use std::time::{Duration, Instant};
-
-    // Why: Get-StartApps cold-starts powershell (seconds per call); the cache
-    // holds probes to at most one spawn per TTL.
-    type Verdict = (Option<bool>, Instant);
-
-    static CACHE: OnceLock<Mutex<HashMap<String, Verdict>>> = OnceLock::new();
-    const CONCLUSIVE_TTL: Duration = Duration::from_secs(300);
-    const INCONCLUSIVE_TTL: Duration = Duration::from_secs(15);
-
-    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Ok(map) = cache.lock()
-        && let Some((present, at)) = map.get(display_name)
-    {
-        let ttl = if present.is_some() {
-            CONCLUSIVE_TTL
-        } else {
-            INCONCLUSIVE_TTL
-        };
-        if at.elapsed() < ttl {
-            return *present;
-        }
+pub(super) fn start_menu_present_cached(
+    cache: &crate::probe_cache::StartMenuCache,
+    display_name: &str,
+) -> Option<bool> {
+    if let Some(presence) = cache.lookup(display_name) {
+        return presence.as_probe();
     }
     let present = start_menu_present(display_name);
-    if let Ok(mut map) = cache.lock() {
-        map.insert(display_name.to_owned(), (present, Instant::now()));
-    }
+    cache.record(
+        display_name,
+        crate::probe_cache::StartMenuPresence::from_probe(present),
+    );
     present
 }
 

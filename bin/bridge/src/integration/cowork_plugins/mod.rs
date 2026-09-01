@@ -23,8 +23,7 @@ use thiserror::Error;
 
 use async_trait::async_trait;
 
-use crate::sync::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkSync;
@@ -32,7 +31,7 @@ pub struct CoworkSync;
 #[async_trait]
 impl HostSync for CoworkSync {
     fn host_id(&self) -> &'static str {
-        "cowork"
+        "claude-desktop"
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
@@ -57,7 +56,7 @@ impl HostSync for CoworkSync {
         Ok(())
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(target) = resolve_target() else {
             return Ok(());
         };
@@ -77,3 +76,5 @@ pub enum CoworkPluginsError {
     #[error("cowork_settings.json `{key}` must be a JSON object")]
     ItemsShape { key: &'static str },
 }
+
+crate::register_host_sync!(CoworkSync);

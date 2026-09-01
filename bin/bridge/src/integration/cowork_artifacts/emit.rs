@@ -13,9 +13,9 @@ use std::path::{Path, PathBuf};
 
 use crate::config::paths;
 use crate::gateway::manifest::ArtifactEntry;
+use crate::hash::sha256_hex;
+use crate::host_sync::ApplyError;
 use crate::integration::cowork_plugins::resolve_target;
-use crate::sync::apply::ApplyError;
-use crate::sync::hash::sha256_hex;
 
 use super::sink::{ArtifactSink, FileSink, SeedStaging};
 

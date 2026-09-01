@@ -1,4 +1,5 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 import { t } from "/assets/js/i18n.js";
 

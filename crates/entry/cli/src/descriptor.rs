@@ -16,6 +16,7 @@ impl CommandDescriptor {
     const FLAG_DATABASE: u8 = 0b0000_1000;
     const FLAG_REMOTE_ELIGIBLE: u8 = 0b0001_0000;
     const FLAG_SKIP_VALIDATION: u8 = 0b0010_0000;
+    const FLAG_READ_ONLY: u8 = 0b0100_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -55,8 +56,16 @@ impl CommandDescriptor {
         self.flags & Self::FLAG_DATABASE != 0
     }
 
-    pub const fn remote_eligible(&self) -> bool {
-        self.flags & Self::FLAG_REMOTE_ELIGIBLE != 0
+    // Why: read-only and mutating were one boolean; refusing a read because no
+    // tenant session exists fails the caller for a reason they cannot act on.
+    pub const fn routing_class(&self) -> RoutingClass {
+        if self.flags & Self::FLAG_REMOTE_ELIGIBLE == 0 {
+            RoutingClass::LocalOnly
+        } else if self.flags & Self::FLAG_READ_ONLY != 0 {
+            RoutingClass::ReadOnly
+        } else {
+            RoutingClass::Mutating
+        }
     }
 
     pub const fn skip_validation(&self) -> bool {
@@ -69,11 +78,29 @@ impl CommandDescriptor {
         }
     }
 
+    pub const fn with_read_only(self) -> Self {
+        Self {
+            flags: self.flags | Self::FLAG_READ_ONLY,
+        }
+    }
+
     pub const fn with_skip_validation(self) -> Self {
         Self {
             flags: self.flags | Self::FLAG_SKIP_VALIDATION,
         }
     }
+}
+
+/// What a command is allowed to do when the active profile is a cloud profile.
+///
+/// `LocalOnly` is never routed remotely and runs against whatever the profile
+/// resolves; `ReadOnly` prefers remote when a session is available and falls
+/// back to local with a warning; `Mutating` must route remotely or fail loudly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoutingClass {
+    LocalOnly,
+    ReadOnly,
+    Mutating,
 }
 
 pub trait DescribeCommand {

@@ -12,8 +12,8 @@ use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 use crate::gui::events::ReplyId;
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
@@ -103,7 +103,7 @@ fn build_bundle() -> io::Result<PathBuf> {
     }
 
     zip.start_file("diagnostics.txt", opts)?;
-    zip.write_all(crate::cli::diagnostics::render().as_bytes())?;
+    zip.write_all(crate::buildinfo::render().as_bytes())?;
 
     if let Some(yaml) = crate::config::redaction::redacted_config() {
         zip.start_file("config.redacted.toml", opts)?;

@@ -1,29 +1,10 @@
-//! Serialisation of first-run state for the webview.
+//! Builds the first-run wire payload from the GUI's first-run state.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::Serialize;
-
 use super::state::FirstRunState;
-
-#[derive(Serialize)]
-pub(crate) struct FirstRunHostPayload<'a> {
-    pub host_id: &'a str,
-    pub display_name: &'a str,
-    pub status: &'static str,
-    pub error: Option<&'a str>,
-}
-
-#[derive(Serialize)]
-pub(crate) struct FirstRunPayload<'a> {
-    pub active: bool,
-    pub done: bool,
-    pub phase: &'static str,
-    pub sync: &'static str,
-    pub error: Option<&'a str>,
-    pub hosts: Vec<FirstRunHostPayload<'a>>,
-}
+pub(crate) use crate::wire::first_run::{FirstRunHostPayload, FirstRunPayload};
 
 pub(crate) fn build(state: &FirstRunState) -> FirstRunPayload<'_> {
     FirstRunPayload {

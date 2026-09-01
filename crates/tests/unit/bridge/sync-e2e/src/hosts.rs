@@ -9,6 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{
     ArtifactEntry, MANIFEST_SCHEMA_VERSION, PluginEntry, PluginFile, SignedManifest, UserInfo,
 };
@@ -153,7 +154,7 @@ fn run_sync(dirs: &HostSandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(true, true, true))
+                .block_on(run_once(&bridge(), true, true, true))
                 .map_err(|e| e.to_string())
         },
     )
@@ -323,7 +324,7 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
         .unwrap();
 
     let m = manifest(
-        vec!["claude-code".into(), "cowork".into()],
+        vec!["claude-code".into(), "claude-desktop".into()],
         true,
         "aaaa0001",
     );
@@ -369,7 +370,7 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
         .unwrap();
 
     let enabled = manifest(
-        vec!["claude-code".into(), "cowork".into()],
+        vec!["claude-code".into(), "claude-desktop".into()],
         true,
         "bbbb0001",
     );
@@ -436,4 +437,8 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
     assert!(cowork_settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")].is_null());
 
     assert!(!dirs.session_org_dir.join("cowork_artifacts").exists());
+}
+
+fn bridge() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }

@@ -16,7 +16,7 @@ fn empty_iter_yields_all_unset() {
     assert!(!env.non_interactive);
     assert!(env.profile.is_none());
     assert!(env.rust_log.is_none());
-    assert!(!env.is_fly);
+    assert!(!env.is_deployment_host);
     assert!(!env.is_remote_cli);
     assert!(env.editor.is_none());
     assert!(env.database_url.is_none());
@@ -56,7 +56,7 @@ fn from_vars_maps_presence_flags() {
         ("SYSTEMPROMPT_CLI_REMOTE", "1"),
     ]);
     assert!(env.non_interactive);
-    assert!(env.is_fly);
+    assert!(env.is_deployment_host);
     assert!(env.is_remote_cli);
     assert!(!env.no_color);
 }
@@ -116,5 +116,44 @@ fn unrelated_variables_are_ignored() {
     let env = EnvOverrides::from_vars([("PATH", "/usr/bin"), ("HOME", "/home/user")]);
     assert!(env.output_format.is_none());
     assert!(env.database_url.is_none());
-    assert!(!env.is_fly);
+    assert!(!env.is_deployment_host);
+}
+
+// Why: the deployment-host marker decides whether a command runs here or tries
+// to reach the host it is already on. It has two accepted spellings — the one
+// we generate into every image, and Fly's own, kept so tenants deployed before
+// the generated marker existed keep working without a redeploy. Any one of them
+// is proof; only their absence means "elsewhere".
+#[test]
+fn the_generated_marker_alone_proves_we_are_on_the_deployment_host() {
+    let env = EnvOverrides::from_vars([("SYSTEMPROMPT_DEPLOYMENT_HOST", "sp-tenant")]);
+    assert!(env.is_deployment_host);
+}
+
+#[test]
+fn flys_own_marker_alone_still_proves_it() {
+    let env = EnvOverrides::from_vars([("FLY_APP_NAME", "sp-tenant")]);
+    assert!(
+        env.is_deployment_host,
+        "an already-deployed Fly tenant must keep working with no redeploy"
+    );
+}
+
+#[test]
+fn both_markers_together_agree() {
+    let env = EnvOverrides::from_vars([
+        ("SYSTEMPROMPT_DEPLOYMENT_HOST", "sp-tenant"),
+        ("FLY_APP_NAME", "sp-tenant"),
+    ]);
+    assert!(env.is_deployment_host);
+}
+
+// Why: an empty value is not a host. Treating one as proof would suppress
+// remote routing on a machine that is not the deployment — the inverse of the
+// bug, and a quieter one, because the command would run against whatever
+// database the profile happened to resolve.
+#[test]
+fn an_empty_marker_is_not_a_host() {
+    let env = EnvOverrides::from_vars([("SYSTEMPROMPT_DEPLOYMENT_HOST", "")]);
+    assert!(!env.is_deployment_host);
 }

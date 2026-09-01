@@ -251,3 +251,13 @@ body.is-drawer-open { overflow: hidden; }
 }
 .sp-drawer__section--danger { border-top: 1px solid var(--sp-line); }
 .sp-drawer__section--danger p { font-size: 12px; margin: var(--sp-space-2) 0 0; }
+
+.sp-claude__warn {
+  margin-top: var(--sp-space-2-5);
+  padding: var(--sp-space-2-5) var(--sp-space-3);
+  background: color-mix(in srgb, var(--sp-warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sp-warn) 35%, transparent);
+  color: var(--sp-warn);
+  border-radius: 10px;
+  font-size: 13px;
+}

@@ -13,8 +13,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 
-use crate::sync::ApplyError;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
 mod config_yaml;
 mod skills;
@@ -36,17 +35,17 @@ impl HostSync for HermesSync {
             !ctx.manifest.skills.is_empty() || !ctx.manifest.managed_mcp_servers.is_empty();
         if has_content {
             apply_skills(ctx.manifest)?;
-            write_config_blocks(true, &ctx.manifest.managed_mcp_servers)?;
+            write_config_blocks(ctx.loopback, true, &ctx.manifest.managed_mcp_servers)?;
         } else {
             clear_skills()?;
-            write_config_blocks(false, &[])?;
+            write_config_blocks(ctx.loopback, false, &[])?;
         }
         Ok(())
     }
 
-    fn clear(&self) -> Result<(), ApplyError> {
+    fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         clear_skills()?;
-        write_config_blocks(false, &[])?;
+        write_config_blocks(ctx.loopback, false, &[])?;
         Ok(())
     }
 }

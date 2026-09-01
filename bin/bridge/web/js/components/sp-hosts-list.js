@@ -1,29 +1,13 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
-import { isSetUp } from "/assets/js/utils/host-status.js";
+import { isSetUp } from "/assets/js/utils/verdict.js";
+import { sameHost } from "/assets/js/utils/host-diff.js";
 import "/assets/js/components/sp-agent-row.js";
 import "/assets/js/components/sp-agent-drawer.js";
 import "/assets/js/components/sp-overall-badge.js";
 import "/assets/js/components/sp-agents-status.js";
-
-// Timestamps advance on every probe whether or not anything changed; comparing
-// them would make every tick look like a real update. Mirrors VOLATILE_KEYS on
-// the Rust side (src/gui/emit.rs).
-const VOLATILE_KEYS = new Set([
-  "probed_at_unix",
-  "last_probe_at_unix",
-  "ttl_seconds",
-  "expires_at_unix",
-]);
-
-function stable(value) {
-  return JSON.stringify(value, (k, v) => (VOLATILE_KEYS.has(k) ? undefined : v));
-}
-
-function sameHost(a, b) {
-  return a != null && b != null && stable(a) === stable(b);
-}
 
 export class SpHostsList extends SpElement {
   constructor() {
@@ -60,8 +44,7 @@ export class SpHostsList extends SpElement {
   }
 
   onConnect() {
-    bridge.stateSnapshot().then((s) => this._applyFullSnapshot(s)).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => this._applyFullSnapshot(s));
+    this.useSnapshot((s) => this._applyFullSnapshot(s));
     this.bridgeSubscribe("host.changed", (host) => this._applyHostDelta(host));
   }
 
@@ -99,8 +82,11 @@ export class SpHostsList extends SpElement {
     // profile has no status to report — it is something you might add, which is
     // the drawer's question, not this list's.
     const setUp = this._hosts().filter(isSetUp);
+    return `${this._renderHeader()}<sp-agents-status></sp-agents-status>${this._renderBody(setUp)}`;
+  }
 
-    const header = `
+  _renderHeader() {
+    return `
       <header class="sp-tab__header sp-hosts__header">
         <div class="sp-hosts__header-meta">
           <h1 data-l10n-id="agents-heading">${escapeHtml(t("agents-heading") || "Agents")}</h1>
@@ -115,20 +101,21 @@ export class SpHostsList extends SpElement {
         <p class="sp-tab__lede sp-u-muted">${escapeHtml(t("agents-lede") || "Every agent you add here runs through systemprompt's local proxy, so each request it makes is governed and logged. Any number of them can run at once.")}</p>
       </header>
     `;
+  }
 
-    const body = setUp.length === 0
-      ? `<div class="sp-hosts__empty">
-           <p class="sp-hosts__empty-title">${escapeHtml(t("agents-empty-title") || "No agents set up yet")}</p>
-           <p class="sp-u-muted">${escapeHtml(t("agents-empty-body") || "Add a coding agent to route it through systemprompt, so every request it makes is governed and logged.")}</p>
-           <button class="sp-btn-primary" type="button" data-action="add-agent">
-             <span class="sp-hosts__plus" aria-hidden="true">+</span> ${escapeHtml(t("agents-action-add") || "Add agent")}
-           </button>
-         </div>`
-      // data-key lets the reconciler reuse the same row element per host across
-      // renders instead of rebuilding it (and its whole subtree) each time.
-      : setUp.map((h) => `<sp-agent-row data-key="${escapeHtml(h.id)}" data-host-id="${escapeHtml(h.id)}"></sp-agent-row>`).join("");
-
-    return `${header}<sp-agents-status></sp-agents-status>${body}`;
+  _renderBody(setUp) {
+    if (setUp.length === 0) {
+      return `<div class="sp-hosts__empty">
+        <p class="sp-hosts__empty-title">${escapeHtml(t("agents-empty-title") || "No agents set up yet")}</p>
+        <p class="sp-u-muted">${escapeHtml(t("agents-empty-body") || "Add a coding agent to route it through systemprompt, so every request it makes is governed and logged.")}</p>
+        <button class="sp-btn-primary" type="button" data-action="add-agent">
+          <span class="sp-hosts__plus" aria-hidden="true">+</span> ${escapeHtml(t("agents-action-add") || "Add agent")}
+        </button>
+      </div>`;
+    }
+    // data-key lets the reconciler reuse the same row element per host across
+    // renders instead of rebuilding it (and its whole subtree) each time.
+    return setUp.map((h) => `<sp-agent-row data-key="${escapeHtml(h.id)}" data-host-id="${escapeHtml(h.id)}"></sp-agent-row>`).join("");
   }
 
   afterRender() {

@@ -1,6 +1,5 @@
-use systemprompt_bridge::integration::claude_desktop::reg_profile::{
-    parse_reg_entries, profile_entries, render_reg, render_reg_values,
-};
+use systemprompt_bridge::install::reg_values::{parse_reg_entries, render_reg_values};
+use systemprompt_bridge::integration::claude_desktop::reg_profile::{profile_entries, render_reg};
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 
 fn inputs() -> ProfileGenInputs {

@@ -4,13 +4,14 @@ use systemprompt_bridge::gateway::manifest::{
     ArtifactEntry, MANIFEST_SCHEMA_VERSION, SignedManifest,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
+use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{LibraryArtifactId, Sha256Digest};
 use systemprompt_bridge::integration::cowork_artifacts::CoworkArtifactsSync;
 use systemprompt_bridge::integration::cowork_artifacts::emit::{
     active_sinks, resolve_artifacts_dir, write_artifacts,
 };
 use systemprompt_bridge::integration::cowork_artifacts::sink::LIBRARY_STORE_FILE;
-use systemprompt_bridge::sync::{HostSync, HostSyncCtx};
+use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
 use tempfile::TempDir;
 
@@ -44,7 +45,7 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        enabled_hosts: vec!["cowork".into()],
+        enabled_hosts: vec!["claude-desktop".into()],
         host_model_protocols: Default::default(),
         artifacts,
         allow_claude_ai_connectors: false,
@@ -102,6 +103,14 @@ fn block_on<F: std::future::Future>(f: F) -> F::Output {
         .block_on(f)
 }
 
+
+static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
+    std::sync::LazyLock::new(std::collections::HashMap::new);
+
+static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
+    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+});
+
 fn stub_ctx<'a>(
     m: &'a SignedManifest,
     root: &'a std::path::Path,
@@ -114,12 +123,15 @@ fn stub_ctx<'a>(
         plugin_mcp_servers: servers,
         client,
         bearer: "",
+        loopback: &LOOPBACK,
+        mcp_registry: &EMPTY_REGISTRY,
     }
 }
 
 fn client() -> systemprompt_bridge::gateway::GatewayClient {
     systemprompt_bridge::gateway::GatewayClient::new(
         systemprompt_identifiers::ValidatedUrl::try_new("http://127.0.0.1:0").unwrap(),
+        reqwest::Client::new(),
     )
 }
 
@@ -150,7 +162,7 @@ fn without_a_cowork_install_apply_and_clear_are_no_ops() {
             block_on(CoworkArtifactsSync.apply(&stub_ctx(&m, empty.path(), &c, &servers)))
                 .expect("apply is a no-op without Cowork");
             CoworkArtifactsSync
-                .clear()
+                .clear(&stub_ctx(&m, empty.path(), &c, &servers))
                 .expect("clear is a no-op without Cowork");
         },
     );
@@ -171,14 +183,14 @@ fn apply_writes_the_store_and_clear_removes_the_whole_directory() {
         );
 
         CoworkArtifactsSync
-            .clear()
+            .clear(&stub_ctx(&m, session.dir.path(), &c, &servers))
             .expect("clear removes the store");
         assert!(
             !session.artifacts_dir().exists(),
             "an explicit teardown removes the whole artifacts dir"
         );
         CoworkArtifactsSync
-            .clear()
+            .clear(&stub_ctx(&m, session.dir.path(), &c, &servers))
             .expect("a second clear is idempotent");
     });
 }

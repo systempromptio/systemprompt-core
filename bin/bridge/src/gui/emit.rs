@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
-use crate::gui::ipc::{self, BridgeError, IpcReplyPayload};
+use crate::wire::ipc::{self, BridgeError, IpcReplyPayload};
 
 pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
     let script = ipc::emit_script(channel, payload);
@@ -35,7 +35,7 @@ pub(crate) fn send_reply_payload(app: &GuiApp, id: u64, payload: &IpcReplyPayloa
 }
 
 pub(crate) fn emit_proxy_stats(app: &GuiApp) {
-    let value = crate::gui::server_json::proxy_stats_value();
+    let value = crate::gui::server_json::proxy_stats_value(&app.ctx.proxy);
     send_emit(app, "proxy.stats", &value);
 }
 
@@ -51,10 +51,11 @@ pub(crate) fn emit_gateway_changed(app: &GuiApp) {
     send_emit(app, "gateway.changed", &value);
 }
 
-pub(crate) fn emit_host_changed(app: &GuiApp, host_id: &crate::ids::HostId) {
+pub(crate) fn emit_host_changed(app: &mut GuiApp, host_id: &crate::ids::HostId) {
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
     send_emit(app, "host.changed", &value);
+    emit_state(app);
 }
 
 pub(crate) fn emit_proxy_changed(app: &GuiApp) {
@@ -88,7 +89,7 @@ pub(crate) fn emit_first_run_progress(app: &GuiApp) {
 
 pub(crate) fn emit_state(app: &mut GuiApp) {
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::snapshot_value(&snap);
+    let value = crate::gui::server_json::snapshot_value(&snap, &app.ctx.proxy);
     let hash = semantic_hash(&value);
     if app.last_state_hash == Some(hash) {
         return;
@@ -153,8 +154,11 @@ const fn gateway_state_str(status: &crate::gui::state::GatewayStatus) -> &'stati
     }
 }
 
-pub(crate) fn install_log_emitter(proxy: crate::gui::UiEventProxy) {
-    crate::activity::activity_log().add_emit_hook(Box::new(move |entry| {
+pub(crate) fn install_log_emitter(
+    activity: &crate::activity::ActivityLog,
+    proxy: crate::gui::UiEventProxy,
+) {
+    activity.add_emit_hook(Box::new(move |entry| {
         let value = serde_json::to_value(entry).unwrap_or(Value::Null);
         proxy.send_event(UiEvent::IpcEmit {
             channel: "log",

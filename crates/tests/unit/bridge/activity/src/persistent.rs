@@ -9,14 +9,15 @@
 
 #![cfg(not(any(target_os = "windows", target_os = "macos")))]
 
-use systemprompt_bridge::activity::{activity_log, install_persistent_writer};
+use systemprompt_bridge::activity::{ActivityLog, install_persistent_writer};
 
 #[test]
 fn persistent_writer_mirrors_appends_and_rolls_over() {
     let temp = tempfile::tempdir().unwrap();
+    let log = ActivityLog::new();
     temp_env::with_var("XDG_STATE_HOME", Some(temp.path().as_os_str()), || {
-        install_persistent_writer();
-        activity_log().append("first persistent line");
+        install_persistent_writer(&log);
+        log.append("first persistent line");
     });
 
     let log_dir = temp.path().join("systemprompt-bridge");
@@ -29,7 +30,7 @@ fn persistent_writer_mirrors_appends_and_rolls_over() {
 
     let big = "x".repeat(64 * 1024);
     for _ in 0..170 {
-        activity_log().append(big.clone());
+        log.append(big.clone());
     }
 
     let rolled = log_dir.join("activity.jsonl.1");

@@ -1,0 +1,97 @@
+.sp-profile-card--identity {
+  background-image:
+    radial-gradient(circle at 100% 0%, var(--sp-accent-soft) 0%, transparent 40%),
+    linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
+}
+
+.sp-profile-dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sp-space-2) var(--sp-space-4);
+  margin: 0;
+  font-size: 13px;
+}
+
+@container sp-card (min-width: 620px) {
+  .sp-profile-dl {
+    grid-template-columns:
+      max-content minmax(0, 1fr)
+      max-content minmax(0, 1fr);
+    column-gap: var(--sp-space-6);
+  }
+  /* These two are the long ones; give them the full row rather than letting a
+     URL push the label column of the pair beside it out of alignment. */
+  .sp-profile-dl dt:has(+ dd:last-child) { grid-column: 1; }
+  .sp-profile-dl dd:last-child { grid-column: 2 / -1; }
+}
+
+/* The gateway URL and the token line are long enough that a `max-content` label
+   column plus an unbreakable value pushes the card wider than its track. Below
+   this width the pair stacks instead. */
+@container sp-card (max-width: 340px) {
+  .sp-profile-dl { grid-template-columns: minmax(0, 1fr); gap: var(--sp-space-1); }
+  .sp-profile-dl dt { align-self: start; }
+  .sp-profile-dl dd { margin-bottom: var(--sp-space-2); }
+  .sp-profile-dl dd:last-child { margin-bottom: 0; }
+}
+
+.sp-profile-dl dt {
+  font-family: var(--sp-font-display);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--sp-muted);
+  align-self: center;
+  font-weight: 600;
+}
+
+.sp-profile-dl dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--sp-text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--sp-font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.sp-profile-models-allowed {
+  list-style: none;
+  margin: var(--sp-space-2-5) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-space-1-5);
+  font-size: 11.5px;
+  color: var(--sp-muted-strong);
+  font-family: var(--sp-font-mono);
+}
+
+.sp-profile-models-allowed li {
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-line-soft);
+  border-radius: var(--sp-corners-xs);
+  padding: var(--sp-space-1) var(--sp-space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-profile-card--plan details {
+  margin-top: var(--sp-space-1);
+}
+
+.sp-profile-card--plan summary {
+  cursor: pointer;
+  font-family: var(--sp-font-display);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+  color: var(--sp-muted);
+  padding: var(--sp-space-2) 0;
+  user-select: none;
+  transition: color var(--sp-dur-fast) var(--sp-ease-out);
+}
+
+.sp-profile-card--plan summary:hover { color: var(--sp-accent-text); }

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Added
+
+- `hooks.comms` on a plugin's `hooks:` block opts the governance owner into the bridge's announcement-drain hooks (`UserPromptSubmit`/`Stop` → `comms-drain`). They were installed unconditionally with the governance hooks; a tenant that publishes no announcements now gets none.
+
+- `opencode` is a known bridge host, so a tenant may enable the OpenCode coding agent alongside the existing hosts.
+- `systemprompt_models::bridge::profile::KNOWN_HOSTS` is the single list of host ids the gateway accepts from a bridge. It was a private constant in the API route; the bridge's registry test now asserts against it, so a host added on one side without the other fails a test instead of silently never being enabled.
+- `SYSTEMPROMPT_DEPLOYMENT_HOST` makes "am I running on the host my cloud profile describes?" a portable question. The only signal for it was `FLY_APP_NAME`, injected by the Fly platform, so the shipped image was portable while the routing suppression baked into it was not — every self-hosted target was one `target: cloud` profile away from the outage production had, and would have hit it with an error naming a tenant store rather than the missing signal. `systemprompt_models::subprocess::{deployment_host, is_deployment_host}` answer from the marker or from `FLY_APP_NAME`, so tenants deployed before it existed keep working with no redeploy; the generated Dockerfile writes it, and it joins `FLY_APP_NAME` in `SYSTEM_MANAGED` so a laptop cannot round-trip its value into a deployment.
+
+### Fixed
+
+- **Security:** `GET /v1/bridge/plugins/{id}/{*path}` authorizes the caller rather than merely authenticating them. It checked for a valid token and then served any plugin's bytes, so any authenticated user could pull an admin plugin's bundle by path and read the skills and dashboards their signed manifest never offered. The endpoint now resolves the caller's own manifest candidate through the same `ManifestService` and marketplace filter the manifest endpoint uses, and 404s a plugin that candidate does not carry.
+- MCP subprocesses no longer inherit the wrong host. The spawner rebuilds the child environment from an allowlist that held only `PATH` and `HOME`, so every MCP child on a deployed host believed it was off-host and tried to route each command to the machine already running it.
+- The bridge no longer reuses one gateway's OAuth identity for another. `PluginTokenCache` was keyed on plugin id alone and `oauth_client.json` recorded no gateway, so repointing a bridge kept serving the previously minted identity to a gateway that could not verify it.
+
+### Changed
+
+- **Breaking:** `cowork` is no longer in `systemprompt_models::bridge::profile::KNOWN_HOSTS`. Cowork is a mode of the Claude desktop app, not a host; the bridge's Cowork sync emitters now key on `claude-desktop`. A profile or `enabled_hosts` request that still names `cowork` is rejected — drop it.
+
+### Bridge (0.34.0)
+
+See `bin/bridge/CHANGELOG.md`. The Home pane is gone and the app opens on Account; every state on the GUI wire now carries a verdict the bridge computed, with a gate that refuses a JavaScript branch on a state's name — the class of bug behind the "needs signing in" false alarm; MCP servers get one screen with the live auth verdict and `tools/list`; the bridge's modules are gated acyclic; OpenCode is a supported host, terminal-only hosts no longer offer an Open button, and the Hermes host gained its logo and unit coverage. The bridge's service state — proxy, runtime, install id, MCP registry, activity log, gateway client, caches — moved off process statics onto one `BridgeContext` built at the composition root and injected, with `just lint-bridge-globals` keeping it there (**Breaking** for white-label crates: `HostApp::probe`, `HostSync::clear` and `AuthProvider::authenticate` take their inputs); the whole GUI wire is typed and exported to TypeScript on every target; the web tree is within the 150-line JS / 300-line CSS standard and gated by `just lint-bridge-file-size`. The setup screen's heading, lede and footer are brand-driven, so a white-label build carries its own name, documentation link and licensing address.
+
 ## [0.42.0] - 2026-08-31
 
 ### Added

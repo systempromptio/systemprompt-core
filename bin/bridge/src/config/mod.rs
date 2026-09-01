@@ -15,7 +15,7 @@ pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_loaded};
 use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
-use std::sync::{LazyLock, Once};
+use std::sync::Once;
 
 use systemprompt_identifiers::ValidatedUrl;
 
@@ -26,12 +26,12 @@ pub use self::profile::{
 };
 pub use self::write::ConfigWriteError;
 
-static DEFAULT_GATEWAY: LazyLock<ValidatedUrl> = LazyLock::new(|| {
+pub(crate) fn default_gateway() -> ValidatedUrl {
     ValidatedUrl::try_new(crate::brand::brand().default_gateway_url).unwrap_or_else(|_| {
-        crate::obs::output::diag("config: brand default_gateway_url failed validation");
+        crate::stdio::diag("config: brand default_gateway_url failed validation");
         std::process::abort()
     })
-});
+}
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
@@ -105,7 +105,7 @@ impl Config {
         };
 
         if cfg.gateway_url.is_none() {
-            cfg.gateway_url = Some(DEFAULT_GATEWAY.clone());
+            cfg.gateway_url = Some(default_gateway());
         }
 
         cfg

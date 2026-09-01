@@ -1,19 +1,14 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
+import { runAction } from "/assets/js/utils/action.js";
 
+// `overall` is the bridge's one-dot summary; the footer draws the same one.
 function classify(snap) {
-  if (snap.sync_in_flight) {
-    return { state: "running", text: t("sync-in-flight") || "syncing" };
-  }
-  if (snap.gateway_status && snap.gateway_status.state === "unreachable") {
-    return { state: "err", text: t("gateway-unreachable") || "offline" };
-  }
-  if (snap.signed_in) {
-    return { state: "ok", text: snap.last_sync_summary ? (t("sync-success") || "synced") : (t("ready") || "ready") };
-  }
-  return { state: "idle", text: t("gateway-not-signed-in") || "needs sign-in" };
+  const overall = snap.overall || { tone: "unknown", code: "needs-sign-in" };
+  return { tone: overall.tone, text: t(`overall-${overall.code}`) || "" };
 }
 
 export class SpSyncPill extends SpElement {
@@ -26,15 +21,14 @@ export class SpSyncPill extends SpElement {
 
   onConnect() {
     this.classList.add("sp-sync-pill");
-    bridge.stateSnapshot().then((s) => { this.snapshot = s; }).catch((e) => console.warn("snapshot failed", e));
-    this.bridgeSubscribe("state.changed", (s) => { this.snapshot = s; });
+    this.useSnapshot((s) => { this.snapshot = s; });
     this.bridgeSubscribe("sync.progress", (p) => { this.progress = p; });
   }
 
   afterRender() {
     const snap = this.snapshot || {};
     const v = classify(snap);
-    this.dataset.state = v.state;
+    this.dataset.state = v.tone;
     this.title = snap.last_sync_summary
       ? (t("last-sync", { summary: snap.last_sync_summary }) || `Last sync: ${snap.last_sync_summary}`)
       : (t("last-sync-never") || "No syncs yet");
@@ -43,7 +37,10 @@ export class SpSyncPill extends SpElement {
   _onCancel(ev) {
     ev.preventDefault();
     ev.stopPropagation();
-    bridge.cancel("sync").catch((e) => console.warn("cancel sync failed", e));
+    runAction(ev.currentTarget, {
+      run: () => bridge.cancel("sync"),
+      context: t("sync-cancel") || "Cancel",
+    });
   }
 
   render() {

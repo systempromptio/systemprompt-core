@@ -9,8 +9,8 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::config::{Config, RuntimeConfig, SharedRuntimeConfig};
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::{BearerToken, ProxySecret};
 use systemprompt_bridge::proxy::dispatch::handle_request;
 use systemprompt_bridge::proxy::server::{ProxyContext, ProxyStats};
@@ -61,6 +61,7 @@ async fn spawn_harness() -> Harness {
         session: Arc::new(SessionContext::new()),
         port: 0,
         started_at_unix: 0,
+        deps: test_deps(),
     };
 
     let addr: SocketAddr = SocketAddr::from(([127, 0, 0, 1], 0));
@@ -302,4 +303,19 @@ async fn sse_messages_response_streams_back_and_taps_usage() {
     assert_eq!(h.stats.messages_total.load(Ordering::Relaxed), 1);
     assert_eq!(h.stats.tokens_in_total.load(Ordering::Relaxed), 11);
     assert_eq!(h.stats.tokens_out_total.load(Ordering::Relaxed), 7);
+}
+
+static REGISTRY: std::sync::LazyLock<Arc<systemprompt_bridge::mcp_registry::McpRegistrySlot>> =
+    std::sync::LazyLock::new(systemprompt_bridge::mcp_registry::empty_slot);
+
+fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
+    systemprompt_bridge::proxy::ProxyDeps {
+        install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
+        mcp_registry: Arc::clone(&REGISTRY),
+        activity: systemprompt_bridge::activity::ActivityLog::new(),
+        http: reqwest::Client::new(),
+        plugin_tokens: Arc::new(
+            systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+        ),
+    }
 }

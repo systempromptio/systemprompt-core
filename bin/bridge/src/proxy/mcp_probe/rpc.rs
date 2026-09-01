@@ -6,14 +6,14 @@
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use serde_json::{Value, json};
 
-use super::{MCP_PROTOCOL_VERSION, SESSION_HEADER};
+use super::{MCP_PROTOCOL_VERSION, McpTool, SESSION_HEADER};
 
 pub(super) async fn list_tools(
     client: &reqwest::Client,
     url: &str,
     bearer: &str,
     session: Option<&str>,
-) -> Vec<String> {
+) -> Vec<McpTool> {
     let initialized = with_session(
         client
             .post(url)
@@ -52,7 +52,7 @@ pub(super) async fn list_tools(
         .unwrap_or("")
         .to_owned();
     let body = resp.text().await.unwrap_or_default();
-    parse_tool_names(&content_type, &body)
+    parse_tools(&content_type, &body)
 }
 
 fn with_session(
@@ -78,7 +78,7 @@ pub(super) fn initialize_body() -> Value {
     })
 }
 
-fn parse_tool_names(content_type: &str, body: &str) -> Vec<String> {
+fn parse_tools(content_type: &str, body: &str) -> Vec<McpTool> {
     let Some(value) = parse_jsonrpc(content_type, body) else {
         return Vec::new();
     };
@@ -88,7 +88,15 @@ fn parse_tool_names(content_type: &str, body: &str) -> Vec<String> {
         .and_then(Value::as_array)
         .map(|arr| {
             arr.iter()
-                .filter_map(|t| t.get("name").and_then(Value::as_str).map(str::to_owned))
+                .filter_map(|t| {
+                    Some(McpTool {
+                        name: t.get("name")?.as_str()?.to_owned(),
+                        description: t
+                            .get("description")
+                            .and_then(Value::as_str)
+                            .map(str::to_owned),
+                    })
+                })
                 .collect()
         })
         .unwrap_or_default()

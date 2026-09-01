@@ -19,6 +19,6 @@ fn only_installed_counts_as_installed() {
 fn serializes_to_the_tags_the_ui_matches_on() {
     let tag = |s: AppInstallState| serde_json::to_string(&s).expect("serialize");
     assert_eq!(tag(AppInstallState::Installed), "\"installed\"");
-    assert_eq!(tag(AppInstallState::NotInstalled), "\"not_installed\"");
+    assert_eq!(tag(AppInstallState::NotInstalled), "\"not-installed\"");
     assert_eq!(tag(AppInstallState::Unknown), "\"unknown\"");
 }

@@ -11,9 +11,9 @@ use crate::auth::secret::Secret;
 use crate::auth::setup;
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, emit};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 mod session;
 
@@ -38,7 +38,7 @@ pub(crate) fn on_login_requested(
     app.append_log(i18n::t("login-saving"));
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Login);
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
@@ -67,7 +67,7 @@ pub(crate) fn on_login_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("login-pull-manifest"));
-            crate::proxy::reload_runtime_config();
+            app.ctx.proxy.reload_runtime_config();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
@@ -121,7 +121,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
     app.append_log(i18n::t_args("gateway-saving", &[("url", &trimmed)]));
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::SetGateway);
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
             setup::set_gateway_url(&trimmed)
                 .map(|_| ())
@@ -150,7 +150,7 @@ pub(crate) fn on_set_gateway_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("gateway-saved"));
-            crate::proxy::reload_runtime_config();
+            app.ctx.proxy.reload_runtime_config();
             app.state.reload();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             Ok(())
@@ -181,7 +181,7 @@ pub(crate) fn on_set_gateway_finished(
 pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("logout-running"));
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = match tokio::task::spawn_blocking(|| {
             setup::logout()
                 .map(|_| ())
@@ -234,10 +234,10 @@ fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId)
         return;
     };
     let payload = match result {
-        Ok(()) => crate::gui::ipc::IpcReplyPayload::ok(json!({})),
+        Ok(()) => crate::wire::ipc::IpcReplyPayload::ok(json!({})),
         Err(err) => {
             emit::emit_error(app, &err);
-            crate::gui::ipc::IpcReplyPayload::err(err)
+            crate::wire::ipc::IpcReplyPayload::err(err)
         },
     };
     emit::send_reply_payload(app, id, &payload);

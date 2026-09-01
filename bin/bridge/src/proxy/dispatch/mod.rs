@@ -58,7 +58,7 @@ pub async fn handle_request(
             user_agent: &user_agent,
             peer,
         };
-        return Ok(auth::reject_non_loopback(&log, &host_hdr));
+        return Ok(auth::reject_non_loopback(&ctx, &log, &host_hdr));
     }
 
     if is_unauthenticated_path(&method, &path) {
@@ -138,7 +138,11 @@ fn health_response(method: &Method) -> Response<ProxyBody> {
 // itself or by a stranger. It inherits the loopback-host guard above, and the
 // payload must carry no secret nor anything derived from one.
 fn whoami_response(ctx: &ProxyContext) -> Response<ProxyBody> {
-    let who = crate::proxy::identity::WhoAmI::current(ctx.port, ctx.started_at_unix);
+    let who = crate::proxy::identity::WhoAmI::current(
+        ctx.port,
+        ctx.started_at_unix,
+        &ctx.deps.install_id,
+    );
     match serde_json::to_string(&who) {
         Ok(body) => json_response(StatusCode::OK, body),
         Err(e) => {

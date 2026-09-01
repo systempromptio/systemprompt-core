@@ -1,4 +1,4 @@
-use systemprompt_bridge::integration::{ProxyProbeState, proxy_probe};
+use systemprompt_bridge::proxy_probe::{self, ProxyProbeState};
 
 #[test]
 fn no_url_yields_unconfigured_state() {
@@ -139,7 +139,7 @@ fn missing_host_yields_http_error() {
 
 #[test]
 fn a_configured_port_is_classified_against_the_live_one() {
-    use systemprompt_bridge::integration::proxy_probe::{PortMatch, classify_configured_port};
+    use systemprompt_bridge::proxy_probe::{PortMatch, classify_configured_port};
 
     assert_eq!(
         classify_configured_port("http://127.0.0.1:48217", 48217),

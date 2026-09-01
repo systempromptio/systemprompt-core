@@ -7,7 +7,6 @@
 
 use std::path::Path;
 
-use crate::proxy::mcp_probe::McpServerAuth;
 
 use super::frontmatter::parse_skill_frontmatter;
 use super::{FrontmatterExtra, MarketplaceExtra, MarketplaceItem, McpServerEntry};
@@ -139,16 +138,13 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
     out
 }
 
-pub(super) fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceItem> {
-    let registry = crate::mcp_registry::snapshot();
+pub(super) fn list_registry_mcp(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
+) -> Vec<MarketplaceItem> {
     let mut out = Vec::with_capacity(registry.len());
-    for (slug, upstream) in registry.iter() {
-        let proxy_url = crate::proxy::mcp_url(slug);
-        let tools = mcp_auth
-            .iter()
-            .find(|s| s.id == *slug)
-            .map(|s| s.tools.clone())
-            .unwrap_or_default();
+    for (slug, upstream) in registry {
+        let proxy_url = loopback.mcp_url(slug);
         let upstream_url = upstream.url.as_str().to_owned();
         out.push(MarketplaceItem {
             id: slug.clone(),
@@ -174,7 +170,6 @@ pub(super) fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceIt
                     .transport
                     .clone()
                     .or_else(|| Some("http".to_owned())),
-                tools,
             }),
         });
     }

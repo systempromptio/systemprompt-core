@@ -12,7 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::auth::types::HelperOutput;
+use crate::gateway::types::HelperOutput;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -37,7 +37,7 @@ struct CacheEntry {
 fn current_credential_fingerprint() -> Option<String> {
     let paths = crate::auth::setup::resolve_paths().ok()?;
     let pat = fs::read(&paths.pat_file).ok()?;
-    let mut hex = crate::sync::sha256_hex(&pat);
+    let mut hex = crate::hash::sha256_hex(&pat);
     hex.truncate(16);
     Some(hex)
 }

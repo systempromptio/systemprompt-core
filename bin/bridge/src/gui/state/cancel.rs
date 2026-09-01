@@ -31,7 +31,7 @@ impl AppState {
     pub fn install_cancel(&self, scope: CancelScope) -> CancellationToken {
         let token = CancellationToken::new();
         let prev = {
-            let mut guard = self.cancels.write();
+            let mut guard = self.cancels_mut();
             let prev = match scope {
                 CancelScope::Sync => guard.sync.replace(token.clone()),
                 CancelScope::Login => guard.login.replace(token.clone()),
@@ -48,7 +48,7 @@ impl AppState {
     }
 
     pub fn has_cancel(&self, scope: CancelScope) -> bool {
-        let guard = self.cancels.read();
+        let guard = self.cancels();
         match scope {
             CancelScope::Sync => guard.sync.is_some(),
             CancelScope::Login => guard.login.is_some(),
@@ -58,7 +58,7 @@ impl AppState {
     }
 
     pub fn clear_cancel(&self, scope: CancelScope) {
-        let mut guard = self.cancels.write();
+        let mut guard = self.cancels_mut();
         match scope {
             CancelScope::Sync => guard.sync = None,
             CancelScope::Login => guard.login = None,
@@ -70,7 +70,7 @@ impl AppState {
 
     pub fn cancel_scope(&self, scope: CancelScope) -> bool {
         let taken = {
-            let mut guard = self.cancels.write();
+            let mut guard = self.cancels_mut();
             match scope {
                 CancelScope::Sync => guard.sync.take(),
                 CancelScope::Login => guard.login.take(),
@@ -85,7 +85,7 @@ impl AppState {
     }
 
     pub fn cancel_all(&self) {
-        let mut guard = self.cancels.write();
+        let mut guard = self.cancels_mut();
         for token in [
             guard.sync.take(),
             guard.login.take(),

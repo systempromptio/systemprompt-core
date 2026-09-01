@@ -7,15 +7,13 @@ use std::sync::Arc;
 
 use serde_json::json;
 
-use crate::config;
-use crate::gateway::GatewayClient;
 use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::{GuiApp, emit};
 use crate::ids::HostId;
-use crate::integration::{GeneratedProfile, ProfileGenInputs, find_host_by_id, proxy_probe};
+use crate::integration::{GeneratedProfile, find_host_by_id};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
 
@@ -34,8 +32,9 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, repl
     let host_id_owned = host_id.clone();
     let overrides = app.state.snapshot().host_model_protocols;
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
-        let result = generate_profile_for(host, &overrides)
+    let bridge = Arc::clone(&app.ctx);
+    app.ctx.spawn(async move {
+        let result = generate_profile_for(host, &bridge, &overrides)
             .await
             .map_err(Arc::new);
         proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
@@ -121,7 +120,7 @@ pub(crate) fn on_profile_install_requested(
     let host_id_owned = host_id.clone();
     let path_clone = path.clone();
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    app.ctx.spawn(async move {
         let result = match tokio::task::spawn_blocking(move || {
             host.install_profile(&path)
                 .map(|()| path_clone)
@@ -192,74 +191,18 @@ pub(crate) fn on_profile_install_finished(
 
 async fn generate_profile_for(
     host: &'static dyn crate::integration::HostApp,
+    bridge: &crate::context::BridgeContext,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
-    let cfg = config::load();
-
-    // Why: a proxy that had to move off the default port is still perfectly
-    // usable, and `loopback_origin` finds it. Refusing on a missing in-process
-    // handle used to make a GUI that lost the port race unable to write any
-    // profile at all.
-    let gateway_base_url = crate::proxy::loopback_origin();
-
-    // Why: a foreign install on our port must still refuse — writing *our*
-    // loopback secret against *their* port produces exactly the 403 this
-    // profile is supposed to prevent.
-    let port = crate::proxy::resolved_port();
-    if let proxy_probe::PeerIdentity::Foreign(who) = proxy_probe::probe_identity(port) {
-        return Err(GuiError::Profile {
-            context: "proxy port held by another install".into(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::AddrInUse,
-                format!(
-                    "127.0.0.1:{port} is served by a different {} install ({}); a profile written \
-                     now would authenticate against the wrong proxy",
-                    crate::brand::brand().app_name,
-                    who.config_dir
-                ),
-            ),
-        });
-    }
-
-    let loopback_secret = crate::proxy::secret::for_profile()
-        .map(crate::ids::LoopbackSecret::into_inner)
+    // Why: the inputs come from `integration::reapply`, which is also what
+    // `install --apply` and `login` use. One builder is what stops the CLI
+    // repair paths and this button writing subtly different profiles.
+    let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides)
+        .await
         .map_err(|e| GuiError::Profile {
-            context: "loopback secret".into(),
+            context: "profile inputs".into(),
             source: e,
         })?;
-
-    let gateway_base = config::gateway_url_or_default(&cfg);
-    let server_profile = GatewayClient::new(gateway_base)
-        .fetch_bridge_profile()
-        .await?;
-
-    let surfaces = crate::integration::host_app::effective_surfaces(
-        host.id(),
-        host.accepted_surfaces(),
-        overrides,
-    );
-    let view = crate::integration::host_app::host_model_view(&server_profile.providers, &surfaces);
-    let models = view.compatible_models;
-
-    let mut headers = std::collections::BTreeMap::new();
-    if !surfaces.is_empty() {
-        headers.insert(
-            systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
-            surfaces
-                .iter()
-                .map(|s| s.as_tag())
-                .collect::<Vec<_>>()
-                .join(","),
-        );
-    }
-
-    let inputs = ProfileGenInputs {
-        gateway_base_url,
-        api_key: loopback_secret,
-        models,
-        organization_uuid: server_profile.organization_uuid,
-        headers,
-    };
     host.generate_profile(&inputs)
         .map_err(|e| GuiError::Profile {
             context: "host generate_profile".into(),

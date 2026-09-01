@@ -8,7 +8,7 @@ use std::env;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-use super::{Config, DEFAULT_GATEWAY};
+use super::{Config, default_gateway};
 use crate::ids::PinnedPubKey;
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -23,13 +23,9 @@ pub struct ClaudeConfig {
     pub organization_uuid: Option<String>,
 }
 
-pub(super) fn default_gateway_url() -> ValidatedUrl {
-    DEFAULT_GATEWAY.clone()
-}
-
 #[must_use]
 pub fn gateway_url_or_default(cfg: &Config) -> ValidatedUrl {
-    let url = cfg.gateway_url.clone().unwrap_or_else(default_gateway_url);
+    let url = cfg.gateway_url.clone().unwrap_or_else(default_gateway);
     tracing::debug!(gateway = %url, "gateway resolved");
     url
 }

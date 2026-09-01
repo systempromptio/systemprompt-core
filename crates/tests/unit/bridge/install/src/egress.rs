@@ -34,13 +34,13 @@ fn with_env(value: Option<&str>, f: impl FnOnce() -> Option<Vec<String>>) -> Opt
 
 #[test]
 fn unset_means_unrestricted() {
-    assert_eq!(with_env(None, cowork_egress_allowed_hosts), None);
+    assert_eq!(with_env(None, || cowork_egress_allowed_hosts(None)), None);
 }
 
 #[test]
 fn loopback_alias_expands_to_localhost() {
     assert_eq!(
-        with_env(Some("loopback"), cowork_egress_allowed_hosts),
+        with_env(Some("loopback"), || cowork_egress_allowed_hosts(None)),
         Some(vec!["127.0.0.1".to_owned()])
     );
 }
@@ -48,7 +48,7 @@ fn loopback_alias_expands_to_localhost() {
 #[test]
 fn alias_is_case_insensitive() {
     assert_eq!(
-        with_env(Some("LoopBack"), cowork_egress_allowed_hosts),
+        with_env(Some("LoopBack"), || cowork_egress_allowed_hosts(None)),
         Some(vec!["127.0.0.1".to_owned()])
     );
 }
@@ -56,10 +56,9 @@ fn alias_is_case_insensitive() {
 #[test]
 fn explicit_hosts_are_split_and_trimmed() {
     assert_eq!(
-        with_env(
-            Some(" github.com , loopback ,api.example.com "),
-            cowork_egress_allowed_hosts
-        ),
+        with_env(Some(" github.com , loopback ,api.example.com "), || {
+            cowork_egress_allowed_hosts(None)
+        }),
         Some(vec![
             "github.com".to_owned(),
             "127.0.0.1".to_owned(),
@@ -72,8 +71,14 @@ fn explicit_hosts_are_split_and_trimmed() {
 /// every host, the opposite of what clearing the variable reads as.
 #[test]
 fn empty_value_means_unrestricted() {
-    assert_eq!(with_env(Some(""), cowork_egress_allowed_hosts), None);
-    assert_eq!(with_env(Some("  , ,"), cowork_egress_allowed_hosts), None);
+    assert_eq!(
+        with_env(Some(""), || cowork_egress_allowed_hosts(None)),
+        None
+    );
+    assert_eq!(
+        with_env(Some("  , ,"), || cowork_egress_allowed_hosts(None)),
+        None
+    );
 }
 
 #[cfg(target_os = "windows")]
@@ -83,8 +88,12 @@ fn windows_policy_omits_egress_key_by_default() {
     unsafe {
         std::env::remove_var(ENV);
     }
-    let values =
-        systemprompt_bridge::install::windows_policy_values("https://gateway.example", None, None);
+    let values = systemprompt_bridge::install::windows_policy_values(
+        "https://gateway.example",
+        None,
+        None,
+        None,
+    );
     assert!(
         !values
             .iter()
@@ -100,8 +109,12 @@ fn windows_policy_writes_json_array_when_opted_in() {
     unsafe {
         std::env::set_var(ENV, "loopback");
     }
-    let values =
-        systemprompt_bridge::install::windows_policy_values("https://gateway.example", None, None);
+    let values = systemprompt_bridge::install::windows_policy_values(
+        "https://gateway.example",
+        None,
+        None,
+        None,
+    );
     unsafe {
         std::env::remove_var(ENV);
     }
@@ -120,10 +133,16 @@ fn macos_payloads_omit_egress_key_by_default() {
     unsafe {
         std::env::remove_var(ENV);
     }
-    let plist =
-        systemprompt_bridge::install::build_macos_prefs_plist("https://gateway.example", None);
-    let mc =
-        systemprompt_bridge::install::build_macos_mobileconfig("https://gateway.example", None);
+    let plist = systemprompt_bridge::install::build_macos_prefs_plist(
+        &mdm_inputs(),
+        "https://gateway.example",
+        None,
+    );
+    let mc = systemprompt_bridge::install::build_macos_mobileconfig(
+        &mdm_inputs(),
+        "https://gateway.example",
+        None,
+    );
     assert!(!plist.contains("coworkEgressAllowedHosts"), "{plist}");
     assert!(!mc.contains("coworkEgressAllowedHosts"), "{mc}");
     for rendered in [&plist, &mc] {
@@ -141,10 +160,16 @@ fn macos_payloads_render_array_when_opted_in() {
     unsafe {
         std::env::set_var(ENV, "loopback");
     }
-    let plist =
-        systemprompt_bridge::install::build_macos_prefs_plist("https://gateway.example", None);
-    let mc =
-        systemprompt_bridge::install::build_macos_mobileconfig("https://gateway.example", None);
+    let plist = systemprompt_bridge::install::build_macos_prefs_plist(
+        &mdm_inputs(),
+        "https://gateway.example",
+        None,
+    );
+    let mc = systemprompt_bridge::install::build_macos_mobileconfig(
+        &mdm_inputs(),
+        "https://gateway.example",
+        None,
+    );
     unsafe {
         std::env::remove_var(ENV);
     }
@@ -157,5 +182,26 @@ fn macos_payloads_render_array_when_opted_in() {
             rendered.contains("<string>127.0.0.1</string>"),
             "{rendered}"
         );
+    }
+}
+
+#[cfg(target_os = "macos")]
+static MDM_LOOPBACK: std::sync::LazyLock<systemprompt_bridge::proxy::LoopbackEndpoint> =
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::proxy::LoopbackEndpoint::new(
+            systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+            None,
+        )
+    });
+#[cfg(target_os = "macos")]
+static MDM_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
+    std::sync::LazyLock::new(std::collections::HashMap::new);
+
+#[cfg(target_os = "macos")]
+fn mdm_inputs() -> systemprompt_bridge::install::MdmPayloadInputs<'static> {
+    systemprompt_bridge::install::MdmPayloadInputs {
+        loopback: &MDM_LOOPBACK,
+        registry: &MDM_REGISTRY,
+        egress_allowed_hosts: None,
     }
 }

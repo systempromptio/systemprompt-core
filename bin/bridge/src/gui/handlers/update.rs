@@ -9,16 +9,17 @@ use serde_json::{Value, json};
 
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit};
 use crate::update::{self, UpdateUiState};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use systemprompt_identifiers::SessionId;
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_update_check_requested(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
-        let result = check().await.map_err(Arc::new);
+    let http = app.ctx.http.clone();
+    app.ctx.spawn(async move {
+        let result = check(http).await.map_err(Arc::new);
         proxy.send_event(UiEvent::UpdateCheckFinished { result, reply_to });
     });
 }
@@ -67,7 +68,8 @@ pub(crate) fn on_update_install_requested(app: &mut GuiApp, reply_to: ReplyId) {
     emit::emit_state(app);
 
     let proxy = app.proxy.clone();
-    app.runtime.spawn(async move {
+    let http = app.ctx.http.clone();
+    app.ctx.spawn(async move {
         let progress_proxy = proxy.clone();
         let progress_version = version.clone();
         let on_progress = move |p: update::DownloadProgress| {
@@ -82,7 +84,9 @@ pub(crate) fn on_update_install_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 percent,
             });
         };
-        let result = install(&version, &on_progress).await.map_err(Arc::new);
+        let result = install(&version, http, &on_progress)
+            .await
+            .map_err(Arc::new);
         proxy.send_event(UiEvent::UpdateInstallFinished { result, reply_to });
     });
 }
@@ -148,17 +152,18 @@ pub(crate) fn on_update_restart_requested(app: &GuiApp) {
     crate::gui::handlers::quit::on_quit();
 }
 
-async fn check() -> Result<Value, GuiError> {
-    let (client, bearer) = client_and_bearer().await?;
+async fn check(http: reqwest::Client) -> Result<Value, GuiError> {
+    let (client, bearer) = client_and_bearer(http).await?;
     let (status, _) = update::check(&client, &bearer).await?;
     Ok(serde_json::to_value(UpdateUiState::from(&status)).unwrap_or(Value::Null))
 }
 
 async fn install(
     version: &str,
+    http: reqwest::Client,
     on_progress: &(dyn Fn(update::DownloadProgress) + Send + Sync),
 ) -> Result<Value, GuiError> {
-    let (client, bearer) = client_and_bearer().await?;
+    let (client, bearer) = client_and_bearer(http).await?;
     // Why: re-checked rather than trusting the version the button was rendered
     // with — the manifest carries the digest, and a release published in between
     // would otherwise be installed without the user having agreed to it.
@@ -174,16 +179,21 @@ async fn install(
     Ok(json!({ "version": manifest.version, "path": path.display().to_string() }))
 }
 
-async fn client_and_bearer() -> Result<(crate::gateway::GatewayClient, String), GuiError> {
+async fn client_and_bearer(
+    http: reqwest::Client,
+) -> Result<(crate::gateway::GatewayClient, String), GuiError> {
     let cfg = crate::config::load();
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
     // Why: the updater is the escape hatch from a bad install, so it must not
     // be gated on a cache that a bad install is exactly what poisons.
-    let bearer = crate::auth::obtain_live_token(&cfg, &SessionId::generate())
+    let bearer = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
         .await
         .map(|out| out.token.expose().to_owned())
         .ok_or(GuiError::NotAuthenticated)?;
-    Ok((crate::gateway::GatewayClient::new(gateway_url), bearer))
+    Ok((
+        crate::gateway::GatewayClient::new(gateway_url, http),
+        bearer,
+    ))
 }
 
 fn reply(app: &GuiApp, reply_to: ReplyId, result: Result<Value, Arc<GuiError>>, what: &str) {

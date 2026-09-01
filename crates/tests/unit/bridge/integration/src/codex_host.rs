@@ -1,7 +1,17 @@
 use std::collections::BTreeMap;
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
-use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs, ProfileState};
+use systemprompt_bridge::integration::host_app::{
+    HostApp, ProbeEnv, ProfileGenInputs, ProfileState,
+};
 use tempfile::TempDir;
+
+fn probe_env() -> ProbeEnv {
+    ProbeEnv {
+        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+        loopback_secret_fingerprint: None,
+        start_menu: std::sync::Arc::default(),
+    }
+}
 
 fn codex_sandbox<R>(config_toml: Option<&str>, f: impl FnOnce() -> R) -> R {
     let home = TempDir::new().expect("codex home");
@@ -43,7 +53,7 @@ enabled = true
 
 #[test]
 fn an_absent_codex_config_probes_as_absent() {
-    let snapshot = codex_sandbox(None, || CODEX_CLI_HOST.probe());
+    let snapshot = codex_sandbox(None, || CODEX_CLI_HOST.probe(&probe_env()));
     assert_eq!(snapshot.host_id, "codex-cli");
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
@@ -56,7 +66,7 @@ fn an_absent_codex_config_probes_as_absent() {
 
 #[test]
 fn a_complete_codex_config_probes_as_installed_with_a_redacted_tenant() {
-    let snapshot = codex_sandbox(Some(COMPLETE), || CODEX_CLI_HOST.probe());
+    let snapshot = codex_sandbox(Some(COMPLETE), || CODEX_CLI_HOST.probe(&probe_env()));
     assert!(
         matches!(snapshot.profile_state, ProfileState::Installed),
         "every required key is present, got {:?}",
@@ -106,7 +116,7 @@ fn a_complete_codex_config_probes_as_installed_with_a_redacted_tenant() {
 fn a_partial_codex_config_lists_the_missing_required_keys() {
     let snapshot = codex_sandbox(
         Some("model_provider = \"systemprompt\"\n\n[analytics]\nenabled = true\n"),
-        || CODEX_CLI_HOST.probe(),
+        || CODEX_CLI_HOST.probe(&probe_env()),
     );
     match snapshot.profile_state {
         ProfileState::Partial { missing_required } => {
@@ -123,7 +133,9 @@ fn a_partial_codex_config_lists_the_missing_required_keys() {
 
 #[test]
 fn a_malformed_codex_config_falls_back_to_an_empty_read() {
-    let snapshot = codex_sandbox(Some("this is [not toml"), || CODEX_CLI_HOST.probe());
+    let snapshot = codex_sandbox(Some("this is [not toml"), || {
+        CODEX_CLI_HOST.probe(&probe_env())
+    });
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
         "a TOML parse failure degrades to Absent, not a panic"
@@ -146,7 +158,7 @@ fn the_managed_config_wins_over_the_user_config() {
         ("CODEX_HOME", Some(home.path().display().to_string())),
         ("CODEX_SYSTEM_CONFIG", Some(managed.display().to_string())),
     ];
-    let snapshot = temp_env::with_vars(vars, || CODEX_CLI_HOST.probe());
+    let snapshot = temp_env::with_vars(vars, || CODEX_CLI_HOST.probe(&probe_env()));
     assert_eq!(
         snapshot
             .profile_keys

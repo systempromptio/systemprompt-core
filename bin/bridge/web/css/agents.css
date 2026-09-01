@@ -24,30 +24,6 @@ body[data-setup-step="done"]    .sp-setup__step[data-step="done"] { display: blo
 .sp-setup-agent__desc { font-size: 12px; color: var(--sp-muted); }
 .sp-setup-agent button { white-space: nowrap; }
 
-.sp-agent__presence {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-space-1);
-  padding: var(--sp-space-1) var(--sp-space-1-5);
-  border: 1px solid var(--sp-line);
-  border-radius: 999px;
-  margin-right: var(--sp-space-1-5);
-}
-.sp-agent__presence:empty { display: none; }
-.sp-agent__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--sp-muted);
-  cursor: pointer;
-  transition: transform 0.15s;
-}
-.sp-agent__dot:hover { transform: scale(1.2); }
-.sp-agent__dot[data-state="ok"]      { background: var(--sp-ok); }
-.sp-agent__dot[data-state="warn"]    { background: var(--sp-warn); }
-.sp-agent__dot[data-state="err"]     { background: var(--sp-err); }
-.sp-agent__dot[data-state="unknown"] { background: var(--sp-muted); }
-
 .sp-tab__lede {
   margin: 0 0 var(--sp-space-4) 0;
   font-size: 13px;

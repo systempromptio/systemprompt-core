@@ -7,6 +7,8 @@ use crate::gateway::manifest::SignedManifest;
 use crate::sync::apply::{self, HostFailure};
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct SyncSummary {
     pub identity: String,
     pub manifest_version: String,

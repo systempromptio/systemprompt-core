@@ -1,31 +1,33 @@
 import { t } from "/assets/js/i18n.js";
-import { escapeHtml } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
+import { toneDot } from "/assets/js/utils/verdict.js";
 
 export function probeView(snap) {
-  const status = (snap && snap.gateway_status) || { state: "unknown" };
-  if (status.state === "reachable") {
-    return { dot: "sp-dot--ok", muted: false, text: t("setup-gateway-reachable", { latency: status.latency_ms }) || `reachable · ${status.latency_ms}ms` };
-  }
-  if (status.state === "probing") {
-    return { dot: "sp-dot--probing", muted: true, text: t("setup-gateway-probing") || "probing…" };
-  }
-  if (status.state === "unreachable") {
-    return { dot: "sp-dot--err", muted: false, text: t("setup-gateway-unreachable", { reason: status.reason || "unknown" }) || `unreachable · ${status.reason || "unknown"}` };
-  }
+  const gateway = (snap && snap.gateway_status) || { tone: "unknown", code: "unknown", settled: false };
   const empty = !(snap && snap.gateway_url);
-  return { dot: "sp-dot--unknown", muted: true, text: empty ? (t("setup-gateway-empty") || "enter a URL to probe…") : (t("setup-gateway-not-probed") || "not probed yet") };
+  if (!gateway.settled && empty) {
+    return { dot: toneDot("unknown"), muted: true, text: t("setup-gateway-empty") || "enter a URL to probe…" };
+  }
+  return {
+    dot: toneDot(gateway.tone),
+    muted: gateway.tone !== "ok" && gateway.tone !== "err",
+    text: t(`gateway-state-${gateway.code}`, { latency: gateway.latency_ms ?? "?", reason: gateway.reason || "unknown" }) || "",
+  };
 }
 
+// Why: whether an unverified token is *rejected* or merely *unverified yet* is
+// the bridge's call (`identity`), not this form's — Setup and Status used to
+// answer it differently from the same snapshot.
 export function probeErrorMessage(snap) {
   if (!snap) { return ""; }
-  const status = snap.gateway_status || { state: "unknown" };
-  const verified = snap.verified_identity && snap.verified_identity.user_id;
-  if (status.state === "reachable" && snap.pat_present && !verified) {
+  const identity = snap.identity || {};
+  const gateway = snap.gateway_status || {};
+  if (identity.code === "token-rejected") {
     return t("setup-token-rejected")
       || "The gateway rejected that personal access token. Issue a fresh one and try again.";
   }
-  if (status.state === "unreachable" && snap.pat_present) {
-    const reason = status.reason || "unknown error";
+  if (identity.code === "gateway-unreachable" && snap.pat_present) {
+    const reason = gateway.reason || "unknown error";
     return t("setup-gateway-unreachable-reason", { reason }) || `Gateway unreachable: ${reason}`;
   }
   return "";
@@ -33,10 +35,9 @@ export function probeErrorMessage(snap) {
 
 export function isPendingResolved(snap, pendingSinceMs) {
   if (!snap) { return false; }
-  const probeState = (snap.gateway_status && snap.gateway_status.state) || "unknown";
-  const configured = probeState === "reachable" && snap.verified_identity && snap.verified_identity.user_id;
+  const gateway = snap.gateway_status || {};
   const elapsed = pendingSinceMs > 0 ? (Date.now() - pendingSinceMs) : 0;
-  return configured || probeState === "unreachable" || elapsed > 15000;
+  return !!snap.signed_in || gateway.tone === "err" || elapsed > 15000;
 }
 
 export function patLinkFor(gateway) {
@@ -61,7 +62,7 @@ export function renderGatewayForm(state) {
   // The device-link flow round-trips through the gateway's browser login, so an
   // unreachable gateway can only ever fail — gate the button and say why rather
   // than opening a browser at a dead host.
-  const reachable = (snap.gateway_status || {}).state === "reachable";
+  const reachable = (snap.gateway_status || {}).tone === "ok";
   const signInDisabled = signInBusy || state.pending || !reachable;
   const gateReason = reachable || signInBusy || state.pending
     ? ""

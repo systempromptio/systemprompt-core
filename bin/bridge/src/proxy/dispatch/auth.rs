@@ -22,7 +22,11 @@ pub(super) struct RequestLog<'a> {
     pub peer: SocketAddr,
 }
 
-pub(super) fn reject_non_loopback(log: &RequestLog<'_>, host_hdr: &str) -> Response<ProxyBody> {
+pub(super) fn reject_non_loopback(
+    ctx: &ProxyContext,
+    log: &RequestLog<'_>,
+    host_hdr: &str,
+) -> Response<ProxyBody> {
     let RequestLog {
         req_id,
         method,
@@ -37,7 +41,7 @@ pub(super) fn reject_non_loopback(log: &RequestLog<'_>, host_hdr: &str) -> Respo
         peer = %peer,
         "reject: non-loopback host"
     );
-    crate::activity::activity_log().append_warn(format!(
+    ctx.deps.activity.append_warn(format!(
         "proxy: {method} {path} → 403 (non-loopback host: {host_hdr}) [{req_id}]"
     ));
     simple_response(StatusCode::FORBIDDEN, "forbidden: non-loopback host\n")
@@ -100,7 +104,7 @@ pub(super) fn verify_loopback_secret(
             remediation = %remediation,
             "reject: stale loopback secret"
         );
-        crate::activity::activity_log().append_warn(format!(
+        ctx.deps.activity.append_warn(format!(
             "proxy: {method} {path} → 403 (stale secret; presented_fp={presented_fp} \
              expected_fp={expected_fp}; secret_path={secret_path}; {remediation}) [{req_id}]"
         ));
@@ -115,7 +119,7 @@ pub(super) fn verify_loopback_secret(
     } else {
         "secret-mismatch"
     };
-    Some(rejection(body, reason))
+    Some(rejection(ctx, body, reason))
 }
 
 // Why: the secret fingerprints stay in the logs — putting either in the body
@@ -160,14 +164,14 @@ fn no_credential_body(ctx: &ProxyContext) -> String {
     )
 }
 
-fn rejection(body: String, reason: &'static str) -> Response<ProxyBody> {
+fn rejection(ctx: &ProxyContext, body: String, reason: &'static str) -> Response<ProxyBody> {
     let mut resp = owned_response(StatusCode::FORBIDDEN, body);
     let headers = resp.headers_mut();
     headers.insert(
         "x-systemprompt-bridge-reason",
         http::HeaderValue::from_static(reason),
     );
-    if let Ok(v) = http::HeaderValue::from_str(crate::proxy::identity::install_id().as_str()) {
+    if let Ok(v) = http::HeaderValue::from_str(ctx.deps.install_id.as_str()) {
         headers.insert("x-systemprompt-bridge-install", v);
     }
     if let Ok(v) = http::HeaderValue::from_str(&crate::proxy::identity::config_dir_display()) {

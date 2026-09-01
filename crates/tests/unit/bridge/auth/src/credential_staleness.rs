@@ -1,5 +1,5 @@
-use systemprompt_bridge::auth::types::HelperOutput;
 use systemprompt_bridge::auth::{cache, setup};
+use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_identifiers::ValidatedUrl;
 use tempfile::TempDir;
 

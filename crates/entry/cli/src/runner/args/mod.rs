@@ -185,8 +185,15 @@ impl DescribeCommand for Commands {
             Self::Infra(infrastructure::InfraCommands::Jobs(
                 infrastructure::jobs::JobsCommands::Run(_)
                 | infrastructure::jobs::JobsCommands::List,
-            ))
-            | Self::Analytics(_) => CommandDescriptor::FULL.with_skip_validation(),
+            )) => CommandDescriptor::FULL.with_skip_validation(),
+            // Why: reads. They may fall back to local data with a warning rather
+            // than refusing when a cloud profile cannot route remotely.
+            Self::Analytics(_) => CommandDescriptor::FULL
+                .with_skip_validation()
+                .with_read_only(),
+            Self::Infra(infrastructure::InfraCommands::Logs(_)) => {
+                CommandDescriptor::FULL.with_read_only()
+            },
             _ => CommandDescriptor::FULL,
         }
     }

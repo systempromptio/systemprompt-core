@@ -3,12 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::super::hash::{normalise_relative, safe_plugin_id, sha256_hex};
 use super::hooks::{ensure_plugin_json_managed_fields, write_hooks_json};
-use crate::auth::plugin_oauth::global_cache;
+use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
+use crate::hash::{normalise_relative, safe_plugin_id, sha256_hex};
 use crate::ids::Sha256Digest;
+use crate::proxy::LoopbackEndpoint;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::Path;
@@ -23,43 +24,35 @@ pub(crate) struct PluginApplyOutcome {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
 pub struct HostFailure {
     pub host_id: String,
     pub error: String,
 }
 
-#[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
+#[tracing::instrument(level = "debug", skip(ctx, manifest))]
 pub(super) async fn apply_plugins(
-    client: &GatewayClient,
-    bearer: &str,
+    ctx: &PluginSyncCtx<'_>,
     manifest: &SignedManifest,
-    root: &Path,
-    staging_root: &Path,
 ) -> Result<PluginApplyOutcome, super::ApplyError> {
     let mut installed = Vec::new();
     let mut updated = Vec::new();
     let mut malformed = Vec::new();
     let mut mcp_servers_by_plugin = BTreeMap::new();
-
-    let ctx = PluginSyncCtx {
-        client,
-        bearer,
-        root,
-        staging_root,
-    };
     for plugin in &manifest.plugins {
         if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
         }
-        match sync_one_plugin(&ctx, plugin, &manifest.hooks).await? {
+        match sync_one_plugin(ctx, plugin, &manifest.hooks).await? {
             PluginChange::Installed(id) => installed.push(id),
             PluginChange::Updated(id) => updated.push(id),
         }
-        let servers = extract_mcp_servers(&root.join(plugin.id.as_str()));
+        let servers = extract_mcp_servers(&ctx.root.join(plugin.id.as_str()));
         if !servers.is_empty() {
             mcp_servers_by_plugin.insert(plugin.id.to_string(), servers);
         }
-        if !is_well_formed(&root.join(plugin.id.as_str())) {
+        if !is_well_formed(&ctx.root.join(plugin.id.as_str())) {
             tracing::warn!(
                 plugin_id = %plugin.id,
                 "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
@@ -69,11 +62,11 @@ pub(super) async fn apply_plugins(
     }
 
     let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
-    let removed = remove_stale(root, &expected)?;
+    let removed = remove_stale(ctx.root, &expected)?;
     if !removed.is_empty() {
-        let cache = global_cache().await;
         for id in &removed {
-            cache.invalidate(&systemprompt_identifiers::PluginId::new(id));
+            ctx.plugin_tokens
+                .invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
         }
     }
 
@@ -121,11 +114,13 @@ enum PluginChange {
     Updated(String),
 }
 
-struct PluginSyncCtx<'a> {
-    client: &'a GatewayClient,
-    bearer: &'a str,
-    root: &'a Path,
-    staging_root: &'a Path,
+pub(super) struct PluginSyncCtx<'a> {
+    pub client: &'a GatewayClient,
+    pub bearer: &'a str,
+    pub loopback: &'a LoopbackEndpoint,
+    pub plugin_tokens: &'a PluginTokenCache,
+    pub root: &'a Path,
+    pub staging_root: &'a Path,
 }
 
 #[tracing::instrument(level = "debug", skip(ctx, plugin, hook_pool), fields(plugin_id = %plugin.id))]
@@ -151,7 +146,7 @@ async fn sync_one_plugin(
         source: e,
     })?;
 
-    write_hooks_json(plugin, &target, hook_pool)?;
+    write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
     ensure_plugin_json_managed_fields(&target)?;
 
     Ok(if was_present {

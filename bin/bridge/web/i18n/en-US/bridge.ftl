@@ -29,8 +29,6 @@ setup-warning-body = This build of systemprompt bridge is provided for demonstra
 
 # Sync / actions --------------------------------------------------------------
 sync-button = Sync now
-sync-success = synced
-sync-in-flight = syncing
 sync-cancel = Cancel
 sync-cancelled = Sync cancelled.
 login-cancelled = Sign-in cancelled.
@@ -59,7 +57,6 @@ validate-running = Re-checking…
 
 # Gateway ---------------------------------------------------------------------
 gateway-unreachable = offline
-gateway-not-signed-in = needs sign-in
 
 # Marketplace -----------------------------------------------------------------
 marketplace-heading = Marketplace
@@ -108,14 +105,11 @@ agents-action-add = Add agent
 agents-action-reverify-all = Re-check all
 agents-status-cloud-signed-in = signed in as { $email }
 agents-status-cloud-signed-out = signed out
-agents-status-cloud-unreachable = cloud unreachable
 agents-status-proxy-listening = Listening · { $latency }ms · { $status }
 agents-status-proxy-refused = proxy refused
 agents-status-proxy-timeout = proxy timed out
 agents-status-proxy-http-error = proxy http error
 agents-status-proxy-unconfigured = proxy unconfigured
-agents-status-proxy-checking = checking…
-agents-status-token-ok = Session valid · expires in { $ttl }
 agents-status-token-expiring = Session expires in { $ttl }
 agents-status-token-missing = no token
 host-action-open = Open
@@ -137,6 +131,8 @@ agent-reason-absent = This agent is not routed through systemprompt yet
 agent-reason-no-key = No usable model — add an API key for { $providers }
 agent-reason-no-models = No model this agent can use is available
 agent-reason-proxy-down = The local proxy is not responding
+agent-reason-never-probed = Not checked yet
+agent-reason-cloud-managed = Managed from the cloud — nothing to install on this computer
 agent-action-repair = Repair
 agent-action-verify = Re-check
 agent-action-add = Add
@@ -147,8 +143,6 @@ agent-action-download = Download
 agent-action-remove = Remove agent
 agent-open-details = Open details for { $name }
 agent-repair-explainer = Repair rewrites this agent's configuration profile and re-applies it. Restart the agent afterwards.
-agent-kind-cli = Command line
-agent-kind-desktop = Desktop app
 agent-section-health = Health
 agent-section-models = Models
 agent-section-config = Technical detail
@@ -192,9 +186,6 @@ rail-profile-update-cta = Click here to update
 rail-profile-update-to = Update to
 rail-profile-restart-cta = Restart to finish updating
 rail-profile-release-notes = Release notes
-rail-profile-downloading = Downloading
-rail-profile-installing = Installing…
-rail-profile-update-failed = Update failed
 status-proxy-heading = Local proxy
 status-proxy-caption = The 127.0.0.1 endpoint agents call instead of the Anthropic API.
 status-proxy-health = Health
@@ -206,7 +197,15 @@ status-mcp-caption = Whether managed MCP servers authenticate end-to-end through
 status-agents-heading = Agents
 status-agents-caption-prefix = Coding agents routed through systemprompt bridge. Manage them in the
 status-agents-tab-link = Agents tab
-status-agents-connected = Connected
+status-agents-working = Working
+status-agents-foot-configured = { $n } configured
+status-agents-foot-running = { $n } app running
+status-agents-foot-attention = { $n } need attention
+agents-fleet-all-working = all working
+agents-fleet-needs-attention = needs attention
+agents-fleet-not-working = not working
+agents-fleet-checking = checking…
+agents-fleet-none-enabled = no agents enabled
 status-open-agents = Open agents
 
 # Settings tab ----------------------------------------------------------------
@@ -254,19 +253,6 @@ footer-licensing = licensing
 footer-tabs-hint = tabs
 
 # Topbar / navigation ---------------------------------------------------------
-nav-home = Home
-
-# Home -------------------------------------------------------------------------
-home-agents-heading = Your agents
-home-waiting-heading = Waiting on you
-home-waiting-mcp = { $count ->
-    [one] { $names } needs signing in again
-   *[other] { $count } MCP servers need signing in again ({ $names })
-  }
-home-waiting-never-synced = You have not synced yet, so no plugins are installed.
-home-waiting-session = Your session expires in { $minutes } minutes — sign in again to keep agents governed.
-home-waiting-update-available = Version { $version } is available.
-home-waiting-update-ready = Version { $version } is ready — restart to finish updating.
 nav-activity = Activity
 nav-account = Account
 nav-marketplace = Marketplace
@@ -331,7 +317,6 @@ marketplace-detail-copied = Copied
 # Agents (the coding agents on this computer) ----------------------------------
 host-profile-installed = configuration profile installed
 host-profile-partial = configuration profile incomplete (missing: { $missing })
-host-profile-not-installed = no configuration profile
 host-process-running = running
 host-process-not-running = not running
 host-jwt-warn = This agent's session expires in { $ttl }. Repair the agent to renew it.
@@ -367,16 +352,12 @@ setup-agents-install = Install configuration profile
 setup-agents-empty = No agents available on this platform.
 
 # Setup gateway probe ---------------------------------------------------------
-setup-gateway-reachable = reachable · { $latency }ms
-setup-gateway-probing = probing…
-setup-gateway-unreachable = unreachable · { $reason }
 setup-connecting = Connecting…
 setup-signing-in = Waiting for your browser…
 setup-sign-in-cancel = Cancel
 setup-gateway-required = Check the gateway URL under Advanced, then try again.
 setup-step-label-connect = Step 1 of 2
 setup-step-label-agents = Step 2 of 2
-setup-gateway-not-probed = not checked yet
 
 # Native menu bar ------------------------------------------------------------
 menu-edit = Edit
@@ -447,12 +428,6 @@ activity-level-all = All
 activity-level-error = Errors
 activity-level-warn = Warnings
 activity-search-placeholder = Filter activity…
-governance-forwarded = { $count } forwarded
-governance-governing = Governing
-governance-idle = No traffic in the last { $duration }
-governance-last-request = last { $ago }
-governance-proxy-down = Proxy not responding — agents are not being governed
-governance-tokens = { $tokens } tokens
 settings-config-malformed = Your configuration file could not be read, so nothing can be saved until it is fixed: { $malformed }
 settings-gateway-cancel = Cancel
 settings-gateway-empty = Enter a gateway URL.
@@ -466,7 +441,6 @@ settings-pin-none = Not pinned — the first sync will trust and pin whatever ke
 settings-pin-source-operator = Set on this device
 settings-pin-source-policy = Set by device policy
 settings-schedule-installed = Registered with the system scheduler as { $label }
-settings-schedule-manual = Manual — sync from the Marketplace pane
 settings-schedule-unknown = Could not be determined on this system
 settings-security-heading = Security
 settings-session-label = Sign in through the browser instead of a personal access token
@@ -480,7 +454,6 @@ setup-health-failures-only = Failures only
 setup-health-label-attention = attention
 setup-health-label-failing = failing
 setup-health-label-healthy = healthy
-setup-health-label-unknown = not checked yet
 setup-health-malformed-plugins = malformed plugins
 setup-health-never = not checked yet
 setup-health-provider-unconfigured = not configured
@@ -489,3 +462,80 @@ setup-health-ran-ok = All checks passed.
 setup-health-run = Re-check
 toast-gateway-saved = Gateway saved.
 toast-setting-saved = Saved.
+
+# Verdicts ---------------------------------------------------------------------
+# One key per code the bridge can emit; the enum is the producer and
+# scripts/lint-bridge-i18n.sh checks the two against each other.
+tone-section-ok = healthy
+tone-section-warn = attention
+tone-section-err = down
+tone-section-probing = checking…
+tone-section-unknown = unknown
+
+gateway-state-unknown = not checked yet
+gateway-state-probing = checking…
+gateway-state-reachable = reachable · { $latency }ms
+gateway-state-unreachable = unreachable · { $reason }
+
+identity-gateway-unreachable = gateway unreachable
+identity-verifying = verifying credentials
+identity-signed-in = signed in
+identity-token-rejected = token rejected by the gateway
+identity-signed-out = not signed in
+
+agents-status-cloud-gateway-unreachable = cloud unreachable
+agents-status-cloud-verifying = verifying credentials
+agents-status-cloud-token-rejected = token rejected — sign in again
+agents-status-proxy-unknown = checking…
+agents-status-token-valid = Session valid · expires in { $ttl }
+
+overall-syncing = syncing
+overall-offline = offline
+overall-synced = synced
+overall-ready = ready
+overall-needs-sign-in = needs sign-in
+
+proxy-state-unknown = checking…
+proxy-state-unconfigured = awaiting first host-app probe
+proxy-state-listening = listening
+proxy-state-refused = connection refused
+proxy-state-timeout = timed out
+proxy-state-http-error = http error
+
+mcp-auth-unknown = not checked yet
+mcp-auth-no-servers = no servers registered
+mcp-auth-authenticated = authenticated
+mcp-auth-loopback-mismatch = bad loopback secret (403)
+mcp-auth-gateway-unauthorized = gateway unauthorized (401)
+mcp-auth-not-registered = not in proxy registry (404)
+mcp-auth-upstream-error = upstream error
+mcp-auth-proxy-unreachable = proxy unreachable
+mcp-auth-probe-timeout = did not answer in time
+mcp-auth-local-error = could not be checked
+mcp-auth-protocol-error = protocol error
+mcp-recheck = Re-check
+mcp-checking = Checking…
+mcp-tools = { $count ->
+    [one] { $count } tool
+   *[other] { $count } tools
+  }
+mcp-no-tools = Authenticated — no tools exposed.
+mcp-signed-in-as = signed in as { $email }
+mcp-checked = checked
+mcp-live-roundtrip = Live initialize + tools/list through the loopback proxy.
+mcp-open-marketplace = Open in Marketplace
+mcp-proxy-url = Proxy URL
+mcp-upstream-url = Upstream URL
+
+setup-health-label-not-checked = not checked yet
+host-profile-absent = no configuration profile
+agent-kind-cli-tool = Command line
+agent-kind-desktop-app = Desktop app
+settings-schedule-not-installed = Manual — sync from the Marketplace pane
+
+update-phase-downloading = Downloading { $percent }%
+update-phase-installing = Installing…
+update-phase-failed = { $message }
+mcp-rechecked = MCP servers re-checked.
+mcp-tools-unavailable = Tools are listed once the server authenticates.
+marketplace-detail-auth = Authentication

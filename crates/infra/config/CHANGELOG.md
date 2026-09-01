@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Changed
+
+- The secrets loader decides it is on the deployment host through `systemprompt_models::subprocess::is_deployment_host` instead of reading `FLY_APP_NAME` directly, so a self-hosted container that sets `SYSTEMPROMPT_DEPLOYMENT_HOST` loads its secrets from the environment the same way a Fly one does.
+
 ## [0.39.0] - 2026-08-25
 
 ### Fixed

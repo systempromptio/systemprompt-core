@@ -36,9 +36,10 @@ pub enum SyncError {
     #[error(
         "Cowork reads {system_path} but this process cannot write there — re-run `{bin} install \
          --apply` and approve the single administrator prompt (it provisions the Claude policy \
-         and grants you write access to org-plugins), or disable the Cowork host for this user"
+         and grants you write access to org-plugins), or disable the Claude Desktop host for \
+         this user"
     )]
-    CoworkNeedsElevation {
+    OrgPluginsNeedElevation {
         bin: &'static str,
         system_path: String,
     },
@@ -50,7 +51,7 @@ pub enum SyncError {
     )]
     PathMissing { bin: &'static str, path: String },
     #[error("sync apply failed: {0}")]
-    ApplyFailed(crate::sync::apply::ApplyError),
+    ApplyFailed(crate::host_sync::ApplyError),
     #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
     ReplayedManifest { last: String, incoming: String },
     #[error("manifest clock skew rejected: not_before {not_before} outside +/- 5m of now {now}")]
@@ -101,7 +102,7 @@ impl SyncError {
             Self::SchemaTooNew { .. } | Self::ManifestShape(_) | Self::BridgeTooOld { .. } => {
                 ExitCode::from(11)
             },
-            Self::CoworkNeedsElevation { .. } => ExitCode::from(12),
+            Self::OrgPluginsNeedElevation { .. } => ExitCode::from(12),
         }
     }
 }

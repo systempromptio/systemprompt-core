@@ -166,3 +166,9 @@
 }
 .sp-mkt-actions .sp-mkt-actions__meta[data-state="never"] .sp-dot { background: var(--sp-muted); }
 .sp-mkt-actions .sp-mkt-actions__meta[data-state="err"]   .sp-dot { background: var(--sp-err); }
+
+.sp-mkt-mcp .sp-status__row { display: flex; align-items: center; gap: var(--sp-space-2); }
+.sp-mkt-mcp__recheck { margin-left: auto; }
+.sp-mkt-tools { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-space-1-5); }
+.sp-mkt-tool { display: flex; flex-direction: column; gap: var(--sp-space-0-5); }
+.sp-mkt-tool__desc { font-size: 12px; color: var(--sp-muted); }

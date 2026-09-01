@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
 use ed25519_dalek::{Signer, SigningKey};
+use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{
     MANIFEST_SCHEMA_VERSION, ManifestError, SignedManifest, SignedManifestEnvelope, decode_payload,
     verify_envelope,
@@ -211,7 +212,12 @@ fn run_verified_sync(
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(systemprompt_bridge::sync::run_once(false, true, allow_tofu))
+                .block_on(systemprompt_bridge::sync::run_once(
+                    &bridge(),
+                    false,
+                    true,
+                    allow_tofu,
+                ))
                 .map_err(|e| e.to_string())
         },
     )
@@ -396,4 +402,8 @@ fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_versio
         Err(ManifestError::BridgeTooOld { local, .. }) => assert_eq!(local, COMPAT_VERSION),
         other => panic!("expected BridgeTooOld carrying the compat line, got {other:?}"),
     }
+}
+
+fn bridge() -> std::sync::Arc<BridgeContext> {
+    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }

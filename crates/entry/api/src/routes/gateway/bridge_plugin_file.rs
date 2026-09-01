@@ -17,7 +17,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::JwtToken;
-use systemprompt_marketplace::{CatalogContent, plugin_bundles_cached};
+use systemprompt_marketplace::{CatalogContent, ManifestService, plugin_bundles_cached};
 use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_runtime::AppContext;
 
@@ -33,7 +33,7 @@ pub async fn handle(
     headers: HeaderMap,
     AxumPath((plugin_id, relative_path)): AxumPath<(String, String)>,
 ) -> Result<Response, HttpError> {
-    authenticate(&jwt_extractor, &headers).await?;
+    let user = authenticate(&jwt_extractor, &headers).await?;
 
     if !relative_path_is_safe(&relative_path) {
         tracing::warn!(
@@ -48,6 +48,20 @@ pub async fn handle(
         tracing::debug!(error = %e, plugin_id = %plugin_id, "bridge: malformed plugin id");
         (StatusCode::NOT_FOUND, "Plugin not found".to_owned())
     })?;
+
+    // Why: authentication is not authorization. The signed manifest is assembled
+    // per user and omits a plugin the caller's roles do not grant, but the
+    // bytes are served from this endpoint — so without the same scoping here,
+    // any valid token could pull an admin plugin's bundle by path and read the
+    // skills and dashboards its manifest never offered.
+    if !plugin_is_granted(&ctx, &id, &user.id).await? {
+        tracing::warn!(
+            plugin_id = %plugin_id,
+            user_id = %user.id,
+            "bridge: refused a plugin bundle the caller was not granted"
+        );
+        return Err((StatusCode::NOT_FOUND, "Plugin not found".to_owned()));
+    }
 
     let bundles = build_bundles(&ctx)?;
     let bundle = bundles
@@ -68,7 +82,7 @@ pub async fn handle(
 async fn authenticate(
     jwt_extractor: &JwtContextExtractor,
     headers: &HeaderMap,
-) -> Result<(), HttpError> {
+) -> Result<systemprompt_traits::AuthUser, HttpError> {
     let credential = extract_credential(headers).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
@@ -78,8 +92,50 @@ async fn authenticate(
     jwt_extractor
         .decode_for_gateway(&JwtToken::new(credential))
         .await
-        .map(|_| ())
+        .map(|(_, user)| user)
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))
+}
+
+// Why: goes through the same `ManifestService` + marketplace filter as the
+// manifest endpoint, so the two can never disagree about what a role was
+// granted.
+async fn plugin_is_granted(
+    ctx: &AppContext,
+    plugin_id: &PluginId,
+    user_id: &systemprompt_identifiers::UserId,
+) -> Result<bool, HttpError> {
+    let services = bridge_data::load_services_config().map_err(|e| {
+        tracing::error!(error = %e, "bridge: services load failed while authorizing a plugin file");
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Plugin bundle unavailable".to_owned(),
+        )
+    })?;
+    let profile = ProfileBootstrap::get().map_err(|e| {
+        tracing::error!(error = %e, "bridge: profile load failed while authorizing a plugin file");
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Plugin bundle unavailable".to_owned(),
+        )
+    })?;
+
+    let candidate = ManifestService::assemble_candidate(
+        &services,
+        ctx.app_paths().system().services(),
+        &profile.server.api_external_url,
+        ctx.marketplace_filter().as_ref(),
+        user_id,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "bridge: candidate assembly failed while authorizing a plugin file");
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Plugin bundle unavailable".to_owned(),
+        )
+    })?;
+
+    Ok(candidate.plugins.iter().any(|p| &p.id == plugin_id))
 }
 
 fn build_bundles(

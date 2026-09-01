@@ -36,14 +36,9 @@ pub fn build_environment(
 ) -> Vec<(String, String)> {
     let mut env = Vec::new();
 
-    for inherited in ["PATH", "HOME"] {
-        if let Some(value) = lookup(inherited) {
-            env.push((inherited.to_owned(), value));
-        }
-    }
-    if let Some(entry) = systemprompt_models::net::trusted_hosts_env_entry(&lookup) {
-        env.push(entry);
-    }
+    env.extend(systemprompt_models::subprocess::inherited_parent_env(
+        &lookup,
+    ));
 
     env.push((
         "SYSTEMPROMPT_PROFILE".to_owned(),

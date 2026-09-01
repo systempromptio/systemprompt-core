@@ -22,8 +22,10 @@ pub mod activity;
 pub mod auth;
 pub mod basedirs;
 pub mod brand;
+pub mod buildinfo;
 pub mod cli;
 pub mod config;
+pub mod context;
 pub mod cowork_compat;
 #[cfg(feature = "dev-preview")]
 pub mod dev_preview;
@@ -31,31 +33,33 @@ pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
+pub mod hash;
+pub mod host_sync;
 
 pub mod i18n;
 pub mod ids;
 pub mod install;
 pub mod integration;
-#[cfg(all(
-    feature = "ts-export",
-    not(any(target_os = "windows", target_os = "macos"))
-))]
-#[path = "gui/ipc.rs"]
-pub mod ipc_types;
 pub mod mcp_registry;
 pub mod obs;
+pub mod probe_cache;
 pub mod proxy;
+pub mod proxy_probe;
 pub mod schedule;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub(crate) mod single_instance;
+pub mod stdio;
 pub mod sync;
 pub(crate) mod sysproc;
 pub mod update;
+pub mod user_alert;
 pub mod validate;
+pub mod verdict;
 pub mod web_assets;
 pub mod window_state;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
+pub mod wire;
 
 use std::process::ExitCode;
 
@@ -167,7 +171,6 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     winproc::attach_parent_console_if_present();
     obs::install_panic_hook();
     obs::tracing_init::init();
-    activity::install_persistent_writer();
     purge_legacy_agents_state();
     // Why: must run before anything else touches the install directory — on
     // Windows this deletes the binary the previous version was renamed to, which
@@ -176,6 +179,8 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     cli::run()
 }
 
+// Why: agents.json stopped being written in 0.28.0; this one-way purge can go
+// once 0.36.0 is the oldest bridge still updating itself.
 fn purge_legacy_agents_state() {
     let Some(base) = basedirs::config_dir() else {
         return;

@@ -8,13 +8,13 @@ use std::process::ExitCode;
 use systemprompt_identifiers::ValidatedUrl;
 
 use crate::cli::args::{has_flag, parse_opt_flag};
-use crate::cli::output;
+use crate::context::BridgeContext;
 use crate::ids::PinnedPubKey;
-use crate::install;
-use crate::obs::output::diag;
 use crate::schedule::Os;
+use crate::stdio::diag;
+use crate::{install, stdio};
 
-pub(super) fn cmd_install(args: &[String]) -> ExitCode {
+pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let print_mdm = parse_opt_flag(args, "--print-mdm")
         .as_deref()
         .and_then(Os::parse);
@@ -35,23 +35,34 @@ pub(super) fn cmd_install(args: &[String]) -> ExitCode {
     let apply = has_flag(args, "--apply");
     let apply_mobileconfig = has_flag(args, "--apply-mobileconfig");
     let apply_schedule = has_flag(args, "--apply-schedule");
-    // Why: recorded process-globally rather than threaded through InstallOptions
-    // because the MDM payload renderers are reached from `--print-mdm` too, which
-    // carries no options struct.
-    _ = install::set_egress_allowed_hosts(
-        parse_opt_flag(args, "--egress-allowed-hosts").as_deref(),
-    );
-    match install::install(&install::InstallOptions {
-        print_mdm,
-        emit_schedule_template: emit_sched,
-        gateway_url: gateway,
-        pubkey,
-        apply,
-        apply_mobileconfig,
-        apply_schedule,
-    }) {
+    let egress_allowed_hosts = parse_opt_flag(args, "--egress-allowed-hosts")
+        .as_deref()
+        .and_then(install::parse_egress_allowed_hosts);
+    match install::install(
+        &install::InstallOptions {
+            print_mdm,
+            emit_schedule_template: emit_sched,
+            gateway_url: gateway,
+            pubkey,
+            apply,
+            apply_mobileconfig,
+            apply_schedule,
+            egress_allowed_hosts,
+        },
+        ctx,
+    ) {
         Ok(summary) => {
-            output::print_str(&install::render_install_summary(&summary));
+            stdio::print_str(&install::render_install_summary(&summary));
+            // Why: repairs the profiles that have gone stale and leaves
+            // hosts that were never set up alone, so the stale-secret
+            // remediation can keep naming this command.
+            if apply {
+                let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+                let reports = ctx.block_on(crate::integration::reapply::reapply_stale_profiles(
+                    ctx, &overrides,
+                ));
+                stdio::print_str(&crate::integration::reapply::render(&reports));
+            }
             ExitCode::SUCCESS
         },
         Err(err) => {

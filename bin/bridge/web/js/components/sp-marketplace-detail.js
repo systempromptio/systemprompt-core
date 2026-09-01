@@ -1,24 +1,12 @@
-import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
+import { SpElement, reactive } from "/assets/js/components/sp-element.js";
+import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
-import { shortcut } from "/assets/js/utils/rail-tabs.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
-
-const KIND_LABEL = {
-  plugins: "Plugin",
-  skills: "Skill",
-  hooks: "Hook",
-  mcp: "MCP server",
-  agents: "Agent",
-};
-
-const CHILD_KIND_LABEL = {
-  skills: "Skill",
-  agents: "Agent",
-  hooks: "Hook",
-  mcp: "MCP server",
-};
-
-const CHILD_KIND_ORDER = ["skills", "agents", "mcp", "hooks"];
+import { bridge } from "/assets/js/bridge.js";
+import { runAction } from "/assets/js/utils/action.js";
+import { mktKindSingular } from "/assets/js/utils/marketplace-kinds.js";
+import { renderMarketplaceMcp } from "/assets/js/components/marketplace-detail-mcp.js";
+import { renderMarketplaceDetailEmpty, renderMarketplaceChildren, renderMarketplacePath } from "/assets/js/components/marketplace-detail-sections.js";
 
 export class SpMarketplaceDetail extends SpElement {
   constructor() {
@@ -27,6 +15,12 @@ export class SpMarketplaceDetail extends SpElement {
     this.kind = "plugins";
     this.copied = false;
     this.knownIds = null;
+    this.snapshot = null;
+    this.registerAction("mcp-recheck", (trigger) => runAction(trigger, {
+      run: () => bridge.mcpAuthProbe(this.selected && this.selected.id),
+      success: () => t("mcp-rechecked") || "MCP server re-checked.",
+      context: t("mcp-recheck") || "Re-check",
+    }));
     this.registerAction("open-child", (trigger) => {
       this.dispatchEvent(new CustomEvent("mkt-navigate", {
         detail: { kind: trigger.dataset.kind, id: trigger.dataset.id },
@@ -34,85 +28,47 @@ export class SpMarketplaceDetail extends SpElement {
         composed: true,
       }));
     });
-    this.registerAction("copy-path", async () => {
-      const value = this.selected && this.selected.path;
-      if (!value) { return; }
-      try {
-        await navigator.clipboard.writeText(value);
-        this.copied = true;
-        notifyOk(t("toast-copied") || "Copied to the clipboard.");
-        setTimeout(() => { this.copied = false; }, 1200);
-      } catch (e) {
-        notifyErr(e, t("marketplace-detail-copy") || "Copy");
-      }
-    });
+    this.registerAction("copy-path", () => this._copyPath());
+  }
+
+  async _copyPath() {
+    const value = this.selected && this.selected.path;
+    if (!value) { return; }
+    try {
+      await navigator.clipboard.writeText(value);
+      this.copied = true;
+      notifyOk(t("toast-copied") || "Copied to the clipboard.");
+      setTimeout(() => { this.copied = false; }, 1200);
+    } catch (e) {
+      notifyErr(e, t("marketplace-detail-copy") || "Copy");
+    }
   }
 
   render() {
     const selected = this.selected;
-    if (!selected) {
-      return `<article class="sp-mkt-detail">
-        <div class="sp-mkt-empty">
-          <span class="sp-mkt-empty__glyph" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          </span>
-          <span class="sp-mkt-empty__title" data-l10n-id="marketplace-empty-title">Select an item</span>
-          <span class="sp-mkt-empty__sub">Pick from the list, or use <span class="sp-kbd">${escapeHtml(shortcut("F"))}</span> to search.</span>
-        </div>
-      </article>`;
-    }
+    if (!selected) { return renderMarketplaceDetailEmpty(); }
     const sourceChip = selected.source ? `<span class="sp-mkt-chip">${escapeHtml(selected.source)}</span>` : "";
     const versionChip = selected.version ? `<span class="sp-mkt-chip sp-mkt-chip--mono">v${escapeHtml(selected.version)}</span>` : "";
     const summary = selected.summary ? `<p class="sp-mkt-detail__summary">${escapeHtml(selected.summary)}</p>` : "";
     const readme = selected.readme ? `<section class="sp-mkt-detail__section"><h3>${escapeHtml(t("marketplace-detail-readme") || "README")}</h3><div class="sp-mkt-detail__readme">${escapeHtml(selected.readme)}</div></section>` : "";
-    const tools = (selected.extra && Array.isArray(selected.extra.tools)) ? selected.extra.tools : [];
-    const toolsSection = tools.length ? `
-      <section class="sp-mkt-detail__section">
-        <h3>${escapeHtml(t("marketplace-detail-tools") || "Tools")} (${tools.length})</h3>
-        <div class="sp-chip-list">${tools.map((tool) => `<span class="sp-chip">${escapeHtml(tool)}</span>`).join("")}</div>
-      </section>` : "";
-    const children = Array.isArray(selected.children) ? selected.children : [];
-    const childrenSection = children.length ? `
-      <section class="sp-mkt-detail__section">
-        <h3>${escapeHtml(t("marketplace-detail-contents") || "Contents")} (${children.length})</h3>
-        <div class="sp-mkt-detail__children">${CHILD_KIND_ORDER.flatMap((kind) =>
-          children.filter((c) => c.kind === kind).map((c) => {
-            const known = !!(this.knownIds && this.knownIds[kind] && this.knownIds[kind].has(c.id));
-            const sharedChip = c.shared ? `<span class="sp-mkt-chip">shared</span>` : "";
-            const kindChip = `<span class="sp-mkt-chip">${escapeHtml(CHILD_KIND_LABEL[kind] || kind)}</span>`;
-            return `<button type="button" class="sp-mkt-child" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(c.id)}" ${known ? `data-action="open-child"` : "disabled"}>
-              <span class="sp-mkt-child__name">${escapeHtml(c.name || c.id)}</span>
-              ${sharedChip}${kindChip}
-            </button>`;
-          })
-        ).join("")}</div>
-      </section>` : "";
-    const copyLabel = this.copied ? (t("marketplace-detail-copied") || "Copied") : (t("marketplace-detail-copy") || "Copy" || "Copy");
-    const pathSection = selected.path ? `
-      <section class="sp-mkt-detail__section">
-        <h3>${escapeHtml(t("marketplace-detail-path") || "Path")}</h3>
-        <div class="sp-mkt-detail__path-row">
-          <span class="sp-mkt-detail__path">${escapeHtml(selected.path)}</span>
-          <button type="button" class="sp-mkt-detail__copy" data-copied="${this.copied ? "true" : ""}" data-action="copy-path">${escapeHtml(copyLabel)}</button>
-        </div>
-      </section>` : "";
+    const mcpSection = this.kind === "mcp" ? renderMarketplaceMcp(this, selected) : "";
     return `<article class="sp-mkt-detail is-entering">
       <div class="sp-mkt-detail__head">
         <div class="sp-mkt-detail__title"><h2>${escapeHtml(selected.name || selected.id)}</h2></div>
       </div>
       <div class="sp-mkt-detail__meta">
-        <span class="sp-mkt-chip">${escapeHtml(KIND_LABEL[this.kind] || this.kind)}</span>
+        <span class="sp-mkt-chip">${escapeHtml(mktKindSingular(this.kind))}</span>
         ${sourceChip}
         ${versionChip}
       </div>
       ${summary}
-      ${childrenSection}
+      ${renderMarketplaceChildren(this, selected)}
       ${readme}
-      ${toolsSection}
-      ${pathSection}
+      ${mcpSection}
+      ${renderMarketplacePath(this, selected)}
     </article>`;
   }
 }
 
-reactive(SpMarketplaceDetail.prototype, ["selected", "kind", "copied"]);
+reactive(SpMarketplaceDetail.prototype, ["selected", "kind", "copied", "snapshot"]);
 customElements.define("sp-marketplace-detail", SpMarketplaceDetail);
