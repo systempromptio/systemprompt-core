@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.43.0] - 2026-09-01
+
+### Added
+
+- `opencode` is a known bridge host, so a tenant may enable the OpenCode coding agent alongside the existing hosts.
+- `systemprompt_models::bridge::profile::KNOWN_HOSTS` is the single list of host ids the gateway accepts from a bridge. It was a private constant in the API route; the bridge's registry test now asserts against it, so a host added on one side without the other fails a test instead of silently never being enabled.
+
+### Bridge (0.34.0)
+
+See `bin/bridge/CHANGELOG.md`: OpenCode is a supported host, terminal-only hosts no longer offer an Open button, and the Hermes host gained its logo and unit coverage.
+
 ## [0.42.0] - 2026-08-31
 
 ### Added

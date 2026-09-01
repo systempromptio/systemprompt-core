@@ -24,7 +24,7 @@ pub(crate) struct HostsPayload<'a> {
     // an instance may legitimately disable every host, and that empty list is a
     // real answer, not a missing one.
     pub hosts_gated: bool,
-    // Folded from the very verdicts in `host_apps`, so the summary card and the
+    // Why: folded from the very verdicts in `host_apps`, so the summary card and the
     // rows cannot disagree.
     pub agent_fleet: AgentFleets,
     pub agents_onboarded: bool,
@@ -32,6 +32,10 @@ pub(crate) struct HostsPayload<'a> {
 }
 
 #[derive(Serialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "wire payload of independent per-host facts the GUI renders verbatim"
+)]
 pub(crate) struct HostEntryPayload<'a> {
     pub id: &'a str,
     pub display_name: &'a str,
@@ -41,6 +45,7 @@ pub(crate) struct HostEntryPayload<'a> {
     pub config_format: ConfigFormat,
     pub download_url: &'a str,
     pub install_action_label: &'a str,
+    pub can_open: bool,
     pub probe_in_flight: bool,
     pub enabled: bool,
     pub last_generated_profile: Option<&'a GeneratedProfile>,
@@ -76,6 +81,7 @@ fn build_entry<'a>(
         has_download_url: !host.download_url().is_empty(),
         surface: AgentSurface::LocalProfile,
         manifest_synced: snap.manifest_synced(),
+        can_open: host.can_open(),
     });
     HostEntryPayload {
         id: host.id(),
@@ -86,6 +92,7 @@ fn build_entry<'a>(
         config_format: host.config_format(),
         download_url: host.download_url(),
         install_action_label: host.install_action_label(),
+        can_open: host.can_open(),
         probe_in_flight: st.is_some_and(|s| s.probe_in_flight),
         enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
         last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
@@ -120,6 +127,7 @@ fn build_sync_only_entry<'a>(
         has_download_url: false,
         surface: AgentSurface::SyncOnly,
         manifest_synced: snap.manifest_synced(),
+        can_open: false,
     });
     HostEntryPayload {
         id: agent.id,
@@ -130,6 +138,7 @@ fn build_sync_only_entry<'a>(
         config_format: ConfigFormat::Json,
         download_url: "",
         install_action_label: "",
+        can_open: false,
         probe_in_flight: false,
         enabled: snap.enabled_hosts.iter().any(|h| h == agent.id),
         last_generated_profile: None,

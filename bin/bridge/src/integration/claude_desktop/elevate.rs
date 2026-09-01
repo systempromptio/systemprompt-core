@@ -4,6 +4,9 @@
 //! by ONE elevated child driven by a staged JSON job file, reporting via a
 //! JSON result file. A single UAC approval covers the policy write and the
 //! org-plugins provisioning; afterwards unelevated `sync` can publish plugins.
+//! The same child also lands admin-owned managed config files for other hosts
+//! (`managed_files` / `remove_files`), so every machine-wide write shares one
+//! tested elevation path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +25,16 @@ pub(crate) struct ElevatedJob {
     pub org_plugins: Option<OrgPluginsJob>,
     #[serde(default)]
     pub clear_values: Vec<String>,
+    #[serde(default)]
+    pub managed_files: Vec<ManagedFileJob>,
+    #[serde(default)]
+    pub remove_files: Vec<PathBuf>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct ManagedFileJob {
+    pub staged: PathBuf,
+    pub dest: PathBuf,
 }
 
 // Why: `grant_user` is captured by the UNELEVATED parent — the elevated
@@ -95,6 +108,21 @@ fn run_job(job_path: &str) -> Result<(), String> {
     }
     if let Some(org) = &job.org_plugins {
         provision_org_plugins(&org.path, &org.grant_user)?;
+    }
+    for file in &job.managed_files {
+        if let Some(parent) = file.dest.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create {}: {e}", parent.display()))?;
+        }
+        std::fs::copy(&file.staged, &file.dest)
+            .map_err(|e| format!("install {}: {e}", file.dest.display()))?;
+    }
+    for dest in &job.remove_files {
+        match std::fs::remove_file(dest) {
+            Ok(()) => {},
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => return Err(format!("remove {}: {e}", dest.display())),
+        }
     }
     Ok(())
 }

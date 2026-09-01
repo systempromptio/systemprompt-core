@@ -1,4 +1,4 @@
-//! Bridge filesystem helpers: atomic 0600 writes and optional reads.
+//! Bridge filesystem helpers: atomic mode-pinned writes and optional reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,11 +8,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
 pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    atomic_write_with_mode(path, bytes, 0o600)
+}
+
+// Why: a managed config the host reads as an unprivileged user must stay
+// world-readable; 0600 would lock the host out of its own policy.
+pub fn atomic_write_0644(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    atomic_write_with_mode(path, bytes, 0o644)
+}
+
+fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: u32) -> io::Result<()> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
         && !parent.exists()
     {
-        create_dir_all_mode_0700(parent)?;
+        if mode == 0o600 {
+            create_dir_all_mode_0700(parent)?;
+        } else {
+            fs::create_dir_all(parent)?;
+        }
     }
 
     let tmp = temp_path_for(path);
@@ -23,8 +37,9 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::OpenOptionsExt;
-            // Why: 0600 at create() closes the TOCTOU window between write and chmod.
-            opts.mode(0o600);
+            // Why: the mode at create() closes the TOCTOU window between write
+            // and chmod.
+            opts.mode(mode);
         }
         let mut file = opts.open(&tmp)?;
         io::Write::write_all(&mut file, bytes)?;
@@ -34,9 +49,13 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        // Why: guards a pre-existing temp with looser perms when OpenOptions::mode
-        // was ignored.
-        _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600));
+        // Why: guards a pre-existing temp with different perms when
+        // OpenOptions::mode was ignored.
+        _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(mode));
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = mode;
     }
 
     match fs::rename(&tmp, path) {

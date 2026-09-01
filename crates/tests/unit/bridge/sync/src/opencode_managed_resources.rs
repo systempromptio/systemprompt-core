@@ -26,7 +26,10 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(temp.path().display().to_string())),
         ("XDG_CONFIG_HOME", Some(config_home.display().to_string())),
-        ("XDG_DATA_HOME", Some(temp.path().join("data").display().to_string())),
+        (
+            "XDG_DATA_HOME",
+            Some(temp.path().join("data").display().to_string()),
+        ),
         (
             "SP_BRIDGE_OPENCODE_MANAGED_DIR",
             Some(temp.path().join("managed").display().to_string()),
@@ -141,12 +144,18 @@ fn user_authored_config_survives_apply_and_clear() {
         apply(&manifest_with(vec![], vec![mcp("primary")]), &sb.skills).unwrap();
         let doc = read_json(&sb.config);
         assert_eq!(doc["theme"], "dark", "{doc}");
-        assert_eq!(doc["mcp"]["mine"]["url"], "https://example.com/mcp", "{doc}");
+        assert_eq!(
+            doc["mcp"]["mine"]["url"], "https://example.com/mcp",
+            "{doc}"
+        );
         assert!(doc["mcp"]["primary"].is_object());
 
         OpenCodeSync.clear().unwrap();
         let doc = read_json(&sb.config);
-        assert_eq!(doc["mcp"]["mine"]["url"], "https://example.com/mcp", "{doc}");
+        assert_eq!(
+            doc["mcp"]["mine"]["url"], "https://example.com/mcp",
+            "{doc}"
+        );
         assert!(doc["mcp"].get("primary").is_none(), "{doc}");
         assert_eq!(doc["theme"], "dark");
     });
@@ -163,7 +172,10 @@ fn a_skill_lands_under_its_kebab_folder_with_the_name_forced_to_match() {
         let path = sb.skills.join("deep-research").join("SKILL.md");
         let body = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path:?}: {e}"));
         assert!(body.starts_with("---\nname: deep-research\n"), "{body}");
-        assert!(body.contains("description: desc for Deep_Research"), "{body}");
+        assert!(
+            body.contains("description: desc for Deep_Research"),
+            "{body}"
+        );
         assert!(body.ends_with("# Research\n"), "{body}");
     });
 }
@@ -201,10 +213,7 @@ fn two_ids_that_collapse_to_one_folder_are_refused_before_anything_is_written() 
             &sb.skills,
         )
         .expect_err("colliding folders must be refused");
-        assert!(
-            matches!(err, ApplyError::SkillDirCollision { .. }),
-            "{err}"
-        );
+        assert!(matches!(err, ApplyError::SkillDirCollision { .. }), "{err}");
         assert!(!sb.skills.exists(), "nothing is written on refusal");
     });
 }
@@ -234,9 +243,16 @@ fn a_dropped_skill_is_pruned_but_a_users_own_skill_is_kept() {
         fs::create_dir_all(&mine).unwrap();
         fs::write(mine.join("SKILL.md"), "---\nname: mine\n---\n").unwrap();
 
-        apply(&manifest_with(vec![skill("one", "1\n")], vec![]), &sb.skills).unwrap();
+        apply(
+            &manifest_with(vec![skill("one", "1\n")], vec![]),
+            &sb.skills,
+        )
+        .unwrap();
         assert!(sb.skills.join("one").exists());
-        assert!(!sb.skills.join("two").exists(), "a dropped managed skill is pruned");
+        assert!(
+            !sb.skills.join("two").exists(),
+            "a dropped managed skill is pruned"
+        );
         assert!(mine.exists(), "a user-authored skill is never touched");
 
         OpenCodeSync.clear().unwrap();
@@ -255,7 +271,10 @@ fn a_second_apply_is_byte_stable() {
         let skill_md = fs::read(sb.skills.join("one").join("SKILL.md")).unwrap();
         apply(&m, &sb.skills).unwrap();
         assert_eq!(fs::read(&sb.config).unwrap(), cfg);
-        assert_eq!(fs::read(sb.skills.join("one").join("SKILL.md")).unwrap(), skill_md);
+        assert_eq!(
+            fs::read(sb.skills.join("one").join("SKILL.md")).unwrap(),
+            skill_md
+        );
     });
 }
 

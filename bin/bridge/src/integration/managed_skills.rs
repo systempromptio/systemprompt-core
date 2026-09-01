@@ -20,15 +20,13 @@ use crate::sync::{ApplyError, safe_id_segment, sha256_hex};
 
 const SIDECAR: &str = ".systemprompt-managed.json";
 
-/// How a skill id becomes an on-disk directory, and what the front matter
-/// `name` must say.
+// Why: `Verbatim` keeps the id as the directory and passes upstream front
+// matter through; `KebabNamed` kebab-cases the id and forces the front matter
+// `name` to match, for hosts that reject a skill whose name differs from its
+// folder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SkillDirPolicy {
-    /// Directory is the skill id; upstream front matter passes through.
     Verbatim,
-    /// Directory is the kebab-cased id and the front matter `name` is forced
-    /// to match it — for hosts that reject a skill whose `name` differs from
-    /// its folder.
     KebabNamed,
 }
 

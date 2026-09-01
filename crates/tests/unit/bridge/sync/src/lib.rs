@@ -11,6 +11,10 @@ mod cowork_artifacts;
 #[cfg(test)]
 mod error_display;
 #[cfg(test)]
+mod hermes_managed_resources;
+#[cfg(test)]
+mod opencode_managed_resources;
+#[cfg(test)]
 mod replay;
 #[cfg(test)]
 mod summary_line;

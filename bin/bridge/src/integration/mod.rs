@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_fleet;
 pub mod agent_health;
 pub(crate) mod app_launch;
 pub mod claude_code_cli;
@@ -12,10 +13,13 @@ pub mod cowork_artifacts;
 pub mod cowork_plugins;
 pub mod hermes;
 pub mod host_app;
+pub(crate) mod managed_skills;
+pub mod opencode;
 pub mod proxy_probe;
 pub mod registry;
 #[cfg(feature = "dev-stub-host")]
 pub mod stub_host;
+pub mod sync_only;
 
 pub use agent_health::{
     AgentAction, AgentFleetSummary, AgentFleets, AgentReason, AgentState, AgentSurface,

@@ -29,7 +29,7 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sig
 | [`gateway/`](src/gateway/) | Gateway client, manifest fetch and signature verification |
 | [`sync/`](src/sync/) | Manifest apply, replay protection (monotonic version + skew) |
 | [`gui/`](src/gui/) | Native settings window (winit + wry), Windows + macOS only |
-| [`integration/`](src/integration/) | Host integration registry (Claude Desktop and future hosts) |
+| [`integration/`](src/integration/) | Host integration registry: Claude Desktop, Codex CLI, Hermes, OpenCode, and the sync-only Claude Code / Cowork agents |
 | [`install/`](src/install/) | Install and uninstall, pubkey pinning, MDM snippet emission |
 | [`mcp_registry.rs`](src/mcp_registry.rs) | On-disk MCP snapshot, rehydrated at startup |
 | [`schedule/`](src/schedule/) | OS scheduler templates for periodic sync |

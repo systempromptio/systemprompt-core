@@ -21,9 +21,15 @@ fn sandbox<R>(f: impl FnOnce(&Paths) -> R) -> R {
     };
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(root.path().display().to_string())),
-        ("XDG_CONFIG_HOME", Some(root.path().join("config").display().to_string())),
+        (
+            "XDG_CONFIG_HOME",
+            Some(root.path().join("config").display().to_string()),
+        ),
         ("XDG_DATA_HOME", Some(data.display().to_string())),
-        ("SP_BRIDGE_OPENCODE_MANAGED_DIR", Some(managed_dir.display().to_string())),
+        (
+            "SP_BRIDGE_OPENCODE_MANAGED_DIR",
+            Some(managed_dir.display().to_string()),
+        ),
     ];
     let out = temp_env::with_vars(vars, || f(&paths));
     drop(root);
@@ -67,13 +73,19 @@ fn installing_merges_the_provider_block_and_preserves_foreign_keys() {
         install(&["claude-sonnet-5", "gpt-4.1"]);
         let doc = read(&p.managed);
         assert_eq!(doc["theme"], "dark", "{doc}");
-        assert_eq!(doc["provider"]["ollama"]["npm"], "@ai-sdk/openai-compatible");
+        assert_eq!(
+            doc["provider"]["ollama"]["npm"],
+            "@ai-sdk/openai-compatible"
+        );
         assert_eq!(doc["mcp"]["mine"]["url"], "https://example.com/mcp");
         assert_eq!(
             doc["provider"]["systemprompt"]["options"]["baseURL"],
             "http://127.0.0.1:48217/v1"
         );
-        assert_eq!(doc["provider"]["systemprompt"]["models"]["gpt-4.1"]["name"], "gpt-4.1");
+        assert_eq!(
+            doc["provider"]["systemprompt"]["models"]["gpt-4.1"]["name"],
+            "gpt-4.1"
+        );
         assert_eq!(doc["model"], "systemprompt/claude-sonnet-5");
         assert!(
             doc.get("_systemprompt_api_key").is_none(),
@@ -99,7 +111,11 @@ fn the_api_key_lands_in_auth_json_with_other_providers_kept() {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(&p.auth).expect("meta").permissions().mode() & 0o777;
+            let mode = std::fs::metadata(&p.auth)
+                .expect("meta")
+                .permissions()
+                .mode()
+                & 0o777;
             assert_eq!(mode, 0o600, "auth.json holds a secret");
         }
     });
@@ -146,11 +162,8 @@ fn an_empty_model_list_drops_our_default_but_keeps_a_foreign_one() {
         let doc = read(&p.managed);
         assert!(doc.get("model").is_none(), "{doc}");
 
-        std::fs::write(
-            &p.managed,
-            r#"{ "model": "anthropic/claude-opus-5" }"#,
-        )
-        .expect("seed foreign default");
+        std::fs::write(&p.managed, r#"{ "model": "anthropic/claude-opus-5" }"#)
+            .expect("seed foreign default");
         install(&[]);
         let doc = read(&p.managed);
         assert_eq!(
@@ -177,7 +190,10 @@ fn a_second_install_is_byte_stable() {
                 .permissions()
                 .mode()
                 & 0o777;
-            assert_eq!(mode, 0o644, "the managed file must stay readable by the host");
+            assert_eq!(
+                mode, 0o644,
+                "the managed file must stay readable by the host"
+            );
         }
     });
 }
@@ -192,14 +208,23 @@ fn removing_strips_only_our_keys_and_reports_what_happened() {
         install(&["claude-sonnet-5"]);
 
         let removal = OPENCODE_HOST.remove_profile().expect("remove");
-        assert!(matches!(removal, ProfileRemoval::Removed { .. }), "{removal:?}");
+        assert!(
+            matches!(removal, ProfileRemoval::Removed { .. }),
+            "{removal:?}"
+        );
         let doc = read(&p.managed);
         assert_eq!(doc, serde_json::json!({ "theme": "dark" }), "{doc}");
         let auth = read(&p.auth);
-        assert_eq!(auth, serde_json::json!({ "openai": { "type": "api", "key": "sk" } }));
+        assert_eq!(
+            auth,
+            serde_json::json!({ "openai": { "type": "api", "key": "sk" } })
+        );
 
         let again = OPENCODE_HOST.remove_profile().expect("second remove");
-        assert!(matches!(again, ProfileRemoval::NothingToRemove), "{again:?}");
+        assert!(
+            matches!(again, ProfileRemoval::NothingToRemove),
+            "{again:?}"
+        );
     });
 }
 
@@ -217,6 +242,9 @@ fn removing_the_only_content_deletes_both_files() {
 fn removing_when_nothing_was_installed_is_a_no_op() {
     sandbox(|_| {
         let removal = OPENCODE_HOST.remove_profile().expect("remove");
-        assert!(matches!(removal, ProfileRemoval::NothingToRemove), "{removal:?}");
+        assert!(
+            matches!(removal, ProfileRemoval::NothingToRemove),
+            "{removal:?}"
+        );
     });
 }

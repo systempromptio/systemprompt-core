@@ -52,10 +52,8 @@ pub(super) fn write_config_blocks(
     }
 
     let rendered = serde_yaml::to_string(&value).map_err(|e| yaml_err("serialize", e))?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| io_err("create config dir", parent, e))?;
-    }
-    fs::write(&path, rendered).map_err(|e| io_err("write config.yaml", &path, e))
+    crate::fsutil::atomic_write_0600(&path, rendered.as_bytes())
+        .map_err(|e| io_err("write config.yaml", &path, e))
 }
 
 fn write_mcp_servers(value: &mut Value, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {

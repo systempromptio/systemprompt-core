@@ -194,6 +194,8 @@ async fn heal_cowork_scope() -> Option<paths::OrgPluginsLocation> {
     );
     let job = crate::integration::claude_desktop::elevate::ElevatedJob {
         clear_values: Vec::new(),
+        managed_files: Vec::new(),
+        remove_files: Vec::new(),
         reg_path: None,
         org_plugins: Some(org),
     };

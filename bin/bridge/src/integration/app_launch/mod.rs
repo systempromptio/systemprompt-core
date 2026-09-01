@@ -139,3 +139,24 @@ fn run(cmd: &mut Command, what: &str) -> io::Result<()> {
         )))
     }
 }
+
+// Why: a CLI host has no `.app` bundle or Start-menu entry to find, and the
+// GUI's PATH is the login-shell minimum — `~/.opencode/bin`, Homebrew and npm
+// prefixes are routinely absent from it — so the well-known install prefixes
+// are searched alongside PATH. No PATH at all proves nothing either way.
+pub(crate) fn cli_installed(binary: &str, extra_dirs: &[PathBuf]) -> AppInstallState {
+    let Some(paths) = std::env::var_os("PATH") else {
+        return AppInstallState::Unknown;
+    };
+    let present = |dir: &std::path::Path| {
+        let candidate = dir.join(binary);
+        candidate.is_file() || (cfg!(windows) && candidate.with_extension("exe").is_file())
+    };
+    if std::env::split_paths(&paths).any(|dir| present(&dir))
+        || extra_dirs.iter().any(|dir| present(dir))
+    {
+        AppInstallState::Installed
+    } else {
+        AppInstallState::NotInstalled
+    }
+}

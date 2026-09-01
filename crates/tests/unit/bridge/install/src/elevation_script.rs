@@ -91,3 +91,27 @@ fn write_policy_script_round_trips_through_applescript_escaping() {
         "an AppleScript literal cannot carry a raw newline: {escaped}"
     );
 }
+
+#[test]
+fn write_managed_file_script_creates_the_dir_and_installs_world_readable() {
+    use systemprompt_bridge::install::elevation_script::write_managed_file_script;
+    let script = write_managed_file_script(
+        Path::new("/Library/Application Support/opencode"),
+        Path::new("/tmp/stage/opencode.json"),
+        Path::new("/Library/Application Support/opencode/opencode.json"),
+    );
+    assert_eq!(
+        script,
+        "set -e\n\
+         /bin/mkdir -p '/Library/Application Support/opencode'\n\
+         /usr/bin/install -m 0644 '/tmp/stage/opencode.json' \
+         '/Library/Application Support/opencode/opencode.json'\n"
+    );
+}
+
+#[test]
+fn remove_managed_file_script_removes_only_the_named_file() {
+    use systemprompt_bridge::install::elevation_script::remove_managed_file_script;
+    let script = remove_managed_file_script(Path::new("/etc/opencode/it's.json"));
+    assert_eq!(script, "set -e\n/bin/rm -f '/etc/opencode/it'\\''s.json'\n");
+}

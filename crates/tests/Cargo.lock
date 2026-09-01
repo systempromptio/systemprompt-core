@@ -7359,6 +7359,7 @@ dependencies = [
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
+ "systemprompt-models",
 ]
 
 [[package]]

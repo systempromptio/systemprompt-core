@@ -118,7 +118,7 @@
       "icon": "hermes",
       "config_format": "yaml",
       "download_url": "https://nousresearch.com/",
-      "install_action_label": "merged into HERMES_HOME/config.yaml (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": {
@@ -135,9 +135,11 @@
         },
         "profile_source": "C:\\Users\\ejb50\\AppData\\Local\\hermes\\config.yaml",
         "profile_keys": {
-          "model.base_url": "http://127.0.0.1:48217/v1",
-          "model.api_mode": "openai",
-          "model.model": "claude-sonnet-5"
+          "model.provider": "systemprompt-gateway",
+          "providers.systemprompt-gateway.base_url": "http://127.0.0.1:48217/v1",
+          "providers.systemprompt-gateway.api_mode": "chat_completions",
+          "providers.systemprompt-gateway.key_env": "OPENAI_API_KEY",
+          "model.default": "claude-sonnet-5"
         },
         "host_running": true,
         "host_processes": [
@@ -175,6 +177,75 @@
         "is_installed": true,
         "is_running": true
       }
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "kind": "cli_tool",
+      "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "opencode",
+      "config_format": "json",
+      "download_url": "https://opencode.ai/",
+      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\opencode-bridge-1787902828-38012-0-opencode.json",
+        "bytes": 418,
+        "payload_uuid": "ce0c6a91-0pc0-40pc-0pc0-deadbeefa07a",
+        "profile_uuid": "ce0d78a5-0pc0-40pc-0pc0-feedfaceb54d"
+      },
+      "snapshot": {
+        "host_id": "opencode",
+        "display_name": "OpenCode",
+        "profile_state": {
+          "kind": "installed"
+        },
+        "profile_source": "C:\\ProgramData\\opencode\\opencode.json",
+        "profile_keys": {
+          "provider.systemprompt.npm": "@ai-sdk/openai-compatible",
+          "provider.systemprompt.options.baseURL": "http://127.0.0.1:48217/v1",
+          "provider.systemprompt.options.headers.x-inference-protocol": "openai",
+          "provider.systemprompt.models": "claude-fable-5, claude-haiku-4-5, claude-opus-4-8, claude-opus-5, claude-sonnet-4-5, claude-sonnet-5",
+          "model": "systemprompt/claude-sonnet-5"
+        },
+        "host_running": true,
+        "host_processes": [
+          "opencode"
+        ],
+        "app_installed": "installed",
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "down",
+        "reason": {
+          "code": "proxy-down",
+          "probe": "Refused"
+        },
+        "action": {
+          "code": "verify"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      },
+      "can_open": false
     },
     {
       "id": "claude-code",
@@ -328,26 +399,26 @@
   },
   "agent_fleet": {
     "all": {
-      "total": 4,
+      "total": 5,
       "working": 2,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
-      "down": 2,
+      "down": 3,
       "checking": 0,
-      "running": 2,
+      "running": 3,
       "state": "err",
       "headline": "not-working"
     },
     "set_up": {
-      "total": 4,
+      "total": 5,
       "working": 2,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
-      "down": 2,
+      "down": 3,
       "checking": 0,
-      "running": 2,
+      "running": 3,
       "state": "err",
       "headline": "not-working"
     }

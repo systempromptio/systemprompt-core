@@ -58,6 +58,7 @@ const fn inputs<'a>(
         has_download_url: true,
         surface: AgentSurface::LocalProfile,
         manifest_synced: true,
+        can_open: true,
     }
 }
 
@@ -181,6 +182,29 @@ fn no_usable_model_is_reported_before_proxy_health() {
     });
     assert_eq!(v.state, AgentState::Attention);
     assert!(v.action.is_none(), "no button fixes a missing API key here");
+}
+
+/// A terminal-only host has nothing to bring to the foreground, so a governed
+/// one is reported as working with no button rather than with an Open button
+/// whose only outcome is an error toast.
+#[test]
+fn a_host_that_cannot_be_opened_gets_no_open_action() {
+    let px = proxy(ProxyProbeState::Listening);
+    let snap = snapshot(ProfileState::Installed, AppInstallState::Installed);
+    let v = verdict(&HostHealthInputs {
+        can_open: false,
+        ..inputs(Some(&snap), &px)
+    });
+    assert_eq!(v.state, AgentState::Working);
+    assert!(v.action.is_none(), "{:?}", v.action);
+
+    let px_idle = proxy(ProxyProbeState::Unconfigured);
+    let ready = verdict(&HostHealthInputs {
+        can_open: false,
+        ..inputs(Some(&snap), &px_idle)
+    });
+    assert_eq!(ready.state, AgentState::Ready);
+    assert!(ready.action.is_none());
 }
 
 /// A sync-only agent (claude-code, cowork) has no local profile to install, so

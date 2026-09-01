@@ -19,6 +19,12 @@ pub enum ApplyError {
     UnsafePluginId(PluginId),
     #[error("unsafe skill id in manifest: {0}")]
     UnsafeSkillId(SkillId),
+    #[error("skills {first} and {second} both map to the folder {dir}; rename one")]
+    SkillDirCollision {
+        dir: String,
+        first: String,
+        second: String,
+    },
     #[error("unsafe agent name in manifest: {0}")]
     UnsafeAgentName(String),
     #[error("plugin fetch failed: {0}")]

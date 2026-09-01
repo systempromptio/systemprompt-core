@@ -1,6 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## [0.34.0] - 2026-09-01
+
+### Added
+
+- OpenCode is a supported host. The bridge writes a `provider.systemprompt` block (the OpenAI-compatible wire, the loopback `baseURL`, the negotiated model list and the `x-inference-protocol` header) and the default `model` into OpenCode's admin-managed configuration — `/etc/opencode/opencode.json`, `/Library/Application Support/opencode/opencode.json` or `%ProgramData%\opencode\opencode.json` — which OpenCode layers above every user and project file, so no local config can route inference around the gateway. The write is direct where the process may, escalates through the existing `sudo`/`osascript` path on macOS and the UAC child on Windows only when refused, and is skipped entirely when the file already says what it would say. The API key goes to the user's `auth.json` (0600); MCP connectors go to the user's global `opencode.json` and skills to `~/.config/opencode/skills`, both user-owned because unattended sync can never prompt. Skill folders are kebab-cased and the front matter `name` is forced to match, since OpenCode rejects a skill whose name differs from its folder; two ids that collapse to one folder are refused before anything is written. The probe reads the managed file and the `ai.opencode.managed` MDM domain, never user scope, and finds the `opencode` binary in the usual install prefixes even when the GUI's PATH lacks them.
+- `HostApp::can_open` lets a terminal-only host say so, and the verdict then offers no Open button — Codex on Linux and every CLI host used to get one whose only outcome was an error toast.
+- The Hermes card has a logo; it rendered an empty glyph. Hermes also gained the unit coverage it shipped without: probe, install/merge/remove, `.env` handling and the sync emitter.
+
+### Changed
+
+- Managed skills for hosts that read `SKILL.md` folders directly (Hermes, OpenCode) go through one writer, `integration::managed_skills`, with the sidecar, pruning and front-matter rendering in one place; the Codex marketplace writer shares its renderer. Hermes's `config.yaml` MCP write is atomic, as its profile write already was.
 
 ### Fixed
 

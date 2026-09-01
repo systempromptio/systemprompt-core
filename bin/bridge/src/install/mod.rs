@@ -10,6 +10,7 @@ mod builders;
 pub(crate) mod elevate;
 pub mod elevation_script;
 mod error;
+pub(crate) mod managed_file;
 pub(crate) mod managed_mcp;
 pub(crate) mod mdm;
 mod schedule_apply;

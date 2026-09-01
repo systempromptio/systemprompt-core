@@ -11,9 +11,38 @@ use systemprompt_bridge::sync::host_sync;
 #[test]
 fn host_apps_contains_builtins() {
     let ids: Vec<&str> = host_apps().iter().map(|h| h.id()).collect();
-    assert!(
-        ids.contains(&"codex-cli"),
-        "codex-cli built-in host missing; registry = {ids:?}"
+    for expected in ["codex-cli", "hermes", "opencode"] {
+        assert!(
+            ids.contains(&expected),
+            "{expected} built-in host missing; registry = {ids:?}"
+        );
+    }
+}
+
+// Why: the gateway only offers the bridge hosts it knows; a host registered
+// here but absent there is never enabled, and one known there with no
+// implementation here silently vanishes from the GUI.
+#[test]
+fn known_hosts_cover_every_local_and_sync_only_agent() {
+    use systemprompt_bridge::integration::SYNC_ONLY_AGENTS;
+    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+
+    let mut bridge: Vec<&str> = host_apps()
+        .iter()
+        .map(|h| h.id())
+        .filter(|id| !id.starts_with("dummy-"))
+        .chain(SYNC_ONLY_AGENTS.iter().map(|a| a.id))
+        .collect();
+    bridge.sort_unstable();
+    bridge.dedup();
+    let mut known: Vec<&str> = KNOWN_HOSTS.to_vec();
+    if !cfg!(any(target_os = "macos", target_os = "windows")) {
+        known.retain(|id| *id != "claude-desktop");
+    }
+    known.sort_unstable();
+    assert_eq!(
+        bridge, known,
+        "bridge registries and the gateway KNOWN_HOSTS list have drifted"
     );
 }
 
@@ -28,7 +57,7 @@ fn host_apps_are_sorted_by_id() {
 #[test]
 fn host_sync_registry_contains_builtins() {
     let ids: Vec<&str> = host_sync::registry().iter().map(|s| s.host_id()).collect();
-    for expected in ["codex-cli", "claude-code", "cowork"] {
+    for expected in ["codex-cli", "claude-code", "cowork", "hermes", "opencode"] {
         assert!(
             ids.contains(&expected),
             "{expected} host sync missing; registry = {ids:?}"

@@ -172,7 +172,7 @@
       "icon": "hermes",
       "config_format": "yaml",
       "download_url": "https://nousresearch.com/",
-      "install_action_label": "merged into HERMES_HOME/config.yaml (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
@@ -217,6 +217,61 @@
         "is_installed": false,
         "is_running": false
       }
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "kind": "cli_tool",
+      "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "opencode",
+      "config_format": "json",
+      "download_url": "https://opencode.ai/",
+      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
+      "snapshot": {
+        "host_id": "opencode",
+        "display_name": "OpenCode",
+        "profile_state": {
+          "kind": "absent"
+        },
+        "profile_source": null,
+        "profile_keys": {},
+        "host_running": false,
+        "host_processes": [],
+        "app_installed": "not_installed",
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "attention",
+        "reason": {
+          "code": "app-missing"
+        },
+        "action": {
+          "code": "download"
+        },
+        "is_set_up": false,
+        "is_installed": false,
+        "is_running": false
+      },
+      "can_open": false
     },
     {
       "id": "claude-code",
@@ -352,10 +407,10 @@
   "last_sync_report": null,
   "agent_fleet": {
     "all": {
-      "total": 5,
+      "total": 6,
       "working": 1,
       "ready": 0,
-      "attention": 2,
+      "attention": 3,
       "not_set_up": 0,
       "down": 0,
       "checking": 2,

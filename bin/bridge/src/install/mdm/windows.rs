@@ -82,6 +82,8 @@ fn elevated_write(value: &str) -> Result<(), String> {
     );
     let job = crate::integration::claude_desktop::elevate::ElevatedJob {
         clear_values: Vec::new(),
+        managed_files: Vec::new(),
+        remove_files: Vec::new(),
         reg_path: Some(path.to_string_lossy().into_owned()),
         org_plugins:
             crate::integration::claude_desktop::elevate::ElevatedJob::org_plugins_for_current_user(),
@@ -200,6 +202,8 @@ fn stage_elevated_apply(
     std::fs::write(&path, body).map_err(|e| format!("stage policy profile: {e}"))?;
     let job = crate::integration::claude_desktop::elevate::ElevatedJob {
         clear_values: Vec::new(),
+        managed_files: Vec::new(),
+        remove_files: Vec::new(),
         reg_path: Some(path.to_string_lossy().into_owned()),
         org_plugins,
     };

@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, ConfigFormat, HostApp, HostKind, ProfileGenInputs, ProfileState,
-    StaleReason,
+    AppInstallState, ConfigFormat, HostApp, HostKind, ProfileGenInputs, ProfileState, StaleReason,
 };
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
 use systemprompt_models::profile::ApiSurface;
@@ -18,9 +17,18 @@ fn sandbox<R>(managed_json: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
     }
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(root.path().display().to_string())),
-        ("XDG_CONFIG_HOME", Some(root.path().join("config").display().to_string())),
-        ("XDG_DATA_HOME", Some(root.path().join("data").display().to_string())),
-        ("SP_BRIDGE_OPENCODE_MANAGED_DIR", Some(managed.display().to_string())),
+        (
+            "XDG_CONFIG_HOME",
+            Some(root.path().join("config").display().to_string()),
+        ),
+        (
+            "XDG_DATA_HOME",
+            Some(root.path().join("data").display().to_string()),
+        ),
+        (
+            "SP_BRIDGE_OPENCODE_MANAGED_DIR",
+            Some(managed.display().to_string()),
+        ),
         ("PATH", Some(root.path().join("bin").display().to_string())),
     ];
     let out = temp_env::with_vars(vars, || f(root.path()));
@@ -250,7 +258,10 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
         doc["provider"]["systemprompt"]["options"]["headers"]["x-inference-protocol"],
         "openai"
     );
-    assert_eq!(doc["provider"]["systemprompt"]["models"]["gpt-4.1"]["name"], "gpt-4.1");
+    assert_eq!(
+        doc["provider"]["systemprompt"]["models"]["gpt-4.1"]["name"],
+        "gpt-4.1"
+    );
     assert_eq!(doc["model"], "systemprompt/claude-sonnet-5");
     assert_eq!(doc["_systemprompt_api_key"], "loopback-secret-value");
     assert_eq!(generated.bytes, body.len());

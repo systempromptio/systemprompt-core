@@ -143,6 +143,10 @@ fn recompute(doc: &Value) -> Option<Value> {
                 .is_some_and(|u| !u.is_empty()),
             surface: AgentSurface::LocalProfile,
             manifest_synced,
+            can_open: host
+                .get("can_open")
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
         });
 
         let mut host = host.clone();
@@ -179,6 +183,7 @@ fn recompute(doc: &Value) -> Option<Value> {
             has_download_url: false,
             surface: AgentSurface::SyncOnly,
             manifest_synced,
+            can_open: false,
         });
         updated.push(json!({
             "id": agent.id,

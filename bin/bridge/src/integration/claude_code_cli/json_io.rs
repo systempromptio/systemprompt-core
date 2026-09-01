@@ -42,7 +42,7 @@ pub fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, A
     }
 }
 
-pub(super) fn read_json_object(path: &Path) -> Result<Map<String, Value>, ApplyError> {
+pub(crate) fn read_json_object(path: &Path) -> Result<Map<String, Value>, ApplyError> {
     Ok(read_optional_object(path)?.unwrap_or_default())
 }
 
@@ -57,7 +57,7 @@ pub fn object_entry<'a>(
     slot.as_object_mut()
 }
 
-pub(super) fn write_json(path: &Path, value: &Value) -> Result<(), ApplyError> {
+pub(crate) fn write_json(path: &Path, value: &Value) -> Result<(), ApplyError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| io_err(format!("create {}", parent.display()), e))?;

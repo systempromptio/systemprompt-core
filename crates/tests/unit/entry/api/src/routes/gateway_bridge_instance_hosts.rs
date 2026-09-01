@@ -34,7 +34,8 @@ fn empty_catalog_enables_every_known_host() {
             "claude-desktop",
             "cowork",
             "codex-cli",
-            "hermes"
+            "hermes",
+            "opencode"
         ]
     );
 }
@@ -47,7 +48,13 @@ fn a_disabled_catalog_entry_removes_its_host() {
         .extend([catalog_entry("codex_cli", false)]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["claude-code", "claude-desktop", "cowork", "hermes"]
+        vec![
+            "claude-code",
+            "claude-desktop",
+            "cowork",
+            "hermes",
+            "opencode"
+        ]
     );
 }
 
@@ -65,7 +72,8 @@ fn an_enabled_catalog_entry_keeps_its_host() {
             "claude-desktop",
             "cowork",
             "codex-cli",
-            "hermes"
+            "hermes",
+            "opencode"
         ]
     );
 }
@@ -79,6 +87,6 @@ fn snake_case_catalog_ids_map_onto_kebab_case_host_ids() {
     ]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["cowork", "codex-cli", "hermes"]
+        vec!["cowork", "codex-cli", "hermes", "opencode"]
     );
 }
