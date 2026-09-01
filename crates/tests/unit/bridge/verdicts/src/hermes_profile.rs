@@ -75,15 +75,15 @@ fn install_into(home: &Path) {
     std::fs::remove_file(&generated.path).ok();
 }
 
-/// Each of these four was wrong once, and each failure was silent.
-///
-/// `model.provider` selects the provider before `base_url` is consulted at all,
-/// so an endpoint with the default `auto` is never reached. `api_mode` has a
-/// closed vocabulary that does not contain "openai". `key_env` is the only way
-/// a 127.0.0.1 endpoint resolves a credential, because Hermes host-gates its
-/// bare `OPENAI_API_KEY` fallback to openai.com. And the model has to be
-/// `model.default`, which wins over `model.model` whenever both are set —
-/// which is always, because Hermes ships a `default`.
+// Each of these four was wrong once, and each failure was silent.
+//
+// `model.provider` selects the provider before `base_url` is consulted at all,
+// so an endpoint with the default `auto` is never reached. `api_mode` has a
+// closed vocabulary that does not contain "openai". `key_env` is the only way
+// a 127.0.0.1 endpoint resolves a credential, because Hermes host-gates its
+// bare `OPENAI_API_KEY` fallback to openai.com. And the model has to be
+// `model.default`, which wins over `model.model` whenever both are set —
+// which is always, because Hermes ships a `default`.
 #[test]
 fn profile_writes_the_four_keys_hermes_actually_reads() {
     let home = scratch("contract");
@@ -120,10 +120,10 @@ fn profile_writes_the_four_keys_hermes_actually_reads() {
     std::fs::remove_dir_all(&home).ok();
 }
 
-/// Hermes' shipped `config.yaml` is a large file the user edits in place, and
-/// `providers:` is shared ground — their own entries live in the same table as
-/// ours. Installing must not disturb either, and removing must take back only
-/// what we put there.
+// Hermes' shipped `config.yaml` is a large file the user edits in place, and
+// `providers:` is shared ground — their own entries live in the same table as
+// ours. Installing must not disturb either, and removing must take back only
+// what we put there.
 #[test]
 fn install_and_remove_leave_every_foreign_key_untouched() {
     let home = scratch("merge");
@@ -177,8 +177,8 @@ fn install_and_remove_leave_every_foreign_key_untouched() {
     std::fs::remove_dir_all(&home).ok();
 }
 
-/// Re-applying is the documented remedy for a rotated loopback secret, so it
-/// has to converge rather than accumulate a second endpoint.
+// Re-applying is the documented remedy for a rotated loopback secret, so it
+// has to converge rather than accumulate a second endpoint.
 #[test]
 fn reinstall_replaces_the_managed_entry_rather_than_duplicating_it() {
     let home = scratch("reinstall");

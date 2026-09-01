@@ -15,6 +15,7 @@ pub mod hermes;
 pub mod host_app;
 pub(crate) mod managed_skills;
 pub mod opencode;
+pub mod profile_state;
 pub mod proxy_probe;
 pub mod registry;
 #[cfg(feature = "dev-stub-host")]

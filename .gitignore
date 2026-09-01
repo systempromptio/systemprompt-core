@@ -131,6 +131,7 @@ scripts/*
 !scripts/lint-bridge-i18n.sh
 !scripts/lint-bridge-js-imports.sh
 !scripts/lint-bridge-verdicts.sh
+!scripts/check-bridge-bindings.sh
 !scripts/lint-bridge-no-window.sh
 
 # Local-only review notes

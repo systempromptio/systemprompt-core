@@ -5,7 +5,7 @@ BANNED='(user_id|agent_id|task_id|tenant_id|context_id|session_id|file_id|skill_
 
 PATTERN="(\bpub\s+)?\b${BANNED}\s*:\s*(Option<)?&?(\s)?(mut\s+)?(String|str)\b"
 
-SEARCH_DIRS=(crates/domain crates/app crates/entry)
+SEARCH_DIRS=(crates/domain crates/app crates/entry bin/bridge/src)
 
 if command -v rg >/dev/null 2>&1; then
     RAW=$(rg -n --no-heading --color=never \

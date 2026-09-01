@@ -12,16 +12,12 @@ use std::path::{Path, PathBuf};
 use super::{io_error, read_or_empty, write_atomic};
 use crate::install::mdm::MdmError;
 
-// Why: `~/.profile` reaches only login shells, so IDE terminals, `bash -c`, CI,
-// and systemd miss it; Claude Code reads its settings on every invocation.
-//
-// Without root the fallback must be `~/.claude/settings.json`, the per-user
-// file. `~/.claude/managed-settings.json` is not a path Claude Code reads: only
-// the system location carries that name, so writing it produced a file that
-// parsed, looked correct, and did nothing. An unprivileged install then had
-// `~/.profile` as its only working channel, and a non-login shell — the default
-// for a VS Code terminal — silently billed the user's own account instead of
-// routing through the gateway.
+// Why: without root the fallback must be `~/.claude/settings.json`, the
+// per-user file Claude Code reads on every invocation. `~/.claude/managed-
+// settings.json` is not a path it reads — only the system location carries
+// that name — so writing it produced a file that parsed and did nothing,
+// leaving `~/.profile` (login shells only) as the sole channel; a VS Code
+// terminal then silently billed the user's own account.
 fn managed_settings_path() -> Option<PathBuf> {
     let system = PathBuf::from("/etc/claude-code/managed-settings.json");
     if can_write(&system) {

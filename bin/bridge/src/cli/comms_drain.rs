@@ -26,7 +26,7 @@ use crate::cli::output;
 #[derive(Debug, Deserialize)]
 struct HookPayload {
     #[serde(default)]
-    session_id: Option<String>,
+    session_id: Option<crate::ids::HookSessionId>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,7 +44,7 @@ pub fn cmd_comms_drain() -> ExitCode {
     let Ok(payload) = serde_json::from_str::<HookPayload>(&stdin) else {
         return ExitCode::SUCCESS;
     };
-    let Some(session_id) = payload.session_id.filter(|s| !s.is_empty()) else {
+    let Some(session_id) = payload.session_id.filter(|s| !s.as_str().is_empty()) else {
         return ExitCode::SUCCESS;
     };
 
@@ -74,8 +74,9 @@ pub fn cmd_comms_drain() -> ExitCode {
 // unlinked unread. Renaming first makes the swap atomic — the appender's next
 // write recreates the inbox and is delivered by the following drain, and the
 // pid in the taken name keeps two concurrent drains off each other's file.
-fn drain(session_id: &str) -> Vec<InboxLine> {
+fn drain(session_id: &crate::ids::HookSessionId) -> Vec<InboxLine> {
     let safe: String = session_id
+        .as_str()
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
         .collect();

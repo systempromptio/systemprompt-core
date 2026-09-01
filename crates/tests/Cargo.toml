@@ -95,6 +95,7 @@ members = [
     "unit/bridge/ids",
     "unit/bridge/activity",
     "unit/bridge/validate",
+    "unit/bridge/verdicts",
     "unit/bridge/auth-e2e",
     "unit/bridge/auth-session",
     "unit/bridge/cli",

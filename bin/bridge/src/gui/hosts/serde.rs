@@ -14,7 +14,6 @@ use crate::integration::proxy_probe::ProxyProbeState;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 use crate::verdict::Verdict;
 
-/// The proxy probe with its verdict beside it.
 #[derive(Serialize)]
 pub(crate) struct ProxyPayload<'a> {
     #[serde(flatten)]

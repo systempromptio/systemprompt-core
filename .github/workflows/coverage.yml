@@ -254,17 +254,17 @@ jobs:
 
           # Unfiltered first so we can see raw paths llvm-cov emits.
           "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
             --summary-only \
             | tee coverage-summary.txt
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
             --format=text --summary-only \
             > coverage-summary.json
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
             --format=lcov \
             > lcov.info
 

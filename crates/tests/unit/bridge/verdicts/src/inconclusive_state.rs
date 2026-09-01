@@ -47,8 +47,8 @@ fn only_an_auth_rejection_asks_the_user_to_sign_in() {
     }
 }
 
-/// A result that establishes nothing must never replace one that does --
-/// this is what `AppState::apply_mcp_auth` keys its merge on.
+// A result that establishes nothing must never replace one that does --
+// this is what `AppState::apply_mcp_auth` keys its merge on.
 #[test]
 fn a_probe_that_reached_no_verdict_is_not_conclusive() {
     for state in [
@@ -77,9 +77,9 @@ fn a_probe_that_reached_no_verdict_is_not_conclusive() {
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use systemprompt_bridge::gui::error::GuiError;
 
-/// Cancellation used to be detected by searching the error message for a
-/// phrase. Two call sites spelled it differently and the check silently stopped
-/// matching, so pressing Cancel on sign-in reported "unauthorized".
+// Cancellation used to be detected by searching the error message for a
+// phrase. Two call sites spelled it differently and the check silently stopped
+// matching, so pressing Cancel on sign-in reported "unauthorized".
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 #[test]
 fn cancellation_is_recognised_by_type_not_by_message() {

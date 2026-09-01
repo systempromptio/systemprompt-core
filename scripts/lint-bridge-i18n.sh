@@ -56,9 +56,9 @@ agents-status-token-:gui/state/verdicts.rs:TokenCode
 setup-health-label-:gui/state/verdicts.rs:HealthCode
 proxy-state-:integration/proxy_probe/mod.rs:ProxyProbeState
 agents-status-proxy-:integration/proxy_probe/mod.rs:ProxyProbeState
-mcp-auth-:proxy/mcp_probe/mod.rs:McpAuthState
-host-profile-:integration/host_app.rs:ProfileCode
-host-app-:integration/host_app.rs:AppInstallState
+mcp-auth-:proxy/mcp_probe/types.rs:McpAuthState
+host-profile-:integration/profile_state.rs:ProfileCode
+host-app-:integration/profile_state.rs:AppInstallState
 agent-kind-:integration/host_app.rs:HostKind
 settings-schedule-:install/schedule_apply/mod.rs:ScheduleStatus"
 

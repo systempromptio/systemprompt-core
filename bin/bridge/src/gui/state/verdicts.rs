@@ -96,7 +96,6 @@ impl GatewayStatus {
         Verdict::new(self.tone(), self.code())
     }
 
-    /// The probe has reached a conclusion, one way or the other.
     #[must_use]
     pub const fn settled(&self) -> bool {
         matches!(self, Self::Reachable { .. } | Self::Unreachable { .. })
@@ -194,8 +193,8 @@ impl AppStateSnapshot {
         Verdict::new(tone, code)
     }
 
-    /// Worst of the MCP servers; `probing` while the first pass is out,
-    /// `warn` when nothing is registered.
+    // Why: `probing` while the first pass is out and `warn` when nothing is
+    // registered — an empty list is not a healthy one.
     #[must_use]
     pub fn mcp_auth_tone(&self) -> Tone {
         if self.mcp_auth.is_empty() {

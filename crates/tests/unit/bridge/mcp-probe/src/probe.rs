@@ -9,6 +9,7 @@
 //! registry and loopback secret, so it lives in a single sequential test that
 //! owns both.
 
+use systemprompt_bridge::ids::McpSessionId;
 use systemprompt_bridge::proxy::mcp_probe::{
     McpAuthState, build_client, probe_all, probe_endpoint,
 };
@@ -75,7 +76,10 @@ async fn authenticated_json() {
             .collect::<Vec<_>>(),
         ["a", "b"]
     );
-    assert_eq!(auth.session_id.as_deref(), Some("sess-123"));
+    assert_eq!(
+        auth.session_id.as_ref().map(McpSessionId::as_str),
+        Some("sess-123")
+    );
     assert_eq!(auth.http_status, Some(200));
     assert!(auth.error.is_none());
 }

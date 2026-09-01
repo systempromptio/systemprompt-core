@@ -62,9 +62,9 @@ const fn inputs<'a>(
     }
 }
 
-/// The `|| "absent"` fallback this replaces classified a host that had never
-/// been probed as "not set up", which offered the reader an Add button for an
-/// agent that might already be installed.
+// The `|| "absent"` fallback this replaces classified a host that had never
+// been probed as "not set up", which offered the reader an Add button for an
+// agent that might already be installed.
 #[test]
 fn never_probed_is_checking_not_absent() {
     let px = proxy(ProxyProbeState::Listening);
@@ -74,8 +74,8 @@ fn never_probed_is_checking_not_absent() {
     assert!(!v.is_set_up);
 }
 
-/// `AppInstallState` documents that `Unknown` must never render as absence.
-/// The JS read any non-`installed` value as missing.
+// `AppInstallState` documents that `Unknown` must never render as absence.
+// The JS read any non-`installed` value as missing.
 #[test]
 fn unknown_app_install_is_not_treated_as_missing() {
     let px = proxy(ProxyProbeState::Listening);
@@ -148,9 +148,9 @@ fn proxy_state_decides_a_healthy_profile() {
     }
 }
 
-/// `host_running` is a process-table scan. It must never promote an
-/// unconfigured agent — the "Connected 1/2" bug, where the 1 was the agent
-/// that was not set up.
+// `host_running` is a process-table scan. It must never promote an
+// unconfigured agent — the "Connected 1/2" bug, where the 1 was the agent
+// that was not set up.
 #[test]
 fn a_running_process_does_not_make_an_unconfigured_agent_working() {
     let px = proxy(ProxyProbeState::Listening);
@@ -184,9 +184,9 @@ fn no_usable_model_is_reported_before_proxy_health() {
     assert!(v.action.is_none(), "no button fixes a missing API key here");
 }
 
-/// A terminal-only host has nothing to bring to the foreground, so a governed
-/// one is reported as working with no button rather than with an Open button
-/// whose only outcome is an error toast.
+// A terminal-only host has nothing to bring to the foreground, so a governed
+// one is reported as working with no button rather than with an Open button
+// whose only outcome is an error toast.
 #[test]
 fn a_host_that_cannot_be_opened_gets_no_open_action() {
     let px = proxy(ProxyProbeState::Listening);
@@ -207,8 +207,8 @@ fn a_host_that_cannot_be_opened_gets_no_open_action() {
     assert!(ready.action.is_none());
 }
 
-/// A sync-only agent (claude-code, cowork) has no local profile to install, so
-/// it must never appear as a fault the user is asked to fix.
+// A sync-only agent (claude-code, cowork) has no local profile to install, so
+// it must never appear as a fault the user is asked to fix.
 #[test]
 fn sync_only_agents_are_cloud_managed_and_never_need_attention() {
     let px = proxy(ProxyProbeState::Refused);
@@ -228,10 +228,10 @@ fn sync_only_agents_are_cloud_managed_and_never_need_attention() {
     assert_eq!(unsynced.state, AgentState::Checking);
 }
 
-/// The property that makes the summary card trustworthy: `Ok` is reachable
-/// only when no row is in a bad state. The old JS derived `state` from
-/// `installed` while the rows derived theirs from the proxy, so the two could
-/// and did disagree.
+// The property that makes the summary card trustworthy: `Ok` is reachable
+// only when no row is in a bad state. The old JS derived `state` from
+// `installed` while the rows derived theirs from the proxy, so the two could
+// and did disagree.
 #[test]
 fn fleet_ok_implies_no_row_is_faulted() {
     let px_ok = proxy(ProxyProbeState::Listening);

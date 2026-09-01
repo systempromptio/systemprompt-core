@@ -95,14 +95,11 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 }
 
 pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
-    // Why: `-g` opens the .mobileconfig in System Settings without switching
-    // focus to it. Without this flag, the bridge is deactivated as System
-    // Settings takes the foreground, which fires -[NSWindow resignKeyWindow]
-    // on our winit-managed NSWindow; a notification observer registered by
-    // muda/tray-icon (objc2 0.6) then dereferences a weak reference to that
-    // window whose bookkeeping lives on the winit side (objc2 0.5), reading
-    // a bogus pointer and segfaulting. Root fix is unifying objc2 majors —
-    // blocked on winit 0.31 being stable.
+    // Why: `-g` opens the .mobileconfig without giving System Settings focus.
+    // Losing focus fires -[NSWindow resignKeyWindow] on our winit NSWindow, and
+    // a muda/tray-icon observer (objc2 0.6) then dereferences a weak reference
+    // whose bookkeeping lives on the winit side (objc2 0.5) — a bogus pointer
+    // and a segfault. Root fix is unifying objc2 majors, blocked on winit 0.31.
     Command::new("/usr/bin/open").args(["-g", path]).status()?;
     Ok(())
 }

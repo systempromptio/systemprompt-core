@@ -32,14 +32,12 @@ mod xdg;
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 use xdg as platform;
 
-// Why: asking the host scheduler is a subprocess spawn (`schtasks` /
-// `launchctl` / `systemctl`), and the tray redraw on the GUI thread asks on
-// every refresh — which is every 30-second probe. Left uncached that is a
-// console child every half-minute stalling the event loop, and on Windows a
-// console window that takes the foreground. Registration only changes through
-// this module, so the answer is cached here and written through by the calls
-// that change it. `Unknown` is never cached: it means the scheduler could not
-// be reached, and a transient failure must not become the permanent answer.
+// Why: asking the host scheduler spawns a subprocess, and the tray redraw
+// asks on every 30-second probe — uncached, that stalls the event loop and on
+// Windows flashes a console window. Registration only changes through this
+// module, so the answer is cached here and written through by the calls that
+// change it. `Unknown` is never cached: a transient failure to reach the
+// scheduler must not become the permanent answer.
 static AUTOSTART_STATUS: RwLock<Option<ScheduleStatus>> = RwLock::new(None);
 static SCHEDULE_STATUS: RwLock<Option<ScheduleStatus>> = RwLock::new(None);
 

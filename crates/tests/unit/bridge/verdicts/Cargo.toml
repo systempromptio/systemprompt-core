@@ -1,0 +1,17 @@
+[package]
+name = "systemprompt-bridge-verdicts-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-bridge verdicts: agent health, MCP auth states, dev fixtures, host profiles"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }

@@ -117,15 +117,11 @@ pub async fn run_once(
     Ok(build_summary(&synced, report))
 }
 
-// Why: the fleet's default model is server policy, delivered by
-// `GET /v1/bridge/profile`. Applied here rather than in `install --apply`
-// because that path is synchronous and cannot fetch it, and because a policy
-// change should reach existing installs on their next scheduled sync rather
-// than waiting for a reinstall.
-//
-// Best-effort throughout: a gateway that omits the field, or is unreachable,
-// leaves the model choice exactly as it was. Nothing here should fail a sync
-// whose manifest already applied cleanly.
+// Why: the fleet's default model is server policy (`GET /v1/bridge/profile`),
+// applied on sync rather than in the synchronous `install --apply` so a policy
+// change reaches existing installs on their next scheduled sync. Best-effort
+// throughout: an absent field or an unreachable gateway leaves the model
+// choice as it was, and never fails a sync whose manifest applied cleanly.
 #[cfg(target_os = "linux")]
 async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient) {
     let Ok(profile) = client.fetch_bridge_profile().await else {

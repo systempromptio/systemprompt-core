@@ -14,10 +14,10 @@ use systemprompt_bridge::integration::agent_health::{
 use systemprompt_bridge::integration::host_app::StaleReason;
 use systemprompt_bridge::integration::proxy_probe::ProxyProbeState;
 
-const FTL: &str = include_str!("../web/i18n/en-US/bridge.ftl");
+const FTL: &str = include_str!("../../../../../../bin/bridge/web/i18n/en-US/bridge.ftl");
 
-/// The kebab code the GUI will look up: a plain enum serialises to a string,
-/// a tagged one to an object carrying `code`.
+// The kebab code the GUI will look up: a plain enum serialises to a string,
+// a tagged one to an object carrying `code`.
 fn code_of<T: Serialize>(v: &T) -> String {
     let json = serde_json::to_value(v).unwrap_or_default();
     match json {

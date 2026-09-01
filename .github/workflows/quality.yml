@@ -143,6 +143,7 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-bridge-no-window
       - run: just lint-bridge-verdicts
+      - run: just bridge-bindings-check
         if: ${{ !cancelled() }}
       - run: just lint-repo-construction
         if: ${{ !cancelled() }}

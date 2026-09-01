@@ -23,7 +23,7 @@ use systemprompt_bridge::integration::host_app::{
 use systemprompt_bridge::integration::proxy_probe::{ProxyHealth, ProxyProbeState};
 
 fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("web/dev/fixtures")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../../bin/bridge/web/dev/fixtures")
 }
 
 fn profile_state_of(health: &Value) -> ProfileState {
@@ -98,7 +98,7 @@ fn strings(v: Option<&Value>) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Recompute one fixture's verdicts and fleet fold. Returns the updated doc.
+// Recompute one fixture's verdicts and fleet fold. Returns the updated doc.
 fn recompute(doc: &Value) -> Option<Value> {
     let mut doc = doc.clone();
     let proxy = proxy_of(doc.get("local_proxy"));
