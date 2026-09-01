@@ -94,7 +94,7 @@ pub(super) fn gateway_dispatch(
         },
         "mcp.auth.probe" => {
             let server_id = parse::<McpProbeArgs>(args)
-                .inspect_err(|e| tracing::warn!(error = %e, "malformed mcp.auth.probe args"))
+                .inspect_err(|e| tracing::warn!(error = ?e, "malformed mcp.auth.probe args"))
                 .ok()
                 .and_then(|a| a.server_id)
                 .filter(|s| !s.is_empty());
