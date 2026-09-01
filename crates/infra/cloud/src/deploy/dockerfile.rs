@@ -205,14 +205,14 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     /// Marks the image as *being* a deployment host.
     ///
     /// Without this the binary inside the container has no way to know it is
-    /// already the deployment, and a cloud-profile command tries to route to the
-    /// host it is running on. Fly supplies `FLY_APP_NAME` and so happened to
-    /// work; every other platform supplies nothing, which is why this is
-    /// generated rather than left to the host.
+    /// already the deployment, and a cloud-profile command tries to route to
+    /// the host it is running on. Fly supplies `FLY_APP_NAME` and so
+    /// happened to work; every other platform supplies nothing, which is
+    /// why this is generated rather than left to the host.
     ///
     /// The value names the host as specifically as the image can — the profile
-    /// name, since the concrete app id is not known until the image is placed. A
-    /// platform that knows better may override it at runtime.
+    /// name, since the concrete app id is not known until the image is placed.
+    /// A platform that knows better may override it at runtime.
     fn deployment_host_env(&self) -> String {
         format!(
             "    {}={} \\",

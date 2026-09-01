@@ -112,7 +112,10 @@ fn flys_own_marker_is_forwarded_too_so_existing_tenants_need_no_redeploy() {
         (name == "FLY_APP_NAME").then(|| "sp-tenant".to_owned())
     });
 
-    assert_eq!(env_map(&env).get("FLY_APP_NAME").copied(), Some("sp-tenant"));
+    assert_eq!(
+        env_map(&env).get("FLY_APP_NAME").copied(),
+        Some("sp-tenant")
+    );
 }
 
 #[test]
@@ -256,12 +259,13 @@ fn rotating_a_log_that_does_not_exist_is_a_no_op() {
     assert!(!dir.path().join("never-written.log.old").exists());
 }
 
-// Why: this is the test that stops the outage recurring. The MCP spawner and the
-// agent spawner each build a child environment; the inherited-from-parent half is
-// supposed to be identical, and for a long time it silently was not — the agent
-// forwarded the deployment-host marker through a bolt-on and the MCP one did not
-// forward it at all, so every MCP server on a deployed host believed it was
-// somewhere else and tried to route commands to the host it was already on.
+// Why: this is the test that stops the outage recurring. The MCP spawner and
+// the agent spawner each build a child environment; the inherited-from-parent
+// half is supposed to be identical, and for a long time it silently was not —
+// the agent forwarded the deployment-host marker through a bolt-on and the MCP
+// one did not forward it at all, so every MCP server on a deployed host
+// believed it was somewhere else and tried to route commands to the host it was
+// already on.
 //
 // Neither side's own tests could catch that, because a test only ever saw one
 // side. This one fails the moment either grows a variable the other lacks.

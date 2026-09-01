@@ -70,9 +70,9 @@ pub struct BuildAgentCommandParams<'a> {
 ///
 /// Returned as pairs rather than applied straight onto a [`Command`] so it can
 /// be asserted on directly. The MCP spawner's equivalent already had this shape
-/// and was covered by tests that inject a lookup; this one only had a `Command`,
-/// which is why its copy of the inherited list could drift without anything
-/// noticing.
+/// and was covered by tests that inject a lookup; this one only had a
+/// `Command`, which is why its copy of the inherited list could drift without
+/// anything noticing.
 pub fn build_agent_environment(
     agent_name: &str,
     port: u16,

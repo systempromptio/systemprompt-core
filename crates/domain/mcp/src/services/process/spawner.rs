@@ -41,7 +41,9 @@ pub fn build_environment(
     // subprocess on a deployed host believed it was somewhere else and a server
     // that shells out to the CLI tried to route a command to the host it was
     // already running on.
-    env.extend(systemprompt_models::subprocess::inherited_parent_env(&lookup));
+    env.extend(systemprompt_models::subprocess::inherited_parent_env(
+        &lookup,
+    ));
 
     env.push((
         "SYSTEMPROMPT_PROFILE".to_owned(),

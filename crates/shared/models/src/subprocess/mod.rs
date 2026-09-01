@@ -80,8 +80,9 @@ pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
 
 /// The Fly.io platform's own host marker.
 ///
-/// Kept as a fallback so tenants deployed before [`DEPLOYMENT_HOST_ENV`] existed
-/// keep working without a redeploy. Fly injects it; nothing we generate does.
+/// Kept as a fallback so tenants deployed before [`DEPLOYMENT_HOST_ENV`]
+/// existed keep working without a redeploy. Fly injects it; nothing we generate
+/// does.
 const FLY_HOST_ENV: &str = "FLY_APP_NAME";
 
 /// Names the deployment host this process is on, if it is on one.
@@ -103,9 +104,9 @@ pub fn deployment_host(lookup: impl Fn(&str) -> Option<String>) -> Option<String
 /// Is this process running on the host its profile describes?
 ///
 /// A process that answers `false` here will try to reach its deployment host
-/// over the network. Answering `false` while actually on that host is what makes
-/// a server attempt to route a command to itself, so any one marker is proof and
-/// only their absence means "elsewhere".
+/// over the network. Answering `false` while actually on that host is what
+/// makes a server attempt to route a command to itself, so any one marker is
+/// proof and only their absence means "elsewhere".
 pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
     deployment_host(lookup).is_some()
 }
@@ -114,12 +115,10 @@ pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
 ///
 /// Both spawners clear the child environment and rebuild it from an allowlist,
 /// and both need exactly this set. They used to hold a copy each; the copies
-/// drifted, the MCP one lost the host marker, and every MCP server on a deployed
-/// host concluded it was somewhere else. One list, one drift-free answer — each
-/// spawner adds its own service-specific variables on top.
-pub fn inherited_parent_env(
-    lookup: impl Fn(&str) -> Option<String>,
-) -> Vec<(String, String)> {
+/// drifted, the MCP one lost the host marker, and every MCP server on a
+/// deployed host concluded it was somewhere else. One list, one drift-free
+/// answer — each spawner adds its own service-specific variables on top.
+pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
     let mut env: Vec<(String, String)> = [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV, "PATH", "HOME"]
         .iter()
         .filter_map(|name| lookup(name).map(|value| ((*name).to_owned(), value)))
