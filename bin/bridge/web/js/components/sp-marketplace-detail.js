@@ -1,28 +1,11 @@
 import { SpElement, reactive, escapeHtml } from "/assets/js/components/sp-element.js";
 import { t } from "/assets/js/i18n.js";
-import { shortcut } from "/assets/js/utils/rail-tabs.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
 import { bridge } from "/assets/js/bridge.js";
 import { runAction } from "/assets/js/utils/action.js";
-import { fmtRelative } from "/assets/js/utils/format.js";
-import { toneDot } from "/assets/js/utils/verdict.js";
-
-const KIND_LABEL = {
-  plugins: "Plugin",
-  skills: "Skill",
-  hooks: "Hook",
-  mcp: "MCP server",
-  agents: "Agent",
-};
-
-const CHILD_KIND_LABEL = {
-  skills: "Skill",
-  agents: "Agent",
-  hooks: "Hook",
-  mcp: "MCP server",
-};
-
-const CHILD_KIND_ORDER = ["skills", "agents", "mcp", "hooks"];
+import { mktKindSingular } from "/assets/js/utils/marketplace-kinds.js";
+import { renderMarketplaceMcp } from "/assets/js/components/marketplace-detail-mcp.js";
+import { renderMarketplaceDetailEmpty, renderMarketplaceChildren, renderMarketplacePath } from "/assets/js/components/marketplace-detail-sections.js";
 
 export class SpMarketplaceDetail extends SpElement {
   constructor() {
@@ -44,132 +27,44 @@ export class SpMarketplaceDetail extends SpElement {
         composed: true,
       }));
     });
-    this.registerAction("copy-path", async () => {
-      const value = this.selected && this.selected.path;
-      if (!value) { return; }
-      try {
-        await navigator.clipboard.writeText(value);
-        this.copied = true;
-        notifyOk(t("toast-copied") || "Copied to the clipboard.");
-        setTimeout(() => { this.copied = false; }, 1200);
-      } catch (e) {
-        notifyErr(e, t("marketplace-detail-copy") || "Copy");
-      }
-    });
+    this.registerAction("copy-path", () => this._copyPath());
   }
 
-  // Everything about one MCP server on one screen: the bridge's live auth
-  // verdict for it, who it is authenticated as, the tools `tools/list` returned,
-  // and both URLs. The listing carries identity only; the live row is the
-  // snapshot's, so this never shows a probe older than the Status pane's.
-  _mcpSection(selected) {
-    const snap = this.snapshot || {};
-    const srv = (snap.mcp_auth || []).find((s) => s.id === selected.id) || null;
-    const probing = !!snap.mcp_auth_probe_in_flight;
-    const verdict = (srv && srv.verdict) || { tone: "unknown", code: "unknown" };
-    const id = snap.verified_identity || {};
-    const who = id.email || id.user_id || "";
-    const identity = snap.identity || { tone: "unknown", code: "signed-out" };
-    const extra = selected.extra || {};
-    const recheckLabel = probing ? (t("mcp-checking") || "Checking…") : (t("mcp-recheck") || "Re-check");
-
-    const facts = [
-      [t("status-cloud-identity-label") || "Identity",
-        `<span class="sp-dot ${toneDot(identity.tone)}" aria-hidden="true"></span> ${escapeHtml(identity.tone === "ok" ? (t("mcp-signed-in-as", { email: who }) || who) : (t(`identity-${identity.code}`) || ""))}`],
-      srv && srv.http_status != null ? ["http", escapeHtml(String(srv.http_status))] : null,
-      srv && srv.latency_ms != null ? ["latency", `${escapeHtml(String(srv.latency_ms))} ms`] : null,
-      srv && srv.probed_at_unix ? [t("mcp-checked") || "checked", escapeHtml(fmtRelative(srv.probed_at_unix))] : null,
-      srv && srv.session_id ? ["session", `<code>${escapeHtml(srv.session_id)}</code>`] : null,
-      extra.proxy_url ? [t("mcp-proxy-url") || "Proxy URL", `<code>${escapeHtml(extra.proxy_url)}</code>`] : null,
-      extra.upstream_url ? [t("mcp-upstream-url") || "Upstream URL", `<code>${escapeHtml(extra.upstream_url)}</code>`] : null,
-    ].filter(Boolean);
-
-    const tools = (srv && srv.tools) || [];
-    let toolsBlock = "";
-    if (srv && srv.shows_tools) {
-      toolsBlock = tools.length
-        ? `<ul class="sp-mkt-tools">${tools.map((tool) => `
-            <li class="sp-mkt-tool">
-              <code class="sp-mkt-tool__name">${escapeHtml(tool.name)}</code>
-              ${tool.description ? `<span class="sp-mkt-tool__desc">${escapeHtml(tool.description)}</span>` : ""}
-            </li>`).join("")}</ul>`
-        : `<p class="sp-u-muted">${escapeHtml(t("mcp-no-tools") || "")}</p>`;
+  async _copyPath() {
+    const value = this.selected && this.selected.path;
+    if (!value) { return; }
+    try {
+      await navigator.clipboard.writeText(value);
+      this.copied = true;
+      notifyOk(t("toast-copied") || "Copied to the clipboard.");
+      setTimeout(() => { this.copied = false; }, 1200);
+    } catch (e) {
+      notifyErr(e, t("marketplace-detail-copy") || "Copy");
     }
-
-    return `
-      <section class="sp-mkt-detail__section sp-mkt-mcp" data-state="${escapeHtml(verdict.tone)}">
-        <h3>${escapeHtml(t("marketplace-detail-auth") || "Authentication")}</h3>
-        <div class="sp-status__row">
-          <span class="sp-dot ${toneDot(verdict.tone)}" aria-hidden="true"></span>
-          <span>${escapeHtml(t(`mcp-auth-${verdict.code}`) || "")}</span>
-          <button type="button" class="sp-btn-ghost sp-mkt-mcp__recheck" data-action="mcp-recheck" ${probing ? "disabled" : ""}>${escapeHtml(recheckLabel)}</button>
-        </div>
-        ${srv && srv.error ? `<p class="sp-kpi-card__error">${escapeHtml(srv.error)}</p>` : ""}
-        <dl class="sp-kpi-card__details">${facts.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${v}</dd>`).join("")}</dl>
-      </section>
-      <section class="sp-mkt-detail__section">
-        <h3>${escapeHtml(t("marketplace-detail-tools") || "Tools")}${srv && srv.shows_tools ? ` (${tools.length})` : ""}</h3>
-        ${toolsBlock || `<p class="sp-u-muted">${escapeHtml(t("mcp-tools-unavailable") || "")}</p>`}
-      </section>`;
   }
 
   render() {
     const selected = this.selected;
-    if (!selected) {
-      return `<article class="sp-mkt-detail">
-        <div class="sp-mkt-empty">
-          <span class="sp-mkt-empty__glyph" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          </span>
-          <span class="sp-mkt-empty__title" data-l10n-id="marketplace-empty-title">Select an item</span>
-          <span class="sp-mkt-empty__sub">Pick from the list, or use <span class="sp-kbd">${escapeHtml(shortcut("F"))}</span> to search.</span>
-        </div>
-      </article>`;
-    }
+    if (!selected) { return renderMarketplaceDetailEmpty(); }
     const sourceChip = selected.source ? `<span class="sp-mkt-chip">${escapeHtml(selected.source)}</span>` : "";
     const versionChip = selected.version ? `<span class="sp-mkt-chip sp-mkt-chip--mono">v${escapeHtml(selected.version)}</span>` : "";
     const summary = selected.summary ? `<p class="sp-mkt-detail__summary">${escapeHtml(selected.summary)}</p>` : "";
     const readme = selected.readme ? `<section class="sp-mkt-detail__section"><h3>${escapeHtml(t("marketplace-detail-readme") || "README")}</h3><div class="sp-mkt-detail__readme">${escapeHtml(selected.readme)}</div></section>` : "";
-    const mcpSection = this.kind === "mcp" ? this._mcpSection(selected) : "";
-    const children = Array.isArray(selected.children) ? selected.children : [];
-    const childrenSection = children.length ? `
-      <section class="sp-mkt-detail__section">
-        <h3>${escapeHtml(t("marketplace-detail-contents") || "Contents")} (${children.length})</h3>
-        <div class="sp-mkt-detail__children">${CHILD_KIND_ORDER.flatMap((kind) =>
-          children.filter((c) => c.kind === kind).map((c) => {
-            const known = !!(this.knownIds && this.knownIds[kind] && this.knownIds[kind].has(c.id));
-            const sharedChip = c.shared ? `<span class="sp-mkt-chip">shared</span>` : "";
-            const kindChip = `<span class="sp-mkt-chip">${escapeHtml(CHILD_KIND_LABEL[kind] || kind)}</span>`;
-            return `<button type="button" class="sp-mkt-child" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(c.id)}" ${known ? `data-action="open-child"` : "disabled"}>
-              <span class="sp-mkt-child__name">${escapeHtml(c.name || c.id)}</span>
-              ${sharedChip}${kindChip}
-            </button>`;
-          })
-        ).join("")}</div>
-      </section>` : "";
-    const copyLabel = this.copied ? (t("marketplace-detail-copied") || "Copied") : (t("marketplace-detail-copy") || "Copy" || "Copy");
-    const pathSection = selected.path ? `
-      <section class="sp-mkt-detail__section">
-        <h3>${escapeHtml(t("marketplace-detail-path") || "Path")}</h3>
-        <div class="sp-mkt-detail__path-row">
-          <span class="sp-mkt-detail__path">${escapeHtml(selected.path)}</span>
-          <button type="button" class="sp-mkt-detail__copy" data-copied="${this.copied ? "true" : ""}" data-action="copy-path">${escapeHtml(copyLabel)}</button>
-        </div>
-      </section>` : "";
+    const mcpSection = this.kind === "mcp" ? renderMarketplaceMcp(this, selected) : "";
     return `<article class="sp-mkt-detail is-entering">
       <div class="sp-mkt-detail__head">
         <div class="sp-mkt-detail__title"><h2>${escapeHtml(selected.name || selected.id)}</h2></div>
       </div>
       <div class="sp-mkt-detail__meta">
-        <span class="sp-mkt-chip">${escapeHtml(KIND_LABEL[this.kind] || this.kind)}</span>
+        <span class="sp-mkt-chip">${escapeHtml(mktKindSingular(this.kind))}</span>
         ${sourceChip}
         ${versionChip}
       </div>
       ${summary}
-      ${childrenSection}
+      ${renderMarketplaceChildren(this, selected)}
       ${readme}
       ${mcpSection}
-      ${pathSection}
+      ${renderMarketplacePath(this, selected)}
     </article>`;
   }
 }
