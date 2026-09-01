@@ -264,19 +264,6 @@ footer-licensing = licensing
 footer-tabs-hint = tabs
 
 # Topbar / navigation ---------------------------------------------------------
-nav-home = Home
-
-# Home -------------------------------------------------------------------------
-home-agents-heading = Your agents
-home-waiting-heading = Waiting on you
-home-waiting-mcp = { $count ->
-    [one] { $names } needs signing in again
-   *[other] { $count } MCP servers need signing in again ({ $names })
-  }
-home-waiting-never-synced = You have not synced yet, so no plugins are installed.
-home-waiting-session = Your session expires in { $minutes } minutes — sign in again to keep agents governed.
-home-waiting-update-available = Version { $version } is available.
-home-waiting-update-ready = Version { $version } is ready — restart to finish updating.
 nav-activity = Activity
 nav-account = Account
 nav-marketplace = Marketplace
@@ -457,12 +444,6 @@ activity-level-all = All
 activity-level-error = Errors
 activity-level-warn = Warnings
 activity-search-placeholder = Filter activity…
-governance-forwarded = { $count } forwarded
-governance-governing = Governing
-governance-idle = No traffic in the last { $duration }
-governance-last-request = last { $ago }
-governance-proxy-down = Proxy not responding — agents are not being governed
-governance-tokens = { $tokens } tokens
 settings-config-malformed = Your configuration file could not be read, so nothing can be saved until it is fixed: { $malformed }
 settings-gateway-cancel = Cancel
 settings-gateway-empty = Enter a gateway URL.

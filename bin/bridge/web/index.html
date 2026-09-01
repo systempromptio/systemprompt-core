@@ -33,12 +33,8 @@
       <span class="sp-workspace-pill" data-l10n-id="brand-workspace-pill">bridge workspace</span>
     </div>
 
-    <div class="sp-topbar__center">
-      <sp-governance-strip variant="compact"></sp-governance-strip>
-    </div>
 
     <div class="sp-topbar__right">
-      <sp-agent-presence class="sp-agent__presence" aria-label="Connected agents"></sp-agent-presence>
       <sp-sync-pill data-state="idle" title="Sync status"></sp-sync-pill>
       <sp-topbar-menu></sp-topbar-menu>
     </div>
@@ -48,10 +44,6 @@
     <sp-rail data-version="v__VERSION__"></sp-rail>
 
     <div class="sp-content sp-scroll">
-      <section class="sp-tab__panel" id="sp-panel-home" data-tab="home"
-        role="tabpanel" aria-labelledby="sp-tab-home" tabindex="-1" hidden>
-        <sp-home></sp-home>
-      </section>
 
       <section class="sp-tab__panel" id="sp-panel-agents" data-tab="agents"
         role="tabpanel" aria-labelledby="sp-tab-agents" tabindex="-1" hidden>
