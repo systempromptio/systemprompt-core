@@ -2,7 +2,18 @@
 
 ## [0.34.0] - 2026-09-01
 
+### Removed
+
+- The Home pane, the top bar's governance strip and the agent-presence dots. Home answered nothing the other panes did not, and it was where the false alarm lived — a card re-deriving a verdict the bridge had already computed. The app opens on Account; shortcuts are Ctrl+1 through Ctrl+6.
+- Cowork as an agent. It is a mode of the Claude desktop app, and both of its sync emitters write into Claude Desktop's own directories, so they now key on the `claude-desktop` host. **Breaking:** `cowork` is no longer a known host id — a profile that still enables it is rejected at boot rather than silently ignored; drop it from `enabled_hosts`.
+- The `time` crate; timestamps come from `chrono`, which the bridge already used. `serde_yaml` (archived upstream) is replaced by `serde_yaml_ng`, API-compatible.
+
 ### Added
+
+- Every state on the GUI wire carries a verdict the bridge computed beside it — `{ tone, code }` for the gateway probe, identity, session token, overall status, health, validation lines, the local proxy, MCP auth, the updater, each host's profile and application, and the sync schedule. The front end renders the tone and looks the code up in the catalogue; it never decides what a state means. That rule is enforced: `just lint-bridge-verdicts` refuses a JavaScript branch on a state's name, and `just lint-bridge-i18n` reads every verdict enum as a producer so a code without a string is red. The class of defect this closes: the Home card called four healthy MCP servers broken while Status, deriving the same fact its own way from the same snapshot, called them fine — and Status still had its own copy of the derivation after Home was fixed.
+- MCP servers on one screen. The marketplace's MCP detail shows the live auth verdict, who the server is authenticated as, the `tools/list` result with descriptions, both URLs, and a per-server re-check (`mcp.auth.probe { serverId }`); the Status pane's MCP card is a summary that links there. The listing no longer snapshots the tool list at build time, which is why it used to show only a path.
+- `just lint-bridge-layers` declares the bridge's module order and fails on any upward `crate::` reference. The bridge is one crate, so the repo's cargo-graph layer gate could not see it, and it had cycles: `integration ⇄ sync`, `integration ⇄ install`, `host_sync` naming every host, and a Codex installer raising a dialog through `gui`.
+- `just bridge-bindings-check` regenerates the ts-rs bindings into scratch and diffs them against `bindings/`; a variant renamed in Rust used to leave them stale with nothing to say so.
 
 - The `comms-drain` hooks (`UserPromptSubmit`, `Stop`) are installed only when the governance-owning plugin sets `hooks.comms: true` in the manifest. They rode along with every governance owner before.
 
@@ -12,6 +23,11 @@
 
 ### Changed
 
+- The wire spelling of every state enum is kebab-case; `McpAuthState` and `ProxyProbeState` were bare PascalCase. The raw host probe snapshot no longer crosses the wire at all — the drawer branched on `profile_state.kind`, the same anti-pattern — and is replaced by a `health` payload of verdicts and plain facts.
+- One snapshot store in the GUI. Twenty-two components each fetched the state snapshot on connect and re-fetched on whichever events they happened to know about; one module now fetches once, refreshes on every channel the bridge re-emits state for, and hands the same object to every subscriber. Every user-initiated action goes through `runAction`, so failure is never swallowed.
+- `AppState` holds one lock instead of three. `mark_probing` released the snapshot lock before taking the pre-probe one, so two probes could interleave and strand the UI on `Probing`.
+- The `UiEvent` name map is one exhaustive match: a new variant is a compile error, not `"Unknown"` in the logs forever. The three CLI hosts share one process finder and one config-key collector instead of three byte-identical copies each. Stringly `Result<_, String>` errors in the proxy probe, comms stream, elevated job, update args, keystore probe and Windows MDM are `thiserror` enums; the settings and session handlers stop stringifying typed errors into `io::Error`.
+- The six test files under `bin/bridge/tests/` never ran in CI — the bridge shard maps to `crates/tests/unit/bridge/` only. They live there now, as the `verdicts` crate. Coverage stops ignoring `bin/bridge`. The dev fixtures every carried an `update.state` of `idle`, a phase the updater does not have; they are migrated, seeded with MCP servers in three states, and the fixture test fails on a fixture it cannot read instead of skipping it.
 - Managed skills for hosts that read `SKILL.md` folders directly (Hermes, OpenCode) go through one writer, `integration::managed_skills`, with the sidecar, pruning and front-matter rendering in one place; the Codex marketplace writer shares its renderer. Hermes's `config.yaml` MCP write is atomic, as its profile write already was.
 
 ### Fixed

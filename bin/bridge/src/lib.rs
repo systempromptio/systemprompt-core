@@ -183,6 +183,8 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     cli::run()
 }
 
+// Why: agents.json stopped being written in 0.28.0; this one-way purge can go
+// once 0.36.0 is the oldest bridge still updating itself.
 fn purge_legacy_agents_state() {
     let Some(base) = basedirs::config_dir() else {
         return;

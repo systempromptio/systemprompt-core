@@ -9,9 +9,13 @@
 - `opencode` is a known bridge host, so a tenant may enable the OpenCode coding agent alongside the existing hosts.
 - `systemprompt_models::bridge::profile::KNOWN_HOSTS` is the single list of host ids the gateway accepts from a bridge. It was a private constant in the API route; the bridge's registry test now asserts against it, so a host added on one side without the other fails a test instead of silently never being enabled.
 
+### Changed
+
+- **Breaking:** `cowork` is no longer in `systemprompt_models::bridge::profile::KNOWN_HOSTS`. Cowork is a mode of the Claude desktop app, not a host; the bridge's Cowork sync emitters now key on `claude-desktop`. A profile or `enabled_hosts` request that still names `cowork` is rejected — drop it.
+
 ### Bridge (0.34.0)
 
-See `bin/bridge/CHANGELOG.md`: OpenCode is a supported host, terminal-only hosts no longer offer an Open button, and the Hermes host gained its logo and unit coverage.
+See `bin/bridge/CHANGELOG.md`. The Home pane is gone and the app opens on Account; every state on the GUI wire now carries a verdict the bridge computed, with a gate that refuses a JavaScript branch on a state's name — the class of bug behind the "needs signing in" false alarm; MCP servers get one screen with the live auth verdict and `tools/list`; the bridge's modules are gated acyclic; OpenCode is a supported host, terminal-only hosts no longer offer an Open button, and the Hermes host gained its logo and unit coverage.
 
 ## [0.42.0] - 2026-08-31
 

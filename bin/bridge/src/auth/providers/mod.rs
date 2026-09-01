@@ -61,6 +61,8 @@ impl AuthFailedSource {
     }
 }
 
+// Why: `#[async_trait]` because the chain holds `Vec<Box<dyn AuthProvider>>`
+// and tries each provider in order; a native `async fn` is not dyn-compatible.
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;

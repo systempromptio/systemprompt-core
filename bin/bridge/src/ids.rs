@@ -25,9 +25,6 @@ macro_rules! bridge_define_id {
             pub fn into_inner(self) -> String { self.0 }
         }
 
-        impl From<String> for $name { fn from(s: String) -> Self { Self(s) } }
-        impl From<&str> for $name { fn from(s: &str) -> Self { Self(s.to_owned()) } }
-
         $crate::bridge_id_common!($name);
     };
 

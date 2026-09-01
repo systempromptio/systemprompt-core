@@ -279,7 +279,5 @@ struct LastSyncSentinel<'a> {
 }
 
 fn current_iso8601() -> String {
-    time::OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Rfc3339)
-        .unwrap_or_else(|_| "unknown".into())
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
 }

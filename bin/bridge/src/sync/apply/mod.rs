@@ -90,6 +90,9 @@ fn prune_legacy_state() {
     }
 }
 
+// Why: the synthetic aggregate plugin and the old metadata markers were last
+// written by 0.24.0; this one-way prune can go once 0.36.0 is the oldest
+// bridge still updating itself.
 fn remove_legacy_dir(path: &Path, what: &str) {
     if !path.exists() {
         return;

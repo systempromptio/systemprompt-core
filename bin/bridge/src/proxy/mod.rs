@@ -189,10 +189,9 @@ pub fn start_default() -> StartOutcome {
     persist_and_announce(handle.port);
     rt.spawn(refresh_loop(token_cache));
 
-    _ = HANDLE.set(handle);
-    HANDLE
-        .get()
-        .map_or_else(|| unreachable!("handle set above"), StartOutcome::Started)
+    // Why: `get_or_init` hands back the `'static` reference in the same call
+    // that stores it, so there is no "set then get" gap to reason about.
+    StartOutcome::Started(HANDLE.get_or_init(|| handle))
 }
 
 fn persist_and_announce(port: u16) {

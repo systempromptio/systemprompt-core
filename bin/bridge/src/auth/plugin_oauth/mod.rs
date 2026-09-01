@@ -112,7 +112,9 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
         return Ok(None);
     };
     // JSON: on-disk format discrimination — a `client_secret` key marks the
-    // legacy layout, decided before either typed struct can be chosen.
+    // legacy layout, decided before either typed struct can be chosen. The
+    // keystore migration shipped in 0.30.0; drop the legacy arm once 0.36.0
+    // is the oldest bridge still updating itself.
     let raw: serde_json::Value = serde_json::from_str(&text)?;
     if raw.get("client_secret").is_some() {
         let l: LegacyCreds = serde_json::from_value(raw)?;

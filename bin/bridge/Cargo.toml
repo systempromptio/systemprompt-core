@@ -33,8 +33,7 @@ toml = "1.1"
 toml_edit = "0.25"
 # Hermes reads a YAML config.yaml; the same deep-merge/strip-owned discipline the
 # Codex host applies to TOML is applied here to YAML.
-serde_yaml = "0.9"
-time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
+serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 dirs = "6"
 sha2 = "0.11"
