@@ -15,7 +15,7 @@
 
 ### Bridge (0.34.0)
 
-See `bin/bridge/CHANGELOG.md`. The Home pane is gone and the app opens on Account; every state on the GUI wire now carries a verdict the bridge computed, with a gate that refuses a JavaScript branch on a state's name — the class of bug behind the "needs signing in" false alarm; MCP servers get one screen with the live auth verdict and `tools/list`; the bridge's modules are gated acyclic; OpenCode is a supported host, terminal-only hosts no longer offer an Open button, and the Hermes host gained its logo and unit coverage.
+See `bin/bridge/CHANGELOG.md`. The Home pane is gone and the app opens on Account; every state on the GUI wire now carries a verdict the bridge computed, with a gate that refuses a JavaScript branch on a state's name — the class of bug behind the "needs signing in" false alarm; MCP servers get one screen with the live auth verdict and `tools/list`; the bridge's modules are gated acyclic; OpenCode is a supported host, terminal-only hosts no longer offer an Open button, and the Hermes host gained its logo and unit coverage. The bridge's service state — proxy, runtime, install id, MCP registry, activity log, gateway client, caches — moved off process statics onto one `BridgeContext` built at the composition root and injected, with `just lint-bridge-globals` keeping it there (**Breaking** for white-label crates: `HostApp::probe`, `HostSync::clear` and `AuthProvider::authenticate` take their inputs); the whole GUI wire is typed and exported to TypeScript on every target; the web tree is within the 150-line JS / 300-line CSS standard and gated by `just lint-bridge-file-size`.
 
 ## [0.42.0] - 2026-08-31
 

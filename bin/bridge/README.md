@@ -24,15 +24,19 @@ Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sig
 
 | Module | Purpose |
 |---|---|
+| [`context.rs`](src/context.rs) | `BridgeContext`: the one composition root — tokio runtime, proxy handle, install id, MCP registry, activity log, gateway HTTP client, per-process caches. Built once in `cli::run_with_args` (serving for `proxy`/`gui`, attaching for every other command) and injected; nothing below it reaches for process state |
 | [`auth/`](src/auth/) | Provider chain (mTLS → session → PAT), single credential contract |
 | [`proxy/`](src/proxy/) | Loopback inference proxy, forwarding, single-flight token cache |
 | [`gateway/`](src/gateway/) | Gateway client, manifest fetch and signature verification |
 | [`sync/`](src/sync/) | Manifest apply, replay protection (monotonic version + skew) |
+| [`wire/`](src/wire/) | Every payload the webview is written against (`StatePayload`, hosts, verdict codes, IPC envelope). Builds on every target and is exported to TypeScript under [`bindings/web/js/types/`](bindings/web/js/types/) by `just bridge-bindings` |
 | [`gui/`](src/gui/) | Native settings window (winit + wry), Windows + macOS only |
 | [`integration/`](src/integration/) | Host integration registry: Claude Desktop, Codex CLI, Hermes, OpenCode, the Claude Desktop facets (Cowork plugins + artifacts), and the sync-only Claude Code agent |
 | [`install/`](src/install/) | Install and uninstall, pubkey pinning, MDM snippet emission |
 | [`mcp_registry.rs`](src/mcp_registry.rs) | On-disk MCP snapshot, rehydrated at startup |
 | [`schedule/`](src/schedule/) | OS scheduler templates for periodic sync |
+
+The modules are layered bottom-up and `just lint-bridge-layers` refuses an upward `crate::` reference; the order lives in [`scripts/lint-bridge-layers.sh`](../../scripts/lint-bridge-layers.sh) (leaves → `config` → `gateway` → `mcp_registry` → `auth` → `validate`/`update` → `proxy_probe` → `proxy` → `context` → `host_sync` → `install` → `integration` → `sync` → `wire` → `gui` → `cli`). `just lint-bridge-globals` refuses a new process static outside its reasoned allowlist — service state belongs on `BridgeContext`. The two composition roots are `cli::run_with_args` (every command) and `gui::run(ctx)`, which receives the context the CLI built.
 
 ---
 
