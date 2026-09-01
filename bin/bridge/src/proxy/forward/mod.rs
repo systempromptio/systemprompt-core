@@ -109,7 +109,7 @@ pub(crate) async fn forward(
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_owned();
 
-    // Why `hook_plugin` is carried out of the match: a hook token rejected
+    // Why: `hook_plugin` is carried out of the match: a hook token rejected
     // upstream has to be evicted by the plugin it was minted for, and the match
     // arm is the only place that name exists.
     let mut hook_plugin = None;

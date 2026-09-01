@@ -7,7 +7,6 @@ use crate::env_overrides::EnvOverrides;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExecutionEnvironment {
-    /// Running on the host the active profile describes.
     pub is_deployment_host: bool,
     pub is_remote_cli: bool,
 }

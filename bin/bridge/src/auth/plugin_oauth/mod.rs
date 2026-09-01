@@ -47,10 +47,6 @@ pub struct OAuthClientCreds {
     pub client_secret: String,
     pub token_endpoint: String,
     pub scopes: Vec<String>,
-    /// Base URL of the gateway this client was provisioned against.
-    ///
-    /// `None` is a pre-gateway-aware file on disk: the gateway is unknown, not
-    /// absent, so it is treated as a mismatch and re-provisioned once.
     pub gateway: Option<String>,
 }
 
@@ -72,7 +68,6 @@ struct StoredCreds {
     token_endpoint: String,
     #[serde(default)]
     scopes: Vec<String>,
-    /// Absent in files written before the client became gateway-aware.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     gateway: Option<String>,
 }
@@ -162,14 +157,6 @@ pub fn delete_creds() -> io::Result<()> {
     }
 }
 
-/// Return the stored client only if it belongs to `gateway`.
-///
-/// Why the check: an OAuth client is registered with one gateway and its hook
-/// tokens are signed by that gateway's authority. Reusing a
-/// production-registered client while pointed at a local server made the bridge
-/// mint from production's token endpoint and present the result to the local
-/// governance webhook, which rejected it as an unknown signing key. This is the
-/// persistent half of that bug — it is on disk, so it survived restarts.
 fn load_creds_for(gateway: &str) -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     let Some(existing) = load_creds()? else {
         return Ok(None);

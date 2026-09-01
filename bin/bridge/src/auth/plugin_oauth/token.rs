@@ -40,8 +40,6 @@ impl CachedHookToken {
     }
 }
 
-/// Cache key separator. Not valid in a URL or a plugin id, so no pair of
-/// distinct `(gateway, plugin)` inputs can collide on one key.
 const KEY_SEP: char = '\u{1f}';
 
 fn cache_key(gateway: &str, plugin_id: &PluginId) -> String {
@@ -89,10 +87,6 @@ impl PluginTokenCache {
         self.entries().remove(&cache_key(gateway, plugin_id));
     }
 
-    /// Drop every gateway's token for one plugin.
-    ///
-    /// For when the plugin itself is gone — uninstalled during a sync — rather
-    /// than one gateway's token for it having gone stale.
     pub fn invalidate_plugin(&self, plugin_id: &PluginId) {
         let suffix = format!("{KEY_SEP}{}", plugin_id.as_str());
         self.entries().retain(|key, _| !key.ends_with(&suffix));

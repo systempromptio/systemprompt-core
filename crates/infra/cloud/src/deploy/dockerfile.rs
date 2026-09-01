@@ -202,17 +202,10 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         format!("\n# Copy MCP server binaries\n{}\n", lines.join("\n"))
     }
 
-    /// Marks the image as *being* a deployment host.
-    ///
-    /// Without this the binary inside the container has no way to know it is
-    /// already the deployment, and a cloud-profile command tries to route to
-    /// the host it is running on. Fly supplies `FLY_APP_NAME` and so
-    /// happened to work; every other platform supplies nothing, which is
-    /// why this is generated rather than left to the host.
-    ///
-    /// The value names the host as specifically as the image can — the profile
-    /// name, since the concrete app id is not known until the image is placed.
-    /// A platform that knows better may override it at runtime.
+    // Why: without this a cloud-profile command inside the container routes to the
+    // host it is already on. Fly happened to supply `FLY_APP_NAME`; other
+    // platforms supply nothing. The profile name is the most specific value
+    // known before the image is placed.
     fn deployment_host_env(&self) -> String {
         format!(
             "    {}={} \\",

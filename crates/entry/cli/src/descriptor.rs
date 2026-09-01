@@ -56,12 +56,8 @@ impl CommandDescriptor {
         self.flags & Self::FLAG_DATABASE != 0
     }
 
-    /// How this command must be routed when a cloud profile is active.
-    ///
-    /// Read-only and mutating commands were one boolean until they were not:
-    /// refusing to run a *read* because no tenant session exists fails the
-    /// caller for a reason they cannot act on, whereas refusing a *write* is
-    /// the whole point. See [`RoutingClass`].
+    // Why: read-only and mutating were one boolean; refusing a read because no
+    // tenant session exists fails the caller for a reason they cannot act on.
     pub const fn routing_class(&self) -> RoutingClass {
         if self.flags & Self::FLAG_REMOTE_ELIGIBLE == 0 {
             RoutingClass::LocalOnly
@@ -82,8 +78,6 @@ impl CommandDescriptor {
         }
     }
 
-    /// Mark a remote-eligible command as reading only, so it may fall back to
-    /// local execution rather than failing when remote routing is unavailable.
     pub const fn with_read_only(self) -> Self {
         Self {
             flags: self.flags | Self::FLAG_READ_ONLY,
@@ -98,14 +92,14 @@ impl CommandDescriptor {
 }
 
 /// What a command is allowed to do when the active profile is a cloud profile.
+///
+/// `LocalOnly` is never routed remotely and runs against whatever the profile
+/// resolves; `ReadOnly` prefers remote when a session is available and falls
+/// back to local with a warning; `Mutating` must route remotely or fail loudly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoutingClass {
-    /// Never routed remotely; runs against whatever the profile resolves.
     LocalOnly,
-    /// Reads only. Prefers remote when a session is available, and falls back
-    /// to local with a warning when it is not.
     ReadOnly,
-    /// Mutates tenant state. Must route remotely or fail loudly.
     Mutating,
 }
 

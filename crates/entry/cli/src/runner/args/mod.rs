@@ -186,7 +186,7 @@ impl DescribeCommand for Commands {
                 infrastructure::jobs::JobsCommands::Run(_)
                 | infrastructure::jobs::JobsCommands::List,
             )) => CommandDescriptor::FULL.with_skip_validation(),
-            // Reads. They may fall back to local data with a warning rather
+            // Why: reads. They may fall back to local data with a warning rather
             // than refusing when a cloud profile cannot route remotely.
             Self::Analytics(_) => CommandDescriptor::FULL
                 .with_skip_validation()

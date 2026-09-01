@@ -66,13 +66,13 @@ pub struct BuildAgentCommandParams<'a> {
     pub log_file: File,
 }
 
-/// The environment an agent child is spawned with.
-///
-/// Returned as pairs rather than applied straight onto a [`Command`] so it can
-/// be asserted on directly. The MCP spawner's equivalent already had this shape
-/// and was covered by tests that inject a lookup; this one only had a
-/// `Command`, which is why its copy of the inherited list could drift without
-/// anything noticing.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one argument per environment source; a struct would only rename the same six"
+)]
+// Why: returned as pairs rather than applied onto a `Command` so tests can
+// assert on it; the inherited-variable list drifted unnoticed while it was only
+// ever applied.
 pub fn build_agent_environment(
     agent_name: &str,
     port: u16,

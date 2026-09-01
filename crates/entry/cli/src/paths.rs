@@ -15,11 +15,9 @@ pub struct ResolvedPaths {
 }
 
 impl ResolvedPaths {
-    /// Resolve against an explicit project root.
-    ///
-    /// Prefer this wherever a profile has already been resolved. It is what
-    /// makes the tenant store and session store depend on the *profile* rather
-    /// than on the directory the process happened to start in.
+    // Why: preferred once a profile is resolved, so the tenant and session stores
+    // depend on the profile rather than on the directory the process started
+    // in.
     pub fn for_root(root: &Path) -> Self {
         let project_ctx = ProjectContext::discover_from(root);
         let has_local_dir = project_ctx.systemprompt_dir().exists();
@@ -29,16 +27,13 @@ impl ResolvedPaths {
         }
     }
 
-    /// Resolve against the project root the profile itself declares.
     pub fn from_profile(profile: &systemprompt_models::Profile) -> Self {
         Self::for_root(Path::new(&profile.paths.system))
     }
 
-    /// Walk up from the current directory looking for a project root.
-    ///
-    /// Only correct *before* a profile has been resolved — locating the profile
-    /// itself. Once a profile is in hand, use [`Self::from_profile`], or the
-    /// same command answers differently depending on the caller's cwd.
+    // Why: only correct before a profile is resolved; afterwards use
+    // `from_profile`, or the same command answers differently depending on the
+    // caller's cwd.
     pub fn discover() -> Self {
         let project_ctx = ProjectContext::discover();
         let has_local_dir = project_ctx.systemprompt_dir().exists();

@@ -49,7 +49,7 @@ pub async fn handle(
         (StatusCode::NOT_FOUND, "Plugin not found".to_owned())
     })?;
 
-    // Authentication is not authorization. The signed manifest is assembled
+    // Why: authentication is not authorization. The signed manifest is assembled
     // per user and omits a plugin the caller's roles do not grant, but the
     // bytes are served from this endpoint — so without the same scoping here,
     // any valid token could pull an admin plugin's bundle by path and read the
@@ -96,9 +96,9 @@ async fn authenticate(
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))
 }
 
-/// Does this user's own manifest carry the plugin? Assembled through the same
-/// `ManifestService` + marketplace filter the manifest endpoint uses, so the
-/// two can never disagree about what a role was granted.
+// Why: goes through the same `ManifestService` + marketplace filter as the
+// manifest endpoint, so the two can never disagree about what a role was
+// granted.
 async fn plugin_is_granted(
     ctx: &AppContext,
     plugin_id: &PluginId,

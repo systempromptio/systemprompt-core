@@ -190,14 +190,9 @@ fn confirm_remote_job_run(
     )
 }
 
-/// Decide whether a cloud-profile command may run locally after remote routing
-/// came up empty.
-///
-/// `external_db_access` is the standing opt-in. Beyond that, a read may proceed
-/// against whatever the profile resolves — a number with stated provenance is
-/// worth more to the caller than an error they cannot act on — while a mutation
-/// still refuses, because writing tenant state to the wrong database is the
-/// failure this check exists to prevent.
+// Why: a read may proceed locally (a number with stated provenance beats an
+// error the caller cannot act on); a mutation refuses, since writing tenant
+// state to the wrong database is the failure this check exists to prevent.
 fn allow_local_execution(
     profile: &systemprompt_models::Profile,
     class: RoutingClass,
@@ -231,11 +226,8 @@ fn allow_local_execution(
     )
 }
 
-/// Point the caller at the thing that is actually broken.
-///
-/// A tenant-store failure is not fixed by signing in — `resolve_tenant` runs
-/// before the session is ever consulted — so the two cases get different
-/// advice.
+// Why: a tenant-store failure is not fixed by signing in (`resolve_tenant` runs
+// before the session is consulted), so the two cases get different advice.
 fn remediation_for(reason: &str) -> &'static str {
     if reason.contains("load tenants") || reason.contains("tenant") {
         "Run 'systemprompt cloud tenant list' to sync the tenant store, and check you are in the \
