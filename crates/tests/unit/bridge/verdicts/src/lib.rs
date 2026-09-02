@@ -14,3 +14,9 @@ mod hermes_profile;
 mod host_reapply;
 #[cfg(test)]
 mod inconclusive_state;
+#[cfg(test)]
+mod wire_hosts;
+#[cfg(test)]
+mod wire_ipc;
+#[cfg(test)]
+mod wire_payloads;

@@ -122,7 +122,7 @@ pub struct PluginHooksRef {
 impl PluginHooksRef {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        !self.governance && !self.comms && self.include.is_empty()
+        !self.governance && self.include.is_empty()
     }
 }
 

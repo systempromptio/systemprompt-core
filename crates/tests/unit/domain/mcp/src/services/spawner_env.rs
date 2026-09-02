@@ -293,3 +293,99 @@ fn both_spawners_inherit_exactly_the_same_environment() {
         );
     }
 }
+
+// Why: `open_server_log` is the only rotation call site on the spawn path, so
+// rotation working when called directly is not enough — opening a log that is
+// already oversized must move it aside, or a long-running server keeps growing
+// one file until the disk fills.
+#[test]
+fn opening_an_oversized_log_rotates_it_before_appending() {
+    use systemprompt_mcp::services::process::spawner::open_server_log;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let logs = dir.path().join("logs");
+    std::fs::create_dir_all(&logs).expect("logs dir");
+    let log = logs.join("mcp-rotate-on-open.log");
+    let file = std::fs::File::create(&log).expect("create log");
+    file.set_len(11 * 1024 * 1024).expect("grow past 10MiB");
+    drop(file);
+
+    let paths = lexical_paths(dir.path());
+    let config = internal_mcp_config("rotate-on-open", 9101);
+
+    let opened = open_server_log(&paths, &config).expect("log should open");
+    drop(opened);
+
+    assert!(
+        logs.join("mcp-rotate-on-open.log.old").exists(),
+        "the oversized log must be preserved beside the fresh one"
+    );
+    let fresh = std::fs::metadata(&log).expect("fresh log");
+    assert_eq!(
+        fresh.len(),
+        0,
+        "the reopened log starts empty; appending to the old one is the bug this prevents"
+    );
+}
+
+#[test]
+fn a_second_open_appends_rather_than_truncating() {
+    use std::io::Write;
+    use systemprompt_mcp::services::process::spawner::open_server_log;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let paths = lexical_paths(dir.path());
+    let config = internal_mcp_config("append-server", 9102);
+
+    let mut first = open_server_log(&paths, &config).expect("first open");
+    first.write_all(b"first\n").expect("write");
+    drop(first);
+
+    let mut second = open_server_log(&paths, &config).expect("second open");
+    second.write_all(b"second\n").expect("write");
+    drop(second);
+
+    let contents = std::fs::read_to_string(dir.path().join("logs").join("mcp-append-server.log"))
+        .expect("read log");
+    assert_eq!(
+        contents, "first\nsecond\n",
+        "a restart must not discard the previous run's log"
+    );
+}
+
+// Why: the spawn path opens the log before it starts the child. If an
+// unwritable log directory were swallowed the server would start with its
+// stderr pointed nowhere, so this has to surface as an error the caller sees.
+#[test]
+fn an_unusable_logs_directory_is_reported_rather_than_ignored() {
+    use systemprompt_mcp::services::process::spawner::open_server_log;
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("logs"), b"not a directory").expect("occupy the logs path");
+
+    let paths = lexical_paths(dir.path());
+    let config = internal_mcp_config("blocked-server", 9103);
+
+    let err = open_server_log(&paths, &config).expect_err("a file in the way must not be ignored");
+
+    assert!(
+        err.to_string().contains("logs"),
+        "the error must name the directory the operator has to fix, got: {err}"
+    );
+}
+
+fn lexical_paths(root: &Path) -> systemprompt_models::AppPaths {
+    let root = root.to_string_lossy().into_owned();
+    systemprompt_models::AppPaths::from_profile(
+        &systemprompt_models::profile::PathsConfig {
+            system: root.clone(),
+            services: root.clone(),
+            bin: root.clone(),
+            web_path: Some(root.clone()),
+            storage: Some(root),
+            geoip_database: None,
+        },
+        systemprompt_models::PathResolution::Lexical,
+    )
+    .expect("paths")
+}

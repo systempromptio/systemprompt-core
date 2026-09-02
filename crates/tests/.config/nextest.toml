@@ -81,6 +81,12 @@ generator-config-db = { max-threads = 1 }
 api-health-monitor-db = { max-threads = 1 }
 cli-cloud-harness = { max-threads = 1 }
 cloud-checkout-port = { max-threads = 1 }
+# Why: these tests each start a real `BridgeContext`, which binds a proxy port
+# from a fixed candidate list and refuses a port another install already holds
+# ("served by a different Systemprompt Bridge install"). nextest gives each test
+# its own process, so two of them race for the same candidate and one fails on a
+# collision that says nothing about the code under test.
+bridge-proxy-port = { max-threads = 1 }
 # Why: `ApprovalRepository::expire_due` is an unscoped UPDATE over every
 # overdue pending row, so it sweeps other tests' fixtures. Without this the
 # deadline test passes by reading a status column another test set, rather
@@ -114,6 +120,14 @@ test-group = 'logs-cleanup-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
 test-group = 'logs-cleanup-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/)'
+test-group = 'bridge-proxy-port'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/)'
+test-group = 'bridge-proxy-port'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'

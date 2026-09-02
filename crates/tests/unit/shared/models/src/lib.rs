@@ -124,6 +124,7 @@ mod net;
 
 #[cfg(test)]
 mod subprocess;
+mod subprocess_deployment_host;
 
 #[cfg(test)]
 mod services_hooks;

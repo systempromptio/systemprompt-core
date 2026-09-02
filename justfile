@@ -643,13 +643,13 @@ coverage:
     "$LLVM_COV" report \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
         --summary-only
 
     "$LLVM_COV" export \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
         --format=lcov \
         > "$ROOT/coverage-report/lcov.info"
 
@@ -683,7 +683,7 @@ coverage-html:
     "$LLVM_COV" show \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|bin/bridge|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
         --format=html \
         --output-dir="$ROOT/coverage-report/html"
     echo "Coverage report: coverage-report/html/index.html"

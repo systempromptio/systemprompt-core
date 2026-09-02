@@ -1298,3 +1298,32 @@ fn sync_fails_only_when_a_freshly_minted_token_is_also_rejected() {
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }
+
+#[test]
+fn an_ipv6_loopback_mcp_url_is_also_rehomed_onto_the_gateway() {
+    let m = manifest_with(
+        vec![
+            mcp("V6 MCP", "http://[::1]:9911/mcp"),
+            mcp("V4 MCP", "http://127.0.0.1:9912/mcp"),
+        ],
+        vec![],
+    );
+    let (server, dirs, pat_dir) = serve(&m, "pat-v6");
+    let gateway_uri = server.uri();
+    let summary = run_sync(&dirs).expect("sync applies");
+    assert_eq!(summary.mcp_count, 2);
+
+    let written = written_servers(&dirs);
+    for name in ["V6 MCP", "V4 MCP"] {
+        let entry = written
+            .iter()
+            .find(|s| s["name"] == name)
+            .unwrap_or_else(|| panic!("{name} written"));
+        assert_eq!(
+            entry["url"].as_str().expect("url"),
+            format!("{gateway_uri}/mcp"),
+            "every loopback form is rehomed, not just the IPv4 literal ({name})"
+        );
+    }
+    let _ = (&server, &pat_dir);
+}

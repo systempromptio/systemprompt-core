@@ -7237,6 +7237,7 @@ dependencies = [
 name = "systemprompt-bridge-cli-tests"
 version = "0.0.11"
 dependencies = [
+ "libc",
  "serde_json",
  "systemprompt-bridge",
  "temp-env",
@@ -7314,6 +7315,7 @@ dependencies = [
 name = "systemprompt-bridge-install-tests"
 version = "0.0.11"
 dependencies = [
+ "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "temp-env",
@@ -7447,17 +7449,20 @@ dependencies = [
  "futures-util",
  "http-body-util",
  "hyper",
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "temp-env",
  "tempfile",
  "tokio",
+ "wiremock",
 ]
 
 [[package]]
 name = "systemprompt-bridge-schedule-tests"
 version = "0.0.11"
 dependencies = [
+ "serde_json",
  "systemprompt-bridge",
 ]
 
@@ -7508,7 +7513,10 @@ dependencies = [
 name = "systemprompt-bridge-update-tests"
 version = "0.0.11"
 dependencies = [
+ "reqwest",
+ "serde_json",
  "systemprompt-bridge",
+ "tempfile",
 ]
 
 [[package]]
