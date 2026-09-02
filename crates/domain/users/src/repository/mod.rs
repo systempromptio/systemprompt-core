@@ -2,7 +2,8 @@
 //!
 //! [`UserRepository`] holds the read and write pools and implements user CRUD,
 //! sessions, and federated identity across the `user` submodule; the API-key,
-//! device-cert, and banned-IP repositories live alongside it. Mutating
+//! device-cert, banned-IP, and rate-limit-bucket repositories live alongside
+//! it. Mutating
 //! operations take typed parameter structs ([`UpdateUserParams`],
 //! [`CreateApiKeyParams`], [`EnrollDeviceCertParams`], [`BanIpParams`]).
 //!
@@ -13,6 +14,7 @@ mod api_key;
 mod banned_ip;
 mod device_cert;
 mod federated_identity;
+mod rate_limit_bucket;
 mod user;
 
 pub use api_key::CreateApiKeyParams;
@@ -20,6 +22,7 @@ pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };
 pub use device_cert::EnrollDeviceCertParams;
+pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, UpdateUserParams};
 
 use crate::error::Result;

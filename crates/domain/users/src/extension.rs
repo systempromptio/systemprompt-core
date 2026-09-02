@@ -56,6 +56,16 @@ impl Extension for UsersExtension {
                 "label".into(),
             ]),
             SchemaDefinition::new(
+                "user_rate_limit_buckets",
+                include_str!("../schema/user_rate_limit_buckets.sql"),
+            )
+            .with_required_columns(vec![
+                "user_id".into(),
+                "scope".into(),
+                "window_start".into(),
+                "hits".into(),
+            ]),
+            SchemaDefinition::new(
                 "federated_identities",
                 include_str!("../schema/federated_identities.sql"),
             )

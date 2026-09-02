@@ -9,6 +9,8 @@ mod at_rest;
 #[cfg(test)]
 mod auth_validation;
 #[cfg(test)]
+mod authz_chain_cache;
+#[cfg(test)]
 mod authz_entity_ref;
 #[cfg(test)]
 mod authz_repository;

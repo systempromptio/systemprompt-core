@@ -332,3 +332,43 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
 
     cleanup(&db, &id).await;
 }
+
+#[tokio::test]
+async fn chain_fingerprint_moves_with_rule_and_entity_writes() {
+    let Some((repo, db)) = repo().await else {
+        return;
+    };
+    let id = unique_entity();
+
+    let empty = repo.chain_fingerprint().await.expect("fingerprint");
+    repo.upsert_entity(KIND, &id, false, "test")
+        .await
+        .expect("entity");
+    let with_entity = repo.chain_fingerprint().await.expect("fingerprint");
+    assert!(
+        with_entity.entity_count > empty.entity_count || with_entity != empty,
+        "an entity upsert must change the fingerprint"
+    );
+
+    repo.upsert_rule(UpsertRuleParams {
+        entity_type: KIND,
+        entity_id: &id,
+        rule_type: RuleType::ROLE,
+        rule_value: "admin",
+        access: Access::Allow,
+        justification: None,
+    })
+    .await
+    .expect("rule");
+    let with_rule = repo.chain_fingerprint().await.expect("fingerprint");
+    assert_ne!(
+        with_rule, with_entity,
+        "a rule upsert must change the fingerprint"
+    );
+    assert!(
+        with_rule.rules_updated_at.is_some(),
+        "a populated rules table reports its newest updated_at"
+    );
+
+    cleanup(&db, &id).await;
+}

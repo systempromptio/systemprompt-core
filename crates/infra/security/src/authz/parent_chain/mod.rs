@@ -1,5 +1,5 @@
-//! The `entity → plugin → marketplace` parent chain, loaded once per request
-//! and shared by every enforcement site.
+//! The `entity → plugin → marketplace` parent chain, loaded through
+//! [`ChainIndexCache`] and shared by every enforcement site.
 //!
 //! [`ChainSources`] says who parents whom; [`ParentChainIndex::load`] fetches
 //! the rules and `default_included` sentinels for the marketplace and every
@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod cache;
 mod sources;
 
 use std::collections::BTreeMap;
@@ -25,6 +26,7 @@ use super::resolver::{ResolveInput, ResolveParent, resolve};
 use super::subject::{SubjectAttributes, SubjectDimension};
 use super::types::{AccessRule, Decision, EntityKind, EntityRef};
 
+pub use cache::ChainIndexCache;
 pub use sources::{ChainSources, MarketplaceSource};
 
 #[derive(Debug, Clone)]
@@ -60,8 +62,9 @@ pub struct ParentChainIndex {
     marketplace: Option<LoadedParent>,
     plugins: BTreeMap<PluginId, LoadedParent>,
     // Why: shared rather than owned. The sources are fixed for the process
-    // lifetime but the index is rebuilt on every authz decision, so an owned
-    // copy deep-cloned every plugin id, skill id and member set per call.
+    // lifetime while the index is rebuilt whenever the cache sees the rule or
+    // entity tables change, so an owned copy would deep-clone every plugin
+    // id, skill id and member set on each rebuild for no benefit.
     sources: Arc<ChainSources>,
 }
 

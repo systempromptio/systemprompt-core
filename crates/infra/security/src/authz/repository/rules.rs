@@ -6,13 +6,42 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::RuleId;
 
 use super::{AccessControlRepository, ExportRuleRow, UpsertRuleParams};
 use crate::authz::error::AuthzResult;
 use crate::authz::types::{Access, AccessRule, EntityKind, RuleType};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChainFingerprint {
+    pub rule_count: i64,
+    pub rules_updated_at: Option<DateTime<Utc>>,
+    pub entity_count: i64,
+    pub entities_updated_at: Option<DateTime<Utc>>,
+}
+
 impl AccessControlRepository {
+    pub async fn chain_fingerprint(&self) -> AuthzResult<ChainFingerprint> {
+        let row = sqlx::query!(
+            r#"
+            SELECT
+                (SELECT COUNT(*) FROM access_control_rules) AS "rule_count!",
+                (SELECT MAX(updated_at) FROM access_control_rules) AS "rules_updated_at?",
+                (SELECT COUNT(*) FROM access_control_entities) AS "entity_count!",
+                (SELECT MAX(updated_at) FROM access_control_entities) AS "entities_updated_at?"
+            "#,
+        )
+        .fetch_one(&*self.pool)
+        .await?;
+        Ok(ChainFingerprint {
+            rule_count: row.rule_count,
+            rules_updated_at: row.rules_updated_at,
+            entity_count: row.entity_count,
+            entities_updated_at: row.entities_updated_at,
+        })
+    }
+
     pub async fn list_role_rules_for_export(&self) -> AuthzResult<Vec<ExportRuleRow>> {
         let rows = sqlx::query_as!(
             ExportRuleRow,

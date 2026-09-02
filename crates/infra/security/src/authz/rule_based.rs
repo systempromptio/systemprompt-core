@@ -5,9 +5,10 @@
 //! entity's plugin and marketplace parent chain, and emits an
 //! `AuthzDecision`. The chain's membership is supplied at construction,
 //! because this crate cannot load the services configuration itself, and is
-//! fixed for the process lifetime. Exposed as a hook so
-//! extensions can compose it explicitly with their own ABAC predicates via
-//! [`super::CompositeAuthzHook`]:
+//! fixed for the process lifetime; the loaded chain index is held in a
+//! [`ChainIndexCache`] and revalidated against a table fingerprint. Exposed as
+//! a hook so extensions can compose it explicitly with their own ABAC
+//! predicates via [`super::CompositeAuthzHook`]:
 //!
 //! ```ignore
 //! let composite = CompositeAuthzHook::new(vec![
@@ -30,7 +31,7 @@ use sqlx::PgPool;
 use super::audit::{AuthzAuditSink, AuthzSource};
 use super::error::{AuthzError, AuthzResult};
 use super::hook::AuthzDecisionHook;
-use super::parent_chain::{ChainSources, ParentChainIndex, ResolveBase};
+use super::parent_chain::{ChainIndexCache, ChainSources, ParentChainIndex, ResolveBase};
 use super::registry::AuthzHookContext;
 use super::repository::AccessControlRepository;
 use super::subject::{
@@ -46,6 +47,7 @@ pub struct RuleBasedHook {
     providers: Vec<SharedSubjectAttributeProvider>,
     dimensions: Vec<SubjectDimension>,
     sources: Arc<ChainSources>,
+    cache: Arc<ChainIndexCache>,
 }
 
 impl std::fmt::Debug for RuleBasedHook {
@@ -72,11 +74,12 @@ impl RuleBasedHook {
             dimensions: dimensions_of(&providers),
             providers,
             sources: Arc::new(sources),
+            cache: Arc::new(ChainIndexCache::default()),
         }
     }
 
-    async fn chain_index(&self) -> AuthzResult<ParentChainIndex> {
-        ParentChainIndex::load(&self.repo, Arc::clone(&self.sources)).await
+    async fn chain_index(&self) -> AuthzResult<Arc<ParentChainIndex>> {
+        self.cache.get(&self.repo, Arc::clone(&self.sources)).await
     }
 
     // Why: takes the typed error rather than a rendered string so the reason
