@@ -1,0 +1,28 @@
+/* Post-sign-in "finishing setup" loader — fills the form panel while the bridge
+ * settles, in place of the sign-in form or agent picker. */
+.sp-setup__finalizing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-4);
+  padding: var(--sp-space-4) 0;
+}
+.sp-setup__finalizing-spinner {
+  width: clamp(28px, 1.6vw, 44px);
+  height: clamp(28px, 1.6vw, 44px);
+  border-width: 3px;
+  color: var(--sp-accent);
+}
+.sp-setup__finalizing-head {
+  margin: 0;
+  font-family: var(--sp-font-display);
+  font-size: clamp(18px, 0.9vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sp-text);
+}
+.sp-setup__finalizing-body {
+  margin: var(--sp-space-1) 0 0;
+  color: var(--sp-muted);
+  font-size: clamp(13px, 0.55vw, 19px);
+  line-height: 1.5;
+}

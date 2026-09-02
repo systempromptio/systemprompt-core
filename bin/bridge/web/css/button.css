@@ -150,3 +150,20 @@ button.sp-btn-danger {
 button.sp-btn-danger:hover { border-color: var(--sp-err); filter: brightness(1.12); }
 button.sp-btn-ghost--danger { color: var(--sp-err); }
 button.sp-btn-ghost--danger:hover { border-color: var(--sp-err); }
+
+/* Busy state: a disabled button that is working must not look inert. */
+.sp-btn__spinner {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: sp-btn-spin 0.6s linear infinite;
+}
+@keyframes sp-btn-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-btn__spinner { animation-duration: 1.4s; }
+}

@@ -77,6 +77,21 @@ export function renderSetupHeading(component) {
     </div>`;
 }
 
+// Shown after sign-in succeeds while the bridge is still probing hosts, syncing
+// and writing policy — the window that previously flashed the sign-in form or a
+// full agent picker and read as broken.
+export function renderSetupFinalizing(component) {
+  const appName = escapeHtml(appNameOf(component));
+  return `
+    <div class="sp-setup__finalizing" role="status" aria-live="polite">
+      <span class="sp-btn__spinner sp-setup__finalizing-spinner" aria-hidden="true"></span>
+      <div>
+        <p class="sp-setup__finalizing-head">${escapeHtml(t("setup-finalizing-head") || "Finishing setup…")}</p>
+        <p class="sp-setup__finalizing-body">${escapeHtml(t("setup-finalizing-body", { app: component.snapshot ? appNameOf(component) : "the bridge" }) || "Signing you in and preparing the bridge. This only takes a moment.")}</p>
+      </div>
+    </div>`;
+}
+
 export function renderSetupAgentsStep(component) {
   // Finish is enabled except while first-use provisioning is running. Host
   // install-state is probe-driven and can lag or misreport (e.g. the card

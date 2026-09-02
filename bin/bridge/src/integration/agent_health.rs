@@ -185,8 +185,8 @@ pub struct HostModelViewRef<'a> {
     pub unconfigured_providers: &'a [String],
 }
 
-impl<'a> From<&'a crate::integration::host_app::HostModelView> for HostModelViewRef<'a> {
-    fn from(v: &'a crate::integration::host_app::HostModelView) -> Self {
+impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRef<'a> {
+    fn from(v: &'a crate::gateway::model_view::HostModelView) -> Self {
         Self {
             checked: v.checked,
             available: v.available,

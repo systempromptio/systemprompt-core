@@ -18,7 +18,10 @@ use core_foundation_sys::preferences::{CFPreferencesAppSynchronize, CFPreference
 use core_foundation_sys::propertylist::CFPropertyListRef;
 use core_foundation_sys::string::CFStringGetTypeID;
 
-use super::{ConfigStore, ConfigStoreError, ManagedPolicyRead};
+use super::{
+    ConfigStore, ConfigStoreError, ManagedPolicyRead, PolicyDocument, PolicyDocumentValue,
+    PolicyHive,
+};
 
 const POLICY_DOMAIN: &str = "com.anthropic.claudefordesktop";
 
@@ -49,6 +52,34 @@ impl ConfigStore for MacOsManagedPrefsStore {
             ))
         };
         Ok(ManagedPolicyRead { source, values })
+    }
+
+    fn read_policy_document(
+        &self,
+        hive: PolicyHive,
+        keys: &[&str],
+    ) -> Result<PolicyDocument, ConfigStoreError> {
+        super::macos_plist_store::read_document(hive, keys)
+    }
+
+    fn write_policy_values(
+        &self,
+        hive: PolicyHive,
+        entries: &[(String, PolicyDocumentValue)],
+    ) -> Result<(), ConfigStoreError> {
+        super::macos_plist_store::write_values(hive, entries)
+    }
+
+    fn delete_policy_values(
+        &self,
+        hive: PolicyHive,
+        names: &[&str],
+    ) -> Result<usize, ConfigStoreError> {
+        super::macos_plist_store::delete_values(hive, names)
+    }
+
+    fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
+        super::macos_plist_store::delete_key(hive)
     }
 }
 

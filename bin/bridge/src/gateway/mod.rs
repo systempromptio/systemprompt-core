@@ -10,6 +10,7 @@ mod identity;
 pub mod identity_source;
 pub mod manifest;
 pub mod manifest_version;
+pub mod model_view;
 pub mod types;
 
 use std::net::SocketAddr;

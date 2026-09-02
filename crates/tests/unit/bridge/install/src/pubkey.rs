@@ -38,7 +38,6 @@ fn pubkey_not_pinned_error_has_distinct_exit_code() {
 #[test]
 fn windows_policy_values_includes_pubkey_when_provided() {
     let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         Some("BASE64-PUBKEY"),
         None,
         None,
@@ -57,7 +56,6 @@ fn windows_policy_values_includes_pubkey_when_provided() {
 #[test]
 fn windows_policy_values_omits_pubkey_when_absent() {
     let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         None,
         None,
         None,
@@ -70,7 +68,6 @@ fn windows_policy_values_omits_pubkey_when_absent() {
 #[test]
 fn windows_policy_values_includes_valid_org_uuid() {
     let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         None,
         Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963"),
         None,
@@ -87,7 +84,6 @@ fn windows_policy_values_includes_valid_org_uuid() {
 #[test]
 fn windows_policy_values_omits_missing_or_invalid_org_uuid() {
     let none = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         None,
         None,
         None,
@@ -98,7 +94,6 @@ fn windows_policy_values_omits_missing_or_invalid_org_uuid() {
             .any(|(k, _, _)| *k == "deploymentOrganizationUuid")
     );
     let bad = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         None,
         Some("garbage"),
         None,

@@ -179,6 +179,10 @@ pub(crate) fn on_sync_finished(
         }
     }
     emit::emit_state(app);
+    // Why: a sync writes machine policy and host files; the health panel must
+    // re-read them rather than keep a verdict from before the write.
+    app.proxy
+        .send_event(UiEvent::ValidateRequested { reply_to: None });
     if succeeded {
         app.proxy.send_event(UiEvent::McpAuthProbeRequested {
             server_id: None,

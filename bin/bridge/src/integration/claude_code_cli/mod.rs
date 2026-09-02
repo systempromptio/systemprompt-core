@@ -118,26 +118,21 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         return clear_install();
     }
 
-    // Why: `managed-mcp.json` suppresses plugin-provided servers, so writing both
-    // it and per-plugin `.mcp.json` files leaves the latter inert and misleading.
-    let enforced = crate::install::managed_mcp::apply_policy(
-        ctx.loopback,
-        ctx.mcp_registry,
-        manifest.allow_claude_ai_connectors,
-    ) == crate::install::managed_mcp::PolicyOutcome::Enforced;
+    // Why: an enterprise MCP policy left by an older bridge shadows every
+    // plugin-provided server and Cowork's own tools; it goes before the
+    // per-plugin `.mcp.json` files are written so those are the servers the
+    // CLI actually loads.
+    crate::install::managed_mcp::clear_policy();
 
     let mut ids = Vec::with_capacity(manifest.plugins.len());
     let mut entries = Vec::with_capacity(manifest.plugins.len());
     for plugin in &manifest.plugins {
         let id = plugin.id.as_str();
         let src = ctx.org_plugins_root.join(id);
-        let mcp_servers = if enforced {
-            &[][..]
-        } else {
-            ctx.plugin_mcp_servers
-                .get(id)
-                .map_or(&[][..], Vec::as_slice)
-        };
+        let mcp_servers = ctx
+            .plugin_mcp_servers
+            .get(id)
+            .map_or(&[][..], Vec::as_slice);
         mirror_plugin(
             ctx.loopback,
             &src,
@@ -165,7 +160,6 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         target: "bridge::claude-code-cli",
         marketplace = MARKETPLACE,
         plugins = ids.len(),
-        mcp_policy = if enforced { "managed" } else { "per-plugin" },
         "installed and enabled org plugins for the standalone Claude Code CLI"
     );
     Ok(())

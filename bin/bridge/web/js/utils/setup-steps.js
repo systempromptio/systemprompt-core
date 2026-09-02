@@ -40,12 +40,18 @@ export function stepsFromSnapshot(snap, { leftSetup, finished }) {
     leftSetup,
     setupMode: null,
   };
+  // Once signed in, the bridge keeps working behind the splash — probing hosts,
+  // syncing, writing policy — before it settles enough to hand over to the app.
+  // Showing the sign-in form (step "connect") or the agents picker in that
+  // window reads as broken; the component shows a "finishing setup" loader
+  // instead while this is true.
+  const finalizing = configured && (!settled || model.firstRunActive);
   // First-use provisioning pins the wizard open. Checked before the
   // settled/latched guards below: a run is exactly the window in which host
   // snapshots are still arriving, so those guards would return early and let
   // the app show over a half-installed machine.
-  if (model.firstRunActive) { return { ...model, leftSetup: false, setupMode: true }; }
-  return { ...model, ...overlayDecision(snap, { configured, settled, anyInstalled, leftSetup, finished }) };
+  if (model.firstRunActive) { return { ...model, finalizing, leftSetup: false, setupMode: true }; }
+  return { ...model, finalizing, ...overlayDecision(snap, { configured, settled, anyInstalled, leftSetup, finished }) };
 }
 
 function overlayDecision(snap, { configured, settled, anyInstalled, leftSetup, finished }) {

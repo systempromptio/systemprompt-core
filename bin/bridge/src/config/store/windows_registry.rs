@@ -17,7 +17,10 @@ use windows_sys::Win32::System::Registry::{
     RegCloseKey, RegOpenKeyExW, RegQueryValueExW,
 };
 
-use super::{ConfigStore, ConfigStoreError, ManagedPolicyRead};
+use super::{
+    ConfigStore, ConfigStoreError, ManagedPolicyRead, PolicyDocument, PolicyDocumentValue,
+    PolicyHive,
+};
 
 use crate::cowork_compat::POLICY_SUBKEY;
 
@@ -42,11 +45,11 @@ impl ConfigStore for WindowsRegistryStore {
         &self,
         keys: &[&str],
     ) -> Result<ManagedPolicyRead, ConfigStoreError> {
-        // Why: HKCU is read last so per-user values override machine-wide HKLM
-        // defaults.
+        // Why: HKLM is read last so it wins — Cowork ignores HKCU once the
+        // machine key exists, and the probe must see what Cowork sees.
         let mut values: BTreeMap<String, String> = BTreeMap::new();
         let mut hives_with_data: Vec<&'static str> = Vec::new();
-        for (hive, hive_label) in [(HKEY_LOCAL_MACHINE, "HKLM"), (HKEY_CURRENT_USER, "HKCU")] {
+        for (hive, hive_label) in [(HKEY_CURRENT_USER, "HKCU"), (HKEY_LOCAL_MACHINE, "HKLM")] {
             let Some(handle) = open_policy_key(hive)? else {
                 continue;
             };
@@ -73,6 +76,50 @@ impl ConfigStore for WindowsRegistryStore {
             source: Some(source),
             values,
         })
+    }
+
+    fn read_policy_document(
+        &self,
+        hive: PolicyHive,
+        keys: &[&str],
+    ) -> Result<PolicyDocument, ConfigStoreError> {
+        let mut doc = PolicyDocument::new();
+        let Some(handle) = open_policy_key(hkey(hive))? else {
+            return Ok(doc);
+        };
+        for key in keys {
+            if let Some(v) = read_string_value(handle.0, key)? {
+                doc.insert((*key).to_owned(), PolicyDocumentValue::Str(v));
+            }
+        }
+        Ok(doc)
+    }
+
+    fn write_policy_values(
+        &self,
+        hive: PolicyHive,
+        entries: &[(String, PolicyDocumentValue)],
+    ) -> Result<(), ConfigStoreError> {
+        super::windows_registry_write::write_policy_values(hive, entries)
+    }
+
+    fn delete_policy_values(
+        &self,
+        hive: PolicyHive,
+        names: &[&str],
+    ) -> Result<usize, ConfigStoreError> {
+        super::windows_registry_write::delete_policy_values(hive, names)
+    }
+
+    fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
+        super::windows_registry_write::delete_policy_key(hive)
+    }
+}
+
+pub(super) const fn hkey(hive: PolicyHive) -> HKEY {
+    match hive {
+        PolicyHive::Machine => HKEY_LOCAL_MACHINE,
+        PolicyHive::User => HKEY_CURRENT_USER,
     }
 }
 

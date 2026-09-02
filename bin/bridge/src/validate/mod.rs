@@ -91,10 +91,15 @@ impl ValidationReport {
     }
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod policy;
+
 pub async fn run(http: &reqwest::Client) -> ValidationReport {
     let mut report = Report::new();
     check_binary(&mut report);
     check_org_plugins(&mut report);
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    policy::check_managed_policy(&mut report);
     check_gateway(&mut report, http).await;
     check_cached_token(&mut report);
     check_pinned_pubkey(&mut report);
@@ -251,21 +256,21 @@ impl Report {
             lines: Vec::new(),
         }
     }
-    fn ok(&mut self, label: &str, value: &str) {
+    pub(super) fn ok(&mut self, label: &str, value: &str) {
         self.lines.push(CheckLine {
             level: CheckLevel::Ok,
             label: label.into(),
             value: value.into(),
         });
     }
-    fn warn(&mut self, label: &str, value: &str) {
+    pub(super) fn warn(&mut self, label: &str, value: &str) {
         self.lines.push(CheckLine {
             level: CheckLevel::Warn,
             label: label.into(),
             value: value.into(),
         });
     }
-    fn fail(&mut self, label: &str, value: &str) {
+    pub(super) fn fail(&mut self, label: &str, value: &str) {
         self.any_failed = true;
         self.lines.push(CheckLine {
             level: CheckLevel::Fail,
@@ -273,7 +278,7 @@ impl Report {
             value: value.into(),
         });
     }
-    fn info(&mut self, label: &str, value: &str) {
+    pub(super) fn info(&mut self, label: &str, value: &str) {
         self.lines.push(CheckLine {
             level: CheckLevel::Info,
             label: label.into(),

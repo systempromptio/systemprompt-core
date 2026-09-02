@@ -51,7 +51,7 @@ fn empty_models_falls_back_to_defaults() {
         parsed.len() >= 2,
         "expected default model list, got {parsed:?}"
     );
-    assert!(parsed.iter().any(|m| m == "claude-opus-4-7"));
+    assert!(parsed.iter().any(|m| m == "claude-opus-5"));
 }
 
 #[test]

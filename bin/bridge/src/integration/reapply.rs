@@ -86,12 +86,12 @@ pub async fn build_profile_inputs(
         .await
         .map_err(|e| io_err("fetch bridge profile", &e))?;
 
-    let surfaces = crate::integration::host_app::effective_surfaces(
+    let surfaces = crate::gateway::model_view::effective_surfaces(
         host.id(),
         host.accepted_surfaces(),
         overrides,
     );
-    let view = crate::integration::host_app::host_model_view(&server_profile.providers, &surfaces);
+    let view = crate::gateway::model_view::host_model_view(&server_profile.providers, &surfaces);
 
     let mut headers = BTreeMap::new();
     if !surfaces.is_empty() {

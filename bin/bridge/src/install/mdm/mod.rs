@@ -82,7 +82,6 @@ pub(crate) fn apply_mdm(
 #[cfg(target_os = "windows")]
 #[must_use]
 pub fn windows_policy_values(
-    _gateway: &str,
     pubkey: Option<&str>,
     org_uuid: Option<&str>,
     egress_allowed_hosts: Option<&[String]>,

@@ -89,7 +89,6 @@ fn windows_policy_omits_egress_key_by_default() {
         std::env::remove_var(ENV);
     }
     let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         None,
         None,
         None,
@@ -110,7 +109,6 @@ fn windows_policy_writes_json_array_when_opted_in() {
         std::env::set_var(ENV, "loopback");
     }
     let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         None,
         None,
         None,

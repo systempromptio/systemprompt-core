@@ -18,14 +18,14 @@ fn build_entry<'a>(
     host: &'static dyn crate::integration::HostApp,
 ) -> HostEntryPayload<'a> {
     let st = snap.hosts.get(host.id());
-    let effective = crate::integration::host_app::effective_surfaces(
+    let effective = crate::gateway::model_view::effective_surfaces(
         host.id(),
         host.accepted_surfaces(),
         &snap.host_model_protocols,
     );
     let overridden =
-        crate::integration::host_app::has_surface_override(host.id(), &snap.host_model_protocols);
-    let view = crate::integration::host_app::host_model_view(&snap.provider_health, &effective);
+        crate::gateway::model_view::has_surface_override(host.id(), &snap.host_model_protocols);
+    let view = crate::gateway::model_view::host_model_view(&snap.provider_health, &effective);
     let snapshot = st.and_then(|s| s.snapshot.as_ref());
     let verdict = crate::integration::agent_health::verdict(&HostHealthInputs {
         snapshot,

@@ -11,6 +11,8 @@ mod elevation_script;
 #[cfg(test)]
 mod linux_settings;
 #[cfg(test)]
+mod managed_settings;
+#[cfg(test)]
 mod mdm_snippet;
 #[cfg(test)]
 mod pubkey;

@@ -198,6 +198,21 @@ body.is-setup-mode .sp-setup {
   gap: var(--sp-space-3);
   margin-top: var(--sp-space-6);
 }
+
+/* Busy button: an inline spinner beside the label so a sign-in in flight (the
+ * browser round-trip can take several seconds) reads as working rather than
+ * frozen. The label already changes to "Waiting for your browser…"; the
+ * spinner makes the state unmistakable. */
+.sp-setup__actions .sp-btn-primary.is-busy,
+.sp-setup__actions .sp-btn-ghost.is-busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-space-2);
+  /* a disabled busy button must not look inert */
+  opacity: 1;
+  cursor: progress;
+}
 .sp-setup__actions .sp-btn-primary,
 .sp-setup__actions .sp-btn-ghost {
   padding: clamp(12px, 0.62vw, 22px) var(--sp-space-4-5);

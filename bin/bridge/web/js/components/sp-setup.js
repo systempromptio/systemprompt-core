@@ -5,7 +5,7 @@ import { t } from "/assets/js/i18n.js";
 import { notifyErr } from "/assets/js/utils/notify.js";
 import { stepsFromSnapshot } from "/assets/js/utils/setup-steps.js";
 import { clearSettleTimer, trackSettle, retrySettle } from "/assets/js/utils/setup-settle.js";
-import { renderSetupBrand, renderSetupHeading, renderSetupAgentsStep, renderSetupSettleNotice } from "/assets/js/components/setup-sections.js";
+import { renderSetupBrand, renderSetupHeading, renderSetupFinalizing, renderSetupAgentsStep, renderSetupSettleNotice } from "/assets/js/components/setup-sections.js";
 import "/assets/js/components/sp-setup-gateway.js";
 import "/assets/js/components/sp-setup-agents.js";
 
@@ -15,6 +15,7 @@ export class SpSetup extends SpElement {
     this.snapshot = null;
     this.step = "connect";
     this.anyInstalled = false;
+    this.finalizing = false;
     this.firstRunActive = false;
     this.settleTimedOut = false;
     this.confirmEmptyFinish = false;
@@ -58,6 +59,7 @@ export class SpSetup extends SpElement {
     trackSettle(this, model.settled);
     this.anyInstalled = model.anyInstalled;
     this.step = model.step;
+    this.finalizing = model.finalizing;
     this.firstRunActive = model.firstRunActive;
     this._leftSetup = model.leftSetup;
     if (model.setupMode !== null) { document.body.classList.toggle("is-setup-mode", model.setupMode); }
@@ -96,12 +98,16 @@ export class SpSetup extends SpElement {
         ${renderSetupBrand(this)}
         <section class="sp-setup__panel">
           <div class="sp-setup__panel-inner">
-            ${renderSetupHeading(this)}
-            <div class="sp-setup__step" data-step="connect" ${this.step !== "connect" ? "hidden" : ""}>
-              <sp-setup-gateway></sp-setup-gateway>
-            </div>
-            ${renderSetupAgentsStep(this)}
-            ${renderSetupSettleNotice(this)}
+            ${this.finalizing && !this.settleTimedOut
+              ? renderSetupFinalizing(this)
+              : `
+                ${renderSetupHeading(this)}
+                <div class="sp-setup__step" data-step="connect" ${this.step !== "connect" ? "hidden" : ""}>
+                  <sp-setup-gateway></sp-setup-gateway>
+                </div>
+                ${renderSetupAgentsStep(this)}
+                ${renderSetupSettleNotice(this)}
+              `}
           </div>
         </section>
       </div>
@@ -109,5 +115,5 @@ export class SpSetup extends SpElement {
   }
 }
 
-reactive(SpSetup.prototype, ["snapshot", "step", "anyInstalled", "firstRunActive", "settleTimedOut", "confirmEmptyFinish"]);
+reactive(SpSetup.prototype, ["snapshot", "step", "anyInstalled", "finalizing", "firstRunActive", "settleTimedOut", "confirmEmptyFinish"]);
 customElements.define("sp-setup", SpSetup);
