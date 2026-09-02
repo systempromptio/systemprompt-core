@@ -25,7 +25,10 @@ pub use oauth::{
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,
 };
-pub use webauthn::{WebAuthnCredential, WebAuthnCredentialParams};
+pub use webauthn::{
+    ConsumedChallenge, StoreChallengeParams, WebAuthnChallengeKind, WebAuthnCredential,
+    WebAuthnCredentialParams,
+};
 
 use crate::error::OauthResult;
 use systemprompt_database::DbPool;

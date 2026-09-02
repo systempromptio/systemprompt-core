@@ -44,7 +44,7 @@ pub async fn start_link(
         WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
 
     let (challenge, challenge_id, user_info) = webauthn_service
-        .start_registration_with_token(&params.token, state.link_states())
+        .start_registration_with_token(&params.token)
         .await
         .map_err(|e| OAuthHttpError::link_failed(e.to_string()))?;
 

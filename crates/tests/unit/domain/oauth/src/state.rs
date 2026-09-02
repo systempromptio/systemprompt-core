@@ -185,7 +185,6 @@ async fn new_state_has_no_optional_providers() {
     assert!(state.fingerprint_provider().is_none());
     assert!(state.event_publisher().is_none());
     assert!(state.mcp_registry().is_none());
-    assert!(state.link_states().try_lock().expect("unlocked").is_empty());
 
     let debug = format!("{state:?}");
     assert!(debug.contains("OAuthState"));

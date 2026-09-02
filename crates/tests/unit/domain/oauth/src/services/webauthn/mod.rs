@@ -1,3 +1,4 @@
+mod challenge_store_db;
 mod config;
 mod jwt_validator;
 mod registry;

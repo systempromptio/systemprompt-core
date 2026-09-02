@@ -3,10 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{AuthenticationStateData, WebAuthnService};
-use crate::error::OauthResult as Result;
+use super::WebAuthnService;
+use crate::error::{OauthError, OauthResult as Result};
+use crate::repository::{StoreChallengeParams, WebAuthnChallengeKind};
 use base64::engine::{Engine, general_purpose};
-use std::time::Instant;
 use systemprompt_identifiers::UserId;
 use tracing::instrument;
 use uuid::Uuid;
@@ -23,12 +23,12 @@ impl WebAuthnService {
             .oauth_repo
             .find_user_by_email(email)
             .await?
-            .ok_or_else(|| crate::error::OauthError::UserNotFound(email.to_owned()))?;
+            .ok_or_else(|| OauthError::UserNotFound(email.to_owned()))?;
 
         let user_credentials = self.get_user_credentials(&user.id).await?;
 
         if user_credentials.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(OauthError::Internal(
                 "No credentials found for user".to_owned(),
             ));
         }
@@ -39,18 +39,17 @@ impl WebAuthnService {
 
         let challenge_id = Uuid::new_v4().to_string();
 
-        {
-            let mut states = self.auth_states.lock().await;
-            states.insert(
-                challenge_id.clone(),
-                AuthenticationStateData {
-                    state: auth_state,
-                    user_id: user.id.clone(),
-                    oauth_state: oauth_state.clone(),
-                    timestamp: Instant::now(),
-                },
-            );
-        }
+        let state = serde_json::to_value(&auth_state)?;
+        self.oauth_repo
+            .store_webauthn_challenge(StoreChallengeParams {
+                challenge: &challenge_id,
+                kind: WebAuthnChallengeKind::Authentication,
+                user_id: Some(&user.id),
+                state: &state,
+                oauth_state: oauth_state.as_deref(),
+                ttl: self.config.challenge_expiry,
+            })
+            .await?;
 
         tracing::info!(
             user_email = %email,
@@ -111,22 +110,20 @@ impl WebAuthnService {
         &self,
         challenge_id: &str,
     ) -> Result<(PasskeyAuthentication, UserId, Option<String>)> {
-        let data = {
-            let mut states = self.auth_states.lock().await;
-            states.remove(challenge_id).ok_or_else(|| {
-                crate::error::OauthError::Internal(
-                    "Authentication state not found or expired".to_owned(),
-                )
-            })?
-        };
+        let consumed = self
+            .oauth_repo
+            .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Authentication)
+            .await?
+            .ok_or_else(|| {
+                OauthError::Internal("Authentication state not found or expired".to_owned())
+            })?;
 
-        if data.timestamp.elapsed() > std::time::Duration::from_secs(120) {
-            return Err(crate::error::OauthError::Internal(
-                "Authentication challenge expired".to_owned(),
-            ));
-        }
+        let user_id = consumed.user_id.ok_or_else(|| {
+            OauthError::Internal("Authentication state has no user id".to_owned())
+        })?;
+        let state: PasskeyAuthentication = serde_json::from_value(consumed.state)?;
 
-        Ok((data.state, data.user_id, data.oauth_state))
+        Ok((state, user_id, consumed.oauth_state))
     }
 
     async fn complete_authentication(

@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::WebAuthnService;
-use crate::error::OauthResult as Result;
+use crate::error::{OauthError, OauthResult as Result};
+use crate::repository::{StoreChallengeParams, WebAuthnChallengeKind};
 use base64::engine::{Engine, general_purpose};
-use std::time::Instant;
 use tracing::instrument;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
@@ -105,10 +105,17 @@ impl WebAuthnService {
 
         let challenge_id = Uuid::new_v4().to_string();
 
-        {
-            let mut states = self.reg_states.lock().await;
-            states.insert(challenge_id.clone(), (reg_state, Instant::now()));
-        }
+        let state = serde_json::to_value(&reg_state)?;
+        self.oauth_repo
+            .store_webauthn_challenge(StoreChallengeParams {
+                challenge: &challenge_id,
+                kind: WebAuthnChallengeKind::Registration,
+                user_id: None,
+                state: &state,
+                oauth_state: None,
+                ttl: self.config.challenge_expiry,
+            })
+            .await?;
 
         tracing::info!(
             username = %username,
@@ -187,18 +194,13 @@ impl WebAuthnService {
         &self,
         challenge_id: &str,
     ) -> Result<PasskeyRegistration> {
-        let (state, timestamp) = {
-            let mut states = self.reg_states.lock().await;
-            states
-                .remove(challenge_id)
-                .ok_or(crate::error::OauthError::RegistrationStateExpired)?
-        };
+        let consumed = self
+            .oauth_repo
+            .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Registration)
+            .await?
+            .ok_or(OauthError::RegistrationStateExpired)?;
 
-        if timestamp.elapsed() > std::time::Duration::from_secs(120) {
-            return Err(crate::error::OauthError::RegistrationStateExpired);
-        }
-
-        Ok(state)
+        Ok(serde_json::from_value(consumed.state)?)
     }
 
     async fn complete_registration(

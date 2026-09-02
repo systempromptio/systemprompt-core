@@ -4,6 +4,7 @@
 //! `DATABASE_URL` is configured, so the suite is a no-op without a database.
 //! The gateway runs these against a fresh, freshly-migrated Postgres instance.
 
+mod authoritative_reads_db;
 mod auth_code;
 mod bridge_host_prefs;
 mod bridge_session;
