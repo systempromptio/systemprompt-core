@@ -7081,7 +7081,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.34.0"
+version = "0.35.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",
@@ -7177,7 +7177,6 @@ name = "systemprompt-bridge-auth-session-tests"
 version = "0.0.11"
 dependencies = [
  "reqwest",
- "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "tokio",
@@ -8104,7 +8103,6 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
- "tokio",
  "tracing",
  "uuid",
  "walkdir",
@@ -8284,6 +8282,7 @@ dependencies = [
  "serde",
  "serde_yaml_ng",
  "systemprompt-database",
+ "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-models",
  "tempfile",
@@ -8755,7 +8754,6 @@ dependencies = [
  "sqlx",
  "systemprompt-ai",
  "systemprompt-analytics",
- "systemprompt-config",
  "systemprompt-database",
  "systemprompt-evaluation",
  "systemprompt-extension",
@@ -8969,12 +8967,10 @@ version = "0.44.0"
 dependencies = [
  "async-trait",
  "chrono",
- "serde",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-traits",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -9097,6 +9093,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",

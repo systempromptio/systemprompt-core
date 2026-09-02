@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- `scope: cluster | node` on jobs. Cluster jobs keep the advisory lock and run once for the deployment; node jobs run on every replica, and the 900 ms tick dedupe is keyed by the instance that last ran them so replicas no longer starve each other.
+
+### Fixed
+
+- Node-scoped runs record the instance that performed them, which is what makes a per-replica job legible after the fact rather than looking like a duplicate cluster run.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

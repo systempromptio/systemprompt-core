@@ -72,6 +72,8 @@ pub struct StatePayload<'a> {
     pub sign_in_hint: &'static str,
     pub docs_url: &'static str,
     pub contact_email: &'static str,
+    pub pitch_head: &'static str,
+    pub pitch_body: &'static str,
     #[serde(flatten)]
     #[cfg_attr(feature = "ts-export", ts(flatten))]
     pub hosts: hosts::HostsPayload<'a>,

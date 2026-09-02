@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Changed
+
+- Task sequence numbers are allocated under a row lock, so two replicas appending to the same task can no longer mint the same number.
+- Agent lookups that gate access read the primary rather than a read replica, which was returning a stale row for a moment after every write.
+
 ## [0.43.0] - 2026-09-01
 
 ### Fixed

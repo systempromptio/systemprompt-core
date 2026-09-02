@@ -75,7 +75,7 @@ pub(crate) async fn apply_manifest(
         let host_id = emitter.host_id();
         bridge
             .sync_progress
-            .report(&crate::sync::progress::SyncProgress::new(
+            .report(&crate::progress::SyncProgress::new(
                 "hosts",
                 host_id.to_owned(),
                 index + 1,

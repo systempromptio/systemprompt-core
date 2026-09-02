@@ -57,13 +57,12 @@ pub(super) async fn apply_plugins(
         // Why: this loop is the wall time. Every plugin is fetched file by file,
         // one request at a time, so it is the only place where "still working"
         // can be distinguished from "stuck".
-        ctx.progress
-            .report(&crate::sync::progress::SyncProgress::new(
-                "plugins",
-                plugin.id.to_string(),
-                index + 1,
-                total,
-            ));
+        ctx.progress.report(&crate::progress::SyncProgress::new(
+            "plugins",
+            plugin.id.to_string(),
+            index + 1,
+            total,
+        ));
         match sync_one_plugin(ctx, plugin, &manifest.hooks).await? {
             PluginChange::Installed(id) => installed.push(id),
             PluginChange::Updated(id) => updated.push(id),
@@ -144,7 +143,7 @@ pub(super) struct PluginSyncCtx<'a> {
     // Why: owned (cheap Arc-backed clone), not borrowed — holding a `&SyncProgressSink`
     // in this ctx across the per-file fetch awaits added a borrow that tipped
     // rustc's "Send is not general enough" limit on the spawned sync task.
-    pub progress: crate::sync::progress::SyncProgressSink,
+    pub progress: crate::progress::SyncProgressSink,
 }
 
 #[tracing::instrument(level = "debug", skip(ctx, plugin, hook_pool), fields(plugin_id = %plugin.id))]

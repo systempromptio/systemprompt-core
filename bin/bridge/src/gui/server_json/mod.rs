@@ -95,6 +95,8 @@ pub fn state_payload<'a>(
             sign_in_hint: crate::brand::brand().sign_in_hint,
             docs_url: crate::brand::brand().docs_url,
             contact_email: crate::brand::brand().contact_email,
+            pitch_head: crate::brand::brand().pitch_head,
+            pitch_body: crate::brand::brand().pitch_body,
 
             hosts: crate::gui::hosts::serde::payload(snap),
         }

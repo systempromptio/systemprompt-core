@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- MCP proxy identities live in Postgres, so a session established against one replica is recognised by every other.
+
+### Fixed
+
+- Session recovery and registry lookups read the primary, which a read replica was answering staler than the session lifetime allowed.
+
 ## [0.43.0] - 2026-09-01
 
 ### Fixed

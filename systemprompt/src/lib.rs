@@ -283,10 +283,12 @@ pub mod cloud {
     pub use systemprompt_cloud::*;
 }
 
-/// Profile types — the on-disk profile schema (`Profile`, `CloudConfig`,
-/// `ProfileStyle`, `CloudValidationMode`) plus the `ProfileBootstrap` loader
-/// when the `config` feature is enabled and the `ServicesBootstrap` cell
-/// (provider catalog, gateway routes) when `loader` is.
+/// Profile types — the on-disk profile schema.
+///
+/// `Profile`, `CloudConfig`, `ProfileStyle` and `CloudValidationMode`, plus the
+/// `ProfileBootstrap` loader when the `config` feature is enabled and the
+/// `ServicesBootstrap` cell (provider catalog, gateway routes) when `loader`
+/// is.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod profile {

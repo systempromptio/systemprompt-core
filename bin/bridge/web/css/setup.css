@@ -1,13 +1,20 @@
+/* Setup / sign-in screen.
+ *
+ * A full-window split panel: a branded left column (mark + pitch + licensing
+ * footer) and a constrained form column on the right that carries whichever
+ * step is active (connect, then agents). Brand copy — name, pitch, docs and
+ * contact — comes from the state snapshot, so a white-label build restyles via
+ * tokens and needs no forked setup component. */
+
 .sp-setup {
   flex: 1;
   display: none;
-  align-items: center;
-  justify-content: center;
-  padding: var(--sp-space-10) var(--sp-space-6);
+  min-height: 0;
+  padding: 0;
 }
 body.is-setup-mode .sp-topbar { display: none; }
 body.is-setup-mode .sp-footer { display: none; }
-body.is-setup-mode .sp-setup  { display: flex; }
+body.is-setup-mode .sp-setup  { display: block; }
 
 /* Splash → app is a display swap, which cannot be transitioned. Fade whichever
    side is arriving so the one legitimate handover reads as a transition rather
@@ -27,81 +34,146 @@ body.is-setup-mode .sp-setup {
   }
 }
 
-.sp-setup__card {
-  width: 100%;
-  max-width: 560px;
-  background: linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
-  border: 1px solid var(--sp-line);
-  border-radius: var(--sp-corners-md);
-  padding: var(--sp-space-8) var(--sp-space-8) var(--sp-space-7);
-  box-shadow:
-    var(--sp-shadow-2),
-    var(--sp-shadow-accent),
-    inset 0 1px 0 oklch(1 0 0 / 0.04);
-  position: relative;
+.sp-setup__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 44%);
+  min-height: 100%;
 }
-.sp-setup__hero {
+
+/* Left: brand panel ------------------------------------------------------- */
+
+.sp-setup__brand {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-space-2-5);
-  margin-bottom: var(--sp-space-6);
+  justify-content: space-between;
+  gap: var(--sp-space-10);
+  padding: clamp(40px, 3.2vw, 110px) clamp(40px, 3.4vw, 120px) clamp(32px, 2.6vw, 90px);
+  /* The wash is the brand on this screen, so it is a real light source rather
+   * than a tint: a warm near-accent hue at low chroma, wide enough that its
+   * falloff is the whole panel. */
+  background:
+    radial-gradient(120% 95% at 0% 0%, oklch(0.32 0.055 52) 0%, transparent 62%),
+    radial-gradient(70% 55% at 8% 6%, oklch(0.38 0.075 55 / 0.55) 0%, transparent 55%),
+    linear-gradient(180deg, var(--sp-bg-elev-1) 0%, var(--sp-bg) 100%);
+  border-right: 1px solid var(--sp-line);
 }
 .sp-setup__mark {
   display: inline-flex;
   align-items: center;
   width: fit-content;
   max-width: 100%;
-  margin-bottom: var(--sp-space-2);
 }
-.sp-setup__mark svg { height: 26px; width: auto; max-width: 100%; display: block; }
+/* Every size on this screen is fluid. Fixed px tuned against a ~2400px window
+ * rendered a postage stamp in a field of black on a 4K display — the splash is
+ * the one screen with no content to fill the slack. Each clamp keeps the old
+ * value as its floor and grows to roughly 2x by ~3800px. */
+.sp-setup__mark svg {
+  height: clamp(30px, 1.7vw, 62px);
+  width: auto;
+  max-width: 100%;
+  display: block;
+}
+
+.sp-setup__pitch { max-width: 30ch; }
+.sp-setup__pitch-head {
+  margin: 0;
+  font-family: var(--sp-font-display);
+  font-size: clamp(1.75rem, 2.2vw, 5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--sp-text);
+}
+.sp-setup__pitch-body {
+  margin: var(--sp-space-3) 0 0;
+  font-size: clamp(15px, 0.62vw, 22px);
+  line-height: 1.55;
+  color: var(--sp-muted-strong);
+}
+
+.sp-setup__brand-foot { display: flex; flex-direction: column; gap: var(--sp-space-3); }
+.sp-setup__demo {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(12px, 0.5vw, 17px);
+  line-height: 1.5;
+  color: var(--sp-muted);
+}
+.sp-setup__demo strong { color: var(--sp-warn); font-weight: 600; }
+
+/* Right: form panel ------------------------------------------------------- */
+
+.sp-setup__panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(40px, 3.2vw, 110px) clamp(32px, 2.6vw, 90px);
+  background: var(--sp-bg);
+}
+.sp-setup__panel-inner { width: 100%; max-width: clamp(440px, 26vw, 760px); }
+
+.sp-setup__heading { margin-bottom: var(--sp-space-6); }
 .sp-setup__eyebrow {
-  font-size: 12px;
+  font-size: clamp(11px, 0.46vw, 15px);
   font-weight: 600;
   letter-spacing: 0.4px;
   color: var(--sp-accent-text);
   width: fit-content;
   padding-bottom: var(--sp-space-1);
+  margin-bottom: var(--sp-space-3);
   border-bottom: 1px solid color-mix(in oklch, var(--sp-accent) 40%, transparent);
 }
-.sp-setup__card h1 {
-  margin: 0;
-  font-size: 26px;
+.sp-setup__panel h1 {
+  margin: 0 0 var(--sp-space-2);
+  font-family: var(--sp-font-display);
+  font-size: clamp(26px, 1.15vw, 44px);
   font-weight: 700;
   letter-spacing: -0.015em;
   line-height: 1.2;
 }
 .sp-setup__lede {
-  margin: var(--sp-space-1) 0 0;
+  margin: 0 0 var(--sp-space-2);
   color: var(--sp-muted);
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: clamp(14px, 0.58vw, 20px);
+  line-height: 1.6;
 }
 
+/* Shared form primitives (also consumed by sp-setup-gateway / agents) ------ */
+
 .sp-setup__field { margin-bottom: var(--sp-space-4-5); display: flex; flex-direction: column; gap: var(--sp-space-1-5); }
-.sp-setup__field input { border-radius: var(--sp-corners-sm); padding: var(--sp-space-3) var(--sp-space-3-5); }
+.sp-setup__field input {
+  width: 100%;
+  border-radius: var(--sp-corners-sm);
+  padding: clamp(12px, 0.55vw, 20px) var(--sp-space-3-5);
+  font-size: clamp(14px, 0.58vw, 20px);
+}
 .sp-setup__field input:focus-visible {
   border-color: var(--sp-focus);
   outline: var(--sp-focus-width) solid var(--sp-focus);
   outline-offset: var(--sp-focus-offset);
 }
 .sp-setup__field label {
-  font-size: 12px;
+  font-size: clamp(11px, 0.46vw, 15px);
   color: var(--sp-muted);
-  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
-.sp-setup__field input { width: 100%; }
 
+/* flex-start + nudge keeps the dot optically on the first line when the probe
+ * reason wraps, instead of drifting to the middle of a two-line block. */
 .sp-setup__status {
   display: flex;
-  align-items: center;
-  gap: var(--sp-space-1);
-  font-size: 12px;
+  align-items: flex-start;
+  gap: var(--sp-space-1-5);
+  font-size: clamp(12px, 0.5vw, 17px);
   min-height: 18px;
+  line-height: 1.45;
 }
+.sp-setup__status .sp-dot { margin-top: 0.4em; flex: none; }
 
 .sp-setup__hint {
-  margin: var(--sp-space-1) 0 0;
-  font-size: 12px;
+  margin: var(--sp-space-2) 0 0;
+  font-size: clamp(12px, 0.5vw, 17px);
   color: var(--sp-muted);
   line-height: 1.5;
 }
@@ -126,39 +198,45 @@ body.is-setup-mode .sp-setup {
   gap: var(--sp-space-3);
   margin-top: var(--sp-space-6);
 }
-.sp-setup__actions .sp-btn-primary {
-  padding: var(--sp-space-2-5) var(--sp-space-4-5);
-  font-size: 13px;
+.sp-setup__actions .sp-btn-primary,
+.sp-setup__actions .sp-btn-ghost {
+  padding: clamp(12px, 0.62vw, 22px) var(--sp-space-4-5);
+  font-size: clamp(13px, 0.56vw, 19px);
 }
 .sp-setup__error {
-  font-size: 12px;
+  display: block;
+  margin-top: var(--sp-space-3);
+  font-size: clamp(12px, 0.5vw, 17px);
   color: var(--sp-err);
   line-height: 1.4;
 }
 
-.sp-setup__warning {
-  margin: var(--sp-space-6) 0 0;
+/* Inline notes: the empty-finish confirm and the settle-timeout warning. */
+.sp-setup__note {
+  margin: var(--sp-space-5) 0 0;
   padding: var(--sp-space-3) var(--sp-space-3-5);
-  font-size: 13px;
+  font-size: clamp(13px, 0.54vw, 18px);
   line-height: 1.5;
-  color: var(--sp-warn);
-  background: color-mix(in oklch, var(--sp-warn) 10%, transparent);
-  border: 1px solid color-mix(in oklch, var(--sp-warn) 35%, transparent);
+  color: var(--sp-muted-strong);
+  background: var(--sp-bg-elev-1);
+  border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-sm);
 }
-.sp-setup__warning strong { color: var(--sp-warn); font-weight: 700; }
-.sp-setup__warning em { font-style: normal; font-weight: 600; }
+.sp-setup__note p { margin: 0; }
+.sp-setup__note--warn {
+  color: oklch(0.86 0.13 80);
+  background: oklch(0.78 0.15 75 / 0.10);
+  border-color: oklch(0.78 0.15 75 / 0.35);
+}
 
 .sp-setup__meta {
-  margin: var(--sp-space-3-5) 0 0;
-  font-size: 12px;
+  margin: 0;
+  font-size: clamp(12px, 0.5vw, 17px);
   color: var(--sp-muted);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: var(--sp-space-2-5);
-  text-align: center;
+  gap: var(--sp-space-2);
   line-height: 1.5;
 }
 .sp-setup__meta-sep { color: var(--sp-line); }
@@ -167,7 +245,26 @@ body.is-setup-mode .sp-setup {
   text-decoration: none;
   border-bottom: 1px solid color-mix(in oklch, var(--sp-accent) 45%, transparent);
   padding-bottom: var(--sp-space-px);
-  transition: color 0.15s, border-color 0.15s;
+  transition: color var(--sp-dur-fast), border-color var(--sp-dur-fast);
 }
 .sp-setup__meta a:hover { color: var(--sp-accent-text); border-bottom-color: var(--sp-accent-text); }
 .sp-setup__docs { font-weight: 600; }
+
+/* Narrow windows collapse to the form column; the brand panel keeps only its
+ * logo and footer so the pitch never squeezes the form off-screen. */
+@media (max-width: 900px) {
+  .sp-setup__split { grid-template-columns: minmax(0, 1fr); }
+  .sp-setup__brand {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-space-4);
+    padding: var(--sp-space-6);
+    border-right: none;
+    border-bottom: 1px solid var(--sp-line);
+  }
+  .sp-setup__pitch { display: none; }
+  .sp-setup__demo { display: none; }
+  .sp-setup__brand-foot { align-items: flex-end; }
+  .sp-setup__panel { padding: var(--sp-space-8) var(--sp-space-6); align-items: flex-start; }
+}

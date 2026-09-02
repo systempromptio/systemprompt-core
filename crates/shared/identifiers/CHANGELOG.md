@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- `InstanceId`, the typed identifier for a replica. It keys the service registry, the event outbox origin, node-scoped scheduler runs, and the instance stamped on log, `logs` and `ai_requests` rows.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

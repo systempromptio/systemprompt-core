@@ -43,7 +43,6 @@ sqlx = { workspace = true }
 # Core libs - scheduler only depends on infrastructure modules
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
-systemprompt-config = { workspace = true }
 systemprompt-evaluation = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-mcp = { workspace = true }

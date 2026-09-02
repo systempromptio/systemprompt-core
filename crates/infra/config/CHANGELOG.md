@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- `resolve_instance_id`: an explicit `server.instance_id` wins, `HOSTNAME` is accepted, and a random per-boot id is tolerated only for local profiles — a cloud profile without one is a boot failure.
+- `server.metrics_port` and a `storage: { backend, shared }` section, both validated in `Profile::validate` rather than checked at the point of use.
+- Identity secrets (`oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `signing_key_pem`) are configuration inputs every replica must agree on, not values a node generates for itself.
+
+### Changed
+
+- The provider catalog and gateway routes move out of the profile and into the services tree, beside the catalog they reference.
+
+### Fixed
+
+- The authz chain-cache guard is released before the reload it triggers, which could otherwise deadlock a reload against its own read.
+
 ## [0.43.0] - 2026-09-01
 
 ### Changed

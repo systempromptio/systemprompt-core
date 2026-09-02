@@ -66,6 +66,12 @@ pub struct Brand {
     // trailing slash -- `<docs_url>/<platform>`.
     pub docs_url: &'static str,
     pub contact_email: &'static str,
+    // Why: the setup splash is a two-panel screen whose left column is the
+    // brand's pitch. These carry it so a white-label build states its own value
+    // proposition with no forked setup component -- head is the one-line claim,
+    // body the supporting sentence beneath it.
+    pub pitch_head: &'static str,
+    pub pitch_body: &'static str,
     pub schedule_label: &'static str,
     pub schedule_unit: &'static str,
     pub schedule_task_name: &'static str,
@@ -109,6 +115,8 @@ impl Brand {
         sign_in_hint: "Opens your browser to sign in on the gateway; this device is linked automatically.",
         docs_url: "https://systemprompt.io/docs/bridge",
         contact_email: "ed@systemprompt.io",
+        pitch_head: "Govern every coding agent.",
+        pitch_body: "One gateway. Every agent. Every tool call audited.",
         schedule_label: "io.systemprompt.bridge-sync",
         schedule_unit: "systemprompt-bridge-sync",
         schedule_task_name: "SystempromptBridgeSync",

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- Passkey (WebAuthn) challenge state is stored in Postgres rather than process memory. A registration or authentication ceremony that started on one replica can now finish on another; before this it failed with an unknown challenge whenever the second request was balanced elsewhere.
+- The account-link ceremony is persisted the same way, for the same reason.
+
+### Fixed
+
+- Auth-code, refresh-token, API-key and setup-token lookups read the primary. Reading a replica a moment after the write meant a login issued in one region was a 401 in every other until replication caught up, and a revocation stayed ineffective for as long as the replica lagged.
+
 ## [0.43.0] - 2026-09-01
 
 ### Fixed

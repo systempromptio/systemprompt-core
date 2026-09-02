@@ -5266,7 +5266,6 @@ dependencies = [
  "sqlx",
  "systemprompt-ai",
  "systemprompt-analytics",
- "systemprompt-config",
  "systemprompt-database",
  "systemprompt-evaluation",
  "systemprompt-extension",

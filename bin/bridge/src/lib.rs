@@ -43,6 +43,7 @@ pub mod integration;
 pub mod mcp_registry;
 pub mod obs;
 pub mod probe_cache;
+pub mod progress;
 pub mod proxy;
 pub mod proxy_probe;
 pub mod schedule;

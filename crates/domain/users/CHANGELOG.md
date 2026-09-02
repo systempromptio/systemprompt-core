@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- User-keyed rate limits are counted in `user_rate_limit_buckets`, so a quota holds across replicas instead of each node granting the full allowance. The hourly `user_rate_limit_prune` job drops spent windows.
+
+### Fixed
+
+- User and session lookups behind an authorization decision read the primary.
+
 ## [0.38.0] - 2026-08-25
 
 ### Added

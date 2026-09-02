@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Changed
+
+- The loader reads the provider catalog and gateway routes from the services tree rather than the profile, and its gateway and catalog tests moved with them.
+
 ## [0.38.0] - 2026-08-25
 
 ### Changed

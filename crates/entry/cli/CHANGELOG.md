@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- `systemprompt admin identity generate [--json]` mints `oauth_at_rest_pepper`, `manifest_signing_secret_seed` and `signing_key_pem` in the encodings the loader expects, so an operator distributes one identity to every replica instead of hand-rolling three secrets in three formats.
+- `systemprompt cloud doctor --distributed` reports identity-secret fingerprints (comparable across nodes without revealing the values), the resolved `instance_id`, `trusted_proxies`, whether `database_write_url` is a primary, replica lag on `database_url`, and a `/readyz` probe.
+
+### Fixed
+
+- A cloud profile that resolves to no instance id refuses to boot instead of taking a fresh random identity on every restart.
+- MCP child processes are passed `HOSTNAME`, so a spawned server resolves the same replica identity as its parent.
+- The service state verifier is scoped by instance; it was judging another replica's rows as stale and rewriting them.
+
 ## [0.43.0] - 2026-09-01
 
 ### Changed

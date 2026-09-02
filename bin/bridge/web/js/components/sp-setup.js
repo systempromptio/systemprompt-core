@@ -5,7 +5,7 @@ import { t } from "/assets/js/i18n.js";
 import { notifyErr } from "/assets/js/utils/notify.js";
 import { stepsFromSnapshot } from "/assets/js/utils/setup-steps.js";
 import { clearSettleTimer, trackSettle, retrySettle } from "/assets/js/utils/setup-settle.js";
-import { renderSetupHero, renderSetupAgentsStep, renderSetupSettleNotice, renderSetupFooter } from "/assets/js/components/setup-sections.js";
+import { renderSetupBrand, renderSetupHeading, renderSetupAgentsStep, renderSetupSettleNotice } from "/assets/js/components/setup-sections.js";
 import "/assets/js/components/sp-setup-gateway.js";
 import "/assets/js/components/sp-setup-agents.js";
 
@@ -92,14 +92,18 @@ export class SpSetup extends SpElement {
 
   render() {
     return `
-      <div class="sp-setup__card">
-        ${renderSetupHero(this)}
-        <div class="sp-setup__step" data-step="connect" ${this.step !== "connect" ? "hidden" : ""}>
-          <sp-setup-gateway></sp-setup-gateway>
-        </div>
-        ${renderSetupAgentsStep(this)}
-        ${renderSetupSettleNotice(this)}
-        ${renderSetupFooter(this)}
+      <div class="sp-setup__split">
+        ${renderSetupBrand(this)}
+        <section class="sp-setup__panel">
+          <div class="sp-setup__panel-inner">
+            ${renderSetupHeading(this)}
+            <div class="sp-setup__step" data-step="connect" ${this.step !== "connect" ? "hidden" : ""}>
+              <sp-setup-gateway></sp-setup-gateway>
+            </div>
+            ${renderSetupAgentsStep(this)}
+            ${renderSetupSettleNotice(this)}
+          </div>
+        </section>
       </div>
     `;
   }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- Every log line is stamped with the replica's `instance=`, and `logs` rows carry the instance id, so a line from a multi-replica deployment says which node produced it.
+
 ## [0.30.0] - 2026-08-07
 
 ### Breaking
