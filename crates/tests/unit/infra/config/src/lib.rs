@@ -43,8 +43,6 @@ mod manifest;
 mod path_validation;
 
 #[cfg(test)]
-mod profile_gateway;
-
 #[cfg(test)]
 mod error_display;
 

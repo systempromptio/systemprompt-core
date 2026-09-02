@@ -67,6 +67,7 @@ pub(super) fn resolve_includes_recursively(
     let file_dir = canonical.parent().unwrap_or(base_path).to_path_buf();
     super::merge::resolve_system_prompt_includes(&file_dir, &mut included)?;
     super::merge::resolve_skill_instruction_includes(&file_dir, &mut included)?;
+    super::gateway::resolve_file_gateway_includes(&file_dir, &mut included)?;
     merge_into(ctx.merged, included)?;
 
     Ok(())

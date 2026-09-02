@@ -8,7 +8,7 @@
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::model_entries;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
-use systemprompt_models::profile::{
+use systemprompt_models::services::{
     ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
 };
 

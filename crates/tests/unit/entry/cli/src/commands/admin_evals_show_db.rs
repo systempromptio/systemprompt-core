@@ -6,7 +6,7 @@
 //! does whether or not the report carries the right rows.
 //!
 //! The fixture, bootstrap and command context are shared with
-//! `admin_evals_db`: `init_ai_bootstrap` is process-global, so a second
+//! `admin_evals_db`: `init_services_bootstrap` is process-global, so a second
 //! `OnceLock` boot in this file would race the first.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]

@@ -10,6 +10,7 @@ anyhow = { workspace = true }
 dotenvy = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-extension = { workspace = true }

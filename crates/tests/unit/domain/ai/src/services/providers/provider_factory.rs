@@ -1,6 +1,7 @@
 use systemprompt_ai::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
-use systemprompt_models::profile::{ProviderModel, ProviderRegistry, WireProtocol};
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_models::services::{
+    ProviderModel, ProviderRegistry, ResilienceSettings, WireProtocol,
+};
 
 fn seed_models(provider: &str) -> Vec<ProviderModel> {
     ProviderRegistry::default_seed()

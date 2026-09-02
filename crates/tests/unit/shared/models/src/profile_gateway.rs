@@ -2,13 +2,13 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::profile::{
+use systemprompt_models::profile::default_resource_audiences;
+use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
-    OverrideRuleAction, ProviderEntry, ProviderModel, ProviderRegistry, ResponseFormatKind,
-    RouteMatch, RouteRequirements, SystemPromptRule, WireProtocol, default_resource_audiences,
-    slugify_pattern, synthesize_route_id,
+    ModelGovernance, ModelPricing, OverrideRuleAction, ProviderEntry, ProviderModel,
+    ProviderRegistry, ResponseFormatKind, RouteMatch, RouteRequirements, SystemPromptRule,
+    WireProtocol, slugify_pattern, synthesize_route_id,
 };
-use systemprompt_models::services::{ModelGovernance, ModelPricing};
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
     ResponseFormat, Role, ThinkingConfig,

@@ -9,10 +9,10 @@ use clap::Args;
 use super::types::{ValidationIssue, ValidationOutput};
 use crate::CliConfig;
 use crate::shared::CommandOutput;
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::profile::ProviderRegistry;
 use systemprompt_models::secrets::Secrets;
+use systemprompt_models::services::ProviderRegistry;
 use systemprompt_models::{AgentConfig, ServicesConfig};
 
 #[derive(Debug, Args)]
@@ -30,9 +30,7 @@ pub struct ValidationSources<'a> {
 
 pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let registry = &ProfileBootstrap::get()
-        .context("Failed to access bootstrapped profile for provider registry")?
-        .providers;
+    let registry = &services_config.providers;
     let secrets = SecretsBootstrap::get().ok();
     let sources = ValidationSources {
         services_config: &services_config,
@@ -160,7 +158,7 @@ pub fn check_provider(
             errors.push(ValidationIssue {
                 source: name.to_owned(),
                 message: format!(
-                    "Provider '{}' has no connectivity entry in the profile registry",
+                    "Provider '{}' has no connectivity entry in the services provider registry",
                     provider_name
                 ),
                 suggestion: None,

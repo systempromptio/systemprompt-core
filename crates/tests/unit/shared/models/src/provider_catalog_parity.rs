@@ -6,7 +6,7 @@
 //! of that knowledge, so an accidental edit to `default_catalog.yaml` (a wrong
 //! price, a dropped model, a renamed default) must fail here.
 
-use systemprompt_models::profile::ProviderRegistry;
+use systemprompt_models::services::ProviderRegistry;
 
 fn seed() -> ProviderRegistry {
     ProviderRegistry::default_seed().expect("embedded default catalog parses")

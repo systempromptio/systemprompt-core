@@ -6,7 +6,7 @@ use systemprompt_bridge::integration::host_app::{
     StaleReason,
 };
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
-use systemprompt_models::profile::ApiSurface;
+use systemprompt_models::services::ApiSurface;
 use tempfile::TempDir;
 
 fn probe_env() -> ProbeEnv {

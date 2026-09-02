@@ -8,9 +8,9 @@
 //! candidate, resolution is top-down:
 //!   1. Profile `GatewayRoute.pricing` whose `model_pattern` matches (operator
 //!      override, the strongest "we pay a custom rate here" signal).
-//!   2. The matching `ProviderModel.pricing` in `profile.providers` — the route
-//!      provider's catalog entry, else any provider that serves it. The
-//!      provider registry is the single source of model pricing.
+//!   2. The matching `ProviderModel.pricing` in the services provider registry
+//!      — the route provider's catalog entry, else any provider that serves it.
+//!      The provider registry is the single source of model pricing.
 //!
 //! If no candidate resolves, emit a WARN and return zero pricing — a real
 //! configuration gap, not noise to silence.
@@ -18,8 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
-use systemprompt_models::services::ModelPricing;
+use systemprompt_models::services::{GatewayConfig, ModelPricing, ProviderRegistry};
 
 pub fn resolve(
     provider: &str,

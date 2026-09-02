@@ -1,11 +1,15 @@
 //! Provider registry: the single source of upstream connectivity.
 //!
-//! [`ProviderRegistry`] is the per-environment `profile.providers` section.
-//! Each [`ProviderEntry`] declares one upstream exactly once — its
+//! [`ProviderRegistry`] is the `providers:` list of the services tree
+//! (`services/ai/providers.yaml` by convention, merged across includes). It is
+//! implementation configuration shipped with the deployment, not a
+//! per-environment profile section: the same catalog boots every environment
+//! and only the credentials it names differ. Each [`ProviderEntry`] declares
+//! one upstream exactly once — its
 //! [`WireProtocol`], endpoint, credential ([`SecretName`]), extra headers, and
 //! the model catalog it serves. The two policy layers reference entries by
 //! [`ProviderId`] and never re-declare connectivity: the gateway policy
-//! (`profile.gateway`) routes external model names to a provider, and the AI
+//! (`services.gateway`) routes external model names to a provider, and the AI
 //! policy (`services/ai/config.yaml`) selects an agent default and per-provider
 //! overrides.
 //!

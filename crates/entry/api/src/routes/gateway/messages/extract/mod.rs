@@ -82,10 +82,8 @@ pub(super) async fn extract_request_context(
     partial: &mut RejectionPartial,
 ) -> Result<PreparedRequest, (StatusCode, String)> {
     let gateway_config = rc
-        .profile
-        .gateway
-        .as_ref()
-        .and_then(systemprompt_models::profile::GatewayState::resolved)
+        .services
+        .gateway_config()
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
@@ -113,7 +111,7 @@ pub(super) async fn extract_request_context(
     let (gateway_conversation_id, context_id) =
         derive_conversation(header_gateway_conversation, &gateway_request, partial)?;
     let route = gateway_config
-        .resolve_route(&rc.profile.providers, &gateway_request)
+        .resolve_route(&rc.services.providers, &gateway_request)
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
@@ -123,7 +121,7 @@ pub(super) async fn extract_request_context(
     partial.provider = Some(route.provider.as_str().to_owned());
 
     let wire = rc
-        .profile
+        .services
         .providers
         .find_provider(route.provider.as_str())
         .map(|p| p.wire);

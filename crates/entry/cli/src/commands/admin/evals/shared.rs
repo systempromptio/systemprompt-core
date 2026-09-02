@@ -28,8 +28,6 @@ pub(super) struct EvalContext {
 pub(super) async fn eval_context(ctx: &CommandContext) -> Result<EvalContext> {
     let app_context = ctx.app_context().await?;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let profile = systemprompt_config::ProfileBootstrap::get()
-        .context("Failed to access bootstrapped profile for provider registry")?;
     let db_pool = Arc::clone(app_context.db_pool());
 
     let tool_provider = Arc::new(McpToolProvider::new(
@@ -43,7 +41,7 @@ pub(super) async fn eval_context(ctx: &CommandContext) -> Result<EvalContext> {
     let ai_service = Arc::new(
         AiService::new(
             &db_pool,
-            &profile.providers,
+            &services_config.providers,
             &services_config.ai,
             AiServiceProviders {
                 tools: tool_provider,

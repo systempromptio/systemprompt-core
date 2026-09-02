@@ -26,7 +26,7 @@ use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
 };
-use systemprompt_models::profile::ApiSurface;
+use systemprompt_models::services::ApiSurface;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use tower::ServiceExt;
 

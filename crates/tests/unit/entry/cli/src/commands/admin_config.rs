@@ -75,8 +75,7 @@ fn make_profile(services: &Path) -> Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::profile::ProviderRegistry::default(),
-        gateway: None,
+        providers: systemprompt_models::services::ProviderRegistry::default(),
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {
@@ -94,6 +93,8 @@ fn cfg() -> CliConfig {
 fn config_section_from_str_parses_every_variant_case_insensitively() {
     let cases = [
         ("ai", ConfigSection::Ai),
+        ("providers", ConfigSection::Providers),
+        ("Gateway", ConfigSection::Gateway),
         ("Content", ConfigSection::Content),
         ("WEB", ConfigSection::Web),
         ("scheduler", ConfigSection::Scheduler),
@@ -126,13 +127,13 @@ fn config_section_display_round_trips_through_from_str() {
 }
 
 #[test]
-fn config_section_all_lists_nine_unique_sections() {
+fn config_section_all_lists_eleven_unique_sections() {
     let all = ConfigSection::all();
-    assert_eq!(all.len(), 9);
+    assert_eq!(all.len(), 11);
     let mut names: Vec<String> = all.iter().map(ToString::to_string).collect();
     names.sort();
     names.dedup();
-    assert_eq!(names.len(), 9);
+    assert_eq!(names.len(), 11);
 }
 
 #[test]

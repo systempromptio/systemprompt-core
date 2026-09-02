@@ -7,7 +7,7 @@
 //! action at dispatch, before the request is forwarded upstream.
 //!
 //! Two sources feed the [`engine::OverrideEngine`]: declarative
-//! [`SystemPromptRule`](systemprompt_models::profile::SystemPromptRule)
+//! [`SystemPromptRule`](systemprompt_models::services::SystemPromptRule)
 //! rules from the profile (evaluated first), then extension overrides
 //! contributed through the
 //! [`register_system_prompt_override!`](crate::register_system_prompt_override)

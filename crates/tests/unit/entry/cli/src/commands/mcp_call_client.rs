@@ -93,8 +93,7 @@ fn minimal_profile() -> Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::profile::ProviderRegistry::default(),
-        gateway: None,
+        providers: systemprompt_models::services::ProviderRegistry::default(),
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {

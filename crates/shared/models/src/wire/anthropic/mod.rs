@@ -27,8 +27,8 @@ use serde_json::{Map, Value, json};
 
 use blocks::{BlockAudience, canonical_message_to_anthropic};
 
-use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
+use crate::services::WireProtocol;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, Role, SearchConfig,

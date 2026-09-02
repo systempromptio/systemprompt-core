@@ -5,7 +5,7 @@
 
 use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_models::profile::{
-    ProviderRegistry, SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
+    SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -135,8 +135,6 @@ impl CloudProfileBuilder {
                 source: SecretsSource::Env,
             }),
             extensions: ExtensionsConfig::default(),
-            providers: ProviderRegistry::default(),
-            gateway: None,
             governance: Some(webhook_governance(&internal_url)),
             services: systemprompt_models::profile::ServicesProfileConfig::default(),
             system_admin: SystemAdminConfig {
