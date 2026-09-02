@@ -160,7 +160,11 @@ fn anthropic_strict_schema_spells_nullable_as_an_anyof_null_branch() {
     let stage = &schema["properties"]["stage"];
     assert!(stage.get("type").is_none(), "type list replaced by anyOf");
     assert_eq!(stage["anyOf"][0]["type"], "string");
-    assert_eq!(stage["anyOf"][0]["enum"], json!(["new", "won", null]));
+    assert_eq!(
+        stage["anyOf"][0]["enum"],
+        json!(["new", "won"]),
+        "null moves to its own branch and leaves the enum"
+    );
     assert_eq!(stage["anyOf"][1], json!({"type": "null"}));
     assert_eq!(schema["properties"]["close"]["anyOf"][1]["type"], "null");
     assert_eq!(schema["required"], json!(["stage", "close"]));

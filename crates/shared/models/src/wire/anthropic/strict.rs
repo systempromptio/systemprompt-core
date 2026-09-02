@@ -84,6 +84,12 @@ fn lift_null_type(object: &mut Map<String, Value>) {
         return;
     }
     let mut branch = object.clone();
+    // Why: the null branch now carries the null, so a `null` left inside the
+    // string branch's `enum` is a value that contradicts its declared type,
+    // which the grammar compiler rejects outright.
+    if let Some(Value::Array(values)) = branch.get_mut("enum") {
+        values.retain(|v| !v.is_null());
+    }
     match non_null.len() {
         0 => {
             branch.remove("type");

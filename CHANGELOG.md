@@ -26,6 +26,7 @@ One image, N replicas, one Postgres primary with regional read replicas: this re
 - Appending two messages to one task concurrently no longer collides on `UNIQUE(task_id, sequence_number)`: the task row is locked for the transaction that computes the next number.
 - Rule-based authz no longer reloads the parent-chain index on every decision. It is cached per process and revalidated by a one-query fingerprint every 5 s (60 s hard bound), which removed three sequential round trips per request — invisible intra-AZ, a full second cross-region.
 - Anthropic structured output now sends the forced tool with `strict: true` and a grammar-compatible schema (nullable fields as `anyOf` with `null`, closed objects, unsupported bounds dropped), so a `ResponseFormat::JsonSchema { strict: true }` response cannot violate its schema.
+- Gemini `responseSchema` is shaped through the provider sanitizer (no `additionalProperties`, type lists folded to `nullable`), and a `null` inside `enum` is dropped once nullability is expressed separately; both were rejected by the providers before.
 
 ### Changed
 
