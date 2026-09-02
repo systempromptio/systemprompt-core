@@ -34,6 +34,11 @@ permissions:
   actions: read
 
 env:
+  # Why: transient TLS resets from static.rust-lang.org and crates.io fail a run
+  # on infrastructure rather than on the code. rustup and cargo both retry when
+  # told to; they do not by default.
+  RUSTUP_MAX_RETRIES: "10"
+  CARGO_NET_RETRY: "10"
   CARGO_TERM_COLOR: always
   RUSTC_WRAPPER: ""
   SQLX_OFFLINE: "true"
