@@ -616,7 +616,10 @@ coverage:
         SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
         DATABASE_URL="$DATABASE_URL" \
         cargo nextest run --workspace --lib --bins --tests --build-jobs 4 --no-fail-fast --profile coverage \
-        || echo "warning: test failures/timeouts above — continuing to coverage report"
+        || TEST_STATUS=$?
+    if [ "${TEST_STATUS:-0}" -ne 0 ]; then
+        echo "warning: test failures/timeouts above — continuing to coverage report"
+    fi
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
     echo "==> Generated $PROFRAW_COUNT profraw files"
@@ -656,6 +659,14 @@ coverage:
     echo ""
     echo "lcov.info: coverage-report/lcov.info"
     echo "For HTML report: just coverage-html"
+
+    # Why: the report is produced first so the number stays available for
+    # diagnosis, but a run whose tests failed measured a partial binary set and
+    # must not exit 0 -- that reads as a healthy percentage of everything.
+    if [ "${TEST_STATUS:-0}" -ne 0 ]; then
+        echo "coverage: tests failed above; this figure describes a partial run" >&2
+        exit 1
+    fi
 
 # Render coverage as a browsable HTML tree (requires `just coverage` first).
 coverage-html:
