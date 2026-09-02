@@ -21,7 +21,8 @@ use systemprompt_models::services::{GatewayConfigSpec, GatewayState, ProviderReg
 use super::catalog;
 use super::secrets::SecretsData;
 use crate::commands::admin::config::config_section::{
-    GATEWAY_FILE_RELATIVE, PROVIDERS_FILE_RELATIVE,
+    GATEWAY_FILE_RELATIVE, GATEWAY_INCLUDE_RELATIVE, PROVIDERS_FILE_RELATIVE,
+    PROVIDERS_INCLUDE_RELATIVE,
 };
 use crate::commands::admin::config::services_io::append_include;
 
@@ -85,11 +86,11 @@ pub(super) fn seed(
 
     let root = services_dir.join("config").join("config.yaml");
     if root.exists() {
-        append_include(&root, PROVIDERS_FILE_RELATIVE)?;
-        append_include(&root, GATEWAY_FILE_RELATIVE)?;
+        append_include(&root, PROVIDERS_INCLUDE_RELATIVE)?;
+        append_include(&root, GATEWAY_INCLUDE_RELATIVE)?;
     } else {
         CliService::warning(&format!(
-            "{} not found; list {PROVIDERS_FILE_RELATIVE} and {GATEWAY_FILE_RELATIVE} in its \
+            "{} not found; list {PROVIDERS_INCLUDE_RELATIVE} and {GATEWAY_INCLUDE_RELATIVE} in its \
              includes when you create it",
             root.display()
         ));

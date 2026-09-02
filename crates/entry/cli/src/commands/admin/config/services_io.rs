@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::services::{GatewayState, ProviderRegistry, ServicesConfig};
 
-use super::config_section::{ConfigSection, GATEWAY_FILE_RELATIVE, PROVIDERS_FILE_RELATIVE};
+use super::config_section::{ConfigSection, GATEWAY_INCLUDE_RELATIVE, PROVIDERS_INCLUDE_RELATIVE};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -162,9 +162,9 @@ pub fn append_include(root: &Path, relative: &str) -> Result<()> {
 }
 
 pub(super) const fn providers_relative() -> &'static str {
-    PROVIDERS_FILE_RELATIVE
+    PROVIDERS_INCLUDE_RELATIVE
 }
 
 pub(super) const fn gateway_relative() -> &'static str {
-    GATEWAY_FILE_RELATIVE
+    GATEWAY_INCLUDE_RELATIVE
 }

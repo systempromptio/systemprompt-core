@@ -21,10 +21,14 @@ use systemprompt_config::ProfileBootstrap;
 use super::rate_limit_types::ResetChange;
 
 // Why: the two files are named by convention rather than discovered, so the
-// setter commands and `admin setup` agree on where the catalog and routes
-// live — and the root `includes:` can name them the same way.
+// setter commands and `admin setup` agree on where the catalog and routes live.
+// The paths are relative to the services root, but an `includes:` entry
+// resolves against the directory of the file that lists it — the root
+// aggregator in `<services>/config/` — so the include text needs its own form.
 pub const PROVIDERS_FILE_RELATIVE: &str = "ai/providers.yaml";
 pub const GATEWAY_FILE_RELATIVE: &str = "ai/gateway.yaml";
+pub const PROVIDERS_INCLUDE_RELATIVE: &str = "../ai/providers.yaml";
+pub const GATEWAY_INCLUDE_RELATIVE: &str = "../ai/gateway.yaml";
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidateOutput {
