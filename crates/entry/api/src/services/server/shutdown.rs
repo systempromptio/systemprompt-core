@@ -15,7 +15,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};
 
 const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
-const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
+pub const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
 const FORCED_SHUTDOWN_GRACE_MS: u64 = 10_000;
 
 #[cfg(feature = "test-api")]

@@ -42,14 +42,14 @@ async fn readiness_lifecycle_signals_ready_then_shutdown() {
 
 #[test]
 fn install_recorder_is_idempotent() {
-    let first = install_recorder().expect("install recorder");
-    let second = install_recorder().expect("second install returns cached handle");
+    let first = install_recorder("test-instance").expect("install recorder");
+    let second = install_recorder("test-instance").expect("second install returns cached handle");
     let _ = (first.render(), second.render());
 }
 
 #[tokio::test]
 async fn handle_metrics_renders_prometheus_body() {
-    let handle = install_recorder().expect("install recorder");
+    let handle = install_recorder("test-instance").expect("install recorder");
     let app = Router::new()
         .route("/metrics", get(handle_metrics))
         .with_state(handle);
@@ -77,7 +77,7 @@ async fn handle_metrics_renders_prometheus_body() {
 
 #[tokio::test]
 async fn track_metrics_middleware_records_request_and_forwards() {
-    let _ = install_recorder();
+    let _ = install_recorder("test-instance");
     let app = Router::new()
         .route("/ok", get(|| async { "ok" }))
         .route("/boom", get(|| async { StatusCode::INTERNAL_SERVER_ERROR }))

@@ -35,8 +35,9 @@ fn server_config() -> ServerConfig {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
+        metrics_port: None,
         max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-        trusted_proxies: Vec::new(),
+        trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
     }
 }
 
@@ -61,7 +62,7 @@ fn local_paths() -> PathsConfig {
         services: "/tmp/services".to_string(),
         bin: "/tmp/bin".to_string(),
         web_path: None,
-        storage: None,
+        storage: Some("/tmp/storage".to_string()),
         geoip_database: None,
     }
 }
@@ -72,13 +73,14 @@ fn cloud_paths() -> PathsConfig {
         services: "/app/services".to_string(),
         bin: "/app/bin".to_string(),
         web_path: Some("/app/web".to_string()),
-        storage: None,
+        storage: Some("/app/storage".to_string()),
         geoip_database: None,
     }
 }
 
 fn valid_profile() -> Profile {
     Profile {
+        storage: Default::default(),
         name: "p".to_string(),
         display_name: "Profile P".to_string(),
         target: ProfileType::Local,
@@ -115,6 +117,48 @@ fn errors_of(profile: &Profile) -> String {
         .validate()
         .err()
         .map_or_else(String::new, |e| format!("{e}"))
+}
+
+mod storage {
+    use super::*;
+    use systemprompt_models::profile::{StorageBackend, StorageConfig};
+
+    #[test]
+    fn local_backend_requires_paths_storage() {
+        let mut p = valid_profile();
+        p.storage = StorageConfig {
+            backend: StorageBackend::Local,
+            shared: false,
+        };
+        p.paths.storage = None;
+        assert!(errors_of(&p).contains("paths.storage"));
+
+        p.paths.storage = Some(String::new());
+        assert!(errors_of(&p).contains("paths.storage"));
+
+        p.paths.storage = Some("/tmp/storage".to_string());
+        assert!(p.validate().is_ok());
+    }
+
+    #[test]
+    fn storage_section_defaults_to_local_unshared() {
+        let p = valid_profile();
+        assert_eq!(p.storage.backend, StorageBackend::Local);
+        assert!(!p.storage.shared);
+    }
+
+    #[test]
+    fn storage_section_rejects_unknown_backend_and_fields() {
+        let err = serde_json::from_str::<StorageConfig>(r#"{"backend": "s3"}"#)
+            .expect_err("s3 is not a backend yet");
+        assert!(err.to_string().contains("s3"));
+        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "bucket": "x"}"#)
+            .expect_err("unknown field must be rejected");
+        let cfg: StorageConfig =
+            serde_json::from_str(r#"{"shared": true}"#).expect("shared alone parses");
+        assert!(cfg.shared);
+        assert_eq!(cfg.backend, StorageBackend::Local);
+    }
 }
 
 mod required_fields {
@@ -368,6 +412,31 @@ mod cloud_paths_validation {
     #[test]
     fn valid_cloud_profile_passes() {
         assert!(cloud_profile().validate().is_ok());
+    }
+
+    #[test]
+    fn cloud_profile_rejects_empty_trusted_proxies() {
+        let mut p = cloud_profile();
+        p.server.trusted_proxies = Vec::new();
+        let err = p.validate().unwrap_err().to_string();
+        assert!(err.contains("server.trusted_proxies"), "{err}");
+    }
+
+    #[test]
+    fn local_profile_allows_empty_trusted_proxies() {
+        let mut p = valid_profile();
+        p.server.trusted_proxies = Vec::new();
+        assert!(p.validate().is_ok());
+    }
+
+    #[test]
+    fn metrics_port_must_differ_from_server_port() {
+        let mut p = valid_profile();
+        p.server.metrics_port = Some(p.server.port);
+        let err = p.validate().unwrap_err().to_string();
+        assert!(err.contains("server.metrics_port"), "{err}");
+        p.server.metrics_port = Some(p.server.port + 1);
+        assert!(p.validate().is_ok());
     }
 
     #[test]

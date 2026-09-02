@@ -115,26 +115,35 @@ fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
     Ok(path.to_owned())
 }
 
+// Why: a replica's identity keys its service-registry rows, outbox origin and
+// scheduler claims. A random per-boot id would make every restart look like a
+// new node, so cloud targets must resolve to something stable or fail here.
+pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<String> {
+    if let Some(id) = profile
+        .server
+        .instance_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        return Ok(id.to_owned());
+    }
+    match systemprompt_models::config::stable_instance_id() {
+        Some(id) => Ok(id),
+        None if profile.target.is_cloud() => Err(ConfigError::InstanceIdUnresolved),
+        None => Ok(systemprompt_models::config::random_instance_id()),
+    }
+}
+
 fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Config> {
     let secrets = SecretsBootstrap::get()?;
     let system_admin_username = resolve_system_admin_username(profile)?;
 
-    if profile.target.is_cloud() && profile.server.trusted_proxies.is_empty() {
-        tracing::warn!(
-            "cloud profile has an empty server.trusted_proxies — forwarded client-IP headers \
-             (X-Forwarded-For, CF-Connecting-IP) will be ignored and every request will resolve \
-             to the proxy's peer address; add your proxy ranges (e.g. \"fc00::/7\" on Fly) to \
-             server.trusted_proxies"
-        );
-    }
+    let instance_id = resolve_instance_id(profile)?;
 
     Ok(Config {
-        instance_id: profile
-            .server
-            .instance_id
-            .clone()
-            .filter(|id| !id.trim().is_empty())
-            .unwrap_or_else(systemprompt_models::config::default_instance_id),
+        instance_id,
+        metrics_port: profile.server.metrics_port,
         max_concurrent_streams: profile.server.max_concurrent_streams,
         sitename: profile.site.name.clone(),
         database_type: profile.database.db_type.clone(),

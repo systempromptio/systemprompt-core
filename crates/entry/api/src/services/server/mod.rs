@@ -29,6 +29,7 @@ pub mod readiness;
 mod routes;
 pub mod runner;
 pub mod scheduler_health;
+mod probes;
 mod shutdown;
 pub mod startup;
 

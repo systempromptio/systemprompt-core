@@ -33,6 +33,7 @@ fn make_server_config() -> ServerConfig {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
+        metrics_port: None,
         max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         trusted_proxies: Vec::new(),
     }
@@ -55,6 +56,7 @@ fn make_security_config() -> SecurityConfig {
 
 fn make_profile(name: &str) -> Profile {
     Profile {
+        storage: Default::default(),
         name: name.to_string(),
         display_name: format!("Test {name}"),
         target: ProfileType::Local,

@@ -65,6 +65,7 @@ pub struct LogEntry {
     pub trace_id: TraceId,
     pub context_id: Option<systemprompt_identifiers::ContextId>,
     pub client_id: Option<systemprompt_identifiers::ClientId>,
+    pub instance_id: Option<systemprompt_identifiers::InstanceId>,
 }
 
 impl LogEntry {
@@ -87,6 +88,7 @@ impl LogEntry {
             trace_id: actor.trace_id,
             context_id: None,
             client_id: None,
+            instance_id: crate::instance_id().cloned(),
         }
     }
 

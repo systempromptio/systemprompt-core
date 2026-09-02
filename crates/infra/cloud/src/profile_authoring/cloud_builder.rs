@@ -86,6 +86,7 @@ impl CloudProfileBuilder {
         let internal_url = format!("http://localhost:{}", consts::DEFAULT_PORT);
 
         Profile {
+            storage: systemprompt_models::profile::StorageConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Cloud,
@@ -109,6 +110,7 @@ impl CloudProfileBuilder {
                 content_negotiation: ContentNegotiationConfig::default(),
                 security_headers: SecurityHeadersConfig::default(),
                 instance_id: None,
+                metrics_port: None,
                 max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
                 trusted_proxies: crate::trusted_proxies::default_cloud_trusted_proxies(),
             },

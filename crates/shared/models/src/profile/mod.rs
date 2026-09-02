@@ -24,6 +24,7 @@ mod security;
 mod server;
 mod services;
 mod site;
+mod storage;
 mod style;
 mod validation;
 
@@ -60,6 +61,7 @@ pub use server::{
 };
 pub use services::ServicesProfileConfig;
 pub use site::SiteConfig;
+pub use storage::{StorageBackend, StorageConfig};
 pub use style::ProfileStyle;
 
 use serde::{Deserialize, Serialize};
@@ -147,6 +149,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub services: ServicesProfileConfig,
+
+    #[serde(default)]
+    pub storage: StorageConfig,
 }
 
 impl Profile {

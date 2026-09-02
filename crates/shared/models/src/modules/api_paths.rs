@@ -47,6 +47,10 @@ impl ApiPaths {
     pub const WEBHOOK: &'static str = "/api/v1/webhook";
 
     pub const HEALTH: &'static str = "/api/v1/health";
+
+    pub const LIVEZ: &'static str = "/livez";
+
+    pub const READYZ: &'static str = "/readyz";
     pub const DISCOVERY: &'static str = "/api/v1";
 
     pub const WELLKNOWN_BASE: &'static str = "/.well-known";

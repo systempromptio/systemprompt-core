@@ -29,7 +29,7 @@ const SSE_CONNECTIONS: &str = "sse_active_connections";
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
-pub fn install_recorder() -> anyhow::Result<PrometheusHandle> {
+pub fn install_recorder(instance_id: &str) -> anyhow::Result<PrometheusHandle> {
     if let Some(handle) = RECORDER.get() {
         return Ok(handle.clone());
     }
@@ -40,10 +40,45 @@ pub fn install_recorder() -> anyhow::Result<PrometheusHandle> {
         return Ok(handle.clone());
     }
     let handle = PrometheusBuilder::new()
+        .add_global_label("instance", instance_id)
         .install_recorder()
         .map_err(|e| anyhow::anyhow!("failed to install Prometheus recorder: {e}"))?;
     drop(RECORDER.set(handle.clone()));
     Ok(handle)
+}
+
+pub fn metrics_router(handle: PrometheusHandle) -> axum::Router {
+    axum::Router::new()
+        .route("/metrics", axum::routing::get(handle_metrics))
+        .with_state(handle)
+}
+
+// Why: `/metrics` is served on its own listener rather than the public router
+// so scrapers reach it without a bearer token and balancers never have to
+// filter it. The listener drains on the same readiness signal as the API.
+pub async fn serve_metrics_listener(
+    addr: std::net::SocketAddr,
+    handle: PrometheusHandle,
+) -> anyhow::Result<tokio::task::JoinHandle<()>> {
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    let mut readiness = super::readiness::get_readiness_receiver();
+    let shutdown = async move {
+        loop {
+            match readiness.recv().await {
+                Ok(super::readiness::ReadinessEvent::ApiShuttingDown) | Err(_) => break,
+                Ok(_) => {},
+            }
+        }
+    };
+    tracing::info!(%addr, "metrics listener bound");
+    Ok(tokio::spawn(async move {
+        if let Err(error) = axum::serve(listener, metrics_router(handle))
+            .with_graceful_shutdown(shutdown)
+            .await
+        {
+            tracing::warn!(error = %error, "metrics listener exited with error");
+        }
+    }))
 }
 
 pub async fn handle_metrics(

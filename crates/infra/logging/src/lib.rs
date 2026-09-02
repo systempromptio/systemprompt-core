@@ -61,6 +61,7 @@ use std::sync::OnceLock;
 
 use layer::ProxyDatabaseLayer;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::InstanceId;
 use tracing::Level;
 use tracing_subscriber::filter::FilterFn;
 use tracing_subscriber::layer::SubscriberExt;
@@ -68,6 +69,18 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
 static SUBSCRIBER_INITIALIZED: OnceLock<()> = OnceLock::new();
+static INSTANCE_ID: OnceLock<InstanceId> = OnceLock::new();
+
+pub fn set_instance_id(instance_id: InstanceId) {
+    if INSTANCE_ID.set(instance_id).is_err() {
+        tracing::debug!("logging instance id already set; ignoring");
+    }
+}
+
+#[must_use]
+pub fn instance_id() -> Option<&'static InstanceId> {
+    INSTANCE_ID.get()
+}
 static DB_PROXY: OnceLock<ProxyDatabaseLayer> = OnceLock::new();
 
 const NOISE_FILTERS: &[&str] = &[

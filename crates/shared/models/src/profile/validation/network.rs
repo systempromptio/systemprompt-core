@@ -6,6 +6,17 @@
 use super::super::Profile;
 
 impl Profile {
+    pub(crate) fn validate_trusted_proxies(&self, errors: &mut Vec<String>, is_cloud: bool) {
+        if is_cloud && self.server.trusted_proxies.is_empty() {
+            errors.push(
+                "server.trusted_proxies is required on a cloud profile: without it forwarded \
+                 client-IP headers are ignored and every request resolves to the proxy's peer \
+                 address, so all callers share one rate-limit bucket and one ban target"
+                    .to_owned(),
+            );
+        }
+    }
+
     pub(crate) fn validate_cors_origins(&self, errors: &mut Vec<String>) {
         for origin in &self.server.cors_allowed_origins {
             if origin.is_empty() {

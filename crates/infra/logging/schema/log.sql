@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS logs (
     gateway_conversation_id VARCHAR(255),
     provider_request_id VARCHAR(255),
     client_id VARCHAR(255),
+    instance_id VARCHAR(255),
     CONSTRAINT log_level_check CHECK (level IN ('ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'))
 );
 -- Single-column level/user_id/session_id/context_id/client_id indexes omitted:

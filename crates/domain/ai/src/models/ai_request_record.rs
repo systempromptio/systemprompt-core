@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{
-    Actor, AiRequestId, ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId,
-    SessionId, TaskId, TraceId, UserId,
+    Actor, AiRequestId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
+    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -64,6 +64,7 @@ pub struct AiRequestRecord {
     pub latency_ms: i32,
     pub status: RequestStatus,
     pub error_message: Option<String>,
+    pub instance_id: Option<InstanceId>,
 }
 
 impl AiRequestRecord {
@@ -99,6 +100,7 @@ pub struct AiRequestRecordBuilder {
     latency_ms: i32,
     status: RequestStatus,
     error_message: Option<String>,
+    instance_id: Option<InstanceId>,
 }
 
 impl AiRequestRecordBuilder {
@@ -125,7 +127,14 @@ impl AiRequestRecordBuilder {
             latency_ms: 0,
             status: RequestStatus::Pending,
             error_message: None,
+            instance_id: None,
         }
+    }
+
+    #[must_use]
+    pub fn instance_id(mut self, instance_id: InstanceId) -> Self {
+        self.instance_id = Some(instance_id);
+        self
     }
 
     #[must_use]
@@ -267,6 +276,7 @@ impl AiRequestRecordBuilder {
             latency_ms: self.latency_ms,
             status: self.status,
             error_message: self.error_message,
+            instance_id: self.instance_id,
         }
     }
 }

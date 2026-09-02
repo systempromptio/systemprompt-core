@@ -34,9 +34,8 @@ use super::client_addr::resolve_client_ip;
 
 fn is_probe_path(path: &str) -> bool {
     path == "/health"
-        || path == "/ready"
-        || path == "/healthz"
-        || path == "/metrics"
+        || path == ApiPaths::LIVEZ
+        || path == ApiPaths::READYZ
         || path == ApiPaths::HEALTH
 }
 

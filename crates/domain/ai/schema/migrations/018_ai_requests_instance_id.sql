@@ -1,0 +1,1 @@
+ALTER TABLE ai_requests ADD COLUMN IF NOT EXISTS instance_id VARCHAR(255);

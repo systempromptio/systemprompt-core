@@ -59,6 +59,7 @@ impl LocalProfileBuilder {
         let internal_url = local_url.clone();
 
         Profile {
+            storage: systemprompt_models::profile::StorageConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Local,
@@ -82,6 +83,7 @@ impl LocalProfileBuilder {
                 content_negotiation: ContentNegotiationConfig::default(),
                 security_headers: SecurityHeadersConfig::default(),
                 instance_id: None,
+                metrics_port: None,
                 max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
                 trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
             },

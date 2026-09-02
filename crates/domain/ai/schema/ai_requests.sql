@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'job', 'mcp')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     synthetic BOOLEAN NOT NULL DEFAULT FALSE,
+    instance_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ,

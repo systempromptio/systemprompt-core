@@ -30,6 +30,12 @@ pub enum ConfigError {
     #[error("Config already initialized")]
     AlreadyInitialized,
 
+    #[error(
+        "cannot resolve a stable instance id for a cloud profile: set server.instance_id or \
+         export HOSTNAME so this replica keeps one identity across restarts"
+    )]
+    InstanceIdUnresolved,
+
     #[error(transparent)]
     Profile(#[from] ProfileBootstrapError),
 

@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
+pub use systemprompt_provider_contracts::JobScope;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,6 +25,8 @@ pub struct JobConfig {
     pub enforce: bool,
     #[serde(default)]
     pub parameters: HashMap<String, String>,
+    #[serde(default)]
+    pub scope: Option<JobScope>,
 }
 
 const fn default_true() -> bool {
@@ -41,6 +44,7 @@ impl JobConfig {
             schedule: None,
             enforce: false,
             parameters: HashMap::new(),
+            scope: None,
         }
     }
 
@@ -71,6 +75,12 @@ impl JobConfig {
     #[must_use]
     pub fn with_parameters(mut self, parameters: HashMap<String, String>) -> Self {
         self.parameters = parameters;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_scope(mut self, scope: JobScope) -> Self {
+        self.scope = Some(scope);
         self
     }
 

@@ -29,7 +29,7 @@ pub fn should_skip_session_tracking(path: &str) -> bool {
         return true;
     }
 
-    if path == "/health" || path == "/ready" || path == "/healthz" {
+    if path == "/health" || path == ApiPaths::LIVEZ || path == ApiPaths::READYZ {
         return true;
     }
 

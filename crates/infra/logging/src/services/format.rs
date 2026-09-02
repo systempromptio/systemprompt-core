@@ -115,8 +115,12 @@ impl Visit for FilteringVisitor<'_> {
 }
 
 impl VisitOutput<fmt::Result> for FilteringVisitor<'_> {
-    fn finish(self) -> fmt::Result {
-        self.result
+    fn finish(mut self) -> fmt::Result {
+        self.result?;
+        if let Some(instance_id) = crate::instance_id() {
+            self.write_field("instance", instance_id.as_str())?;
+        }
+        Ok(())
     }
 }
 
