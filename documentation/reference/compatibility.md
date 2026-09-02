@@ -2,13 +2,13 @@
 
 Upstream API, protocol, and runtime versions supported by each systemprompt.io release.
 
-## Current — 0.43.x
+## Current — 0.44.x
 
 ### AI Provider APIs
 
 systemprompt does not ship a model catalogue. Which providers and models a deployment
-exposes is determined entirely by `profile.providers` and `gateway.routes` in the operator's
-own configuration, so the table below describes the **API surfaces** the adapters speak, not
+exposes is determined entirely by `providers` and `gateway.routes` in the operator's own
+services tree (`services/ai/providers.yaml`, `services/ai/gateway.yaml`), so the table below describes the **API surfaces** the adapters speak, not
 an allowlist of model names. New models from a provider work as soon as the operator adds
 them to a route; no release of systemprompt is required.
 

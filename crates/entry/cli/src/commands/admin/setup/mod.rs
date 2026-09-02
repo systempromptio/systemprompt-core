@@ -19,6 +19,7 @@ pub mod postgres;
 mod profile;
 mod profile_sections;
 pub mod secrets;
+pub mod services_files;
 mod types;
 pub mod wizard;
 mod wizard_dry_run;

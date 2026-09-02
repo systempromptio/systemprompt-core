@@ -1,9 +1,10 @@
 //! Gateway configuration: on-disk spec and resolved runtime form.
 //!
-//! [`GatewayConfigSpec`] is the serde shape accepted under `gateway:` in a
-//! profile; [`GatewayConfig`] is its runtime projection. Routes carry no
+//! [`GatewayConfigSpec`] is the serde shape accepted under `gateway:` in the
+//! services tree; [`GatewayConfig`] is its runtime projection. Routes carry no
 //! embedded provider catalog — every route resolves its provider against
-//! `profile.providers` (`ProviderRegistry`) at use time.
+//! `services.providers` (the merged `providers:` list of the services tree)
+//! (`ProviderRegistry`) at use time.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,8 +15,8 @@ mod validate;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ProviderId;
 
-use crate::profile::gateway::override_rule::SystemPromptRule;
-use crate::profile::gateway::route::GatewayRoute;
+use crate::services::gateway::override_rule::SystemPromptRule;
+use crate::services::gateway::route::GatewayRoute;
 
 pub use runtime::GatewayConfig;
 

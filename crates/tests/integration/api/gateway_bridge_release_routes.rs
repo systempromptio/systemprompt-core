@@ -19,7 +19,7 @@ use axum::body::Body;
 use axum::http::{Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, init_gateway_bootstrap,
+    TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
     install_test_signing_key, seed_admin_credential,
 };
 use tower::ServiceExt;
@@ -32,7 +32,7 @@ static SERVER: OnceLock<MockServer> = OnceLock::new();
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 /// The stub is started once and its address baked into the profile, because
-/// `init_gateway_bootstrap` writes the profile before any test runs.
+/// `init_services_bootstrap` writes the services config before any test runs.
 async fn server() -> &'static MockServer {
     if let Some(s) = SERVER.get() {
         return s;
@@ -77,7 +77,7 @@ async fn boot() -> &'static TestBootstrap {
     if let Some(b) = BOOT.get() {
         return b;
     }
-    let b = init_gateway_bootstrap(&gateway_yaml(&base));
+    let b = init_services_bootstrap(&gateway_yaml(&base));
     BOOT.get_or_init(|| b)
 }
 

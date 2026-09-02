@@ -233,7 +233,10 @@ async fn doctor_check_functions_cover_pass_and_fail() {
     let key_via_secret = check_signing_key(&profile, &profile_dir, &secrets);
     assert!(key_via_secret.detail.contains("secrets.json"));
 
-    let providers = check_provider_secrets(&profile, &secrets);
+    let providers = check_provider_secrets(
+        &systemprompt_models::services::ProviderRegistry::default_seed().unwrap(),
+        &secrets,
+    );
     let _ = format!("{providers:?}");
 }
 

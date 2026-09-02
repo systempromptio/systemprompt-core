@@ -24,7 +24,7 @@ use http::HeaderValue;
 use systemprompt_ai::{OverrideAction, OverrideContext, OverrideEngine};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
-use systemprompt_models::profile::GatewayConfig;
+use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 
 mod safety;

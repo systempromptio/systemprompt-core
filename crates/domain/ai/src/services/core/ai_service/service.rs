@@ -19,8 +19,7 @@ use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::DbPool;
-use systemprompt_models::profile::{ProviderEntry, ProviderRegistry};
-use systemprompt_models::services::{AiConfig, AiProviderConfig};
+use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry};
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 
 pub struct AiService {

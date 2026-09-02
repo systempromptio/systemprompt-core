@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use systemprompt_models::profile::ApiSurface;
+use systemprompt_models::services::ApiSurface;
 
 pub use crate::integration::profile_state::{
     AppInstallState, ProfileCode, ProfileState, StaleReason,

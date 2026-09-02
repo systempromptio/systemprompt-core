@@ -8,6 +8,7 @@ use std::str::FromStr;
 use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
+use systemprompt_cli::admin::config::services_io::append_include;
 
 fn services_root() -> std::path::PathBuf {
     systemprompt_test_fixtures::ensure_test_bootstrap()
@@ -114,4 +115,67 @@ fn reading_reports_missing_files_and_parse_errors_with_the_path() {
     std::fs::write(&broken, "key: [unterminated\n").unwrap();
     let err = read_yaml_file(&broken).unwrap_err();
     assert!(format!("{err:#}").contains("broken.yaml"));
+}
+
+#[test]
+fn providers_and_gateway_sections_resolve_the_ai_services_files() {
+    let root = services_root();
+    assert_eq!(
+        ConfigSection::Providers.file_path().unwrap(),
+        root.join("ai/providers.yaml")
+    );
+    assert_eq!(
+        ConfigSection::Gateway.file_path().unwrap(),
+        root.join("ai/gateway.yaml")
+    );
+}
+
+#[test]
+fn ai_listing_excludes_the_catalog_and_gateway_files() {
+    let root = services_root();
+    std::fs::create_dir_all(root.join("ai")).unwrap();
+    std::fs::write(root.join("ai/config.yaml"), "ai: {}\n").unwrap();
+    std::fs::write(root.join("ai/providers.yaml"), "providers: []\n").unwrap();
+    std::fs::write(root.join("ai/gateway.yaml"), "gateway:\n  enabled: false\n").unwrap();
+
+    let ai = ConfigSection::Ai.all_files().unwrap();
+    assert!(ai.iter().any(|p| p.ends_with("ai/config.yaml")));
+    assert!(!ai.iter().any(|p| p.ends_with("ai/providers.yaml")));
+    assert!(!ai.iter().any(|p| p.ends_with("ai/gateway.yaml")));
+    assert_eq!(
+        ConfigSection::Providers.all_files().unwrap(),
+        vec![root.join("ai/providers.yaml")]
+    );
+}
+
+#[test]
+fn append_include_splices_under_existing_includes_and_never_duplicates() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("config.yaml");
+    std::fs::write(
+        &root,
+        "# root aggregator\nincludes:\n  - ../agents/a.yaml\nsettings:\n  x: 1\n",
+    )
+    .unwrap();
+
+    append_include(&root, "ai/providers.yaml").unwrap();
+    append_include(&root, "ai/providers.yaml").unwrap();
+
+    let text = std::fs::read_to_string(&root).unwrap();
+    assert_eq!(
+        text,
+        "# root aggregator\nincludes:\n  - ai/providers.yaml\n  - ../agents/a.yaml\nsettings:\n  x: 1\n"
+    );
+}
+
+#[test]
+fn append_include_creates_the_includes_list_when_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("config.yaml");
+    std::fs::write(&root, "settings:\n  x: 1\n").unwrap();
+
+    append_include(&root, "ai/gateway.yaml").unwrap();
+
+    let text = std::fs::read_to_string(&root).unwrap();
+    assert_eq!(text, "settings:\n  x: 1\nincludes:\n  - ai/gateway.yaml\n");
 }

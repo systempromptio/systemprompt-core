@@ -1,7 +1,7 @@
-//! Lifecycle wrapper for the gateway section of a profile.
+//! Lifecycle wrapper for the gateway section of the services config.
 //!
 //! YAML deserialization always produces [`GatewayState::Spec`]; the
-//! profile loader projects it to [`GatewayState::Resolved`]. Runtime read
+//! services loader projects it to [`GatewayState::Resolved`]. Runtime read
 //! paths must observe [`GatewayState::Resolved`] — they consult
 //! [`Self::resolved`] which logs and returns `None` if the loader has not run.
 //!
@@ -13,8 +13,8 @@ use std::borrow::Cow;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use systemprompt_identifiers::RouteId;
 
-use super::super::providers::ProviderRegistry;
 use super::config::{GatewayConfig, GatewayConfigSpec};
+use crate::services::providers::ProviderRegistry;
 
 #[derive(Debug, Clone)]
 pub enum GatewayState {

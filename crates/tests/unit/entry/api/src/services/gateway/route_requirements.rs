@@ -12,10 +12,10 @@
 
 use systemprompt_api::services::gateway::service::test_api::enforce_route_requirements;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::profile::{
+use systemprompt_models::services::ai::ModelGovernance;
+use systemprompt_models::services::{
     ApiSurface, GatewayRoute, ProviderEntry, ProviderModel, RouteRequirements, WireProtocol,
 };
-use systemprompt_models::services::ai::ModelGovernance;
 
 fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
     GatewayRoute {

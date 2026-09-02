@@ -259,7 +259,7 @@ fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
     );
     assert_eq!(
         CODEX_CLI_HOST.accepted_surfaces(),
-        &[systemprompt_models::profile::ApiSurface::OpenAi],
+        &[systemprompt_models::services::ApiSurface::OpenAi],
         "Codex speaks the OpenAI API surface"
     );
     assert!(

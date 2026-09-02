@@ -23,7 +23,7 @@ use systemprompt_api::services::gateway::service::{
     DispatchError, PolicyDenied, QuotaExceeded, REQUEST_ID_HEADER, SafetyBlocked,
 };
 use systemprompt_identifiers::{AiRequestId, ProviderId};
-use systemprompt_models::profile::{GatewayConfig, OverrideRuleAction, SystemPromptRule};
+use systemprompt_models::services::{GatewayConfig, OverrideRuleAction, SystemPromptRule};
 
 #[test]
 fn classify_policy_denied_is_a_bad_request_the_client_will_surface() {

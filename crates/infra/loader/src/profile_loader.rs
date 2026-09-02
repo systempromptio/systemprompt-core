@@ -1,8 +1,7 @@
-//! Reads, validates, and writes profile YAML files (with embedded
-//! gateway / cloud catalogues).
+//! Reads, validates, and writes profile YAML files.
 //!
 //! [`ProfileLoader`] is a thin shim over
-//! [`systemprompt_config::load_profile_with_catalog`] that adds:
+//! [`systemprompt_models::Profile::from_yaml`] that adds:
 //!
 //! - on-disk path conventions (`profiles/<name>.secrets.profile.yaml`),
 //! - serialization with a leading "do not commit secrets" header, and
@@ -12,8 +11,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
-use systemprompt_config::load_profile_with_catalog;
 use systemprompt_models::Profile;
+use systemprompt_models::profile::ProfileError;
 
 use crate::error::{ProfileLoadError, ProfileLoadResult};
 
@@ -22,7 +21,12 @@ pub struct ProfileLoader;
 
 impl ProfileLoader {
     pub fn load_from_path(profile_path: &Path) -> ProfileLoadResult<Profile> {
-        load_profile_with_catalog(profile_path).map_err(ProfileLoadError::from)
+        let content =
+            std::fs::read_to_string(profile_path).map_err(|source| ProfileError::ReadFile {
+                path: profile_path.to_path_buf(),
+                source,
+            })?;
+        Profile::from_yaml(&content, profile_path).map_err(ProfileLoadError::from)
     }
 
     pub fn load(services_path: &Path, profile_name: &str) -> ProfileLoadResult<Profile> {

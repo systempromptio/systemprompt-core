@@ -1,13 +1,16 @@
-//! Gateway profile section: routes that map external model names onto entries
-//! in `profile.providers`, plus the cross-check that ties them together.
+//! Gateway services section: routes that map external model names onto entries
+//! in the services provider registry, plus the cross-check that ties them
+//! together. Lives in the services tree (`services/ai/gateway.yaml` by
+//! convention) beside the catalog it references, not in the profile.
 //!
 //! - [`error`] / [`GatewayProfileError`] / [`GatewayResult`] — failure modes
 //!   emitted by route-id and provider-reference validation.
-//! - [`config`] / [`GatewayConfigSpec`] — the on-disk shape embedded in a
-//!   profile YAML document.
+//! - [`config`] / [`GatewayConfigSpec`] — the on-disk shape under `gateway:` in
+//!   a services YAML document.
 //! - [`config`] / [`GatewayConfig`] — the runtime shape produced by
 //!   [`GatewayConfigSpec::resolve`]. The gateway owns no catalog: every route
-//!   resolves its provider against `profile.providers` at use time.
+//!   resolves its provider against `services.providers` (the merged
+//!   `providers:` list of the services tree) at use time.
 //! - [`route`] / [`GatewayRoute`] — routing patterns and the stable id
 //!   synthesis used to address routes from `access_control_rules`.
 //!

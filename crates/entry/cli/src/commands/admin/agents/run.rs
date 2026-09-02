@@ -31,8 +31,6 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         .context("Failed to bootstrap AppContext for agent subprocess")?;
 
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let profile = systemprompt_config::ProfileBootstrap::get()
-        .context("Failed to access bootstrapped profile for provider registry")?;
     let db_pool = Arc::clone(ctx.db_pool());
 
     let jwt_provider = Arc::new(
@@ -57,7 +55,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
     let ai_service = Arc::new(
         AiService::new(
             &db_pool,
-            &profile.providers,
+            &services_config.providers,
             &services_config.ai,
             AiServiceProviders {
                 tools: tool_provider,

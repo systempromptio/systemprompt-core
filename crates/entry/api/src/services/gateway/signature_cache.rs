@@ -32,7 +32,7 @@ use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_identifiers::GatewayConversationId;
-use systemprompt_models::profile::WireProtocol;
+use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
 pub const TTL: Duration = Duration::from_hours(1);

@@ -7,9 +7,7 @@ use std::path::Path;
 
 use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_models::profile::{
-    ProviderRegistry, SecretsConfig, SecretsSource, SecretsValidationMode,
-};
+use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, ExtensionsConfig, PathsConfig,
@@ -113,8 +111,6 @@ impl LocalProfileBuilder {
                 source: SecretsSource::File,
             }),
             extensions: ExtensionsConfig::default(),
-            providers: ProviderRegistry::default(),
-            gateway: None,
             governance: Some(webhook_governance(&internal_url)),
             services: systemprompt_models::profile::ServicesProfileConfig::default(),
             system_admin: SystemAdminConfig {

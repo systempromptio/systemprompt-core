@@ -4,7 +4,6 @@
 
 ### Fixed
 
-- **Security:** credential-bearing identity headers are recorded on the gateway audit row by name only. `authorization`, `proxy-authorization`, `x-api-key`, `cookie` and `set-cookie` reach `classify_client_headers` as identity headers, and their values were written verbatim into the audit row and logged with the identity vec at INFO, so a live bearer token leaked into anywhere those logs were pasted. The name is still recorded — that the header was present is the part with audit value.
 - **Cost:** the default provider catalog priced `claude-sonnet-5` at $3.00/$15.00 per million against an actual rate of $2.00/$10.00, overstating the cost of every Sonnet 5 request by 50% for every consumer of the seeded registry. Cache read and write rates are corrected with it ($0.20/$2.50).
 
 ### Added

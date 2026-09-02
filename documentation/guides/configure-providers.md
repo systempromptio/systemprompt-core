@@ -1,6 +1,6 @@
 # Configure AI providers
 
-How to route AI inference through the gateway: define a provider catalog and routes in the profile, point each at a provider's `base_url`, and serve client requests on `/v1/messages` and `/v1/models`. The gateway is the provider-facing proxy that sits between your AI clients and upstream model APIs (Anthropic, OpenAI, Google/Gemini, or any self-hosted compatible endpoint).
+How to route AI inference through the gateway: define a provider catalog and routes in the services tree, point each at a provider's `base_url`, and serve client requests on `/v1/messages` and `/v1/models`. The gateway is the provider-facing proxy that sits between your AI clients and upstream model APIs (Anthropic, OpenAI, Google/Gemini, or any self-hosted compatible endpoint).
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ How to route AI inference through the gateway: define a provider catalog and rou
 The gateway resolves an inbound request to one upstream in a fixed sequence (`crates/entry/api/src/services/gateway/service/mod.rs:49-160`):
 
 1. A client `POST`s to `/v1/messages` (Anthropic wire format) or `/v1/responses` (OpenAI Responses wire format).
-2. The gateway reads the requested `model` from the body and finds the first route whose `model_pattern` matches (`crates/shared/models/src/profile/gateway/:108-110`).
+2. The gateway reads the requested `model` from the body and finds the first route whose `model_pattern` matches (`crates/shared/models/src/services/gateway/config/runtime.rs`).
 3. It loads the route's API key from the secrets document by the `api_key_secret` name, and resolves the upstream adapter from the route's `provider` tag.
 4. It applies gateway policy (allowed-model list) and per-user quota, then sends the request to the route's `endpoint`.
 5. The upstream response is translated back into the inbound wire format and returned to the client.
@@ -22,43 +22,54 @@ The base path is `/v1` by default (`inference_path_prefix`, `gateway.rs:103-105`
 
 ## 1. Enable the gateway
 
-The gateway is configured under the profile's `gateway` section and is disabled by default (`crates/shared/models/src/profile/gateway/:86-97`). Enable it and declare the catalog and routes:
+The provider catalog and the gateway are services-tree files, shipped with the deployment
+rather than written per environment (`crates/shared/models/src/services/{providers,gateway}/`).
+The gateway is disabled by default. Declare the catalog in `services/ai/providers.yaml`:
+
+```yaml
+providers:
+  - name: anthropic
+    wire: anthropic
+    surface: anthropic
+    endpoint: https://api.anthropic.com/v1
+    api_key_secret: anthropic
+    models:
+      - id: claude-sonnet-4-5
+        pricing: { input_per_million: 3.0, output_per_million: 15.0 }
+  - name: openai
+    wire: openai-chat
+    surface: openai
+    endpoint: https://api.openai.com/v1
+    api_key_secret: openai
+    models:
+      - id: gpt-4o
+```
+
+and the routes in `services/ai/gateway.yaml`:
 
 ```yaml
 gateway:
   enabled: true
   auth_scheme: bearer           # default; how clients present their token
   inference_path_prefix: /v1    # default; base path for /v1/messages, /v1/models
-  catalog:
-    providers:
-      - name: anthropic
-        endpoint: https://api.anthropic.com/v1
-        api_key_secret: anthropic
-      - name: openai
-        endpoint: https://api.openai.com/v1
-        api_key_secret: openai
-    models:
-      - id: claude-sonnet-4-5
-        provider: anthropic
-        display_name: Claude Sonnet 4.5
-      - id: gpt-4o
-        provider: openai
   routes:
     - model_pattern: claude-*
       provider: anthropic
-      endpoint: https://api.anthropic.com/v1
-      api_key_secret: anthropic
     - model_pattern: gpt-*
       provider: openai
-      endpoint: https://api.openai.com/v1
-      api_key_secret: openai
 ```
 
-The `catalog` is the model directory that `/v1/models` advertises and that validates each model's `provider` reference. The `routes` list is what actually resolves an inbound model to an upstream — a request is dispatched only if a route matches it. The two are independent: a model can appear in the catalog without a route (it lists but cannot be called) and a route can match models not in the catalog.
+List both files under `includes:` in `services/config/config.yaml`. `systemprompt admin setup`
+seeds them from the embedded default catalog for every provider whose key you supplied.
+
+The registry is what `/v1/models` advertises and what validates each route's `provider`
+reference; a route is dispatched only if a pattern matches the requested model. Credentials
+are not in either file: `api_key_secret` names a key in the profile's secret store, so the
+same catalog boots every environment.
 
 ## 2. Define routes
 
-Each route maps a model name pattern to one upstream (`crates/shared/models/src/profile/gateway/:184-199`):
+Each route maps a model name pattern to one upstream (`crates/shared/models/src/services/gateway/route.rs`):
 
 | Field | Required | Meaning |
 |-------|----------|---------|
@@ -75,7 +86,7 @@ The first matching route wins, so order specific patterns before general ones. T
 
 ### Endpoint validation (SSRF guard)
 
-Every `endpoint` — in both `routes` and `catalog.providers` — is checked against the shared outbound-URL guard at load time (`crates/shared/models/src/profile/gateway/:57-65`). An endpoint pointing at the loopback address, a link-local metadata address (`169.254.169.254`), or a private network range is rejected, so an operator-configured endpoint cannot turn the inference proxy into a server-side request forgery primitive. A self-hosted provider on a private network is therefore reachable only through an endpoint the guard accepts (a routable address or an approved egress proxy).
+Every provider `endpoint` is checked against the shared outbound-URL guard at load time (`ProviderRegistry::validate`, `crates/shared/models/src/services/providers/mod.rs`). An endpoint pointing at the loopback address, a link-local metadata address (`169.254.169.254`), or a private network range is rejected, so an operator-configured endpoint cannot turn the inference proxy into a server-side request forgery primitive. A self-hosted provider on a private network is therefore reachable only through an endpoint the guard accepts (a routable address or an approved egress proxy).
 
 ## 3. Provider adapters and wire compatibility
 

@@ -15,6 +15,9 @@
 //! - [`module_loader`] — `inventory`-driven extension discovery for the
 //!   compiled-in extension trait registry.
 //! - [`profile_loader`] — reads, validates, and writes profile YAML.
+//! - [`services_bootstrap`] — the process-wide cell holding the loaded services
+//!   config (provider catalog and gateway included), initialised right after
+//!   the profile at boot.
 //! - [`error`] — public error types ([`ConfigLoadError`], [`ConfigWriteError`],
 //!   [`ExtensionLoadError`]).
 //!
@@ -34,6 +37,7 @@ pub mod extension_loader;
 pub mod extension_registry;
 pub mod module_loader;
 pub mod profile_loader;
+pub mod services_bootstrap;
 
 pub use config_loader::ConfigLoader;
 pub use config_writer::ConfigWriter;
@@ -45,3 +49,4 @@ pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
 pub use extension_registry::ExtensionRegistry;
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
+pub use services_bootstrap::ServicesBootstrap;

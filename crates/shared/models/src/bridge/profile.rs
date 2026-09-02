@@ -17,7 +17,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::profile::{ApiSurface, ProviderRegistry};
+use crate::services::{ApiSurface, ProviderRegistry};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeProfileResponse {

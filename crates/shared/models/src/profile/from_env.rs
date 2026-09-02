@@ -43,8 +43,6 @@ impl Profile {
             cloud: None,
             secrets: None,
             extensions: ExtensionsConfig::default(),
-            providers: crate::profile::ProviderRegistry::default(),
-            gateway: None,
             governance: None,
             services: crate::profile::ServicesProfileConfig::default(),
             storage: crate::profile::StorageConfig::default(),

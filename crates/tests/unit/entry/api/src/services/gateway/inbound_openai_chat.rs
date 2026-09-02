@@ -12,7 +12,7 @@ use systemprompt_api::services::gateway::protocol::canonical_response::{
 };
 use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
-use systemprompt_models::profile::WireProtocol;
+use systemprompt_models::services::WireProtocol;
 
 fn parse(body: &str) -> systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest {
     OpenAiChatInbound

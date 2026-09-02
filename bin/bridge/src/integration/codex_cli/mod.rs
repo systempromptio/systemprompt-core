@@ -116,8 +116,8 @@ impl HostApp for CodexCliHost {
     // negotiated, no compatible models were offered, and the profile writer had
     // nothing to install — the host synced its MCP half and silently skipped the
     // model half.
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
-        &[systemprompt_models::profile::ApiSurface::OpenAi]
+    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
+        &[systemprompt_models::services::ApiSurface::OpenAi]
     }
 }
 

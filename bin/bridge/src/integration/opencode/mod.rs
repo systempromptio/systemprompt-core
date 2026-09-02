@@ -123,8 +123,8 @@ impl HostApp for OpenCodeHost {
     // gateway serves at `/v1/chat/completions`; declaring it is what makes model
     // negotiation offer compatible models and the profile writer install the
     // model half.
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
-        &[systemprompt_models::profile::ApiSurface::OpenAi]
+    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
+        &[systemprompt_models::services::ApiSurface::OpenAi]
     }
 }
 

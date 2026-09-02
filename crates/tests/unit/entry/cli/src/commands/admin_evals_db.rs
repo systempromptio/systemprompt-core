@@ -4,8 +4,8 @@
 //! `AiService::new`. That needs both halves of the AI configuration — the
 //! profile's `providers:` registry for connectivity and the services config's
 //! `ai.providers` for the policy saying which are enabled — so the suite boots
-//! with `init_ai_bootstrap` rather than the shared fixture, whose services
-//! config has no `ai:` section at all.
+//! with `init_services_bootstrap` rather than the shared fixture, whose
+//! services config has no `ai:` section at all.
 //!
 //! The provider endpoint is a closed port. The read commands never dial it,
 //! and `run` does — completing anyway, because the loop swallows a judge
@@ -20,7 +20,7 @@ use systemprompt_cli::admin::evals::{EvalsCommands, execute};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, init_ai_bootstrap,
+    TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
 };
 
 const GATEWAY_YAML: &str = r#"
@@ -55,7 +55,7 @@ const SERVICES_YAML: &str = r#"ai:
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
-    BOOT.get_or_init(|| init_ai_bootstrap(GATEWAY_YAML, SERVICES_YAML))
+    BOOT.get_or_init(|| init_services_bootstrap(&format!("{SERVICES_YAML}{GATEWAY_YAML}")))
 }
 
 #[derive(Debug, Parser)]

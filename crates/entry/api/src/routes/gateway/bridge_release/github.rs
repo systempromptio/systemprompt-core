@@ -6,7 +6,7 @@
 
 use axum::http::{StatusCode, header};
 use serde::Deserialize;
-use systemprompt_models::profile::BridgeReleasesSpec;
+use systemprompt_models::services::BridgeReleasesSpec;
 
 // Why: GitHub caps a release listing at 100, and bridge releases are infrequent
 // enough that the newest matching tag is always well inside the first page.

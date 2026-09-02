@@ -81,20 +81,15 @@ pub(super) async fn dispatch_to_provider(
         access_log: rc.access_log.clone(),
     };
 
-    let gateway_config = rc
-        .profile
-        .gateway
-        .as_ref()
-        .and_then(systemprompt_models::profile::GatewayState::resolved)
-        .ok_or_else(|| RejectionError {
-            status: StatusCode::NOT_FOUND,
-            message: "Gateway not enabled".to_owned(),
-            persist: true,
-        })?;
+    let gateway_config = rc.services.gateway_config().ok_or_else(|| RejectionError {
+        status: StatusCode::NOT_FOUND,
+        message: "Gateway not enabled".to_owned(),
+        persist: true,
+    })?;
 
     match GatewayService::dispatch(
         gateway_config,
-        &rc.profile.providers,
+        &rc.services.providers,
         rc.ctx.db_pool(),
         rc.repos,
         DispatchInputs {

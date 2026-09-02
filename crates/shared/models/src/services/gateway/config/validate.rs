@@ -3,10 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::profile::gateway::config::GatewayConfig;
-use crate::profile::gateway::error::{GatewayProfileError, GatewayResult};
-use crate::profile::gateway::route::GatewayRoute;
-use crate::profile::providers::ProviderRegistry;
+use crate::services::gateway::config::GatewayConfig;
+use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
+use crate::services::gateway::route::GatewayRoute;
+use crate::services::providers::ProviderRegistry;
 
 impl GatewayConfig {
     pub fn validate(&self, registry: &ProviderRegistry) -> GatewayResult<()> {

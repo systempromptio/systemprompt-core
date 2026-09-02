@@ -1,6 +1,6 @@
 use systemprompt_bridge::gateway::types::ProviderHealth;
 use systemprompt_bridge::integration::host_app::{HostModelView, host_model_view};
-use systemprompt_models::profile::ApiSurface;
+use systemprompt_models::services::ApiSurface;
 
 fn ph(name: &str, surface: ApiSurface, configured: bool, models: &[&str]) -> ProviderHealth {
     ProviderHealth {

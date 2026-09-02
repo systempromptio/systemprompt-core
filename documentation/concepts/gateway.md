@@ -23,7 +23,7 @@ Request and response schemas for these endpoints belong in the reference materia
 
 ## Routing and the catalog
 
-A gateway request names a model; the gateway resolves it to a configured route and dispatches the call. Routes and their upstream providers are configured per profile under the `gateway` section and resolved by the gateway registry (`crates/entry/api/src/services/gateway/registry.rs`). Each route names an upstream protocol — Anthropic Messages, OpenAI Chat Completions, or OpenAI Responses — handled by the matching outbound adapter under `crates/entry/api/src/services/gateway/protocol/outbound/`. The `/v1/models` endpoint surfaces the catalog of models the configured routes expose. A request that names an unconfigured model is rejected rather than dispatched.
+A gateway request names a model; the gateway resolves it to a configured route and dispatches the call. Routes live in the services tree (`services/ai/gateway.yaml`, the `gateway:` key) and name providers declared in the services provider registry (`services/ai/providers.yaml`, the `providers:` key); both are loaded once at boot into `ServicesBootstrap` and resolved by the gateway registry (`crates/entry/api/src/services/gateway/registry.rs`). Each route names an upstream protocol — Anthropic Messages, OpenAI Chat Completions, or OpenAI Responses — handled by the matching outbound adapter under `crates/entry/api/src/services/gateway/protocol/outbound/`. The `/v1/models` endpoint surfaces the catalog of models the configured routes expose. A request that names an unconfigured model is rejected rather than dispatched.
 
 ## What the gateway enforces
 

@@ -6,7 +6,7 @@ use systemprompt_bridge::integration::host_app::{
     has_surface_override,
 };
 use systemprompt_bridge::proxy::LoopbackEndpoint;
-use systemprompt_models::profile::ApiSurface;
+use systemprompt_models::services::ApiSurface;
 
 struct BareHost;
 
