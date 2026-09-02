@@ -1,4 +1,5 @@
 //! Periodic POST `/v1/bridge/heartbeat` from the local bridge to the gateway.
+//!
 //! Pace is fixed at [`HEARTBEAT_INTERVAL`]. A 401 is reported to the token
 //! cache, which decides between renewing and latching for a user sign-in;
 //! while latched the tick is answered locally and logs once, not every 30 s.
