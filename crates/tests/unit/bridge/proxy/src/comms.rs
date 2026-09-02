@@ -304,7 +304,7 @@ fn a_session_id_carrying_path_characters_is_flattened_to_one_safe_filename() {
 }
 
 #[test]
-fn a_rejected_subscription_invalidates_the_cached_token() {
+fn a_rejected_subscription_latches_sign_in_and_stops_retrying() {
     let sb = Sandbox::new();
     let counter = Arc::new(AtomicUsize::new(0));
     let requests = sb.drive(
@@ -312,10 +312,14 @@ fn a_rejected_subscription_invalidates_the_cached_token() {
         status_only(401),
         counting_refresh(&counter),
     );
-    assert!(requests >= 2, "the subscription is retried; saw {requests}");
-    assert!(
-        counter.load(Ordering::SeqCst) >= 2,
-        "a 401 drops the cached token so the retry mints a fresh one; minted {}",
+    assert_eq!(
+        requests, 1,
+        "the latch stops the subscription instead of retrying it; saw {requests}"
+    );
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "a credential refused moments after minting is not re-minted; minted {}",
         counter.load(Ordering::SeqCst)
     );
 }

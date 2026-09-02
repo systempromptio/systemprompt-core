@@ -91,7 +91,10 @@ pub fn windows_policy_values(
         ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
         ("disableEssentialTelemetry", "REG_SZ", "true".into()),
         ("disableNonessentialTelemetry", "REG_SZ", "true".into()),
-        ("disableNonessentialServices", "REG_SZ", "true".into()),
+        // Why: `true` blocks the claudemcpcontent.com renderer that MCP display
+        // extensions (dashboards, artifacts) load from; it is written as an
+        // explicit `false` so an older `true` is corrected on drift.
+        ("disableNonessentialServices", "REG_SZ", "false".into()),
         ("disableAutoUpdates", "REG_SZ", "true".into()),
         ("disableDeploymentModeChooser", "REG_SZ", "true".into()),
         ("isLocalDevMcpEnabled", "REG_SZ", "false".into()),
@@ -181,7 +184,7 @@ Windows Registry Editor Version 5.00
 "inferenceGatewayAuthScheme"="bearer"
 "disableEssentialTelemetry"="true"
 "disableNonessentialTelemetry"="true"
-"disableNonessentialServices"="true"
+"disableNonessentialServices"="false"
 "disableAutoUpdates"="true"
 "disableDeploymentModeChooser"="true"
 "isLocalDevMcpEnabled"="false"

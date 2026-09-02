@@ -34,6 +34,44 @@ pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 
 pub const COWORK_ARTIFACTS_SUBDIR: &str = "cowork_artifacts";
 
+pub const WORKSPACE_ARTIFACTS_SUBDIR: &str = "systemprompt/artifacts";
+
+// Why: the pre-trusted Cowork workspace named by `allowedWorkspaceFolders` is
+// a connected folder, so a file the bridge stages there is a path Cowork's
+// `create_artifact` accepts — no shell copy into the session is needed.
+#[must_use]
+pub fn workspace_dir() -> Option<PathBuf> {
+    let name = crate::brand::brand().workspace_dir_name;
+    if name.is_empty() {
+        return None;
+    }
+    let home = std::env::var_os("USERPROFILE")
+        .map(PathBuf::from)
+        .or_else(crate::basedirs::home_dir)?;
+    Some(home.join(name))
+}
+
+#[must_use]
+pub fn workspace_artifacts_dir() -> Option<PathBuf> {
+    workspace_dir().map(|w| w.join(WORKSPACE_ARTIFACTS_SUBDIR))
+}
+
+#[must_use]
+pub fn claude_code_policy_dir() -> PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        PathBuf::from("/Library/Application Support/ClaudeCode")
+    }
+    #[cfg(target_os = "windows")]
+    {
+        PathBuf::from(r"C:\Program Files\ClaudeCode")
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        PathBuf::from("/etc/claude-code")
+    }
+}
+
 #[must_use]
 pub fn bridge_working_dir() -> Option<PathBuf> {
     bridge_state_base().map(|base| base.join(crate::brand::brand().working_dir_name))

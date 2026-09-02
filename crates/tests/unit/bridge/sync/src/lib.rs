@@ -20,3 +20,5 @@ mod replay;
 mod summary_line;
 #[cfg(test)]
 mod summary_serde;
+#[cfg(test)]
+mod workspace_sink;

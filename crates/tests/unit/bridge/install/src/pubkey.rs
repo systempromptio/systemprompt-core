@@ -259,3 +259,18 @@ fn mdm_inputs() -> systemprompt_bridge::install::MdmPayloadInputs<'static> {
         egress_allowed_hosts: None,
     }
 }
+
+// Why: `disableNonessentialServices=true` blocks the renderer Cowork's MCP
+// display extensions load from; the value is written as an explicit `false`
+// so an older `true` is corrected by the next sync.
+#[cfg(target_os = "windows")]
+#[test]
+fn windows_policy_values_keep_nonessential_services_enabled() {
+    let values = systemprompt_bridge::install::windows_policy_values(None, None, None);
+    let flag = values
+        .iter()
+        .find(|(name, _, _)| *name == "disableNonessentialServices")
+        .expect("hardening flag present");
+    assert_eq!(flag.2, "false");
+    assert!(values.iter().any(|(name, _, _)| *name == "allowedWorkspaceFolders"));
+}

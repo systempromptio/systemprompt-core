@@ -63,6 +63,10 @@ pub struct CoworkArtifactBundleRecord {
     pub is_starred: bool,
     #[serde(rename = "mcpTools")]
     pub mcp_tools: Vec<String>,
+    // Why: the setup skills are role-split (user bundle vs admin bundle) and
+    // install only the records their plugin owns; the id alone cannot say.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugins: Vec<PluginId>,
 }
 
 impl From<&ArtifactEntry> for CoworkArtifactBundleRecord {
@@ -74,6 +78,7 @@ impl From<&ArtifactEntry> for CoworkArtifactBundleRecord {
             version: a.version.clone(),
             is_starred: a.starred,
             mcp_tools: a.mcp_tools.clone(),
+            plugins: a.plugins.clone(),
         }
     }
 }

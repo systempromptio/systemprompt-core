@@ -13,8 +13,10 @@
 //! The write mechanism itself is pluggable (see
 //! [`sink`]): the live Cowork library ingests artifacts only via its native
 //! `create_artifact` tool, so [`emit::active_sinks`] writes through both
-//! [`sink::SeedStaging`] (input for the first-run seed skill) and
-//! [`sink::FileSink`] (GUI listing + future directly-writable library).
+//! [`sink::SeedStaging`] (input for the first-run seed skill),
+//! [`sink::FileSink`] (GUI listing + future directly-writable library) and
+//! [`workspace_sink::WorkspaceSink`] (the bundle the setup skills install from
+//! with file tools alone, staged in the pre-trusted workspace).
 //!
 //! The emitter reuses the `"cowork"` host id, so it fires whenever Cowork is in
 //! the manifest's `enabled_hosts` — the same gate as the plugin emitter.
@@ -24,6 +26,7 @@
 
 pub mod emit;
 pub mod sink;
+pub mod workspace_sink;
 
 use async_trait::async_trait;
 
@@ -46,6 +49,9 @@ impl HostSync for CoworkArtifactsSync {
     }
 
     fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+        if let Some(ws) = crate::config::paths::workspace_artifacts_dir() {
+            workspace_sink::remove_bundle(&ws)?;
+        }
         let Some(dir) = emit::resolve_artifacts_dir() else {
             return Ok(());
         };

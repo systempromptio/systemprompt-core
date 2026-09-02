@@ -23,20 +23,8 @@ pub use render::stripped_settings;
 const MANAGED_MCP_FILE: &str = "managed-mcp.json";
 const MANAGED_SETTINGS_FILE: &str = "managed-settings.json";
 
-#[must_use]
 pub(crate) fn policy_dir() -> PathBuf {
-    #[cfg(target_os = "macos")]
-    {
-        PathBuf::from("/Library/Application Support/ClaudeCode")
-    }
-    #[cfg(target_os = "windows")]
-    {
-        PathBuf::from(r"C:\Program Files\ClaudeCode")
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        PathBuf::from("/etc/claude-code")
-    }
+    crate::config::paths::claude_code_policy_dir()
 }
 
 // Why: removes the files rather than writing an empty server map — an empty
