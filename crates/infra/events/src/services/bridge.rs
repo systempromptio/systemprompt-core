@@ -27,7 +27,7 @@ use tracing::{debug, error, info, warn};
 
 use super::repository::EventOutboxRepository;
 use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
-use systemprompt_identifiers::{EventOutboxId, UserId};
+use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
 const OUTBOX_RETENTION: Duration = Duration::from_secs(3600);
@@ -60,15 +60,15 @@ pub struct PostgresEventBridge {
 
 impl PostgresEventBridge {
     #[must_use]
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: PgPool, instance_id: InstanceId) -> Self {
         Self {
-            outbox: EventOutboxRepository::new(pool.clone()),
+            outbox: EventOutboxRepository::new(pool.clone(), instance_id),
             pool,
         }
     }
 
     pub fn start(self) -> JoinHandle<()> {
-        EventRouter::install_relay(self.pool.clone());
+        EventRouter::install_relay(self.pool.clone(), self.outbox.instance_id().clone());
         tokio::spawn(async move {
             self.run().await;
         })
@@ -156,6 +156,11 @@ impl PostgresEventBridge {
                 return;
             },
         };
+
+        if &row.origin_instance_id == self.outbox.instance_id() {
+            debug!(row_id, "event bridge: own event already routed locally; skipping");
+            return;
+        }
 
         let Some(channel) = OutboxChannel::parse(&row.channel) else {
             error!(channel = %row.channel, row_id, "event bridge: unknown outbox channel");

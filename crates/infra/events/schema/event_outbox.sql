@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS event_outbox (
     payload JSONB NOT NULL,
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'job', 'mcp')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
+    origin_instance_id TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

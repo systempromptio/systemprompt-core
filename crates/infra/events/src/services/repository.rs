@@ -12,13 +12,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
-use systemprompt_identifiers::{Actor, EventOutboxId, UserId};
+use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
 pub(super) struct OutboxRow {
     pub channel: String,
     pub user_id: UserId,
+    pub origin_instance_id: InstanceId,
     // JSON: the `payload` jsonb column is polymorphic by `channel`; the
     // relay decodes it into the matching typed event after dispatch.
     pub payload: serde_json::Value,
@@ -27,11 +28,16 @@ pub(super) struct OutboxRow {
 #[derive(Debug, Clone)]
 pub(super) struct EventOutboxRepository {
     pool: PgPool,
+    instance_id: InstanceId,
 }
 
 impl EventOutboxRepository {
-    pub(super) const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub(super) const fn new(pool: PgPool, instance_id: InstanceId) -> Self {
+        Self { pool, instance_id }
+    }
+
+    pub(super) const fn instance_id(&self) -> &InstanceId {
+        &self.instance_id
     }
 
     pub(super) async fn insert(
@@ -43,14 +49,15 @@ impl EventOutboxRepository {
     ) -> Result<(), sqlx::Error> {
         let (actor_kind, actor_id) = actor.audit_columns();
         sqlx::query!(
-            "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id) \
-             VALUES ($1, $2, $3, $4, $5, $6)",
+            "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \
+             origin_instance_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
             id.as_str(),
             channel.as_str(),
             actor.user_id.as_str(),
             payload,
             actor_kind,
             actor_id,
+            self.instance_id.as_str(),
         )
         .execute(&self.pool)
         .await
@@ -67,7 +74,9 @@ impl EventOutboxRepository {
     pub(super) async fn find(&self, id: &EventOutboxId) -> Result<Option<OutboxRow>, sqlx::Error> {
         sqlx::query_as!(
             OutboxRow,
-            r#"SELECT channel, user_id as "user_id!: UserId", payload FROM event_outbox WHERE id = $1"#,
+            r#"SELECT channel, user_id as "user_id!: UserId", payload,
+                      origin_instance_id as "origin_instance_id!: InstanceId"
+               FROM event_outbox WHERE id = $1"#,
             id.as_str(),
         )
         .fetch_optional(&self.pool)
