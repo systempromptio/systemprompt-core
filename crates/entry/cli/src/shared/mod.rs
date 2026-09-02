@@ -11,6 +11,7 @@
 
 pub mod command_result;
 pub mod disk_logs;
+pub mod identity;
 pub mod parsers;
 pub mod profile;
 pub mod project;
@@ -20,6 +21,7 @@ pub use command_result::{
     ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
     render_result,
 };
+pub use identity::{IdentityBundle, generate_identity};
 pub use parsers::{parse_email, parse_profile_name};
 pub use profile::{
     ProfileResolutionError, is_path_input, resolve_profile_from_path, resolve_profile_path,

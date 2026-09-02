@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod checks;
+pub mod distributed;
 
 pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
 pub use checks::{
@@ -68,7 +69,11 @@ impl DoctorReport {
     }
 }
 
-pub(in crate::commands::cloud) async fn run(profile: &Profile, profile_dir: &Path) -> DoctorReport {
+pub(in crate::commands::cloud) async fn run(
+    profile: &Profile,
+    profile_dir: &Path,
+    distributed: bool,
+) -> DoctorReport {
     let mut checks = vec![check_profile_valid(profile)];
 
     let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
@@ -90,12 +95,16 @@ pub(in crate::commands::cloud) async fn run(profile: &Profile, profile_dir: &Pat
     checks.push(check_proxy_topology(profile));
     checks.push(checks::check_governance_hook_url(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
+    if distributed {
+        checks.extend(distributed::run(profile, &secrets).await);
+    }
 
     DoctorReport { checks }
 }
 
 pub(in crate::commands::cloud) async fn execute(
     profile_name: Option<String>,
+    distributed: bool,
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<()> {
@@ -104,7 +113,7 @@ pub(in crate::commands::cloud) async fn execute(
         .parent()
         .ok_or_else(|| anyhow!("Invalid profile path"))?;
 
-    let report = run(&profile, profile_dir).await;
+    let report = run(&profile, profile_dir, distributed).await;
     report.render();
 
     if report.has_blocking() {

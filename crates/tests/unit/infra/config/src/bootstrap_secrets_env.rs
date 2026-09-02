@@ -205,3 +205,20 @@ fn env_source_collects_custom_secrets_from_listed_keys() {
         Some("two-value")
     );
 }
+
+#[test]
+fn env_source_on_deployment_host_requires_signing_key_pem() {
+    let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
+    ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
+    set_base_env();
+    fixture::set_env("SYSTEMPROMPT_DEPLOYMENT_HOST", "node-a");
+    fixture::remove_env("SIGNING_KEY_PEM");
+
+    let err = SecretsBootstrap::init().unwrap_err();
+    fixture::remove_env("SYSTEMPROMPT_DEPLOYMENT_HOST");
+
+    assert!(matches!(
+        err,
+        ConfigError::Secrets(SecretsBootstrapError::SigningKeyPemRequired)
+    ));
+}

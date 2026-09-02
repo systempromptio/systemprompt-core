@@ -57,7 +57,7 @@ pub(super) async fn execute(
     let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow!("Invalid profile path"))?;
-    let report = super::doctor::run(&profile, profile_dir).await;
+    let report = super::doctor::run(&profile, profile_dir, false).await;
     report.render();
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");

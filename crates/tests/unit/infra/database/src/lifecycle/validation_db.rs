@@ -100,3 +100,19 @@ async fn probing_a_column_on_an_absent_table_reports_absent() {
         "the column probe must not raise just because the table is gone"
     );
 }
+
+#[tokio::test]
+async fn replica_status_reports_a_primary_with_no_lag() {
+    let Some(provider) = provider().await else {
+        return;
+    };
+
+    let status = systemprompt_database::replica_status(&provider)
+        .await
+        .expect("replica status probe on a live primary");
+    assert!(!status.in_recovery, "the fixture database is a primary");
+    assert!(
+        status.replay_lag_secs.is_none(),
+        "a primary replays nothing, so it reports no lag"
+    );
+}

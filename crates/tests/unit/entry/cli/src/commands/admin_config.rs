@@ -22,6 +22,7 @@ use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
 fn make_profile(services: &Path) -> Profile {
     Profile {
+        storage: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,
@@ -45,6 +46,7 @@ fn make_profile(services: &Path) -> Profile {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
+            metrics_port: None,
             max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             trusted_proxies: Vec::new(),
         },

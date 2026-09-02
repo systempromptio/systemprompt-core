@@ -76,13 +76,3 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::write(&tmp, bytes)?;
     std::fs::rename(&tmp, path)
 }
-
-#[must_use]
-pub(super) fn dir_is_writable(dir: &Path) -> bool {
-    let probe = dir.join(".sp-write-probe");
-    if std::fs::write(&probe, b"").is_err() {
-        return false;
-    }
-    drop(std::fs::remove_file(&probe));
-    true
-}

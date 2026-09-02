@@ -10,7 +10,8 @@ use systemprompt_cli::infrastructure::jobs::cleanup_sessions::{self, CleanupSess
 use systemprompt_cli::infrastructure::jobs::history::{self, HistoryArgs};
 use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
-use systemprompt_scheduler::{JobRepository, JobStatus};
+use systemprompt_identifiers::InstanceId;
+use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
@@ -140,9 +141,17 @@ async fn seed_job_run(pool: &DbPool, status: JobStatus, error: Option<&str>) -> 
     let name = format!("cov-job-{}", Uuid::new_v4().simple());
     let repo = JobRepository::new(pool).unwrap();
     repo.upsert_job(&name, "0 * * * *", true).await.unwrap();
-    repo.update_job_execution(&name, status, error, None)
-        .await
-        .unwrap();
+    repo.update_job_execution(
+        &name,
+        JobRunRecord {
+            status: status,
+            error: error,
+            next_run: None,
+            instance_id: &InstanceId::new("test-node"),
+        },
+    )
+    .await
+    .unwrap();
     name
 }
 

@@ -18,7 +18,6 @@ use crate::commands::cloud::init::templates::ai_config;
 
 use systemprompt_cloud::deploy::DockerfileBuilder;
 
-use crate::shared::profile::generate_oauth_at_rest_pepper;
 
 pub fn existing_geoip_database(profile_path: &Path) -> Option<String> {
     let content = std::fs::read_to_string(profile_path).ok()?;
@@ -171,8 +170,11 @@ pub fn save_secrets(
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
+    let identity = crate::shared::generate_identity()?;
     let mut secrets = json!({
-        "oauth_at_rest_pepper": generate_oauth_at_rest_pepper(),
+        "oauth_at_rest_pepper": identity.oauth_at_rest_pepper,
+        "manifest_signing_secret_seed": identity.manifest_signing_secret_seed,
+        "signing_key_pem": identity.signing_key_pem,
         "database_url": db_urls.external,
         "external_database_url": db_urls.external,
         "gemini": api_keys.gemini,

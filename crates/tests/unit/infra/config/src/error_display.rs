@@ -209,8 +209,8 @@ fn secrets_bootstrap_error_database_url_required() {
 }
 
 #[test]
-fn secrets_bootstrap_error_manifest_seed_unavailable() {
-    let e = SecretsBootstrapError::ManifestSeedUnavailable;
+fn secrets_bootstrap_error_manifest_seed_required() {
+    let e = SecretsBootstrapError::ManifestSeedRequired;
     let msg = format!("{e}");
     assert!(msg.contains("manifest_signing_secret_seed"), "got: {msg}");
 }
@@ -225,11 +225,11 @@ fn secrets_bootstrap_error_manifest_seed_invalid() {
 }
 
 #[test]
-fn secrets_bootstrap_error_subprocess_seed_missing() {
-    let e = SecretsBootstrapError::SubprocessSeedMissing;
+fn secrets_bootstrap_error_signing_key_pem_required() {
+    let e = SecretsBootstrapError::SigningKeyPemRequired;
     let msg = format!("{e}");
     assert!(
-        msg.contains("subprocess") || msg.contains("MANIFEST_SIGNING_SECRET_SEED"),
+        msg.contains("signing_key_pem") && msg.contains("admin identity generate"),
         "got: {msg}"
     );
 }

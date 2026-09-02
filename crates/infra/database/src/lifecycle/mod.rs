@@ -24,5 +24,5 @@ pub use migrations::{
 };
 pub use validation::{
     validate_column_exists, validate_database_connection, validate_table_exists,
-    validate_write_pool_is_primary,
+    replica_status, validate_write_pool_is_primary, ReplicaStatus,
 };

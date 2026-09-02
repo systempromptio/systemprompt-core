@@ -16,6 +16,7 @@
 
 #[cfg(test)]
 mod fixture;
+mod instance_id;
 
 #[cfg(test)]
 mod bootstrap_profile;
