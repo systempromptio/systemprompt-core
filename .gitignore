@@ -121,6 +121,7 @@ scripts/*
 !scripts/lint-schema.sh
 !scripts/lint-extensions.sh
 !scripts/lint-raw-ids.sh
+!scripts/lint-authoritative-reads.sh
 !scripts/check-sqlx.sh
 # ...and the deterministic cache regeneration behind `just sqlx-prepare*`.
 !scripts/sqlx-prepare.sh

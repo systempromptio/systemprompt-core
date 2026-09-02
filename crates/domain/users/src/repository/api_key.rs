@@ -57,7 +57,7 @@ impl UserRepository {
             "#,
             key_prefix,
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?;
         Ok(row)
     }
@@ -104,7 +104,7 @@ impl UserRepository {
             "#,
             user_id.as_str(),
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&*self.write_pool)
         .await?;
         Ok(rows)
     }

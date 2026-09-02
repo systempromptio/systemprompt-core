@@ -111,7 +111,7 @@ async fn message_repository_next_sequence_advances() -> Result<()> {
     )?);
     let repo = MessageRepository::new(&fx.db)?;
     let task_id = fx.insert_task(TaskState::Working).await?;
-    let before = repo.get_next_sequence_number(&task_id).await?;
+    let before = repo.get_messages_by_task(&task_id).await?.len();
     svc.persist_messages(PersistMessagesParams {
         task_id: &task_id,
         context_id: &fx.context_id,
@@ -121,7 +121,7 @@ async fn message_repository_next_sequence_advances() -> Result<()> {
         trace_id: &fx.trace_id,
     })
     .await?;
-    let after = repo.get_next_sequence_number(&task_id).await?;
+    let after = repo.get_messages_by_task(&task_id).await?.len();
     assert!(after > before);
     fx.cleanup().await?;
     Ok(())

@@ -1,5 +1,6 @@
 //! Tests for analytics repository types.
 
+mod authoritative_reads_db;
 mod types;
 
 mod core_stats;

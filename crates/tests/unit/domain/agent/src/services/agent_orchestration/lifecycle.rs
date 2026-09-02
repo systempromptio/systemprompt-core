@@ -26,14 +26,14 @@ fn app_paths() -> Arc<AppPaths> {
 
 fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
     AgentLifecycle::new(
-        AgentServiceRepository::new(pool).expect("repo"),
+        AgentServiceRepository::new(pool, systemprompt_identifiers::InstanceId::new("test-instance")).expect("repo"),
         app_paths(),
     )
     .expect("lifecycle")
 }
 
 fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
-    let repo = AgentServiceRepository::new(pool).expect("repo");
+    let repo = AgentServiceRepository::new(pool, systemprompt_identifiers::InstanceId::new("test-instance")).expect("repo");
     AgentDatabaseService::new(repo).expect("db service")
 }
 
@@ -188,7 +188,7 @@ async fn free_function_verbs_cover_missing_agent_paths() {
     use systemprompt_agent::services::agent_orchestration::lifecycle as verbs;
 
     let name = unique_name("lc_free");
-    let repo = systemprompt_agent::repository::agent_service::AgentServiceRepository::new(&pool)
+    let repo = systemprompt_agent::repository::agent_service::AgentServiceRepository::new(&pool, systemprompt_identifiers::InstanceId::new("test-instance"))
         .expect("agent service repository");
     assert!(
         verbs::start_agent(repo.clone(), app_paths(), &name, None)

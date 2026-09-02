@@ -151,25 +151,21 @@ pub async fn message_exists(
     Ok(row.unwrap_or(false))
 }
 
-pub async fn get_next_sequence_number(
-    pool: &Arc<PgPool>,
-    task_id: &TaskId,
-) -> Result<i32, RepositoryError> {
-    let row = sqlx::query!(
-        r#"SELECT MAX(sequence_number) as "max_seq" FROM task_messages WHERE task_id = $1"#,
-        task_id.as_str()
-    )
-    .fetch_optional(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
-
-    Ok(row.and_then(|r| r.max_seq).map_or(0, |s| s + 1))
-}
-
+// Why: the next sequence number is computed from MAX(sequence_number) and
+// then inserted under UNIQUE(task_id, sequence_number). Two replicas appending
+// to one task concurrently would both read the same MAX and one insert would
+// fail, so the task row is locked first and the second writer waits.
 pub async fn get_next_sequence_number_sqlx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     task_id: &TaskId,
 ) -> Result<i32, RepositoryError> {
+    sqlx::query!(
+        "SELECT task_id FROM agent_tasks WHERE task_id = $1 FOR UPDATE",
+        task_id.as_str()
+    )
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(RepositoryError::database)?;
     let row = sqlx::query!(
         r#"SELECT MAX(sequence_number) as "max_seq" FROM task_messages WHERE task_id = $1"#,
         task_id.as_str()
@@ -185,9 +181,11 @@ pub async fn get_next_sequence_number_in_tx(
     tx: &mut dyn systemprompt_database::DatabaseTransaction,
     task_id: &TaskId,
 ) -> Result<i32, RepositoryError> {
+    let lock: &str = "SELECT task_id FROM agent_tasks WHERE task_id = $1 FOR UPDATE";
     let query: &str =
         "SELECT MAX(sequence_number) as max_seq FROM task_messages WHERE task_id = $1";
     let task_id_str = task_id.as_str();
+    tx.fetch_optional(&lock, &[&task_id_str]).await?;
     let row = tx.fetch_optional(&query, &[&task_id_str]).await?;
 
     let max_seq = row.as_ref().and_then(|r| {

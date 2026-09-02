@@ -47,7 +47,7 @@ impl OAuthRepository {
                ) AS "exists!""#,
             jti,
         )
-        .fetch_one(self.pool_ref())
+        .fetch_one(self.write_pool_ref())
         .await?;
         Ok(revoked)
     }

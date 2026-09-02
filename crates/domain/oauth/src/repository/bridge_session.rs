@@ -109,7 +109,7 @@ impl BridgeSessionRepository {
             "#,
             cutoff_seconds,
         )
-        .fetch_all(self.pool.as_ref())
+        .fetch_all(self.write_pool.as_ref())
         .await?;
 
         Ok(rows)
@@ -137,7 +137,7 @@ impl BridgeSessionRepository {
             user_id.as_str(),
             cutoff_seconds,
         )
-        .fetch_all(self.pool.as_ref())
+        .fetch_all(self.write_pool.as_ref())
         .await?;
 
         Ok(rows)

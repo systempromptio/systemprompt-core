@@ -17,6 +17,7 @@ fn repos_for(f: &Fixture) -> Result<A2ARepositories> {
     Ok(A2ARepositories::new(
         &f.db,
         crate::common::session_usage(&f.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
     )?)
 }
 

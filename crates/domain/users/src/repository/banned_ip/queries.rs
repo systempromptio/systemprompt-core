@@ -20,7 +20,7 @@ impl BannedIpRepository {
             "#,
             ip_address
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(result)
@@ -48,7 +48,7 @@ impl BannedIpRepository {
             "#,
             ip_address
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?;
 
         Ok(row)

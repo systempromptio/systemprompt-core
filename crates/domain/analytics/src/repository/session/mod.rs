@@ -41,14 +41,14 @@ impl SessionRepository {
     }
 
     pub async fn find_by_id(&self, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
-        queries::find_by_id(&self.pool, session_id).await
+        queries::find_by_id(&self.write_pool, session_id).await
     }
 
     pub async fn find_active_by_id(
         &self,
         session_id: &SessionId,
     ) -> Result<Option<ActiveSessionLookup>> {
-        queries::find_active_by_id(&self.pool, session_id).await
+        queries::find_active_by_id(&self.write_pool, session_id).await
     }
 
     pub async fn revoke_session(&self, session_id: &SessionId) -> Result<()> {

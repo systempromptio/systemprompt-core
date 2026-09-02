@@ -70,7 +70,7 @@ impl McpSessionRepository {
             r#"SELECT EXISTS(SELECT 1 FROM mcp_sessions WHERE session_id = $1) as "exists!""#,
             session_id.as_str()
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(result)
@@ -98,7 +98,7 @@ impl McpSessionRepository {
             "#,
             session_id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?;
 
         Ok(row.map(|r| McpSessionRecord {
@@ -185,7 +185,7 @@ impl McpSessionRepository {
             "#,
             session_id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?;
 
         Ok(row.and_then(|r| r.initialize_params))

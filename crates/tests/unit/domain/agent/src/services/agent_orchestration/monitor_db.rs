@@ -38,7 +38,7 @@ fn db_service_with(
         agents,
         ..ServicesConfig::default()
     });
-    let repo = AgentServiceRepository::new(pool).expect("repo");
+    let repo = AgentServiceRepository::new(pool, systemprompt_identifiers::InstanceId::new("test-instance")).expect("repo");
     AgentDatabaseService::with_registry(repo, registry)
 }
 

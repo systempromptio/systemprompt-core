@@ -426,12 +426,12 @@ async fn update_task_and_save_messages_persists_history() {
     assert_eq!(by_ctx.len(), 2);
 
     assert!(r.tasks.message_exists(&user_msg.message_id).await.unwrap());
-    let next_seq = r
+    let stored = r
         .tasks
-        .get_next_sequence_number(&task_id)
+        .get_messages_by_task(&task_id)
         .await
-        .expect("seq");
-    assert!(next_seq >= 2);
+        .expect("messages by task");
+    assert!(stored.len() >= 2);
 
     let parts = r
         .tasks
@@ -465,12 +465,12 @@ async fn next_sequence_number_starts_at_zero() {
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let seq = r
+    let stored = r
         .tasks
-        .get_next_sequence_number(&task_id)
+        .get_messages_by_task(&task_id)
         .await
-        .expect("seq");
-    assert_eq!(seq, 0);
+        .expect("messages by task");
+    assert!(stored.is_empty());
     r.tasks.delete_task(&task_id).await.ok();
 }
 

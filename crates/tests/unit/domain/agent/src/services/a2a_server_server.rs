@@ -80,7 +80,7 @@ async fn state() -> (Arc<AgentState>, DbPool) {
         .expect("the a2a server tests need a reachable test database");
     let config = Arc::new(fixture_config(&b.database_url));
     let repos =
-        systemprompt_agent::repository::A2ARepositories::new(&pool, crate::session_usage(&pool))
+        systemprompt_agent::repository::A2ARepositories::new(&pool, crate::session_usage(&pool), systemprompt_identifiers::InstanceId::new("test-instance"))
             .expect("repositories");
     let state = AgentState::new(
         pool.clone(),

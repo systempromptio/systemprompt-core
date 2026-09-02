@@ -49,7 +49,7 @@ impl OAuthRepository {
             "SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_hash
         )
-        .fetch_optional(self.pool_ref())
+        .fetch_optional(self.write_pool_ref())
         .await?;
         Ok(result)
     }
@@ -79,7 +79,7 @@ impl OAuthRepository {
             token_id_hash,
             client_id_str
         )
-        .fetch_optional(self.pool_ref())
+        .fetch_optional(self.write_pool_ref())
         .await?
         .ok_or_else(|| OauthError::TokenInvalid("Invalid refresh token".to_owned()))?;
 
@@ -137,7 +137,7 @@ impl OAuthRepository {
              FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_hash
         )
-        .fetch_optional(self.pool_ref())
+        .fetch_optional(self.write_pool_ref())
         .await?;
 
         let Some(row) = row else {
@@ -202,7 +202,7 @@ impl OAuthRepository {
             "SELECT client_id FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_hash
         )
-        .fetch_optional(self.pool_ref())
+        .fetch_optional(self.write_pool_ref())
         .await?;
 
         Ok(result.map(ClientId::new))

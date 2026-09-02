@@ -110,7 +110,7 @@ impl crate::repository::OAuthRepository {
             "#,
             token_hash
         )
-        .fetch_optional(self.pool_ref())
+        .fetch_optional(self.write_pool_ref())
         .await?;
 
         match row {
