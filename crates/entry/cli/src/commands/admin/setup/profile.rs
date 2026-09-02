@@ -64,7 +64,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     let security = sections::security(&server.api_external_url);
 
     let profile = Profile {
-        storage: Default::default(),
+        storage: systemprompt_models::profile::StorageConfig::default(),
         name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,

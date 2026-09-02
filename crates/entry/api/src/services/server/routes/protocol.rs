@@ -33,13 +33,21 @@ fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     Some(state)
 }
 
-pub(super) fn mount_oauth(
-    mut router: Router,
-    ctx: &AppContext,
-    limits: &RateLimitState,
-    public_middleware: &PublicContextMiddleware,
-    user_middleware: &UserOnlyContextMiddleware,
-) -> Result<Router, LoaderError> {
+pub(super) struct MountCtx<'a> {
+    pub ctx: &'a AppContext,
+    pub limits: &'a RateLimitState,
+    pub public_middleware: &'a PublicContextMiddleware,
+    pub user_middleware: &'a UserOnlyContextMiddleware,
+}
+
+
+pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, LoaderError> {
+    let (ctx, limits, public_middleware, user_middleware) = (
+        mount.ctx,
+        mount.limits,
+        mount.public_middleware,
+        mount.user_middleware,
+    );
     let rate_config = &ctx.config().rate_limits;
     if let Some(oauth_state) = create_oauth_state(ctx) {
         let oauth = crate::routes::oauth::public_router()
@@ -59,12 +67,15 @@ pub(super) fn mount_oauth(
 
 pub(super) fn mount_agent(
     mut router: Router,
-    ctx: &AppContext,
-    limits: &RateLimitState,
-    public_middleware: &PublicContextMiddleware,
-    user_middleware: &UserOnlyContextMiddleware,
+    mount: &MountCtx<'_>,
     a2a_middleware: A2AContextMiddleware,
 ) -> Result<Router, LoaderError> {
+    let (ctx, limits, public_middleware, user_middleware) = (
+        mount.ctx,
+        mount.limits,
+        mount.public_middleware,
+        mount.user_middleware,
+    );
     let rate_config = &ctx.config().rate_limits;
 
     router = router.nest(
@@ -121,9 +132,9 @@ pub(super) fn mount_agent(
 
 pub(super) fn mount_messaging(
     mut router: Router,
-    ctx: &AppContext,
-    limits: &RateLimitState,
+    mount: &MountCtx<'_>,
 ) -> Result<Router, LoaderError> {
+    let (ctx, limits) = (mount.ctx, mount.limits);
     let rate_config = &ctx.config().rate_limits;
 
     router = router.nest(
@@ -145,12 +156,15 @@ pub(super) fn mount_messaging(
 
 pub(super) fn mount_mcp_and_stream(
     mut router: Router,
-    ctx: &AppContext,
-    limits: &RateLimitState,
-    public_middleware: &PublicContextMiddleware,
-    user_middleware: &UserOnlyContextMiddleware,
+    mount: &MountCtx<'_>,
     mcp_middleware: McpContextMiddleware,
 ) -> Result<Router, LoaderError> {
+    let (ctx, limits, public_middleware, user_middleware) = (
+        mount.ctx,
+        mount.limits,
+        mount.public_middleware,
+        mount.user_middleware,
+    );
     let rate_config = &ctx.config().rate_limits;
 
     router = router.nest(
@@ -179,11 +193,14 @@ pub(super) fn mount_mcp_and_stream(
 
 pub(super) fn mount_content_and_misc(
     mut router: Router,
-    ctx: &AppContext,
-    limits: &RateLimitState,
-    public_middleware: &PublicContextMiddleware,
-    user_middleware: &UserOnlyContextMiddleware,
+    mount: &MountCtx<'_>,
 ) -> Result<Router, LoaderError> {
+    let (ctx, limits, public_middleware, user_middleware) = (
+        mount.ctx,
+        mount.limits,
+        mount.public_middleware,
+        mount.user_middleware,
+    );
     let rate_config = &ctx.config().rate_limits;
 
     let content = crate::routes::content::public_router(ctx)

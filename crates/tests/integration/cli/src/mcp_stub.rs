@@ -94,9 +94,9 @@ fn register_running_service(database_url: &str, port: u16) {
         // see `identity_holder_pid`.
         let pid = i32::try_from(identity_holder_pid()).expect("pid fits in i32");
         sqlx::query(
-            "INSERT INTO services (name, module_name, server_type, port, status, pid)
-             VALUES ($1, 'mcp', 'external', $2, 'running', $3)
-             ON CONFLICT (name) DO UPDATE SET port = $2, status = 'running', pid = $3",
+            "INSERT INTO services (instance_id, name, module_name, server_type, port, status, pid)
+             VALUES ('test-instance', $1, 'mcp', 'external', $2, 'running', $3)
+             ON CONFLICT (instance_id, name) DO UPDATE SET port = $2, status = 'running', pid = $3",
         )
         .bind(fixture_mcp_server())
         .bind(i32::from(port))

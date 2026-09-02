@@ -29,7 +29,7 @@ mod ai_extension_tests {
     fn schemas_returns_expected_tables() {
         let ext = AiExtension;
         let schemas = Extension::schemas(&ext);
-        assert_eq!(schemas.len(), 7);
+        assert_eq!(schemas.len(), 8);
     }
 
     #[test]

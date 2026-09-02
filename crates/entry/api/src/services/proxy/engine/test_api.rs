@@ -25,6 +25,10 @@ impl TestSessionCache {
         Self(identities)
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "test-only seam, compiled out unless `test-api` is enabled"
+    )]
     pub async fn seed(
         &self,
         session_id: &SessionId,
@@ -46,6 +50,10 @@ impl TestSessionCache {
             .expect("seed proxy identity");
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "test-only seam, compiled out unless `test-api` is enabled"
+    )]
     pub async fn cached_user(&self, session_id: &SessionId) -> Option<Uuid> {
         self.0
             .find(session_id)

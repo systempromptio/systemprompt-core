@@ -32,13 +32,19 @@ mod reconciler_db {
     #[tokio::test]
     async fn new_constructs_against_migrated_db() {
         let pool = pool_or_skip!();
-        let _reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let _reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
     }
 
     #[tokio::test]
     async fn reconcile_empty_configs_returns_success() {
         let pool = pool_or_skip!();
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let result = reconciler
             .reconcile(&[], |_name: String, _port: u16| async { Ok(()) })
@@ -62,7 +68,10 @@ mod reconciler_db {
     #[tokio::test]
     async fn reconcile_disabled_config_absent_from_db_returns_success() {
         let pool = pool_or_skip!();
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [ServiceConfig {
             name: "test-absent-disabled".to_string(),
@@ -82,7 +91,10 @@ mod reconciler_db {
     #[tokio::test]
     async fn reconcile_enabled_config_absent_from_db_attempts_start() {
         let pool = pool_or_skip!();
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [ServiceConfig {
             name: "test-enabled-no-db-row".to_string(),
@@ -125,7 +137,10 @@ mod reconciler_db {
     #[tokio::test]
     async fn reconcile_multiple_disabled_absent_configs() {
         let pool = pool_or_skip!();
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = vec![
             ServiceConfig {
@@ -153,7 +168,10 @@ mod reconciler_db {
     #[tokio::test]
     async fn reconcile_start_failure_recorded_in_failed() {
         let pool = pool_or_skip!();
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [ServiceConfig {
             name: "test-start-fail".to_string(),
@@ -183,13 +201,19 @@ mod state_verifier_db {
     #[tokio::test]
     async fn new_constructs_against_migrated_db() {
         let pool = pool_or_skip!();
-        let _verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let _verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
     }
 
     #[tokio::test]
     async fn get_verified_states_empty_configs_returns_empty_or_orphans() {
         let pool = pool_or_skip!();
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let states = verifier
             .get_verified_states(&[])
@@ -204,7 +228,10 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_verified_states_disabled_config_maps_to_cleanup_or_none() {
         let pool = pool_or_skip!();
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [ServiceConfig {
             name: "sv-disabled-absent".to_string(),
@@ -246,7 +273,10 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_verified_states_enabled_config_absent_from_db_needs_start() {
         let pool = pool_or_skip!();
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [ServiceConfig {
             name: "sv-enabled-absent".to_string(),
@@ -279,7 +309,10 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_services_needing_action_filters_correctly() {
         let pool = pool_or_skip!();
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [
             ServiceConfig {
@@ -312,7 +345,10 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_running_services_returns_only_running() {
         let pool = pool_or_skip!();
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [ServiceConfig {
             name: "sv-not-running".to_string(),
@@ -339,7 +375,10 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_crashed_services_returns_only_crashed() {
         let pool = pool_or_skip!();
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = [ServiceConfig {
             name: "sv-not-crashed".to_string(),
@@ -366,7 +405,10 @@ mod state_verifier_db {
     #[tokio::test]
     async fn get_verified_states_multiple_configs_all_appear() {
         let pool = pool_or_skip!();
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let configs = vec![
             ServiceConfig {
@@ -433,9 +475,9 @@ mod reconciler_action_arms {
     ) {
         sqlx::query!(
             r#"
-            INSERT INTO services (name, module_name, status, pid, port)
-            VALUES ($1, 'mcp', $2, $3, $4)
-            ON CONFLICT (name) DO UPDATE SET
+            INSERT INTO services (instance_id, name, module_name, status, pid, port)
+            VALUES ('test-instance', $1, 'mcp', $2, $3, $4)
+            ON CONFLICT (instance_id, name) DO UPDATE SET
                 status = EXCLUDED.status, pid = EXCLUDED.pid, port = EXCLUDED.port
             "#,
             name,
@@ -494,7 +536,10 @@ mod reconciler_action_arms {
     async fn crashed_enabled_service_is_restarted() {
         let pool = pool_or_skip!();
         let pg = pool.write_pool_arc().expect("write pool");
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let name = unique_name("rec-restart-ok");
         insert_service(&pg, &name, "running", Some(i32::MAX), 27401).await;
@@ -528,7 +573,10 @@ mod reconciler_action_arms {
     async fn restart_records_failure_when_start_callback_errors() {
         let pool = pool_or_skip!();
         let pg = pool.write_pool_arc().expect("write pool");
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let name = unique_name("rec-restart-fail");
         insert_service(&pg, &name, "running", Some(i32::MAX), 27402).await;
@@ -568,7 +616,10 @@ mod reconciler_action_arms {
     async fn stopped_orphan_row_is_swept_from_the_db() {
         let pool = pool_or_skip!();
         let pg = pool.write_pool_arc().expect("write pool");
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let name = unique_name("rec-orphan-db");
         insert_service(&pg, &name, "stopped", None, 27403).await;
@@ -592,7 +643,10 @@ mod reconciler_action_arms {
     async fn orphaned_process_is_terminated_and_row_swept() {
         let pool = pool_or_skip!();
         let pg = pool.write_pool_arc().expect("write pool");
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let (mut child, port) = spawn_port_holder();
         let name = unique_name("rec-orphan-proc");
@@ -618,7 +672,10 @@ mod reconciler_action_arms {
     async fn disabled_running_service_is_stopped() {
         let pool = pool_or_skip!();
         let pg = pool.write_pool_arc().expect("write pool");
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let (mut child, port) = spawn_port_holder();
         let name = unique_name("rec-stop");
@@ -668,7 +725,10 @@ mod reconciler_noop_arm {
     async fn healthy_running_service_needs_no_action() {
         let pool = pool_or_skip!();
         let pg = pool.write_pool_arc().expect("write pool");
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let mut child = Command::new("python3")
             .args([
@@ -688,9 +748,9 @@ mod reconciler_noop_arm {
         let name = format!("rec-noop-{}", std::process::id());
         sqlx::query!(
             r#"
-            INSERT INTO services (name, module_name, status, pid, port)
-            VALUES ($1, 'mcp', 'running', $2, $3)
-            ON CONFLICT (name) DO UPDATE SET
+            INSERT INTO services (instance_id, name, module_name, status, pid, port)
+            VALUES ('test-instance', $1, 'mcp', 'running', $2, $3)
+            ON CONFLICT (instance_id, name) DO UPDATE SET
                 status = EXCLUDED.status, pid = EXCLUDED.pid, port = EXCLUDED.port
             "#,
             name,

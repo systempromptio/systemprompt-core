@@ -47,20 +47,7 @@ pub(super) fn finalize(
     origin: &'static str,
 ) {
     tokio::spawn(async move {
-        match &audit.ctx.gateway_conversation_id {
-            Some(conversation) => {
-                ctx.repos
-                    .thought_signatures
-                    .store_from_response(conversation, &summary.response)
-                    .await;
-            },
-            None => {
-                ThoughtSignatureCache::note_uncacheable_response(
-                    &summary.response,
-                    "no_conversation_id",
-                );
-            },
-        }
+        capture_signatures(&ctx, &audit, &summary).await;
         if let Some(model) = summary.served_model.as_deref() {
             audit.set_served_model(model).await;
         }
@@ -124,4 +111,21 @@ pub(super) fn finalize(
             },
         }
     });
+}
+
+async fn capture_signatures(ctx: &TapFinalizeCtx, audit: &GatewayAudit, summary: &Summary) {
+    match &audit.ctx.gateway_conversation_id {
+        Some(conversation) => {
+            ctx.repos
+                .thought_signatures
+                .store_from_response(conversation, &summary.response)
+                .await;
+        },
+        None => {
+            ThoughtSignatureCache::note_uncacheable_response(
+                &summary.response,
+                "no_conversation_id",
+            );
+        },
+    }
 }

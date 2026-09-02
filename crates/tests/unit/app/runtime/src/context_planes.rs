@@ -140,6 +140,10 @@ async fn plane_debug_impls_flag_optional_members() {
         authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
         event_bridge: Arc::new(OnceLock::new()),
         geoip_reader: None,
+        file_storage: systemprompt_storage::build_file_storage(
+            systemprompt_models::profile::StorageBackend::Local,
+            &std::env::temp_dir(),
+        ),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

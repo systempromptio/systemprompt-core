@@ -49,9 +49,9 @@ async fn insert_service(
 ) {
     sqlx::query!(
         r#"
-        INSERT INTO services (name, module_name, status, pid, port)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (name) DO UPDATE SET
+        INSERT INTO services (instance_id, name, module_name, status, pid, port)
+        VALUES ('test-instance', $1, $2, $3, $4, $5)
+        ON CONFLICT (instance_id, name) DO UPDATE SET
             module_name = EXCLUDED.module_name,
             status = EXCLUDED.status,
             pid = EXCLUDED.pid,
@@ -86,7 +86,10 @@ mod state_verifier_seeded {
 
         insert_service(&pg, &name, "mcp", "running", Some(999_999_998), 29100).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -127,7 +130,10 @@ mod state_verifier_seeded {
 
         insert_service(&pg, &name, "agent", "running", None, 29101).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Agent,
@@ -163,7 +169,10 @@ mod state_verifier_seeded {
 
         insert_service(&pg, &name, "mcp", "starting", Some(999_999_997), 29102).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -204,7 +213,10 @@ mod state_verifier_seeded {
 
         insert_service(&pg, &name, "mcp", "starting", None, 29103).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -240,7 +252,10 @@ mod state_verifier_seeded {
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29104).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -276,7 +291,10 @@ mod state_verifier_seeded {
 
         insert_service(&pg, &name, "agent", "running", Some(999_999_996), 29105).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Agent,
@@ -317,7 +335,10 @@ mod state_verifier_seeded {
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29106).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
 
         let states = verifier
             .get_verified_states(&[])
@@ -354,7 +375,10 @@ mod state_verifier_seeded {
         insert_service(&pg, &name_b, "agent", "starting", None, 29111).await;
         insert_service(&pg, &name_c, "mcp", "stopped", None, 29112).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = vec![
             ServiceConfig {
                 name: name_a.clone(),
@@ -415,7 +439,10 @@ mod reconciler_seeded {
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29120).await;
 
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -442,7 +469,10 @@ mod reconciler_seeded {
 
         insert_service(&pg, &name, "agent", "running", Some(999_999_994), 29121).await;
 
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Agent,
@@ -477,7 +507,10 @@ mod reconciler_seeded {
 
         insert_service(&pg, &name, "mcp", "stopped", None, 29122).await;
 
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -515,7 +548,10 @@ mod reconciler_seeded {
 
         insert_service(&pg, &name_cleanup, "mcp", "stopped", None, 29130).await;
 
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = vec![
             ServiceConfig {
                 name: name_start.clone(),
@@ -550,7 +586,10 @@ mod reconciler_seeded {
         let pool = pool_or_skip!();
         let name = unique_name("rec_newstart");
 
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -574,7 +613,10 @@ mod reconciler_seeded {
         let pool = pool_or_skip!();
         let name = unique_name("rec_none");
 
-        let reconciler = ServiceReconciler::new(Arc::clone(&pool));
+        let reconciler = ServiceReconciler::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -609,7 +651,10 @@ mod verifier_query_methods_seeded {
 
         insert_service(&pg, &name, "mcp", "running", Some(999_999_993), 29140).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -638,7 +683,10 @@ mod verifier_query_methods_seeded {
 
         insert_service(&pg, &name, "agent", "running", Some(999_999_992), 29141).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Agent,
@@ -700,7 +748,10 @@ mod state_verifier_live {
 
         insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -739,7 +790,10 @@ mod state_verifier_live {
 
         insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -776,7 +830,10 @@ mod state_verifier_live {
 
         insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,
@@ -817,7 +874,10 @@ mod state_verifier_live {
 
         insert_service(&pg, &name, "agent", "starting", Some(pid), i32::from(port)).await;
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Agent,
@@ -846,7 +906,10 @@ mod state_verifier_live {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
         let port = listener.local_addr().expect("local addr").port();
 
-        let verifier = ServiceStateVerifier::new(Arc::clone(&pool));
+        let verifier = ServiceStateVerifier::new(
+            Arc::clone(&pool),
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        );
         let configs = [ServiceConfig {
             name: name.clone(),
             service_type: ServiceType::Mcp,

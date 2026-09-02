@@ -22,11 +22,7 @@ const REPLICA_LAG_WARN_SECS: f64 = 5.0;
 const READYZ_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn fingerprint(value: &str) -> String {
-    Sha256::digest(value.as_bytes())
-        .iter()
-        .take(8)
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    hex::encode(&Sha256::digest(value.as_bytes())[..8])
 }
 
 pub fn check_identity_fingerprints<S: BuildHasher>(
@@ -61,20 +57,22 @@ pub fn check_identity_fingerprints<S: BuildHasher>(
 }
 
 pub fn check_instance_id(profile: &Profile) -> CheckResult {
-    match profile
+    profile
         .server
         .instance_id
         .as_deref()
         .map(str::trim)
         .filter(|id| !id.is_empty())
-    {
-        Some(id) => CheckResult::pass("instance-id", format!("server.instance_id = {id}")),
-        None => CheckResult::warn(
-            "instance-id",
-            "server.instance_id is not set; the replica falls back to HOSTNAME, which must be \
-             stable across restarts on this platform",
-        ),
-    }
+        .map_or_else(
+            || {
+                CheckResult::warn(
+                    "instance-id",
+                    "server.instance_id is not set; the replica falls back to HOSTNAME, which \
+                     must be stable across restarts on this platform",
+                )
+            },
+            |id| CheckResult::pass("instance-id", format!("server.instance_id = {id}")),
+        )
 }
 
 pub fn check_trusted_proxies(profile: &Profile) -> CheckResult {
@@ -95,7 +93,7 @@ pub fn check_trusted_proxies(profile: &Profile) -> CheckResult {
     }
 }
 
-pub async fn check_write_primary<S: BuildHasher>(
+pub async fn check_write_primary<S: BuildHasher + Sync>(
     secrets: &HashMap<String, String, S>,
 ) -> CheckResult {
     let Some(url) = secrets.get("database_write_url").filter(|v| !v.is_empty()) else {
@@ -122,7 +120,7 @@ pub async fn check_write_primary<S: BuildHasher>(
     }
 }
 
-pub async fn check_replica_lag<S: BuildHasher>(
+pub async fn check_replica_lag<S: BuildHasher + Sync>(
     secrets: &HashMap<String, String, S>,
 ) -> CheckResult {
     let read = secrets.get("database_url").filter(|v| !v.is_empty());
@@ -188,7 +186,7 @@ pub async fn check_readyz(profile: &Profile) -> CheckResult {
     }
 }
 
-pub async fn run<S: BuildHasher>(
+pub async fn run<S: BuildHasher + Sync>(
     profile: &Profile,
     secrets: &HashMap<String, String, S>,
 ) -> Vec<CheckResult> {

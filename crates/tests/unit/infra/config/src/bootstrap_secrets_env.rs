@@ -93,7 +93,7 @@ fn fly_environment_loads_from_env_without_profile_secrets() {
 }
 
 #[test]
-fn fly_environment_without_seed_keeps_seed_absent() {
+fn fly_environment_without_seed_refuses_to_boot() {
     let fx = fixture::write_tree("", None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::set_env("FLY_APP_NAME", "cov-fly-app");
@@ -101,13 +101,16 @@ fn fly_environment_without_seed_keeps_seed_absent() {
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
     fixture::remove_env("MANIFEST_SIGNING_SECRET_SEED");
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let err = SecretsBootstrap::init().unwrap_err();
+    fixture::remove_env("FLY_APP_NAME");
 
-    assert_eq!(secrets.manifest_signing_secret_seed, None);
-    assert!(matches!(
-        SecretsBootstrap::manifest_signing_secret_seed().unwrap_err(),
-        SecretsBootstrapError::ManifestSeedUnavailable
-    ));
+    assert!(
+        matches!(
+            err,
+            ConfigError::Secrets(SecretsBootstrapError::ManifestSeedRequired)
+        ),
+        "a deployment host without the shared seed must not mint its own: {err:?}"
+    );
 }
 
 #[test]

@@ -114,7 +114,10 @@ async fn state_verifier_get_verified_states_handles_unknown_service() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs = vec![ServiceConfig {
         name: format!("test_svc_{}", uuid::Uuid::new_v4().simple()),
         service_type: ServiceType::Mcp,
@@ -133,7 +136,10 @@ async fn state_verifier_get_running_services_filters_correctly() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs = vec![ServiceConfig {
         name: format!("test_running_{}", uuid::Uuid::new_v4().simple()),
         service_type: ServiceType::Mcp,
@@ -156,7 +162,10 @@ async fn state_verifier_get_services_needing_action_filters() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs = vec![ServiceConfig {
         name: format!("test_action_{}", uuid::Uuid::new_v4().simple()),
         service_type: ServiceType::Mcp,
@@ -187,7 +196,10 @@ async fn state_verifier_get_crashed_services_filters() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs: Vec<ServiceConfig> = vec![];
     let crashed = verifier
         .get_crashed_services(&configs)

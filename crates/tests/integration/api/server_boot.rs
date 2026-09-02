@@ -103,6 +103,10 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
+            file_storage: systemprompt_storage::build_file_storage(
+                systemprompt_models::profile::StorageBackend::Local,
+                &std::env::temp_dir(),
+            ),
         },
     ));
 

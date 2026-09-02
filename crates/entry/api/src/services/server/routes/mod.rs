@@ -50,31 +50,17 @@ pub(super) fn configure_routes(
     let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
-    router = protocol::mount_oauth(router, ctx, &limits, &public_middleware, &user_middleware)?;
-    router = protocol::mount_agent(
-        router,
+    let mount = protocol::MountCtx {
         ctx,
-        &limits,
-        &public_middleware,
-        &user_middleware,
-        a2a_middleware,
-    )?;
-    router = protocol::mount_mcp_and_stream(
-        router,
-        ctx,
-        &limits,
-        &public_middleware,
-        &user_middleware,
-        mcp_middleware,
-    )?;
-    router = protocol::mount_content_and_misc(
-        router,
-        ctx,
-        &limits,
-        &public_middleware,
-        &user_middleware,
-    )?;
-    router = protocol::mount_messaging(router, ctx, &limits)?;
+        limits: &limits,
+        public_middleware: &public_middleware,
+        user_middleware: &user_middleware,
+    };
+    router = protocol::mount_oauth(router, &mount)?;
+    router = protocol::mount_agent(router, &mount, a2a_middleware)?;
+    router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
+    router = protocol::mount_content_and_misc(router, &mount)?;
+    router = protocol::mount_messaging(router, &mount)?;
 
     router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 

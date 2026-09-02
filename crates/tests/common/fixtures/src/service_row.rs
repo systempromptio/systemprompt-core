@@ -38,9 +38,9 @@ pub async fn seed_running_service(
     let pid = i32::try_from(std::process::id()).map_err(|e| anyhow::anyhow!("pid: {e}"))?;
     let port = i32::from(port);
     sqlx::query!(
-        "INSERT INTO services (name, module_name, status, port, pid)
-         VALUES ($1, $2, 'running', $3, $4)
-         ON CONFLICT (name) DO UPDATE
+        "INSERT INTO services (instance_id, name, module_name, status, port, pid)
+         VALUES ('test-instance', $1, $2, 'running', $3, $4)
+         ON CONFLICT (instance_id, name) DO UPDATE
            SET module_name = $2, status = 'running', port = $3, pid = $4,
                updated_at = CURRENT_TIMESTAMP",
         name,
