@@ -29,7 +29,6 @@ fn seeded_entry(module: &str, message: &str) -> LogEntry {
         context_id: None,
         client_id: None,
         instance_id: None,
-        metrics_port: None,
     }
 }
 

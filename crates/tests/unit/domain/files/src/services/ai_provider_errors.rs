@@ -87,7 +87,9 @@ async fn storage_config_reflects_initialised_files_config() {
     let config = provider.storage_config().expect("storage config");
     assert_eq!(
         config.base_path,
-        b.storage_path.join("files/images/generated")
+        systemprompt_files::FilesConfig::generated_images_relative(),
+        "generated images are addressed relative to paths.storage ({})",
+        b.storage_path.display()
     );
     assert_eq!(config.url_prefix, "/files/images/generated");
 }

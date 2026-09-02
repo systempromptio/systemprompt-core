@@ -53,8 +53,11 @@ fn health_endpoint_is_skipped() {
 }
 
 #[test]
-fn ready_endpoint_is_skipped() {
-    assert!(should_skip_session_tracking("/ready"));
+fn legacy_ready_alias_is_not_skipped() {
+    assert!(
+        !should_skip_session_tracking("/ready"),
+        "only the real probes (/livez, /readyz) bypass session tracking"
+    );
 }
 
 #[test]

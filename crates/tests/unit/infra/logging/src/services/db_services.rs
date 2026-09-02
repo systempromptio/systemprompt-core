@@ -29,7 +29,6 @@ fn make_entry(module: &str, msg: &str) -> LogEntry {
         context_id: None,
         client_id: None,
         instance_id: None,
-        metrics_port: None,
     }
 }
 
