@@ -210,3 +210,26 @@ fn the_catalog_include_text_resolves_to_the_file_the_writer_creates() {
         assert_eq!(resolved_real, written_real);
     }
 }
+
+#[test]
+fn an_includes_key_ending_the_file_still_gets_its_entry_on_a_new_line() {
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    for content in ["settings:\n  x: 1\nincludes:", "includes:"] {
+        let root = dir.path().join("config.yaml");
+        std::fs::write(&root, content).expect("seed root");
+        append_include(&root, "../ai/providers.yaml").expect("append");
+
+        let updated = std::fs::read_to_string(&root).expect("read back");
+        let doc: serde_yaml::Value = serde_yaml::from_str(&updated)
+            .unwrap_or_else(|e| panic!("{updated:?} must stay parseable YAML: {e}"));
+        let includes = doc
+            .get("includes")
+            .and_then(serde_yaml::Value::as_sequence)
+            .unwrap_or_else(|| panic!("{updated:?} must keep `includes` a sequence"));
+        assert_eq!(
+            includes.first().and_then(serde_yaml::Value::as_str),
+            Some("../ai/providers.yaml")
+        );
+    }
+}
