@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Fixed
+
+- A streamed gateway response that failed mid-body was recorded in the access log as the 200 its headers promised. `streaming_response` sets 200 before the body exists and the access-log middleware reads the status the moment the head is ready, so an upstream `529 Overloaded` arriving mid-stream left an access-log line saying 200 beside an audit row saying `failed`, with `elapsed_ms` covering only time-to-headers. Every gateway request now writes two records: `phase: headers` as before, and `phase: terminal` emitted from the stream tap once the body finishes, carrying the outcome, the full elapsed time and the upstream error. A mid-stream failure has no upstream HTTP status to relay — the provider already sent 200 — so the terminal status is derived: 502 for an upstream stream error, 499 for a client hang-up.
+- `GatewayAudit::complete` logged `cost_microdollars` computed from four token buckets while omitting `cache_creation_tokens`, so a cost driven by cache writes could not be reconciled against its own log line. It now logs `cache_creation_tokens` and `tokens_used`.
+- `GatewayAudit::fail` logged at `info` with neither latency nor a status. It logs at `warn` with `latency_ms`, the `RequestStatus`, `wire_protocol`, the served model alongside the requested one, and `tokens_recorded: false` — `update_error` writes no usage columns, so the zeros on a failed row mean "not recorded", not "nothing consumed".
+- `FinalizeDecision::Fail` carries a `FailCause` instead of a bare string, separating an upstream mid-stream failure from a stream truncated without a stop event.
+
 ## [0.43.0] - 2026-09-01
 
 ### Fixed

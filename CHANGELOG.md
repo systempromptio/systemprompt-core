@@ -16,6 +16,7 @@ One image, N replicas, one Postgres primary with regional read replicas: this re
 - User-keyed HTTP rate limits are counted in `user_rate_limit_buckets` and hold across replicas; the hourly `user_rate_limit_prune` job drops spent windows. Address-keyed throttles stay per process and are documented as scaling with N.
 - `systemprompt cloud doctor --distributed`: identity-secret fingerprints (compare across nodes without revealing values), `instance_id`, `trusted_proxies`, `database_write_url` is a primary, replica lag on `database_url`, and a `/readyz` probe.
 - `just lint-authoritative-reads` gates the repositories whose lookups must read the primary.
+- `claude-fable-5-1` is seeded in the default provider catalog.
 
 ### Fixed
 
@@ -27,6 +28,10 @@ One image, N replicas, one Postgres primary with regional read replicas: this re
 - Rule-based authz no longer reloads the parent-chain index on every decision. It is cached per process and revalidated by a one-query fingerprint every 5 s (60 s hard bound), which removed three sequential round trips per request — invisible intra-AZ, a full second cross-region.
 - Anthropic structured output now sends the forced tool with `strict: true` and a grammar-compatible schema (nullable fields as `anyOf` with `null`, closed objects, unsupported bounds dropped), so a `ResponseFormat::JsonSchema { strict: true }` response cannot violate its schema.
 - Gemini `responseSchema` is shaped through the provider sanitizer (no `additionalProperties`, type lists folded to `nullable`), and a `null` inside `enum` is dropped once nullability is expressed separately; both were rejected by the providers before.
+- A gateway stream that failed mid-body was logged as the 200 its headers promised. `streaming_response` sets 200 before the body exists and the access-log middleware reads the status as soon as the head is ready, so an upstream `529 Overloaded` arriving mid-stream produced an access-log line saying 200 next to an audit row saying `failed`, with `elapsed_ms` covering only time-to-headers. Each gateway request now writes two access-log records — `phase: headers` as before, and `phase: terminal` once the body finishes, carrying the real outcome, the full elapsed time and the upstream error.
+- The gateway completion log omitted `cache_creation_tokens` while pricing the request from it, so a charge driven by cache writes could not be reconciled against the tokens on its own log line. Completion now logs `cache_creation_tokens` and `tokens_used`; failures log at `warn` (they were `info`) with latency, status, wire protocol and the served model.
+- A stream that ended without a stop event and a stream the provider failed are no longer indistinguishable in the audit: `FailCause` separates an upstream failure from a client hang-up.
+- **Cost:** `claude-sonnet-5` was seeded at $3.00/$15.00 per million in the default provider catalog against an actual rate of $2.00/$10.00, overstating `cost_microdollars` by 50% on every Sonnet 5 request through the gateway and everything downstream of it — analytics and quota buckets included. The catalog-parity test asserted the same wrong figure, so it pinned the error rather than catching it.
 
 ### Changed
 

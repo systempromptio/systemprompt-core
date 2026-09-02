@@ -78,6 +78,7 @@ pub(super) async fn dispatch_to_provider(
         max_tokens: Some(max_tokens),
         is_streaming,
         wire_protocol: inbound.wire_name().to_owned(),
+        access_log: rc.access_log.clone(),
     };
 
     let gateway_config = rc.services.gateway_config().ok_or_else(|| RejectionError {

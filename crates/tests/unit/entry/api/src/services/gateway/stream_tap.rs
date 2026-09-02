@@ -1,12 +1,12 @@
 //! Unit tests for the streaming-tap finalize decision.
 
-use systemprompt_api::services::gateway::stream_tap::{FinalizeDecision, classify};
+use systemprompt_api::services::gateway::stream_tap::{FailCause, FinalizeDecision, classify};
 
 #[test]
 fn empty_stream_fails_not_completes() {
     assert_eq!(
         classify(None, false, false, false),
-        FinalizeDecision::Fail("empty upstream stream"),
+        FinalizeDecision::Fail(FailCause::Truncated { has_content: false }),
     );
 }
 
@@ -14,7 +14,7 @@ fn empty_stream_fails_not_completes() {
 fn truncated_stream_with_content_but_no_stop_fails() {
     assert_eq!(
         classify(None, false, true, false),
-        FinalizeDecision::Fail("stream ended without stop event"),
+        FinalizeDecision::Fail(FailCause::Truncated { has_content: true }),
     );
 }
 
@@ -22,7 +22,7 @@ fn truncated_stream_with_content_but_no_stop_fails() {
 fn upstream_error_always_fails() {
     assert_eq!(
         classify(Some("boom"), true, true, true),
-        FinalizeDecision::Fail("upstream stream error"),
+        FinalizeDecision::Fail(FailCause::Upstream),
     );
 }
 
@@ -53,5 +53,18 @@ fn stop_without_content_is_not_a_capture_miss() {
         FinalizeDecision::Complete {
             cost_capture_miss: false
         },
+    );
+}
+
+#[test]
+fn fail_causes_carry_distinct_reasons() {
+    assert_eq!(FailCause::Upstream.reason(), "upstream stream error");
+    assert_eq!(
+        FailCause::Truncated { has_content: true }.reason(),
+        "stream ended without stop event",
+    );
+    assert_eq!(
+        FailCause::Truncated { has_content: false }.reason(),
+        "empty upstream stream",
     );
 }

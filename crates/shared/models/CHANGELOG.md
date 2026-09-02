@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Fixed
+
+- **Cost:** the default provider catalog priced `claude-sonnet-5` at $3.00/$15.00 per million against an actual rate of $2.00/$10.00, overstating the cost of every Sonnet 5 request by 50% for every consumer of the seeded registry. Cache read and write rates are corrected with it ($0.20/$2.50).
+
+### Added
+
+- `claude-fable-5-1` in the default provider catalog, alongside the still-served `claude-fable-5`.
+
 ## [0.43.0] - 2026-09-01
 
 ### Added
