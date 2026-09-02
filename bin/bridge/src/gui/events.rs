@@ -73,6 +73,7 @@ pub enum UiEvent {
     Quit,
 
     SyncStarted,
+    SyncStep(crate::sync::progress::SyncProgress),
     SyncFinished {
         result: Result<SyncSummary, Arc<GuiError>>,
         reply_to: ReplyId,

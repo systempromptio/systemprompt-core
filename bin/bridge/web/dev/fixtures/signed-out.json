@@ -50,31 +50,14 @@
       "config_format": "reg",
       "download_url": "https://claude.ai/download",
       "install_action_label": "imported into Windows Registry",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
-      "compatible_models": [],
-      "models_checked": false,
-      "compatible_models_available": false,
-      "unconfigured_providers": [],
-      "model_protocols": [
-        "anthropic"
-      ],
-      "model_protocols_overridden": false,
-      "surface": "local-profile",
-      "verdict": {
-        "state": "not-set-up",
-        "tone": "warn",
-        "reason": {
-          "code": "absent"
-        },
-        "action": {
-          "code": "add"
-        },
-        "is_set_up": false,
-        "is_installed": false,
-        "is_running": true
-      },
       "health": {
         "profile": {
           "tone": "err",
@@ -91,20 +74,7 @@
         ],
         "inference_models": [],
         "probed_at_unix": 1787905697
-      }
-    },
-    {
-      "id": "codex-cli",
-      "display_name": "Codex CLI",
-      "kind": "cli-tool",
-      "description": "OpenAI's terminal coding agent",
-      "icon": "codex-cli",
-      "config_format": "toml",
-      "download_url": "https://github.com/openai/codex",
-      "install_action_label": "written to config file",
-      "probe_in_flight": false,
-      "enabled": true,
-      "last_generated_profile": null,
+      },
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
@@ -126,7 +96,25 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": true
-      },
+      }
+    },
+    {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli-tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
       "health": {
         "profile": {
           "tone": "err",
@@ -143,26 +131,13 @@
         ],
         "inference_models": [],
         "probed_at_unix": 1787905697
-      }
-    },
-    {
-      "id": "hermes",
-      "display_name": "Hermes",
-      "kind": "desktop-app",
-      "description": "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
-      "icon": "hermes",
-      "config_format": "yaml",
-      "download_url": "https://nousresearch.com/",
-      "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
-      "probe_in_flight": false,
-      "enabled": true,
-      "last_generated_profile": null,
+      },
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
       "unconfigured_providers": [],
       "model_protocols": [
-        "openai"
+        "anthropic"
       ],
       "model_protocols_overridden": false,
       "surface": "local-profile",
@@ -178,7 +153,25 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": true
-      },
+      }
+    },
+    {
+      "id": "hermes",
+      "display_name": "Hermes",
+      "kind": "desktop-app",
+      "description": "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "hermes",
+      "config_format": "yaml",
+      "download_url": "https://nousresearch.com/",
+      "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
       "health": {
         "profile": {
           "tone": "err",
@@ -195,20 +188,7 @@
         ],
         "inference_models": [],
         "probed_at_unix": 1787905697
-      }
-    },
-    {
-      "id": "opencode",
-      "display_name": "OpenCode",
-      "kind": "cli-tool",
-      "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
-      "icon": "opencode",
-      "config_format": "json",
-      "download_url": "https://opencode.ai/",
-      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
-      "probe_in_flight": false,
-      "enabled": true,
-      "last_generated_profile": null,
+      },
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
@@ -230,8 +210,25 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": true
-      },
+      }
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "kind": "cli-tool",
+      "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "opencode",
+      "config_format": "json",
+      "download_url": "https://opencode.ai/",
+      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
       "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": null,
       "health": {
         "profile": {
           "tone": "err",
@@ -248,6 +245,28 @@
         ],
         "inference_models": [],
         "probed_at_unix": 1787905697
+      },
+      "compatible_models": [],
+      "models_checked": false,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "not-set-up",
+        "tone": "warn",
+        "reason": {
+          "code": "absent"
+        },
+        "action": {
+          "code": "add"
+        },
+        "is_set_up": false,
+        "is_installed": false,
+        "is_running": true
       }
     },
     {
@@ -259,6 +278,11 @@
       "config_format": "json",
       "download_url": "",
       "install_action_label": "",
+      "can_open": false,
+      "can_verify": false,
+      "can_repair": false,
+      "can_open_config": false,
+      "can_remove": false,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,

@@ -5,7 +5,8 @@
 
 use crate::gui::state::AppStateSnapshot;
 use crate::integration::agent_health::{
-    AgentFleets, AgentSurface, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
+    AgentFleets, AgentSurface, HostCapabilities, HostHealthInputs, HostModelViewRef,
+    SYNC_ONLY_AGENTS,
 };
 use crate::integration::host_app::{ConfigFormat, HostKind};
 pub(crate) use crate::wire::hosts::{
@@ -35,6 +36,7 @@ fn build_entry<'a>(
         manifest_synced: snap.manifest_synced(),
         can_open: host.can_open(),
     });
+    let caps = HostCapabilities::for_surface(AgentSurface::LocalProfile, host.can_open());
     HostEntryPayload {
         id: host.id(),
         display_name: host.display_name(),
@@ -44,7 +46,11 @@ fn build_entry<'a>(
         config_format: host.config_format(),
         download_url: host.download_url(),
         install_action_label: host.install_action_label(),
-        can_open: host.can_open(),
+        can_open: caps.can_open,
+        can_verify: caps.can_verify,
+        can_repair: caps.can_repair,
+        can_open_config: caps.can_open_config,
+        can_remove: caps.can_remove,
         probe_in_flight: st.is_some_and(|s| s.probe_in_flight),
         enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
         last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
@@ -81,6 +87,7 @@ fn build_sync_only_entry<'a>(
         manifest_synced: snap.manifest_synced(),
         can_open: false,
     });
+    let caps = HostCapabilities::for_surface(AgentSurface::SyncOnly, false);
     HostEntryPayload {
         id: agent.id,
         display_name: agent.display_name,
@@ -90,7 +97,11 @@ fn build_sync_only_entry<'a>(
         config_format: ConfigFormat::Json,
         download_url: "",
         install_action_label: "",
-        can_open: false,
+        can_open: caps.can_open,
+        can_verify: caps.can_verify,
+        can_repair: caps.can_repair,
+        can_open_config: caps.can_open_config,
+        can_remove: caps.can_remove,
         probe_in_flight: false,
         enabled: snap.enabled_hosts.iter().any(|h| h == agent.id),
         last_generated_profile: None,
@@ -110,11 +121,19 @@ pub(crate) fn single_host_payload<'a>(
     snap: &'a AppStateSnapshot,
     host_id: &str,
 ) -> Option<HostEntryPayload<'a>> {
+    // Why: the sync-only fallback is not decoration. `emit_host_changed` sends
+    // whatever this returns on the `host.changed` channel, so a `None` here
+    // published a null body that the front end silently dropped — the row for
+    // a sync-only agent could never be updated after its first full snapshot.
     crate::integration::host_apps()
         .iter()
         .copied()
         .find(|h| h.id() == host_id)
         .map(|host| build_entry(snap, host))
+        .or_else(|| {
+            crate::integration::sync_only_agent(host_id)
+                .map(|agent| build_sync_only_entry(snap, agent))
+        })
 }
 
 pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {

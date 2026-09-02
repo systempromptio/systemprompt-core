@@ -6,6 +6,7 @@
 pub(crate) mod apply;
 mod error;
 mod manifest;
+pub mod progress;
 mod replay;
 mod summary;
 
@@ -46,6 +47,9 @@ pub async fn run_once(
     force_replay: bool,
     allow_tofu: bool,
 ) -> Result<SyncSummary, SyncError> {
+    bridge
+        .sync_progress
+        .report(&progress::SyncProgress::new("manifest", "manifest", 1, 1));
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
 

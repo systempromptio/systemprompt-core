@@ -78,6 +78,17 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
     send_emit(app, "sync.progress", &value);
 }
 
+pub(crate) fn emit_sync_step(app: &GuiApp, step: &crate::sync::progress::SyncProgress) {
+    let value = json!({
+        "phase": step.phase,
+        "item": step.item,
+        "current": step.current,
+        "total": step.total,
+        "detail": step.label(),
+    });
+    send_emit(app, "sync.progress", &value);
+}
+
 pub(crate) fn emit_first_run_progress(app: &GuiApp) {
     let snap = app.state.snapshot();
     let payload = crate::gui::first_run::serde::build(&snap.first_run);

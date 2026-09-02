@@ -174,6 +174,10 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
         download_url: "https://example.invalid/dl",
         install_action_label: "Install",
         can_open: true,
+        can_verify: true,
+        can_repair: true,
+        can_open_config: true,
+        can_remove: true,
         probe_in_flight: false,
         enabled: true,
         last_generated_profile: Some(&generated),
@@ -220,6 +224,10 @@ fn an_unprobed_host_ships_null_health_rather_than_omitting_it() {
         download_url: "",
         install_action_label: "Add",
         can_open: false,
+        can_verify: false,
+        can_repair: false,
+        can_open_config: false,
+        can_remove: false,
         probe_in_flight: true,
         enabled: false,
         last_generated_profile: None,
@@ -283,4 +291,111 @@ fn the_fleet_summary_is_folded_from_the_very_verdicts_the_rows_carry() {
     assert_eq!(v["all"]["total"], json!(2));
     assert_eq!(v["all"]["ready"], json!(2));
     assert_eq!(v["set_up"]["total"], json!(2));
+}
+
+// The dev fixtures in `bin/bridge/web/dev/fixtures/` are the only way anyone
+// sees this UI on Linux (`just bridge-preview`), and `fixture_verdicts.rs`
+// regenerates their `verdict` subtree so it cannot lie. Nothing checked the
+// rest of the host entry, and it drifted: four of the five entries in
+// `healthy.json` were missing `can_open` entirely, so the fixtures were
+// rendering a payload the app never emits.
+//
+// That is the same failure that took the sign-in screen down — JS reading a
+// field the wire does not carry — so the guard is the key set itself, in both
+// directions. A field added to `HostEntryPayload` without reaching the fixtures
+// fails here, and so does a fixture key no payload produces.
+fn fixture_paths() -> Vec<std::path::PathBuf> {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../../bin/bridge/web/dev/fixtures");
+    let mut paths: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap_or_else(|e| panic!("read fixtures dir {}: {e}", dir.display()))
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "json"))
+        .collect();
+    paths.sort();
+    assert!(!paths.is_empty(), "no fixtures found in {}", dir.display());
+    paths
+}
+
+fn host_entry_keys() -> Vec<String> {
+    let entry = HostEntryPayload {
+        id: "claude-code",
+        display_name: "Claude Code",
+        kind: HostKind::CliTool,
+        description: "",
+        icon: "claude-code",
+        config_format: ConfigFormat::Json,
+        download_url: "",
+        install_action_label: "",
+        can_open: false,
+        can_verify: false,
+        can_repair: false,
+        can_open_config: false,
+        can_remove: false,
+        probe_in_flight: false,
+        enabled: true,
+        last_generated_profile: None,
+        health: None,
+        compatible_models: Vec::new(),
+        models_checked: false,
+        compatible_models_available: false,
+        unconfigured_providers: Vec::new(),
+        model_protocols: Vec::new(),
+        model_protocols_overridden: false,
+        surface: AgentSurface::SyncOnly,
+        verdict: verdict(),
+    };
+    let mut keys: Vec<String> = json_of(&entry)
+        .as_object()
+        .expect("host entry is an object")
+        .keys()
+        .cloned()
+        .collect();
+    keys.sort();
+    keys
+}
+
+#[test]
+fn every_fixture_host_entry_carries_exactly_the_wire_key_set() {
+    let expected = host_entry_keys();
+    let mut checked = 0_usize;
+
+    for path in fixture_paths() {
+        let raw = std::fs::read_to_string(&path).expect("read fixture");
+        let value: Value = serde_json::from_str(&raw).expect("fixture is JSON");
+        let Some(hosts) = value.get("host_apps").and_then(Value::as_array) else {
+            continue;
+        };
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+
+        for entry in hosts {
+            let obj = entry
+                .as_object()
+                .unwrap_or_else(|| panic!("{name}: host_apps entry is not an object"));
+            let id = obj
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("<no id>")
+                .to_owned();
+            let mut actual: Vec<String> = obj.keys().cloned().collect();
+            actual.sort();
+
+            let missing: Vec<&String> = expected.iter().filter(|k| !actual.contains(k)).collect();
+            let extra: Vec<&String> = actual.iter().filter(|k| !expected.contains(k)).collect();
+
+            assert!(
+                missing.is_empty(),
+                "{name}: host '{id}' is missing wire field(s) {missing:?} — the fixture \
+                 renders a payload the app never emits. Regenerate the fixture."
+            );
+            assert!(
+                extra.is_empty(),
+                "{name}: host '{id}' carries key(s) {extra:?} that HostEntryPayload does not \
+                 produce. A consumer reading them reads something that is never there."
+            );
+            checked += 1;
+        }
+    }
+
+    assert!(checked > 0, "no fixture host entries were checked");
 }

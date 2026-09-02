@@ -33,6 +33,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::SettingsReadRequested { .. } => "SettingsReadRequested",
         UiEvent::SettingsWriteRequested { .. } => "SettingsWriteRequested",
         UiEvent::SyncStarted => "SyncStarted",
+        UiEvent::SyncStep(_) => "SyncStep",
         UiEvent::SyncFinished { .. } => "SyncFinished",
         UiEvent::ValidateFinished { .. } => "ValidateFinished",
         UiEvent::LoginFinished { .. } => "LoginFinished",
@@ -227,6 +228,7 @@ fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEven
     match event {
         UiEvent::Quit => handlers::quit::on_quit(),
         UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
+        UiEvent::SyncStep(step) => crate::gui::emit::emit_sync_step(app, &step),
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
         UiEvent::AgentUninstall { host_id, reply_to } => {
             handlers::agents::on_uninstall(app, &host_id, reply_to);

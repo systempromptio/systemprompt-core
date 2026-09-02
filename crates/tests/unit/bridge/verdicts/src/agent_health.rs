@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::agent_health::{
     AgentAction, AgentFleetSummary, AgentState, AgentSurface, AgentVerdict, FleetHeadline,
-    FleetState, HostHealthInputs, HostModelViewRef, verdict,
+    FleetState, HostCapabilities, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS, verdict,
 };
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
@@ -277,4 +277,61 @@ fn empty_fleet_is_unknown_not_ok() {
     assert_eq!(fleet.state, FleetState::Unknown);
     assert_eq!(fleet.headline, FleetHeadline::NoneEnabled);
     assert_eq!(fleet.total, 0);
+}
+
+// v0.43.0 toasted "unknown host: claude-code" whenever anyone pressed a button
+// on the Claude Code row. `claude-code` is a sync-only agent: listed in the
+// Agents tab, but with no `HostApp`, so `find_host_by_id` cannot see it and
+// every per-host handler answered NotFound. The drawer offered all five actions
+// regardless, because nothing told it not to.
+//
+// `HostCapabilities::for_surface` is now the single answer to "what may the GUI
+// offer for this agent", read by the wire payload and rendered by the drawer.
+#[test]
+fn sync_only_agents_offer_no_local_action() {
+    let caps = HostCapabilities::for_surface(AgentSurface::SyncOnly, false);
+
+    assert!(!caps.can_verify, "nothing local to probe");
+    assert!(!caps.can_repair, "no profile to generate");
+    assert!(!caps.can_open_config, "no config file on this computer");
+    assert!(!caps.can_remove, "nothing installed to remove");
+    assert!(!caps.can_open, "no local process to launch");
+}
+
+#[test]
+fn sync_only_ignores_a_can_open_claim_from_the_host_side() {
+    // Why: `can_open` is the only capability a local host answers for itself,
+    // so it is the one that could leak a true through. It must not.
+    let caps = HostCapabilities::for_surface(AgentSurface::SyncOnly, true);
+    assert!(!caps.can_open);
+}
+
+#[test]
+fn local_profile_agents_keep_every_action_and_defer_on_open() {
+    for can_open in [true, false] {
+        let caps = HostCapabilities::for_surface(AgentSurface::LocalProfile, can_open);
+        assert!(caps.can_verify);
+        assert!(caps.can_repair);
+        assert!(caps.can_open_config);
+        assert!(caps.can_remove);
+        assert_eq!(
+            caps.can_open, can_open,
+            "can_open is the host's own answer — some local hosts cannot be launched"
+        );
+    }
+}
+
+#[test]
+fn every_declared_sync_only_agent_is_covered() {
+    // Table-driven off the inventory, so a sync-only agent added later is
+    // covered the day it is added rather than the day it breaks.
+    assert!(!SYNC_ONLY_AGENTS.is_empty());
+    for agent in SYNC_ONLY_AGENTS {
+        let caps = HostCapabilities::for_surface(AgentSurface::SyncOnly, false);
+        assert!(
+            !caps.can_verify && !caps.can_repair && !caps.can_open_config && !caps.can_remove,
+            "{} must offer no local action",
+            agent.id
+        );
+    }
 }

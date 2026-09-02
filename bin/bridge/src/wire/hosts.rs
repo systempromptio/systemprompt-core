@@ -112,7 +112,18 @@ pub struct HostEntryPayload<'a> {
     pub config_format: ConfigFormat,
     pub download_url: &'a str,
     pub install_action_label: &'a str,
+    // Why: what the GUI may offer for this host, decided here rather than in
+    // the front end. A sync-only agent has no local profile, no config file and
+    // nothing installed, so every one of these is false for it — and the drawer
+    // used to render Open / Repair / Verify / Show config / Remove regardless,
+    // each of which reached a handler that could only answer
+    // "unknown host: claude-code". Deriving the affordance a second time in JS
+    // (`surface === "sync-only"`) is how the two answers drift apart.
     pub can_open: bool,
+    pub can_verify: bool,
+    pub can_repair: bool,
+    pub can_open_config: bool,
+    pub can_remove: bool,
     pub probe_in_flight: bool,
     pub enabled: bool,
     pub last_generated_profile: Option<&'a GeneratedProfile>,

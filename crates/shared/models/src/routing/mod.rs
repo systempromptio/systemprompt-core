@@ -44,6 +44,15 @@ impl EventMetadata {
         event_category: "error",
         log_module: "not_found",
     };
+
+    // Why: the gateway is mounted at `/v1`, not under `/api`, so it matched no
+    // arm of `classify` and fell through to HTML content — every `/v1/messages`
+    // failure logged as `module="page_view"`, an HTML page view of a JSON API.
+    pub const GATEWAY_REQUEST: Self = Self {
+        event_type: "gateway_request",
+        event_category: "gateway",
+        log_module: "gateway_request",
+    };
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +69,7 @@ pub enum ApiCategory {
     Core,
     Agents,
     OAuth,
+    Gateway,
     Other,
 }
 
@@ -97,6 +107,17 @@ impl RouteClassifier {
             };
         }
 
+        // Why: the inference gateway mounts at `/v1` (`ApiPaths::GATEWAY_BASE`) and
+        // its public counterpart under `/api`, so it is checked here rather
+        // than left to the `/api` arm below.
+        if path.starts_with(ApiPaths::GATEWAY_BASE)
+            || path.starts_with(ApiPaths::GATEWAY_PUBLIC_BASE)
+        {
+            return RouteType::ApiEndpoint {
+                category: ApiCategory::Gateway,
+            };
+        }
+
         if path.starts_with(ApiPaths::API_BASE) {
             return RouteType::ApiEndpoint {
                 category: Self::determine_api_category(path),
@@ -131,6 +152,10 @@ impl RouteClassifier {
 
         match self.classify(path, method) {
             RouteType::HtmlContent { .. } => true,
+            // Why: `Gateway` is deliberately absent. Every inference call
+            // already lands a row in `ai_requests` with identity, model, tokens
+            // and cost; counting it again as web analytics double-counts the
+            // one surface that has the better record of itself.
             RouteType::ApiEndpoint { category } => {
                 matches!(
                     category,
@@ -148,6 +173,9 @@ impl RouteClassifier {
     pub fn get_event_metadata(&self, path: &str, method: &str) -> EventMetadata {
         match self.classify(path, method) {
             RouteType::HtmlContent { .. } => EventMetadata::HTML_CONTENT,
+            RouteType::ApiEndpoint {
+                category: ApiCategory::Gateway,
+            } => EventMetadata::GATEWAY_REQUEST,
             RouteType::ApiEndpoint { .. } => EventMetadata::API_REQUEST,
             RouteType::StaticAsset { .. } => EventMetadata::STATIC_ASSET,
             RouteType::NotFound => EventMetadata::NOT_FOUND,

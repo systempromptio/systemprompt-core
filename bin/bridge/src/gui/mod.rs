@@ -21,6 +21,7 @@ pub mod server_json;
 pub mod server_marketplace;
 pub mod server_util;
 pub mod state;
+pub(crate) mod sync_only;
 pub mod tray;
 pub mod webview2;
 pub mod window;

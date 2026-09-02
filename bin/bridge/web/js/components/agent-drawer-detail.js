@@ -25,16 +25,25 @@ function actionButtons(drawer, host, status) {
         busy ? agentDrawerWorkingLabel() : status.action.label
       )}${primaryKind === "download" ? " ↗" : ""}</button>`);
   }
-  if (primaryKind !== "open" && appInstallState(host) !== APP_NOT_INSTALLED) {
+  // Whether an action is available at all is decided in Rust, beside the state
+  // it depends on (`HostEntryPayload.can_*`), and only rendered here. These four
+  // buttons used to be unconditional, so a sync-only agent — governed from the
+  // gateway, with nothing installed on this computer — offered all of them, and
+  // every one reached a handler that could only answer "unknown host:
+  // claude-code". Deciding it here as well (`surface === "sync-only"`) would be
+  // the same fact derived twice, free to drift.
+  if (primaryKind !== "open" && host.can_open !== false && appInstallState(host) !== APP_NOT_INSTALLED) {
     buttons.push(ghostButton("open", t("host-action-open") || "Open"));
   }
-  if (primaryKind !== "repair" && primaryKind !== "add") {
+  if (primaryKind !== "repair" && primaryKind !== "add" && host.can_repair !== false) {
     buttons.push(ghostButton("repair", t("agent-action-repair") || "Repair", busy));
   }
-  if (primaryKind !== "verify") {
+  if (primaryKind !== "verify" && host.can_verify !== false) {
     buttons.push(ghostButton("verify", t("agent-action-verify") || "Verify"));
   }
-  buttons.push(`<button class="sp-btn-ghost" type="button" data-action="open-config">${escapeHtml(t("agent-action-open-config") || "Show config file")}</button>`);
+  if (host.can_open_config !== false) {
+    buttons.push(`<button class="sp-btn-ghost" type="button" data-action="open-config">${escapeHtml(t("agent-action-open-config") || "Show config file")}</button>`);
+  }
   return `<div class="sp-drawer__actions">${buttons.join("")}</div>`;
 }
 
@@ -83,7 +92,9 @@ function configSection(host, hs) {
 // is inline rather than a modal because the app has no modal, and it names the
 // file that is about to lose its keys.
 function removeSection(drawer, host, hs) {
-  if (!isSetUp(host)) { return ""; }
+  // `can_remove` is false when there is nothing local to remove — a sync-only
+  // agent is set up (its manifest synced) but owns no file on this computer.
+  if (!isSetUp(host) || host.can_remove === false) { return ""; }
   const path = (hs && hs.profile_source) || "";
   const name = agentHostName(host);
   const busy = drawer.busyId === host.id;

@@ -123,6 +123,11 @@
       "config_format": "reg",
       "download_url": "https://claude.ai/download",
       "install_action_label": "imported into Windows Registry",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": {
@@ -130,36 +135,6 @@
         "bytes": 712,
         "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
         "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
-      },
-      "compatible_models": [
-        "claude-opus-5",
-        "claude-sonnet-5",
-        "claude-fable-5",
-        "claude-opus-4-8",
-        "claude-haiku-4-5",
-        "claude-sonnet-4-5"
-      ],
-      "models_checked": true,
-      "compatible_models_available": true,
-      "unconfigured_providers": [],
-      "model_protocols": [
-        "anthropic"
-      ],
-      "model_protocols_overridden": false,
-      "surface": "local-profile",
-      "verdict": {
-        "state": "working",
-        "tone": "ok",
-        "reason": {
-          "code": "governed",
-          "when_unix": 1787905697
-        },
-        "action": {
-          "code": "open"
-        },
-        "is_set_up": true,
-        "is_installed": true,
-        "is_running": true
       },
       "health": {
         "profile": {
@@ -177,24 +152,6 @@
         ],
         "inference_models": [],
         "probed_at_unix": 1787905697
-      }
-    },
-    {
-      "id": "codex-cli",
-      "display_name": "Codex CLI",
-      "kind": "cli-tool",
-      "description": "OpenAI's terminal coding agent",
-      "icon": "codex-cli",
-      "config_format": "toml",
-      "download_url": "https://github.com/openai/codex",
-      "install_action_label": "written to config file",
-      "probe_in_flight": false,
-      "enabled": true,
-      "last_generated_profile": {
-        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\codex-cli-1787902828-38012-0.toml",
-        "bytes": 712,
-        "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
-        "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
       },
       "compatible_models": [
         "claude-opus-5",
@@ -225,6 +182,29 @@
         "is_set_up": true,
         "is_installed": true,
         "is_running": true
+      }
+    },
+    {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli-tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\codex-cli-1787902828-38012-0.toml",
+        "bytes": 712,
+        "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
+        "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
       },
       "health": {
         "profile": {
@@ -242,6 +222,36 @@
         ],
         "inference_models": [],
         "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "anthropic"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "working",
+        "tone": "ok",
+        "reason": {
+          "code": "governed",
+          "when_unix": 1787905697
+        },
+        "action": {
+          "code": "open"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
       }
     },
     {
@@ -253,6 +263,11 @@
       "config_format": "yaml",
       "download_url": "https://nousresearch.com/",
       "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": {
@@ -260,6 +275,23 @@
         "bytes": 418,
         "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa07a",
         "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb54d"
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "hermes"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
       },
       "compatible_models": [
         "claude-opus-5",
@@ -290,6 +322,29 @@
         "is_set_up": true,
         "is_installed": true,
         "is_running": true
+      }
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "kind": "cli-tool",
+      "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
+      "icon": "opencode",
+      "config_format": "json",
+      "download_url": "https://opencode.ai/",
+      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\opencode-bridge-1787902828-38012-0-opencode.json",
+        "bytes": 418,
+        "payload_uuid": "ce0c6a91-0pc0-40pc-0pc0-deadbeefa07a",
+        "profile_uuid": "ce0d78a5-0pc0-40pc-0pc0-feedfaceb54d"
       },
       "health": {
         "profile": {
@@ -303,28 +358,10 @@
         },
         "host_running": true,
         "host_processes": [
-          "hermes"
+          "opencode"
         ],
         "inference_models": [],
         "probed_at_unix": 1787905697
-      }
-    },
-    {
-      "id": "opencode",
-      "display_name": "OpenCode",
-      "kind": "cli-tool",
-      "description": "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge installs admin-managed configuration that routes inference through the gateway, registers MCP connectors, and publishes managed skills.",
-      "icon": "opencode",
-      "config_format": "json",
-      "download_url": "https://opencode.ai/",
-      "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
-      "probe_in_flight": false,
-      "enabled": true,
-      "last_generated_profile": {
-        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\opencode-bridge-1787902828-38012-0-opencode.json",
-        "bytes": 418,
-        "payload_uuid": "ce0c6a91-0pc0-40pc-0pc0-deadbeefa07a",
-        "profile_uuid": "ce0d78a5-0pc0-40pc-0pc0-feedfaceb54d"
       },
       "compatible_models": [
         "claude-opus-5",
@@ -353,24 +390,6 @@
         "is_set_up": true,
         "is_installed": true,
         "is_running": true
-      },
-      "can_open": false,
-      "health": {
-        "profile": {
-          "tone": "ok",
-          "code": "installed"
-        },
-        "missing_required": [],
-        "app": {
-          "tone": "ok",
-          "code": "installed"
-        },
-        "host_running": true,
-        "host_processes": [
-          "opencode"
-        ],
-        "inference_models": [],
-        "probed_at_unix": 1787905697
       }
     },
     {
@@ -382,6 +401,11 @@
       "config_format": "json",
       "download_url": "",
       "install_action_label": "",
+      "can_open": false,
+      "can_verify": false,
+      "can_repair": false,
+      "can_open_config": false,
+      "can_remove": false,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,

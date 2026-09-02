@@ -33,6 +33,9 @@ export function retrySettle(component) {
   armSettleTimer(component);
   bridge.gatewayProbe().catch((e) => notifyErr(e, t("setup-retry") || "Check again"));
   for (const h of (component.snapshot && component.snapshot.host_apps) || []) {
+    // Same rule as the settle gate itself: an agent that cannot be probed is
+    // not waited for, so it must not be probed here either.
+    if (h.can_verify === false) { continue; }
     bridge.hostProbe(h.id).catch((e) => console.warn(`host probe ${h.id} failed`, e));
   }
 }

@@ -19,6 +19,10 @@ use super::finish;
 
 pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     let Some(host) = find_host_by_id(host_id.as_str()) else {
+        if let Some(value) = crate::gui::sync_only::noop_reply(app, host_id.as_str(), "repair") {
+            finish(app, Ok(value), reply_to);
+            return;
+        }
         app.append_log_error(format!("generate requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
             ErrorScope::Host,
@@ -100,6 +104,12 @@ pub(crate) fn on_profile_install_requested(
     reply_to: ReplyId,
 ) {
     let Some(host) = find_host_by_id(host_id.as_str()) else {
+        if let Some(value) =
+            crate::gui::sync_only::noop_reply(app, host_id.as_str(), "install profile")
+        {
+            finish(app, Ok(value), reply_to);
+            return;
+        }
         app.append_log_error(format!("install requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
             ErrorScope::Host,

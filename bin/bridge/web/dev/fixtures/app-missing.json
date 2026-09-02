@@ -59,6 +59,11 @@
       "config_format": "reg",
       "download_url": "https://claude.ai/download",
       "install_action_label": "imported into Windows Registry",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": {
@@ -66,6 +71,23 @@
         "bytes": 712,
         "payload_uuid": "ce0a6a91-3b6c-4cwk-cwk0-deadbeefa06f",
         "profile_uuid": "ce0b78a5-6d14-4cwk-cwk0-feedfaceb43c"
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "claude.exe"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
       },
       "compatible_models": [
         "claude-opus-5",
@@ -96,23 +118,6 @@
         "is_set_up": true,
         "is_installed": true,
         "is_running": true
-      },
-      "health": {
-        "profile": {
-          "tone": "ok",
-          "code": "installed"
-        },
-        "missing_required": [],
-        "app": {
-          "tone": "ok",
-          "code": "installed"
-        },
-        "host_running": true,
-        "host_processes": [
-          "claude.exe"
-        ],
-        "inference_models": [],
-        "probed_at_unix": 1787905697
       }
     },
     {
@@ -124,9 +129,29 @@
       "config_format": "toml",
       "download_url": "https://github.com/openai/codex",
       "install_action_label": "written to config file",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "err",
+          "code": "not-installed"
+        },
+        "host_running": false,
+        "host_processes": [],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
       "compatible_models": [
         "claude-opus-5",
         "claude-sonnet-5",
@@ -155,21 +180,6 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
-      },
-      "health": {
-        "profile": {
-          "tone": "err",
-          "code": "absent"
-        },
-        "missing_required": [],
-        "app": {
-          "tone": "err",
-          "code": "not-installed"
-        },
-        "host_running": false,
-        "host_processes": [],
-        "inference_models": [],
-        "probed_at_unix": 1787905697
       }
     },
     {
@@ -181,9 +191,29 @@
       "config_format": "yaml",
       "download_url": "https://nousresearch.com/",
       "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "err",
+          "code": "not-installed"
+        },
+        "host_running": false,
+        "host_processes": [],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
       "compatible_models": [
         "claude-opus-5",
         "claude-sonnet-5",
@@ -212,21 +242,6 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
-      },
-      "health": {
-        "profile": {
-          "tone": "err",
-          "code": "absent"
-        },
-        "missing_required": [],
-        "app": {
-          "tone": "err",
-          "code": "not-installed"
-        },
-        "host_running": false,
-        "host_processes": [],
-        "inference_models": [],
-        "probed_at_unix": 1787905697
       }
     },
     {
@@ -238,9 +253,29 @@
       "config_format": "json",
       "download_url": "https://opencode.ai/",
       "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
+      "health": {
+        "profile": {
+          "tone": "err",
+          "code": "absent"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "err",
+          "code": "not-installed"
+        },
+        "host_running": false,
+        "host_processes": [],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
       "compatible_models": [
         "claude-opus-5",
         "claude-sonnet-5",
@@ -269,22 +304,6 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
-      },
-      "can_open": false,
-      "health": {
-        "profile": {
-          "tone": "err",
-          "code": "absent"
-        },
-        "missing_required": [],
-        "app": {
-          "tone": "err",
-          "code": "not-installed"
-        },
-        "host_running": false,
-        "host_processes": [],
-        "inference_models": [],
-        "probed_at_unix": 1787905697
       }
     },
     {
@@ -296,6 +315,11 @@
       "config_format": "json",
       "download_url": "",
       "install_action_label": "",
+      "can_open": false,
+      "can_verify": false,
+      "can_repair": false,
+      "can_open_config": false,
+      "can_remove": false,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,

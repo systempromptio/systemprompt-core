@@ -56,9 +56,15 @@
       "config_format": "reg",
       "download_url": "https://claude.ai/download",
       "install_action_label": "imported into Windows Registry",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": true,
       "enabled": true,
       "last_generated_profile": null,
+      "health": null,
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
@@ -78,8 +84,7 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
-      },
-      "health": null
+      }
     },
     {
       "id": "codex-cli",
@@ -90,9 +95,15 @@
       "config_format": "toml",
       "download_url": "https://github.com/openai/codex",
       "install_action_label": "written to config file",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": true,
       "enabled": true,
       "last_generated_profile": null,
+      "health": null,
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
@@ -112,8 +123,7 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
-      },
-      "health": null
+      }
     },
     {
       "id": "hermes",
@@ -124,9 +134,15 @@
       "config_format": "yaml",
       "download_url": "https://nousresearch.com/",
       "install_action_label": "merged into HERMES_HOME/config.yaml as a named `providers:` entry (with OPENAI_API_KEY written to HERMES_HOME/.env)",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
+      "health": null,
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
@@ -146,8 +162,7 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
-      },
-      "health": null
+      }
     },
     {
       "id": "opencode",
@@ -158,9 +173,15 @@
       "config_format": "json",
       "download_url": "https://opencode.ai/",
       "install_action_label": "merged into %ProgramData%\\opencode\\opencode.json (API key in %USERPROFILE%\\.local\\share\\opencode\\auth.json)",
+      "can_open": false,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,
+      "health": null,
       "compatible_models": [],
       "models_checked": false,
       "compatible_models_available": false,
@@ -180,9 +201,7 @@
         "is_set_up": false,
         "is_installed": false,
         "is_running": false
-      },
-      "can_open": false,
-      "health": null
+      }
     },
     {
       "id": "claude-code",
@@ -193,6 +212,11 @@
       "config_format": "json",
       "download_url": "",
       "install_action_label": "",
+      "can_open": false,
+      "can_verify": false,
+      "can_repair": false,
+      "can_open_config": false,
+      "can_remove": false,
       "probe_in_flight": false,
       "enabled": true,
       "last_generated_profile": null,

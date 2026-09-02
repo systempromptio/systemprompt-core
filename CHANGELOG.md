@@ -20,6 +20,7 @@ One image, N replicas, one Postgres primary with regional read replicas: this re
 
 ### Fixed
 
+- **Security:** credential-bearing identity headers are recorded on the gateway audit row by name only. `authorization`, `proxy-authorization`, `x-api-key`, `cookie` and `set-cookie` reach `classify_client_headers` as identity headers, and their values were written verbatim into the audit row and logged with the identity vec at INFO, so a live bearer token leaked into anywhere those logs were pasted. The name is still recorded — that the header was present is the part with audit value.
 - **Concurrent boot:** the MCP service registry is keyed `(instance_id, name)`. Every replica registers, judges staleness and reaps only its own rows; a second node no longer treats the first node's live PID as dead, rewrites its row and fails boot with "MCP services running but not properly registered".
 - **Security:** session attestation, JTI revocation, API-key, refresh-token, auth-code, setup-token, MCP-session, bridge-session, device-cert and IP-ban lookups read the primary. They read the replica pool a moment after writing the primary, so a login issued in one region was a 401 in every other until replication caught up, and a revocation stayed effective for as long as the replica lagged.
 - The cross-replica event relay no longer redelivers a node's own events to it. `event_outbox` rows carry `origin_instance_id` and the bridge skips its own, so subscribers on the emitting node received every event twice on any deployment with more than one replica.

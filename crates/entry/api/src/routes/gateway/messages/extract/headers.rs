@@ -126,7 +126,9 @@ pub async fn read_gateway_body(
 
 // Why: `forward` is relayed upstream unchanged; `identity` is recorded on the
 // audit row and dropped, so a third-party provider never sees which developer,
-// session, or agent produced the request.
+// session, or agent produced the request. Credential-bearing identity headers
+// keep their name and lose their value (`recordable_header_value`) — the vec is
+// logged, and it is never the thing that needs the secret.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct ClientHeaders {
     pub forward: Vec<(String, String)>,
@@ -143,9 +145,12 @@ pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
         if wire_anthropic::is_forwardable_request_header(name) {
             classified.forward.push((name.to_owned(), value.to_owned()));
         } else if wire_anthropic::is_identity_request_header(name) {
-            classified
-                .identity
-                .push((name.to_owned(), value.to_owned()));
+            // Why: the identity vec is recorded on the audit row and logged, so
+            // a credential header contributes its name but never its value.
+            classified.identity.push((
+                name.to_owned(),
+                wire_anthropic::recordable_header_value(name, value),
+            ));
         }
     }
     classified
