@@ -4,16 +4,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[cfg(target_os = "macos")]
-fn refresh_managed_mcp_servers(
-    mcp: &super::MdmPayloadInputs<'_>,
-) -> Result<String, super::MdmError> {
+fn refresh_managed_mcp_servers(mcp: &super::MdmPayloadInputs<'_>) -> String {
     _ = mcp;
-    Ok(
-        "managedMcpServers refresh skipped (managed preferences are written by install --apply)"
-            .into(),
-    )
+    "managedMcpServers refresh skipped (managed preferences are written by install --apply)".into()
 }
 
 // Why: Windows re-asserts the whole policy so a drifted key self-heals; macOS
@@ -33,7 +27,7 @@ fn enforce_managed_policy(mcp: &super::MdmPayloadInputs<'_>) -> Result<String, s
     }
     #[cfg(not(target_os = "windows"))]
     {
-        refresh_managed_mcp_servers(mcp)
+        Ok(refresh_managed_mcp_servers(mcp))
     }
 }
 

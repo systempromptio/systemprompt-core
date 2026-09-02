@@ -147,14 +147,14 @@ fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
 
 fn write_document(path: &std::path::Path, doc: &PolicyDocument) -> Result<(), ConfigStoreError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| map_io(path, e))?;
+        std::fs::create_dir_all(parent).map_err(|e| map_io(path, &e))?;
     }
-    std::fs::write(path, render_plist(doc)).map_err(|e| map_io(path, e))?;
+    std::fs::write(path, render_plist(doc)).map_err(|e| map_io(path, &e))?;
     _ = Command::new("/usr/bin/killall").arg("cfprefsd").status();
     Ok(())
 }
 
-fn map_io(path: &std::path::Path, e: std::io::Error) -> ConfigStoreError {
+fn map_io(path: &std::path::Path, e: &std::io::Error) -> ConfigStoreError {
     if e.kind() == std::io::ErrorKind::PermissionDenied {
         ConfigStoreError::AccessDenied {
             hive: "Managed Preferences".to_owned(),
