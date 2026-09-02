@@ -5,6 +5,11 @@
 ### Added
 
 - Every log line is stamped with the replica's `instance=`, and `logs` rows carry the instance id, so a line from a multi-replica deployment says which node produced it.
+- `sanitize` is a public module, and `redact_argv` redacts a command line for logging: inline `--flag=value` pairs, the element following a sensitive flag, and any argument holding a URL with embedded credentials. The admin CLI gateway logs the argv it forwards, and that argv can carry a secret as a bare positional.
+
+### Fixed
+
+- `sanitize::is_redacted` classifies a field whose name ends in `_key` or `-key`. It matched `api_key` and `apikey` but not `gemini_key`, so provider-key fields were logged in full.
 
 ## [0.30.0] - 2026-08-07
 

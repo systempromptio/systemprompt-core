@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- **Security:** environment-bound arguments carrying a secret or PII no longer render their live value in `--help`. clap interpolates the variable's current contents, and MCP servers are spawned with the provider keys and `DATABASE_URL` in their environment, so `admin setup --help` printed a live key to whatever ran it. `--db-password`, `--db-user`, `--admin-email`, the four provider-key flags on `admin setup` and `cloud profile create`, `issue-plugin-token --email` and the global `--database-url` are now name-only. A test walks the built command tree and fails on any future argument that reintroduces the leak, so the rule does not depend on anyone remembering it.
 - A cloud profile that resolves to no instance id refuses to boot instead of taking a fresh random identity on every restart.
 - MCP child processes are passed `HOSTNAME`, so a spawned server resolves the same replica identity as its parent.
 - The service state verifier is scoped by instance; it was judging another replica's rows as stale and rewriting them.

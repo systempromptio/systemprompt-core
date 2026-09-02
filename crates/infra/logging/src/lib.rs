@@ -30,7 +30,7 @@ pub mod extension;
 pub mod layer;
 pub mod models;
 pub mod repository;
-mod sanitize;
+pub mod sanitize;
 pub mod services;
 pub mod trace;
 

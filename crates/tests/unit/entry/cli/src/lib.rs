@@ -38,6 +38,8 @@ mod env_overrides;
 #[cfg(test)]
 mod environment;
 #[cfg(test)]
+mod help_env_values;
+#[cfg(test)]
 mod interactive;
 #[cfg(test)]
 mod interactive_terminal;

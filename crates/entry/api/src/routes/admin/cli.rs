@@ -17,6 +17,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_events::ToSse;
+use systemprompt_logging::sanitize::redact_argv;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::{ApiError, CliExecuteRequest, CliOutputEvent};
 use systemprompt_runtime::AppContext;
@@ -118,7 +119,7 @@ async fn execute_cli(
 
     tracing::info!(
         user_id = %req_ctx.user_id(),
-        args = ?args,
+        args = ?redact_argv(&args),
         timeout_secs = timeout_secs,
         "CLI gateway: executing command"
     );

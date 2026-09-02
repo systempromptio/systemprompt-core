@@ -36,7 +36,7 @@ pub(crate) struct Cli {
     web_dir: String,
 
     // Required for token self-acquisition on cloud-less (air-gapped) deployments.
-    #[arg(long, env = "SYSTEMPROMPT_ADMIN_EMAIL")]
+    #[arg(long, env = "SYSTEMPROMPT_ADMIN_EMAIL", hide_env_values = true)]
     admin_email: Option<String>,
 
     #[arg(long, default_value = "welcome")]

@@ -61,16 +61,36 @@ pub struct CreateArgs {
     #[arg(long, value_enum, default_value = "local", help = "Tenant type")]
     pub tenant_type: TenantTypeArg,
 
-    #[arg(long, env = "ANTHROPIC_API_KEY", help = "Anthropic (Claude) API key")]
+    #[arg(
+        long,
+        env = "ANTHROPIC_API_KEY",
+        hide_env_values = true,
+        help = "Anthropic (Claude) API key"
+    )]
     pub anthropic_key: Option<String>,
 
-    #[arg(long, env = "OPENAI_API_KEY", help = "OpenAI (GPT) API key")]
+    #[arg(
+        long,
+        env = "OPENAI_API_KEY",
+        hide_env_values = true,
+        help = "OpenAI (GPT) API key"
+    )]
     pub openai_key: Option<String>,
 
-    #[arg(long, env = "GEMINI_API_KEY", help = "Google AI (Gemini) API key")]
+    #[arg(
+        long,
+        env = "GEMINI_API_KEY",
+        hide_env_values = true,
+        help = "Google AI (Gemini) API key"
+    )]
     pub gemini_key: Option<String>,
 
-    #[arg(long, env = "GITHUB_TOKEN", help = "GitHub token (optional)")]
+    #[arg(
+        long,
+        env = "GITHUB_TOKEN",
+        hide_env_values = true,
+        help = "GitHub token (optional)"
+    )]
     pub github_token: Option<String>,
 }
 

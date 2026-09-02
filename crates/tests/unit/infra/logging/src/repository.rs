@@ -44,7 +44,6 @@ fn make_entry(module: &str, msg: &str, actor: &(UserId, SessionId, TraceId)) -> 
         context_id: None,
         client_id: None,
         instance_id: None,
-        metrics_port: None,
     }
 }
 

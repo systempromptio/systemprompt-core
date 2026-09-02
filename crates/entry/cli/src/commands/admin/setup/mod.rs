@@ -78,6 +78,7 @@ pub struct SetupArgs {
     #[arg(
         long,
         env = "SYSTEMPROMPT_DB_USER",
+        hide_env_values = true,
         help = "PostgreSQL user (default: systemprompt_`<env>`)"
     )]
     pub db_user: Option<String>,
@@ -85,6 +86,7 @@ pub struct SetupArgs {
     #[arg(
         long,
         env = "SYSTEMPROMPT_DB_PASSWORD",
+        hide_env_values = true,
         help = "PostgreSQL password (auto-generated if not provided)"
     )]
     pub db_password: Option<String>,
@@ -96,16 +98,36 @@ pub struct SetupArgs {
     )]
     pub db_name: Option<String>,
 
-    #[arg(long, env = "GEMINI_API_KEY", help = "Google AI (Gemini) API key")]
+    #[arg(
+        long,
+        env = "GEMINI_API_KEY",
+        hide_env_values = true,
+        help = "Google AI (Gemini) API key"
+    )]
     pub gemini_key: Option<String>,
 
-    #[arg(long, env = "ANTHROPIC_API_KEY", help = "Anthropic (Claude) API key")]
+    #[arg(
+        long,
+        env = "ANTHROPIC_API_KEY",
+        hide_env_values = true,
+        help = "Anthropic (Claude) API key"
+    )]
     pub anthropic_key: Option<String>,
 
-    #[arg(long, env = "OPENAI_API_KEY", help = "OpenAI (GPT) API key")]
+    #[arg(
+        long,
+        env = "OPENAI_API_KEY",
+        hide_env_values = true,
+        help = "OpenAI (GPT) API key"
+    )]
     pub openai_key: Option<String>,
 
-    #[arg(long, env = "GITHUB_TOKEN", help = "GitHub token (optional)")]
+    #[arg(
+        long,
+        env = "GITHUB_TOKEN",
+        hide_env_values = true,
+        help = "GitHub token (optional)"
+    )]
     pub github_token: Option<String>,
 
     #[arg(
@@ -119,6 +141,7 @@ pub struct SetupArgs {
     #[arg(
         long,
         env = "SYSTEMPROMPT_ADMIN_EMAIL",
+        hide_env_values = true,
         help = "Email identifying the platform admin on sign-in and consent screens; required non-interactively"
     )]
     pub admin_email: Option<String>,
