@@ -65,11 +65,24 @@ pub fn check_instance_id(profile: &Profile) -> CheckResult {
         .filter(|id| !id.is_empty())
         .map_or_else(
             || {
-                CheckResult::warn(
-                    "instance-id",
-                    "server.instance_id is not set; the replica falls back to HOSTNAME, which \
-                     must be stable across restarts on this platform",
-                )
+                // Why: a cloud boot without server.instance_id relies on the
+                // platform exporting HOSTNAME to the process and to every spawned
+                // MCP server. Fly does not, and a wrong guess here is a refused
+                // boot, so off-host the only verifiable state is the explicit id.
+                if profile.target.is_cloud() {
+                    CheckResult::fail(
+                        "instance-id",
+                        "server.instance_id is not set on a cloud profile; the boot refuses \
+                         unless the platform exports HOSTNAME to the gateway and to every \
+                         MCP subprocess — set it",
+                    )
+                } else {
+                    CheckResult::warn(
+                        "instance-id",
+                        "server.instance_id is not set; the replica falls back to HOSTNAME, \
+                         which must be stable across restarts on this platform",
+                    )
+                }
             },
             |id| CheckResult::pass("instance-id", format!("server.instance_id = {id}")),
         )
