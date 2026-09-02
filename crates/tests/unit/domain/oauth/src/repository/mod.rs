@@ -22,3 +22,4 @@ mod setup_token;
 mod state_binding;
 mod user;
 mod webauthn;
+mod webauthn_corrupt_db;

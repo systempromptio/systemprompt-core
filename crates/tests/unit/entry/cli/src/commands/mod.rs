@@ -18,6 +18,7 @@ mod admin_evals_show_db;
 mod admin_identity_generate;
 mod admin_keys_generate_fs;
 mod admin_prompts;
+mod admin_services_io;
 mod admin_session_show;
 mod admin_users_apikey_db;
 mod admin_users_ban_bulk_db;
