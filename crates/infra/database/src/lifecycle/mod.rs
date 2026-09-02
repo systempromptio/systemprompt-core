@@ -23,6 +23,6 @@ pub use migrations::{
     RepairResult,
 };
 pub use validation::{
-    validate_column_exists, validate_database_connection, validate_table_exists,
-    replica_status, validate_write_pool_is_primary, ReplicaStatus,
+    ReplicaStatus, replica_status, validate_column_exists, validate_database_connection,
+    validate_table_exists, validate_write_pool_is_primary,
 };

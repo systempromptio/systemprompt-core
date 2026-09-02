@@ -74,7 +74,10 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                     systemprompt_oauth::repository::OAuthRepositories::new(&pool)?,
                 ),
                 user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
-                service_repository: Arc::new(systemprompt_database::ServiceRepository::new(&pool, systemprompt_identifiers::InstanceId::new("test-instance"))?),
+                service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
+                    &pool,
+                    systemprompt_identifiers::InstanceId::new("test-instance"),
+                )?),
                 ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)?),
                 analytics_repositories,
                 file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)?),

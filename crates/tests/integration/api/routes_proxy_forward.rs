@@ -239,9 +239,8 @@ async fn mcp_proxy_unknown_service_emits_challenge() -> anyhow::Result<()> {
 #[tokio::test]
 async fn proxy_engine_constructs_over_the_identity_repository() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let identities = Arc::new(systemprompt_mcp::repository::McpProxyIdentityRepository::new(
-        &pool,
-    )?);
+    let identities =
+        Arc::new(systemprompt_mcp::repository::McpProxyIdentityRepository::new(&pool)?);
     let engine = systemprompt_api::services::proxy::ProxyEngine::new(identities);
     let cloned = engine.clone();
     drop(cloned);

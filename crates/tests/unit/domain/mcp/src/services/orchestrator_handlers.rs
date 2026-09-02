@@ -30,7 +30,11 @@ async fn make_dependencies() -> Option<(LifecycleOrchestrator, DatabaseService, 
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(
+            &db,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("service repository"),
         Arc::clone(&app_paths),
         registry.clone(),
     );

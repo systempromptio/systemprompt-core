@@ -27,7 +27,12 @@ async fn session_lookups_read_the_primary() {
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
 
     assert!(!repo.exists(&id).await.expect("exists on primary"));
-    assert!(repo.find_active(&id).await.expect("find_active on primary").is_none());
+    assert!(
+        repo.find_active(&id)
+            .await
+            .expect("find_active on primary")
+            .is_none()
+    );
     assert!(
         repo.find_initialize_params(&id)
             .await

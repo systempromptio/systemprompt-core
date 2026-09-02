@@ -109,6 +109,17 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `storage` | string | no | absent | File storage root. |
 | `geoip_database` | string | no | absent | Path to a MaxMind GeoIP database file. |
 
+## `storage`
+
+`crates/shared/models/src/profile/storage.rs`. Optional; the section may be omitted. Unknown keys and unknown backends are rejected.
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `backend` | `local` | no | `local` | Storage backend for uploads and generated images. `local` writes under `paths.storage`, which must then be set. It is the seam an object-store backend lands in; no vendor SDK ships today. |
+| `shared` | bool | no | `false` | Declare that `paths.storage` is one mount every replica sees. Boot probes the root by writing a per-instance marker and reading it back (failure refuses to boot), and warns when `shared` disagrees with the markers other replicas left. With `false` those files are node-local, which only a single replica can serve. |
+
+File records hold the path relative to `paths.storage` (for example `files/uploads/contexts/<ctx>/images/<id>.png`); public URLs and the on-disk layout are unchanged.
+
 ## `security`
 
 `crates/shared/models/src/profile/security.rs`. The JWT plane is RS256-only; these keys do not select an algorithm.

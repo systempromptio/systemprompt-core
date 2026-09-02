@@ -38,8 +38,14 @@ async fn install_relay_second_call_is_ignored_and_routing_persists_one_row() {
     };
     let user = unique_user_id("relay-idempotent");
 
-    EventRouter::install_relay(pool.clone(), systemprompt_identifiers::InstanceId::new("origin"));
-    EventRouter::install_relay(pool.clone(), systemprompt_identifiers::InstanceId::new("origin"));
+    EventRouter::install_relay(
+        pool.clone(),
+        systemprompt_identifiers::InstanceId::new("origin"),
+    );
+    EventRouter::install_relay(
+        pool.clone(),
+        systemprompt_identifiers::InstanceId::new("origin"),
+    );
     EventRouter::route_analytics(&user, AnalyticsEventBuilder::heartbeat()).await;
 
     let count: (i64,) = sqlx::query_as("SELECT count(*) FROM event_outbox WHERE user_id = $1")

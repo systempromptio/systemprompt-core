@@ -198,12 +198,13 @@ impl AgentServiceRepository {
     pub async fn list_running_agents(&self) -> Result<Vec<AgentServerIdRow>, RepositoryError> {
         let pool = &self.pool;
 
-        let rows = sqlx::query!("SELECT name FROM services WHERE instance_id = $1 AND status = 'running'",
+        let rows = sqlx::query!(
+            "SELECT name FROM services WHERE instance_id = $1 AND status = 'running'",
             self.instance_id.as_str()
         )
-            .fetch_all(pool.as_ref())
-            .await
-            .map_err(RepositoryError::database)?;
+        .fetch_all(pool.as_ref())
+        .await
+        .map_err(RepositoryError::database)?;
 
         Ok(rows
             .into_iter()
@@ -239,9 +240,9 @@ impl AgentServiceRepository {
             agent_name,
             self.instance_id.as_str()
         )
-            .execute(pool.as_ref())
-            .await
-            .map_err(RepositoryError::database)?;
+        .execute(pool.as_ref())
+        .await
+        .map_err(RepositoryError::database)?;
 
         Ok(())
     }

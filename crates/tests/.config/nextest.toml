@@ -20,7 +20,8 @@
 # and that test then observes zero newly-banned rows. The bootstrap-dispatch and
 # job-execution tests additionally share the one inventory-registered
 # `cleanup_inactive_sessions` scheduled_jobs row, so a concurrent run flips its
-# status mid-assertion. Serialise the suite into one slot so each test's job sees
+# status mid-assertion; the dispatch-scope tests likewise share the one
+# `sp_test_node_job` row and stamp `last_instance_id` on it. Serialise the suite into one slot so each test's job sees
 # only its own seeded data.
 # The users-domain DB tests share the `users` table and its `email`/`name`
 # UNIQUE indexes. The federated-identity tests run concurrent
@@ -178,11 +179,11 @@ filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
@@ -386,7 +387,7 @@ filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_
 test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.coverage.overrides]]

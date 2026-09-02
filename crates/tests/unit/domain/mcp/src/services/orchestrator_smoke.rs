@@ -29,7 +29,11 @@ async fn make_orchestrator() -> Option<McpOrchestrator> {
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).ok()?;
+    let service_repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .ok()?;
     McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
 }
 
@@ -52,7 +56,11 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
     let Some(db) = fixture_db_pool(&url).await.ok() else {
         return;
     };
-    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
+    let repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     let name = format!("orch-run-{}", uuid::Uuid::new_v4().simple());
     repo.create_service(CreateServiceInput {
         name: &name,

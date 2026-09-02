@@ -5,7 +5,9 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::{ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId,
+};
 
 use crate::models::{LogEntry, LogFilter, LogLevel, LoggingError};
 

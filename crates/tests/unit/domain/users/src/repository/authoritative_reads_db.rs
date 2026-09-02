@@ -41,7 +41,12 @@ async fn auth_lookups_read_the_primary_but_listings_do_not() {
             .expect("api key lookup on primary")
             .is_none()
     );
-    assert!(!bans.is_banned("203.0.113.9").await.expect("ban lookup on primary"));
+    assert!(
+        !bans
+            .is_banned("203.0.113.9")
+            .await
+            .expect("ban lookup on primary")
+    );
 
     assert!(
         users

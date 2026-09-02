@@ -27,9 +27,12 @@ async fn make_state() -> AgentState {
     let url = fixture_database_url().expect("DATABASE_URL");
     let pool = fixture_db_pool(&url).await.expect("pool");
     let config = Arc::new(fixture_config(&url));
-    let repos =
-        systemprompt_agent::repository::A2ARepositories::new(&pool, crate::session_usage(&pool), systemprompt_identifiers::InstanceId::new("test-instance"))
-            .expect("repositories");
+    let repos = systemprompt_agent::repository::A2ARepositories::new(
+        &pool,
+        crate::session_usage(&pool),
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("repositories");
     AgentState::new(pool, config, stub_jwt(), Arc::new(repos))
 }
 

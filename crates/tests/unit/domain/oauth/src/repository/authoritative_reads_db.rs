@@ -28,7 +28,12 @@ async fn token_and_revocation_lookups_read_the_primary() {
     let repo = OAuthRepository::new(&db).expect("repo");
     let nonce = Uuid::new_v4().simple().to_string();
 
-    assert!(!repo.is_jti_revoked(&nonce).await.expect("jti lookup on primary"));
+    assert!(
+        !repo
+            .is_jti_revoked(&nonce)
+            .await
+            .expect("jti lookup on primary")
+    );
     repo.validate_setup_token(&nonce)
         .await
         .expect("setup token lookup on primary");

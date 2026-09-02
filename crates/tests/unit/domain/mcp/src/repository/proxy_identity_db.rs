@@ -109,7 +109,10 @@ async fn cleanup_expired_counts_only_expired_rows() {
     expire(&db, &stale).await;
 
     let removed = repo.cleanup_expired().await.unwrap();
-    assert!(removed >= 1, "expected at least the stale row, got {removed}");
+    assert!(
+        removed >= 1,
+        "expected at least the stale row, got {removed}"
+    );
     assert!(repo.find(&live).await.unwrap().is_some());
     assert!(repo.find(&stale).await.unwrap().is_none());
 

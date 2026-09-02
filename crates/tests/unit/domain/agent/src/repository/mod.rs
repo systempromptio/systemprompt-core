@@ -31,7 +31,12 @@ pub(crate) async fn try_pool() -> Option<DbPool> {
 }
 
 pub(crate) fn repos(pool: &DbPool) -> A2ARepositories {
-    A2ARepositories::new(pool, crate::session_usage(pool), systemprompt_identifiers::InstanceId::new("test-instance")).expect("repositories")
+    A2ARepositories::new(
+        pool,
+        crate::session_usage(pool),
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("repositories")
 }
 
 // Seeds a user + session and returns their ids.

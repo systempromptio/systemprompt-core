@@ -172,7 +172,10 @@ async fn challenge_consumes_exactly_once() {
         .consume_webauthn_challenge(&challenge, WebAuthnChallengeKind::Authentication)
         .await
         .expect("second consume");
-    assert!(second.is_none(), "a consumed challenge must not be replayable");
+    assert!(
+        second.is_none(),
+        "a consumed challenge must not be replayable"
+    );
 }
 
 #[tokio::test]
@@ -338,5 +341,8 @@ async fn link_started_on_replica_a_finishes_on_replica_b() {
         .consume_webauthn_challenge(&challenge_id, WebAuthnChallengeKind::Link)
         .await
         .expect("consume");
-    assert!(row.is_none(), "the link challenge row was consumed by replica B");
+    assert!(
+        row.is_none(),
+        "the link challenge row was consumed by replica B"
+    );
 }

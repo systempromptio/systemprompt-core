@@ -7,8 +7,7 @@ use super::TaskRepository;
 use crate::models::a2a::{Message, Part};
 use crate::repository::context::message::{
     PersistMessageWithTxParams, get_message_parts, get_messages_by_context, get_messages_by_task,
-    get_next_sequence_number_in_tx, message_exists,
-    persist_message_with_tx,
+    get_next_sequence_number_in_tx, message_exists, persist_message_with_tx,
 };
 use systemprompt_traits::RepositoryError;
 

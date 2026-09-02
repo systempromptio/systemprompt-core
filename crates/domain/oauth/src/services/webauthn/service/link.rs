@@ -41,9 +41,7 @@ impl WebAuthnService {
         let token_record = match validation {
             TokenValidationResult::Valid(record) => record,
             TokenValidationResult::Expired => {
-                return Err(OauthError::Internal(
-                    "Setup token has expired".to_owned(),
-                ));
+                return Err(OauthError::Internal("Setup token has expired".to_owned()));
             },
             TokenValidationResult::AlreadyUsed => {
                 return Err(OauthError::Internal(
@@ -51,9 +49,7 @@ impl WebAuthnService {
                 ));
             },
             TokenValidationResult::NotFound => {
-                return Err(OauthError::Internal(
-                    "Invalid setup token".to_owned(),
-                ));
+                return Err(OauthError::Internal("Invalid setup token".to_owned()));
             },
         };
 

@@ -37,7 +37,11 @@ async fn make_lifecycle() -> Option<(LifecycleOrchestrator, systemprompt_databas
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(
+            &db,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("service repository"),
         Arc::clone(&app_paths),
         registry,
     );
@@ -92,7 +96,11 @@ async fn seed_service(
     name: &str,
     port: u16,
 ) -> ServiceRepository {
-    let repo = ServiceRepository::new(db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
+    let repo = ServiceRepository::new(
+        db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     repo.create_service(CreateServiceInput {
         name,
         module_name: "mcp",

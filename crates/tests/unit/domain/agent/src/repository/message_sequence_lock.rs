@@ -87,7 +87,11 @@ async fn concurrent_appends_take_distinct_sequence_numbers() {
         seqs.push(handle.await.expect("append task"));
     }
     seqs.sort_unstable();
-    assert_eq!(seqs, vec![0, 1, 2, 3], "every append committed with its own number");
+    assert_eq!(
+        seqs,
+        vec![0, 1, 2, 3],
+        "every append committed with its own number"
+    );
 
     let stored = r
         .tasks

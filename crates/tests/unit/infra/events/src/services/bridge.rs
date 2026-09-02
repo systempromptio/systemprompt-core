@@ -15,7 +15,9 @@ use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
     EventRouter, OUTBOX_CHANNEL, PostgresEventBridge,
 };
-use systemprompt_identifiers::{ConnectionId, ContextId, EventOutboxId, InstanceId, TaskId, UserId};
+use systemprompt_identifiers::{
+    ConnectionId, ContextId, EventOutboxId, InstanceId, TaskId, UserId,
+};
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,

@@ -292,9 +292,12 @@ pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let url = systemprompt_test_fixtures::fixture_database_url().expect("url");
     let config = Arc::new(systemprompt_test_fixtures::fixture_config(&url));
-    let repos =
-        systemprompt_agent::repository::A2ARepositories::new(pool, crate::session_usage(pool), systemprompt_identifiers::InstanceId::new("test-instance"))
-            .expect("repositories");
+    let repos = systemprompt_agent::repository::A2ARepositories::new(
+        pool,
+        crate::session_usage(pool),
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("repositories");
     Arc::new(AgentState::new(
         Arc::clone(pool),
         config,

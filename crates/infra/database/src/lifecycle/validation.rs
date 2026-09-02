@@ -66,7 +66,9 @@ pub async fn replica_status(db: &dyn DatabaseProvider) -> DatabaseResult<Replica
     let in_recovery = row
         .get("in_recovery")
         .and_then(serde_json::Value::as_bool)
-        .ok_or_else(|| RepositoryError::Internal("replica status probe lacks in_recovery".to_owned()))?;
+        .ok_or_else(|| {
+            RepositoryError::Internal("replica status probe lacks in_recovery".to_owned())
+        })?;
     let replay_lag_secs = row.get("lag_secs").and_then(serde_json::Value::as_f64);
     Ok(ReplicaStatus {
         in_recovery,

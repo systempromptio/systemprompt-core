@@ -45,7 +45,11 @@ async fn orchestrator_with_config(blocks: &[String]) -> Option<McpOrchestrator> 
         .ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).ok()?;
+    let service_repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .ok()?;
     McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
 }
 
@@ -149,7 +153,11 @@ async fn validate_internal_running_server_probes_local_port() {
         return;
     };
     let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
+    let repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -280,7 +288,11 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
         return;
     };
     let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
+    let repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -312,7 +324,11 @@ async fn restart_services_publishes_restart_requested_event() {
         return;
     };
     let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
+    let repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -439,7 +455,11 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
         return;
     };
     let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
+    let repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
 
     let disabled = unique("recgone");
     repo.create_service(CreateServiceInput {

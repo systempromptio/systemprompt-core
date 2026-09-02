@@ -63,7 +63,11 @@ async fn same_name_on_two_instances_is_two_rows() {
     assert_eq!(&seen_by_b.instance_id, b.instance_id());
 
     let listed_by_a = a.list_mcp_services().await.unwrap();
-    assert!(listed_by_a.iter().all(|row| &row.instance_id == a.instance_id()));
+    assert!(
+        listed_by_a
+            .iter()
+            .all(|row| &row.instance_id == a.instance_id())
+    );
     assert_eq!(listed_by_a.iter().filter(|row| row.name == name).count(), 1);
 }
 

@@ -9,8 +9,14 @@ use crate::common::Fixture;
 async fn agent_monitor_new_succeeds() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
-    let monitor =
-        AgentMonitor::new(AgentServiceRepository::new(&fx.db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("repo")).expect("monitor");
+    let monitor = AgentMonitor::new(
+        AgentServiceRepository::new(
+            &fx.db,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("repo"),
+    )
+    .expect("monitor");
     let dbg = format!("{:?}", monitor);
     assert!(dbg.contains("AgentMonitor"));
     fx.cleanup().await?;
@@ -21,8 +27,14 @@ async fn agent_monitor_new_succeeds() -> Result<()> {
 async fn agent_monitor_monitor_all_agents_with_none_returns_empty_report() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
-    let monitor =
-        AgentMonitor::new(AgentServiceRepository::new(&fx.db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("repo")).expect("monitor");
+    let monitor = AgentMonitor::new(
+        AgentServiceRepository::new(
+            &fx.db,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("repo"),
+    )
+    .expect("monitor");
 
     // Clean up all services first
     let _ = sqlx::query("DELETE FROM services WHERE module_name = 'agent'")
@@ -39,8 +51,14 @@ async fn agent_monitor_monitor_all_agents_with_none_returns_empty_report() -> Re
 async fn agent_monitor_cleanup_unresponsive_agents_returns_count() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
-    let monitor =
-        AgentMonitor::new(AgentServiceRepository::new(&fx.db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("repo")).expect("monitor");
+    let monitor = AgentMonitor::new(
+        AgentServiceRepository::new(
+            &fx.db,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("repo"),
+    )
+    .expect("monitor");
 
     let count = monitor.cleanup_unresponsive_agents().await?;
     // Just verify it returns a value, value depends on db state

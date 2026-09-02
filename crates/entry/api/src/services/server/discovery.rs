@@ -16,8 +16,8 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
 use super::health::handle_health;
-use super::probes::{handle_livez, handle_readyz};
 use super::health_detail::handle_health_detail;
+use super::probes::{handle_livez, handle_readyz};
 
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,

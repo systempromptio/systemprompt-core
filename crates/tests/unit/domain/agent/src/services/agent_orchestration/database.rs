@@ -25,7 +25,11 @@ fn unique_name(prefix: &str) -> String {
 async fn service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     ensure_test_bootstrap();
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let repo = AgentServiceRepository::new(pool, systemprompt_identifiers::InstanceId::new("test-instance")).expect("repo");
+    let repo = AgentServiceRepository::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("repo");
     AgentDatabaseService::new(repo).expect("db service")
 }
 

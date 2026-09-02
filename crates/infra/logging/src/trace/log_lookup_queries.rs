@@ -8,7 +8,9 @@ pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId,
+};
 
 use crate::models::{LogEntry, LogLevel};
 

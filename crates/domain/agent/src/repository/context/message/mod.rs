@@ -33,7 +33,8 @@ pub use persistence::{
     persist_message_with_tx,
 };
 pub use queries::{
-    get_messages_by_context, get_messages_by_task, get_next_sequence_number_in_tx, get_next_sequence_number_sqlx, message_exists,
+    get_messages_by_context, get_messages_by_task, get_next_sequence_number_in_tx,
+    get_next_sequence_number_sqlx, message_exists,
 };
 
 #[derive(Debug, Clone)]

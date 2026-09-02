@@ -62,15 +62,13 @@ async fn enrich_with_cached_session_adopts_cached_identity() {
     let sess_hit = sid("sess-hit");
     let user = Uuid::new_v4();
     cache
-        .seed(
-            &sess_hit,
-            user,
-            vec![Permission::User],
-            "cached-token",
-        )
+        .seed(&sess_hit, user, vec![Permission::User], "cached-token")
         .await;
     let mut headers = HeaderMap::new();
-    headers.insert("mcp-session-id", HeaderValue::from_str(sess_hit.as_str()).unwrap());
+    headers.insert(
+        "mcp-session-id",
+        HeaderValue::from_str(sess_hit.as_str()).unwrap(),
+    );
     let rc = request_context("session-hit");
     let enriched = enrich_with_cached_identity(&cache, &headers, rc, "svc").await;
     assert_eq!(enriched.user_id().to_string(), user.to_string());
@@ -81,9 +79,10 @@ async fn enrich_with_cached_session_adopts_cached_identity() {
 async fn successful_response_with_session_header_caches_identity() {
     let cache = cache().await;
     let sess_new = sid("sess-new");
-    let response =
-        backend_response(ResponseTemplate::new(200).insert_header("mcp-session-id", sess_new.as_str()))
-            .await;
+    let response = backend_response(
+        ResponseTemplate::new(200).insert_header("mcp-session-id", sess_new.as_str()),
+    )
+    .await;
     let user_uuid = Uuid::new_v4();
     let user = AuthenticatedUser::new(
         user_uuid,
@@ -102,19 +101,17 @@ async fn successful_response_with_session_header_caches_identity() {
         method_str: "POST",
     })
     .await;
-    assert_eq!(
-        cache.cached_user(&sess_new).await,
-        Some(user_uuid)
-    );
+    assert_eq!(cache.cached_user(&sess_new).await, Some(user_uuid));
 }
 
 #[tokio::test]
 async fn response_without_authenticated_user_does_not_cache() {
     let cache = cache().await;
     let sess_anon = sid("sess-anon");
-    let response =
-        backend_response(ResponseTemplate::new(200).insert_header("mcp-session-id", sess_anon.as_str()))
-            .await;
+    let response = backend_response(
+        ResponseTemplate::new(200).insert_header("mcp-session-id", sess_anon.as_str()),
+    )
+    .await;
     let rc = request_context("anon");
     handle_mcp_response(ResponseArgs {
         cache: &cache,
@@ -135,16 +132,14 @@ async fn delete_request_evicts_cached_session() {
     let sess_del = sid("sess-del");
     let user = Uuid::new_v4();
     cache
-        .seed(
-            &sess_del,
-            user,
-            vec![Permission::User],
-            "tok",
-        )
+        .seed(&sess_del, user, vec![Permission::User], "tok")
         .await;
     let response = backend_response(ResponseTemplate::new(200)).await;
     let mut request_headers = HeaderMap::new();
-    request_headers.insert("mcp-session-id", HeaderValue::from_str(sess_del.as_str()).unwrap());
+    request_headers.insert(
+        "mcp-session-id",
+        HeaderValue::from_str(sess_del.as_str()).unwrap(),
+    );
     let rc = request_context(&user.to_string());
     handle_mcp_response(ResponseArgs {
         cache: &cache,
@@ -165,16 +160,14 @@ async fn stale_session_404_on_get_evicts_cache_entry() {
     let sess_stale = sid("sess-stale");
     let user = Uuid::new_v4();
     cache
-        .seed(
-            &sess_stale,
-            user,
-            vec![Permission::User],
-            "tok",
-        )
+        .seed(&sess_stale, user, vec![Permission::User], "tok")
         .await;
     let response = backend_response(ResponseTemplate::new(404)).await;
     let mut request_headers = HeaderMap::new();
-    request_headers.insert("mcp-session-id", HeaderValue::from_str(sess_stale.as_str()).unwrap());
+    request_headers.insert(
+        "mcp-session-id",
+        HeaderValue::from_str(sess_stale.as_str()).unwrap(),
+    );
     let rc = request_context(&user.to_string());
     handle_mcp_response(ResponseArgs {
         cache: &cache,
@@ -195,16 +188,14 @@ async fn error_response_on_post_keeps_cache_entry() {
     let sess_keep = sid("sess-keep");
     let user = Uuid::new_v4();
     cache
-        .seed(
-            &sess_keep,
-            user,
-            vec![Permission::User],
-            "tok",
-        )
+        .seed(&sess_keep, user, vec![Permission::User], "tok")
         .await;
     let response = backend_response(ResponseTemplate::new(500)).await;
     let mut request_headers = HeaderMap::new();
-    request_headers.insert("mcp-session-id", HeaderValue::from_str(sess_keep.as_str()).unwrap());
+    request_headers.insert(
+        "mcp-session-id",
+        HeaderValue::from_str(sess_keep.as_str()).unwrap(),
+    );
     let rc = request_context(&user.to_string());
     handle_mcp_response(ResponseArgs {
         cache: &cache,
@@ -216,10 +207,7 @@ async fn error_response_on_post_keeps_cache_entry() {
         method_str: "POST",
     })
     .await;
-    assert_eq!(
-        cache.cached_user(&sess_keep).await,
-        Some(user)
-    );
+    assert_eq!(cache.cached_user(&sess_keep).await, Some(user));
 }
 
 #[test]
