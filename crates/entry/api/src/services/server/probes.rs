@@ -13,7 +13,7 @@ use systemprompt_runtime::AppContext;
 
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
 
-pub async fn handle_livez(
+pub(crate) async fn handle_livez(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
     Json(json!({
@@ -23,7 +23,7 @@ pub async fn handle_livez(
     }))
 }
 
-pub async fn handle_readyz(
+pub(crate) async fn handle_readyz(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;

@@ -10,7 +10,7 @@ use systemprompt_logging::CliService;
 use crate::context::CommandContext;
 use crate::shared::generate_identity;
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct GenerateArgs {
     #[arg(long, help = "Print the bundle as a JSON fragment for a secrets file")]
     pub json: bool,

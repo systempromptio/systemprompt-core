@@ -19,7 +19,6 @@ use crate::error::OauthResult;
 
 #[derive(Clone, Debug)]
 pub struct BridgeSessionRepository {
-    pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
 }
 
@@ -54,7 +53,6 @@ pub struct BridgeSessionRow {
 impl BridgeSessionRepository {
     pub fn new(db: &DbPool) -> OauthResult<Self> {
         Ok(Self {
-            pool: db.pool_arc()?,
             write_pool: db.write_pool_arc()?,
         })
     }

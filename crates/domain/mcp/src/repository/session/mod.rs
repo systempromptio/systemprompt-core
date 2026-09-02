@@ -28,19 +28,15 @@ pub struct McpSessionRecord {
 
 #[derive(Debug, Clone)]
 pub struct McpSessionRepository {
-    pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
 }
 
 impl McpSessionRepository {
     pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        let pool = db.pool_arc().map_err(|e| {
-            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
-        })?;
         let write_pool = db.write_pool_arc().map_err(|e| {
             crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
         })?;
-        Ok(Self { pool, write_pool })
+        Ok(Self { write_pool })
     }
 
     pub async fn create(

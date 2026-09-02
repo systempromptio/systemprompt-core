@@ -10,7 +10,7 @@ use clap::Subcommand;
 
 use crate::context::CommandContext;
 
-#[derive(Debug, Subcommand)]
+#[derive(Clone, Copy, Debug, Subcommand)]
 pub enum IdentityCommands {
     #[command(
         about = "Mint oauth_at_rest_pepper, manifest_signing_secret_seed and signing_key_pem in \
