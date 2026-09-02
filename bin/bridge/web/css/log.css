@@ -1,3 +1,41 @@
+/* Activity control bar: search + level filters + copy. These class names were
+ * rendered by activity-parts.js but never had any CSS, so the search box showed
+ * as a raw browser input and the row wrapped unstyled. */
+.sp-log__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-space-2);
+  margin-bottom: var(--sp-space-3);
+}
+.sp-log__search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  background: var(--sp-bg-elev-1);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-corners-sm);
+  padding: var(--sp-space-2) var(--sp-space-3);
+  color: var(--sp-text);
+  font-size: 13px;
+}
+.sp-log__search::placeholder { color: var(--sp-muted); }
+.sp-log__search:focus-visible {
+  border-color: var(--sp-focus);
+  outline: var(--sp-focus-width) solid var(--sp-focus);
+  outline-offset: var(--sp-focus-offset);
+}
+.sp-log__filters { display: inline-flex; flex-wrap: wrap; gap: var(--sp-space-1-5); }
+.sp-log__controls .sp-btn-ghost,
+.sp-log__filter {
+  padding: var(--sp-space-1-5) var(--sp-space-3);
+  font-size: 12px;
+}
+.sp-log__filter[aria-pressed="true"] {
+  background: color-mix(in oklch, var(--sp-accent) 22%, transparent);
+  border-color: color-mix(in oklch, var(--sp-accent) 45%, transparent);
+  color: var(--sp-accent-text);
+}
+
 .sp-log {
   background: var(--sp-log-bg);
   border: 1px solid var(--sp-line);

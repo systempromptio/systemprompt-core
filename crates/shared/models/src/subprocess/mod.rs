@@ -94,12 +94,20 @@ pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
 
 // Why: both spawners clear the child environment and rebuild it from an
 // allowlist, and both need exactly this set. It lives here so the two cannot
-// diverge.
+// diverge. HOSTNAME rides along because a child resolves its own instance id
+// from it on a cloud target; without it the child refuses to boot while the
+// parent runs.
 pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
-    let mut env: Vec<(String, String)> = [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV, "PATH", "HOME"]
-        .iter()
-        .filter_map(|name| lookup(name).map(|value| ((*name).to_owned(), value)))
-        .collect();
+    let mut env: Vec<(String, String)> = [
+        DEPLOYMENT_HOST_ENV,
+        FLY_HOST_ENV,
+        "HOSTNAME",
+        "PATH",
+        "HOME",
+    ]
+    .iter()
+    .filter_map(|name| lookup(name).map(|value| ((*name).to_owned(), value)))
+    .collect();
 
     if let Some(entry) = crate::net::trusted_hosts_env_entry(&lookup) {
         env.push(entry);

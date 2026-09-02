@@ -103,6 +103,7 @@ fn seed_agents() -> PathBuf {
         "includes:\n  - ../agents/covlister.yaml\n  - ../agents/covdormant.yaml\nmcp_servers: {}\n",
     )
     .unwrap();
+    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 

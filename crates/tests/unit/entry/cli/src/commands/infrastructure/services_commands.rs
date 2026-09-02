@@ -123,6 +123,7 @@ fn cleanup_helpers_render_reports_and_messages() {
 #[test]
 fn cleanup_dry_run_result_counts_services() {
     let services = vec![ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "svc-a".to_owned(),
         module_name: "mod-a".to_owned(),
         status: "running".to_owned(),
@@ -130,6 +131,7 @@ fn cleanup_dry_run_result_counts_services() {
         port: 5001,
         binary_mtime: None,
         created_at: String::new(),
+        heartbeat_at: String::new(),
         updated_at: String::new(),
     }];
     let out = cleanup::dry_run_result(&services, Some(999), 8080, false);

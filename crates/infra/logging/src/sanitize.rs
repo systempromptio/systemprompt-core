@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub(crate) const REDACTION_PLACEHOLDER: &str = "[REDACTED]";
+pub const REDACTION_PLACEHOLDER: &str = "[REDACTED]";
 
 const REDACT_SUBSTRINGS: &[&str] = &[
     "password",
@@ -23,11 +23,11 @@ const REDACT_SUBSTRINGS: &[&str] = &[
     "bearer",
 ];
 
-const REDACT_SUFFIXES: &[&str] = &["_cert", "_pem"];
+const REDACT_SUFFIXES: &[&str] = &["_cert", "_pem", "_key", "-key"];
 
 const REDACT_EXACT: &[&str] = &["auth", "cert", "pem"];
 
-pub(crate) fn is_redacted(field_name: &str) -> bool {
+pub fn is_redacted(field_name: &str) -> bool {
     let lower = field_name.to_ascii_lowercase();
     REDACT_SUBSTRINGS.iter().any(|s| lower.contains(s))
         || REDACT_SUFFIXES.iter().any(|s| lower.ends_with(s))
@@ -52,5 +52,59 @@ pub(crate) fn escape_control(value: &str) -> String {
             c => out.push(c),
         }
     }
+    out
+}
+
+const SECRET_POSITIONAL_COMMAND: &[&str] = &["admin", "config", "secret", "set"];
+
+fn has_embedded_credentials(value: &str) -> bool {
+    value
+        .split_once("://")
+        .is_some_and(|(_, rest)| rest.split_once('@').is_some_and(|(u, _)| !u.contains('/')))
+}
+
+pub fn redact_argv(args: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::with_capacity(args.len());
+    let mut redact_next = false;
+
+    for arg in args {
+        if redact_next {
+            redact_next = false;
+            out.push(REDACTION_PLACEHOLDER.to_owned());
+            continue;
+        }
+
+        if let Some(flag) = arg.strip_prefix('-') {
+            let flag = flag.trim_start_matches('-');
+            if let Some((name, value)) = flag.split_once('=') {
+                if is_redacted(name) || has_embedded_credentials(value) {
+                    let dashes = &arg[..arg.len() - flag.len()];
+                    out.push(format!("{dashes}{name}={REDACTION_PLACEHOLDER}"));
+                } else {
+                    out.push(arg.clone());
+                }
+            } else {
+                redact_next = is_redacted(flag);
+                out.push(arg.clone());
+            }
+            continue;
+        }
+
+        if has_embedded_credentials(arg) {
+            out.push(REDACTION_PLACEHOLDER.to_owned());
+        } else {
+            out.push(arg.clone());
+        }
+    }
+
+    if args.len() > SECRET_POSITIONAL_COMMAND.len() + 1
+        && args
+            .iter()
+            .zip(SECRET_POSITIONAL_COMMAND)
+            .all(|(a, expected)| a.as_str() == *expected)
+    {
+        REDACTION_PLACEHOLDER.clone_into(&mut out[SECRET_POSITIONAL_COMMAND.len() + 1]);
+    }
+
     out
 }

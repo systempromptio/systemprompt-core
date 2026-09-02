@@ -30,7 +30,7 @@ pub mod extension;
 pub mod layer;
 pub mod models;
 pub mod repository;
-mod sanitize;
+pub mod sanitize;
 pub mod services;
 pub mod trace;
 
@@ -45,8 +45,8 @@ pub use services::CliService;
 pub use services::{
     BufferedNotice, DatabaseLogService, FilterSystemFields, LogThrottle, LoggingMaintenanceService,
     RequestSpan, RequestSpanBuilder, SystemSpan, buffer_notice, drain_notices, is_startup_mode,
-    is_structured_output, mark_structured_emitted, publish_log, set_log_publisher,
-    set_startup_mode, set_structured_output, structured_was_emitted,
+    is_structured_output, mark_structured_emitted, publish_log, reset_structured_emitted,
+    set_log_publisher, set_startup_mode, set_structured_output, structured_was_emitted,
 };
 pub use trace::{
     AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats,
@@ -61,6 +61,7 @@ use std::sync::OnceLock;
 
 use layer::ProxyDatabaseLayer;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::InstanceId;
 use tracing::Level;
 use tracing_subscriber::filter::FilterFn;
 use tracing_subscriber::layer::SubscriberExt;
@@ -68,6 +69,18 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
 static SUBSCRIBER_INITIALIZED: OnceLock<()> = OnceLock::new();
+static INSTANCE_ID: OnceLock<InstanceId> = OnceLock::new();
+
+pub fn set_instance_id(instance_id: InstanceId) {
+    if INSTANCE_ID.set(instance_id).is_err() {
+        tracing::debug!("logging instance id already set; ignoring");
+    }
+}
+
+#[must_use]
+pub fn instance_id() -> Option<&'static InstanceId> {
+    INSTANCE_ID.get()
+}
 static DB_PROXY: OnceLock<ProxyDatabaseLayer> = OnceLock::new();
 
 const NOISE_FILTERS: &[&str] = &[

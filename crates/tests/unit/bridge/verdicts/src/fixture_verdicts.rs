@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 use systemprompt_bridge::integration::agent_health::{
-    AgentFleets, AgentSurface, AgentVerdict, HostHealthInputs, HostModelViewRef, SYNC_ONLY_AGENTS,
-    verdict,
+    AgentFleets, AgentSurface, AgentVerdict, HostCapabilities, HostHealthInputs, HostModelViewRef,
+    SYNC_ONLY_AGENTS, verdict,
 };
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
@@ -182,6 +182,11 @@ fn recompute(doc: &Value) -> Option<Value> {
             manifest_synced,
             can_open: false,
         });
+        // Why: read from the same `HostCapabilities` the real payload uses
+        // rather than five more literals here. This block is already a mirror
+        // of `serde::build_sync_only_entry`, and it is how `can_open` came to
+        // be missing from every fixture entry it wrote.
+        let caps = HostCapabilities::for_surface(AgentSurface::SyncOnly, false);
         updated.push(json!({
             "id": agent.id,
             "display_name": agent.display_name,
@@ -191,6 +196,11 @@ fn recompute(doc: &Value) -> Option<Value> {
             "config_format": "json",
             "download_url": "",
             "install_action_label": "",
+            "can_open": caps.can_open,
+            "can_verify": caps.can_verify,
+            "can_repair": caps.can_repair,
+            "can_open_config": caps.can_open_config,
+            "can_remove": caps.can_remove,
             "probe_in_flight": false,
             "enabled": true,
             "last_generated_profile": Value::Null,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Fixed
+
+- Analytics lookups that feed an authorization decision read the primary, not a read replica; a moment after a write the replica still answered with the previous row.
+
 ## [0.42.0] - 2026-08-31
 
 ### Added

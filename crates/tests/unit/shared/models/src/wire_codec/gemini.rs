@@ -129,6 +129,44 @@ fn gemini_response_format_json_schema_sets_mime_and_schema() {
 }
 
 #[test]
+fn gemini_response_schema_is_shaped_to_the_openapi_subset() {
+    let mut req = base_request();
+    req.response_format = Some(ResponseFormat::JsonSchema {
+        name: "s".to_owned(),
+        schema: json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "stage": {"type": ["string", "null"], "enum": ["new", "won", null]},
+                "tasks": {
+                    "type": "array",
+                    "items": {"type": "object", "additionalProperties": false,
+                              "properties": {"title": {"type": "string"}}, "required": ["title"]}
+                }
+            },
+            "required": ["stage", "tasks"]
+        }),
+        strict: true,
+    });
+    let body = gemini::build_request_body(&req, None);
+    let schema = &body["generationConfig"]["responseSchema"];
+    assert!(schema.get("additionalProperties").is_none());
+    assert!(
+        schema["properties"]["tasks"]["items"]
+            .get("additionalProperties")
+            .is_none()
+    );
+    let stage = &schema["properties"]["stage"];
+    assert_eq!(
+        stage["type"], "string",
+        "type list folded to its non-null type"
+    );
+    assert_eq!(stage["nullable"], json!(true));
+    assert_eq!(stage["enum"], json!(["new", "won"]), "null leaves the enum");
+    assert_eq!(schema["required"], json!(["stage", "tasks"]));
+}
+
+#[test]
 fn gemini_tools_strip_unsupported_schema_keywords() {
     let mut req = base_request();
     req.tools = vec![tool_with_unsupported_keywords()];

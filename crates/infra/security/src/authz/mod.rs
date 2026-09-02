@@ -62,10 +62,10 @@ pub use ingestion::{
 pub use keep::{BulkKeepQuery, allowed_ids};
 pub use marketplace_floor::member_attribute_floor;
 pub use parent_chain::{
-    ChainSources, LoadedParent, MarketplaceSource, ParentChainIndex, ResolveBase,
+    ChainIndexCache, ChainSources, LoadedParent, MarketplaceSource, ParentChainIndex, ResolveBase,
 };
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};
-pub use repository::{AccessControlRepository, UpsertRuleParams};
+pub use repository::{AccessControlRepository, ChainFingerprint, UpsertRuleParams};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
 pub use subject::{

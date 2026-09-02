@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- `resolve_instance_id` is re-exported for consumers that scope a decision to the node.
+
+### Changed
+
+- The authz parent-chain index is cached rather than rebuilt per decision.
+
+### Fixed
+
+- The chain-cache guard is released before a reload, removing a self-deadlock on the reload path.
+
 ## [0.42.0] - 2026-08-31
 
 ### Changed

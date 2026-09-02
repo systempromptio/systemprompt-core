@@ -1,6 +1,8 @@
 #![allow(clippy::all)]
 #[cfg(test)]
 mod args;
+#[cfg(all(test, unix))]
+mod comms_drain;
 #[cfg(test)]
 mod credential_helper;
 #[cfg(test)]
@@ -13,3 +15,5 @@ mod doctor_auth;
 mod doctor_cowork;
 #[cfg(test)]
 mod doctor_filesystem;
+#[cfg(test)]
+mod proxy_command;

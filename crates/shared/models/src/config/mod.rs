@@ -33,16 +33,27 @@ static CONFIG: OnceLock<Config> = OnceLock::new();
 pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
 
 #[must_use]
-pub fn default_instance_id() -> String {
+pub fn stable_instance_id() -> Option<String> {
     std::env::var("HOSTNAME")
         .ok()
-        .filter(|h| !h.trim().is_empty())
-        .unwrap_or_else(|| format!("instance-{}", uuid::Uuid::new_v4().simple()))
+        .map(|h| h.trim().to_owned())
+        .filter(|h| !h.is_empty())
+}
+
+#[must_use]
+pub fn random_instance_id() -> String {
+    format!("instance-{}", uuid::Uuid::new_v4().simple())
+}
+
+#[must_use]
+pub fn default_instance_id() -> String {
+    stable_instance_id().unwrap_or_else(random_instance_id)
 }
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub instance_id: String,
+    pub metrics_port: Option<u16>,
     pub max_concurrent_streams: usize,
     pub sitename: String,
     pub database_type: String,

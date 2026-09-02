@@ -3,8 +3,9 @@
 //! [`ProxyEngine`] resolves a service by name, enforces access via the proxy
 //! auth boundary, forwards the request to the local backend port, and streams
 //! the response back (with SSE keep-alive). For MCP it also maintains the
-//! session-identity cache so a session-only follow-up request can be enriched
-//! with the identity established on the authenticated initialize call.
+//! persisted session identity so a session-only follow-up request can be
+//! enriched, on any replica, with the identity established on the
+//! authenticated initialize call.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,19 +20,17 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::HeaderMap;
 use axum::response::Response;
-use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_database::ServiceConfig;
 use systemprompt_identifiers::AgentName;
+use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use tokio::sync::RwLock;
 
 use super::auth::{AccessValidator, build_mcp_unknown_service_challenge};
 use super::backend::{HeaderInjector, ProxyError, RequestBuilder, ResponseHandler, UrlResolver};
 use super::client::ClientPool;
 use super::resolver::ServiceResolver;
-use mcp_session::SessionCache;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProxyKind {
@@ -49,21 +48,15 @@ pub struct ProxyTarget<'a> {
 #[derive(Debug, Clone)]
 pub struct ProxyEngine {
     client_pool: ClientPool,
-    session_cache: SessionCache,
+    identities: Arc<McpProxyIdentityRepository>,
     tool_usage_repo: Option<Arc<systemprompt_mcp::repository::ToolUsageRepository>>,
 }
 
-impl Default for ProxyEngine {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ProxyEngine {
-    pub fn new() -> Self {
+    pub fn new(identities: Arc<McpProxyIdentityRepository>) -> Self {
         Self {
             client_pool: ClientPool::new(),
-            session_cache: Arc::new(RwLock::new(HashMap::new())),
+            identities,
             tool_usage_repo: None,
         }
     }
@@ -144,7 +137,7 @@ impl ProxyEngine {
 
         if service.module_name == "mcp" {
             mcp_session::handle_mcp_response(mcp_session::McpResponseCtx {
-                cache: &self.session_cache,
+                identities: &self.identities,
                 response: &response,
                 request_headers: &request_headers,
                 req_context: &req_context,
@@ -194,7 +187,7 @@ impl ProxyEngine {
 
         if service.module_name == "mcp" && req_context.auth_token().as_str().is_empty() {
             req_context = mcp_session::enrich_with_cached_identity(
-                &self.session_cache,
+                &self.identities,
                 request_headers,
                 req_context,
                 service_name,

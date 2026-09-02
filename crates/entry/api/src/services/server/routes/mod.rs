@@ -25,7 +25,8 @@ use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
     A2AContextMiddleware, JtiRevocationChecker, JwtContextExtractor, McpContextMiddleware,
-    PublicContextMiddleware, RouterExt, UserOnlyContextMiddleware, ip_ban_middleware,
+    PublicContextMiddleware, RateLimitState, RouterExt, UserOnlyContextMiddleware,
+    ip_ban_middleware,
 };
 
 pub(super) fn configure_routes(
@@ -34,42 +35,37 @@ pub(super) fn configure_routes(
 ) -> Result<Router, LoaderError> {
     let mut router = Router::new();
 
-    let metrics_handle =
-        super::metrics::install_recorder().map_err(|e| LoaderError::InitializationFailed {
+    super::metrics::install_recorder(&ctx.config().instance_id).map_err(|e| {
+        LoaderError::InitializationFailed {
             extension: "prometheus_metrics".to_owned(),
             message: e.to_string(),
-        })?;
+        }
+    })?;
 
     let jwt_extractor = build_jwt_extractor(ctx)?;
+    let limits = RateLimitState::from_context(ctx)?;
 
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
     let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
-    router = protocol::mount_oauth(router, ctx, &public_middleware, &user_middleware)?;
-    router = protocol::mount_agent(
-        router,
+    let mount = protocol::MountCtx {
         ctx,
-        &public_middleware,
-        &user_middleware,
-        a2a_middleware,
-    )?;
-    router = protocol::mount_mcp_and_stream(
-        router,
-        ctx,
-        &public_middleware,
-        &user_middleware,
-        mcp_middleware,
-    )?;
-    router = protocol::mount_content_and_misc(router, ctx, &public_middleware, &user_middleware)?;
-    router = protocol::mount_messaging(router, ctx)?;
+        limits: &limits,
+        public_middleware: &public_middleware,
+        user_middleware: &user_middleware,
+    };
+    router = protocol::mount_oauth(router, &mount)?;
+    router = protocol::mount_agent(router, &mount, a2a_middleware)?;
+    router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
+    router = protocol::mount_content_and_misc(router, &mount)?;
+    router = protocol::mount_messaging(router, &mount)?;
 
     router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 
-    router = router.merge(
-        discovery_router(ctx, metrics_handle).with_auth(public_middleware, AuthzPolicy::public()),
-    );
+    router =
+        router.merge(discovery_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
     router = router.merge(
         authenticated_discovery_router(ctx)
             .with_auth(user_middleware, AuthzPolicy::authenticated()),
@@ -84,7 +80,7 @@ pub(super) fn configure_routes(
                 "/auth/link-passkey",
                 axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
             )
-            .with_rate_limit(ctx.config(), rate_config.oauth_public_per_second)?
+            .with_rate_limit(&limits, rate_config.oauth_public_per_second, "oauth_public")?
             .with_auth(public_middleware, AuthzPolicy::public()),
     );
 
@@ -133,11 +129,8 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
     ))
 }
 
-fn discovery_router(
-    ctx: &AppContext,
-    metrics_handle: metrics_exporter_prometheus::PrometheusHandle,
-) -> Router {
-    super::builder::discovery_router(ctx, metrics_handle)
+fn discovery_router(ctx: &AppContext) -> Router {
+    super::builder::discovery_router(ctx)
 }
 
 fn authenticated_discovery_router(ctx: &AppContext) -> Router {

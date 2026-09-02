@@ -19,9 +19,7 @@ use base64::Engine;
 use systemprompt_models::profile::resolve_with_home;
 use systemprompt_models::secrets::Secrets;
 
-use super::manifest::{
-    MANIFEST_SIGNING_SEED_BYTES, decode_seed, dir_is_writable, generate_seed, persist_seed,
-};
+use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use super::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
@@ -71,24 +69,25 @@ pub enum SecretsBootstrapError {
     DatabaseUrlRequired,
 
     #[error(
-        "manifest_signing_secret_seed is missing from the secrets file and the bootstrap path is \
-         not writable. Run `systemprompt admin bridge rotate-signing-key` against a writable \
-         secrets file, or add a base64-encoded 32-byte value under `manifest_signing_secret_seed`."
+        "manifest_signing_secret_seed is required: every replica must share one seed, so it is \
+         never generated at boot. Run `systemprompt admin identity generate --json` once and \
+         distribute the value (secrets file or MANIFEST_SIGNING_SECRET_SEED)."
     )]
-    ManifestSeedUnavailable,
+    ManifestSeedRequired,
+
+    #[error(
+        "signing_key_pem is required on cloud and deployment-host boots: every replica must \
+         sign with one key, so it is never read from a file beside the binary there. Run \
+         `systemprompt admin identity generate --json` once and distribute the value (secrets \
+         file or SIGNING_KEY_PEM)."
+    )]
+    SigningKeyPemRequired,
 
     #[error("manifest_signing_secret_seed is invalid: {message}")]
     ManifestSeedInvalid { message: String },
 
     #[error("signing_key_pem secret is invalid: {message}")]
     SigningKeyPemInvalid { message: String },
-
-    #[error(
-        "manifest_signing_secret_seed missing in subprocess env — parent must propagate \
-         MANIFEST_SIGNING_SECRET_SEED so subprocesses don't regenerate and clobber the secrets \
-         file"
-    )]
-    SubprocessSeedMissing,
 }
 
 impl SecretsBootstrap {
@@ -97,8 +96,8 @@ impl SecretsBootstrap {
             return Err(SecretsBootstrapError::AlreadyInitialized.into());
         }
 
-        let mut secrets = loader::load_from_profile_config()?;
-        Self::ensure_manifest_signing_seed(&mut secrets)?;
+        let secrets = loader::load_from_profile_config()?;
+        Self::validate_identity(&secrets)?;
 
         Self::log_loaded_secrets(&secrets);
 
@@ -136,7 +135,7 @@ impl SecretsBootstrap {
         let encoded = Self::get()?
             .manifest_signing_secret_seed
             .as_deref()
-            .ok_or(SecretsBootstrapError::ManifestSeedUnavailable)?;
+            .ok_or(SecretsBootstrapError::ManifestSeedRequired)?;
         decode_seed(encoded)
     }
 
@@ -147,53 +146,25 @@ impl SecretsBootstrap {
         Ok(seed)
     }
 
-    fn ensure_manifest_signing_seed(secrets: &mut Secrets) -> ConfigResult<()> {
-        if let Some(encoded) = secrets.manifest_signing_secret_seed.as_deref() {
-            decode_seed(encoded)?;
-            return Ok(());
-        }
-        if std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok() {
-            return Err(SecretsBootstrapError::SubprocessSeedMissing.into());
-        }
-        let Ok(path) = Self::resolved_secrets_file_path() else {
-            tracing::warn!(
-                "manifest_signing_secret_seed missing and no writable secrets file is configured"
-            );
-            return Ok(());
-        };
-        if !path.exists() {
-            tracing::warn!(
-                path = %path.display(),
-                "manifest_signing_secret_seed missing and secrets file does not exist on disk"
-            );
-            return Ok(());
-        }
-        let seed = generate_seed();
-        secrets.manifest_signing_secret_seed =
-            Some(base64::engine::general_purpose::STANDARD.encode(seed));
+    // Why: identity secrets are inputs. A seed minted at boot gives every
+    // replica its own manifest identity, and a key read from a file beside the
+    // binary is regenerated per container; both were found by boot failures on
+    // a second node. Local profiles may still keep the RSA key at
+    // `signing_key_path`, which is why the PEM is only demanded where a file
+    // beside the binary cannot be shared.
+    fn validate_identity(secrets: &Secrets) -> ConfigResult<()> {
+        let encoded = secrets
+            .manifest_signing_secret_seed
+            .as_deref()
+            .ok_or(SecretsBootstrapError::ManifestSeedRequired)?;
+        decode_seed(encoded)?;
 
-        let profile_dir = path.parent().unwrap_or_else(|| Path::new("."));
-        if !dir_is_writable(profile_dir) {
-            tracing::warn!(
-                path = %path.display(),
-                "profile dir is read-only — using an ephemeral manifest signing seed for this \
-                 boot; set MANIFEST_SIGNING_SECRET_SEED or use a writable dir to persist it"
-            );
-            return Ok(());
+        let is_deployment_host =
+            systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
+        let is_cloud = ProfileBootstrap::get().is_ok_and(|profile| profile.target.is_cloud());
+        if (is_deployment_host || is_cloud) && secrets.signing_key_pem.is_none() {
+            return Err(SecretsBootstrapError::SigningKeyPemRequired.into());
         }
-        if let Err(err) = persist_seed(&path, &seed) {
-            tracing::warn!(
-                path = %path.display(),
-                error = %err,
-                "could not persist manifest_signing_secret_seed — using an ephemeral seed for \
-                 this boot; set MANIFEST_SIGNING_SECRET_SEED to make it stable"
-            );
-            return Ok(());
-        }
-        tracing::info!(
-            path = %path.display(),
-            "Generated and persisted fresh manifest_signing_secret_seed"
-        );
         Ok(())
     }
 

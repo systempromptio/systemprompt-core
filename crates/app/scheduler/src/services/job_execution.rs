@@ -15,14 +15,14 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::Actor;
+use systemprompt_identifiers::{Actor, InstanceId};
 use systemprompt_models::SchedulerConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
 
 use super::scheduling::make_job_context;
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::models::JobStatus;
+use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::JobRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,7 +254,15 @@ impl JobExecutionService {
         };
 
         if let Err(e) = repo
-            .update_job_execution(&report.job_name, status, error, next_run)
+            .update_job_execution(
+                &report.job_name,
+                JobRunRecord {
+                    status,
+                    error,
+                    next_run,
+                    instance_id: &InstanceId::new(&self.ctx.config().instance_id),
+                },
+            )
             .await
         {
             tracing::warn!(job = %report.job_name, error = %e, "failed to record manual job execution");

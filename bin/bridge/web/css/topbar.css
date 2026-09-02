@@ -88,6 +88,22 @@ body.is-platform-macos .sp-topbar { padding-left: 92px; }
 .sp-sync-pill[data-state="ok"] .sp-sync-pill__dot { background: var(--sp-ok); }
 .sp-sync-pill[data-state="err"] { color: var(--sp-err); border-color: color-mix(in srgb, var(--sp-err) 50%, transparent); }
 .sp-sync-pill[data-state="err"] .sp-sync-pill__dot { background: var(--sp-err); }
+/* The current sync step, beside "syncing". Secondary to the status word and
+   bounded, because a plugin id is arbitrary length and this pill sits in the
+   middle of the topbar — it must not push Cancel off the end. */
+.sp-sync-pill__step {
+  color: var(--sp-muted);
+  font-variant-numeric: tabular-nums;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-sync-pill__step::before {
+  content: "·";
+  margin-inline-end: var(--sp-space-1-5);
+}
+
 .sp-sync-pill__cancel {
   appearance: none;
   border: 0;

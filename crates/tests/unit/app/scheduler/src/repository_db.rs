@@ -13,8 +13,9 @@
 //! executes and returns a well-formed (possibly empty) result set against the
 //! freshly-migrated DB.
 
+use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::repository::{AnalyticsRepository, SecurityRepository};
-use systemprompt_scheduler::{JobRepository, JobStatus, SchedulerRepository};
+use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus, SchedulerRepository};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 // Returns None (skipping the test) when no integration DB is configured.
@@ -115,9 +116,17 @@ mod scheduler_repository {
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
             .expect("upsert");
-        repo.update_job_execution(&name, JobStatus::Failed, Some("boom"), None)
-            .await
-            .expect("update execution");
+        repo.update_job_execution(
+            &name,
+            JobRunRecord {
+                status: JobStatus::Failed,
+                error: Some("boom"),
+                next_run: None,
+                instance_id: &InstanceId::new("test-node"),
+            },
+        )
+        .await
+        .expect("update execution");
 
         let job = repo
             .find_job(&name)
@@ -138,12 +147,28 @@ mod scheduler_repository {
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
             .expect("upsert");
-        repo.update_job_execution(&name, JobStatus::Failed, Some("boom"), None)
-            .await
-            .expect("first update");
-        repo.update_job_execution(&name, JobStatus::Success, None, None)
-            .await
-            .expect("second update");
+        repo.update_job_execution(
+            &name,
+            JobRunRecord {
+                status: JobStatus::Failed,
+                error: Some("boom"),
+                next_run: None,
+                instance_id: &InstanceId::new("test-node"),
+            },
+        )
+        .await
+        .expect("first update");
+        repo.update_job_execution(
+            &name,
+            JobRunRecord {
+                status: JobStatus::Success,
+                error: None,
+                next_run: None,
+                instance_id: &InstanceId::new("test-node"),
+            },
+        )
+        .await
+        .expect("second update");
 
         let job = repo
             .find_job(&name)
@@ -269,9 +294,17 @@ mod job_repository {
         repo.upsert_job(&name, "0 0 * * * *", true)
             .await
             .expect("upsert");
-        repo.update_job_execution(&name, JobStatus::Success, None, None)
-            .await
-            .expect("execute");
+        repo.update_job_execution(
+            &name,
+            JobRunRecord {
+                status: JobStatus::Success,
+                error: None,
+                next_run: None,
+                instance_id: &InstanceId::new("test-node"),
+            },
+        )
+        .await
+        .expect("execute");
 
         let rows = repo.list_recent_runs(100).await.expect("list recent");
         let names: Vec<&str> = rows.iter().map(|j| j.job_name.as_str()).collect();

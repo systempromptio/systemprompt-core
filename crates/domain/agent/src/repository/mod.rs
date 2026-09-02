@@ -38,8 +38,9 @@ impl A2ARepositories {
     pub fn new(
         db: &DbPool,
         session_usage: systemprompt_traits::DynSessionUsageCounters,
+        instance_id: systemprompt_identifiers::InstanceId,
     ) -> Result<Self, AgentError> {
-        let agent_services = agent_service::AgentServiceRepository::new(db)?;
+        let agent_services = agent_service::AgentServiceRepository::new(db, instance_id)?;
         let tasks = task::TaskRepository::new(db, session_usage)?;
         let contexts = ContextRepository::new(db)?;
         let context_notifications = context::ContextNotificationRepository::new(db)

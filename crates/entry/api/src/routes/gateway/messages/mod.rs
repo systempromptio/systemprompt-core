@@ -36,11 +36,12 @@ use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::Response;
 use std::sync::Arc;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::Profile;
+use systemprompt_loader::ServicesBootstrap;
+use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
 
+use crate::services::gateway::audit::GatewayAccessLog;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::middleware::JwtContextExtractor;
 
@@ -52,8 +53,9 @@ pub(super) struct RequestContext<'a> {
     pub jwt_extractor: &'a JwtContextExtractor,
     pub ctx: &'a AppContext,
     pub repos: &'a crate::services::gateway::GatewayRepositories,
-    pub profile: &'a Profile,
+    pub services: &'static ServicesConfig,
     pub ai_request_id: &'a AiRequestId,
+    pub access_log: Option<GatewayAccessLog>,
 }
 
 pub async fn handle(
@@ -128,17 +130,19 @@ struct HandleInner<'a> {
 
 impl HandleInner<'_> {
     async fn run(self, request: Request<Body>) -> Result<Response<Body>, RejectionError> {
-        let profile = ProfileBootstrap::get().map_err(|e| RejectionError {
+        let services = ServicesBootstrap::get().map_err(|e| RejectionError {
             status: StatusCode::SERVICE_UNAVAILABLE,
-            message: format!("Profile not ready: {e}"),
+            message: format!("Services config not ready: {e}"),
             persist: true,
         })?;
+        let access_log = request.extensions().get::<GatewayAccessLog>().cloned();
         let request_ctx = RequestContext {
             jwt_extractor: self.jwt_extractor,
             ctx: self.ctx,
             repos: self.repos,
-            profile,
+            services,
             ai_request_id: self.ai_request_id,
+            access_log,
         };
         let prepared = extract_request_context(&request_ctx, &self.inbound, request, self.partial)
             .await

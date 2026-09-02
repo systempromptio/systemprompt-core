@@ -101,6 +101,50 @@ pub enum AgentSurface {
     SyncOnly,
 }
 
+/// What the GUI may offer for one agent, derived from its surface.
+///
+/// The front end renders these; it does not decide them. Before this existed
+/// the agent drawer offered Open / Repair / Verify / Show config file / Remove
+/// for every row unconditionally, so a [`AgentSurface::SyncOnly`] agent — which
+/// installs nothing on this computer and implements no `HostApp` — offered all
+/// five, and each one reached a handler whose only possible answer was
+/// `unknown host: claude-code`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostCapabilities {
+    pub can_open: bool,
+    pub can_verify: bool,
+    pub can_repair: bool,
+    pub can_open_config: bool,
+    pub can_remove: bool,
+}
+
+impl HostCapabilities {
+    // Why: `can_open` is the host's own answer (some local hosts cannot be
+    // launched); the rest follow from whether anything of this agent lives on
+    // this computer at all.
+    #[must_use]
+    pub const fn for_surface(surface: AgentSurface, can_open: bool) -> Self {
+        match surface {
+            AgentSurface::LocalProfile => Self {
+                can_open,
+                can_verify: true,
+                can_repair: true,
+                can_open_config: true,
+                can_remove: true,
+            },
+            // Why: no profile to generate, no config file to open, no process
+            // to probe, nothing to remove. Governed entirely from the gateway.
+            AgentSurface::SyncOnly => Self {
+                can_open: false,
+                can_verify: false,
+                can_repair: false,
+                can_open_config: false,
+                can_remove: false,
+            },
+        }
+    }
+}
+
 /// The verdict for one agent, plus the three facts the GUI renders around it.
 ///
 /// `is_set_up` means the agent belongs in the Agents list rather than behind
@@ -141,8 +185,8 @@ pub struct HostModelViewRef<'a> {
     pub unconfigured_providers: &'a [String],
 }
 
-impl<'a> From<&'a crate::integration::host_app::HostModelView> for HostModelViewRef<'a> {
-    fn from(v: &'a crate::integration::host_app::HostModelView) -> Self {
+impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRef<'a> {
+    fn from(v: &'a crate::gateway::model_view::HostModelView) -> Self {
         Self {
             checked: v.checked,
             available: v.available,
@@ -157,7 +201,7 @@ impl<'a> From<&'a crate::integration::host_app::HostModelView> for HostModelView
 #[must_use]
 pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     if input.surface == AgentSurface::SyncOnly {
-        return sync_only_verdict(input.manifest_synced);
+        return super::sync_only::sync_only_verdict(input.manifest_synced);
     }
 
     // Why: a host that has never been probed is unknown, not absent. Collapsing
@@ -253,33 +297,6 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
             AgentReason::ProxyDown { probe },
             Some(AgentAction::Verify),
         ),
-    }
-}
-
-// Why: a sync-only agent is governed by construction — it reaches the gateway
-// directly — so the only thing this machine can say about it is whether the
-// manifest that enables it has arrived yet.
-const fn sync_only_verdict(manifest_synced: bool) -> AgentVerdict {
-    if manifest_synced {
-        AgentVerdict {
-            state: AgentState::Working,
-            tone: AgentState::Working.tone(),
-            reason: AgentReason::CloudManaged,
-            action: None,
-            is_set_up: true,
-            is_installed: true,
-            is_running: false,
-        }
-    } else {
-        AgentVerdict {
-            state: AgentState::Checking,
-            tone: AgentState::Checking.tone(),
-            reason: AgentReason::NeverProbed,
-            action: None,
-            is_set_up: false,
-            is_installed: false,
-            is_running: false,
-        }
     }
 }
 

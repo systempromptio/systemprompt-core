@@ -52,6 +52,7 @@ login-pull-manifest = Signed in — fetching your plugins…
 logout-running = Signing out…
 logout-success = Signed out
 logout-failure = Could not sign out: { $error }
+session-rejected = { $gateway } no longer accepts this bridge's credentials ({ $reason }). Sign in again to resume.
 validate-result = { $checks } checks · { $failed } failed · { $warned } warnings
 validate-running = Re-checking…
 
@@ -194,19 +195,11 @@ status-proxy-endpoints-detail = Models the proxy advertises to agents.
 status-proxy-endpoints-empty = No models configured yet — start an agent to populate.
 status-mcp-heading = MCP servers
 status-mcp-caption = Whether managed MCP servers authenticate end-to-end through the proxy, and the tools they expose.
-status-agents-heading = Agents
-status-agents-caption-prefix = Coding agents routed through systemprompt bridge. Manage them in the
-status-agents-tab-link = Agents tab
-status-agents-working = Working
-status-agents-foot-configured = { $n } configured
-status-agents-foot-running = { $n } app running
-status-agents-foot-attention = { $n } need attention
 agents-fleet-all-working = all working
 agents-fleet-needs-attention = needs attention
 agents-fleet-not-working = not working
 agents-fleet-checking = checking…
 agents-fleet-none-enabled = no agents enabled
-status-open-agents = Open agents
 
 # Settings tab ----------------------------------------------------------------
 settings-heading = Settings
@@ -446,6 +439,8 @@ settings-security-heading = Security
 settings-session-label = Sign in through the browser instead of a personal access token
 status-health-heading = Setup health
 status-health-caption = Every check the bridge runs on this machine, failures first. Empty when there is nothing to fix.
+setup-finalizing-head = Finishing setup…
+setup-finalizing-body = Signing you in and preparing { $app }. This only takes a moment.
 setup-health-all = All checks
 setup-health-all-passed = All checks passed.
 setup-health-checked = checked { $ago }

@@ -5,6 +5,7 @@
 //! The gateway runs these against a fresh, freshly-migrated Postgres instance.
 
 mod auth_code;
+mod authoritative_reads_db;
 mod bridge_host_prefs;
 mod bridge_session;
 mod cleanup;

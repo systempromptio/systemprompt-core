@@ -21,6 +21,9 @@ pub enum FileUploadError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("Storage error: {0}")]
+    Storage(#[from] systemprompt_traits::FileStorageError),
+
     #[error("Database error: {0}")]
     Database(String),
 

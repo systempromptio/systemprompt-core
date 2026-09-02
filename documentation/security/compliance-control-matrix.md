@@ -142,7 +142,7 @@ Bridge release artefacts are signed with `cosign` keyless (`.github/workflows/re
 
 ### 5.1 Accepted-risk register
 
-We publish the register rather than reporting a clean scan. As of 0.43.0, `deny.toml`
+We publish the register rather than reporting a clean scan. As of 0.44.0, `deny.toml`
 records 14 suppressed advisories, each with a written justification. Two are reachable from
 the published crates:
 

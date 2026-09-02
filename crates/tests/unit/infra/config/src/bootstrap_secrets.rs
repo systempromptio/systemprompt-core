@@ -156,65 +156,54 @@ fn init_errors_on_invalid_manifest_seed() {
 }
 
 #[test]
-fn init_generates_and_persists_missing_seed() {
+fn init_errors_when_seed_missing() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&fixture::secrets_json(None)));
     init_profile(&fx);
-
-    let secrets = SecretsBootstrap::init().unwrap();
-
-    let encoded = secrets.manifest_signing_secret_seed.as_deref().unwrap();
-    let in_memory = decode_seed(encoded).unwrap();
-
-    let on_disk: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&fx.secrets_path).unwrap()).unwrap();
-    let persisted = decode_seed(on_disk["manifest_signing_secret_seed"].as_str().unwrap()).unwrap();
-    assert_eq!(persisted, in_memory);
-    assert_eq!(
-        on_disk["oauth_at_rest_pepper"].as_str(),
-        Some(fixture::PEPPER)
-    );
-    assert_eq!(
-        SecretsBootstrap::manifest_signing_secret_seed().unwrap(),
-        in_memory
-    );
-}
-
-#[cfg(unix)]
-#[test]
-fn init_uses_ephemeral_seed_when_profile_dir_read_only() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&fixture::secrets_json(None)));
-    init_profile(&fx);
-    let dir = fx.profile_path.parent().unwrap();
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o555)).unwrap();
-
-    let secrets = SecretsBootstrap::init().unwrap();
-
-    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let encoded = secrets.manifest_signing_secret_seed.as_deref().unwrap();
-    decode_seed(encoded).unwrap();
-    let on_disk: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&fx.secrets_path).unwrap()).unwrap();
-    assert!(
-        on_disk.get("manifest_signing_secret_seed").is_none(),
-        "read-only dir must not be written"
-    );
-}
-
-#[test]
-fn init_errors_in_subprocess_mode_without_seed() {
-    let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&fixture::secrets_json(None)));
-    init_profile(&fx);
-    fixture::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
-    fixture::remove_env("OAUTH_AT_REST_PEPPER");
 
     let err = SecretsBootstrap::init().unwrap_err();
 
     assert!(matches!(
         err,
-        ConfigError::Secrets(SecretsBootstrapError::SubprocessSeedMissing)
+        ConfigError::Secrets(SecretsBootstrapError::ManifestSeedRequired)
     ));
+    let on_disk: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&fx.secrets_path).unwrap()).unwrap();
+    assert!(
+        on_disk.get("manifest_signing_secret_seed").is_none(),
+        "boot must never mint a seed into the secrets file"
+    );
+}
+
+#[test]
+fn init_errors_when_signing_key_pem_missing_on_deployment_host() {
+    let fx = fixture::write_tree(
+        fixture::FILE_SECRETS,
+        Some(&fixture::secrets_json(Some(fixture::SEED))),
+    );
+    init_profile(&fx);
+    fixture::set_env("SYSTEMPROMPT_DEPLOYMENT_HOST", "node-a");
+    fixture::remove_env("OAUTH_AT_REST_PEPPER");
+
+    let err = SecretsBootstrap::init().unwrap_err();
+    fixture::remove_env("SYSTEMPROMPT_DEPLOYMENT_HOST");
+
+    assert!(matches!(
+        err,
+        ConfigError::Secrets(SecretsBootstrapError::SigningKeyPemRequired)
+    ));
+}
+
+#[test]
+fn init_accepts_missing_signing_key_pem_on_local_profile() {
+    let fx = fixture::write_tree(
+        fixture::FILE_SECRETS,
+        Some(&fixture::secrets_json(Some(fixture::SEED))),
+    );
+    init_profile(&fx);
+
+    let secrets = SecretsBootstrap::init().unwrap();
+
+    assert!(secrets.signing_key_pem.is_none());
 }
 
 #[test]

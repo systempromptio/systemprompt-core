@@ -26,6 +26,7 @@ use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
+use systemprompt_traits::FileStorage;
 use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
@@ -78,6 +79,7 @@ pub struct Subsystems {
     pub authz_hook: SharedAuthzHook,
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub geoip_reader: Option<GeoIpReader>,
+    pub file_storage: Arc<dyn FileStorage>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -170,6 +172,10 @@ impl AppContext {
 
     pub const fn geoip_reader(&self) -> Option<&GeoIpReader> {
         self.subsystems.geoip_reader.as_ref()
+    }
+
+    pub const fn file_storage(&self) -> &Arc<dyn FileStorage> {
+        &self.subsystems.file_storage
     }
 
     pub const fn analytics_service(&self) -> &Arc<AnalyticsService> {

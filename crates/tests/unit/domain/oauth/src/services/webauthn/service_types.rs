@@ -1,59 +1,7 @@
-//! Tests for WebAuthn service data types: VerifiedAuthentication, LinkUserInfo,
-//! LinkStates, WebAuthnRegistry
+//! Tests for WebAuthn service data types: LinkUserInfo, WebAuthnRegistry
 
-use std::time::Instant;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
-use systemprompt_oauth::services::webauthn::service::{
-    LinkUserInfo, VerifiedAuthentication, create_link_states,
-};
-use systemprompt_test_fixtures::fixture_user_id;
-
-#[test]
-fn test_verified_authentication_construction() {
-    let auth = VerifiedAuthentication {
-        user_id: fixture_user_id(),
-        timestamp: Instant::now(),
-    };
-
-    assert_eq!(auth.user_id.as_str(), "test-user");
-}
-
-#[test]
-fn test_verified_authentication_clone() {
-    let original = VerifiedAuthentication {
-        user_id: fixture_user_id(),
-        timestamp: Instant::now(),
-    };
-
-    let cloned = original.clone();
-    assert_eq!(cloned.user_id, original.user_id);
-    assert_eq!(cloned.timestamp, original.timestamp);
-}
-
-#[test]
-fn test_verified_authentication_debug() {
-    let auth = VerifiedAuthentication {
-        user_id: fixture_user_id(),
-        timestamp: Instant::now(),
-    };
-
-    let debug_output = format!("{auth:?}");
-    assert!(debug_output.contains("VerifiedAuthentication"));
-    assert!(debug_output.contains("test-user"));
-}
-
-#[test]
-fn test_verified_authentication_timestamp_preserves_value() {
-    let before = Instant::now();
-    let auth = VerifiedAuthentication {
-        user_id: fixture_user_id(),
-        timestamp: before,
-    };
-    let after = Instant::now();
-
-    assert!(auth.timestamp >= before);
-    assert!(auth.timestamp <= after);
-}
+use systemprompt_oauth::services::webauthn::service::LinkUserInfo;
 
 #[test]
 fn test_link_user_info_construction() {
@@ -108,36 +56,6 @@ fn test_link_user_info_empty_fields() {
     assert!(info.id.as_str().is_empty());
     assert!(info.email.is_empty());
     assert!(info.name.is_empty());
-}
-
-#[tokio::test]
-async fn test_create_link_states_empty() {
-    let states = create_link_states();
-    let locked = states.lock().await;
-
-    assert!(locked.is_empty());
-}
-
-#[tokio::test]
-async fn test_create_link_states_is_arc() {
-    let states = create_link_states();
-    let cloned = states.clone();
-
-    assert!(states.lock().await.is_empty());
-    assert!(cloned.lock().await.is_empty());
-}
-
-#[tokio::test]
-async fn test_create_link_states_mutex_lockable() {
-    let states = create_link_states();
-
-    {
-        let guard = states.lock().await;
-        assert_eq!(guard.len(), 0);
-    }
-
-    let guard = states.lock().await;
-    assert_eq!(guard.len(), 0);
 }
 
 #[test]

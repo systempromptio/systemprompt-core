@@ -34,6 +34,16 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Sync);
     let bridge = Arc::clone(&app.ctx);
+    // Why: the sink is installed for the duration of this sync only. The sync
+    // internals run several layers down and on the CLI have no UI at all, so
+    // they report into this rather than being handed a callback through every
+    // signature between here and the per-plugin fetch loop.
+    {
+        let proxy = proxy.clone();
+        bridge.sync_progress.install(Arc::new(move |step| {
+            proxy.send_event(UiEvent::SyncStep(step.clone()));
+        }));
+    }
     app.ctx.spawn(async move {
         let allow_tofu = config::pinned_pubkey().is_none();
         let result = tokio::select! {
@@ -42,6 +52,9 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 outcome.map_err(GuiError::from).map_err(Arc::new)
             }
         };
+        // Why: cleared before the finish event so no late step can arrive
+        // after the UI has been told the sync is over.
+        bridge.sync_progress.clear();
         proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
 }
@@ -166,6 +179,10 @@ pub(crate) fn on_sync_finished(
         }
     }
     emit::emit_state(app);
+    // Why: a sync writes machine policy and host files; the health panel must
+    // re-read them rather than keep a verdict from before the write.
+    app.proxy
+        .send_event(UiEvent::ValidateRequested { reply_to: None });
     if succeeded {
         app.proxy.send_event(UiEvent::McpAuthProbeRequested {
             server_id: None,

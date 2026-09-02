@@ -325,6 +325,7 @@ fn minimal_profile() -> systemprompt_models::Profile {
     };
 
     Profile {
+        storage: Default::default(),
         name: "ctxcmd".to_string(),
         display_name: "Ctx".to_string(),
         target: ProfileType::Local,
@@ -348,6 +349,7 @@ fn minimal_profile() -> systemprompt_models::Profile {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
+            metrics_port: None,
             max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             trusted_proxies: Vec::new(),
         },
@@ -376,8 +378,6 @@ fn minimal_profile() -> systemprompt_models::Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::profile::ProviderRegistry::default(),
-        gateway: None,
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {

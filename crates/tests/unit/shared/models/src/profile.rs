@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{expand_home, resolve_path, resolve_with_home};
+use systemprompt_models::profile::{ProfileError, expand_home, resolve_path, resolve_with_home};
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
@@ -33,6 +33,7 @@ fn make_server_config() -> ServerConfig {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
+        metrics_port: None,
         max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         trusted_proxies: Vec::new(),
     }
@@ -55,6 +56,7 @@ fn make_security_config() -> SecurityConfig {
 
 fn make_profile(name: &str) -> Profile {
     Profile {
+        storage: Default::default(),
         name: name.to_string(),
         display_name: format!("Test {name}"),
         target: ProfileType::Local,
@@ -68,15 +70,16 @@ fn make_profile(name: &str) -> Profile {
             pool: None,
         },
         server: make_server_config(),
-        paths: make_paths_config("/tmp/test"),
+        paths: PathsConfig {
+            storage: Some("/tmp/test/storage".to_string()),
+            ..make_paths_config("/tmp/test")
+        },
         security: make_security_config(),
         rate_limits: RateLimitsConfig::default(),
         runtime: RuntimeConfig::default(),
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::profile::ProviderRegistry::default(),
-        gateway: None,
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {
@@ -354,6 +357,35 @@ fn profile_to_yaml_roundtrip() {
     let yaml = profile.to_yaml().unwrap();
     assert!(yaml.contains("name: test"));
     assert!(yaml.contains("display_name:"));
+}
+
+#[test]
+fn from_yaml_rejects_moved_providers_and_gateway_sections() {
+    let base = make_profile("test").to_yaml().unwrap();
+    let path = Path::new("/tmp/test/profile.yaml");
+
+    for (key, extra, destination) in [
+        ("providers", "providers: []\n", "services/ai/providers.yaml"),
+        (
+            "gateway",
+            "gateway:\n  enabled: true\n",
+            "services/ai/gateway.yaml",
+        ),
+    ] {
+        let yaml = format!("{base}{extra}");
+        let err = Profile::from_yaml(&yaml, path).expect_err("moved section must be rejected");
+        assert!(
+            matches!(
+                &err,
+                ProfileError::MovedToServices { key: k, destination: d, .. }
+                    if k == key && d == destination
+            ),
+            "unexpected error for {key}: {err:?}"
+        );
+        let message = err.to_string();
+        assert!(message.contains(key), "{message}");
+        assert!(message.contains(destination), "{message}");
+    }
 }
 
 #[test]

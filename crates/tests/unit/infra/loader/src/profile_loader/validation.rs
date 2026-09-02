@@ -35,6 +35,7 @@ paths:
   system: {}
   services: {}
   bin: {}
+  storage: {}
 
 security:
   jwt_issuer: https://issuer.test
@@ -65,7 +66,8 @@ system_admin:
 "#,
         temp_dir.path().join("system").display(),
         temp_dir.path().join("services").display(),
-        temp_dir.path().join("bin").display()
+        temp_dir.path().join("bin").display(),
+        temp_dir.path().join("storage").display()
     );
 
     let profile_path = temp_dir.path().join("valid.profile.yaml");
@@ -246,6 +248,7 @@ paths:
   system: {system}
   services: {services}
   bin: {bin}
+  storage: {storage}
 
 security:
   jwt_issuer: https://issuer.test
@@ -277,6 +280,7 @@ system_admin:
         system = temp.path().join("system").display(),
         services = temp.path().join("services").display(),
         bin = temp.path().join("bin").display(),
+        storage = temp.path().join("storage").display(),
     )
 }
 

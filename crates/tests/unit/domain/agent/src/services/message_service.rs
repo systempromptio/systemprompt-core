@@ -169,12 +169,12 @@ async fn persist_messages_then_next_sequence_continues() {
     .await
     .expect("persist");
 
-    let next = r
+    let stored = r
         .tasks
-        .get_next_sequence_number(&tid)
+        .get_messages_by_task(&tid)
         .await
-        .expect("next seq");
-    assert!(next >= 1);
+        .expect("messages by task");
+    assert!(!stored.is_empty());
 
     r.tasks.delete_task(&tid).await.ok();
 }

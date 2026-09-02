@@ -94,7 +94,7 @@ impl OAuthRepository {
             "SELECT client_id FROM oauth_auth_codes WHERE code = $1",
             code_hash
         )
-        .fetch_optional(self.pool_ref())
+        .fetch_optional(self.write_pool_ref())
         .await?;
 
         Ok(result.map(ClientId::new))
@@ -187,7 +187,7 @@ impl OAuthRepository {
             "SELECT used_at, refresh_token_id FROM oauth_auth_codes WHERE code = $1",
             code_hash
         )
-        .fetch_optional(self.pool_ref())
+        .fetch_optional(self.write_pool_ref())
         .await?;
 
         let Some(row) = existing else {
@@ -208,7 +208,7 @@ impl OAuthRepository {
                     "SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1",
                     rt_id
                 )
-                .fetch_optional(self.pool_ref())
+                .fetch_optional(self.write_pool_ref())
                 .await?;
                 if let Some(family) = family_id {
                     let result = sqlx::query!(

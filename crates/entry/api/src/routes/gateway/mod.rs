@@ -44,7 +44,7 @@ use self::routers::{
 };
 use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
-pub(crate) use self::access_log::GatewayLogIdentity;
+pub(crate) use self::access_log::{GatewayLogIdentity, TerminalOutcome, log_gateway_terminal};
 
 fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
     let Some(analytics) = ctx.analytics_provider() else {

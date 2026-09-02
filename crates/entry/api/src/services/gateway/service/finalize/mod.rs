@@ -24,7 +24,7 @@ use http::HeaderValue;
 use systemprompt_ai::{OverrideAction, OverrideContext, OverrideEngine};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
-use systemprompt_models::profile::GatewayConfig;
+use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 
 mod safety;
@@ -191,12 +191,6 @@ fn spawn_buffered_completion(
     tap_ctx: stream_tap::TapFinalizeCtx,
     response_scanned: bool,
 ) {
-    match &audit.ctx.gateway_conversation_id {
-        Some(conversation) => {
-            ThoughtSignatureCache::global().store_from_response(conversation, &canonical);
-        },
-        None => ThoughtSignatureCache::note_uncacheable_response(&canonical, "no_conversation_id"),
-    }
     tokio::spawn(buffered_completion(
         canonical,
         body,
@@ -231,6 +225,15 @@ async fn buffered_completion(
     ctx: stream_tap::TapFinalizeCtx,
     response_scanned: bool,
 ) {
+    match &audit.ctx.gateway_conversation_id {
+        Some(conversation) => {
+            ctx.repos
+                .thought_signatures
+                .store_from_response(conversation, &canonical)
+                .await;
+        },
+        None => ThoughtSignatureCache::note_uncacheable_response(&canonical, "no_conversation_id"),
+    }
     let served_model = canonical.model.clone();
     if !served_model.is_empty() {
         audit.set_served_model(&served_model).await;

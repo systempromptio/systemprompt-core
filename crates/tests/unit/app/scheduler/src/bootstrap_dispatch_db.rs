@@ -15,7 +15,10 @@
 
 use std::sync::Arc;
 
-use systemprompt_scheduler::{JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService};
+use systemprompt_identifiers::InstanceId;
+use systemprompt_scheduler::{
+    JobRunRecord, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
+};
 use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
 
 macro_rules! pool_or_skip {
@@ -349,9 +352,17 @@ mod distributed_lock_arms {
         repo.upsert_job(job_name, "0 0 * * * *", true)
             .await
             .expect("seed scheduled_jobs row");
-        repo.update_job_execution(job_name, JobStatus::Success, None, None)
-            .await
-            .expect("stamp last_run = now");
+        repo.update_job_execution(
+            job_name,
+            JobRunRecord {
+                status: JobStatus::Success,
+                error: None,
+                next_run: None,
+                instance_id: &InstanceId::new("fixture"),
+            },
+        )
+        .await
+        .expect("stamp last_run = now");
         let before = repo
             .find_job(job_name)
             .await

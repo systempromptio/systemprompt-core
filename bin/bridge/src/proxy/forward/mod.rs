@@ -197,7 +197,7 @@ pub(crate) async fn forward(
                 // it expired.
                 plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
             } else {
-                token_cache.invalidate().await;
+                token_cache.reject_upstream(&request_path).await;
             }
         }
     }

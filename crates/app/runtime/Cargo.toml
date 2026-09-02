@@ -41,6 +41,7 @@ systemprompt-loader = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-marketplace = { workspace = true }

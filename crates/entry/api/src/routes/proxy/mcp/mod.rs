@@ -137,7 +137,14 @@ pub fn router(ctx: &AppContext) -> Router {
             return Router::new();
         },
     };
-    let engine = ProxyEngine::new().with_tool_usage_repo(Arc::clone(&repo));
+    let identities = match crate::repository::proxy_identities(ctx.db_pool()) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to initialize MCP proxy identity repository");
+            return Router::new();
+        },
+    };
+    let engine = ProxyEngine::new(identities).with_tool_usage_repo(Arc::clone(&repo));
 
     let state = McpState {
         ctx: ctx.clone(),

@@ -1,7 +1,9 @@
 //! Config-section model and YAML helpers shared across the `admin config` tree.
 //!
 //! [`ConfigSection`] enumerates the profile and per-service config locations
-//! and resolves them to filesystem paths, while [`read_yaml_file`] and
+//! — including the provider catalog and gateway routes, which are services
+//! files (`ai/providers.yaml`, `ai/gateway.yaml`) rather than profile sections
+//! — and resolves them to filesystem paths, while [`read_yaml_file`] and
 //! [`write_yaml_file`] back the editing commands. The remaining types are the
 //! serializable outputs rendered by the list, validate, and import/export
 //! flows.
@@ -17,6 +19,16 @@ use serde::{Deserialize, Serialize};
 use systemprompt_config::ProfileBootstrap;
 
 use super::rate_limit_types::ResetChange;
+
+// Why: the two files are named by convention rather than discovered, so the
+// setter commands and `admin setup` agree on where the catalog and routes live.
+// The paths are relative to the services root, but an `includes:` entry
+// resolves against the directory of the file that lists it — the root
+// aggregator in `<services>/config/` — so the include text needs its own form.
+pub const PROVIDERS_FILE_RELATIVE: &str = "ai/providers.yaml";
+pub const GATEWAY_FILE_RELATIVE: &str = "ai/gateway.yaml";
+pub const PROVIDERS_INCLUDE_RELATIVE: &str = "../ai/providers.yaml";
+pub const GATEWAY_INCLUDE_RELATIVE: &str = "../ai/gateway.yaml";
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidateOutput {
@@ -79,6 +91,8 @@ pub struct ConfigValidateOutput {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigSection {
     Ai,
+    Providers,
+    Gateway,
     Content,
     Web,
     Scheduler,
@@ -95,6 +109,8 @@ impl ConfigSection {
             Self::Profile,
             Self::Services,
             Self::Ai,
+            Self::Providers,
+            Self::Gateway,
             Self::Content,
             Self::Web,
             Self::Scheduler,
@@ -108,6 +124,10 @@ impl ConfigSection {
         let profile = ProfileBootstrap::get()?;
         match self {
             Self::Ai => Ok(PathBuf::from(&profile.paths.services).join("ai/config.yaml")),
+            Self::Providers => {
+                Ok(PathBuf::from(&profile.paths.services).join(PROVIDERS_FILE_RELATIVE))
+            },
+            Self::Gateway => Ok(PathBuf::from(&profile.paths.services).join(GATEWAY_FILE_RELATIVE)),
             Self::Content => Ok(PathBuf::from(&profile.paths.services).join("content/config.yaml")),
             Self::Web => Ok(PathBuf::from(&profile.paths.services).join("web/config.yaml")),
             Self::Scheduler => {
@@ -128,7 +148,17 @@ impl ConfigSection {
         match self {
             Self::Profile => Ok(vec![PathBuf::from(ProfileBootstrap::get_path()?)]),
             Self::Services => Ok(vec![services_path.join("config/config.yaml")]),
-            Self::Ai => Self::collect_yaml_files(&services_path.join("ai")),
+            // Why: the catalog and routes are their own sections, so the `ai`
+            // listing excludes them rather than reporting each file twice.
+            Self::Ai => Ok(Self::collect_yaml_files(&services_path.join("ai"))?
+                .into_iter()
+                .filter(|p| {
+                    p != &services_path.join(PROVIDERS_FILE_RELATIVE)
+                        && p != &services_path.join(GATEWAY_FILE_RELATIVE)
+                })
+                .collect()),
+            Self::Providers => Ok(vec![services_path.join(PROVIDERS_FILE_RELATIVE)]),
+            Self::Gateway => Ok(vec![services_path.join(GATEWAY_FILE_RELATIVE)]),
             Self::Content => Self::collect_yaml_files(&services_path.join("content")),
             Self::Web => Self::collect_yaml_files(&services_path.join("web")),
             Self::Scheduler => Self::collect_yaml_files(&services_path.join("scheduler")),
@@ -171,6 +201,8 @@ impl std::fmt::Display for ConfigSection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Ai => write!(f, "ai"),
+            Self::Providers => write!(f, "providers"),
+            Self::Gateway => write!(f, "gateway"),
             Self::Content => write!(f, "content"),
             Self::Web => write!(f, "web"),
             Self::Scheduler => write!(f, "scheduler"),
@@ -189,6 +221,8 @@ impl std::str::FromStr for ConfigSection {
     fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "ai" => Ok(Self::Ai),
+            "providers" => Ok(Self::Providers),
+            "gateway" => Ok(Self::Gateway),
             "content" => Ok(Self::Content),
             "web" => Ok(Self::Web),
             "scheduler" => Ok(Self::Scheduler),

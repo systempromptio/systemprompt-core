@@ -12,11 +12,13 @@ workspace = true
 
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-test-mocks = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }

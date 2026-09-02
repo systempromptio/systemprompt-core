@@ -168,8 +168,11 @@ pub(super) async fn delete_image(
         })?;
 
     if let Some(file_record) = file {
-        let file_path = std::path::Path::new(&file_record.path);
-        storage.delete_image(file_path)?;
+        storage
+            .delete_image(&systemprompt_traits::StoredFileId::new(
+                file_record.path.clone(),
+            ))
+            .await?;
         file_provider
             .delete(&file_id)
             .await

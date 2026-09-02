@@ -276,13 +276,21 @@ fn plugin_hooks_ref_rejects_unknown_fields() {
     assert!(err.is_err(), "misspelled hook key must not parse");
 }
 
+// The drain hooks ride with the governance owner, so `comms` alone declares
+// nothing to build and `is_empty` stays true. Routing a comms-only plugin into
+// the builder would mint a loopback bearer to produce the same empty file, and
+// fail the apply when that mint fails.
 #[test]
-fn plugin_hooks_ref_declaring_only_comms_is_not_empty() {
+fn plugin_hooks_ref_declaring_only_comms_is_still_empty() {
     let parsed: PluginHooksRef = serde_yaml::from_str("comms: true").unwrap();
     assert!(parsed.comms);
     assert!(!parsed.governance);
-    assert!(
-        !parsed.is_empty(),
-        "a comms-only owner must materialise hooks; an empty verdict writes an empty hooks.json"
-    );
+    assert!(parsed.is_empty());
+}
+
+#[test]
+fn plugin_hooks_ref_pairing_comms_with_governance_is_not_empty() {
+    let parsed: PluginHooksRef = serde_yaml::from_str("governance: true\ncomms: true").unwrap();
+    assert!(parsed.comms);
+    assert!(!parsed.is_empty());
 }

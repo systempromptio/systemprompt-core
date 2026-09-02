@@ -53,13 +53,21 @@ fn health_endpoint_is_skipped() {
 }
 
 #[test]
-fn ready_endpoint_is_skipped() {
-    assert!(should_skip_session_tracking("/ready"));
+fn legacy_ready_alias_is_not_skipped() {
+    assert!(
+        !should_skip_session_tracking("/ready"),
+        "only the real probes (/livez, /readyz) bypass session tracking"
+    );
 }
 
 #[test]
-fn healthz_endpoint_is_skipped() {
-    assert!(should_skip_session_tracking("/healthz"));
+fn probe_endpoints_are_skipped() {
+    assert!(should_skip_session_tracking("/livez"));
+    assert!(should_skip_session_tracking("/readyz"));
+    assert!(
+        !should_skip_session_tracking("/healthz"),
+        "no /healthz alias exists; a typo must not silently bypass session tracking"
+    );
 }
 
 #[test]

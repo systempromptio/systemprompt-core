@@ -45,6 +45,7 @@ pub(crate) async fn apply_manifest(
         plugin_tokens: &bridge.plugin_tokens,
         root,
         staging_root: &staging_root,
+        progress: bridge.sync_progress.clone(),
     };
     let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
 
@@ -69,8 +70,17 @@ pub(crate) async fn apply_manifest(
         loopback,
         mcp_registry: &registry,
     };
-    for emitter in host_sync::registry() {
+    let emitters = host_sync::registry();
+    for (index, emitter) in emitters.iter().enumerate() {
         let host_id = emitter.host_id();
+        bridge
+            .sync_progress
+            .report(&crate::progress::SyncProgress::new(
+                "hosts",
+                host_id.to_owned(),
+                index + 1,
+                emitters.len(),
+            ));
         let enabled = manifest_for_write
             .enabled_hosts
             .iter()

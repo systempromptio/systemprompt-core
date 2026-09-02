@@ -38,6 +38,9 @@ pub struct ServerConfig {
     #[serde(default)]
     pub instance_id: Option<String>,
 
+    #[serde(default)]
+    pub metrics_port: Option<u16>,
+
     #[serde(default = "default_max_concurrent_streams")]
     pub max_concurrent_streams: usize,
 

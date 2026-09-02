@@ -41,7 +41,7 @@ impl UserRepository {
             "#,
             user_id.as_str()
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&*self.write_pool)
         .await?;
 
         Ok(rows.into_iter().map(UserSession::from).collect())
@@ -77,7 +77,7 @@ impl UserRepository {
             r#"SELECT EXISTS(SELECT 1 FROM user_sessions WHERE session_id = $1 AND ended_at IS NULL) as "exists!""#,
             session_id.as_str()
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(exists)

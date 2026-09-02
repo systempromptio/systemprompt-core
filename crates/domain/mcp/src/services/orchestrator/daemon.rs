@@ -41,6 +41,17 @@ pub(super) async fn run_daemon(
                     service_name: server.name.clone(),
                 })
                 .await?;
+
+            if let Err(e) = lifecycle.start_server(server).await {
+                let error = e.to_string();
+                tracing::error!(service = %server.name, %error, "MCP service failed to start");
+                event_bus
+                    .publish(McpEvent::ServiceFailed {
+                        service_name: server.name.clone(),
+                        error,
+                    })
+                    .await?;
+            }
         }
 
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;

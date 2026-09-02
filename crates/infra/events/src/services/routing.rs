@@ -25,7 +25,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{LazyLock, OnceLock};
-use systemprompt_identifiers::{EventOutboxId, UserId};
+use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::{debug, error};
 
 use super::repository::EventOutboxRepository;
@@ -80,8 +80,11 @@ impl OutboxChannel {
 pub struct EventRouter;
 
 impl EventRouter {
-    pub fn install_relay(pool: sqlx::PgPool) {
-        if OUTBOX_REPO.set(EventOutboxRepository::new(pool)).is_err() {
+    pub fn install_relay(pool: sqlx::PgPool, instance_id: InstanceId) {
+        if OUTBOX_REPO
+            .set(EventOutboxRepository::new(pool, instance_id))
+            .is_err()
+        {
             debug!("EventRouter relay pool already installed; ignoring");
         }
     }

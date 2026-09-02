@@ -6,6 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod bootstrap;
+mod claim;
 mod dispatch;
 mod lock;
 mod owners;

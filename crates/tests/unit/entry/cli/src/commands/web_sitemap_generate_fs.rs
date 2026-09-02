@@ -71,6 +71,7 @@ content_sources:
 
 fn make_profile(services: &Path, web_path: &Path) -> Profile {
     Profile {
+        storage: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,
@@ -94,6 +95,7 @@ fn make_profile(services: &Path, web_path: &Path) -> Profile {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
+            metrics_port: None,
             max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             trusted_proxies: Vec::new(),
         },
@@ -122,8 +124,6 @@ fn make_profile(services: &Path, web_path: &Path) -> Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::profile::ProviderRegistry::default(),
-        gateway: None,
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {

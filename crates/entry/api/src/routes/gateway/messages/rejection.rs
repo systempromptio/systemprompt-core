@@ -66,6 +66,9 @@ pub fn build_rejection_record(
     let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id)
         .streaming(partial.is_streaming)
         .rejected();
+    if let Some(instance_id) = systemprompt_logging::instance_id() {
+        builder = builder.instance_id(instance_id.clone());
+    }
     if let Some(provider) = &partial.provider {
         builder = builder.provider(provider.clone());
     }

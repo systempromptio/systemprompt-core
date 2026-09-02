@@ -4,7 +4,7 @@ use systemprompt_ai::{
     OverrideSource, SystemPromptOverride, register_system_prompt_override,
 };
 use systemprompt_identifiers::{ModelId, ProviderId};
-use systemprompt_models::profile::{OverrideRuleAction, SystemPromptRule};
+use systemprompt_models::services::{OverrideRuleAction, SystemPromptRule};
 
 // Extensions registered here are scoped to sentinel provider names so every
 // other test in this binary still sees pass-through behaviour from the global

@@ -6,8 +6,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use systemprompt_identifiers::{Actor, UserId};
-use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
+use systemprompt_identifiers::{Actor, InstanceId, UserId};
+use systemprompt_traits::{Job as JobTrait, OptionalStartupEventExt, StartupEventSender};
 use tokio::sync::Mutex;
 
 use super::{RunningJobs, SchedulerService, dispatch};
@@ -63,6 +63,16 @@ impl SchedulerService {
         ctx.events.bootstrap_job_started(job_name.to_owned());
 
         let config_entry = self.config.jobs.iter().find(|job| job.name == job_name);
+        let registered = inventory::iter::<&'static dyn JobTrait>
+            .into_iter()
+            .find(|job| job.name() == job_name)
+            .copied();
+        let claim_policy = dispatch::claim_policy(
+            &self.config,
+            config_entry,
+            registered,
+            &InstanceId::new(&self.app_context.config().instance_id),
+        );
         dispatch::execute_job(dispatch::JobDispatch {
             job_name: job_name.to_owned(),
             actor,
@@ -70,7 +80,7 @@ impl SchedulerService {
             repository: self.repository.clone(),
             app_context: Arc::clone(&self.app_context),
             running_jobs: Arc::clone(ctx.running_jobs),
-            distributed_lock: self.config.distributed_lock,
+            claim_policy,
             enforce: config_entry.is_some_and(|job| job.enforce),
             parameters: config_entry
                 .map(|job| job.parameters.clone())

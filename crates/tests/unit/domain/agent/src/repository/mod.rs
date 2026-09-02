@@ -14,6 +14,7 @@ mod context;
 mod context_notifications;
 mod execution;
 mod message;
+mod message_sequence_lock;
 mod message_tx;
 mod push_notification;
 mod task;
@@ -30,7 +31,12 @@ pub(crate) async fn try_pool() -> Option<DbPool> {
 }
 
 pub(crate) fn repos(pool: &DbPool) -> A2ARepositories {
-    A2ARepositories::new(pool, crate::session_usage(pool)).expect("repositories")
+    A2ARepositories::new(
+        pool,
+        crate::session_usage(pool),
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("repositories")
 }
 
 // Seeds a user + session and returns their ids.

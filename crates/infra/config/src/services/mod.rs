@@ -7,8 +7,8 @@
 //!   frontend.
 //! - [`schema_validation`] — `JsonSchema`-driven helpers for runtime config
 //!   parsing.
-//! - [`ProviderCatalogService`] — typed mutations of the profile's provider
-//!   registry (`profile.providers`).
+//! - [`ProviderCatalogService`] — typed mutations of the services provider
+//!   registry (`services/ai/providers.yaml`).
 //! - [`SecurityConfigService`] — typed mutations of the profile's security
 //!   section.
 //!

@@ -28,10 +28,13 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `cloud` | object | no | absent | Cloud tenant binding. See [`cloud`](#cloud). |
 | `secrets` | object | no | absent | Pointer to the secrets document. See [`secrets`](#secrets). |
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
-| `gateway` | object | no | absent | Provider-facing inference proxy. See [`gateway`](#gateway). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
+
+Two keys that used to be top-level profile sections are rejected with a message naming their
+new home: `providers` and `gateway`. See [Provider catalog and gateway — moved to the services
+tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 
 ## `site`
 
@@ -68,9 +71,10 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `cors_allowed_origins` | list of string | no | `[]` | Allowed CORS origins. |
 | `content_negotiation` | object | no | see below | Markdown content negotiation. |
 | `security_headers` | object | no | see below | HTTP security response headers. |
-| `instance_id` | string | no | OS hostname / generated short id | Stable replica identifier; empty/unset resolves at config build time. |
+| `instance_id` | string | no (required on `cloud` unless `HOSTNAME` is set) | `HOSTNAME`, else a random id on local targets | Stable replica identifier. Keys the service registry, event outbox origin and node-scoped scheduler runs; stamped on logs, `ai_requests`, metrics and `x-served-by`. A cloud profile that resolves to neither refuses to boot. |
+| `metrics_port` | u16 | no | unset | Serve `GET /metrics` on a second listener bound to `host:metrics_port`. Unset means no metrics endpoint. Must differ from `port`. |
 | `max_concurrent_streams` | usize | no | `256` | Global cap on concurrent A2A SSE streams for this replica (`config/mod.rs:34`). |
-| `trusted_proxies` | list of CIDR string | no | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
+| `trusted_proxies` | list of CIDR string | required on `cloud` | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
 
 ### `server.content_negotiation`
 
@@ -107,6 +111,17 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `web_path` | string | no | `<system>/web` | Web asset root (parent of `dist/`). For `target: cloud`, must start with `/app/web` and must not contain `/services/web`. |
 | `storage` | string | no | absent | File storage root. |
 | `geoip_database` | string | no | absent | Path to a MaxMind GeoIP database file. |
+
+## `storage`
+
+`crates/shared/models/src/profile/storage.rs`. Optional; the section may be omitted. Unknown keys and unknown backends are rejected.
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `backend` | `local` | no | `local` | Storage backend for uploads and generated images. `local` writes under `paths.storage`, which must then be set. It is the seam an object-store backend lands in; no vendor SDK ships today. |
+| `shared` | bool | no | `false` | Declare that `paths.storage` is one mount every replica sees. Boot probes the root by writing a per-instance marker and reading it back (failure refuses to boot), and warns when `shared` disagrees with the markers other replicas left. With `false` those files are node-local, which only a single replica can serve. |
+
+File records hold the path relative to `paths.storage` (for example `files/uploads/contexts/<ctx>/images/<id>.png`); public URLs and the on-disk layout are unchanged.
 
 ## `security`
 
@@ -158,7 +173,9 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
 that identity, and an unauthenticated request by the client address resolved through
 `trusted_proxies`. Hop headers from an untrusted peer are ignored, so a caller cannot select its
-own bucket.
+own bucket. Identity-keyed budgets are counted in the database and therefore hold across every
+replica; address-keyed throttles are per process, so their effective ceiling scales with the
+replica count.
 
 ## `system_admin`
 
@@ -209,49 +226,58 @@ own bucket.
 
 See [`concepts/extensions.md`](../concepts/extensions.md) for the extension model.
 
-## `gateway`
+## Provider catalog and gateway — moved to the services tree
 
-`crates/shared/models/src/profile/gateway/`. The provider-facing inference proxy. Optional; absent means the gateway is off.
+`providers:` and `gateway:` are no longer profile sections. A profile that still carries either
+key fails to parse with `ProfileError::MovedToServices`, which names the key and the file it
+belongs in (`crates/shared/models/src/profile/mod.rs`). The reason is what the two sections
+are: a model catalog (providers, models, pricing, capabilities, limits) and the routes onto it
+change only when the product changes, carry no credential, and are identical across every
+environment — implementation configuration, like agents and MCP servers, not deployment
+configuration. In the profile they were the ~950 lines every environment hand-copied and
+drifted.
 
-| Key | Type | Required | Default | Meaning |
-|-----|------|----------|---------|---------|
-| `enabled` | bool | no | `false` | Enable the gateway. |
-| `routes` | list of object | no | `[]` | Inline model→provider routes. See [`gateway.routes[]`](#gatewayroutes). |
-| `auth_scheme` | string | no | `bearer` | Upstream auth scheme. |
-| `inference_path_prefix` | string | no | `/v1` | Path prefix the gateway serves provider-facing inference under. |
+Both now live under `paths.services` and are loaded, merged, and validated by the services
+loader (`crates/infra/loader/src/config_loader/`):
 
-Every route's resolved provider endpoint is validated through the shared outbound-URL guard (`validate_outbound_url`, `crates/shared/models/src/net.rs:81`), which rejects loopback, private-network, link-local and CGNAT destinations to prevent the proxy becoming an SSRF primitive.
+| Services key | Conventional file | Type | Meaning |
+|--------------|-------------------|------|---------|
+| `providers` | `services/ai/providers.yaml` | list of provider entries | The provider registry: each upstream's wire protocol, surface, endpoint, `api_key_secret`, extra headers, per-model pricing/capabilities/limits, and governance flags (`crates/shared/models/src/services/providers/`). Entries concatenate across includes; a provider name declared twice is a load error. |
+| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/models/src/services/gateway/`). First file to declare it wins across includes. |
+
+Both files must be listed in the root aggregator's `includes:` (`services/config/config.yaml`);
+`systemprompt admin setup` writes them from the embedded seed catalog when absent and appends
+them. `admin config catalog …` and `admin config gateway …` edit those files, validate the
+result against the merged registry, and never touch the profile.
 
 ### `gateway.routes[]`
 
-`crates/shared/models/src/profile/gateway/:184`
+`crates/shared/models/src/services/gateway/route.rs`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `id` | string | no | derived | Stable route id; synthesized from pattern+provider+endpoint when empty. |
+| `id` | string | no | derived | Stable route id; synthesized from pattern and provider when empty. Addressed from `access_control_rules`. |
 | `model_pattern` | string | yes | — | Match pattern. `*` matches all; `prefix*` and `*suffix` are supported; otherwise exact. |
-| `provider` | string | yes | — | Provider name. |
-| `endpoint` | string | yes | — | Upstream endpoint URL (SSRF-guarded). |
-| `api_key_secret` | string | yes | — | Name of the secret holding the upstream API key. |
+| `provider` | string | yes | — | Provider name; must be declared in `providers`. The route carries no endpoint or credential of its own. |
 | `upstream_model` | string | no | requested model | Override model name sent upstream. |
 | `extra_headers` | map<string,string> | no | `{}` | Additional upstream request headers. |
-| `pricing` | object | no | absent | Optional model pricing metadata. |
+| `pricing` | object | no | absent | Route-level pricing override; otherwise the matching `providers[].models[].pricing` applies. |
+| `when` | object | no | absent | Request-type match (`RouteMatch`). |
+| `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |
 
-### Gateway catalog — removed
+Every provider endpoint is validated through the shared outbound-URL guard
+(`validate_outbound_url`, `crates/shared/models/src/net.rs`), which rejects loopback,
+private-network, link-local and CGNAT destinations so the proxy cannot become an SSRF primitive.
+`!include <file>` in a `system_prompt_overrides[].prompt` resolves relative to the file that
+carries the `gateway:` block.
 
-`gateway.catalog` no longer exists. The gateway owns no catalogue of its own: every route
-resolves its provider against `profile.providers` at use time
-(`crates/shared/models/src/profile/gateway/mod.rs`).
+### Migrating a profile
 
-Model exposure is therefore the combination of two things you already configure:
-
-- **`profile.providers`** — the upstream endpoints, their `api_key_secret`, and any extra
-  headers. This is where a provider is declared.
-- **`gateway.routes[]`** — which external model names map onto which provider, documented in
-  [§`gateway.routes[]`](#gatewayroutes) above.
-
-If you are migrating a profile that still carries a `gateway.catalog:` block, move its
-`providers[]` entries into `profile.providers` and express each `models[]` entry as a
+Move the `providers:` block of `profile.yaml` into `services/ai/providers.yaml` and the
+`gateway:` block into `services/ai/gateway.yaml`, list both under `includes:` in
+`services/config/config.yaml`, and delete them from the profile. Nothing inside either block
+changes shape. A profile that still carries a `gateway.catalog:` block (removed earlier) moves
+its `providers[]` entries into `providers` and expresses each `models[]` entry as a
 `gateway.routes[]` entry.
 
 ## `governance`
@@ -299,7 +325,8 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 |-------|----------|------|----------|-------|
 | `oauth_at_rest_pepper` | `oauth_at_rest_pepper` | string | yes | Minimum 32 characters (`secrets.rs:13`); shorter values fail validation. |
 | `database_url` | `database_url` | string | yes | Primary connection string. |
-| `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string (base64, 32 bytes) | no | Ed25519 manifest signing seed. Generated and persisted at bootstrap if missing and the file is writable; ephemeral for the boot otherwise. |
+| `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string | yes | Standard base64 of exactly 32 random bytes; the Ed25519 manifest signing seed. Never generated at boot: every replica must carry the same value. Mint it with `systemprompt admin identity generate --json`. |
+| `signing_key_pem` | `signing_key_pem` | string | yes on `cloud` and deployment hosts | Standard base64 of the full PKCS#8 PEM text (`-----BEGIN PRIVATE KEY-----` …) of the RSA JWT signing key. Local profiles may point `security.signing_key_path` at a file instead. Mint it with `systemprompt admin identity generate --json`. |
 | `database_write_url` | `database_write_url` | string | no | Separate write endpoint. |
 | `external_database_url` | `external_database_url` | string | no | Used when `database.external_db_access` is `true`. |
 | `internal_database_url` | `internal_database_url` | string | no | Internal connection string. |
@@ -321,7 +348,8 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 |--------|----------------------|
 | `oauth_at_rest_pepper` | `OAUTH_AT_REST_PEPPER` (required) |
 | `database_url` | `DATABASE_URL` (required) |
-| `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` |
+| `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` (required) |
+| `signing_key_pem` | `SIGNING_KEY_PEM` (required on deployment hosts) |
 | `database_write_url` | `DATABASE_WRITE_URL` |
 | `external_database_url` | `EXTERNAL_DATABASE_URL` |
 | `internal_database_url` | `INTERNAL_DATABASE_URL` |
@@ -338,10 +366,11 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 Configuration is assembled in a fixed sequence; later stages depend on earlier ones (`crates/infra/config/src/bootstrap/`). The type-state `BootstrapSequence` enforces that secrets cannot initialize before the profile (`bootstrap/mod.rs:48-93`).
 
 1. **ProfileBootstrap** — reads `profile.yaml`, performs `${VAR}` interpolation, resolves relative paths, deserializes into `Profile`.
-2. **SecretsBootstrap** — loads the secrets document referenced by the profile (file or env), validates required fields (e.g. the 32-char pepper), ensures the manifest signing seed.
-3. **CredentialsBootstrap** — loads cloud credentials (file, or environment in a Fly.io container) and validates them against the cloud API for `cloud` targets (`crates/infra/cloud/src/credentials_bootstrap/`).
-4. **Config** — composes the validated profile and resolved secrets into the runtime config.
-5. **AppContext** — constructs the application context (database pool, services, resolved system admin) consumed by the API and CLI.
+2. **ServicesBootstrap** — loads the services tree at `paths.services` through the services loader (`crates/infra/loader/src/services_bootstrap.rs`): merges every include, resolves the gateway spec to its runtime form, validates the provider registry and the gateway's references into it. A tree that does not load is a boot failure.
+3. **SecretsBootstrap** — loads the secrets document referenced by the profile (file or env), validates required fields (e.g. the 32-char pepper), ensures the manifest signing seed.
+4. **CredentialsBootstrap** — loads cloud credentials (file, or environment in a Fly.io container) and validates them against the cloud API for `cloud` targets (`crates/infra/cloud/src/credentials_bootstrap/`).
+5. **Config** — composes the validated profile and resolved secrets into the runtime config.
+6. **AppContext** — constructs the application context (database pool, services, resolved system admin) consumed by the API and CLI.
 
 ## Minimal local profile
 

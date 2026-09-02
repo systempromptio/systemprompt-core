@@ -136,7 +136,11 @@ impl E2EFixture {
 #[tokio::test]
 async fn a2a_repositories_construct_and_share_pool() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     // Pool sanity: agent_services repo can query an empty result.
     let running = repos.agent_services.list_running_agents().await?;
     assert!(running.iter().all(|r| !r.name.is_empty()));
@@ -147,7 +151,11 @@ async fn a2a_repositories_construct_and_share_pool() -> Result<()> {
 #[tokio::test]
 async fn task_repository_create_get_list_round_trip() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
 
     let t1 = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
     let t2 = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
@@ -196,7 +204,11 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
 #[tokio::test]
 async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     let messages = MessageRepository::new(&fx.db)?;
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
@@ -243,7 +255,7 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
         .await?;
     tx.commit().await?;
 
-    assert!(messages.get_next_sequence_number(&task_id).await? >= 1);
+    assert!(!messages.get_messages_by_task(&task_id).await?.is_empty());
 
     let read_back_by_task = messages.get_messages_by_task(&task_id).await?;
     assert_eq!(read_back_by_task.len(), 1);
@@ -259,7 +271,11 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
 #[tokio::test]
 async fn artifact_repository_create_and_query_paths() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     let artifacts = ArtifactRepository::new(&fx.db)?;
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
@@ -314,7 +330,11 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
 #[tokio::test]
 async fn push_notification_config_round_trip() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
     let cfg = PushNotificationConfig {
@@ -350,7 +370,11 @@ async fn push_notification_config_round_trip() -> Result<()> {
 #[tokio::test]
 async fn execution_step_repository_lifecycle() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
     let plan_step = ExecutionStep::new(
@@ -466,7 +490,11 @@ async fn context_notification_repository_insert_and_broadcast() -> Result<()> {
 #[tokio::test]
 async fn agent_service_repository_register_status_cycle() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     let name = format!("e2e-svc-{}", fx.tag);
 
     repos
@@ -504,7 +532,11 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
 #[tokio::test]
 async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     let messages = MessageRepository::new(&fx.db)?;
     let artifacts = ArtifactRepository::new(&fx.db)?;
 
@@ -591,7 +623,11 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
 #[tokio::test]
 async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
     let task_id = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
 
     let user_msg = Message {
@@ -656,7 +692,11 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
 #[tokio::test]
 async fn task_and_message_writes_increment_session_counters() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(&fx.db, crate::common::session_usage(&fx.db)?)?;
+    let repos = A2ARepositories::new(
+        &fx.db,
+        crate::common::session_usage(&fx.db)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )?;
 
     sqlx::query("INSERT INTO user_sessions (session_id, user_id) VALUES ($1, $2)")
         .bind(fx.session_id.as_str())

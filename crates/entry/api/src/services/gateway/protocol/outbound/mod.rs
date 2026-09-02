@@ -20,7 +20,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
-use systemprompt_models::profile::GatewayRoute;
+use systemprompt_models::services::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
 use thiserror::Error;
 

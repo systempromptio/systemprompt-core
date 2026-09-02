@@ -28,6 +28,7 @@ use crate::user::{fixture_system_admin, fixture_user_id};
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
         instance_id: "fixture".to_string(),
+        metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
@@ -166,6 +167,10 @@ fn fixture_app_context_assembled(
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         Arc::new(analytics_service.session_repo().clone());
     let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool)?);
+    let file_storage = systemprompt_storage::build_file_storage(
+        systemprompt_models::profile::StorageBackend::Local,
+        app_paths.storage().root(),
+    );
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),
@@ -175,6 +180,7 @@ fn fixture_app_context_assembled(
             a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                 pool,
                 session_usage,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
             )?),
             content_repositories: Arc::new(
                 systemprompt_content::repository::ContentRepositories::new(pool)?,
@@ -183,7 +189,10 @@ fn fixture_app_context_assembled(
                 pool,
             )?),
             user_repository,
-            service_repository: Arc::new(systemprompt_database::ServiceRepository::new(pool)?),
+            service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
+                pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )?),
             ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)?),
             analytics_repositories,
             file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)?),
@@ -208,6 +217,7 @@ fn fixture_app_context_assembled(
             authz_hook,
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
+            file_storage,
         },
     );
 

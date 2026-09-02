@@ -6,3 +6,11 @@ mod cli_args;
 mod compare;
 #[cfg(test)]
 mod download;
+#[cfg(test)]
+mod errors;
+#[cfg(test)]
+mod install_paths;
+#[cfg(test)]
+mod status;
+#[cfg(test)]
+mod ui_state;

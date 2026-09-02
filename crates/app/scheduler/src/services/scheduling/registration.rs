@@ -3,12 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{RegistrationCtx, RunningJobs, SchedulerService, dispatch};
+use super::{RegistrationCtx, SchedulerService, dispatch};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::JobConfig;
 use std::sync::Arc;
-use systemprompt_identifiers::Actor;
+use systemprompt_identifiers::{Actor, InstanceId};
 use systemprompt_logging::SystemSpan;
+use systemprompt_traits::Job as JobTrait;
 use tokio_cron_scheduler::Job;
 use tracing::{Instrument, debug, info, warn};
 
@@ -59,18 +60,23 @@ impl SchedulerService {
             .upsert_job(&job_config.name, &schedule, job_config.enabled)
             .await?;
 
-        let job = self.create_job_from_trait(job_config, &schedule, ctx.running_jobs, actor)?;
+        let job = self.create_job_from_trait(ctx, job_config, &schedule, actor)?;
         ctx.scheduler.add(job).await?;
         Ok(())
     }
 
     fn create_job_from_trait(
         &self,
+        ctx: &RegistrationCtx<'_>,
         job_config: &JobConfig,
         schedule: &str,
-        running_jobs: &RunningJobs,
         actor: Actor,
     ) -> SchedulerResult<Job> {
+        let registered_job: &dyn JobTrait = *ctx
+            .registered_jobs
+            .get(job_config.name.as_str())
+            .ok_or_else(|| SchedulerError::job_not_found(&job_config.name))?;
+        let running_jobs = ctx.running_jobs;
         let enforce = job_config.enforce;
         let parameters = job_config.parameters.clone();
         let job_name_owned = job_config.name.clone();
@@ -79,7 +85,12 @@ impl SchedulerService {
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
-        let distributed_lock = self.config.distributed_lock;
+        let claim_policy = dispatch::claim_policy(
+            &self.config,
+            Some(job_config),
+            Some(registered_job),
+            &InstanceId::new(&self.app_context.config().instance_id),
+        );
 
         let job = Job::new_async(schedule_owned.as_str(), move |_uuid, _lock| {
             let job_name = job_name_owned.clone();
@@ -89,6 +100,7 @@ impl SchedulerService {
             let app_context = Arc::clone(&app_context);
             let running_jobs = Arc::clone(&running_jobs);
             let parameters = parameters.clone();
+            let claim_policy = claim_policy.clone();
 
             Box::pin(async move {
                 let span = SystemSpan::new(&format!("scheduler:{job_name}"));
@@ -99,7 +111,7 @@ impl SchedulerService {
                     repository,
                     app_context,
                     running_jobs,
-                    distributed_lock,
+                    claim_policy,
                     enforce,
                     parameters,
                 })

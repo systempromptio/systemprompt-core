@@ -17,6 +17,7 @@
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
 //! | `loader` | `systemprompt-loader` | Filesystem and module discovery. |
 //! | `events` | `systemprompt-events` | In-process event bus and SSE plumbing. |
+//! | `storage` | `systemprompt-storage` | File storage backends and the shared-mount probe. |
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
@@ -25,7 +26,7 @@
 //! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `evaluation`, `scheduler`, `generator`, `files`) | Building a product binary. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.43.0", features = ["full"] }
+//! systemprompt = { version = "0.44.0", features = ["full"] }
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -105,6 +106,12 @@ pub mod loader {
 #[cfg_attr(docsrs, doc(cfg(feature = "events")))]
 pub mod events {
     pub use systemprompt_events::*;
+}
+
+#[cfg(feature = "storage")]
+#[cfg_attr(docsrs, doc(cfg(feature = "storage")))]
+pub mod storage {
+    pub use systemprompt_storage::*;
 }
 
 /// HTTP API client used by the CLI and external tooling to drive a running
@@ -276,14 +283,19 @@ pub mod cloud {
     pub use systemprompt_cloud::*;
 }
 
-/// Profile types — the on-disk profile schema (`Profile`, `CloudConfig`,
-/// `ProfileStyle`, `CloudValidationMode`) plus the `ProfileBootstrap` loader
-/// when the `config` feature is enabled.
+/// Profile types — the on-disk profile schema.
+///
+/// `Profile`, `CloudConfig`, `ProfileStyle` and `CloudValidationMode`, plus the
+/// `ProfileBootstrap` loader when the `config` feature is enabled and the
+/// `ServicesBootstrap` cell (provider catalog, gateway routes) when `loader`
+/// is.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod profile {
     #[cfg(feature = "config")]
     pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};
+    #[cfg(feature = "loader")]
+    pub use systemprompt_loader::ServicesBootstrap;
 
     pub use systemprompt_models::profile::{
         CloudConfig, CloudValidationMode, Profile, ProfileStyle,

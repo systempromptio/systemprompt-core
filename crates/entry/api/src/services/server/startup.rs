@@ -98,11 +98,27 @@ pub fn starting_router() -> Router {
     Router::new()
         .route(ApiPaths::HEALTH, get(starting_health))
         .route("/health", get(starting_health))
+        .route(ApiPaths::LIVEZ, get(starting_livez))
+        .route(ApiPaths::READYZ, get(starting_readyz))
         .fallback(starting_fallback)
 }
 
+// Why: `/health` answers 200 while booting so a single-probe orchestrator (Fly)
+// does not kill a machine mid-migration; admission is `/readyz`'s job, and it
+// says 503 until the full router is live.
 async fn starting_health() -> impl IntoResponse {
     Json(json!({ "status": "starting" }))
+}
+
+async fn starting_livez() -> impl IntoResponse {
+    Json(json!({ "status": "alive", "version": env!("CARGO_PKG_VERSION") }))
+}
+
+async fn starting_readyz() -> impl IntoResponse {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(json!({ "status": "starting", "version": env!("CARGO_PKG_VERSION") })),
+    )
 }
 
 async fn starting_fallback() -> impl IntoResponse {

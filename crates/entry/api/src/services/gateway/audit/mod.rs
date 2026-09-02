@@ -31,6 +31,16 @@ use systemprompt_identifiers::{
 };
 use systemprompt_security::policy::types::AccessScope;
 
+/// Method, path, and start instant captured by the gateway access-log
+/// middleware, carried so terminal outcomes can be logged against the same
+/// request line after the response body has finished streaming.
+#[derive(Debug, Clone)]
+pub struct GatewayAccessLog {
+    pub method: String,
+    pub path: String,
+    pub started: Instant,
+}
+
 #[derive(Debug, Clone)]
 pub struct GatewayRequestContext {
     pub ai_request_id: AiRequestId,
@@ -49,6 +59,7 @@ pub struct GatewayRequestContext {
     pub max_tokens: Option<u32>,
     pub is_streaming: bool,
     pub wire_protocol: String,
+    pub access_log: Option<GatewayAccessLog>,
 }
 
 #[expect(
@@ -124,6 +135,7 @@ impl GatewayAudit {
     }
 
     pub async fn fail(&self, error: &str) -> Result<()> {
+        let latency_ms = self.elapsed_ms();
         if let Err(e) = self
             .requests
             .update_error(&self.ctx.ai_request_id, RequestStatus::Failed, error)
@@ -131,14 +143,26 @@ impl GatewayAudit {
         {
             tracing::warn!(error = %e, "audit fail update failed");
         }
-        tracing::info!(
+        // Why: `update_error` writes no usage columns, so a failed row keeps the
+        // zeros it was opened with — say so, or the reader takes them as "nothing
+        // was consumed" when a partial stream may well have been billed upstream.
+        tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,
             provider = %self.ctx.provider,
-            model = %self.ctx.model,
+            model = %self.effective_model(),
+            requested_model = %self.ctx.model,
+            wire_protocol = %self.ctx.wire_protocol,
+            status = RequestStatus::Failed.as_str(),
+            latency_ms,
+            tokens_recorded = false,
             error,
             "Gateway audit: request failed"
         );
         Ok(())
+    }
+
+    pub(crate) fn elapsed_ms(&self) -> i32 {
+        self.started_at.elapsed().as_millis().min(i32::MAX as u128) as i32
     }
 }

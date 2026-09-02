@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.35.0] - 2026-09-02
+
+### Added
+
+- Sync reports what it is doing. `run_once` → `apply_manifest` → `apply_plugins` → per-file fetch is deep enough that threading a callback through every signature would have touched the CLI's caller too, so a `SyncProgressSink` rides on `BridgeContext` instead: the GUI installs one for the duration of a sync and renders each step in the top bar and the activity log, the CLI leaves it unset and every report is a no-op. Reporting is deliberately infallible — a poisoned lock drops the update rather than failing the sync.
+- Sync-only agents answer the GUI's per-host actions through `gui::sync_only`, so an action against an agent with nothing installed locally gets a reply instead of the caller's not-found path.
+- `HostEntryPayload` carries `can_verify`, `can_repair`, `can_open_config` and `can_remove`. The bindings were stale, and with no bundler or type checker in `web/js` each missing flag read as `undefined` and silently hid its button.
+
+### Fixed
+
+- `sync_only_verdict` moved to `integration/sync_only.rs`, the file that already owns the sync-only table, putting `agent_health.rs` back under the 300-line limit.
+
 ## [0.34.0] - 2026-09-01
 
 ### Removed

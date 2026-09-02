@@ -80,9 +80,9 @@ pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck, MarkAppliedOutcome,
     MigrationConfig, MigrationResult, MigrationService, MigrationStatus, PendingMigration,
-    RepairResult, install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config, validate_column_exists, validate_database_connection,
-    validate_table_exists, validate_write_pool_is_primary,
+    RepairResult, ReplicaStatus, install_extension_schemas, install_extension_schemas_full,
+    install_extension_schemas_with_config, replica_status, validate_column_exists,
+    validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
 };
 pub use repository::{
     CleanupRepository, CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository,

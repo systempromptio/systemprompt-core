@@ -6,7 +6,7 @@
 //! of that knowledge, so an accidental edit to `default_catalog.yaml` (a wrong
 //! price, a dropped model, a renamed default) must fail here.
 
-use systemprompt_models::profile::ProviderRegistry;
+use systemprompt_models::services::ProviderRegistry;
 
 fn seed() -> ProviderRegistry {
     ProviderRegistry::default_seed().expect("embedded default catalog parses")
@@ -163,7 +163,8 @@ fn unknown_model_is_not_in_seed() {
 fn anthropic_seed_covers_the_current_generation() {
     let registry = seed();
     assert_pricing(&registry, "anthropic", "claude-opus-5", 5.0, 25.0);
-    assert_pricing(&registry, "anthropic", "claude-sonnet-5", 3.0, 15.0);
+    assert_pricing(&registry, "anthropic", "claude-sonnet-5", 2.0, 10.0);
+    assert_pricing(&registry, "anthropic", "claude-fable-5-1", 10.0, 50.0);
     assert_pricing(&registry, "anthropic", "claude-fable-5", 10.0, 50.0);
 }
 

@@ -74,6 +74,16 @@ impl Extension for AiExtension {
                 include_str!("../schema/ai_gateway_policies.sql"),
             )
             .with_required_columns(vec!["id".into(), "name".into(), "spec".into()]),
+            SchemaDefinition::new(
+                "ai_gateway_thought_signatures",
+                include_str!("../schema/ai_gateway_thought_signatures.sql"),
+            )
+            .with_required_columns(vec![
+                "conversation_id".into(),
+                "tool_use_id".into(),
+                "signature".into(),
+                "expires_at".into(),
+            ]),
         ]
     }
 

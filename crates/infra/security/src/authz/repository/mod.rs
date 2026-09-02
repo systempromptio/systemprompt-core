@@ -14,6 +14,8 @@
 mod entities;
 mod rules;
 
+pub use rules::ChainFingerprint;
+
 use std::sync::Arc;
 
 use sqlx::PgPool;

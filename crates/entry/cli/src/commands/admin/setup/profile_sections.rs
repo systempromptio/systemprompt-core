@@ -2,8 +2,9 @@
 //!
 //! Split out so [`super::profile::build`] reads as a thin orchestration over
 //! well-named sections. Each builder returns a fully-typed profile struct; the
-//! gateway and governance sections give `admin setup` a complete, bootable
-//! profile rather than the empty shell it produced before.
+//! governance section gives `admin setup` a complete, bootable profile. The
+//! provider catalog and gateway routes are seeded into the services tree by
+//! [`super::services_files`], not written here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,20 +12,16 @@
 use std::path::Path;
 
 use systemprompt_cloud::ProjectContext;
-use systemprompt_identifiers::ProviderId;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GatewayConfigSpec, GatewayState, GovernanceConfig,
-    ProviderRegistry, default_resource_audiences,
+    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, default_resource_audiences,
 };
 use systemprompt_models::{
     ContentNegotiationConfig, Environment, LogLevel, OutputFormat, PathsConfig, RuntimeConfig,
     SecurityConfig, SecurityHeadersConfig, ServerConfig,
 };
 
-use super::catalog;
-use super::secrets::SecretsData;
 
 pub(super) fn server(is_prod: bool) -> ServerConfig {
     ServerConfig {
@@ -46,6 +43,7 @@ pub(super) fn server(is_prod: bool) -> ServerConfig {
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
+        metrics_port: None,
         max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         trusted_proxies: Vec::new(),
     }
@@ -105,22 +103,6 @@ pub(super) const fn runtime(environment: Environment, is_prod: bool) -> RuntimeC
         no_color: false,
         non_interactive: is_prod,
     }
-}
-
-pub(super) fn providers(secrets: &SecretsData) -> ProviderRegistry {
-    catalog::build_registry(secrets)
-}
-
-pub(super) fn gateway(
-    secrets: &SecretsData,
-    default_provider: Option<&ProviderId>,
-) -> GatewayState {
-    GatewayState::Spec(GatewayConfigSpec {
-        enabled: true,
-        routes: catalog::build_routes(secrets),
-        default_provider: default_provider.cloned(),
-        ..GatewayConfigSpec::default()
-    })
 }
 
 pub(super) fn governance(api_internal_url: &str) -> GovernanceConfig {

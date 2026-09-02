@@ -46,6 +46,8 @@ export function patLinkFor(gateway) {
   return "#";
 }
 
+const SPINNER = `<span class="sp-btn__spinner" aria-hidden="true"></span>`;
+
 export function renderGatewayForm(state) {
   const probe = probeView(state.snapshot);
   const link = patLinkFor(state.gateway);
@@ -82,8 +84,8 @@ export function renderGatewayForm(state) {
       </div>
     </div>
     <div class="sp-setup__actions">
-      <button class="sp-btn-primary" type="button" ${signInDisabled ? "disabled" : ""} data-action="sign-in">
-        <span class="sp-btn__label">${escapeHtml(signInText)}</span>
+      <button class="sp-btn-primary ${signInBusy ? "is-busy" : ""}" type="button" ${signInDisabled ? "disabled" : ""} data-action="sign-in">
+        ${signInBusy ? SPINNER : ""}<span class="sp-btn__label">${escapeHtml(signInText)}</span>
       </button>
       ${cancelBtn}
       ${gateReason}
@@ -105,8 +107,8 @@ export function renderGatewayForm(state) {
         </p>
       </div>
       <div class="sp-setup__actions">
-        <button class="sp-btn-ghost" type="button" ${state.pending ? "disabled" : ""} data-action="connect">
-          <span class="sp-btn__label">${escapeHtml(btnLabel)}</span>
+        <button class="sp-btn-ghost ${state.pending ? "is-busy" : ""}" type="button" ${state.pending ? "disabled" : ""} data-action="connect">
+          ${state.pending ? SPINNER : ""}<span class="sp-btn__label">${escapeHtml(btnLabel)}</span>
         </button>
       </div>
     </details>

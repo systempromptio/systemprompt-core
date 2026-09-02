@@ -17,7 +17,7 @@
 use std::path::PathBuf;
 
 use systemprompt_models::errors::SecretsError;
-use systemprompt_models::profile::{GatewayProfileError, ProfileError};
+use systemprompt_models::profile::ProfileError;
 
 use crate::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
 use crate::services::ConfigValidationError;
@@ -30,6 +30,12 @@ pub enum ConfigError {
     #[error("Config already initialized")]
     AlreadyInitialized,
 
+    #[error(
+        "cannot resolve a stable instance id for a cloud profile: set server.instance_id or \
+         export HOSTNAME so this replica keeps one identity across restarts"
+    )]
+    InstanceIdUnresolved,
+
     #[error(transparent)]
     Profile(#[from] ProfileBootstrapError),
 
@@ -38,9 +44,6 @@ pub enum ConfigError {
 
     #[error(transparent)]
     ProfileParse(#[from] ProfileError),
-
-    #[error(transparent)]
-    Gateway(#[from] GatewayProfileError),
 
     #[error(transparent)]
     SchemaValidation(#[from] ConfigValidationError),

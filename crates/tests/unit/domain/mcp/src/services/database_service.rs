@@ -24,7 +24,11 @@ async fn make_db_service() -> Option<(DatabaseService, systemprompt_database::Db
     );
     let registry = RegistryService::new(fixture_user_id());
     let svc = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(
+            &db,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("service repository"),
         app_paths,
         registry,
     );
@@ -75,7 +79,11 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
     let Some((svc, _db)) = make_db_service().await else {
         return;
     };
-    let repo = ServiceRepository::new(&_db).unwrap();
+    let repo = ServiceRepository::new(
+        &_db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     let keep = format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple());
     let drop_name = format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple());
     for (name, port) in [(&keep, 65512u16), (&drop_name, 65511u16)] {

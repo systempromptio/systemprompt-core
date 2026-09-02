@@ -106,7 +106,7 @@ impl Respond for UnauthorizedOnce {
 }
 
 #[tokio::test(start_paused = true)]
-async fn heartbeat_401_invalidates_token_cache() {
+async fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/v1/bridge/heartbeat"))
@@ -117,22 +117,37 @@ async fn heartbeat_401_invalidates_token_cache() {
         .await;
 
     let refresh_calls = Arc::new(AtomicU32::new(0));
+    let cache = counting_cache(Arc::clone(&refresh_calls));
     let handle = tokio::spawn(run_loop(
         runtime_config(&server.uri()),
-        counting_cache(Arc::clone(&refresh_calls)),
+        Arc::clone(&cache),
         Arc::new(SessionContext::new()),
         Arc::new(ProxyStats::default()),
         reqwest::Client::new(),
     ));
 
-    wait_for_requests(&server, 2).await;
+    wait_for_requests(&server, 1).await;
+    for _ in 0..5 {
+        tokio::time::sleep(std::time::Duration::from_secs(31)).await;
+        tokio::task::yield_now().await;
+    }
     handle.abort();
 
     assert!(
-        refresh_calls.load(Ordering::SeqCst) >= 2,
-        "401 must invalidate the cache so the next tick re-authenticates \
-         (refresh calls: {})",
+        cache.sign_in_required(),
+        "a heartbeat 401 against a freshly minted token latches sign-in"
+    );
+    assert_eq!(
+        refresh_calls.load(Ordering::SeqCst),
+        1,
+        "the latched loop idles instead of minting on every tick (refresh calls: {})",
         refresh_calls.load(Ordering::SeqCst)
+    );
+    let sent = server.received_requests().await.unwrap_or_default();
+    assert_eq!(
+        sent.len(),
+        1,
+        "no further heartbeats are sent while latched"
     );
 }
 

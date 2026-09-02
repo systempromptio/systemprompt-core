@@ -17,6 +17,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 base64 = { workspace = true }
 

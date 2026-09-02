@@ -12,9 +12,9 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_mcp::middleware::{AuthResult, enforce_rbac_from_registry};
 use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, mint_admin_jwt};
+use systemprompt_test_fixtures::mint_admin_jwt;
 
-use crate::harness::write_services_config;
+use crate::harness::bootstrap_with_services;
 
 const ISSUER: &str = "https://issuer.test";
 
@@ -124,8 +124,7 @@ fn unique(prefix: &str) -> String {
 
 #[tokio::test]
 async fn unknown_server_is_rejected() {
-    let bootstrap = ensure_test_bootstrap();
-    write_services_config(bootstrap, &server_yaml(&unique("rbl"), false, ""));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&unique("rbl"), false, ""));
 
     let outcome = probe_outcome(RbacProbe {
         server: "rbl_absent".to_owned(),
@@ -138,9 +137,8 @@ async fn unknown_server_is_rejected() {
 
 #[tokio::test]
 async fn oauth_not_required_yields_anonymous_context() {
-    let bootstrap = ensure_test_bootstrap();
     let name = unique("rbl_anon");
-    write_services_config(bootstrap, &server_yaml(&name, false, ""));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, false, ""));
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
@@ -153,9 +151,8 @@ async fn oauth_not_required_yields_anonymous_context() {
 
 #[tokio::test]
 async fn oauth_required_without_bearer_is_rejected() {
-    let bootstrap = ensure_test_bootstrap();
     let name = unique("rbl_nobearer");
-    write_services_config(bootstrap, &server_yaml(&name, true, "admin"));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
@@ -171,9 +168,8 @@ async fn oauth_required_without_bearer_is_rejected() {
 
 #[tokio::test]
 async fn malformed_bearer_token_is_rejected() {
-    let bootstrap = ensure_test_bootstrap();
     let name = unique("rbl_badtok");
-    write_services_config(bootstrap, &server_yaml(&name, true, "admin"));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
@@ -186,9 +182,8 @@ async fn malformed_bearer_token_is_rejected() {
 
 #[tokio::test]
 async fn valid_admin_jwt_is_authenticated() {
-    let bootstrap = ensure_test_bootstrap();
     let name = unique("rbl_auth");
-    write_services_config(bootstrap, &server_yaml(&name, true, "admin"));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
     let token = mint_admin_jwt(&user, "rbac-live@test.invalid", ISSUER);
@@ -210,9 +205,8 @@ async fn valid_admin_jwt_is_authenticated() {
 
 #[tokio::test]
 async fn insufficient_scope_is_rejected() {
-    let bootstrap = ensure_test_bootstrap();
     let name = unique("rbl_scope");
-    write_services_config(bootstrap, &server_yaml(&name, true, ""));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, ""));
 
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
     let token = mint_admin_jwt(&user, "rbac-scope@test.invalid", ISSUER);
@@ -234,9 +228,8 @@ async fn insufficient_scope_is_rejected() {
 
 #[tokio::test]
 async fn deny_hook_blocks_authenticated_request() {
-    let bootstrap = ensure_test_bootstrap();
     let name = unique("rbl_deny");
-    write_services_config(bootstrap, &server_yaml(&name, true, "admin"));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
     let token = mint_admin_jwt(&user, "rbac-deny@test.invalid", ISSUER);

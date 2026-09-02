@@ -98,6 +98,6 @@ pub async fn execute(cmd: PluginsCommands, ctx: &CommandContext) -> Result<()> {
             capabilities::execute(args, &ctx.cli);
             Ok(())
         },
-        PluginsCommands::Mcp(cmd) => mcp::execute(cmd, ctx).await,
+        PluginsCommands::Mcp(cmd) => Box::pin(mcp::execute(cmd, ctx)).await,
     }
 }

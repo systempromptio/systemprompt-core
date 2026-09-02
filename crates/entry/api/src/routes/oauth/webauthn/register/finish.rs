@@ -110,7 +110,7 @@ pub async fn finish_register(
     let auth_token = systemprompt_oauth::services::generate_secure_token("webauthn_verified");
     webauthn_service
         .store_verified_authentication(auth_token.clone(), user_id.clone())
-        .await;
+        .await?;
 
     Ok((
         StatusCode::OK,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Changed
+
+- Deployment configuration carries the instance identity and the metrics port, and the generated Fly configuration points its health check at `/readyz` rather than `/health` so a booting machine is not killed mid-migration.
+
 ## [0.43.0] - 2026-09-01
 
 ### Added

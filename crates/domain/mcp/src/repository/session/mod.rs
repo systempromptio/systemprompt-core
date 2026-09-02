@@ -28,19 +28,15 @@ pub struct McpSessionRecord {
 
 #[derive(Debug, Clone)]
 pub struct McpSessionRepository {
-    pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
 }
 
 impl McpSessionRepository {
     pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        let pool = db.pool_arc().map_err(|e| {
-            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
-        })?;
         let write_pool = db.write_pool_arc().map_err(|e| {
             crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
         })?;
-        Ok(Self { pool, write_pool })
+        Ok(Self { write_pool })
     }
 
     pub async fn create(
@@ -70,7 +66,7 @@ impl McpSessionRepository {
             r#"SELECT EXISTS(SELECT 1 FROM mcp_sessions WHERE session_id = $1) as "exists!""#,
             session_id.as_str()
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(result)
@@ -98,7 +94,7 @@ impl McpSessionRepository {
             "#,
             session_id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?;
 
         Ok(row.map(|r| McpSessionRecord {
@@ -185,7 +181,7 @@ impl McpSessionRepository {
             "#,
             session_id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?;
 
         Ok(row.and_then(|r| r.initialize_params))

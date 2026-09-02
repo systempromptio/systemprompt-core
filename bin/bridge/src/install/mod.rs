@@ -13,7 +13,7 @@ pub(crate) mod elevated_job;
 pub mod elevation_script;
 mod error;
 pub(crate) mod managed_file;
-pub(crate) mod managed_mcp;
+pub mod managed_mcp;
 pub(crate) mod mdm;
 pub mod reg_values;
 mod schedule_apply;
@@ -235,9 +235,9 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
 #[cfg(target_os = "windows")]
 fn remove_managed_profile() -> ManagedProfileOutcome {
     match mdm::remove_windows_policy() {
-        Ok(true) => {
-            ManagedProfileOutcome::Removed("HKCU Policies\\Claude (+ HKLM managedMcpServers)")
-        },
+        Ok(true) => ManagedProfileOutcome::Removed(
+            "HKLM Policies\\Claude managedMcpServers (+ any HKCU copy)",
+        ),
         Ok(false) => ManagedProfileOutcome::NotInstalled("Windows Policies\\Claude"),
         Err(e) => {
             diag(&e.to_string());

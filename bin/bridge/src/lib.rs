@@ -43,6 +43,7 @@ pub mod integration;
 pub mod mcp_registry;
 pub mod obs;
 pub mod probe_cache;
+pub mod progress;
 pub mod proxy;
 pub mod proxy_probe;
 pub mod schedule;
@@ -92,7 +93,7 @@ Commands (plugin + MCP sync):
     [--gateway <url>]                     Persist gateway URL
     [--pubkey <base64>]                   Pin manifest signing pubkey out of band.
                                           With --apply, also written to
-                                          HKCU\\SOFTWARE\\Policies\\Claude
+                                          HKLM\\SOFTWARE\\Policies\\Claude
                                           (Windows) or the Managed Preferences plist
                                           (macOS) so MDM can roll it to a fleet.
     [--apply]                             Apply locally (Windows registry / macOS

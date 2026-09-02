@@ -43,15 +43,15 @@ fn schema_declares_event_outbox_with_relay_columns() {
 #[test]
 fn migrations_come_from_the_schema_migrations_directory() {
     let migrations = EventsExtension.migrations();
+    let names: Vec<&str> = migrations.iter().map(|m| m.name.as_str()).collect();
     assert_eq!(
-        migrations.len(),
-        2,
-        "both actor-attribution migrations must be discovered by the build script"
-    );
-    assert!(
-        migrations
-            .iter()
-            .any(|m| m.name.contains("actor_attribution")),
-        "migration names must carry the on-disk file stem"
+        names,
+        [
+            "actor_attribution",
+            "actor_attribution_lock",
+            "outbox_origin_instance"
+        ],
+        "every file in schema/migrations must be discovered by the build script, \
+         in order, under its on-disk stem"
     );
 }

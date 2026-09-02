@@ -12,8 +12,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, TenantId};
+use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::bridge::profile as bridge_profile;
-use systemprompt_models::profile::ApiSurface;
+use systemprompt_models::services::ApiSurface;
 
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;
@@ -191,10 +192,14 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
         )
     })?;
 
-    let gateway = profile
-        .gateway
-        .as_ref()
-        .and_then(systemprompt_models::profile::GatewayState::resolved)
+    let services = ServicesBootstrap::get().map_err(|e| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("Services config not ready: {e}"),
+        )
+    })?;
+    let gateway = services
+        .gateway_config()
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
@@ -215,7 +220,7 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
             auth_scheme: gateway.auth_scheme.clone(),
             organization_uuid,
             default_model: gateway.default_model.clone(),
-            registry: &profile.providers,
+            registry: &services.providers,
         },
         |name| {
             secrets

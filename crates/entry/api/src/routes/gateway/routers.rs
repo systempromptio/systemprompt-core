@@ -174,7 +174,7 @@ pub(super) fn bridge_profile_routes(
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_manifest);
                 let context = ctx_manifest.clone();
-                async move { bridge_manifest::manifest(extractor, context, headers).await }
+                Box::pin(bridge_manifest::manifest(extractor, context, headers))
             }),
         )
         .route(

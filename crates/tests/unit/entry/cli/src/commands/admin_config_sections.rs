@@ -6,8 +6,10 @@
 use std::str::FromStr;
 
 use systemprompt_cli::admin::config::config_section::{
-    ConfigSection, read_yaml_file, write_yaml_file,
+    ConfigSection, GATEWAY_FILE_RELATIVE, GATEWAY_INCLUDE_RELATIVE, PROVIDERS_FILE_RELATIVE,
+    PROVIDERS_INCLUDE_RELATIVE, read_yaml_file, write_yaml_file,
 };
+use systemprompt_cli::admin::config::services_io::append_include;
 
 fn services_root() -> std::path::PathBuf {
     systemprompt_test_fixtures::ensure_test_bootstrap()
@@ -114,4 +116,97 @@ fn reading_reports_missing_files_and_parse_errors_with_the_path() {
     std::fs::write(&broken, "key: [unterminated\n").unwrap();
     let err = read_yaml_file(&broken).unwrap_err();
     assert!(format!("{err:#}").contains("broken.yaml"));
+}
+
+#[test]
+fn providers_and_gateway_sections_resolve_the_ai_services_files() {
+    let root = services_root();
+    assert_eq!(
+        ConfigSection::Providers.file_path().unwrap(),
+        root.join("ai/providers.yaml")
+    );
+    assert_eq!(
+        ConfigSection::Gateway.file_path().unwrap(),
+        root.join("ai/gateway.yaml")
+    );
+}
+
+#[test]
+fn ai_listing_excludes_the_catalog_and_gateway_files() {
+    let root = services_root();
+    std::fs::create_dir_all(root.join("ai")).unwrap();
+    std::fs::write(root.join("ai/config.yaml"), "ai: {}\n").unwrap();
+    std::fs::write(root.join("ai/providers.yaml"), "providers: []\n").unwrap();
+    std::fs::write(root.join("ai/gateway.yaml"), "gateway:\n  enabled: false\n").unwrap();
+
+    let ai = ConfigSection::Ai.all_files().unwrap();
+    assert!(ai.iter().any(|p| p.ends_with("ai/config.yaml")));
+    assert!(!ai.iter().any(|p| p.ends_with("ai/providers.yaml")));
+    assert!(!ai.iter().any(|p| p.ends_with("ai/gateway.yaml")));
+    assert_eq!(
+        ConfigSection::Providers.all_files().unwrap(),
+        vec![root.join("ai/providers.yaml")]
+    );
+}
+
+#[test]
+fn append_include_splices_under_existing_includes_and_never_duplicates() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("config.yaml");
+    std::fs::write(
+        &root,
+        "# root aggregator\nincludes:\n  - ../agents/a.yaml\nsettings:\n  x: 1\n",
+    )
+    .unwrap();
+
+    append_include(&root, "ai/providers.yaml").unwrap();
+    append_include(&root, "ai/providers.yaml").unwrap();
+
+    let text = std::fs::read_to_string(&root).unwrap();
+    assert_eq!(
+        text,
+        "# root aggregator\nincludes:\n  - ai/providers.yaml\n  - ../agents/a.yaml\nsettings:\n  x: 1\n"
+    );
+}
+
+#[test]
+fn append_include_creates_the_includes_list_when_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("config.yaml");
+    std::fs::write(&root, "settings:\n  x: 1\n").unwrap();
+
+    append_include(&root, "ai/gateway.yaml").unwrap();
+
+    let text = std::fs::read_to_string(&root).unwrap();
+    assert_eq!(text, "settings:\n  x: 1\nincludes:\n  - ai/gateway.yaml\n");
+}
+
+#[test]
+fn the_catalog_include_text_resolves_to_the_file_the_writer_creates() {
+    let services = services_root();
+    let config_dir = services.join("config");
+    std::fs::create_dir_all(&config_dir).expect("config dir");
+
+    for (file_relative, include_relative) in [
+        (PROVIDERS_FILE_RELATIVE, PROVIDERS_INCLUDE_RELATIVE),
+        (GATEWAY_FILE_RELATIVE, GATEWAY_INCLUDE_RELATIVE),
+    ] {
+        let written = services.join(file_relative);
+        std::fs::create_dir_all(written.parent().expect("parent")).expect("catalog dir");
+        std::fs::write(&written, "{}\n").expect("write catalog file");
+
+        let resolved = config_dir.join(include_relative);
+
+        let resolved_real = std::fs::canonicalize(&resolved).unwrap_or_else(|e| {
+            panic!(
+                "`includes:` entries resolve against {}, so {include_relative} must reach {} \
+                 — it resolved to {} ({e})",
+                config_dir.display(),
+                written.display(),
+                resolved.display()
+            )
+        });
+        let written_real = std::fs::canonicalize(&written).expect("written file canonicalises");
+        assert_eq!(resolved_real, written_real);
+    }
 }

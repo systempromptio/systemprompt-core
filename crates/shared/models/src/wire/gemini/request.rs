@@ -13,8 +13,8 @@ use super::wire::{
     GeminiPart, GeminiRequest, GeminiSystemInstruction, GeminiThinkingConfig, GeminiTool,
     GeminiToolConfig,
 };
-use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
+use crate::services::WireProtocol;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
@@ -40,8 +40,15 @@ fn generation_config(
     limits: Option<ModelLimits>,
 ) -> GeminiGenerationConfig {
     let (response_mime_type, response_schema) = match &request.response_format {
+        // Why: Gemini's response schema is an OpenAPI subset, not JSON Schema —
+        // no `additionalProperties`, no type lists, nullability as a flag. The
+        // same sanitizer the tool schemas already go through shapes it.
         Some(ResponseFormat::JsonSchema { schema, .. }) => {
-            (Some("application/json".to_owned()), Some(schema.clone()))
+            let sanitizer = SchemaSanitizer::new(WireProtocol::Gemini.schema_capabilities());
+            (
+                Some("application/json".to_owned()),
+                Some(sanitizer.sanitize(schema.clone())),
+            )
         },
         Some(ResponseFormat::JsonObject) => (Some("application/json".to_owned()), None),
         None => (None, None),

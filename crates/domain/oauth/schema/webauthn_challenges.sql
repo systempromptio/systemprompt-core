@@ -1,8 +1,9 @@
 CREATE TABLE IF NOT EXISTS webauthn_challenges (
     challenge TEXT PRIMARY KEY NOT NULL,
-    user_id VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255),
     challenge_type VARCHAR(255) NOT NULL,
-    session_state TEXT,
+    session_state JSONB,
+    oauth_state TEXT,
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

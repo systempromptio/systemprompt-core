@@ -56,6 +56,9 @@ pub enum UiEvent {
     LogoutRequested {
         reply_to: ReplyId,
     },
+    CredentialRejected {
+        reason: String,
+    },
     SetGatewayRequested {
         url: String,
         reply_to: ReplyId,
@@ -70,6 +73,7 @@ pub enum UiEvent {
     Quit,
 
     SyncStarted,
+    SyncStep(crate::progress::SyncProgress),
     SyncFinished {
         result: Result<SyncSummary, Arc<GuiError>>,
         reply_to: ReplyId,

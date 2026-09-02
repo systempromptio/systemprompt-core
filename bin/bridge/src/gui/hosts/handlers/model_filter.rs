@@ -26,6 +26,16 @@ pub(crate) fn on_model_filter_set_requested(
     reply_to: ReplyId,
 ) {
     if find_host_by_id(host_id.as_str()).is_none() {
+        // Why: the filter is a gateway-side preference, but it is stored per
+        // host and a sync-only agent has no local host entry to store it
+        // against — so it is accepted as a no-op rather than reported as an
+        // unknown id.
+        if let Some(value) =
+            crate::gui::sync_only::noop_reply(app, host_id.as_str(), "model filter")
+        {
+            finish(app, Ok(value), reply_to);
+            return;
+        }
         let err = BridgeError::new(
             ErrorScope::Host,
             ErrorCode::NotFound,

@@ -46,6 +46,36 @@ pub async fn validate_write_pool_is_primary(db: &Database) -> DatabaseResult<()>
     }))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ReplicaStatus {
+    pub in_recovery: bool,
+    pub replay_lag_secs: Option<f64>,
+}
+
+pub async fn replica_status(db: &dyn DatabaseProvider) -> DatabaseResult<ReplicaStatus> {
+    let result = db
+        .query_raw(
+            &"SELECT pg_is_in_recovery() AS in_recovery, CASE WHEN pg_is_in_recovery() THEN \
+              EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::double precision \
+              ELSE NULL END AS lag_secs",
+        )
+        .await?;
+    let row = result.first().ok_or_else(|| {
+        RepositoryError::Internal("replica status probe returned no row".to_owned())
+    })?;
+    let in_recovery = row
+        .get("in_recovery")
+        .and_then(serde_json::Value::as_bool)
+        .ok_or_else(|| {
+            RepositoryError::Internal("replica status probe lacks in_recovery".to_owned())
+        })?;
+    let replay_lag_secs = row.get("lag_secs").and_then(serde_json::Value::as_f64);
+    Ok(ReplicaStatus {
+        in_recovery,
+        replay_lag_secs,
+    })
+}
+
 pub async fn validate_table_exists(
     db: &dyn DatabaseProvider,
     table_name: &str,

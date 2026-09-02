@@ -22,6 +22,7 @@ use systemprompt_api::services::middleware::{
     site_auth_gate,
 };
 use systemprompt_extension::SiteAuthConfig;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -155,7 +156,8 @@ fn ban_app(repo: &Arc<BannedIpRepository>) -> Router {
     Router::new()
         .route("/x", get(|| async { "ok" }))
         .route("/health", get(|| async { "ok" }))
-        .route("/metrics", get(|| async { "ok" }))
+        .route(ApiPaths::LIVEZ, get(|| async { "ok" }))
+        .route(ApiPaths::READYZ, get(|| async { "ok" }))
         .layer(middleware::from_fn(move |req, next| {
             let repo = Arc::clone(&repo_layer);
             let proxies = Arc::clone(&proxies);
@@ -224,7 +226,7 @@ async fn probes_stay_available_when_the_ban_list_is_unreachable() -> Result<()> 
     let repo = Arc::new(BannedIpRepository::new(&pool)?);
     pool.pool_arc()?.close().await;
 
-    for path in ["/health", "/metrics"] {
+    for path in ["/health", ApiPaths::LIVEZ, ApiPaths::READYZ] {
         let resp = ban_app(&repo)
             .oneshot(req_from(path, None))
             .await

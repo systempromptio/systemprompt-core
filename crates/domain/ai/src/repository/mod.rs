@@ -3,7 +3,7 @@
 //! Every type here owns `SQLx` queries against the AI domain tables
 //! (`ai_requests`, `ai_request_messages`, `ai_tool_calls`,
 //! `ai_request_payloads`, `ai_quota_buckets`, `ai_safety_findings`,
-//! `ai_gateway_policies`).
+//! `ai_gateway_policies`, `ai_gateway_thought_signatures`).
 //!
 //! All repositories return [`crate::error::RepositoryError`]. Services are
 //! the only callers — repositories never execute application logic.
@@ -16,6 +16,7 @@ pub mod ai_quota_buckets;
 pub mod ai_request_payloads;
 pub mod ai_requests;
 pub mod ai_safety_findings;
+pub mod thought_signatures;
 
 use crate::error::RepositoryError;
 use systemprompt_database::DbPool;
@@ -27,6 +28,7 @@ pub use ai_quota_buckets::{
 pub use ai_request_payloads::{AiRequestPayload, AiRequestPayloadRepository, UpsertPayloadParams};
 pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
 pub use ai_safety_findings::{AiSafetyFindingRepository, InsertSafetyFinding};
+pub use thought_signatures::AiThoughtSignatureRepository;
 
 #[derive(Debug, Clone)]
 pub struct AiRepositories {
@@ -35,6 +37,7 @@ pub struct AiRepositories {
     pub gateway_policies: AiGatewayPolicyRepository,
     pub quota_buckets: AiQuotaBucketRepository,
     pub safety_findings: AiSafetyFindingRepository,
+    pub thought_signatures: AiThoughtSignatureRepository,
 }
 
 impl AiRepositories {
@@ -45,6 +48,7 @@ impl AiRepositories {
             gateway_policies: AiGatewayPolicyRepository::new(db)?,
             quota_buckets: AiQuotaBucketRepository::new(db)?,
             safety_findings: AiSafetyFindingRepository::new(db)?,
+            thought_signatures: AiThoughtSignatureRepository::new(db)?,
         })
     }
 }

@@ -1,5 +1,5 @@
-//! JSON bodies for `managed-mcp.json` and the `managed-settings.json` keys the
-//! bridge owns.
+//! The `managed-settings.json` keys the bridge used to own, and how they are
+//! stripped from a document without touching anything else in it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,57 +7,43 @@
 use std::fs;
 use std::path::Path;
 
-use serde_json::{Map, Value, json};
+use serde_json::{Map, Value};
 
-// Why: allowlisted by URL — the CLI documents `serverName` matching as not
-// being a security control.
-fn allowlist_entries(servers: &Map<String, Value>) -> Vec<Value> {
-    servers
-        .values()
-        .filter_map(|s| s.get("url").and_then(Value::as_str))
-        .map(|url| json!({ "serverUrl": url }))
-        .collect()
-}
-
-pub(super) fn render_pretty(doc: &Value) -> Result<String, std::io::Error> {
-    Ok(format!("{}\n", serde_json::to_string_pretty(doc)?))
-}
-
-pub(super) fn render_managed_mcp(servers: &Map<String, Value>) -> Result<String, std::io::Error> {
-    render_pretty(&json!({ "mcpServers": Value::Object(servers.clone()) }))
-}
+const BRIDGE_KEYS: [&str; 3] = [
+    "allowedMcpServers",
+    "allowManagedMcpServersOnly",
+    "allowAllClaudeAiMcps",
+];
 
 // Why: an unreadable existing document is an error — the file is admin-owned
 // and overwriting it would clobber keys we did not author.
-pub(super) fn read_settings(path: &Path) -> Result<Map<String, Value>, std::io::Error> {
+fn read_settings(path: &Path) -> Result<Option<Map<String, Value>>, std::io::Error> {
     let bytes = match fs::read(path) {
         Ok(b) => b,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Map::new()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(e),
     };
     match serde_json::from_slice::<Value>(&bytes)? {
-        Value::Object(o) => Ok(o),
+        Value::Object(o) => Ok(Some(o)),
         _ => Err(std::io::Error::other("existing file is not a JSON object")),
     }
 }
 
-pub(super) fn render_managed_settings(
-    path: &Path,
-    servers: &Map<String, Value>,
-    allow_claude_ai_connectors: bool,
-) -> Result<String, std::io::Error> {
-    let mut doc = read_settings(path)?;
-    doc.insert(
-        "allowedMcpServers".to_owned(),
-        Value::Array(allowlist_entries(servers)),
-    );
-    doc.insert("allowManagedMcpServersOnly".to_owned(), Value::Bool(true));
-    // Why: the key must be removed (not set false) when policy withdraws it —
-    // leaving a stale `true` behind would keep connectors enabled forever.
-    if allow_claude_ai_connectors {
-        doc.insert("allowAllClaudeAiMcps".to_owned(), Value::Bool(true));
-    } else {
-        doc.remove("allowAllClaudeAiMcps");
+// Why: `None` when the file is absent or already carries none of the keys, so
+// an unlocked machine is never rewritten or prompted for elevation.
+pub fn stripped_settings(path: &Path) -> Result<Option<String>, std::io::Error> {
+    let Some(mut doc) = read_settings(path)? else {
+        return Ok(None);
+    };
+    let mut changed = false;
+    for key in BRIDGE_KEYS {
+        changed |= doc.remove(key).is_some();
     }
-    render_pretty(&Value::Object(doc))
+    if !changed {
+        return Ok(None);
+    }
+    Ok(Some(format!(
+        "{}\n",
+        serde_json::to_string_pretty(&Value::Object(doc))?
+    )))
 }

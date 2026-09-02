@@ -13,10 +13,27 @@ use crate::services::storage::{ImageStorage, StorageConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{TraceId, UserId};
-use systemprompt_traits::{AiGeneratedFile, DynAiFilePersistenceProvider};
+use systemprompt_traits::{AiGeneratedFile, DynAiFilePersistenceProvider, FileStorage};
 use tracing::error;
 
 use super::image_persistence;
+
+/// Constructor inputs shared by [`ImageService::new`] and
+/// [`ImageService::with_providers`].
+pub struct ImageServiceParts {
+    pub ai_request_repo: AiRequestRepository,
+    pub storage_config: StorageConfig,
+    pub file_storage: Arc<dyn FileStorage>,
+    pub file_provider: DynAiFilePersistenceProvider,
+}
+
+impl std::fmt::Debug for ImageServiceParts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ImageServiceParts")
+            .field("storage_config", &self.storage_config)
+            .finish_non_exhaustive()
+    }
+}
 
 pub struct ImageService {
     providers: HashMap<String, BoxedImageProvider>,
@@ -39,30 +56,22 @@ impl std::fmt::Debug for ImageService {
 }
 
 impl ImageService {
-    pub fn new(
-        ai_request_repo: AiRequestRepository,
-        storage_config: StorageConfig,
-        file_provider: DynAiFilePersistenceProvider,
-    ) -> Result<Self> {
-        let storage = Arc::new(ImageStorage::new(storage_config)?);
-
-        Ok(Self {
-            providers: HashMap::new(),
-            storage,
-            file_provider,
-            ai_request_repo,
-            default_provider: None,
-        })
+    pub fn new(parts: ImageServiceParts) -> Result<Self> {
+        Self::with_providers(parts, HashMap::new(), None)
     }
 
     pub fn with_providers(
-        ai_request_repo: AiRequestRepository,
-        storage_config: StorageConfig,
-        file_provider: DynAiFilePersistenceProvider,
+        parts: ImageServiceParts,
         providers: HashMap<String, BoxedImageProvider>,
         default_provider: Option<String>,
     ) -> Result<Self> {
-        let storage = Arc::new(ImageStorage::new(storage_config)?);
+        let ImageServiceParts {
+            ai_request_repo,
+            storage_config,
+            file_storage,
+            file_provider,
+        } = parts;
+        let storage = Arc::new(ImageStorage::new(storage_config, file_storage)?);
 
         Ok(Self {
             providers,
@@ -154,11 +163,12 @@ impl ImageService {
         };
         response.cost_estimate = Some(provider.capabilities().cost_per_image_cents);
 
-        let (file_path, public_url) = self
+        let (stored_id, public_url) = self
             .storage
-            .save_base64_image(&response.image_data, &response.mime_type)?;
+            .save_base64_image(&response.image_data, &response.mime_type)
+            .await?;
 
-        response.file_path = Some(file_path.to_string_lossy().to_string());
+        response.file_path = Some(stored_id.as_str().to_owned());
         response.public_url = Some(public_url.clone());
         response.file_size_bytes = Some(response.image_data.len());
 
@@ -168,7 +178,7 @@ impl ImageService {
             &request,
             &response,
             image_persistence::FileLocation {
-                path: &file_path.to_string_lossy(),
+                path: stored_id.as_str(),
                 public_url: &public_url,
             },
         )

@@ -33,8 +33,8 @@ pub use persistence::{
     persist_message_with_tx,
 };
 pub use queries::{
-    get_messages_by_context, get_messages_by_task, get_next_sequence_number,
-    get_next_sequence_number_in_tx, get_next_sequence_number_sqlx, message_exists,
+    get_messages_by_context, get_messages_by_task, get_next_sequence_number_in_tx,
+    get_next_sequence_number_sqlx, message_exists,
 };
 
 #[derive(Debug, Clone)]
@@ -64,9 +64,6 @@ impl MessageRepository {
         get_messages_by_context(&self.pool, context_id).await
     }
 
-    pub async fn get_next_sequence_number(&self, task_id: &TaskId) -> Result<i32, RepositoryError> {
-        get_next_sequence_number(&self.pool, task_id).await
-    }
 
     pub async fn persist_message_sqlx(
         &self,

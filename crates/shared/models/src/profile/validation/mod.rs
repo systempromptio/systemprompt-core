@@ -21,9 +21,11 @@ impl Profile {
         self.validate_paths(&mut errors, is_cloud);
         self.validate_security_settings(&mut errors);
         self.validate_database_pool(&mut errors);
+        self.validate_trusted_proxies(&mut errors, is_cloud);
         self.validate_cors_origins(&mut errors);
         self.validate_rate_limits(&mut errors);
         self.validate_governance(&mut errors, is_cloud);
+        self.validate_storage(&mut errors);
         self.validate_external_url_is_reachable(&mut errors, is_cloud);
 
         if errors.is_empty() {
@@ -33,6 +35,18 @@ impl Profile {
                 name: self.name.clone(),
                 errors,
             })
+        }
+    }
+
+    pub(crate) fn validate_storage(&self, errors: &mut Vec<String>) {
+        match self.storage.backend {
+            super::StorageBackend::Local => {
+                if self.paths.storage.as_deref().is_none_or(str::is_empty) {
+                    errors.push(
+                        "storage.backend 'local' requires paths.storage to be set".to_owned(),
+                    );
+                }
+            },
         }
     }
 
@@ -107,6 +121,16 @@ impl Profile {
 
         if self.server.port == 0 {
             errors.push("Server port must be greater than 0".to_owned());
+        }
+
+        if let Some(metrics_port) = self.server.metrics_port {
+            if metrics_port == 0 {
+                errors.push("server.metrics_port must be greater than 0".to_owned());
+            } else if metrics_port == self.server.port {
+                errors.push(format!(
+                    "server.metrics_port must differ from server.port (both are {metrics_port})"
+                ));
+            }
         }
     }
 

@@ -47,7 +47,6 @@ pub async fn finish_link(
             request.challenge_id.as_str(),
             &request.token,
             &request.credential,
-            state.link_states(),
         )
         .await
         .map_err(|e| OAuthHttpError::link_failed(e.to_string()))?;

@@ -1,8 +1,8 @@
 //! Process-wide bootstrap fixture.
 //!
-//! Initialises [`ProfileBootstrap`], [`SecretsBootstrap`], the runtime
-//! [`Config`] singleton, and [`FilesConfig`] from a tempdir-backed
-//! profile bundle.
+//! Initialises [`ProfileBootstrap`], [`ServicesBootstrap`],
+//! [`SecretsBootstrap`], the runtime [`Config`] singleton, and [`FilesConfig`]
+//! from a tempdir-backed profile bundle.
 
 use std::env;
 use std::path::PathBuf;
@@ -10,6 +10,7 @@ use std::sync::OnceLock;
 
 use systemprompt_config::{init_config_from_profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
+use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use systemprompt_models::{AppPaths, Config};
 use tempfile::TempDir;
@@ -89,31 +90,45 @@ pub fn init_isolated_bootstrap(api_base_url: &str, services_config_yaml: &str) -
     init_bootstrap_inner(Some(api_base_url), Some(services_config_yaml))
 }
 
-// Bootstrap whose profile carries an enabled `gateway:` section and a provider
-// registry. The shared fixture profile has neither, so every gateway route
-// resolves `GatewayState::resolved()` to `None` and answers 404 "Gateway not
-// enabled" — which leaves the whole dispatch/extract path unreachable. Callers
-// own the process-global one-shot inits, so this must be the first bootstrap
-// call in the process (true under nextest) and must not be mixed with
-// `ensure_test_bootstrap` pointing at a different tree.
-pub fn init_gateway_bootstrap(gateway_yaml: &str) -> TestBootstrap {
-    init_bootstrap_inner_with(None, None, Some(gateway_yaml))
-}
-
-// Bootstrap carrying both halves of the AI configuration, which are separate
-// files and separately necessary. The profile's `providers:` registry supplies
-// connectivity; the services config's `ai.providers` supplies the deployment
-// policy that says which of them are enabled. `AiService::new` needs both — the
-// registry alone yields "No AI providers are enabled", because the policy map
-// is what it iterates. Anything constructing an `AiService`, and anything
-// reaching one through a command, needs this rather than
-// `init_gateway_bootstrap`.
+// Bootstrap whose services `config.yaml` is caller-supplied — the one place a
+// test declares a provider registry (`providers:`), an enabled `gateway:`, and
+// the `ai.providers` policy that says which providers are enabled. The shared
+// fixture config has none of them, so every gateway route answers 404 "Gateway
+// not enabled" and `AiService::new` yields "No AI providers are enabled".
+// Anything constructing an `AiService` or exercising the dispatch/extract path
+// needs this. Callers own the process-global one-shot inits, so this must be
+// the first bootstrap call in the process (true under nextest) and must not be
+// mixed with `ensure_test_bootstrap` pointing at a different tree.
 //
 // The api_key secret is deliberately not required: a missing one is a warning
 // and the provider is still built with an empty key, which is what lets a test
 // point the endpoint at a closed port or a stub.
-pub fn init_ai_bootstrap(gateway_yaml: &str, services_config_yaml: &str) -> TestBootstrap {
-    init_bootstrap_inner_with(None, Some(services_config_yaml), Some(gateway_yaml))
+pub fn init_services_bootstrap(services_config_yaml: &str) -> TestBootstrap {
+    init_bootstrap_inner(None, Some(services_config_yaml))
+}
+
+// Bootstrap whose services `config.yaml` is deliberately unloadable. A services
+// tree that does not parse is a boot failure, so `ServicesBootstrap` is left
+// uninitialised here on purpose and the failure is asserted rather than
+// swallowed: a config that turned out to load would silently stop exercising
+// the caller's failure path. `ConfigLoader::load()` is left unprimed, so the
+// first request-time load reads the malformed file from disk and fails there.
+pub fn init_unloadable_services_bootstrap(
+    api_base_url: &str,
+    services_config_yaml: &str,
+) -> TestBootstrap {
+    init_bootstrap_inner_expecting(Some(api_base_url), Some(services_config_yaml), true)
+}
+
+// Re-read the services tree from disk and re-prime the memoised
+// `ConfigLoader::load()` result. `ServicesBootstrap::init` primes that cache at
+// bootstrap, so files a test writes into the services tree afterwards
+// (marketplaces, plugins, skills) are invisible to every route that reads
+// through `ConfigLoader::load()` until the cache is refreshed.
+pub fn refresh_services_config() {
+    if let Err(e) = ConfigLoader::reload() {
+        panic!("ConfigLoader::reload failed: {e}");
+    }
 }
 
 fn init_bootstrap() -> TestBootstrap {
@@ -124,13 +139,13 @@ fn init_bootstrap_inner(
     api_base_url: Option<&str>,
     services_config_yaml: Option<&str>,
 ) -> TestBootstrap {
-    init_bootstrap_inner_with(api_base_url, services_config_yaml, None)
+    init_bootstrap_inner_expecting(api_base_url, services_config_yaml, false)
 }
 
-fn init_bootstrap_inner_with(
+fn init_bootstrap_inner_expecting(
     api_base_url: Option<&str>,
     services_config_yaml: Option<&str>,
-    gateway_yaml: Option<&str>,
+    expect_services_load_failure: bool,
 ) -> TestBootstrap {
     let database_url = env::var("TEST_DATABASE_URL")
         .or_else(|_| env::var("DATABASE_URL"))
@@ -197,7 +212,6 @@ fn init_bootstrap_inner_with(
             web: &web_path,
         },
         api_base_url.unwrap_or("http://127.0.0.1"),
-        gateway_yaml,
     );
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml).expect("write profile.yaml");
@@ -208,6 +222,16 @@ fn init_bootstrap_inner_with(
         }
     }
     let profile = ProfileBootstrap::get().expect("profile initialised");
+
+    if !ServicesBootstrap::is_initialized() {
+        match (ServicesBootstrap::init(), expect_services_load_failure) {
+            (Err(e), false) => panic!("ServicesBootstrap::init failed: {e}"),
+            (Ok(_), true) => {
+                panic!("services config was expected not to load, but it did")
+            },
+            _ => {},
+        }
+    }
 
     if !SecretsBootstrap::is_initialized() {
         let _ = SecretsBootstrap::try_init();
@@ -326,11 +350,7 @@ struct ProfilePaths<'a> {
     web: &'a std::path::Path,
 }
 
-fn render_profile_yaml(
-    paths: &ProfilePaths<'_>,
-    api_base_url: &str,
-    gateway_yaml: Option<&str>,
-) -> String {
+fn render_profile_yaml(paths: &ProfilePaths<'_>, api_base_url: &str) -> String {
     let ProfilePaths {
         system,
         services,
@@ -427,5 +447,5 @@ governance:
         web = web.display(),
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
         api_base_url = api_base_url,
-    ) + gateway_yaml.unwrap_or("")
+    )
 }

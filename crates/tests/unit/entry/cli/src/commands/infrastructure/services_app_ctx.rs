@@ -132,8 +132,8 @@ async fn a_dry_run_cleanup_reports_without_stopping_anything() {
     // A running row whose PID is this test process: `cleanup` classifies it as
     // live, so a dry run has to report it without removing it.
     sqlx::query(
-        "INSERT INTO services (name, module_name, server_type, status, port, pid) \
-         VALUES ($1, 'cli-tests', 'internal', 'running', 65000, $2)",
+        "INSERT INTO services (instance_id, name, module_name, server_type, status, port, pid) \
+         VALUES ('fixture', $1, 'cli-tests', 'internal', 'running', 65000, $2)",
     )
     .bind(&probe)
     .bind(std::process::id() as i32)

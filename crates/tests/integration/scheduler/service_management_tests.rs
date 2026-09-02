@@ -20,7 +20,11 @@ async fn get_services_by_type_surfaces_seeded_service() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let repo = ServiceRepository::new(&pool).expect("repo");
+    let repo = ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("repo");
     let name = format!("gsbt_mcp_{}", uuid::Uuid::new_v4().simple());
     repo.create_service(CreateServiceInput {
         name: &name,
@@ -33,7 +37,11 @@ async fn get_services_by_type_surfaces_seeded_service() {
     .expect("seed service");
 
     let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("service repository"),
     );
     let services = svc.get_services_by_type("mcp").await.expect("query");
     assert!(
@@ -54,7 +62,11 @@ async fn get_running_services_with_pid_returns_only_running() {
         return;
     };
     let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("service repository"),
     );
     let services = svc.get_running_services_with_pid().await.expect("query");
     assert!(
@@ -69,7 +81,11 @@ async fn cleanup_stale_entries_runs() {
         return;
     };
     let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("service repository"),
     );
     let cleaned = svc.cleanup_stale_entries().await.expect("cleanup");
     let _ = cleaned;
@@ -81,7 +97,11 @@ async fn mark_service_stopped_for_unknown_succeeds() {
         return;
     };
     let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )
+        .expect("service repository"),
     );
     let result = svc
         .mark_service_stopped("nonexistent-service-name-zzz")
@@ -94,7 +114,10 @@ async fn state_verifier_get_verified_states_handles_unknown_service() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs = vec![ServiceConfig {
         name: format!("test_svc_{}", uuid::Uuid::new_v4().simple()),
         service_type: ServiceType::Mcp,
@@ -113,7 +136,10 @@ async fn state_verifier_get_running_services_filters_correctly() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs = vec![ServiceConfig {
         name: format!("test_running_{}", uuid::Uuid::new_v4().simple()),
         service_type: ServiceType::Mcp,
@@ -136,7 +162,10 @@ async fn state_verifier_get_services_needing_action_filters() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs = vec![ServiceConfig {
         name: format!("test_action_{}", uuid::Uuid::new_v4().simple()),
         service_type: ServiceType::Mcp,
@@ -167,7 +196,10 @@ async fn state_verifier_get_crashed_services_filters() {
     let Some(pool) = try_pool().await else {
         return;
     };
-    let verifier = ServiceStateVerifier::new(pool);
+    let verifier = ServiceStateVerifier::new(
+        pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    );
     let configs: Vec<ServiceConfig> = vec![];
     let crashed = verifier
         .get_crashed_services(&configs)

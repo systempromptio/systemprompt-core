@@ -234,12 +234,12 @@ async fn sequence_numbers_in_tx_increase_per_task() {
         assert_eq!(seq, expected);
     }
 
-    let next = r
+    let stored = r
         .tasks
-        .get_next_sequence_number(&task_id)
+        .get_messages_by_task(&task_id)
         .await
-        .expect("next sequence");
-    assert_eq!(next, 3);
+        .expect("messages by task");
+    assert_eq!(stored.len(), 3);
 
     r.tasks.delete_task(&task_id).await.ok();
 }

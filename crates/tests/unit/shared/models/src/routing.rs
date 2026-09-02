@@ -300,3 +300,66 @@ mod route_classifier_helpers_tests {
         assert!(debug_str.contains("false"));
     }
 }
+
+// The inference gateway is mounted at `/v1`, not under `/api`, so it matched no
+// arm of `classify` and fell all the way through to the HTML-content branch.
+// Every gateway failure was therefore logged as an HTML page view:
+//
+//   ERROR analytics::events: module="page_view" HTTP 529 - POST /v1/messages
+//
+// which is how a run of upstream 529s reads as a website problem.
+mod gateway_route_tests {
+    use super::*;
+
+    #[test]
+    fn gateway_metadata_fields() {
+        let meta = EventMetadata::GATEWAY_REQUEST;
+        assert_eq!(meta.event_type, "gateway_request");
+        assert_eq!(meta.event_category, "gateway");
+        assert_eq!(meta.log_module, "gateway_request");
+    }
+
+    #[test]
+    fn gateway_paths_classify_as_gateway_api_endpoints() {
+        let c = classifier_without_content_routing();
+        for path in [
+            "/v1/messages",
+            "/v1/messages?beta=true",
+            "/v1/chat/completions",
+            "/api/public/gateway/models",
+        ] {
+            assert_eq!(
+                c.classify(path, "POST"),
+                RouteType::ApiEndpoint {
+                    category: ApiCategory::Gateway
+                },
+                "{path} must classify as a gateway endpoint"
+            );
+        }
+    }
+
+    #[test]
+    fn gateway_requests_are_never_logged_as_page_views() {
+        // The regression, stated directly.
+        let c = classifier_without_content_routing();
+        let meta = c.get_event_metadata("/v1/messages", "POST");
+        assert_eq!(meta.log_module, "gateway_request");
+        assert_ne!(meta.log_module, "page_view");
+    }
+
+    #[test]
+    fn gateway_requests_are_not_double_counted_as_web_analytics() {
+        // Every inference call already lands a row in `ai_requests` carrying
+        // identity, model, tokens and cost. Counting it again here would
+        // inflate the web-analytics totals with traffic that has a better
+        // record of itself elsewhere.
+        let c = classifier_without_content_routing();
+        assert!(!c.should_track_analytics("/v1/messages", "POST"));
+    }
+
+    #[test]
+    fn gateway_paths_are_not_html() {
+        let c = classifier_without_content_routing();
+        assert!(!c.is_html("/v1/messages"));
+    }
+}

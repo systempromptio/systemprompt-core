@@ -93,3 +93,34 @@ async fn http_get(addr: std::net::SocketAddr, path: &str) -> String {
         .expect("read response");
     response
 }
+
+#[tokio::test]
+async fn starting_router_answers_alive_on_livez_and_503_on_readyz() {
+    let livez = starting_router()
+        .oneshot(
+            Request::builder()
+                .uri("/livez")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(livez.status(), StatusCode::OK);
+    assert_eq!(body_json(livez).await["status"], "alive");
+
+    let readyz = starting_router()
+        .oneshot(
+            Request::builder()
+                .uri("/readyz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        readyz.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "a balancer must not admit a node that is still booting"
+    );
+    assert_eq!(body_json(readyz).await["status"], "starting");
+}

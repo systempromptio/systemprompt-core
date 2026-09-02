@@ -12,7 +12,10 @@ use systemprompt_files::{
     FileRepository, FileUploadError, FileUploadRequest, FileUploadService, FilesConfig,
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::profile::StorageBackend;
+use systemprompt_storage::build_file_storage;
 use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_traits::FileStorage;
 
 const CONTENT: &[u8] = b"hello upload bytes";
 const CONTENT_SHA256: &str = "3cd6a1084a7842942497e88607bde216d55fa542bb5d1dea4fda4aca73f7f4c3";
@@ -23,6 +26,10 @@ fn files_config(bootstrap: &TestBootstrap, yaml: Option<&str>) -> FilesConfig {
             .expect("write files.yaml");
     }
     FilesConfig::from_profile(&bootstrap.app_paths).expect("from_profile")
+}
+
+fn local_storage(bootstrap: &TestBootstrap) -> Arc<dyn FileStorage> {
+    build_file_storage(StorageBackend::Local, &bootstrap.storage_path)
 }
 
 async fn live_pool(bootstrap: &TestBootstrap) -> Option<DbPool> {
@@ -62,6 +69,7 @@ async fn upload_context_scoped_persists_file_and_row() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg.clone(),
+        local_storage(b),
     );
     assert!(service.is_enabled());
     assert!(service.validator().validate("image/png", 4).is_ok());
@@ -126,6 +134,7 @@ async fn upload_rejected_when_persistence_disabled() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg,
+        local_storage(b),
     );
 
     assert!(!FileUploadService::is_enabled(&service));
@@ -146,6 +155,7 @@ async fn upload_rejects_oversized_base64_payload() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg,
+        local_storage(b),
     );
 
     let oversized = STANDARD.encode(vec![7_u8; 4096]);
@@ -170,6 +180,7 @@ async fn upload_rejects_invalid_base64() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         files_config(b, None),
+        local_storage(b),
     );
 
     let request =
@@ -191,6 +202,7 @@ async fn upload_user_library_scopes_path_to_user() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg,
+        local_storage(b),
     );
 
     let user = UserId::new("upload-lib-user");
@@ -225,6 +237,7 @@ async fn upload_user_library_without_user_uses_anonymous() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg,
+        local_storage(b),
     );
 
     let request =
@@ -253,6 +266,7 @@ async fn upload_rejects_user_id_with_traversal() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg,
+        local_storage(b),
     );
 
     let request = FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate())
@@ -289,6 +303,7 @@ async fn upload_db_failure_removes_stored_file() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg.clone(),
+        local_storage(b),
     );
     let context_id = ContextId::generate();
     let request =
@@ -322,10 +337,11 @@ async fn upload_io_error_when_uploads_path_is_blocked() {
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&pool).expect("file repository"),
         cfg,
+        local_storage(b),
     );
     let request =
         FileUploadRequest::builder("image/png", encoded_content(), ContextId::generate()).build();
 
     let err = service.upload_file(request).await.expect_err("io failure");
-    assert!(matches!(err, FileUploadError::Io(_)));
+    assert!(matches!(err, FileUploadError::Storage(_)), "{err}");
 }

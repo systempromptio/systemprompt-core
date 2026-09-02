@@ -2,7 +2,9 @@
 //!
 //! [`build`] constructs a `Profile` for the chosen environment, [`save`]
 //! writes it as YAML with a credential warning header, and [`run_migrations`]
-//! re-invokes the CLI against the new profile to apply the schema.
+//! re-invokes the CLI against the new profile to apply the schema. The
+//! provider catalog and gateway routes are not part of the profile — see
+//! [`super::services_files`], which seeds them into the services tree.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,11 +12,9 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
-use systemprompt_identifiers::{Email, ProviderId};
+use systemprompt_identifiers::Email;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{
-    GatewayState, SecretsConfig, SecretsSource, SecretsValidationMode,
-};
+use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     CliPaths, CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, Profile,
@@ -22,7 +22,6 @@ use systemprompt_models::{
 };
 
 use super::profile_sections as sections;
-use super::secrets::SecretsData;
 use systemprompt_cloud::profile_authoring::generate_display_name;
 
 fn determine_environment(env_name: &str) -> Environment {
@@ -39,8 +38,6 @@ pub(super) struct ProfileBuildParams<'a> {
     pub secrets_path: &'a str,
     pub project_root: &'a Path,
     pub bin_path: Option<&'a Path>,
-    pub secrets: &'a SecretsData,
-    pub default_provider: Option<&'a ProviderId>,
     pub port_offset: u16,
     pub admin_email: &'a Email,
 }
@@ -51,8 +48,6 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         secrets_path,
         project_root,
         bin_path,
-        secrets,
-        default_provider,
         port_offset,
         admin_email,
     } = *params;
@@ -64,6 +59,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     let security = sections::security(&server.api_external_url);
 
     let profile = Profile {
+        storage: systemprompt_models::profile::StorageConfig::default(),
         name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,
@@ -94,8 +90,6 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
             source: SecretsSource::File,
         }),
         extensions: ExtensionsConfig::default(),
-        providers: sections::providers(secrets),
-        gateway: Some(sections::gateway(secrets, default_provider)),
         governance: Some(governance),
         services: systemprompt_models::profile::ServicesProfileConfig { port_offset },
         system_admin: SystemAdminConfig {
@@ -107,23 +101,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     profile
         .validate()
         .context("generated profile failed validation")?;
-    validate_registry_and_gateway(&profile)?;
     Ok(profile)
-}
-
-fn validate_registry_and_gateway(profile: &Profile) -> Result<()> {
-    profile
-        .providers
-        .validate()
-        .context("generated provider registry failed validation")?;
-
-    if let Some(GatewayState::Spec(spec)) = &profile.gateway {
-        spec.clone()
-            .resolve()
-            .validate(&profile.providers)
-            .context("generated gateway config failed validation")?;
-    }
-    Ok(())
 }
 
 pub(super) fn save(profile: &Profile, profile_path: &Path) -> Result<()> {

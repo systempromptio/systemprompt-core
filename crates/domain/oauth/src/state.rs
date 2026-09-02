@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::repository::OAuthRepository;
-use crate::services::webauthn::{LinkStates, create_link_states};
 use std::sync::Arc;
 use systemprompt_traits::{
     AnalyticsProvider, FingerprintProvider, McpRegistryProvider, UserEventPublisher, UserProvider,
@@ -18,7 +17,6 @@ pub struct OAuthState {
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     event_publisher: Option<Arc<dyn UserEventPublisher>>,
     mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
-    link_states: LinkStates,
 }
 
 impl std::fmt::Debug for OAuthState {
@@ -39,7 +37,6 @@ impl std::fmt::Debug for OAuthState {
                 "mcp_registry",
                 &self.mcp_registry.as_ref().map(|_| "<registry>"),
             )
-            .field("link_states", &"<link_states>")
             .finish()
     }
 }
@@ -58,7 +55,6 @@ impl OAuthState {
             fingerprint_provider: None,
             event_publisher: None,
             mcp_registry: None,
-            link_states: create_link_states(),
         }
     }
 
@@ -102,9 +98,5 @@ impl OAuthState {
 
     pub fn event_publisher(&self) -> Option<&Arc<dyn UserEventPublisher>> {
         self.event_publisher.as_ref()
-    }
-
-    pub const fn link_states(&self) -> &LinkStates {
-        &self.link_states
     }
 }

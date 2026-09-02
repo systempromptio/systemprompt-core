@@ -15,7 +15,7 @@ use systemprompt_agent::services::a2a_server::Server;
 use systemprompt_database::DbPool;
 use systemprompt_models::ai::AiProvider;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_config, fixture_db_pool, init_ai_bootstrap,
+    TestBootstrap, fixture_config, fixture_db_pool, init_services_bootstrap,
 };
 use systemprompt_test_mocks::MockAiProvider;
 use systemprompt_traits::{
@@ -70,7 +70,7 @@ const SERVICES_YAML: &str = r#"agents:
 static BOOT: std::sync::OnceLock<TestBootstrap> = std::sync::OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
-    BOOT.get_or_init(|| init_ai_bootstrap(GATEWAY_YAML, SERVICES_YAML))
+    BOOT.get_or_init(|| init_services_bootstrap(&format!("{SERVICES_YAML}{GATEWAY_YAML}")))
 }
 
 async fn state() -> (Arc<AgentState>, DbPool) {
@@ -79,9 +79,12 @@ async fn state() -> (Arc<AgentState>, DbPool) {
         .await
         .expect("the a2a server tests need a reachable test database");
     let config = Arc::new(fixture_config(&b.database_url));
-    let repos =
-        systemprompt_agent::repository::A2ARepositories::new(&pool, crate::session_usage(&pool))
-            .expect("repositories");
+    let repos = systemprompt_agent::repository::A2ARepositories::new(
+        &pool,
+        crate::session_usage(&pool),
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .expect("repositories");
     let state = AgentState::new(
         pool.clone(),
         config,

@@ -8,7 +8,9 @@ pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId,
+};
 
 use crate::models::{LogEntry, LogLevel};
 
@@ -25,6 +27,7 @@ struct LogRow {
     trace_id: TraceId,
     context_id_text: Option<String>,
     client_id: Option<ClientId>,
+    instance_id: Option<InstanceId>,
 }
 
 fn row_to_entry(r: LogRow) -> LogEntry {
@@ -55,6 +58,7 @@ fn row_to_entry(r: LogRow) -> LogEntry {
                 .ok()
         }),
         client_id: r.client_id,
+        instance_id: r.instance_id,
     }
 }
 
@@ -70,7 +74,8 @@ pub(super) async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Optio
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs WHERE id = $1
         "#,
         id
@@ -97,7 +102,8 @@ pub(super) async fn find_log_by_partial_id(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs
         WHERE id LIKE $1
         ORDER BY timestamp DESC
@@ -126,7 +132,8 @@ pub(super) async fn find_logs_by_trace_id(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs
         WHERE trace_id = $1
         ORDER BY timestamp ASC
@@ -152,7 +159,8 @@ pub(super) async fn find_logs_by_trace_id(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs
         WHERE trace_id LIKE $1
         ORDER BY timestamp ASC
@@ -183,7 +191,8 @@ pub(super) async fn list_logs_filtered(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs
         WHERE ($1::TIMESTAMPTZ IS NULL OR timestamp >= $1)
           AND ($2::TEXT IS NULL OR UPPER(level) = $2)

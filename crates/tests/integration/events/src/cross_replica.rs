@@ -50,7 +50,10 @@ async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
     let user = unique_user();
     let connection = ConnectionId::new("replica-b-conn");
 
-    let bridge = PostgresEventBridge::new((*pool).clone());
+    let bridge = PostgresEventBridge::new(
+        (*pool).clone(),
+        systemprompt_identifiers::InstanceId::new("peer"),
+    );
     let bridge_handle = bridge.start();
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
@@ -100,7 +103,10 @@ async fn relayed_event_reaches_only_the_addressed_user() {
     let target = unique_user();
     let bystander = unique_user();
 
-    let bridge = PostgresEventBridge::new((*pool).clone());
+    let bridge = PostgresEventBridge::new(
+        (*pool).clone(),
+        systemprompt_identifiers::InstanceId::new("peer"),
+    );
     let bridge_handle = bridge.start();
 
     let (target_tx, mut target_rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);

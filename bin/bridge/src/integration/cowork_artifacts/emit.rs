@@ -18,12 +18,13 @@ use crate::host_sync::ApplyError;
 use crate::integration::cowork_plugins::resolve_target;
 
 use super::sink::{ArtifactSink, FileSink, SeedStaging};
+use super::workspace_sink::WorkspaceSink;
 
 const VERSION_FILE: &str = "version.json";
 
 #[must_use]
 pub fn active_sinks() -> &'static [&'static dyn ArtifactSink] {
-    &[&FileSink, &SeedStaging]
+    &[&FileSink, &SeedStaging, &WorkspaceSink]
 }
 
 #[must_use]

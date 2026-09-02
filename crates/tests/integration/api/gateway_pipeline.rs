@@ -24,7 +24,7 @@ use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, RouteId, SecretName,
     TraceId,
 };
-use systemprompt_models::profile::{
+use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
     WireProtocol,
 };
@@ -163,6 +163,7 @@ fn dispatch_ctx(cred: &AuthedFixture, model: &str, stream: bool) -> GatewayReque
         max_tokens: Some(256),
         is_streaming: stream,
         wire_protocol: "anthropic-messages".to_owned(),
+        access_log: None,
     }
 }
 

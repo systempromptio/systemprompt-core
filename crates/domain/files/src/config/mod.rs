@@ -171,6 +171,18 @@ impl FilesConfig {
         self.storage_root.join(storage::UPLOADS)
     }
 
+    pub fn storage_root(&self) -> &Path {
+        &self.storage_root
+    }
+
+    pub fn uploads_relative() -> PathBuf {
+        PathBuf::from(storage::UPLOADS)
+    }
+
+    pub fn generated_images_relative() -> PathBuf {
+        PathBuf::from(storage::GENERATED)
+    }
+
     pub fn url_prefix(&self) -> &str {
         &self.url_prefix
     }

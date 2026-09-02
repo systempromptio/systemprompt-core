@@ -13,6 +13,7 @@ use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConf
 fn base_config() -> Config {
     Config {
         instance_id: "t".to_string(),
+        metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "t".to_string(),
         database_type: "postgres".to_string(),

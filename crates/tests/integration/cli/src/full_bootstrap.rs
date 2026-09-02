@@ -158,6 +158,10 @@ fn build() -> FullBootstrap {
     )
     .expect("write services config");
     std::fs::write(services_dir.join("ai/config.yaml"), AI_CONFIG).expect("write ai config");
+    std::fs::write(services_dir.join("ai/providers.yaml"), PROVIDERS_CONFIG)
+        .expect("write provider catalog");
+    std::fs::write(services_dir.join("ai/gateway.yaml"), GATEWAY_CONFIG)
+        .expect("write gateway config");
     std::fs::write(
         services_dir.join("skills/echo_skill/config.yaml"),
         "id: echo_skill\nname: Echo Skill\ndescription: Fixture skill for edit coverage\n",
@@ -304,6 +308,8 @@ const EXTRA_AGENT_TEMPLATE: &str = r#"agents:
 const SERVICES_CONFIG_TEMPLATE: &str = r#"includes:
   - ../agents/covedit.yaml
   - ../agents/covdelete.yaml
+  - ../ai/providers.yaml
+  - ../ai/gateway.yaml
 agents:
   covagent:
     name: covagent
@@ -370,6 +376,34 @@ ai:
       default_model: claude-sonnet-4-5
 "#;
 
+const PROVIDERS_CONFIG: &str = r#"providers:
+  - name: anthropic
+    wire: anthropic
+    surface: anthropic
+    endpoint: https://api.anthropic.com/v1/messages
+    api_key_secret: anthropic
+    models:
+      - id: claude-sonnet-4-5
+        pricing:
+          input_per_million: 3.0
+          output_per_million: 15.0
+  - name: openai
+    wire: openai-chat
+    surface: openai
+    endpoint: https://api.openai.com/v1/chat/completions
+    api_key_secret: openai
+    models:
+      - id: gpt-5
+        pricing:
+          input_per_million: 1.25
+          output_per_million: 10.0
+"#;
+
+const GATEWAY_CONFIG: &str = r#"gateway:
+  enabled: false
+  routes: []
+"#;
+
 const AI_CONFIG: &str = r#"ai:
   default_provider: anthropic
   providers:
@@ -430,7 +464,7 @@ server:
     referrer_policy: strict-origin-when-cross-origin
     permissions_policy: camera=()
     content_security_policy: null
-  instance_id: null
+  instance_id: test-instance
   max_concurrent_streams: 256
   trusted_proxies: []
 paths:
@@ -474,27 +508,6 @@ runtime:
   non_interactive: true
 extensions:
   disabled: []
-providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: https://api.anthropic.com/v1/messages
-    api_key_secret: anthropic
-    models:
-      - id: claude-sonnet-4-5
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-  - name: openai
-    wire: openai-chat
-    surface: openai
-    endpoint: https://api.openai.com/v1/chat/completions
-    api_key_secret: openai
-    models:
-      - id: gpt-5
-        pricing:
-          input_per_million: 1.25
-          output_per_million: 10.0
 governance:
   authz:
     hook:

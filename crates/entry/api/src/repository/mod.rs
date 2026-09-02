@@ -25,3 +25,22 @@ pub fn tool_usage(
         systemprompt_mcp::repository::ToolUsageRepository::new(db)?,
     ))
 }
+
+pub fn proxy_identities(
+    db: &DbPool,
+) -> Result<
+    Arc<systemprompt_mcp::repository::McpProxyIdentityRepository>,
+    systemprompt_mcp::McpDomainError,
+> {
+    Ok(Arc::new(
+        systemprompt_mcp::repository::McpProxyIdentityRepository::new(db)?,
+    ))
+}
+
+pub fn user_rate_limit_buckets(
+    db: &DbPool,
+) -> Result<Arc<systemprompt_users::UserRateLimitBucketRepository>, systemprompt_users::UserError> {
+    Ok(Arc::new(
+        systemprompt_users::UserRateLimitBucketRepository::new(db)?,
+    ))
+}

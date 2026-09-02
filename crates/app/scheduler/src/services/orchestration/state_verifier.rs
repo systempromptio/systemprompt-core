@@ -14,10 +14,11 @@ use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
 use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
+use systemprompt_identifiers::InstanceId;
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
-    "SELECT name, module_name as service_type, status, pid, port FROM services WHERE status IN \
-     ('running', 'starting', 'stopped')",
+    "SELECT name, module_name as service_type, status, pid, port FROM services WHERE instance_id \
+     = $1 AND status IN ('running', 'starting', 'stopped')",
 );
 
 #[derive(Debug, Clone)]
@@ -63,11 +64,15 @@ pub struct DbServiceRecord {
 #[derive(Debug)]
 pub struct ServiceStateVerifier {
     db_pool: DbPool,
+    instance_id: InstanceId,
 }
 
 impl ServiceStateVerifier {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
+    pub const fn new(db_pool: DbPool, instance_id: InstanceId) -> Self {
+        Self {
+            db_pool,
+            instance_id,
+        }
     }
 
     pub async fn get_verified_states(
@@ -179,11 +184,10 @@ impl ServiceStateVerifier {
     }
 
     async fn fetch_db_services(&self) -> SchedulerResult<Vec<DbServiceRecord>> {
-        let empty_params: &[&dyn systemprompt_database::ToDbValue] = &[];
         let rows = self
             .db_pool
             .as_ref()
-            .fetch_all(&FETCH_DB_SERVICES, empty_params)
+            .fetch_all(&FETCH_DB_SERVICES, &[&self.instance_id.as_str()])
             .await?;
 
         let mut records = Vec::new();

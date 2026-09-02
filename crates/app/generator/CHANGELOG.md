@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Changed
+
+- Generated images are written through the `FileStorage` trait rather than straight to a local path, so a deployment backed by a shared mount or an object store keeps its output where every replica can read it.
+
 ## [0.25.0] - 2026-07-27
 
 ### Changed

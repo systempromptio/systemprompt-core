@@ -32,8 +32,8 @@ pub(in crate::repository) async fn create_log(
 
     sqlx::query!(
         r"
-        INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id, instance_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ",
         entry_id,
         entry.timestamp,
@@ -46,7 +46,8 @@ pub(in crate::repository) async fn create_log(
         task_id,
         trace_id,
         context_id,
-        client_id
+        client_id,
+        entry.instance_id.as_ref().map(systemprompt_identifiers::InstanceId::as_str)
     )
     .execute(pool)
     .await

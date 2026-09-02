@@ -6,8 +6,6 @@ use systemprompt_bridge::config::Config;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::TcpStream;
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn port_of(server: &LoopbackServer) -> u16 {
     server
@@ -98,56 +96,35 @@ async fn a_provider_without_a_session_section_is_not_configured() {
     );
 }
 
+// Why: the provider only ever runs from the background token cache. Opening
+// the consent page from there is the re-auth loop this guards against, so a
+// configured provider with no cached session must answer "sign in" and never
+// bind the loopback port.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_configured_provider_exchanges_the_captured_code_and_surfaces_a_rejection() {
-    let accepting = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/auth/bridge/session"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "token": "jwt-from-session-exchange",
-            "ttl": 900,
-            "headers": {},
-        })))
-        .mount(&accepting)
-        .await;
-
-    let provider = SessionProvider::new(&session_config(&accepting.uri()));
+async fn a_configured_provider_never_opens_a_browser_and_reports_sign_in_required() {
     let port = systemprompt_bridge::auth::loopback::LOOPBACK_PORT;
-    let client = tokio::spawn(async move { deliver_callback(port, "code=device-code-1").await });
-    let out = provider
-        .authenticate(&SessionId::generate(), &reqwest::Client::new())
-        .await
-        .expect("the session provider authenticates");
-    client.await.expect("callback task");
+    let provider = SessionProvider::new(&session_config("http://gw.invalid:7000"));
+    let err = tokio::time::timeout(
+        Duration::from_secs(2),
+        provider.authenticate(&SessionId::generate(), &reqwest::Client::new()),
+    )
+    .await
+    .expect("the provider answers immediately instead of waiting on a browser")
+    .expect_err("no cached session means no token");
 
-    assert_eq!(out.token.expose(), "jwt-from-session-exchange");
-    assert_eq!(out.ttl, 900);
-    let requests = accepting
-        .received_requests()
-        .await
-        .expect("recorded requests");
-    let body: serde_json::Value =
-        serde_json::from_slice(&requests[0].body).expect("exchange body is JSON");
-    assert_eq!(
-        body["code"], "device-code-1",
-        "the captured code is forwarded verbatim"
-    );
-
-    let rejecting = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/auth/bridge/session"))
-        .respond_with(ResponseTemplate::new(401))
-        .mount(&rejecting)
-        .await;
-    let provider = SessionProvider::new(&session_config(&rejecting.uri()));
-    let client = tokio::spawn(async move { deliver_callback(port, "code=device-code-2").await });
-    let err = provider
-        .authenticate(&SessionId::generate(), &reqwest::Client::new())
-        .await
-        .expect_err("a 401 from the gateway fails the provider");
-    client.await.expect("callback task");
     match err {
-        AuthError::Failed { provider, .. } => assert_eq!(provider, "session"),
+        AuthError::Failed { provider, source } => {
+            assert_eq!(provider, "session");
+            assert!(
+                source.is_terminal(),
+                "sign-in required is not retried: {source}"
+            );
+            assert!(source.to_string().contains("sign in"), "{source}");
+        },
         AuthError::NotConfigured => panic!("the provider was configured"),
     }
+    assert!(
+        TcpStream::connect(("127.0.0.1", port)).await.is_err(),
+        "no loopback callback server was started"
+    );
 }

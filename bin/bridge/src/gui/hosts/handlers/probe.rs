@@ -22,6 +22,14 @@ pub(crate) fn on_probe_requested(
     reply_to: ReplyId,
 ) {
     let Some(host) = find_host_by_id(host_id.as_str()) else {
+        // Why: "Re-check all" fans out over every row, and a sync-only agent is
+        // a row. There is no local process or profile to inspect, so a probe of
+        // one is a no-op, not a failure — it used to log
+        // `probe requested for unknown host 'claude-code'` on every press.
+        if let Some(value) = crate::gui::sync_only::noop_reply(app, host_id.as_str(), "re-verify") {
+            finish(app, Ok(value), reply_to);
+            return;
+        }
         if cause == ProbeCause::Manual {
             app.append_log_error(format!("probe requested for unknown host '{host_id}'"));
         }

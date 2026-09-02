@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-models = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }

@@ -56,9 +56,9 @@ pub struct ServiceReconciler {
 }
 
 impl ServiceReconciler {
-    pub fn new(db_pool: DbPool) -> Self {
+    pub fn new(db_pool: DbPool, instance_id: systemprompt_identifiers::InstanceId) -> Self {
         Self {
-            state_verifier: ServiceStateVerifier::new(Arc::clone(&db_pool)),
+            state_verifier: ServiceStateVerifier::new(Arc::clone(&db_pool), instance_id),
             db_pool,
         }
     }

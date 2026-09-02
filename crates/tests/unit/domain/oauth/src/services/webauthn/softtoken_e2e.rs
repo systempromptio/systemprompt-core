@@ -11,9 +11,7 @@ use systemprompt_oauth::error::OauthError;
 use systemprompt_oauth::repository::{
     CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose, TokenValidationResult,
 };
-use systemprompt_oauth::services::webauthn::{
-    FinishRegistrationParams, create_link_states, hash_token,
-};
+use systemprompt_oauth::services::webauthn::{FinishRegistrationParams, hash_token};
 use systemprompt_oauth::services::{WebAuthnConfig, WebAuthnService};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
@@ -331,12 +329,11 @@ async fn link_flow_registers_credential_and_consumes_token() {
     let email = unique_email("link");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
-    let link_states = create_link_states();
     let mut auth = authenticator();
 
     let (ccr, challenge_id, user_info) = ctx
         .service
-        .start_registration_with_token(&raw_token, &link_states)
+        .start_registration_with_token(&raw_token)
         .await
         .expect("start link registration");
     assert_eq!(user_info.id, user_id);
@@ -345,7 +342,7 @@ async fn link_flow_registers_credential_and_consumes_token() {
     let cred = auth.do_registration(origin(), ccr).expect("registration");
     let linked = ctx
         .service
-        .finish_registration_with_token(&challenge_id, &raw_token, &cred, &link_states)
+        .finish_registration_with_token(&challenge_id, &raw_token, &cred)
         .await
         .expect("finish link registration");
     assert_eq!(linked, user_id);
@@ -371,24 +368,23 @@ async fn link_flow_excludes_existing_credentials_on_second_link() {
     let email = unique_email("link2");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let first_token = store_link_token(&ctx.repo, &user_id, 600).await;
-    let link_states = create_link_states();
     let mut auth = authenticator();
 
     let (ccr, challenge_id, _info) = ctx
         .service
-        .start_registration_with_token(&first_token, &link_states)
+        .start_registration_with_token(&first_token)
         .await
         .expect("start first link");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
     ctx.service
-        .finish_registration_with_token(&challenge_id, &first_token, &cred, &link_states)
+        .finish_registration_with_token(&challenge_id, &first_token, &cred)
         .await
         .expect("finish first link");
 
     let second_token = store_link_token(&ctx.repo, &user_id, 600).await;
     let (ccr2, _challenge2, _info2) = ctx
         .service
-        .start_registration_with_token(&second_token, &link_states)
+        .start_registration_with_token(&second_token)
         .await
         .expect("start second link");
     let excluded = ccr2.public_key.exclude_credentials.unwrap_or_default();
@@ -400,11 +396,10 @@ async fn start_link_rejects_unknown_expired_and_used_tokens() {
     let Some(ctx) = setup().await else { return };
     let email = unique_email("badtok");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
-    let link_states = create_link_states();
 
     let err = ctx
         .service
-        .start_registration_with_token("never-issued", &link_states)
+        .start_registration_with_token("never-issued")
         .await
         .expect_err("unknown token");
     assert!(err.to_string().contains("Invalid setup token"));
@@ -412,7 +407,7 @@ async fn start_link_rejects_unknown_expired_and_used_tokens() {
     let expired = store_link_token(&ctx.repo, &user_id, -60).await;
     let err = ctx
         .service
-        .start_registration_with_token(&expired, &link_states)
+        .start_registration_with_token(&expired)
         .await
         .expect_err("expired token");
     assert!(err.to_string().contains("expired"));
@@ -421,17 +416,17 @@ async fn start_link_rejects_unknown_expired_and_used_tokens() {
     let used = store_link_token(&ctx.repo, &user_id, 600).await;
     let (ccr, challenge_id, _info) = ctx
         .service
-        .start_registration_with_token(&used, &link_states)
+        .start_registration_with_token(&used)
         .await
         .expect("start link");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
     ctx.service
-        .finish_registration_with_token(&challenge_id, &used, &cred, &link_states)
+        .finish_registration_with_token(&challenge_id, &used, &cred)
         .await
         .expect("finish link");
     let err = ctx
         .service
-        .start_registration_with_token(&used, &link_states)
+        .start_registration_with_token(&used)
         .await
         .expect_err("used token");
     assert!(err.to_string().contains("already been used"));
@@ -446,11 +441,10 @@ async fn start_link_rejects_non_uuid_user_id() {
         .await
         .expect("seed");
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
-    let link_states = create_link_states();
 
     let err = ctx
         .service
-        .start_registration_with_token(&raw_token, &link_states)
+        .start_registration_with_token(&raw_token)
         .await
         .expect_err("non-uuid user id must fail");
     let msg = err.to_string();
@@ -463,26 +457,25 @@ async fn finish_link_rejects_missing_session_and_invalid_token() {
     let email = unique_email("linkerr");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
-    let link_states = create_link_states();
     let mut auth = authenticator();
 
     let (ccr, _challenge_id, _info) = ctx
         .service
-        .start_registration_with_token(&raw_token, &link_states)
+        .start_registration_with_token(&raw_token)
         .await
         .expect("start link");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
 
     let err = ctx
         .service
-        .finish_registration_with_token("missing-session", &raw_token, &cred, &link_states)
+        .finish_registration_with_token("missing-session", &raw_token, &cred)
         .await
         .expect_err("missing session must fail");
     assert!(err.to_string().contains("not found or expired"));
 
     let err = ctx
         .service
-        .finish_registration_with_token("missing-session", "never-issued", &cred, &link_states)
+        .finish_registration_with_token("missing-session", "never-issued", &cred)
         .await
         .expect_err("invalid token must fail");
     assert!(err.to_string().contains("Invalid or expired setup token"));
@@ -495,19 +488,18 @@ async fn finish_link_rejects_token_swapped_between_sessions() {
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let token_a = store_link_token(&ctx.repo, &user_id, 600).await;
     let token_b = store_link_token(&ctx.repo, &user_id, 600).await;
-    let link_states = create_link_states();
     let mut auth = authenticator();
 
     let (ccr, challenge_a, _info) = ctx
         .service
-        .start_registration_with_token(&token_a, &link_states)
+        .start_registration_with_token(&token_a)
         .await
         .expect("start link with token A");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
 
     let err = ctx
         .service
-        .finish_registration_with_token(&challenge_a, &token_b, &cred, &link_states)
+        .finish_registration_with_token(&challenge_a, &token_b, &cred)
         .await
         .expect_err("finishing session A with token B must fail");
     assert!(err.to_string().contains("Token mismatch"));

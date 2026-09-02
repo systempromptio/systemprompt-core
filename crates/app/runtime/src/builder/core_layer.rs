@@ -20,6 +20,7 @@ use systemprompt_database::{
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::{AppPaths, Config};
 use systemprompt_security::authz::SharedAuthzHook;
+use systemprompt_traits::FileStorage;
 
 use crate::error::{RuntimeError, RuntimeResult};
 
@@ -28,6 +29,7 @@ pub(super) struct CoreLayer {
     pub(super) app_paths: Arc<AppPaths>,
     pub(super) database: Arc<Database>,
     pub(super) authz_hook: SharedAuthzHook,
+    pub(super) file_storage: Arc<dyn FileStorage>,
 }
 
 pub(super) async fn init_core(
@@ -41,7 +43,15 @@ pub(super) async fn init_core(
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config()
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
+    // Why: the services tree carries the provider catalog and gateway routes,
+    // so a tree that does not load is a deployment that cannot serve inference
+    // — it fails boot here, not on the first request.
+    systemprompt_loader::ServicesBootstrap::try_init()
+        .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
     let config = Arc::new(Config::get()?.clone());
+    let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
+    systemprompt_logging::set_instance_id(instance_id.clone());
+    let file_storage = init_file_storage(&profile.storage, &app_paths, &instance_id).await?;
 
     systemprompt_security::keys::authority::init()
         .map_err(|err| RuntimeError::Internal(format!("signing key init: {err}")))?;
@@ -64,7 +74,7 @@ pub(super) async fn init_core(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
-        chain_sources(),
+        chain_sources()?,
     )
     .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
 
@@ -81,17 +91,53 @@ pub(super) async fn init_core(
         app_paths,
         database,
         authz_hook,
+        file_storage,
     })
 }
 
-fn chain_sources() -> systemprompt_security::authz::ChainSources {
-    match systemprompt_loader::ConfigLoader::load() {
-        Ok(services) => systemprompt_security::authz::ChainSources::from_services(&services),
-        Err(error) => {
-            tracing::warn!(%error, "services config unavailable; authz resolves without parent cascade");
-            systemprompt_security::authz::ChainSources::default()
-        },
+async fn init_file_storage(
+    storage: &systemprompt_models::profile::StorageConfig,
+    app_paths: &AppPaths,
+    instance_id: &systemprompt_identifiers::InstanceId,
+) -> RuntimeResult<Arc<dyn FileStorage>> {
+    let root = app_paths.storage().root();
+    let report = systemprompt_storage::probe_shared_mount(root, instance_id)
+        .await
+        .map_err(|err| {
+            RuntimeError::Internal(format!("storage root {} probe: {err}", root.display()))
+        })?;
+    if !report.write_read_ok {
+        return Err(RuntimeError::Internal(format!(
+            "storage root {} did not read back what was written",
+            root.display()
+        )));
     }
+    match (storage.shared, report.has_siblings()) {
+        (true, false) => tracing::warn!(
+            root = %root.display(),
+            "storage.shared is true but no other replica has marked this root; \
+             it may be a per-node disk"
+        ),
+        (false, true) => tracing::warn!(
+            root = %root.display(),
+            instances = ?report.instances,
+            "storage.shared is false but other replicas have marked this root; \
+             set storage.shared: true if it is a shared mount"
+        ),
+        _ => {},
+    }
+    Ok(systemprompt_storage::build_file_storage(
+        storage.backend,
+        root,
+    ))
+}
+
+fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> {
+    let services = systemprompt_loader::ServicesBootstrap::get()
+        .map_err(|err| RuntimeError::Internal(format!("services config: {err}")))?;
+    Ok(systemprompt_security::authz::ChainSources::from_services(
+        services,
+    ))
 }
 
 fn pool_config_from_profile(

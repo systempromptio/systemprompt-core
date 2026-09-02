@@ -119,9 +119,102 @@ fn anthropic_json_schema_becomes_forced_structured_output_tool() {
     });
     let body = anthropic::build_request_body(&req, "upstream", None);
     let tools = body["tools"].as_array().expect("tools array");
-    assert!(tools.iter().any(|t| t["name"] == "structured_output"));
+    let tool = tools
+        .iter()
+        .find(|t| t["name"] == "structured_output")
+        .expect("forced tool present");
+    assert_eq!(tool["strict"], json!(true));
     assert_eq!(body["tool_choice"]["type"], "tool");
     assert_eq!(body["tool_choice"]["name"], "structured_output");
+}
+
+fn forced_tool_schema(schema: Value, strict: bool) -> Value {
+    let mut req = base_request();
+    req.response_format = Some(ResponseFormat::JsonSchema {
+        name: "structured_output".to_owned(),
+        schema,
+        strict,
+    });
+    let body = anthropic::build_request_body(&req, "upstream", None);
+    body["tools"]
+        .as_array()
+        .and_then(|tools| tools.iter().find(|t| t["name"] == "structured_output"))
+        .map(|t| t["input_schema"].clone())
+        .expect("forced tool present")
+}
+
+#[test]
+fn anthropic_strict_schema_spells_nullable_as_an_anyof_null_branch() {
+    let schema = forced_tool_schema(
+        json!({
+            "type": "object",
+            "properties": {
+                "stage": {"type": ["string", "null"], "enum": ["new", "won", null]},
+                "close": {"type": ["string", "null"]}
+            },
+            "required": ["stage", "close"],
+            "additionalProperties": false
+        }),
+        true,
+    );
+    let stage = &schema["properties"]["stage"];
+    assert!(stage.get("type").is_none(), "type list replaced by anyOf");
+    assert_eq!(stage["anyOf"][0]["type"], "string");
+    assert_eq!(
+        stage["anyOf"][0]["enum"],
+        json!(["new", "won"]),
+        "null moves to its own branch and leaves the enum"
+    );
+    assert_eq!(stage["anyOf"][1], json!({"type": "null"}));
+    assert_eq!(schema["properties"]["close"]["anyOf"][1]["type"], "null");
+    assert_eq!(schema["required"], json!(["stage", "close"]));
+}
+
+#[test]
+fn anthropic_strict_schema_closes_every_object_and_recurses() {
+    let schema = forced_tool_schema(
+        json!({
+            "type": "object",
+            "properties": {
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"title": {"type": "string", "maxLength": 80}},
+                        "required": ["title"]
+                    }
+                },
+                "intent": {
+                    "type": "object",
+                    "properties": {"confidence": {"type": "number", "minimum": 0, "maximum": 1}},
+                    "required": ["confidence"]
+                }
+            },
+            "required": ["tasks", "intent"]
+        }),
+        true,
+    );
+    assert_eq!(schema["additionalProperties"], json!(false));
+    let task = &schema["properties"]["tasks"]["items"];
+    assert_eq!(task["additionalProperties"], json!(false));
+    assert!(task["properties"]["title"].get("maxLength").is_none());
+    let confidence = &schema["properties"]["intent"]["properties"]["confidence"];
+    assert!(confidence.get("minimum").is_none());
+    assert!(confidence.get("maximum").is_none());
+    assert_eq!(
+        schema["properties"]["intent"]["additionalProperties"],
+        json!(false)
+    );
+}
+
+#[test]
+fn anthropic_non_strict_schema_is_passed_through_unchanged() {
+    let original = json!({
+        "type": "object",
+        "properties": {"n": {"type": ["integer", "null"], "minimum": 0}}
+    });
+    let schema = forced_tool_schema(original.clone(), false);
+    assert_eq!(schema, original);
 }
 
 #[test]
@@ -348,5 +441,45 @@ fn unrelated_headers_are_neither_forwarded_nor_recorded() {
     for name in ["content-type", "accept", "host", "content-length"] {
         assert!(!anthropic::is_forwardable_request_header(name), "{name}");
         assert!(!anthropic::is_identity_request_header(name), "{name}");
+    }
+}
+
+#[test]
+fn credential_headers_are_recorded_by_name_without_their_value() {
+    // The gateway logs the identity vec at INFO and writes it to the audit row.
+    // A live bearer token there leaks into anywhere those logs are pasted.
+    let secret = "eyJhbGciOiJSUzI1NiJ9.payload.signature";
+    for name in [
+        "authorization",
+        "Authorization",
+        "proxy-authorization",
+        "x-api-key",
+        "cookie",
+        "set-cookie",
+    ] {
+        assert!(
+            anthropic::is_credential_request_header(name),
+            "{name} must be classified as credential-bearing"
+        );
+        let recorded = anthropic::recordable_header_value(name, secret);
+        assert_eq!(recorded, anthropic::REDACTED, "{name} must be redacted");
+        assert!(
+            !recorded.contains(secret),
+            "{name} must not carry the credential"
+        );
+    }
+}
+
+#[test]
+fn non_credential_identity_headers_keep_their_value() {
+    // Redaction must not swallow the identity signal the audit row exists for.
+    for name in [
+        "user-agent",
+        "x-claude-code-session-id",
+        "x-stainless-os",
+        "x-forwarded-for",
+    ] {
+        assert!(!anthropic::is_credential_request_header(name), "{name}");
+        assert_eq!(anthropic::recordable_header_value(name, "value"), "value");
     }
 }

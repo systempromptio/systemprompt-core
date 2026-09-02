@@ -1,27 +1,15 @@
+import { parseFtl, resolveSelects } from "/assets/js/i18n-ftl.js";
+
 const messages = new Map();
 let activeLocale = "en-US";
 let ready = false;
-
-function parseFtl(src) {
-  const out = new Map();
-  for (const raw of src.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith("#")) continue;
-    const eq = line.indexOf("=");
-    if (eq <= 0) continue;
-    const id = line.slice(0, eq).trim();
-    const value = line.slice(eq + 1).trim();
-    if (id) out.set(id, value);
-  }
-  return out;
-}
 
 function warnMissing(id, where) {
   if (ready) console.warn(`i18n: no message "${id}" for ${where}`);
 }
 
 function format(template, args) {
-  return template.replace(/\{\s*\$([A-Za-z0-9_-]+)\s*\}/g, (_, name) => {
+  return resolveSelects(template, args).replace(/\{\s*\$([A-Za-z0-9_-]+)\s*\}/g, (_, name) => {
     if (args && Object.prototype.hasOwnProperty.call(args, name)) {
       return String(args[name]);
     }

@@ -17,7 +17,7 @@ use crate::services::gateway::pricing;
 use crate::services::gateway::protocol::canonical_response::CanonicalResponse;
 
 impl GatewayAudit {
-    fn effective_model(&self) -> String {
+    pub(super) fn effective_model(&self) -> String {
         self.served_model
             .lock()
             .map_err(|e| {
@@ -36,15 +36,13 @@ impl GatewayAudit {
         response: &CanonicalResponse,
         response_body: &Bytes,
     ) -> Result<i64> {
-        let latency_ms = self.started_at.elapsed().as_millis().min(i32::MAX as u128) as i32;
+        let latency_ms = self.elapsed_ms();
         let effective_model = self.effective_model();
-        let profile = systemprompt_config::ProfileBootstrap::get().ok();
-        let gateway = profile
-            .as_ref()
-            .and_then(|p| p.gateway.as_ref())
-            .and_then(systemprompt_models::profile::GatewayState::resolved);
-        let empty_registry = systemprompt_models::profile::ProviderRegistry::default();
-        let registry = profile.as_ref().map_or(&empty_registry, |p| &p.providers);
+        let services = systemprompt_loader::ServicesBootstrap::get().ok();
+        let gateway =
+            services.and_then(systemprompt_models::services::ServicesConfig::gateway_config);
+        let empty_registry = systemprompt_models::services::ProviderRegistry::default();
+        let registry = services.map_or(&empty_registry, |s| &s.providers);
         let candidates = [
             effective_model.as_str(),
             self.ctx.model.as_str(),
@@ -91,6 +89,8 @@ impl GatewayAudit {
             input_tokens = usage.input_tokens,
             output_tokens = usage.output_tokens,
             cache_read_tokens = usage.cache_read_tokens,
+            cache_creation_tokens = usage.cache_creation_tokens,
+            tokens_used,
             cost_microdollars = cost,
             latency_ms,
             tool_calls = tool_calls.len(),

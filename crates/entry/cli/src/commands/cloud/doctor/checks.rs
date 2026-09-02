@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use systemprompt_models::Profile;
+use systemprompt_models::services::ProviderRegistry;
 
 use super::{CheckResult, CheckStatus};
 
@@ -114,11 +115,10 @@ pub fn check_required_secrets<S: BuildHasher>(secrets: &HashMap<String, String, 
 }
 
 pub fn check_provider_secrets<S: BuildHasher>(
-    profile: &Profile,
+    registry: &ProviderRegistry,
     secrets: &HashMap<String, String, S>,
 ) -> CheckResult {
-    let missing: Vec<String> = profile
-        .providers
+    let missing: Vec<String> = registry
         .providers
         .iter()
         .filter(|provider| !secret_present(secrets, provider.api_key_secret.as_str()))

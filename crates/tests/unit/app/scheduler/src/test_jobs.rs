@@ -9,14 +9,16 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::{Job, JobContext, JobResult, JobScope};
 
 pub const PANIC_JOB: &str = "sp_test_panic_job";
 pub const FAILING_JOB: &str = "sp_test_failing_job";
 pub const SLOW_JOB: &str = "sp_test_slow_job";
 pub const EMPTY_SCHEDULE_JOB: &str = "sp_test_empty_schedule_job";
+pub const NODE_JOB: &str = "sp_test_node_job";
 
 pub static SLOW_JOB_STARTS: AtomicU64 = AtomicU64::new(0);
+pub static NODE_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
 
 struct PanicJob;
 
@@ -116,6 +118,36 @@ impl Job for EmptyScheduleJob {
     }
 }
 
+struct NodeJob;
+
+#[async_trait]
+impl Job for NodeJob {
+    fn name(&self) -> &'static str {
+        NODE_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Node
+    }
+
+    async fn execute(
+        &self,
+        _ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        NODE_JOB_RUNS.fetch_add(1, Ordering::SeqCst);
+        Ok(JobResult::success())
+    }
+}
+
+systemprompt_provider_contracts::submit_job!(&NodeJob);
 systemprompt_provider_contracts::submit_job!(&PanicJob);
 systemprompt_provider_contracts::submit_job!(&FailingJob);
 systemprompt_provider_contracts::submit_job!(&SlowJob);

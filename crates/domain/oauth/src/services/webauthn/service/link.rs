@@ -4,33 +4,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::WebAuthnService;
-use crate::error::OauthResult as Result;
-use crate::repository::TokenValidationResult;
+use crate::error::{OauthError, OauthResult as Result};
+use crate::repository::{StoreChallengeParams, TokenValidationResult, WebAuthnChallengeKind};
 use crate::services::webauthn::token::hash_token;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use systemprompt_identifiers::{TokenId, UserId};
-use tokio::sync::Mutex;
 use tracing::instrument;
 use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
-const CHALLENGE_EXPIRY_SECONDS: u64 = 300;
+const LINK_CHALLENGE_TTL: Duration = Duration::from_secs(300);
 
-#[derive(Debug)]
-pub struct LinkRegistrationState {
-    pub reg_state: PasskeyRegistration,
-    pub user_id: UserId,
-    pub token_id: TokenId,
-    pub timestamp: Instant,
-}
-
-pub type LinkStates = Arc<Mutex<HashMap<String, LinkRegistrationState>>>;
-
-#[must_use]
-pub fn create_link_states() -> LinkStates {
-    Arc::new(Mutex::new(HashMap::new()))
+#[derive(Debug, Serialize, Deserialize)]
+struct LinkRegistrationState {
+    reg_state: PasskeyRegistration,
+    token_id: TokenId,
 }
 
 #[derive(Debug, Clone)]
@@ -41,11 +30,10 @@ pub struct LinkUserInfo {
 }
 
 impl WebAuthnService {
-    #[instrument(skip(self, setup_token, link_states))]
+    #[instrument(skip(self, setup_token))]
     pub async fn start_registration_with_token(
         &self,
         setup_token: &str,
-        link_states: &LinkStates,
     ) -> Result<(CreationChallengeResponse, String, LinkUserInfo)> {
         let token_hash = hash_token(setup_token);
         let validation = self.oauth_repo.validate_setup_token(&token_hash).await?;
@@ -53,19 +41,15 @@ impl WebAuthnService {
         let token_record = match validation {
             TokenValidationResult::Valid(record) => record,
             TokenValidationResult::Expired => {
-                return Err(crate::error::OauthError::Internal(
-                    "Setup token has expired".to_owned(),
-                ));
+                return Err(OauthError::Internal("Setup token has expired".to_owned()));
             },
             TokenValidationResult::AlreadyUsed => {
-                return Err(crate::error::OauthError::Internal(
+                return Err(OauthError::Internal(
                     "Setup token has already been used".to_owned(),
                 ));
             },
             TokenValidationResult::NotFound => {
-                return Err(crate::error::OauthError::Internal(
-                    "Invalid setup token".to_owned(),
-                ));
+                return Err(OauthError::Internal("Invalid setup token".to_owned()));
             },
         };
 
@@ -79,7 +63,7 @@ impl WebAuthnService {
             existing_creds.iter().map(|c| c.cred_id().clone()).collect();
 
         let user_unique_id = Uuid::parse_str(token_record.user_id.as_str()).map_err(|e| {
-            crate::error::OauthError::Internal(format!(
+            OauthError::Internal(format!(
                 "user_id {:?} is not a valid UUID: {e}",
                 token_record.user_id.as_str()
             ))
@@ -97,17 +81,20 @@ impl WebAuthnService {
         )?;
 
         let challenge_id = Uuid::new_v4().to_string();
-        let state = LinkRegistrationState {
+        let state = serde_json::to_value(LinkRegistrationState {
             reg_state,
-            user_id: token_record.user_id.clone(),
             token_id: token_record.id.clone(),
-            timestamp: Instant::now(),
-        };
-
-        {
-            let mut states = link_states.lock().await;
-            states.insert(challenge_id.clone(), state);
-        }
+        })?;
+        self.oauth_repo
+            .store_webauthn_challenge(StoreChallengeParams {
+                challenge: &challenge_id,
+                kind: WebAuthnChallengeKind::Link,
+                user_id: Some(&token_record.user_id),
+                state: &state,
+                oauth_state: None,
+                ttl: LINK_CHALLENGE_TTL,
+            })
+            .await?;
 
         let user_info = LinkUserInfo {
             id: token_record.user_id.clone(),
@@ -124,49 +111,43 @@ impl WebAuthnService {
         Ok((challenge, challenge_id, user_info))
     }
 
-    #[instrument(skip(self, setup_token, credential, link_states))]
+    #[instrument(skip(self, setup_token, credential))]
     pub async fn finish_registration_with_token(
         &self,
         challenge_id: &str,
         setup_token: &str,
         credential: &RegisterPublicKeyCredential,
-        link_states: &LinkStates,
     ) -> Result<UserId> {
         let token_hash = hash_token(setup_token);
         let validation = self.oauth_repo.validate_setup_token(&token_hash).await?;
 
         let TokenValidationResult::Valid(token_record) = validation else {
-            return Err(crate::error::OauthError::Internal(
+            return Err(OauthError::Internal(
                 "Invalid or expired setup token".to_owned(),
             ));
         };
 
-        let state = {
-            let mut states = link_states.lock().await;
-            states.remove(challenge_id).ok_or_else(|| {
-                crate::error::OauthError::Internal(
-                    "Registration session not found or expired".to_owned(),
-                )
-            })?
-        };
+        let consumed = self
+            .oauth_repo
+            .consume_webauthn_challenge(challenge_id, WebAuthnChallengeKind::Link)
+            .await?
+            .ok_or_else(|| {
+                OauthError::Internal("Registration session not found or expired".to_owned())
+            })?;
+        let user_id = consumed.user_id.ok_or_else(|| {
+            OauthError::Internal("Registration session has no user id".to_owned())
+        })?;
+        let state: LinkRegistrationState = serde_json::from_value(consumed.state)?;
 
         if state.token_id != token_record.id {
-            return Err(crate::error::OauthError::Internal(
-                "Token mismatch".to_owned(),
-            ));
-        }
-
-        if state.timestamp.elapsed() > Duration::from_secs(CHALLENGE_EXPIRY_SECONDS) {
-            return Err(crate::error::OauthError::Internal(
-                "Registration session expired".to_owned(),
-            ));
+            return Err(OauthError::Internal("Token mismatch".to_owned()));
         }
 
         let passkey = self
             .webauthn
             .finish_passkey_registration(credential, &state.reg_state)?;
 
-        self.store_credential(&state.user_id, &passkey, "Linked Passkey")
+        self.store_credential(&user_id, &passkey, "Linked Passkey")
             .await?;
 
         self.oauth_repo
@@ -174,10 +155,10 @@ impl WebAuthnService {
             .await?;
 
         tracing::info!(
-            user_id = %state.user_id,
+            user_id = %user_id,
             "WebAuthn credential linked to existing user"
         );
 
-        Ok(state.user_id)
+        Ok(user_id)
     }
 }

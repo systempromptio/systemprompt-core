@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- The `FileStorage` contract, so domain crates write files through a trait the app layer wires to a backend rather than touching a path themselves.
+
 ## [0.27.0] - 2026-07-29
 
 ### Added

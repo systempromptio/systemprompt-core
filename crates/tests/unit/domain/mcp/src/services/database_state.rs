@@ -27,7 +27,11 @@ fn get_binary_mtime_existing_file_returns_some() {
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
     let Some(db) = db().await else { return };
-    let svc_repo = ServiceRepository::new(&db).unwrap();
+    let svc_repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     let r = get_service_by_name(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();
@@ -37,7 +41,11 @@ async fn get_service_by_name_missing_returns_none() {
 #[tokio::test]
 async fn unregister_service_missing_no_panic() {
     let Some(db) = db().await else { return };
-    let svc_repo = ServiceRepository::new(&db).unwrap();
+    let svc_repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .unwrap();
     unregister_service(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();

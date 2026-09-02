@@ -75,10 +75,7 @@ impl McpOrchestrator {
             Arc::clone(&app_paths),
         );
 
-        event_bus.register_handler(Arc::new(LifecycleHandler::new(
-            lifecycle.clone(),
-            registry.clone(),
-        )));
+        event_bus.register_handler(Arc::new(LifecycleHandler));
 
         event_bus.register_handler(Arc::new(MonitoringHandler));
 

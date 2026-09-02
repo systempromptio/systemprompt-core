@@ -6,34 +6,17 @@
 use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
-use crate::services::lifecycle::LifecycleOrchestrator;
-use crate::services::registry::RegistryService;
-
 use super::{EventHandler, McpEvent};
 
-#[derive(Debug)]
-pub struct LifecycleHandler {
-    lifecycle: LifecycleOrchestrator,
-    registry: RegistryService,
-}
-
-impl LifecycleHandler {
-    pub const fn new(lifecycle: LifecycleOrchestrator, registry: RegistryService) -> Self {
-        Self {
-            lifecycle,
-            registry,
-        }
-    }
-}
+#[derive(Debug, Clone, Copy)]
+pub struct LifecycleHandler;
 
 #[async_trait]
 impl EventHandler for LifecycleHandler {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         match event {
             McpEvent::ServiceStartRequested { service_name } => {
-                let config = self.registry.get_server(service_name)?;
-                tracing::info!(service = %service_name, "Starting MCP service");
-                self.lifecycle.start_server(&config).await?;
+                tracing::info!(service = %service_name, "Service start requested");
             },
             McpEvent::ServiceStopped {
                 service_name,
@@ -52,10 +35,8 @@ impl EventHandler for LifecycleHandler {
                 tracing::info!(
                     service = %service_name,
                     reason = %reason,
-                    "Restarting service"
+                    "Service restart requested"
                 );
-                let config = self.registry.get_server(service_name)?;
-                self.lifecycle.restart_server(&config).await?;
             },
             _ => {},
         }

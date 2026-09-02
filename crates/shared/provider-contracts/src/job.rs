@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::Actor;
 
 use crate::error::ProviderResult;
@@ -186,6 +187,19 @@ impl JobContext {
     }
 }
 
+/// Where a job runs when the scheduler has several replicas.
+///
+/// `Cluster` jobs run once per tick across the whole deployment (one replica
+/// wins the advisory lock). `Node` jobs run on every replica, because their
+/// effect is local to the process or its filesystem.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum JobScope {
+    #[default]
+    Cluster,
+    Node,
+}
+
 #[async_trait]
 pub trait Job: Send + Sync + 'static {
     fn name(&self) -> &'static str;
@@ -208,6 +222,10 @@ pub trait Job: Send + Sync + 'static {
 
     fn schedulable(&self) -> bool {
         true
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Cluster
     }
 }
 

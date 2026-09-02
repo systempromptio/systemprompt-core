@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- A write pool distinct from the read pool, so a lookup whose staleness would change an authorization outcome can ask for the primary explicitly. `just lint-authoritative-reads` gates which repositories must.
+- `services.heartbeat_at` and the queries behind the 15 s per-replica heartbeat and the `service_registry_gc` reaper.
+
+### Changed
+
+- The MCP service registry is keyed `(instance_id, name)`, so a replica registers, judges staleness and reaps only its own rows.
+
 ## [0.42.0] - 2026-08-31
 
 ### Changed

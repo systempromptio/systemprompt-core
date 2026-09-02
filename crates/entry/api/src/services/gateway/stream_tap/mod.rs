@@ -30,7 +30,7 @@ use super::protocol::canonical_response::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
 use super::protocol::outbound::anthropic::streaming::SseDecoder;
 
-pub use self::finalize::{FinalizeDecision, classify};
+pub use self::finalize::{FailCause, FinalizeDecision, classify};
 
 /// Shared by the streaming and buffered completion tasks so both debit quota
 /// and run the response-phase safety scan identically.

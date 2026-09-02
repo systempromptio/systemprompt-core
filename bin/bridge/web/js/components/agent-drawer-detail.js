@@ -2,55 +2,11 @@ import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
 import { statusOf, badgeSuffix, isSetUp, APP_NOT_INSTALLED, appInstallState } from "/assets/js/utils/verdict.js";
 import { hostLogoMarkup } from "/assets/js/components/sp-agent-row.js";
-import { fmtDurationLong } from "/assets/js/utils/format.js";
 import {
   agentDrawerRow, agentDrawerDetailText, agentDrawerSection, agentHostName, agentDrawerWorkingLabel,
 } from "/assets/js/components/agent-drawer-parts.js";
 import { renderAgentDrawerHealth, renderAgentDrawerModels } from "/assets/js/components/agent-drawer-health.js";
-
-function ghostButton(kind, label, disabled = false) {
-  return `<button class="sp-btn-ghost" type="button" data-action="act" data-kind="${kind}" ${disabled ? "disabled" : ""}>${escapeHtml(label)}</button>`;
-}
-
-function actionButtons(drawer, host, status) {
-  const busy = drawer.busyId === host.id;
-  const primaryKind = status.action && status.action.code;
-  const buttons = [];
-  // The recommended action leads and is the only primary button; the rest stay
-  // available but visually secondary, so there is never a question of which
-  // one to press.
-  if (status.action) {
-    buttons.push(`<button class="${status.tone !== "ok" ? "sp-btn-primary" : "sp-btn-ghost"}" type="button" data-action="act"
-      data-kind="${escapeHtml(primaryKind)}" ${busy ? "disabled" : ""}>${escapeHtml(
-        busy ? agentDrawerWorkingLabel() : status.action.label
-      )}${primaryKind === "download" ? " ↗" : ""}</button>`);
-  }
-  if (primaryKind !== "open" && appInstallState(host) !== APP_NOT_INSTALLED) {
-    buttons.push(ghostButton("open", t("host-action-open") || "Open"));
-  }
-  if (primaryKind !== "repair" && primaryKind !== "add") {
-    buttons.push(ghostButton("repair", t("agent-action-repair") || "Repair", busy));
-  }
-  if (primaryKind !== "verify") {
-    buttons.push(ghostButton("verify", t("agent-action-verify") || "Verify"));
-  }
-  buttons.push(`<button class="sp-btn-ghost" type="button" data-action="open-config">${escapeHtml(t("agent-action-open-config") || "Show config file")}</button>`);
-  return `<div class="sp-drawer__actions">${buttons.join("")}</div>`;
-}
-
-function warnings(drawer, host, status) {
-  const out = [];
-  const snap = drawer.snapshot || {};
-  if (status.action && status.action.code === "repair") {
-    out.push(t("agent-repair-explainer")
-      || "Repair rewrites this agent's configuration profile and re-applies it. Restart the agent afterwards.");
-  }
-  if (snap.cached_token && snap.cached_token.ttl_seconds < 600 && isSetUp(host)) {
-    const ttl = fmtDurationLong(snap.cached_token.ttl_seconds);
-    out.push(t("host-jwt-warn", { ttl }) || `This agent's session expires in ${ttl}. Repair the agent to renew it.`);
-  }
-  return out.map((w) => `<div class="sp-claude__warn">${escapeHtml(w)}</div>`).join("");
-}
+import { actionButtons, warnings } from "/assets/js/components/agent-drawer-actions.js";
 
 function configRows(host, hs) {
   const rows = [];
@@ -83,7 +39,9 @@ function configSection(host, hs) {
 // is inline rather than a modal because the app has no modal, and it names the
 // file that is about to lose its keys.
 function removeSection(drawer, host, hs) {
-  if (!isSetUp(host)) { return ""; }
+  // `can_remove` is false when there is nothing local to remove — a sync-only
+  // agent is set up (its manifest synced) but owns no file on this computer.
+  if (!isSetUp(host) || host.can_remove === false) { return ""; }
   const path = (hs && hs.profile_source) || "";
   const name = agentHostName(host);
   const busy = drawer.busyId === host.id;

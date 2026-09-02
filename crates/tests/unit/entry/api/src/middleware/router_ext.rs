@@ -4,27 +4,37 @@
 //! Nothing in the suite mounts either extension method, so the governor layer
 //! is never built and no `ContextLayer::handle` adapter is ever entered — the
 //! adapters are what every authenticated route group hangs off. The
-//! rate-limiting case is a denial path: an exhausted burst must refuse the
-//! request rather than serve it.
+//! rate-limiting cases are denial paths: an exhausted burst must refuse the
+//! request rather than serve it, and a verified identity whose replica-shared
+//! window is spent must be refused even when this replica has served nothing.
+//! The limiter is built over the fixture database, so the suite skips when
+//! none is reachable.
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{ConnectInfo, Request};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::get;
+use chrono::{DateTime, Utc};
 use systemprompt_api::services::middleware::{
     A2AContextMiddleware, AuthzPolicy, ContextExtractor, McpContextMiddleware,
-    PublicContextMiddleware, RouterExt, UserOnlyContextMiddleware,
+    PublicContextMiddleware, RateLimitState, RouterExt, UserOnlyContextMiddleware,
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_models::{Config, RequestContext};
-use systemprompt_test_fixtures::fixture_config;
+use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
+use systemprompt_users::UserRateLimitBucketRepository;
 use tower::ServiceExt;
+use uuid::Uuid;
+
+const SCOPE: &str = "router-ext";
+const WINDOW_SECS: i64 = 10;
 
 fn ok_router() -> Router {
     Router::new().route("/", get(|| async { "ok" }))
@@ -109,14 +119,38 @@ fn config_with(rate_limits: RateLimitConfig) -> Config {
     config
 }
 
+async fn buckets() -> Option<Arc<UserRateLimitBucketRepository>> {
+    let url = fixture_database_url().ok()?;
+    let db = fixture_db_pool(&url).await.ok()?;
+    Some(Arc::new(
+        UserRateLimitBucketRepository::new(&db).expect("bucket repository"),
+    ))
+}
+
+async fn limits_with(rate_limits: RateLimitConfig) -> Option<RateLimitState> {
+    Some(RateLimitState::new(
+        &config_with(rate_limits),
+        buckets().await?,
+    ))
+}
+
+fn window_start(now: DateTime<Utc>) -> DateTime<Utc> {
+    let secs = now.timestamp();
+    DateTime::from_timestamp(secs - secs.rem_euclid(WINDOW_SECS), 0).expect("timestamp")
+}
+
 #[tokio::test]
 async fn a_disabled_rate_limit_leaves_the_router_untouched() {
-    let config = config_with(RateLimitConfig {
+    let Some(limits) = limits_with(RateLimitConfig {
         disabled: true,
         ..RateLimitConfig::default()
-    });
+    })
+    .await
+    else {
+        return;
+    };
     let app = ok_router()
-        .with_rate_limit(&config, 1)
+        .with_rate_limit(&limits, 1, SCOPE)
         .expect("a disabled limiter still builds");
 
     let resp = app.oneshot(request()).await.expect("request must complete");
@@ -130,9 +164,11 @@ async fn a_disabled_rate_limit_leaves_the_router_untouched() {
 
 #[tokio::test]
 async fn an_exhausted_burst_is_refused_rather_than_served() {
-    let config = config_with(limited());
+    let Some(limits) = limits_with(limited()).await else {
+        return;
+    };
     let app = ok_router()
-        .with_rate_limit(&config, 1)
+        .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
 
     let mut statuses = Vec::new();
@@ -159,10 +195,12 @@ async fn an_exhausted_burst_is_refused_rather_than_served() {
 
 #[tokio::test]
 async fn a_zero_rate_clamps_to_a_real_limit_instead_of_meaning_unlimited() {
-    let config = config_with(limited());
+    let Some(limits) = limits_with(limited()).await else {
+        return;
+    };
 
     let app = ok_router()
-        .with_rate_limit(&config, 0)
+        .with_rate_limit(&limits, 0, SCOPE)
         .expect("a zero rate clamps rather than failing to build");
 
     let mut statuses = Vec::new();
@@ -185,13 +223,17 @@ async fn a_zero_rate_clamps_to_a_real_limit_instead_of_meaning_unlimited() {
 
 #[tokio::test]
 async fn a_burst_product_that_is_an_exact_multiple_of_u32_still_limits() {
-    let config = config_with(RateLimitConfig {
+    let Some(limits) = limits_with(RateLimitConfig {
         burst_multiplier: 1 << 31,
         ..limited()
-    });
+    })
+    .await
+    else {
+        return;
+    };
 
     let app = ok_router()
-        .with_rate_limit(&config, 2)
+        .with_rate_limit(&limits, 2, SCOPE)
         .expect("2 x 2^31 is exactly 2^32, which a truncating cast turns into a zero burst");
 
     let resp = app.oneshot(request()).await.expect("request must complete");
@@ -227,9 +269,11 @@ async fn statuses_over(app: &Router, requests: Vec<Request<Body>>) -> Vec<Status
 
 #[tokio::test]
 async fn a_rotating_forwarded_for_header_does_not_mint_a_fresh_bucket() {
-    let config = config_with(limited());
+    let Some(limits) = limits_with(limited()).await else {
+        return;
+    };
     let app = ok_router()
-        .with_rate_limit(&config, 1)
+        .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
 
     let requests = (0..8)
@@ -246,9 +290,11 @@ async fn a_rotating_forwarded_for_header_does_not_mint_a_fresh_bucket() {
 
 #[tokio::test]
 async fn a_rotating_user_agent_does_not_mint_a_fresh_bucket() {
-    let config = config_with(limited());
+    let Some(limits) = limits_with(limited()).await else {
+        return;
+    };
     let app = ok_router()
-        .with_rate_limit(&config, 1)
+        .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
 
     let requests = (0..8)
@@ -265,9 +311,11 @@ async fn a_rotating_user_agent_does_not_mint_a_fresh_bucket() {
 
 #[tokio::test]
 async fn two_authenticated_callers_get_independent_buckets() {
-    let config = config_with(limited());
+    let Some(limits) = limits_with(limited()).await else {
+        return;
+    };
     let app = ok_router()
-        .with_rate_limit(&config, 1)
+        .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
 
     let mut first = Vec::new();
@@ -285,6 +333,93 @@ async fn two_authenticated_callers_get_independent_buckets() {
         second[0],
         StatusCode::OK,
         "a different verified identity must not inherit another caller's spent budget"
+    );
+}
+
+#[tokio::test]
+async fn a_spent_replica_shared_window_refuses_a_verified_identity_this_replica_never_saw() {
+    let Some(buckets) = buckets().await else {
+        return;
+    };
+    let limits = RateLimitState::new(&config_with(limited()), Arc::clone(&buckets));
+    let app = ok_router()
+        .with_rate_limit(&limits, 1, SCOPE)
+        .expect("a 1/s limiter must build");
+    let budget = WINDOW_SECS;
+
+    // Why: the window is wall-clock aligned, so a preload that straddles a
+    // boundary lands in a window the request never reads. Retry until both
+    // fall in the same one rather than asserting on a torn window.
+    let (status, retry_after) = loop {
+        let user = format!("spent-{}", Uuid::new_v4().simple());
+        let start = window_start(Utc::now());
+        for _ in 0..budget {
+            buckets
+                .hit(&UserId::new(&user), SCOPE, start)
+                .await
+                .expect("preload hit");
+        }
+        let resp = app
+            .clone()
+            .oneshot(authed_request(context_for(&user)))
+            .await
+            .expect("request must complete");
+        if window_start(Utc::now()) != start {
+            continue;
+        }
+        let retry_after = resp
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<i64>().ok());
+        break (resp.status(), retry_after);
+    };
+
+    assert_eq!(
+        status,
+        StatusCode::TOO_MANY_REQUESTS,
+        "hits recorded by other replicas must count against this caller's budget"
+    );
+    let retry_after = retry_after.expect("a global refusal carries Retry-After");
+    assert!(
+        (1..=WINDOW_SECS).contains(&retry_after),
+        "Retry-After points at the end of the current window: {retry_after}"
+    );
+
+    let fresh = app
+        .oneshot(authed_request(context_for(&format!(
+            "fresh-{}",
+            Uuid::new_v4().simple()
+        ))))
+        .await
+        .expect("request must complete");
+    assert_eq!(
+        fresh.status(),
+        StatusCode::OK,
+        "a caller with an unspent window is served by the same router"
+    );
+}
+
+#[tokio::test]
+async fn an_anonymous_caller_never_touches_the_replica_shared_window() {
+    let Some(buckets) = buckets().await else {
+        return;
+    };
+    let limits = RateLimitState::new(&config_with(limited()), Arc::clone(&buckets));
+    let app = ok_router()
+        .with_rate_limit(&limits, 1, SCOPE)
+        .expect("a 1/s limiter must build");
+
+    let status = app
+        .oneshot(authed_request(context(UserType::Anon)))
+        .await
+        .expect("request must complete")
+        .status();
+
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "an anonymous identity is derived from headers and must not be keyed globally"
     );
 }
 

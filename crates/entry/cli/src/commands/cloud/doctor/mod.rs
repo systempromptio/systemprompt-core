@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod checks;
+pub mod distributed;
 
 pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
 pub use checks::{
@@ -20,10 +21,11 @@ pub use checks::{
 };
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::ProfilePath;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
@@ -68,7 +70,11 @@ impl DoctorReport {
     }
 }
 
-pub(in crate::commands::cloud) async fn run(profile: &Profile, profile_dir: &Path) -> DoctorReport {
+pub(in crate::commands::cloud) async fn run(
+    profile: &Profile,
+    profile_dir: &Path,
+    distributed: bool,
+) -> DoctorReport {
     let mut checks = vec![check_profile_valid(profile)];
 
     let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
@@ -85,17 +91,35 @@ pub(in crate::commands::cloud) async fn run(profile: &Profile, profile_dir: &Pat
 
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
-    checks.push(check_provider_secrets(profile, &secrets));
+    // Why: the catalog lives in the services tree the profile points at, which
+    // for a cloud profile exists on the host rather than here — so an
+    // unreadable tree is a warning that names the path, not a failed check.
+    let services_root = PathBuf::from(profile.paths.config());
+    match ConfigLoader::load_from_path(&services_root) {
+        Ok(services) => checks.push(check_provider_secrets(&services.providers, &secrets)),
+        Err(err) => checks.push(CheckResult::warn(
+            "providers",
+            format!(
+                "services config at {} could not be loaded, so provider credentials were not \
+                 checked: {err}",
+                services_root.display()
+            ),
+        )),
+    }
     checks.push(check_extension_configs(profile));
     checks.push(check_proxy_topology(profile));
     checks.push(checks::check_governance_hook_url(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
+    if distributed {
+        checks.extend(distributed::run(profile, &secrets).await);
+    }
 
     DoctorReport { checks }
 }
 
 pub(in crate::commands::cloud) async fn execute(
     profile_name: Option<String>,
+    distributed: bool,
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<()> {
@@ -104,7 +128,7 @@ pub(in crate::commands::cloud) async fn execute(
         .parent()
         .ok_or_else(|| anyhow!("Invalid profile path"))?;
 
-    let report = run(&profile, profile_dir).await;
+    let report = run(&profile, profile_dir, distributed).await;
     report.render();
 
     if report.has_blocking() {

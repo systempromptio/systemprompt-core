@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- Gemini thought signatures are persisted in Postgres instead of a process-local cache, so a multi-turn reasoning exchange survives the request landing on a different replica.
+
+### Changed
+
+- The provider registry is seeded from the services tree rather than the profile.
+- `ai_requests` rows carry the `instance_id` of the replica that served them.
+
 ## [0.42.0] - 2026-08-31
 
 ### Changed

@@ -30,7 +30,11 @@ async fn make_orchestrator() -> Option<McpOrchestrator> {
         AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(&db).ok()?;
+    let service_repo = ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    )
+    .ok()?;
     McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
 }
 

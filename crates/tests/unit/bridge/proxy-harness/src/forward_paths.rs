@@ -141,7 +141,7 @@ fn bearer_of(req: &wiremock::Request) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn an_upstream_401_invalidates_the_cached_jwt_so_the_next_request_remints() {
+async fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
     let h = spawn_harness().await;
     Mock::given(method("POST"))
         .and(path("/v1/messages"))
@@ -150,22 +150,31 @@ async fn an_upstream_401_invalidates_the_cached_jwt_so_the_next_request_remints(
         .await;
 
     let first = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
-    assert_eq!(first.status().as_u16(), 401);
+    assert_eq!(
+        first.status().as_u16(),
+        401,
+        "the upstream status is relayed to the caller"
+    );
+
     let second = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
-    assert_eq!(second.status().as_u16(), 401);
+    assert_eq!(
+        second.status().as_u16(),
+        503,
+        "the latch answers locally rather than forwarding again"
+    );
 
     assert_eq!(
         h.mints.load(Ordering::Relaxed),
-        2,
-        "the 401 dropped the cached token, forcing a fresh mint"
+        1,
+        "a credential refused moments after minting cannot be fixed by re-minting"
     );
     let requests = h.upstream_requests().await;
-    assert_eq!(bearer_of(&requests[0]), "Bearer upstream-jwt-1");
     assert_eq!(
-        bearer_of(&requests[1]),
-        "Bearer upstream-jwt-2",
-        "the second attempt carries the re-minted JWT"
+        requests.len(),
+        1,
+        "the second request never reaches upstream"
     );
+    assert_eq!(bearer_of(&requests[0]), "Bearer upstream-jwt-1");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

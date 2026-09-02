@@ -95,6 +95,7 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
     let repositories = systemprompt_agent::repository::A2ARepositories::new(
         &db_pool,
         crate::common::session_usage(&db_pool)?,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
     )?;
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(&db_pool),

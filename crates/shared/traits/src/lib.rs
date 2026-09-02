@@ -63,7 +63,7 @@ pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
     ChatMessage, ChatRequest, ChatResponse, ChatRole, ChatStream, Job, JobContext, JobResult,
-    LlmProvider, LlmProviderError, LlmProviderResult, ProviderError, ProviderResult,
+    JobScope, LlmProvider, LlmProviderError, LlmProviderResult, ProviderError, ProviderResult,
     SamplingParameters, TokenUsage, ToolCallRequest, ToolCallResult, ToolContent, ToolContext,
     ToolDefinition, ToolExecutionContext, ToolExecutor, ToolProvider, ToolProviderError,
     ToolProviderResult, submit_job,

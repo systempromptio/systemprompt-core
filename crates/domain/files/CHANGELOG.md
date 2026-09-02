@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Changed
+
+- Uploads go through the `FileStorage` trait rather than writing to a local path directly, so a shared mount or an object-store backend needs no change here.
+
 ## [0.38.0] - 2026-08-25
 
 ### Changed

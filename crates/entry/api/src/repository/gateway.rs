@@ -8,10 +8,12 @@ use std::sync::Arc;
 
 use systemprompt_ai::repository::{
     AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestPayloadRepository,
-    AiRequestRepository, AiSafetyFindingRepository,
+    AiRequestRepository, AiSafetyFindingRepository, AiThoughtSignatureRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_traits::DynContextMaterializer;
+
+use crate::services::gateway::signature_cache::{TTL, ThoughtSignatureCache};
 
 #[derive(Clone)]
 pub struct GatewayRepositories {
@@ -20,6 +22,7 @@ pub struct GatewayRepositories {
     pub payloads: Arc<AiRequestPayloadRepository>,
     pub safety_findings: AiSafetyFindingRepository,
     pub gateway_policies: AiGatewayPolicyRepository,
+    pub thought_signatures: Arc<ThoughtSignatureCache>,
     pub context_materializer: DynContextMaterializer,
 }
 
@@ -41,6 +44,10 @@ impl GatewayRepositories {
             payloads: Arc::new(AiRequestPayloadRepository::new(db)?),
             safety_findings: AiSafetyFindingRepository::new(db)?,
             gateway_policies: AiGatewayPolicyRepository::new(db)?,
+            thought_signatures: Arc::new(ThoughtSignatureCache::new(
+                TTL,
+                Arc::new(AiThoughtSignatureRepository::new(db)?),
+            )),
             context_materializer,
         })
     }

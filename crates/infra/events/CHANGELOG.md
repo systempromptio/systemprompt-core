@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Fixed
+
+- The cross-replica relay no longer redelivers a node's own events to it. `event_outbox` rows carry `origin_instance_id` and the bridge skips its own, so subscribers on the emitting node were receiving every event twice on any deployment with more than one replica.
+
 ## [0.29.0] - 2026-08-04
 
 ### Added

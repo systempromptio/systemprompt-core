@@ -26,7 +26,7 @@ use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
 };
-use systemprompt_models::profile::ApiSurface;
+use systemprompt_models::services::ApiSurface;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use tower::ServiceExt;
 
@@ -201,6 +201,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         max_tokens: Some(64),
         is_streaming: false,
         wire_protocol: "anthropic-messages".to_owned(),
+        access_log: None,
     }
 }
 

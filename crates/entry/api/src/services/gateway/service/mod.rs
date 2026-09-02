@@ -30,7 +30,7 @@ use bytes::Bytes;
 use systemprompt_ai::{PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyHistoryMode};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
+use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
 
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::resolve::{ResolvedUpstream, resolve_upstream};

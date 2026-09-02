@@ -22,6 +22,12 @@ pub struct SecretsData {
     pub oauth_at_rest_pepper: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest_signing_secret_seed: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_key_pem: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub database_url: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]

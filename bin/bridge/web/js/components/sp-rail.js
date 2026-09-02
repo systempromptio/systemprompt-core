@@ -35,7 +35,7 @@ export class SpRail extends SpElement {
     this.setAttribute("aria-orientation", "vertical");
     this.dataset.activeReady = "false";
     this.useSnapshot((s) => {
-      this.agentCount = ((s && s.host_apps) || []).filter((h) => h.enabled === true).length;
+      this.agentCount = (s && s.agent_fleet && s.agent_fleet.set_up) ? s.agent_fleet.set_up.total : 0;
     });
     this._unsubMkt = onBridgeEvent("mkt:count", this._onMktCount);
     window.addEventListener("resize", this._onResize);

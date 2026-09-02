@@ -17,6 +17,7 @@ use systemprompt_runtime::StartupValidator;
 fn minimal_config() -> Config {
     Config {
         instance_id: "test-instance".to_string(),
+        metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),

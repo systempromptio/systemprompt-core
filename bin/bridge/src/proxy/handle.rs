@@ -12,11 +12,13 @@ use super::bind::{Bind, bind_candidate, persist_and_announce, portfile_port};
 use super::identity::InstallId;
 use super::peer::{self, PeerIdentity};
 use super::session::SessionContext;
-use super::token_cache::TokenCache;
+use super::token_cache::{AuthState, TokenCache};
 use super::{
     DEFAULT_PROXY_PORT, LoopbackEndpoint, REFRESH_THRESHOLD_SECS, REFRESH_TICK, ServedProxy,
     portfile, secret, server,
 };
+use systemprompt_identifiers::SessionId;
+
 use crate::activity::ActivityLog;
 use crate::config::{self, RuntimeConfig, SharedRuntimeConfig};
 use crate::mcp_registry::McpRegistrySlot;
@@ -54,6 +56,7 @@ pub struct ProxyHandle {
     runtime: Handle,
     runtime_config: SharedRuntimeConfig,
     token_cache: Option<Arc<TokenCache>>,
+    session_id: Option<SessionId>,
 }
 
 /// The services a proxy shares with the rest of the process: who this install
@@ -122,6 +125,7 @@ impl ProxyHandle {
             Err(e) => return Self::failed(rt, deps, runtime_config, tried, e.to_string()),
         };
         let session_context = Arc::new(SessionContext::new());
+        let session_id = session_context.session_id().clone();
         let token_cache = Arc::new(TokenCache::default_for_runtime(
             session_context.session_id().clone(),
             deps.http.clone(),
@@ -148,6 +152,7 @@ impl ProxyHandle {
             runtime: rt.clone(),
             runtime_config,
             token_cache: Some(token_cache),
+            session_id: Some(session_id),
         }
     }
 
@@ -196,6 +201,7 @@ impl ProxyHandle {
             runtime: rt.clone(),
             runtime_config,
             token_cache: None,
+            session_id: None,
         }
     }
 
@@ -253,18 +259,33 @@ impl ProxyHandle {
             .store(Arc::new(RuntimeConfig::from_loaded()));
         if let Some(cache) = &self.token_cache {
             let cache = Arc::clone(cache);
-            self.runtime.spawn(async move { cache.invalidate().await });
+            self.runtime.spawn(async move { cache.reset().await });
         }
         tracing::info!(target: "bridge::config", "runtime config swapped");
     }
+
+    #[must_use]
+    pub const fn session_id(&self) -> Option<&SessionId> {
+        self.session_id.as_ref()
+    }
+
+    #[must_use]
+    pub fn auth_state(&self) -> Option<tokio::sync::watch::Receiver<AuthState>> {
+        self.token_cache.as_ref().map(|cache| cache.auth_state())
+    }
 }
 
+// Why: the tick renews a token that is about to expire; it never acquires one.
+// Acquisition is request-driven, and on a signed-out install a minting tick
+// would fail — and, through the session provider, prompt — every minute.
 async fn refresh_loop(cache: Arc<TokenCache>) {
     let mut interval = tokio::time::interval(REFRESH_TICK);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     interval.tick().await;
     loop {
         interval.tick().await;
-        _ = cache.current(REFRESH_THRESHOLD_SECS).await;
+        if let Err(e) = cache.refresh_if_cached(REFRESH_THRESHOLD_SECS).await {
+            tracing::debug!(error = %e, "token refresh tick did not renew");
+        }
     }
 }

@@ -5,7 +5,9 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientId, ContextId, InstanceId, LogId, SessionId, TaskId, TraceId, UserId,
+};
 
 use crate::models::{LogEntry, LogFilter, LogLevel, LoggingError};
 
@@ -22,6 +24,7 @@ struct LogRow {
     trace_id: TraceId,
     context_id_text: Option<String>,
     client_id: Option<ClientId>,
+    instance_id: Option<InstanceId>,
 }
 
 fn row_to_entry(r: LogRow) -> LogEntry {
@@ -52,6 +55,7 @@ fn row_to_entry(r: LogRow) -> LogEntry {
                 .ok()
         }),
         client_id: r.client_id,
+        instance_id: r.instance_id,
     }
 }
 
@@ -72,7 +76,8 @@ pub(in crate::repository) async fn get_log(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs WHERE id = $1
         "#,
         id_str
@@ -98,7 +103,8 @@ pub(in crate::repository) async fn list_logs(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs ORDER BY timestamp DESC LIMIT $1
         "#,
         limit
@@ -130,7 +136,8 @@ pub(in crate::repository) async fn list_logs_paginated(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs
         WHERE ($1::VARCHAR IS NULL OR level = $1)
         AND ($2::VARCHAR IS NULL OR module = $2)
@@ -213,7 +220,8 @@ pub(in crate::repository) async fn list_logs_by_module_patterns(
             task_id as "task_id: TaskId",
             trace_id as "trace_id!: TraceId",
             context_id as "context_id_text",
-            client_id as "client_id: ClientId"
+            client_id as "client_id: ClientId",
+            instance_id as "instance_id: InstanceId"
         FROM logs
         WHERE module LIKE ANY($1)
         ORDER BY timestamp DESC LIMIT $2

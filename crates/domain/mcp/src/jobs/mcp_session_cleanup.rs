@@ -1,4 +1,5 @@
-//! Scheduled job pruning MCP sessions older than the retention window.
+//! Scheduled job pruning MCP sessions older than the retention window and
+//! expired proxy session identities.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +10,7 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-use crate::repository::McpSessionRepository;
+use crate::repository::{McpProxyIdentityRepository, McpSessionRepository};
 
 const DEFAULT_RETENTION_DAYS: i32 = 7;
 
@@ -23,7 +24,7 @@ impl Job for McpSessionCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Expires stale MCP sessions and deletes old closed/expired records (parameter retention_days, default 7)"
+        "Expires stale MCP sessions, deletes old closed/expired records (parameter retention_days, default 7) and drops expired proxy identities"
     }
 
     fn schedule(&self) -> &'static str {
@@ -55,19 +56,26 @@ impl Job for McpSessionCleanupJob {
             .await
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
 
+        let identities = McpProxyIdentityRepository::new(&db_pool)
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?
+            .cleanup_expired()
+            .await
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
+
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        if expired > 0 || deleted > 0 {
+        if expired > 0 || deleted > 0 || identities > 0 {
             info!(
                 expired = expired,
                 deleted = deleted,
+                identities = identities,
                 duration_ms = duration_ms,
                 "MCP session cleanup completed"
             );
         }
 
         Ok(JobResult::success()
-            .with_stats(expired + deleted, 0)
+            .with_stats(expired + deleted + identities, 0)
             .with_duration(duration_ms))
     }
 }

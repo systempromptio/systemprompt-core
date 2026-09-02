@@ -3,8 +3,9 @@
 //! [`AiProviderConfig`] is the deployment policy layered on a registry provider
 //! (enable flag, default-model overrides, resilience). [`ModelDefinition`] and
 //! its [`ModelCapabilities`], [`ModelLimits`], and [`ModelPricing`] are the
-//! per-model descriptors shared with `profile.providers`. Connectivity itself
-//! is never modelled here — it lives in the provider registry.
+//! per-model descriptors shared with the services provider registry.
+//! Connectivity itself is never modelled here — it lives in the provider
+//! registry.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

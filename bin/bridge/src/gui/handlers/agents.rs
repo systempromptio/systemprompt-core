@@ -15,6 +15,14 @@ use crate::integration::host_app::ProfileRemoval;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
+    // Why: a sync-only agent (`claude-code`) is listed in the Agents tab but
+    // implements no `HostApp`, so the lookup below cannot find it. Nothing of
+    // it lives on this computer, so this is a no-op — answering "unknown host"
+    // would name the one agent most readers are actually running.
+    if let Some(value) = crate::gui::sync_only::noop_reply(app, host_id.as_str(), "remove") {
+        finish(app, Ok(value), reply_to);
+        return;
+    }
     let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
             app.append_log_error(format!("uninstall: unknown host {host_id}"));
@@ -71,6 +79,13 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
 }
 
 pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
+    // Why: sync-only agents have no local config file; see `on_uninstall`.
+    if let Some(value) =
+        crate::gui::sync_only::noop_reply(app, host_id.as_str(), "show config file")
+    {
+        finish(app, Ok(value), reply_to);
+        return;
+    }
     let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
             app.append_log_error(format!("open-config: unknown host {host_id}"));
@@ -106,6 +121,11 @@ pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) 
 }
 
 pub(crate) fn on_open(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
+    // Why: sync-only agents have nothing local to launch; see `on_uninstall`.
+    if let Some(value) = crate::gui::sync_only::noop_reply(app, host_id.as_str(), "open") {
+        finish(app, Ok(value), reply_to);
+        return;
+    }
     let result = find_host_by_id(host_id.as_str()).map_or_else(
         || {
             app.append_log_error(format!("open: unknown host {host_id}"));

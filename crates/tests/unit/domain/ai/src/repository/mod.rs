@@ -5,6 +5,7 @@ mod ai_quota_buckets;
 mod ai_request_payloads;
 mod ai_requests;
 mod ai_safety_findings;
+mod thought_signatures_db;
 
 use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_database::DbPool;

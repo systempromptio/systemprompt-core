@@ -23,7 +23,7 @@ use futures::stream::Stream;
 use rmcp::model::ContentBlock;
 use std::pin::Pin;
 
-use systemprompt_models::profile::ProviderModel;
+use systemprompt_models::services::ProviderModel;
 pub use systemprompt_models::services::ai::ModelPricing;
 
 #[must_use]

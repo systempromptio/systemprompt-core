@@ -81,6 +81,13 @@ pub enum CloudCommands {
     Doctor {
         #[arg(long, short = 'p', help = "Profile name to check")]
         profile: Option<String>,
+
+        #[arg(
+            long,
+            help = "Also run the multi-replica checks: identity fingerprints, instance id, \
+                    trusted proxies, write primary, replica lag, readiness"
+        )]
+        distributed: bool,
     },
 
     #[command(about = "Check cloud deployment status")]
@@ -138,9 +145,10 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             )
             .await
         },
-        CloudCommands::Doctor { profile } => {
-            doctor::execute(profile, ctx.prompter(), &ctx.cli).await
-        },
+        CloudCommands::Doctor {
+            profile,
+            distributed,
+        } => doctor::execute(profile, distributed, ctx.prompter(), &ctx.cli).await,
         CloudCommands::Status => {
             let result = status::execute(&ctx.cli).await?;
             crate::shared::render_result(&result, &ctx.cli);

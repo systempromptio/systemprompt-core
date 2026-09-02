@@ -6,6 +6,11 @@
 
 use std::sync::Arc;
 
+use systemprompt_identifiers::TraceId;
+use systemprompt_logging::LogActor;
+
+use crate::routes::gateway::{TerminalOutcome, log_gateway_terminal};
+
 use super::super::audit::GatewayAudit;
 use super::super::quota;
 use super::super::service::run_response_safety_scan;
@@ -15,8 +20,40 @@ use super::accumulator::Summary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FinalizeDecision {
-    Fail(&'static str),
+    Fail(FailCause),
     Complete { cost_capture_miss: bool },
+}
+
+/// Why a tapped stream ended without a usable response.
+///
+/// Both land as `failed` in the audit row, so they are separated here:
+/// `Upstream` is the provider failing mid-stream, `Truncated` is the stream
+/// stopping without a terminal event — typically the client hanging up.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailCause {
+    Upstream,
+    Truncated { has_content: bool },
+}
+
+impl FailCause {
+    pub const fn reason(self) -> &'static str {
+        match self {
+            Self::Upstream => "upstream stream error",
+            Self::Truncated { has_content: true } => "stream ended without stop event",
+            Self::Truncated { has_content: false } => "empty upstream stream",
+        }
+    }
+
+    // Why: a mid-stream failure carries no upstream HTTP status — the provider
+    // already sent 200 and the SSE error frame has none — so the status is
+    // derived, matching `map_upstream_error`'s bad-gateway fallback. A client
+    // that hung up is 499, not an upstream fault.
+    const fn status(self) -> u16 {
+        match self {
+            Self::Upstream => 502,
+            Self::Truncated { .. } => 499,
+        }
+    }
 }
 
 pub const fn classify(
@@ -26,14 +63,10 @@ pub const fn classify(
     has_usage: bool,
 ) -> FinalizeDecision {
     if error.is_some() {
-        return FinalizeDecision::Fail("upstream stream error");
+        return FinalizeDecision::Fail(FailCause::Upstream);
     }
     if !saw_stop {
-        return FinalizeDecision::Fail(if has_content {
-            "stream ended without stop event"
-        } else {
-            "empty upstream stream"
-        });
+        return FinalizeDecision::Fail(FailCause::Truncated { has_content });
     }
     FinalizeDecision::Complete {
         cost_capture_miss: has_content && !has_usage,
@@ -46,18 +79,8 @@ pub(super) fn finalize(
     ctx: TapFinalizeCtx,
     origin: &'static str,
 ) {
-    match &audit.ctx.gateway_conversation_id {
-        Some(conversation) => {
-            ThoughtSignatureCache::global().store_from_response(conversation, &summary.response);
-        },
-        None => {
-            ThoughtSignatureCache::note_uncacheable_response(
-                &summary.response,
-                "no_conversation_id",
-            );
-        },
-    }
     tokio::spawn(async move {
+        capture_signatures(&ctx, &audit, &summary).await;
         if let Some(model) = summary.served_model.as_deref() {
             audit.set_served_model(model).await;
         }
@@ -71,11 +94,12 @@ pub(super) fn finalize(
             has_content,
             has_usage,
         ) {
-            FinalizeDecision::Fail(reason) => {
-                let msg = summary.error.as_deref().unwrap_or(reason);
+            FinalizeDecision::Fail(cause) => {
+                let msg = summary.error.as_deref().unwrap_or_else(|| cause.reason());
                 if let Err(e) = audit.fail(msg).await {
                     tracing::warn!(origin, error = %e, "stream audit fail failed");
                 }
+                log_terminal(&audit, cause.status(), Some(msg));
             },
             FinalizeDecision::Complete { cost_capture_miss } => {
                 if cost_capture_miss {
@@ -118,7 +142,50 @@ pub(super) fn finalize(
                     &ctx.policy.safety,
                 )
                 .await;
+                log_terminal(&audit, 200, None);
             },
         }
     });
+}
+
+fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str>) {
+    let Some(access) = audit.ctx.access_log.as_ref() else {
+        return;
+    };
+    log_gateway_terminal(TerminalOutcome {
+        access,
+        status,
+        actor: terminal_actor(audit),
+        error,
+    });
+}
+
+fn terminal_actor(audit: &GatewayAudit) -> Option<LogActor> {
+    if let (Some(session), Some(trace)) =
+        (audit.ctx.session_id.as_ref(), audit.ctx.trace_id.as_ref())
+    {
+        return Some(LogActor::new(
+            audit.ctx.user_id.clone(),
+            session.clone(),
+            trace.clone(),
+        ));
+    }
+    LogActor::platform(TraceId::system()).ok()
+}
+
+async fn capture_signatures(ctx: &TapFinalizeCtx, audit: &GatewayAudit, summary: &Summary) {
+    match &audit.ctx.gateway_conversation_id {
+        Some(conversation) => {
+            ctx.repos
+                .thought_signatures
+                .store_from_response(conversation, &summary.response)
+                .await;
+        },
+        None => {
+            ThoughtSignatureCache::note_uncacheable_response(
+                &summary.response,
+                "no_conversation_id",
+            );
+        },
+    }
 }

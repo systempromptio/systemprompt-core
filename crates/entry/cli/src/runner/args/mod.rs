@@ -68,6 +68,7 @@ pub struct DatabaseOpts {
         long,
         global = true,
         env = "SYSTEMPROMPT_DATABASE_URL",
+        hide_env_values = true,
         help = "Direct database URL (bypasses profile)"
     )]
     pub database_url: Option<String>,

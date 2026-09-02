@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Changed
+
+- Trait signatures that took a long tail of positional parameters take a parameter struct instead, which is what `clippy::too_many_arguments` was flagging across the implementations.
+
 ## [0.38.0] - 2026-08-25
 
 ### Changed

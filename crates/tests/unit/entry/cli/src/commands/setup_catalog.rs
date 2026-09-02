@@ -5,7 +5,7 @@
 
 use systemprompt_cli::admin::setup::SecretsData;
 use systemprompt_cli::admin::setup::catalog::{build_registry, build_routes};
-use systemprompt_models::profile::{GatewayConfig, GatewayRoute};
+use systemprompt_models::services::{GatewayConfig, GatewayRoute};
 
 fn secrets_with(openai: bool, anthropic: bool, gemini: bool) -> SecretsData {
     SecretsData {

@@ -76,6 +76,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         max_tokens: Some(16),
         is_streaming: true,
         wire_protocol: "anthropic-messages".to_string(),
+        access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(db), ctx);
     audit

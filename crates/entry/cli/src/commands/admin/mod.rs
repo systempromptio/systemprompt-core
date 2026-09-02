@@ -14,6 +14,7 @@ pub mod bootstrap;
 pub mod bridge;
 pub mod config;
 pub mod evals;
+pub mod identity;
 pub mod keys;
 pub mod session;
 pub mod setup;
@@ -71,6 +72,12 @@ pub enum AdminCommands {
         about = "RSA signing-key generation for the federated JWT plane"
     )]
     Keys(keys::KeysCommands),
+
+    #[command(
+        subcommand,
+        about = "Replica identity secrets shared by every node of a deployment"
+    )]
+    Identity(identity::IdentityCommands),
 }
 
 pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
@@ -105,5 +112,6 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
         AdminCommands::Bridge(cmd) => bridge::execute(cmd, ctx).await,
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, ctx).await,
         AdminCommands::Keys(cmd) => keys::execute(cmd, ctx).await,
+        AdminCommands::Identity(cmd) => identity::execute(cmd, ctx),
     }
 }

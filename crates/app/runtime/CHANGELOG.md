@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.44.0] - 2026-09-02
+
+### Added
+
+- `AppContext` resolves and carries the replica's `InstanceId`, and hands it to the MCP service registry, the event outbox and the scheduler so each of them can scope its rows to the node that owns them.
+- A `FileStorage` accessor on the context, built once from the `storage:` profile section and injected wherever uploads and generated files are written.
+
+### Changed
+
+- The provider catalog and gateway routes are read from the services tree instead of the profile, so the context no longer reaches into `profile.providers` to build the registry.
+
 ## [0.41.0] - 2026-08-28
 
 ### Changed

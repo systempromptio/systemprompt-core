@@ -20,7 +20,7 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_test_fixtures::{
-    AuthedFixture, TestBootstrap, fixture_app_context, fixture_db_pool, init_gateway_bootstrap,
+    AuthedFixture, TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
     install_test_signing_key, seed_admin_credential,
 };
 use tokio::sync::OnceCell;
@@ -102,7 +102,7 @@ async fn harness() -> &'static Harness {
                 .mount(&upstream)
                 .await;
 
-            let boot = init_gateway_bootstrap(&gateway_yaml(&upstream.uri()));
+            let boot = init_services_bootstrap(&gateway_yaml(&upstream.uri()));
             Harness {
                 boot,
                 _upstream: upstream,
@@ -292,8 +292,8 @@ mod streaming {
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::headers::SESSION_ID;
     use systemprompt_test_fixtures::{
-        AuthedFixture, TestBootstrap, fixture_app_context, fixture_db_pool, init_gateway_bootstrap,
-        install_test_signing_key,
+        AuthedFixture, TestBootstrap, fixture_app_context, fixture_db_pool,
+        init_services_bootstrap, install_test_signing_key,
     };
     use tokio::sync::OnceCell;
     use tower::ServiceExt;
@@ -349,7 +349,7 @@ mod streaming {
                 // body, so the buffered assertions stay in the parent module.
                 let _ = upstream_response();
 
-                let boot = init_gateway_bootstrap(&super::gateway_yaml(&upstream.uri()));
+                let boot = init_services_bootstrap(&super::gateway_yaml(&upstream.uri()));
                 Harness {
                     boot,
                     _upstream: upstream,

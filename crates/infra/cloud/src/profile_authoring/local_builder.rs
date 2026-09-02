@@ -7,9 +7,7 @@ use std::path::Path;
 
 use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_loader::ExtensionLoader;
-use systemprompt_models::profile::{
-    ProviderRegistry, SecretsConfig, SecretsSource, SecretsValidationMode,
-};
+use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, ExtensionsConfig, PathsConfig,
@@ -59,6 +57,7 @@ impl LocalProfileBuilder {
         let internal_url = local_url.clone();
 
         Profile {
+            storage: systemprompt_models::profile::StorageConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Local,
@@ -82,6 +81,7 @@ impl LocalProfileBuilder {
                 content_negotiation: ContentNegotiationConfig::default(),
                 security_headers: SecurityHeadersConfig::default(),
                 instance_id: None,
+                metrics_port: None,
                 max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
                 trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
             },
@@ -111,8 +111,6 @@ impl LocalProfileBuilder {
                 source: SecretsSource::File,
             }),
             extensions: ExtensionsConfig::default(),
-            providers: ProviderRegistry::default(),
-            gateway: None,
             governance: Some(webhook_governance(&internal_url)),
             services: systemprompt_models::profile::ServicesProfileConfig::default(),
             system_admin: SystemAdminConfig {

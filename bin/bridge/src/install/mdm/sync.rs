@@ -4,6 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(target_os = "macos")]
+fn refresh_managed_mcp_servers(mcp: &super::MdmPayloadInputs<'_>) -> String {
+    _ = mcp;
+    "managedMcpServers refresh skipped (managed preferences are written by install --apply)".into()
+}
+
+// Why: Windows re-asserts the whole policy so a drifted key self-heals; macOS
+// keeps the plist written by `install --apply`.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[cfg_attr(
     target_os = "macos",
@@ -12,17 +20,14 @@
         reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
     )
 )]
-pub(crate) fn refresh_managed_mcp_servers(
-    mcp: &super::MdmPayloadInputs<'_>,
-) -> Result<String, super::MdmError> {
+fn enforce_managed_policy(mcp: &super::MdmPayloadInputs<'_>) -> Result<String, super::MdmError> {
     #[cfg(target_os = "windows")]
     {
-        super::windows::refresh_managed_mcp_servers(mcp)
+        super::windows::enforce_managed_policy(mcp)
     }
     #[cfg(not(target_os = "windows"))]
     {
-        _ = mcp;
-        Ok("managedMcpServers refresh skipped (non-Windows)".into())
+        Ok(refresh_managed_mcp_servers(mcp))
     }
 }
 
@@ -59,7 +64,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
-        match refresh_managed_mcp_servers(&super::MdmPayloadInputs {
+        match enforce_managed_policy(&super::MdmPayloadInputs {
             loopback: ctx.loopback,
             registry: ctx.mcp_registry,
             egress_allowed_hosts: None,
@@ -68,7 +73,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                 tracing::info!(
                     target: "bridge::mdm",
                     written = %line,
-                    "managedMcpServers policy value refreshed"
+                    "managed policy enforced on sync"
                 );
                 Ok(())
             },

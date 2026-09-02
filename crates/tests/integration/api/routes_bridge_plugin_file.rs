@@ -121,6 +121,7 @@ fn seed_plugin_tree() {
     std::fs::write(skills.join("index.md"), "Cov skill instructions.\n").expect("write skill md");
     std::fs::write(b.services_path.join("config/config.yaml"), PLUGIN_CONFIG)
         .expect("write services config");
+    systemprompt_test_fixtures::refresh_services_config();
 }
 
 pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)> {

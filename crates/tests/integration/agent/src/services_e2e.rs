@@ -77,7 +77,11 @@ impl ServicesFixture {
     }
 
     async fn insert_task(&self) -> Result<TaskId> {
-        let repos = A2ARepositories::new(&self.db, crate::common::session_usage(&self.db)?)?;
+        let repos = A2ARepositories::new(
+            &self.db,
+            crate::common::session_usage(&self.db)?,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )?;
         let task_id = TaskId::new(format!("svc_task_{}_{}", self.tag, Uuid::new_v4().simple()));
         let task = Task {
             id: task_id.clone(),

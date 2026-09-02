@@ -18,7 +18,12 @@ export class SpHostsList extends SpElement {
     this.gated = false;
 
     this.registerAction("reverify-all", async () => {
-      await Promise.allSettled(this.order.map((id) => bridge.hostProbe(id)));
+      // Only agents with something local to inspect. A sync-only agent has no
+      // process and no profile here, so probing it did nothing except write
+      // "probe requested for unknown host 'claude-code'" to the activity log on
+      // every press.
+      const ids = this.order.filter((id) => this.hostsById.get(id)?.can_verify !== false);
+      await Promise.allSettled(ids.map((id) => bridge.hostProbe(id)));
     });
     this.registerAction("add-agent", (trigger) => {
       const drawer = this._drawer();

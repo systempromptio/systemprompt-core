@@ -41,7 +41,7 @@ pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
     display_keys: KEYS_OF_INTEREST,
 };
 
-const DEFAULT_MODELS: &[&str] = &["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"];
+const DEFAULT_MODELS: &[&str] = &["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"];
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Clone, Default)]

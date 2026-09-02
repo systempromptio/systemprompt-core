@@ -15,6 +15,7 @@ use systemprompt_models::{
 
 fn profile(cloud: Option<CloudConfig>) -> Profile {
     Profile {
+        storage: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Cloud,
@@ -38,6 +39,7 @@ fn profile(cloud: Option<CloudConfig>) -> Profile {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
+            metrics_port: None,
             max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             trusted_proxies: Vec::new(),
         },
@@ -66,8 +68,6 @@ fn profile(cloud: Option<CloudConfig>) -> Profile {
         cloud,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::profile::ProviderRegistry::default(),
-        gateway: None,
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {

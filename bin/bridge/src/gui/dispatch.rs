@@ -21,6 +21,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::LoginRequested { .. } => "LoginRequested",
         UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
+        UiEvent::CredentialRejected { .. } => "CredentialRejected",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
         UiEvent::McpAuthProbeRequested { .. } => "McpAuthProbeRequested",
@@ -32,6 +33,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::SettingsReadRequested { .. } => "SettingsReadRequested",
         UiEvent::SettingsWriteRequested { .. } => "SettingsWriteRequested",
         UiEvent::SyncStarted => "SyncStarted",
+        UiEvent::SyncStep(_) => "SyncStep",
         UiEvent::SyncFinished { .. } => "SyncFinished",
         UiEvent::ValidateFinished { .. } => "ValidateFinished",
         UiEvent::LoginFinished { .. } => "LoginFinished",
@@ -193,6 +195,9 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         UiEvent::LogoutFinished { result, reply_to } => {
             handlers::auth::on_logout_finished(app, result, reply_to);
         },
+        UiEvent::CredentialRejected { reason } => {
+            handlers::auth::on_credential_rejected(app, &reason);
+        },
         UiEvent::SetGatewayFinished { result, reply_to } => {
             handlers::auth::on_set_gateway_finished(app, result, reply_to);
         },
@@ -223,6 +228,7 @@ fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEven
     match event {
         UiEvent::Quit => handlers::quit::on_quit(),
         UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
+        UiEvent::SyncStep(step) => crate::gui::emit::emit_sync_step(app, &step),
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
         UiEvent::AgentUninstall { host_id, reply_to } => {
             handlers::agents::on_uninstall(app, &host_id, reply_to);

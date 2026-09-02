@@ -204,5 +204,6 @@ where
             .client
             .as_ref()
             .map(|s| ClientId::new(s.clone())),
+        instance_id: crate::instance_id().cloned(),
     })
 }

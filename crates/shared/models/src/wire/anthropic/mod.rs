@@ -12,10 +12,12 @@ mod blocks;
 mod headers;
 mod parse;
 mod sse;
+mod strict;
 
 pub use blocks::content_to_anthropic_block;
 pub use headers::{
-    ANTHROPIC_VERSION, auth_headers, is_forwardable_request_header, is_identity_request_header,
+    ANTHROPIC_VERSION, REDACTED, auth_headers, is_credential_request_header,
+    is_forwardable_request_header, is_identity_request_header, recordable_header_value,
     strip_user_id,
 };
 pub use parse::parse_response;
@@ -26,8 +28,8 @@ use serde_json::{Map, Value, json};
 
 use blocks::{BlockAudience, canonical_message_to_anthropic};
 
-use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
+use crate::services::WireProtocol;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, Role, SearchConfig,
@@ -61,13 +63,17 @@ pub fn build_request_body(
     }
     insert_sampling_params(&mut obj, request);
     let mut tools: Vec<Value> = request.tools.iter().map(tool_to_anthropic).collect();
-    let forced_tool: Option<&str> =
-        if let Some(ResponseFormat::JsonSchema { name, schema, .. }) = &request.response_format {
-            tools.push(structured_output_tool(name, schema));
-            Some(name.as_str())
-        } else {
-            None
-        };
+    let forced_tool: Option<&str> = if let Some(ResponseFormat::JsonSchema {
+        name,
+        schema,
+        strict,
+    }) = &request.response_format
+    {
+        tools.push(structured_output_tool(name, schema, *strict));
+        Some(name.as_str())
+    } else {
+        None
+    };
     let searching = request.search.is_some();
     if let Some(search) = &request.search {
         tools.push(web_search_tool(search));
@@ -134,11 +140,21 @@ fn insert_thinking(
     obj.insert("thinking".into(), Value::Object(t));
 }
 
-fn structured_output_tool(name: &str, schema: &Value) -> Value {
+// Why: `strict` makes Anthropic compile the schema into a grammar and sample
+// only conforming output; without it the schema is advisory and the model can
+// wrap, truncate or free-text a field. The schema is shaped first because the
+// grammar compiler accepts a narrower dialect than JSON Schema.
+fn structured_output_tool(name: &str, schema: &Value, strict: bool) -> Value {
+    let input_schema = if strict {
+        strict::strict_input_schema(schema)
+    } else {
+        schema.clone()
+    };
     json!({
         "name": name,
         "description": "Respond by calling this tool with arguments matching the schema.",
-        "input_schema": schema,
+        "strict": strict,
+        "input_schema": input_schema,
     })
 }
 

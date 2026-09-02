@@ -1,5 +1,14 @@
 //! Per-plugin sync application: change detection and materialisation.
 //!
+//! Plugin files are fetched serially rather than concurrently. A buffered
+//! variant of the fetch loop tips rustc's "Send is not general enough" limit:
+//! awaiting the resulting stream deep inside the sync chain leaves borrows
+//! (`&GatewayClient`, the `&str` bearer) held across the await, and the spawned
+//! sync task then fails to prove `Send` for all lifetimes. Serial keeps those
+//! borrows out of a combinator's higher-ranked bound. Staging is into a
+//! temporary directory that only becomes the plugin on success either way, so a
+//! failure part-way leaves the installed plugin untouched.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -40,10 +49,20 @@ pub(super) async fn apply_plugins(
     let mut updated = Vec::new();
     let mut malformed = Vec::new();
     let mut mcp_servers_by_plugin = BTreeMap::new();
-    for plugin in &manifest.plugins {
+    let total = manifest.plugins.len();
+    for (index, plugin) in manifest.plugins.iter().enumerate() {
         if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
         }
+        // Why: this loop is the wall time. Every plugin is fetched file by file,
+        // one request at a time, so it is the only place where "still working"
+        // can be distinguished from "stuck".
+        ctx.progress.report(&crate::progress::SyncProgress::new(
+            "plugins",
+            plugin.id.to_string(),
+            index + 1,
+            total,
+        ));
         match sync_one_plugin(ctx, plugin, &manifest.hooks).await? {
             PluginChange::Installed(id) => installed.push(id),
             PluginChange::Updated(id) => updated.push(id),
@@ -121,6 +140,10 @@ pub(super) struct PluginSyncCtx<'a> {
     pub plugin_tokens: &'a PluginTokenCache,
     pub root: &'a Path,
     pub staging_root: &'a Path,
+    // Why: owned (cheap Arc-backed clone), not borrowed — holding a `&SyncProgressSink`
+    // in this ctx across the per-file fetch awaits added a borrow that tipped
+    // rustc's "Send is not general enough" limit on the spawned sync task.
+    pub progress: crate::progress::SyncProgressSink,
 }
 
 #[tracing::instrument(level = "debug", skip(ctx, plugin, hook_pool), fields(plugin_id = %plugin.id))]
@@ -166,6 +189,9 @@ async fn fetch_plugin_into_staging(
         context: format!("create stage {}", stage.display()),
         source: e,
     })?;
+    // Why: every path is validated before a single request goes out. Doing this in
+    // the fetch loop below would mean an unsafe path in the middle of a plugin
+    // is only caught after its earlier files are already on disk.
     for file in &plugin.files {
         if file.path.contains("..") || file.path.starts_with('/') || file.path.starts_with('\\') {
             return Err(super::ApplyError::UnsafePath(file.path.clone()));
@@ -177,6 +203,13 @@ async fn fetch_plugin_into_staging(
                 source: e,
             })?;
         }
+    }
+
+    // Why: serial, not concurrent — a buffered variant leaves borrows held
+    // across the await and the spawned sync task then fails to prove `Send`
+    // for all lifetimes. See the module head.
+    for file in &plugin.files {
+        let out = stage.join(normalise_relative(&file.path));
         let bytes = client
             .fetch_plugin_file(bearer, plugin.id.as_str(), &file.path)
             .await?;

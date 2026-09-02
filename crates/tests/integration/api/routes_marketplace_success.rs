@@ -15,7 +15,7 @@ use systemprompt_api::routes::marketplace;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, fixture_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with, fixture_db_pool, refresh_services_config,
 };
 use tower::ServiceExt;
 
@@ -40,6 +40,7 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
     let dir = b.services_path.join("marketplaces").join("default");
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("config.yaml"), MARKETPLACE_YAML)?;
+    refresh_services_config();
 
     let paths = PathsConfig {
         system: b.system_path.display().to_string(),

@@ -19,7 +19,7 @@ use systemprompt_logging::CliService;
 use super::SetupArgs;
 use crate::CliConfig;
 use crate::interactive::Prompter;
-use crate::shared::profile::generate_oauth_at_rest_pepper;
+use crate::shared::generate_identity;
 use data::resolve_primary;
 use prompts::{resolve_interactive_primary, select_provider_keys};
 
@@ -33,13 +33,17 @@ pub(super) fn collect_non_interactive(
         CliService::section("Secrets Setup");
     }
 
-    let oauth_at_rest_pepper = generate_oauth_at_rest_pepper();
+    let identity = generate_identity()?;
     if !config.is_json_output() {
-        CliService::success("Generated secure OAuth at-rest pepper (64 characters)");
+        CliService::success(
+            "Generated OAuth at-rest pepper, manifest signing seed and signing key",
+        );
     }
 
     let secrets = SecretsData {
-        oauth_at_rest_pepper,
+        oauth_at_rest_pepper: identity.oauth_at_rest_pepper,
+        manifest_signing_secret_seed: Some(identity.manifest_signing_secret_seed),
+        signing_key_pem: Some(identity.signing_key_pem),
         database_url: None,
         gemini: args.gemini_key.clone(),
         anthropic: args.anthropic_key.clone(),
@@ -66,11 +70,13 @@ pub(super) fn collect_interactive(
     CliService::section(&format!("Secrets Setup ({})", env_name));
     CliService::info("At least one AI provider API key is required.");
 
-    let oauth_at_rest_pepper = generate_oauth_at_rest_pepper();
-    CliService::success("Generated secure OAuth at-rest pepper (64 characters)");
+    let identity = generate_identity()?;
+    CliService::success("Generated OAuth at-rest pepper, manifest signing seed and signing key");
 
     let mut secrets = SecretsData {
-        oauth_at_rest_pepper,
+        oauth_at_rest_pepper: identity.oauth_at_rest_pepper,
+        manifest_signing_secret_seed: Some(identity.manifest_signing_secret_seed),
+        signing_key_pem: Some(identity.signing_key_pem),
         ..Default::default()
     };
 

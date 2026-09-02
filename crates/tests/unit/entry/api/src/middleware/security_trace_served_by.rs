@@ -26,6 +26,7 @@ fn ensure_config() {
 fn test_config() -> Config {
     Config {
         instance_id: "unit-test-instance".to_string(),
+        metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),

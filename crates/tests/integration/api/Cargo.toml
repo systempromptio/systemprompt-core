@@ -18,6 +18,7 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true, features = ["test-api"] }
 systemprompt-runtime = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }

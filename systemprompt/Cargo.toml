@@ -53,6 +53,7 @@ cloud = ["dep:systemprompt-cloud"]
 logging = ["dep:systemprompt-logging"]
 loader = ["dep:systemprompt-loader"]
 events = ["dep:systemprompt-events"]
+storage = ["dep:systemprompt-storage"]
 client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security"]
 
@@ -105,6 +106,7 @@ full = [
     # Infrastructure crates for extension authors
     "loader",
     "events",
+    "storage",
     "client",
     "security",
 ]
@@ -124,6 +126,7 @@ systemprompt-config = { workspace = true, optional = true }
 systemprompt-cloud = { workspace = true, optional = true }
 systemprompt-loader = { workspace = true, optional = true }
 systemprompt-events = { workspace = true, optional = true }
+systemprompt-storage = { workspace = true, optional = true }
 systemprompt-client = { workspace = true, optional = true }
 systemprompt-security = { workspace = true, optional = true }
 

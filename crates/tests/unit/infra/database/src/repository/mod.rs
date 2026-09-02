@@ -2,3 +2,4 @@
 
 mod cleanup;
 mod service;
+mod service_registry_db;

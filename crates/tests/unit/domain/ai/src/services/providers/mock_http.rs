@@ -4,7 +4,7 @@
 //! constructed via `with_endpoint`.
 
 use serde_json::json;
-use systemprompt_models::profile::{ProviderModel, ProviderRegistry};
+use systemprompt_models::services::{ProviderModel, ProviderRegistry};
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

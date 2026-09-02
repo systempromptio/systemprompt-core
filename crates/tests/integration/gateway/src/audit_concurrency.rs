@@ -52,6 +52,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
             max_tokens: Some(16),
             is_streaming: false,
             wire_protocol: "anthropic-messages".to_string(),
+            access_log: None,
         };
         let req_clone = request.clone();
         let body_clone = body.clone();
@@ -131,6 +132,7 @@ async fn gateway_audit_open_persists_derived_context_id() {
         max_tokens: Some(16),
         is_streaming: false,
         wire_protocol: "anthropic-messages".to_string(),
+        access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(&db), ctx);
     audit

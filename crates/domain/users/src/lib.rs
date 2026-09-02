@@ -11,6 +11,8 @@
 //! - **Device certificates** — enrollment and rotation via
 //!   [`DeviceCertService`].
 //! - **IP bans** — typed [`BannedIpRepository`] with metadata-aware queries.
+//! - **Rate-limit buckets** — [`UserRateLimitBucketRepository`], the
+//!   replica-shared counters behind the global per-user HTTP throttle.
 //! - **Cleanup job** — purges anonymous users past the retention window.
 //!
 //! ## Feature flags
@@ -52,7 +54,7 @@ pub use models::{
 pub use repository::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
     CreateApiKeyParams, EnrollDeviceCertParams, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
-    UserRepository,
+    UserRateLimitBucketRepository, UserRepository,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyService, DemoteResult, DeviceCertService, EnrollDeviceCertServiceParams,

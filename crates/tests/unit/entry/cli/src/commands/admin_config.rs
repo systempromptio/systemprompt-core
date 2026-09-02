@@ -22,6 +22,7 @@ use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
 fn make_profile(services: &Path) -> Profile {
     Profile {
+        storage: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,
@@ -45,6 +46,7 @@ fn make_profile(services: &Path) -> Profile {
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
+            metrics_port: None,
             max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             trusted_proxies: Vec::new(),
         },
@@ -73,8 +75,6 @@ fn make_profile(services: &Path) -> Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::profile::ProviderRegistry::default(),
-        gateway: None,
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {
@@ -92,6 +92,8 @@ fn cfg() -> CliConfig {
 fn config_section_from_str_parses_every_variant_case_insensitively() {
     let cases = [
         ("ai", ConfigSection::Ai),
+        ("providers", ConfigSection::Providers),
+        ("Gateway", ConfigSection::Gateway),
         ("Content", ConfigSection::Content),
         ("WEB", ConfigSection::Web),
         ("scheduler", ConfigSection::Scheduler),
@@ -124,13 +126,13 @@ fn config_section_display_round_trips_through_from_str() {
 }
 
 #[test]
-fn config_section_all_lists_nine_unique_sections() {
+fn config_section_all_lists_eleven_unique_sections() {
     let all = ConfigSection::all();
-    assert_eq!(all.len(), 9);
+    assert_eq!(all.len(), 11);
     let mut names: Vec<String> = all.iter().map(ToString::to_string).collect();
     names.sort();
     names.dedup();
-    assert_eq!(names.len(), 9);
+    assert_eq!(names.len(), 11);
 }
 
 #[test]

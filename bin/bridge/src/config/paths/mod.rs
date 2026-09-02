@@ -6,9 +6,10 @@
 mod dirs;
 
 pub use dirs::{
-    COWORK_ARTIFACTS_SUBDIR, COWORK_PLUGINS_SUBDIR, bridge_metadata_dir, bridge_staging_dir,
-    bridge_working_dir, claude_cli_home, claude_cli_plugins_dir, claude_cli_settings_path,
-    cowork3p_sessions_root,
+    COWORK_ARTIFACTS_SUBDIR, COWORK_PLUGINS_SUBDIR, WORKSPACE_ARTIFACTS_SUBDIR,
+    bridge_metadata_dir, bridge_staging_dir, bridge_working_dir, claude_cli_home,
+    claude_cli_plugins_dir, claude_cli_settings_path, claude_code_policy_dir,
+    cowork3p_sessions_root, workspace_artifacts_dir, workspace_dir,
 };
 
 use std::path::PathBuf;

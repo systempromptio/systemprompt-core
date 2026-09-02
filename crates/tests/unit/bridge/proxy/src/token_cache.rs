@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
-use systemprompt_bridge::proxy::token_cache::{RefreshFn, TokenCache};
+use systemprompt_bridge::proxy::token_cache::{AuthState, RefreshFn, TokenCache};
 
 fn fake_token(ttl: u64) -> HelperOutput {
     HelperOutput {
@@ -118,6 +118,140 @@ async fn refresh_failure_propagates() {
     let err = cache.current(300).await.expect_err("no token must fail");
     let msg = format!("{err}");
     assert!(msg.contains("authentication"), "got: {msg}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_refresh_tick_never_mints_from_an_empty_cache() {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 10));
+
+    cache
+        .refresh_if_cached(300)
+        .await
+        .expect("nothing to renew is not an error");
+    cache
+        .refresh_if_cached(300)
+        .await
+        .expect("still nothing to renew");
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        0,
+        "a signed-out install is left alone"
+    );
+
+    cache
+        .current(0)
+        .await
+        .expect("a request-driven mint seeds the cache");
+    cache
+        .refresh_if_cached(300)
+        .await
+        .expect("a token inside the threshold is renewed");
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        2,
+        "the tick renews what is cached"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_exhausted_chain_latches_and_stops_calling_the_refresh_fn() {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let counter_for_refresh = Arc::clone(&counter);
+    let refresh: RefreshFn = Arc::new(move |_| {
+        counter_for_refresh.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async { None })
+    });
+    let cache = TokenCache::new(refresh);
+    let mut state = cache.auth_state();
+    assert_eq!(*state.borrow_and_update(), AuthState::Ok);
+
+    cache.current(300).await.expect_err("nothing to mint");
+    cache.current(300).await.expect_err("still latched");
+    cache.current(300).await.expect_err("still latched");
+
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "once latched, callers are answered locally instead of re-running the chain"
+    );
+    assert!(
+        state.has_changed().expect("sender alive"),
+        "the latch is published"
+    );
+    assert!(
+        state.borrow_and_update().sign_in_required(),
+        "the published state names a sign-in"
+    );
+    assert!(cache.sign_in_required());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reset_re_arms_a_latched_cache() {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let counter_for_refresh = Arc::clone(&counter);
+    let refresh: RefreshFn = Arc::new(move |_| {
+        let n = counter_for_refresh.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async move { (n > 0).then(|| fake_token(3600)) })
+    });
+    let cache = TokenCache::new(refresh);
+    let mut state = cache.auth_state();
+
+    cache.current(300).await.expect_err("first attempt latches");
+    cache.reset().await;
+    assert!(!cache.sign_in_required(), "reset clears the latch");
+    cache
+        .current(300)
+        .await
+        .expect("minting resumes after reset");
+
+    assert_eq!(counter.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        *state.borrow_and_update(),
+        AuthState::Ok,
+        "a successful mint publishes the recovery"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_fresh_token_rejected_upstream_latches_instead_of_re_minting() {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
+    let mut state = cache.auth_state();
+
+    cache.current(300).await.expect("mint");
+    cache.reject_upstream("/v1/bridge/heartbeat").await;
+
+    let err = cache
+        .current(300)
+        .await
+        .expect_err("a revoked credential is not renewed");
+    assert!(format!("{err}").contains("sign in"), "{err}");
+    assert_eq!(counter.load(Ordering::SeqCst), 1, "no second mint");
+    match state.borrow_and_update().clone() {
+        AuthState::SignInRequired { reason } => {
+            assert!(reason.contains("/v1/bridge/heartbeat"), "{reason}");
+        },
+        AuthState::Ok => panic!("the rejection must be published"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn repeated_rejections_publish_a_single_transition() {
+    let cache = TokenCache::new(counting_refresh(Arc::new(AtomicUsize::new(0)), 3600));
+    let mut state = cache.auth_state();
+
+    cache.current(300).await.expect("mint");
+    cache.reject_upstream("/v1/bridge/heartbeat").await;
+    cache.reject_upstream("/v1/bridge/stream").await;
+    cache.current(300).await.expect_err("latched");
+
+    assert!(state.has_changed().expect("sender alive"));
+    state.borrow_and_update();
+    assert!(
+        !state.has_changed().expect("sender alive"),
+        "one rejection, one notification — the GUI toasts once"
+    );
 }
 
 #[test]

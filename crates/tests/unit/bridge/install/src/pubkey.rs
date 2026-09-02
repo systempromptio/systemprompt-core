@@ -37,12 +37,8 @@ fn pubkey_not_pinned_error_has_distinct_exit_code() {
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_includes_pubkey_when_provided() {
-    let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
-        Some("BASE64-PUBKEY"),
-        None,
-        None,
-    );
+    let values =
+        systemprompt_bridge::install::windows_policy_values(Some("BASE64-PUBKEY"), None, None);
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(names.contains(&"inferenceManifestPubkey"));
     let pubkey_entry = values
@@ -56,12 +52,7 @@ fn windows_policy_values_includes_pubkey_when_provided() {
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_omits_pubkey_when_absent() {
-    let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
-        None,
-        None,
-        None,
-    );
+    let values = systemprompt_bridge::install::windows_policy_values(None, None, None);
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(!names.contains(&"inferenceManifestPubkey"));
 }
@@ -70,7 +61,6 @@ fn windows_policy_values_omits_pubkey_when_absent() {
 #[test]
 fn windows_policy_values_includes_valid_org_uuid() {
     let values = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
         None,
         Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963"),
         None,
@@ -86,23 +76,13 @@ fn windows_policy_values_includes_valid_org_uuid() {
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_omits_missing_or_invalid_org_uuid() {
-    let none = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
-        None,
-        None,
-        None,
-    );
+    let none = systemprompt_bridge::install::windows_policy_values(None, None, None);
     assert!(
         !none
             .iter()
             .any(|(k, _, _)| *k == "deploymentOrganizationUuid")
     );
-    let bad = systemprompt_bridge::install::windows_policy_values(
-        "https://gateway.example",
-        None,
-        Some("garbage"),
-        None,
-    );
+    let bad = systemprompt_bridge::install::windows_policy_values(None, Some("garbage"), None);
     assert!(
         !bad.iter()
             .any(|(k, _, _)| *k == "deploymentOrganizationUuid")
@@ -263,4 +243,23 @@ fn mdm_inputs() -> systemprompt_bridge::install::MdmPayloadInputs<'static> {
         registry: &MDM_REGISTRY,
         egress_allowed_hosts: None,
     }
+}
+
+// Why: `disableNonessentialServices=true` blocks the renderer Cowork's MCP
+// display extensions load from; the value is written as an explicit `false`
+// so an older `true` is corrected by the next sync.
+#[cfg(target_os = "windows")]
+#[test]
+fn windows_policy_values_keep_nonessential_services_enabled() {
+    let values = systemprompt_bridge::install::windows_policy_values(None, None, None);
+    let flag = values
+        .iter()
+        .find(|(name, _, _)| *name == "disableNonessentialServices")
+        .expect("hardening flag present");
+    assert_eq!(flag.2, "false");
+    assert!(
+        values
+            .iter()
+            .any(|(name, _, _)| *name == "allowedWorkspaceFolders")
+    );
 }

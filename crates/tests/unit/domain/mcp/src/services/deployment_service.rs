@@ -2,14 +2,12 @@
 //! config containing one enabled and one disabled MCP server.
 
 use systemprompt_mcp::services::DeploymentService;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use crate::harness::{
-    ExternalServerSpec, config_with_servers, external_server_block, write_services_config,
+    ExternalServerSpec, bootstrap_with_services, config_with_servers, external_server_block,
 };
 
 fn seed_config() {
-    let bootstrap = ensure_test_bootstrap();
     let yaml = config_with_servers(&[
         external_server_block(&ExternalServerSpec {
             name: "dep_on",
@@ -24,7 +22,7 @@ fn seed_config() {
             enabled: false,
         }),
     ]);
-    write_services_config(bootstrap, &yaml);
+    let _bootstrap = bootstrap_with_services(&yaml);
 }
 
 #[test]

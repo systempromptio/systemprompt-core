@@ -100,6 +100,7 @@ fn services_root() -> PathBuf {
     std::fs::create_dir_all(&assets).unwrap();
     std::fs::write(assets.join("logo.svg"), "<svg/>").unwrap();
 
+    systemprompt_test_fixtures::refresh_services_config();
     root
 }
 

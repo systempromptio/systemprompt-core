@@ -1,4 +1,5 @@
-//! Test-only seams over the proxy session cache and external MCP helpers.
+//! Test-only seams over the proxy session identity store and external MCP
+//! helpers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,18 +7,28 @@
 use std::collections::HashMap;
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use systemprompt_identifiers::{JwtToken, SessionId};
+use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_mcp::McpDomainError;
+use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, UserType};
 use uuid::Uuid;
 
-use super::mcp_session::{McpResponseCtx, ProxySessionIdentity, SessionCache};
+use super::mcp_session::McpResponseCtx;
 
-#[derive(Clone, Debug, Default)]
-pub struct TestSessionCache(SessionCache);
+#[derive(Clone, Debug)]
+pub struct TestSessionCache(McpProxyIdentityRepository);
 
 impl TestSessionCache {
+    #[must_use]
+    pub const fn new(identities: McpProxyIdentityRepository) -> Self {
+        Self(identities)
+    }
+
+    #[expect(
+        clippy::expect_used,
+        reason = "test-only seam, compiled out unless `test-api` is enabled"
+    )]
     pub async fn seed(
         &self,
         session_id: &SessionId,
@@ -25,19 +36,30 @@ impl TestSessionCache {
         permissions: Vec<Permission>,
         token: &str,
     ) {
-        self.0.write().await.insert(
-            session_id.as_str().to_owned(),
-            ProxySessionIdentity {
-                user,
-                user_type: UserType::User,
-                permissions,
-                auth_token: JwtToken::new(token),
-            },
-        );
+        self.0
+            .upsert(
+                session_id,
+                &ProxyIdentityRow {
+                    user_id: UserId::new(user.to_string()),
+                    user_type: UserType::User,
+                    permissions,
+                    auth_token: JwtToken::new(token),
+                },
+            )
+            .await
+            .expect("seed proxy identity");
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "test-only seam, compiled out unless `test-api` is enabled"
+    )]
     pub async fn cached_user(&self, session_id: &SessionId) -> Option<Uuid> {
-        self.0.read().await.get(session_id.as_str()).map(|i| i.user)
+        self.0
+            .find(session_id)
+            .await
+            .expect("find proxy identity")
+            .and_then(|row| Uuid::parse_str(row.user_id.as_str()).ok())
     }
 }
 
@@ -69,7 +91,7 @@ pub struct ResponseArgs<'a> {
 
 pub async fn handle_mcp_response(args: ResponseArgs<'_>) {
     super::mcp_session::handle_mcp_response(McpResponseCtx {
-        cache: &args.cache.0,
+        identities: &args.cache.0,
         response: args.response,
         request_headers: args.request_headers,
         req_context: args.req_context,

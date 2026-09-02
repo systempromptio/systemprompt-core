@@ -7,13 +7,6 @@
 
 use super::error::MdmError;
 
-pub(super) fn refresh_managed_mcp_servers(
-    mcp: &super::MdmPayloadInputs<'_>,
-) -> Result<String, MdmError> {
-    let value = super::managed_mcp_servers_json(mcp).unwrap_or_else(|| "[]".to_owned());
-    write_managed_mcp_servers_value(&value)
-}
-
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, MdmError> {
     // Why: HKLM writes need elevation — hence the drift-only UAC.
     let hkcu = crate::cowork_compat::HKCU_POLICY_KEY;
@@ -107,6 +100,93 @@ fn elevated_write(value: &str) -> Result<(), MdmError> {
     })
 }
 
+// Why: sync used to keep only `managedMcpServers` in step, so a policy key
+// missing `allowedWorkspaceFolders` (a fresh machine, a wiped policy) left
+// Cowork prompting on `request_cowork_directory` with telemetry and
+// auto-update back on. Every managed value is re-asserted here, with ONE
+// administrator prompt only when a value has actually drifted.
+pub(super) fn enforce_managed_policy(
+    inputs: &super::MdmPayloadInputs<'_>,
+) -> Result<String, MdmError> {
+    ensure_workspace_dir();
+    let org_uuid = crate::config::load().deployment_organization_uuid;
+    let pubkey = crate::config::pinned_pubkey();
+    let mut values = super::windows_policy_values(
+        pubkey.as_ref().map(crate::ids::PinnedPubKey::as_str),
+        org_uuid.as_deref(),
+        inputs.egress_allowed_hosts,
+    );
+    let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
+    values.push(("managedMcpServers", "REG_SZ", mcp));
+
+    if !policy_drifted(&values) {
+        return Ok("managed policy already in step; nothing to write".into());
+    }
+    if crate::winproc::is_elevated() {
+        write_values_in_process(&values)?;
+        return Ok(format!(
+            "{} ← full managed policy re-asserted (elevated)",
+            crate::cowork_compat::HKLM_POLICY_KEY
+        ));
+    }
+    let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
+    stage_elevated_apply(&values, org_job)
+}
+
+fn write_values_in_process(
+    values: &[(&'static str, &'static str, String)],
+) -> Result<(), MdmError> {
+    let key = crate::cowork_compat::HKLM_POLICY_KEY;
+    for (name, kind, data) in values {
+        let status = crate::winproc::reg_command()
+            .args(["add", key, "/v", name, "/t", kind, "/d", data, "/f"])
+            .status()
+            .map_err(|e| MdmError::Windows(format!("reg add {name}: {e}")))?;
+        if !status.success() {
+            return Err(MdmError::Windows(format!(
+                "reg add {name} exited with {}",
+                status.code().unwrap_or(-1)
+            )));
+        }
+    }
+    Ok(())
+}
+
+// Why: a read error counts as drift — an unknown on-disk state must never be
+// mistaken for an up-to-date one.
+fn policy_drifted(values: &[(&'static str, &'static str, String)]) -> bool {
+    let store = crate::config::store::managed_policy_store();
+    values.iter().any(|(name, _, data)| {
+        !matches!(store.read_managed_policy(name), Ok(Some(current)) if &current == data)
+    })
+}
+
+// Why: Cowork prompts instead of pre-trusting unless the directory named by
+// `allowedWorkspaceFolders` already exists on disk.
+fn ensure_workspace_dir() -> Option<String> {
+    let workspace = crate::brand::brand().workspace_dir_name;
+    if workspace.is_empty() {
+        return None;
+    }
+    let home = std::env::var_os("USERPROFILE")?;
+    let ws = std::path::Path::new(&home).join(workspace);
+    match std::fs::create_dir_all(&ws) {
+        Ok(()) => Some(format!("ensured workspace dir {}", ws.display())),
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::install::mdm",
+                error = %e,
+                path = %ws.display(),
+                "could not create pre-trusted workspace dir"
+            );
+            Some(format!(
+                "warning: could not create workspace dir {}: {e}",
+                ws.display()
+            ))
+        },
+    }
+}
+
 pub(super) fn remove_policy() -> Result<bool, MdmError> {
     let hkcu = crate::winproc::reg_command()
         .args(["delete", crate::cowork_compat::HKCU_POLICY_KEY, "/f"])
@@ -132,52 +212,24 @@ pub(super) fn apply(
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
     let elevated = crate::winproc::is_elevated();
-    let key = if elevated {
-        r"HKLM\SOFTWARE\Policies\Claude"
-    } else {
-        r"HKCU\SOFTWARE\Policies\Claude"
-    };
+    let key = crate::cowork_compat::HKLM_POLICY_KEY;
     let org_uuid = crate::config::load().deployment_organization_uuid;
-    let values = super::windows_policy_values(
-        gateway,
-        pubkey,
-        org_uuid.as_deref(),
-        inputs.egress_allowed_hosts,
-    );
-    let mut summary = Vec::with_capacity(values.len() + 2);
+    let mut values =
+        super::windows_policy_values(pubkey, org_uuid.as_deref(), inputs.egress_allowed_hosts);
+    let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
+    values.push(("managedMcpServers", "REG_SZ", mcp));
+    let mut summary = Vec::with_capacity(values.len() + 4);
     summary.push(format!("registry key: {key}"));
-    for (name, kind, data) in &values {
-        let status = crate::winproc::reg_command()
-            .args(["add", key, "/v", name, "/t", kind, "/d", data, "/f"])
-            .status()
-            .map_err(|e| MdmError::Windows(format!("reg add {name}: {e}")))?;
-        if !status.success() {
-            return Err(MdmError::Windows(format!(
-                "reg add {name} exited with {}",
-                status.code().unwrap_or(-1)
-            )));
-        }
-        summary.push(format!("wrote {name} ({kind})"));
-    }
-    // Why: Cowork prompts instead of pre-trusting unless the directory named by
-    // `allowedWorkspaceFolders` already exists on disk.
-    let workspace = crate::brand::brand().workspace_dir_name;
-    if !workspace.is_empty()
-        && let Some(home) = std::env::var_os("USERPROFILE")
-    {
-        let ws = std::path::Path::new(&home).join(workspace);
-        match std::fs::create_dir_all(&ws) {
-            Ok(()) => summary.push(format!("ensured workspace dir {}", ws.display())),
-            Err(e) => {
-                summary.push(format!(
-                    "warning: could not create workspace dir {}: {e}",
-                    ws.display()
-                ));
-            },
-        }
-    }
+    summary.extend(ensure_workspace_dir());
     let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
+    // Why: `SOFTWARE\Policies` is machine policy and Cowork ignores HKCU once
+    // the HKLM key exists, so an unelevated run stages ONE administrator pass
+    // rather than writing a per-user copy that would never be read.
     if elevated {
+        write_values_in_process(&values)?;
+        for (name, kind, _) in &values {
+            summary.push(format!("wrote {name} ({kind})"));
+        }
         if let Some(org) = org_job {
             crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
                 .map_err(|e| MdmError::Windows(format!("org-plugins provisioning failed: {e}")))?;
@@ -188,10 +240,7 @@ pub(super) fn apply(
             ));
         }
     } else {
-        match stage_elevated_apply(&values, org_job) {
-            Ok(msg) => summary.push(msg),
-            Err(e) => summary.push(format!("warning: {e}")),
-        }
+        summary.push(stage_elevated_apply(&values, org_job)?);
     }
     if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
         summary.push(
@@ -237,8 +286,8 @@ fn stage_elevated_apply(
         })
         .map_err(|e| {
             MdmError::Windows(format!(
-                "elevated step did not complete ({e}); policy applied per-user (HKCU) and \
-                 org-plugins was not provisioned — Cowork sync may fail"
+                "elevated step did not complete ({e}); the machine policy was not written and \
+                 org-plugins was not provisioned — Cowork stays unmanaged"
             ))
         })
 }

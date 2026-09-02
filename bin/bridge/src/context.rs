@@ -43,6 +43,12 @@ pub struct BridgeContext {
     pub plugin_tokens: Arc<PluginTokenCache>,
     pub schedule: ScheduleStatusCache,
     pub start_menu: Arc<StartMenuCache>,
+    // Why: sync runs several layers below anything that knows about a UI, and
+    // the CLI runs the same code with no UI at all. A sink here is set by the
+    // GUI for the duration of a sync and left empty everywhere else, so the
+    // reporting calls inside `sync::apply` need no new parameters and cost
+    // nothing when nobody is watching.
+    pub sync_progress: crate::progress::SyncProgressSink,
     // Why: one administrator prompt per process — a declined prompt must not
     // re-fire from the GUI auto-sync, tray retries, or a `sync --watch` loop.
     pub elevation_attempted: AtomicBool,
@@ -88,6 +94,7 @@ impl BridgeContext {
             plugin_tokens,
             schedule: ScheduleStatusCache::default(),
             start_menu: Arc::new(StartMenuCache::default()),
+            sync_progress: crate::progress::SyncProgressSink::default(),
             elevation_attempted: AtomicBool::new(false),
         }))
     }
