@@ -53,6 +53,7 @@ pub use bootstrap::{
     load_secrets_from_path, log_secrets_issue, log_secrets_skip, log_secrets_warn, persist_seed,
 };
 pub use config_loader::{
+    resolve_instance_id,
     build_from_profile, init_config, init_config_from_profile, try_init_config,
     validate_database_config,
 };

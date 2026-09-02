@@ -74,26 +74,28 @@ impl ChainIndexCache {
             return Ok(index);
         }
 
-        let mut slot = self.slot.write().await;
-        if let Some(cached) = slot.as_mut() {
-            if now.duration_since(cached.checked_at) < self.recheck {
-                return Ok(Arc::clone(&cached.index));
-            }
-            // Why: a fingerprint fault falls through to a full reload rather
-            // than serving the cached index, so a database fault never keeps
-            // a stale index alive silently.
-            if let Ok(fingerprint) = repo.chain_fingerprint().await
-                && fingerprint == cached.fingerprint
-                && now.duration_since(cached.loaded_at) < self.ttl
-            {
-                cached.checked_at = now;
-                return Ok(Arc::clone(&cached.index));
+        {
+            let mut slot = self.slot.write().await;
+            if let Some(cached) = slot.as_mut() {
+                if now.duration_since(cached.checked_at) < self.recheck {
+                    return Ok(Arc::clone(&cached.index));
+                }
+                // Why: a fingerprint fault falls through to a full reload rather
+                // than serving the cached index, so a database fault never keeps
+                // a stale index alive silently.
+                if let Ok(fingerprint) = repo.chain_fingerprint().await
+                    && fingerprint == cached.fingerprint
+                    && now.duration_since(cached.loaded_at) < self.ttl
+                {
+                    cached.checked_at = now;
+                    return Ok(Arc::clone(&cached.index));
+                }
             }
         }
 
         let fingerprint = repo.chain_fingerprint().await?;
         let index = Arc::new(ParentChainIndex::load(repo, sources).await?);
-        *slot = Some(CachedIndex {
+        *self.slot.write().await = Some(CachedIndex {
             index: Arc::clone(&index),
             fingerprint,
             loaded_at: now,
