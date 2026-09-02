@@ -8,6 +8,7 @@ use tempfile::TempDir;
 
 pub const PEPPER: &str = "test_oauth_at_rest_pepper_for_config_fixture";
 pub const SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+pub const SIGNING_KEY_PEM: &str = "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCnRlc3QtY29uZmlnLWZpeHR1cmUKLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo=";
 pub const DB_URL: &str = "postgresql://user:pass@localhost:5432/config_fixture";
 
 pub struct Fixture {

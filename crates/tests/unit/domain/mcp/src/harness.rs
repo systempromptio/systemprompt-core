@@ -1,17 +1,20 @@
 //! Shared fixtures for config-driven MCP tests.
 //!
-//! Writes `mcp_servers` / `agents` entries into the bootstrap services config,
-//! and scripts a wiremock MCP endpoint that answers the streamable-HTTP
-//! handshake plus `tools/list` and `tools/call`.
+//! Builds the `mcp_servers` / `agents` YAML a test needs, hands it to the
+//! bootstrap fixture *before* the process-wide inits run, and scripts a
+//! wiremock MCP endpoint that answers the streamable-HTTP handshake plus
+//! `tools/list` and `tools/call`.
 //!
 //! **Run this crate under `cargo nextest`, never `cargo test`.** Two pieces of
 //! process-global state make one process per test mandatory, and both fail
 //! quietly rather than loudly:
 //!
-//! * `ConfigLoader::load()` memoises the parsed config per process and does not
-//!   re-read the file — only `reload()` bypasses that cache. Every test here
-//!   writes to the same bootstrap path, so the first write freezes the cache
-//!   and every later test reads someone else's config.
+//! * `ServicesBootstrap` parses the services tree once, during
+//!   `TestBootstrap`'s init, into a `OnceLock` with no reset, and
+//!   `ConfigLoader::load()` memoises the same parse per process. A config
+//!   written to the bootstrap path *after* that init is therefore never seen —
+//!   which is why `bootstrap_with_services` supplies the YAML up front instead
+//!   of writing over the file afterwards.
 //! * `ProfileBootstrap`'s `PROFILE` is a `OnceLock` with no reset. The first
 //!   `TestBootstrap` in a process wins permanently, and every later fixture
 //!   directory is unreachable no matter what is written into it.
@@ -22,15 +25,25 @@
 //! than as the fixture never having been seen — which is exactly how they get
 //! misdiagnosed as real regressions.
 
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_test_fixtures::TestBootstrap;
+use systemprompt_test_fixtures::{TestBootstrap, init_services_bootstrap};
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-pub fn write_services_config(bootstrap: &TestBootstrap, yaml: &str) {
-    std::fs::write(bootstrap.services_path.join("config/config.yaml"), yaml)
-        .expect("write services config");
+static BOOTSTRAP: std::sync::OnceLock<TestBootstrap> = std::sync::OnceLock::new();
+
+pub fn bootstrap_with_services(yaml: &str) -> &'static TestBootstrap {
+    BOOTSTRAP.get_or_init(|| init_services_bootstrap(yaml))
+}
+
+pub fn installed_bootstrap() -> &'static TestBootstrap {
+    BOOTSTRAP
+        .get()
+        .expect("bootstrap_with_services must run before the bootstrap paths are read")
 }
 
 pub struct ExternalServerSpec<'a> {
@@ -303,4 +316,76 @@ pub fn default_tools_json() -> serde_json::Value {
             "outputSchema": {"type": "object"}
         }
     ])
+}
+
+// A minimal MCP endpoint: enough of the streamable-HTTP handshake for the
+// startup health probe (initialize, initialized, tools/list) to succeed. The
+// tool list must be non-empty — the probe reads an empty list as "service may
+// require authentication" and never reports healthy.
+pub const STUB_SERVER: &str = r#"import json, os
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_DELETE(self):
+        self.send_response(200)
+        self.end_headers()
+
+    def do_POST(self):
+        length = int(self.headers.get('content-length', 0))
+        body = json.loads(self.rfile.read(length) or b'{}')
+        method = body.get('method', '')
+        if method.startswith('notifications/'):
+            self.send_response(202)
+            self.end_headers()
+            return
+        if method == 'initialize':
+            result = {
+                'protocolVersion': '2025-03-26',
+                'capabilities': {'tools': {}},
+                'serverInfo': {'name': 'stub', 'version': '1.0.0'},
+            }
+        elif method == 'tools/list':
+            result = {'tools': [{
+                'name': 'echo',
+                'description': 'echoes its input',
+                'inputSchema': {'type': 'object', 'properties': {}},
+            }]}
+        else:
+            result = {}
+        payload = json.dumps(
+            {'jsonrpc': '2.0', 'id': body.get('id', 0), 'result': result}
+        ).encode()
+        self.send_response(200)
+        self.send_header('content-type', 'application/json')
+        self.send_header('mcp-session-id', 'stub-session')
+        self.send_header('content-length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+ThreadingHTTPServer(('127.0.0.1', int(os.environ['MCP_PORT'])), Handler).serve_forever()
+"#;
+
+fn write_executable(path: &Path, contents: &str) {
+    std::fs::write(path, contents).expect("write script");
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+}
+
+// Installs `<name>-bin` in the bootstrap bin dir as a launcher for the stub
+// server. The script is leaked deliberately: the spawned child outlives the
+// helper's scope.
+pub fn install_stub_binary(bootstrap: &TestBootstrap, name: &str) -> PathBuf {
+    let dir = tempfile::tempdir().expect("stub dir");
+    let script_path = dir.path().join("mcp_stub.py");
+    std::fs::write(&script_path, STUB_SERVER).expect("write stub");
+
+    let binary = bootstrap.bin_path.join(format!("{name}-bin"));
+    write_executable(
+        &binary,
+        &format!("#!/bin/sh\nexec python3 {}\n", script_path.display()),
+    );
+    std::mem::forget(dir);
+    binary
 }

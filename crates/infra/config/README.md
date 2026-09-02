@@ -57,7 +57,7 @@ The crate loads the profile YAML, reads the secrets document it references, and 
 
 ```toml
 [dependencies]
-systemprompt-config = "0.43"
+systemprompt-config = "0.44"
 ```
 
 ```rust

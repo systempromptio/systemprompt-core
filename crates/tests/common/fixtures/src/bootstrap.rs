@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 
 use systemprompt_config::{init_config_from_profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
-use systemprompt_loader::ServicesBootstrap;
+use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use systemprompt_models::{AppPaths, Config};
 use tempfile::TempDir;
@@ -107,6 +107,30 @@ pub fn init_services_bootstrap(services_config_yaml: &str) -> TestBootstrap {
     init_bootstrap_inner(None, Some(services_config_yaml))
 }
 
+// Bootstrap whose services `config.yaml` is deliberately unloadable. A services
+// tree that does not parse is a boot failure, so `ServicesBootstrap` is left
+// uninitialised here on purpose and the failure is asserted rather than
+// swallowed: a config that turned out to load would silently stop exercising
+// the caller's failure path. `ConfigLoader::load()` is left unprimed, so the
+// first request-time load reads the malformed file from disk and fails there.
+pub fn init_unloadable_services_bootstrap(
+    api_base_url: &str,
+    services_config_yaml: &str,
+) -> TestBootstrap {
+    init_bootstrap_inner_expecting(Some(api_base_url), Some(services_config_yaml), true)
+}
+
+// Re-read the services tree from disk and re-prime the memoised
+// `ConfigLoader::load()` result. `ServicesBootstrap::init` primes that cache at
+// bootstrap, so files a test writes into the services tree afterwards
+// (marketplaces, plugins, skills) are invisible to every route that reads
+// through `ConfigLoader::load()` until the cache is refreshed.
+pub fn refresh_services_config() {
+    if let Err(e) = ConfigLoader::reload() {
+        panic!("ConfigLoader::reload failed: {e}");
+    }
+}
+
 fn init_bootstrap() -> TestBootstrap {
     init_bootstrap_inner(None, None)
 }
@@ -114,6 +138,14 @@ fn init_bootstrap() -> TestBootstrap {
 fn init_bootstrap_inner(
     api_base_url: Option<&str>,
     services_config_yaml: Option<&str>,
+) -> TestBootstrap {
+    init_bootstrap_inner_expecting(api_base_url, services_config_yaml, false)
+}
+
+fn init_bootstrap_inner_expecting(
+    api_base_url: Option<&str>,
+    services_config_yaml: Option<&str>,
+    expect_services_load_failure: bool,
 ) -> TestBootstrap {
     let database_url = env::var("TEST_DATABASE_URL")
         .or_else(|_| env::var("DATABASE_URL"))
@@ -192,8 +224,12 @@ fn init_bootstrap_inner(
     let profile = ProfileBootstrap::get().expect("profile initialised");
 
     if !ServicesBootstrap::is_initialized() {
-        if let Err(e) = ServicesBootstrap::init() {
-            panic!("ServicesBootstrap::init failed: {e}");
+        match (ServicesBootstrap::init(), expect_services_load_failure) {
+            (Err(e), false) => panic!("ServicesBootstrap::init failed: {e}"),
+            (Ok(_), true) => {
+                panic!("services config was expected not to load, but it did")
+            },
+            _ => {},
         }
     }
 

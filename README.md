@@ -40,7 +40,7 @@ Zero outbound telemetry by default. Air-gap capable. Built for SOC 2 Type II, IS
   <img src="https://raw.githubusercontent.com/systempromptio/systemprompt-template/main/demo/recording/svg/output/dark/cap-secrets.svg" alt="An agent attempts to exfiltrate a GitHub PAT through a tool argument; the secret-detection layer denies the call before the tool process spawns" width="820">
 </picture>
 
-<sub>Live capture: an agent tries to pass a GitHub PAT through a tool argument and is denied before the tool process spawns. Evaluating? Start with the MIT-licensed <a href="https://github.com/systempromptio/systemprompt-template">systemprompt-template</a>: 44 scripted demos run every claim on your laptop.</sub>
+<sub>Live capture: an agent tries to pass a GitHub PAT through a tool argument and is denied before the tool process spawns. Evaluating? Start with the MIT-licensed <a href="https://github.com/systempromptio/systemprompt-template">systemprompt-template</a>: 45 scripted demos run every claim on your laptop.</sub>
 
 </div>
 
@@ -96,7 +96,7 @@ The workspace publishes to crates.io as `systemprompt-*` crates behind the `syst
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.43", features = ["full"] }
+systemprompt = { version = "0.44", features = ["full"] }
 ```
 
 ```rust

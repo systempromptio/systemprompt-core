@@ -13,7 +13,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<()> {
-    let b = systemprompt_test_fixtures::bootstrap::init_isolated_bootstrap(
+    let b = systemprompt_test_fixtures::bootstrap::init_unloadable_services_bootstrap(
         "http://127.0.0.1",
         "mcp_servers: [this is not a map\n",
     );

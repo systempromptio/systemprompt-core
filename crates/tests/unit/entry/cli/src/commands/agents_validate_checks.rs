@@ -190,7 +190,7 @@ fn check_provider_reports_disabled_provider_missing_registry_entry_and_missing_k
     assert!(
         errors[0]
             .message
-            .contains("no connectivity entry in the profile registry")
+            .contains("no connectivity entry in the services provider registry")
     );
 }
 

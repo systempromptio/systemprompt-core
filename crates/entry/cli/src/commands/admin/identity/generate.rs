@@ -24,9 +24,13 @@ pub(super) fn execute(args: GenerateArgs, ctx: &CommandContext) -> Result<()> {
             "manifest_signing_secret_seed": bundle.manifest_signing_secret_seed,
             "signing_key_pem": bundle.signing_key_pem,
         });
-        CliService::output(
-            &serde_json::to_string_pretty(&fragment).context("serialising identity bundle")?,
-        );
+        if ctx.cli.is_json_output() {
+            CliService::json(&fragment);
+        } else {
+            CliService::output(
+                &serde_json::to_string_pretty(&fragment).context("serialising identity bundle")?,
+            );
+        }
         return Ok(());
     }
     CliService::output(&format!(

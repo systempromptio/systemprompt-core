@@ -7,15 +7,13 @@ use systemprompt_identifiers::{Actor, ContextId, McpServerId, SessionId, TraceId
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use wiremock::MockServer;
 
 use crate::harness::{
-    ExternalServerSpec, agent_block, config_with_servers, default_tools_json,
-    external_server_block, mount_mcp_endpoint, write_services_config,
+    ExternalServerSpec, agent_block, bootstrap_with_services, config_with_servers,
+    default_tools_json, external_server_block, mount_mcp_endpoint,
 };
 
 fn resilience() -> ResilienceSettings {
@@ -37,7 +35,6 @@ fn tool_context() -> ToolContext {
 }
 
 async fn setup(agent: &str) -> Option<(McpToolProvider, McpServerId, MockServer)> {
-    let bootstrap = ensure_test_bootstrap();
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
 
@@ -55,7 +52,7 @@ async fn setup(agent: &str) -> Option<(McpToolProvider, McpServerId, MockServer)
             enabled: true,
         })])
     );
-    write_services_config(bootstrap, &yaml);
+    let _bootstrap = bootstrap_with_services(&yaml);
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
     Some((provider, McpServerId::new(&server_name), mock))
@@ -191,7 +188,6 @@ async fn health_check_reports_no_managed_servers() {
 
 #[tokio::test]
 async fn list_tools_tolerates_unreachable_server() {
-    let bootstrap = ensure_test_bootstrap();
     let Ok(url) = fixture_database_url() else {
         return;
     };
@@ -210,7 +206,7 @@ async fn list_tools_tolerates_unreachable_server() {
             enabled: true,
         })])
     );
-    write_services_config(bootstrap, &yaml);
+    let _bootstrap = bootstrap_with_services(&yaml);
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
     let tools = provider

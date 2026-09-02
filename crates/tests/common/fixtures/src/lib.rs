@@ -21,9 +21,9 @@ pub use app_context::{
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
-    init_services_bootstrap, test_messaging_agent, TestBootstrap, TEST_SLACK_BOT_TOKEN,
-    TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD,
-    TEST_TEAMS_TENANT_ID,
+    init_services_bootstrap, init_unloadable_services_bootstrap, refresh_services_config,
+    test_messaging_agent, TestBootstrap, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET,
+    TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_row_with_roles,

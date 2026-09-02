@@ -169,7 +169,11 @@ async fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
         "a credential refused moments after minting cannot be fixed by re-minting"
     );
     let requests = h.upstream_requests().await;
-    assert_eq!(requests.len(), 1, "the second request never reaches upstream");
+    assert_eq!(
+        requests.len(),
+        1,
+        "the second request never reaches upstream"
+    );
     assert_eq!(bearer_of(&requests[0]), "Bearer upstream-jwt-1");
 }
 

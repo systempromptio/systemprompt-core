@@ -67,18 +67,10 @@ fn agents(args: &[&str]) -> AgentsCommands {
 
 #[tokio::test]
 async fn an_agent_config_that_fails_validation_is_reported_by_every_reader() {
-    let root = services_root();
-    std::fs::create_dir_all(root.join("agents")).unwrap();
-    std::fs::write(
-        root.join("agents/covbroken.yaml"),
-        "agents:\n  covbroken:\n    name: covbroken\n    port: 42\n",
-    )
-    .unwrap();
-    std::fs::write(
-        root.join("config/config.yaml"),
-        "includes:\n  - ../agents/covbroken.yaml\nmcp_servers: {}\n",
-    )
-    .unwrap();
+    let _boot = systemprompt_test_fixtures::init_unloadable_services_bootstrap(
+        "http://127.0.0.1",
+        "agents:\n  covbroken:\n    name: covbroken\n    port: 42\nmcp_servers: {}\n",
+    );
 
     for argv in [vec!["list"], vec!["validate"], vec!["show", "covbroken"]] {
         let err = systemprompt_cli::admin::agents::execute(agents(&argv), &ctx())

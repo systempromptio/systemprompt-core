@@ -76,19 +76,16 @@ pub fn redact_argv(args: &[String]) -> Vec<String> {
 
         if let Some(flag) = arg.strip_prefix('-') {
             let flag = flag.trim_start_matches('-');
-            match flag.split_once('=') {
-                Some((name, value)) => {
-                    if is_redacted(name) || has_embedded_credentials(value) {
-                        let dashes = &arg[..arg.len() - flag.len()];
-                        out.push(format!("{dashes}{name}={REDACTION_PLACEHOLDER}"));
-                    } else {
-                        out.push(arg.clone());
-                    }
-                },
-                None => {
-                    redact_next = is_redacted(flag);
+            if let Some((name, value)) = flag.split_once('=') {
+                if is_redacted(name) || has_embedded_credentials(value) {
+                    let dashes = &arg[..arg.len() - flag.len()];
+                    out.push(format!("{dashes}{name}={REDACTION_PLACEHOLDER}"));
+                } else {
                     out.push(arg.clone());
-                },
+                }
+            } else {
+                redact_next = is_redacted(flag);
+                out.push(arg.clone());
             }
             continue;
         }
@@ -106,7 +103,7 @@ pub fn redact_argv(args: &[String]) -> Vec<String> {
             .zip(SECRET_POSITIONAL_COMMAND)
             .all(|(a, expected)| a.as_str() == *expected)
     {
-        out[SECRET_POSITIONAL_COMMAND.len() + 1] = REDACTION_PLACEHOLDER.to_owned();
+        REDACTION_PLACEHOLDER.clone_into(&mut out[SECRET_POSITIONAL_COMMAND.len() + 1]);
     }
 
     out

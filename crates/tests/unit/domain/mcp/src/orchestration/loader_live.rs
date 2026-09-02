@@ -10,13 +10,13 @@ use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::AppPaths;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
+    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
 };
 use wiremock::MockServer;
 
 use crate::harness::{
-    ExternalServerSpec, config_with_servers, default_tools_json, external_server_block,
-    mount_mcp_endpoint, request_context, write_services_config,
+    ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
+    external_server_block, mount_mcp_endpoint, request_context,
 };
 
 struct Live {
@@ -27,7 +27,10 @@ struct Live {
 }
 
 async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
-    let bootstrap = ensure_test_bootstrap();
+    live_setup_scoped(oauth_required, "").await
+}
+
+async fn live_setup_scoped(oauth_required: bool, scopes: &str) -> Option<(Live, MockServer)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
 
@@ -40,8 +43,9 @@ async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
         endpoint: &format!("{}/mcp", mock.uri()),
         oauth_required,
         enabled: true,
-    })]);
-    write_services_config(bootstrap, &yaml);
+    })])
+    .replace("scopes: []", &format!("scopes: [{scopes}]"));
+    let bootstrap = bootstrap_with_services(&yaml);
 
     let registry = RegistryService::new(fixture_user_id());
     let app_paths = Arc::new(
@@ -80,9 +84,7 @@ async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
     ))
 }
 
-fn profile_paths(
-    bootstrap: &systemprompt_test_fixtures::TestBootstrap,
-) -> systemprompt_models::profile::PathsConfig {
+fn profile_paths(bootstrap: &TestBootstrap) -> systemprompt_models::profile::PathsConfig {
     systemprompt_models::profile::PathsConfig {
         system: bootstrap.system_path.display().to_string(),
         services: bootstrap.services_path.display().to_string(),
@@ -143,18 +145,9 @@ async fn unregistered_server_exhausts_db_retry() {
 
 #[tokio::test]
 async fn scoped_server_is_skipped_for_anonymous_caller() {
-    let Some((live, _mock)) = live_setup(true).await else {
+    let Some((live, _mock)) = live_setup_scoped(true, "admin").await else {
         return;
     };
-    let bootstrap = ensure_test_bootstrap();
-    let yaml = config_with_servers(&[external_server_block(&ExternalServerSpec {
-        name: &live.server_name,
-        endpoint: "http://127.0.0.1:59997/mcp",
-        oauth_required: true,
-        enabled: true,
-    })])
-    .replace("scopes: []", "scopes: [admin]");
-    write_services_config(bootstrap, &yaml);
 
     let tools_by_server = live
         .loader
@@ -227,7 +220,7 @@ async fn create_mcp_extensions_reports_status_and_unknown_servers() {
 
 #[tokio::test]
 async fn create_mcp_extensions_empty_input_short_circuits() {
-    let _ = ensure_test_bootstrap();
+    let _bootstrap = bootstrap_with_services("{}\n");
     let Ok(url) = fixture_database_url() else {
         return;
     };
@@ -286,18 +279,9 @@ async fn stopped_service_row_is_reported_not_running() {
 
 #[tokio::test]
 async fn scoped_server_metadata_advertises_first_scope_without_tools() {
-    let Some((live, _mock)) = live_setup(true).await else {
+    let Some((live, _mock)) = live_setup_scoped(true, "admin, user").await else {
         return;
     };
-    let bootstrap = ensure_test_bootstrap();
-    let yaml = config_with_servers(&[external_server_block(&ExternalServerSpec {
-        name: &live.server_name,
-        endpoint: "http://127.0.0.1:59996/mcp",
-        oauth_required: true,
-        enabled: true,
-    })])
-    .replace("scopes: []", "scopes: [admin, user]");
-    write_services_config(bootstrap, &yaml);
 
     let infos = live
         .loader

@@ -85,11 +85,16 @@ fn fly_environment_loads_from_env_without_profile_secrets() {
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::set_env("FLY_APP_NAME", "cov-fly-app");
     set_base_env();
+    fixture::set_env("SIGNING_KEY_PEM", fixture::SIGNING_KEY_PEM);
 
     let secrets = SecretsBootstrap::init().unwrap();
 
     assert_eq!(secrets.database_url, ENV_DB_URL);
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
+    assert_eq!(
+        secrets.signing_key_pem.as_deref(),
+        Some(fixture::SIGNING_KEY_PEM)
+    );
 }
 
 #[test]

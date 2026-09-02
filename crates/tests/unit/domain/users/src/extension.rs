@@ -64,7 +64,19 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        assert_eq!(schemas.len(), 6);
+        let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
+        assert_eq!(
+            names,
+            vec![
+                "users",
+                "user_sessions",
+                "banned_ips",
+                "user_api_keys",
+                "user_device_certs",
+                "user_rate_limit_buckets",
+                "federated_identities",
+            ]
+        );
     }
 
     #[test]

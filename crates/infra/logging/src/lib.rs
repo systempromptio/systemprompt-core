@@ -45,8 +45,8 @@ pub use services::CliService;
 pub use services::{
     BufferedNotice, DatabaseLogService, FilterSystemFields, LogThrottle, LoggingMaintenanceService,
     RequestSpan, RequestSpanBuilder, SystemSpan, buffer_notice, drain_notices, is_startup_mode,
-    is_structured_output, mark_structured_emitted, publish_log, set_log_publisher,
-    set_startup_mode, set_structured_output, structured_was_emitted,
+    is_structured_output, mark_structured_emitted, publish_log, reset_structured_emitted,
+    set_log_publisher, set_startup_mode, set_structured_output, structured_was_emitted,
 };
 pub use trace::{
     AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats,

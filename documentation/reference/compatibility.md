@@ -86,9 +86,9 @@ rather than as pre-built binaries. Other targets are buildable from source.
 
 | systemprompt version | Status |
 |----------------------|--------|
-| 0.43.x | Current supported line. |
-| 0.42.x | Prior line; Critical and High fixes only. |
-| < 0.42 | No longer supported. |
+| 0.44.x | Current supported line. |
+| 0.43.x | Prior line; Critical and High fixes only. |
+| < 0.43 | No longer supported. |
 
 Per-release detail is in `CHANGELOG.md`.
 

@@ -144,7 +144,11 @@ async fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
         refresh_calls.load(Ordering::SeqCst)
     );
     let sent = server.received_requests().await.unwrap_or_default();
-    assert_eq!(sent.len(), 1, "no further heartbeats are sent while latched");
+    assert_eq!(
+        sent.len(),
+        1,
+        "no further heartbeats are sent while latched"
+    );
 }
 
 #[tokio::test(start_paused = true)]

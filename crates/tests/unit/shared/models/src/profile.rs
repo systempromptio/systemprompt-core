@@ -70,7 +70,10 @@ fn make_profile(name: &str) -> Profile {
             pool: None,
         },
         server: make_server_config(),
-        paths: make_paths_config("/tmp/test"),
+        paths: PathsConfig {
+            storage: Some("/tmp/test/storage".to_string()),
+            ..make_paths_config("/tmp/test")
+        },
         security: make_security_config(),
         rate_limits: RateLimitsConfig::default(),
         runtime: RuntimeConfig::default(),

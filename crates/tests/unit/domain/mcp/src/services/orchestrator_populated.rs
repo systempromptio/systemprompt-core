@@ -11,14 +11,14 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
+    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
 };
 use wiremock::MockServer;
 
 use crate::harness::{
-    ExternalServerSpec, config_with_servers, default_tools_json, external_server_block,
-    external_server_block_with_accessor, internal_server_block, mount_mcp_endpoint,
-    register_internal_extension, write_services_config,
+    ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
+    external_server_block, external_server_block_with_accessor, install_stub_binary,
+    installed_bootstrap, internal_server_block, mount_mcp_endpoint, register_internal_extension,
 };
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
@@ -32,11 +32,13 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     }
 }
 
-async fn orchestrator_with_config(blocks: &[String]) -> Option<McpOrchestrator> {
-    let bootstrap = ensure_test_bootstrap();
+async fn orchestrator_with_config(blocks: &[String], internal: &[&str]) -> Option<McpOrchestrator> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
-    write_services_config(bootstrap, &config_with_servers(blocks));
+    let bootstrap = bootstrap_with_services(&config_with_servers(blocks));
+    for name in internal {
+        register_internal_extension(bootstrap, name);
+    }
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &profile_paths(bootstrap),
@@ -53,6 +55,30 @@ async fn orchestrator_with_config(blocks: &[String]) -> Option<McpOrchestrator> 
     McpOrchestrator::new(db, service_repo, app_paths, registry).ok()
 }
 
+// Internal MCP servers are validated against the 5000-5999 range, so a port
+// outside it is rejected by services-config validation before any probe runs.
+fn free_port() -> u16 {
+    systemprompt_test_fixtures::free_port_in_range(5000..6000)
+        .expect("no free port in the internal MCP range 5000-5999")
+}
+
+const LISTENER: &str = "import os, socket, time\n\
+s = socket.socket()\n\
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)\n\
+s.bind(('127.0.0.1', int(os.environ['MCP_PORT'])))\n\
+s.listen(8)\n\
+time.sleep(30)\n";
+
+async fn await_listening(port: u16) {
+    for _ in 0..100 {
+        if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("stand-in process never listened on port {port}");
+}
+
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
@@ -62,12 +88,15 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valext");
-    let Some(o) = orchestrator_with_config(&[external_server_block(&ExternalServerSpec {
-        name: &name,
-        endpoint: &format!("{}/mcp", mock.uri()),
-        oauth_required: false,
-        enabled: true,
-    })])
+    let Some(o) = orchestrator_with_config(
+        &[external_server_block(&ExternalServerSpec {
+            name: &name,
+            endpoint: &format!("{}/mcp", mock.uri()),
+            oauth_required: false,
+            enabled: true,
+        })],
+        &[],
+    )
     .await
     else {
         return;
@@ -86,12 +115,15 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
 #[tokio::test]
 async fn validate_external_server_unreachable_endpoint_is_reported_not_fatal() {
     let name = unique("valdown");
-    let Some(o) = orchestrator_with_config(&[external_server_block(&ExternalServerSpec {
-        name: &name,
-        endpoint: "http://127.0.0.1:9/mcp",
-        oauth_required: false,
-        enabled: true,
-    })])
+    let Some(o) = orchestrator_with_config(
+        &[external_server_block(&ExternalServerSpec {
+            name: &name,
+            endpoint: "http://127.0.0.1:9/mcp",
+            oauth_required: false,
+            enabled: true,
+        })],
+        &[],
+    )
     .await
     else {
         return;
@@ -107,10 +139,13 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valacc");
-    let Some(o) = orchestrator_with_config(&[external_server_block_with_accessor(
-        &name,
-        &format!("{}/mcp", mock.uri()),
-    )])
+    let Some(o) = orchestrator_with_config(
+        &[external_server_block_with_accessor(
+            &name,
+            &format!("{}/mcp", mock.uri()),
+        )],
+        &[],
+    )
     .await
     else {
         return;
@@ -126,10 +161,10 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
 
 #[tokio::test]
 async fn validate_internal_server_without_running_row_is_ok() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("valint");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65401)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
 
@@ -140,13 +175,14 @@ async fn validate_internal_server_without_running_row_is_ok() {
 
 #[tokio::test]
 async fn validate_internal_running_server_probes_local_port() {
-    let bootstrap = ensure_test_bootstrap();
-    let mock = MockServer::start().await;
+    let listener = systemprompt_test_fixtures::bind_in_range(5000..6000)
+        .expect("no free port in the internal MCP range 5000-5999");
+    let port = listener.local_addr().expect("addr").port();
+    let mock = MockServer::builder().listener(listener).start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let port = mock.address().port();
     let name = unique("valrun");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
     let Ok(url) = fixture_database_url() else {
@@ -183,10 +219,10 @@ async fn validate_internal_running_server_probes_local_port() {
 
 #[tokio::test]
 async fn start_services_named_with_missing_binary_fails_and_publishes_failure() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("startfail");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65402)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
     let mut rx = o.subscribe_events();
@@ -217,10 +253,10 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
 
 #[tokio::test]
 async fn start_services_unknown_name_matches_nothing_and_succeeds() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("startnone");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65403)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
 
@@ -231,10 +267,10 @@ async fn start_services_unknown_name_matches_nothing_and_succeeds() {
 
 #[tokio::test]
 async fn reconcile_with_failing_internal_server_aggregates_the_failure() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("recfail");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65404)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
 
@@ -251,12 +287,15 @@ async fn reconcile_external_only_registry_starts_nothing() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("recext");
-    let Some(o) = orchestrator_with_config(&[external_server_block(&ExternalServerSpec {
-        name: &name,
-        endpoint: &format!("{}/mcp", mock.uri()),
-        oauth_required: false,
-        enabled: true,
-    })])
+    let Some(o) = orchestrator_with_config(
+        &[external_server_block(&ExternalServerSpec {
+            name: &name,
+            endpoint: &format!("{}/mcp", mock.uri()),
+            oauth_required: false,
+            enabled: true,
+        })],
+        &[],
+    )
     .await
     else {
         return;
@@ -268,10 +307,10 @@ async fn reconcile_external_only_registry_starts_nothing() {
 
 #[tokio::test]
 async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("restart");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65405)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
 
@@ -297,7 +336,7 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port: 65405,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -314,12 +353,16 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
 
 #[tokio::test]
 async fn restart_services_publishes_restart_requested_event() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("restartreq");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65406)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
+    // Why: publishing the event *is* the restart — `LifecycleHandler` handles
+    // `ServiceRestartRequested` by restarting the process — so the service has
+    // to be spawnable for the publish to return.
+    install_stub_binary(installed_bootstrap(), &name);
     let Ok(url) = fixture_database_url() else {
         return;
     };
@@ -333,7 +376,7 @@ async fn restart_services_publishes_restart_requested_event() {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port: 65406,
+        port: port,
         binary_mtime: None,
     })
     .await
@@ -341,8 +384,9 @@ async fn restart_services_publishes_restart_requested_event() {
 
     let mut rx = o.subscribe_events();
     let result = o.restart_services(None).await;
+    let _ = o.stop_services(Some(name.clone())).await;
     repo.delete_service(&name).await.ok();
-    result.expect("restart request publishes without touching processes");
+    result.expect("restart of a running service succeeds");
 
     let mut saw_restart = false;
     while let Ok(event) = rx.try_recv() {
@@ -357,10 +401,10 @@ async fn restart_services_publishes_restart_requested_event() {
 
 #[tokio::test]
 async fn stop_services_named_internal_without_row_publishes_stopped() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("stopper");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65407)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
     let mut rx = o.subscribe_events();
@@ -382,21 +426,23 @@ async fn stop_services_named_internal_without_row_publishes_stopped() {
 
 #[tokio::test]
 async fn service_statuses_reports_external_endpoint_and_internal_port() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let ext_name = unique("stext");
     let int_name = unique("stint");
-    register_internal_extension(bootstrap, &int_name);
-    let Some(o) = orchestrator_with_config(&[
-        external_server_block(&ExternalServerSpec {
-            name: &ext_name,
-            endpoint: &format!("{}/mcp", mock.uri()),
-            oauth_required: false,
-            enabled: true,
-        }),
-        internal_server_block(&int_name, 65408),
-    ])
+    let Some(o) = orchestrator_with_config(
+        &[
+            external_server_block(&ExternalServerSpec {
+                name: &ext_name,
+                endpoint: &format!("{}/mcp", mock.uri()),
+                oauth_required: false,
+                enabled: true,
+            }),
+            internal_server_block(&int_name, port),
+        ],
+        &[&int_name],
+    )
     .await
     else {
         return;
@@ -418,7 +464,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
         .iter()
         .find(|s| s.name == int_name)
         .expect("internal listed");
-    assert_eq!(int.port, 65408);
+    assert_eq!(int.port, port);
     assert!(int.endpoint.is_none());
     assert!(int.pid.is_none());
 }
@@ -428,12 +474,15 @@ async fn list_services_and_show_status_render_the_populated_registry() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("display");
-    let Some(o) = orchestrator_with_config(&[external_server_block(&ExternalServerSpec {
-        name: &name,
-        endpoint: &format!("{}/mcp", mock.uri()),
-        oauth_required: false,
-        enabled: true,
-    })])
+    let Some(o) = orchestrator_with_config(
+        &[external_server_block(&ExternalServerSpec {
+            name: &name,
+            endpoint: &format!("{}/mcp", mock.uri()),
+            oauth_required: false,
+            enabled: true,
+        })],
+        &[],
+    )
     .await
     else {
         return;
@@ -445,10 +494,10 @@ async fn list_services_and_show_status_render_the_populated_registry() {
 
 #[tokio::test]
 async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
-    let bootstrap = ensure_test_bootstrap();
+    let port = free_port();
     let name = unique("reckill");
-    register_internal_extension(bootstrap, &name);
-    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, 65407)]).await else {
+    let Some(o) = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await
+    else {
         return;
     };
     let Ok(url) = fixture_database_url() else {
@@ -472,17 +521,23 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     .await
     .unwrap();
 
-    let mut child = std::process::Command::new("sleep")
-        .arg("30")
+    // Why: reconcile demotes a "running" row whose port is dead to stopped and
+    // then crashed, and only rows still marked running are signalled — so a
+    // stand-in process that never listens is pruned on paper and left alive.
+    let mut child = std::process::Command::new("python3")
+        .arg("-c")
+        .arg(LISTENER)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .env("MCP_SERVICE_ID", &name)
+        .env("MCP_PORT", port.to_string())
         .spawn()
-        .expect("spawn sleep");
+        .expect("spawn port listener");
+    await_listening(port).await;
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
         status: "running",
-        port: 65407,
+        port: port,
         binary_mtime: None,
     })
     .await

@@ -13,11 +13,11 @@
 //! database fault must not take the public site down, and static content
 //! carries no privileged data worth banning an address from.
 //!
-//! Liveness and metrics probes are exempt. They are unauthenticated, carry no
+//! Liveness and readiness probes are exempt. They are unauthenticated, carry no
 //! caller identity worth banning, and orchestrators recycle pods on a failed
 //! probe — denying them during an outage would convert a transient database
-//! fault into a rolling restart, and would blind monitoring exactly when it is
-//! most needed.
+//! fault into a rolling restart. `/metrics` needs no exemption here: it is
+//! served on its own listener, which this middleware never wraps.
 
 use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;

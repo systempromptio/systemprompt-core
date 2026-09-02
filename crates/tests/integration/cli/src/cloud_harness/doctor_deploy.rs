@@ -68,6 +68,7 @@ async fn doctor_reports_blocking_failures() {
     let err = cloud::execute(
         CloudCommands::Doctor {
             profile: Some("doc-fail".to_owned()),
+            distributed: false,
         },
         &json_ctx(),
     )
@@ -96,6 +97,7 @@ async fn doctor_passes_with_complete_profile() {
     cloud::execute(
         CloudCommands::Doctor {
             profile: Some("doc-pass".to_owned()),
+            distributed: false,
         },
         &json_ctx(),
     )
@@ -108,9 +110,15 @@ async fn doctor_passes_with_complete_profile() {
 #[tokio::test]
 async fn doctor_requires_profile_flag_non_interactive() {
     let _env = enter().await;
-    let err = cloud::execute(CloudCommands::Doctor { profile: None }, &json_ctx())
-        .await
-        .expect_err("needs --profile");
+    let err = cloud::execute(
+        CloudCommands::Doctor {
+            profile: None,
+            distributed: false,
+        },
+        &json_ctx(),
+    )
+    .await
+    .expect_err("needs --profile");
     assert!(err.to_string().contains("--profile"));
 }
 
@@ -118,7 +126,10 @@ async fn doctor_requires_profile_flag_non_interactive() {
 async fn doctor_interactive_without_cloud_profiles_bails() {
     let _env = enter().await;
     let err = cloud::execute(
-        CloudCommands::Doctor { profile: None },
+        CloudCommands::Doctor {
+            profile: None,
+            distributed: false,
+        },
         &interactive_ctx(Vec::<String>::new()),
     )
     .await
@@ -132,6 +143,7 @@ async fn doctor_missing_profile_name_errors() {
     let err = cloud::execute(
         CloudCommands::Doctor {
             profile: Some("ghost".to_owned()),
+            distributed: false,
         },
         &json_ctx(),
     )
@@ -266,6 +278,7 @@ async fn run_doctor(name: &str) {
     cloud::execute(
         CloudCommands::Doctor {
             profile: Some(name.to_owned()),
+            distributed: false,
         },
         &json_ctx(),
     )

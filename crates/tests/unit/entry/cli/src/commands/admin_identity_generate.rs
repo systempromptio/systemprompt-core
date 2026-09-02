@@ -6,13 +6,20 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use std::sync::Mutex;
+
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::identity::{IdentityCommands, execute};
 use systemprompt_cli::shared::generate_identity;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_config::decode_seed;
+use systemprompt_logging::{
+    reset_structured_emitted, set_structured_output, structured_was_emitted,
+};
 use systemprompt_security::keys::RsaSigningKey;
+
+static STRUCTURED_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -70,4 +77,41 @@ fn generate_command_runs_without_writing_files() {
     execute(parse(&["generate"]), &ctx()).unwrap();
     let after: Vec<_> = std::fs::read_dir(tmp.path()).unwrap().collect();
     assert_eq!(before.len(), after.len());
+}
+
+#[test]
+fn global_json_mode_emits_exactly_one_artifact() {
+    let _guard = STRUCTURED_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    set_structured_output(true);
+    reset_structured_emitted();
+
+    execute(parse(&["generate"]), &ctx()).unwrap();
+
+    let emitted = structured_was_emitted();
+    set_structured_output(false);
+    assert!(
+        emitted,
+        "generate must mark the structured artifact as emitted so finalize does not append a second JSON document"
+    );
+}
+
+#[test]
+fn paste_mode_json_fragment_decodes_to_a_pem() {
+    let _guard = STRUCTURED_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let bundle = generate_identity().unwrap();
+    let fragment = serde_json::json!({
+        "oauth_at_rest_pepper": bundle.oauth_at_rest_pepper,
+        "manifest_signing_secret_seed": bundle.manifest_signing_secret_seed,
+        "signing_key_pem": bundle.signing_key_pem,
+    });
+    let rendered = serde_json::to_string_pretty(&fragment).unwrap();
+
+    let parsed: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+    let encoded = parsed["signing_key_pem"].as_str().unwrap();
+    assert!(!encoded.contains('\n'), "base64 payload must not wrap");
+    let pem_bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .unwrap();
+    let pem = String::from_utf8(pem_bytes).unwrap();
+    assert!(pem.starts_with("-----BEGIN PRIVATE KEY-----"));
 }

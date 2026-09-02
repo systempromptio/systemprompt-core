@@ -5,13 +5,13 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_mcp::RegistryService;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::{McpRegistry, McpToolProvider};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id};
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::McpRegistryProvider;
 use wiremock::MockServer;
 
 use crate::harness::{
-    ExternalServerSpec, config_with_servers, default_tools_json, external_server_block,
-    mount_mcp_endpoint, write_services_config,
+    ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
+    external_server_block, mount_mcp_endpoint,
 };
 
 fn ctx() -> RequestContext {
@@ -24,20 +24,18 @@ fn ctx() -> RequestContext {
 }
 
 async fn populated_registry() -> (RegistryService, String, MockServer) {
-    let bootstrap = ensure_test_bootstrap();
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
 
     let name = format!("rtp_{}", uuid::Uuid::new_v4().simple());
-    write_services_config(
-        bootstrap,
-        &config_with_servers(&[external_server_block(&ExternalServerSpec {
+    let _bootstrap = bootstrap_with_services(&config_with_servers(&[external_server_block(
+        &ExternalServerSpec {
             name: &name,
             endpoint: &format!("{}/mcp", mock.uri()),
             oauth_required: false,
             enabled: true,
-        })]),
-    );
+        },
+    )]));
     (RegistryService::new(fixture_user_id()), name, mock)
 }
 

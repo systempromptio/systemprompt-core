@@ -10,14 +10,14 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
+    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
 };
 use systemprompt_traits::{ToolContext, ToolProvider};
 use wiremock::MockServer;
 
 use crate::harness::{
-    agent_block, config_with_servers, default_tools_json, internal_server_block,
-    mount_mcp_endpoint, register_internal_extension, write_services_config,
+    agent_block, bootstrap_with_services, config_with_servers, default_tools_json,
+    internal_server_block, mount_mcp_endpoint, register_internal_extension,
 };
 
 fn resilience() -> ResilienceSettings {
@@ -57,30 +57,24 @@ async fn provider_over_internal_servers(
     agent: &str,
     blocks: &[String],
     assigned: &[&str],
-) -> Option<McpToolProvider> {
-    let bootstrap = ensure_test_bootstrap();
+) -> Option<(McpToolProvider, &'static TestBootstrap)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
 
-    write_services_config(
-        bootstrap,
-        &format!(
-            "{}{}",
-            agent_block(agent, assigned),
-            config_with_servers(blocks)
-        ),
-    );
+    let bootstrap = bootstrap_with_services(&format!(
+        "{}{}",
+        agent_block(agent, assigned),
+        config_with_servers(blocks)
+    ));
 
-    Some(McpToolProvider::new(
-        db,
-        RegistryService::new(fixture_user_id()),
-        &resilience(),
+    Some((
+        McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience()),
+        bootstrap,
     ))
 }
 
 #[tokio::test]
 async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
-    let bootstrap = ensure_test_bootstrap();
     let listener = listener_in_mcp_range();
     let mock_port = listener.local_addr().expect("addr").port();
     let mock = MockServer::builder().listener(listener).start().await;
@@ -88,10 +82,8 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
 
     let up = unique("tphup");
     let down = unique("tphdown");
-    register_internal_extension(bootstrap, &up);
-    register_internal_extension(bootstrap, &down);
 
-    let Some(provider) = provider_over_internal_servers(
+    let Some((provider, bootstrap)) = provider_over_internal_servers(
         "tph_agent",
         &[
             internal_server_block(&up, mock_port),
@@ -103,6 +95,8 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
     else {
         return;
     };
+    register_internal_extension(bootstrap, &up);
+    register_internal_extension(bootstrap, &down);
 
     let statuses = provider.health_check().await.expect("health check runs");
 
@@ -120,11 +114,9 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
 
 #[tokio::test]
 async fn health_check_failures_open_the_per_server_circuit_breaker() {
-    let bootstrap = ensure_test_bootstrap();
     let down = unique("tphbreak");
-    register_internal_extension(bootstrap, &down);
 
-    let Some(provider) = provider_over_internal_servers(
+    let Some((provider, bootstrap)) = provider_over_internal_servers(
         "tph_break",
         &[internal_server_block(&down, dead_port())],
         &[&down],
@@ -133,6 +125,7 @@ async fn health_check_failures_open_the_per_server_circuit_breaker() {
     else {
         return;
     };
+    register_internal_extension(bootstrap, &down);
 
     for _ in 0..3 {
         let statuses = provider.health_check().await.expect("health check runs");
@@ -161,11 +154,9 @@ async fn health_check_failures_open_the_per_server_circuit_breaker() {
 
 #[tokio::test]
 async fn refresh_connections_tolerates_a_managed_server_that_is_not_listening() {
-    let bootstrap = ensure_test_bootstrap();
     let down = unique("tphrefresh");
-    register_internal_extension(bootstrap, &down);
 
-    let Some(provider) = provider_over_internal_servers(
+    let Some((provider, bootstrap)) = provider_over_internal_servers(
         "tph_refresh",
         &[internal_server_block(&down, dead_port())],
         &[&down],
@@ -174,6 +165,7 @@ async fn refresh_connections_tolerates_a_managed_server_that_is_not_listening() 
     else {
         return;
     };
+    register_internal_extension(bootstrap, &down);
 
     provider
         .refresh_connections("tph_refresh")

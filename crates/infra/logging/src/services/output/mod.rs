@@ -52,6 +52,10 @@ pub fn mark_structured_emitted() {
     STRUCTURED_EMITTED.store(true, Ordering::SeqCst);
 }
 
+pub fn reset_structured_emitted() {
+    STRUCTURED_EMITTED.store(false, Ordering::SeqCst);
+}
+
 #[must_use]
 pub fn structured_was_emitted() -> bool {
     STRUCTURED_EMITTED.load(Ordering::SeqCst)

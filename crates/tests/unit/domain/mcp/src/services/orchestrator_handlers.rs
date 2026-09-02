@@ -50,10 +50,7 @@ async fn make_dependencies() -> Option<(LifecycleOrchestrator, DatabaseService, 
 
 #[tokio::test]
 async fn lifecycle_handler_construction() {
-    let Some((lifecycle, _db, registry)) = make_dependencies().await else {
-        return;
-    };
-    let h = LifecycleHandler::new(lifecycle, registry);
+    let h = LifecycleHandler;
     let _ = format!("{h:?}");
 }
 
