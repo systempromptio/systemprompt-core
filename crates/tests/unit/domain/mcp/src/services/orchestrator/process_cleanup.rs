@@ -56,9 +56,9 @@ async fn fixture() -> Option<Fixture> {
         )
         .ok()?,
     );
-    let repo = ServiceRepository::new(&db).ok()?;
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).ok()?;
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         app_paths,
         RegistryService::new(fixture_user_id()),
     );

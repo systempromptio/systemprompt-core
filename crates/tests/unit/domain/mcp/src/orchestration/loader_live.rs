@@ -52,12 +52,12 @@ async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
         .ok()?,
     );
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         app_paths,
         registry.clone(),
     );
     let loader = McpToolLoader::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         registry.clone(),
     );
 
@@ -227,7 +227,7 @@ async fn create_mcp_extensions_empty_input_short_circuits() {
         return;
     };
     let loader = McpToolLoader::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         RegistryService::new(UserId::new("owner-empty")),
     );
 

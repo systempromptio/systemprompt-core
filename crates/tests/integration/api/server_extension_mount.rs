@@ -151,6 +151,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                 a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                     &pool,
                     session_usage,
+                    systemprompt_identifiers::InstanceId::new("test-instance"),
                 )?),
                 content_repositories: Arc::new(
                     systemprompt_content::repository::ContentRepositories::new(&pool)?,
@@ -159,7 +160,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                     systemprompt_oauth::repository::OAuthRepositories::new(&pool)?,
                 ),
                 user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
-                service_repository: Arc::new(systemprompt_database::ServiceRepository::new(&pool)?),
+                service_repository: Arc::new(systemprompt_database::ServiceRepository::new(&pool, systemprompt_identifiers::InstanceId::new("test-instance"))?),
                 ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)?),
                 analytics_repositories,
                 file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)?),

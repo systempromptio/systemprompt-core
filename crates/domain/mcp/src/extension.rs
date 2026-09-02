@@ -36,6 +36,16 @@ impl Extension for McpExtension {
                     "status".into(),
                     "created_at".into(),
                 ]),
+            SchemaDefinition::new(
+                "mcp_proxy_identities",
+                include_str!("../schema/mcp_proxy_identities.sql"),
+            )
+            .with_required_columns(vec![
+                "session_id".into(),
+                "user_id".into(),
+                "auth_token".into(),
+                "expires_at".into(),
+            ]),
             SchemaDefinition::new("mcp_artifacts", include_str!("../schema/mcp_artifacts.sql"))
                 .with_required_columns(vec![
                     "artifact_id".into(),

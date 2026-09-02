@@ -359,7 +359,7 @@ async fn external_with_anonymous_context_is_unauthorized() -> anyhow::Result<()>
 async fn internal_registry_server_forwards_to_backend_with_context_headers() -> anyhow::Result<()> {
     let h = harness().await?;
     let backend_port = h.server.address().port();
-    let repo = ServiceRepository::new(h.ctx.db_pool())?;
+    let repo = ServiceRepository::new(h.ctx.db_pool(), systemprompt_identifiers::InstanceId::new("test-instance"))?;
     repo.create_service(CreateServiceInput {
         name: &h.int_name,
         module_name: "mcp",

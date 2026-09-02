@@ -12,27 +12,30 @@
 //! inbound requests are client-supplied: without the scope, a caller could
 //! read another conversation's cached signatures by guessing ids.
 //!
-//! The cache is process-local, so every miss is a real failure mode: a cold
-//! process after a restart, or a request routed to a replica that did not serve
-//! the prior turn, leaves the block unsigned. `thought_signature` is omitted
-//! from the outbound wire when absent, and Gemini then rejects the turn — so
-//! misses are counted under `gateway_signature_hydration_total` and warned,
-//! but only when the resolved upstream is [`WireProtocol::Gemini`]; for every
-//! other wire the absent signature is expected and carries no signal.
+//! Signatures are persisted through [`AiThoughtSignatureRepository`] so a
+//! replay served by a different replica, or by a process restarted since the
+//! prior turn, still finds them; the in-memory map is a write-through L1 that
+//! only spares the database round trip on the replica that captured the
+//! signature. A miss on both tiers is a real failure mode: `thought_signature`
+//! is omitted from the outbound wire when absent, and Gemini then rejects the
+//! turn — so misses are counted under `gateway_signature_hydration_total` and
+//! warned, but only when the resolved upstream is [`WireProtocol::Gemini`];
+//! for every other wire the absent signature is expected and carries no
+//! signal.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
+use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_identifiers::GatewayConversationId;
 use systemprompt_models::profile::WireProtocol;
 use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
-const TTL: Duration = Duration::from_hours(1);
-const MAX_ENTRIES: usize = 10_000;
+pub const TTL: Duration = Duration::from_hours(1);
 const HYDRATION_TOTAL: &str = "gateway_signature_hydration_total";
 const CAPTURE_SKIPPED_TOTAL: &str = "gateway_signature_capture_skipped_total";
 
@@ -46,68 +49,44 @@ type Key = (GatewayConversationId, String);
 pub struct ThoughtSignatureCache {
     entries: Mutex<HashMap<Key, Entry>>,
     ttl: Duration,
-    max_entries: usize,
+    repository: Arc<AiThoughtSignatureRepository>,
 }
 
 impl std::fmt::Debug for ThoughtSignatureCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ThoughtSignatureCache")
             .field("ttl", &self.ttl)
-            .field("max_entries", &self.max_entries)
             .finish_non_exhaustive()
     }
 }
 
 impl ThoughtSignatureCache {
-    pub fn global() -> &'static Self {
-        static CACHE: OnceLock<ThoughtSignatureCache> = OnceLock::new();
-        CACHE.get_or_init(|| Self::new(TTL, MAX_ENTRIES))
-    }
-
     #[must_use]
-    pub fn new(ttl: Duration, max_entries: usize) -> Self {
+    pub fn new(ttl: Duration, repository: Arc<AiThoughtSignatureRepository>) -> Self {
         Self {
             entries: Mutex::new(HashMap::new()),
             ttl,
-            max_entries,
+            repository,
         }
     }
 
-    pub fn store(&self, conversation: &GatewayConversationId, tool_use_id: &str, signature: &str) {
-        let key = (conversation.clone(), tool_use_id.to_owned());
+    fn store_local(&self, key: Key, signature: &str) {
         let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
-        let now = Instant::now();
-        if !entries.contains_key(&key) && entries.len() >= self.max_entries {
-            entries.retain(|_, e| e.expires_at > now);
-            if entries.len() >= self.max_entries
-                && let Some(oldest) = entries
-                    .iter()
-                    .min_by_key(|(_, e)| e.expires_at)
-                    .map(|(k, _)| k.clone())
-            {
-                entries.remove(&oldest);
-            }
-        }
         entries.insert(
             key,
             Entry {
                 signature: signature.to_owned(),
-                expires_at: now + self.ttl,
+                expires_at: Instant::now() + self.ttl,
             },
         );
     }
 
-    pub fn lookup(
-        &self,
-        conversation: &GatewayConversationId,
-        tool_use_id: &str,
-    ) -> Option<String> {
-        let key = (conversation.clone(), tool_use_id.to_owned());
+    fn lookup_local(&self, key: &Key) -> Option<String> {
         let now = Instant::now();
         let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
-        let entry = entries.get_mut(&key)?;
+        let entry = entries.get_mut(key)?;
         if entry.expires_at <= now {
-            entries.remove(&key);
+            entries.remove(key);
             return None;
         }
         entry.expires_at = now + self.ttl;
@@ -116,7 +95,59 @@ impl ThoughtSignatureCache {
         Some(signature)
     }
 
-    pub fn store_from_response(
+    pub async fn store(
+        &self,
+        conversation: &GatewayConversationId,
+        tool_use_id: &str,
+        signature: &str,
+    ) {
+        self.store_local((conversation.clone(), tool_use_id.to_owned()), signature);
+        if let Err(e) = self
+            .repository
+            .upsert(conversation, tool_use_id, signature, self.ttl)
+            .await
+        {
+            tracing::warn!(
+                conversation = %conversation,
+                tool_use_id = %tool_use_id,
+                error = %e,
+                "thought signature persisted only in this replica's memory"
+            );
+        }
+    }
+
+    pub async fn lookup(
+        &self,
+        conversation: &GatewayConversationId,
+        tool_use_id: &str,
+    ) -> Option<String> {
+        let key = (conversation.clone(), tool_use_id.to_owned());
+        if let Some(signature) = self.lookup_local(&key) {
+            return Some(signature);
+        }
+        match self
+            .repository
+            .find(conversation, tool_use_id, self.ttl)
+            .await
+        {
+            Ok(Some(signature)) => {
+                self.store_local(key, &signature);
+                Some(signature)
+            },
+            Ok(None) => None,
+            Err(e) => {
+                tracing::warn!(
+                    conversation = %conversation,
+                    tool_use_id = %tool_use_id,
+                    error = %e,
+                    "thought signature lookup failed"
+                );
+                None
+            },
+        }
+    }
+
+    pub async fn store_from_response(
         &self,
         conversation: &GatewayConversationId,
         response: &CanonicalResponse,
@@ -128,12 +159,12 @@ impl ThoughtSignatureCache {
                 ..
             } = content
             {
-                self.store(conversation, id, signature);
+                self.store(conversation, id, signature).await;
             }
         }
     }
 
-    pub fn hydrate_request(
+    pub async fn hydrate_request(
         &self,
         conversation: &GatewayConversationId,
         request: &mut CanonicalRequest,
@@ -147,8 +178,8 @@ impl ThoughtSignatureCache {
                     continue;
                 };
                 match signature {
-                    Some(sig) => self.store(conversation, id, sig),
-                    None => match self.lookup(conversation, id) {
+                    Some(sig) => self.store(conversation, id, sig).await,
+                    None => match self.lookup(conversation, id).await {
                         Some(cached) => {
                             *signature = Some(cached);
                             if signatures_required {

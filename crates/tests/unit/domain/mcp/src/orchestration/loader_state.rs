@@ -12,7 +12,7 @@ async fn db() -> Option<systemprompt_database::DbPool> {
 async fn state_service_get_missing_service_returns_none() {
     let Some(db) = db().await else { return };
     let s = ServiceStateService::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
     );
     let r = s
         .get_mcp_service(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
@@ -26,9 +26,9 @@ async fn state_service_list_surfaces_seeded_service_and_filters_by_status() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
     let Some(db) = db().await else { return };
     let s = ServiceStateService::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
     );
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
 
     let running = format!("ls-run-{}", uuid::Uuid::new_v4().simple());
     let stopped = format!("ls-stop-{}", uuid::Uuid::new_v4().simple());

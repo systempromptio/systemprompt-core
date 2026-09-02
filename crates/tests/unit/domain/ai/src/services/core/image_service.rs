@@ -18,7 +18,7 @@ use systemprompt_ai::models::image_generation::{
 use systemprompt_ai::services::providers::{
     BoxedImageProvider, ImageProvider, ImageProviderCapabilities,
 };
-use systemprompt_ai::{ImageService, StorageConfig};
+use systemprompt_ai::{ImageService, ImageServiceParts, StorageConfig};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_test_fixtures::{
@@ -184,8 +184,15 @@ impl ImageProvider for StubImageProvider {
 
 fn storage_config() -> (tempfile::TempDir, StorageConfig) {
     let dir = tempfile::tempdir().expect("tempdir");
-    let config = StorageConfig::new(dir.path().join("images"), "/media".to_owned());
+    let config = StorageConfig::new(std::path::PathBuf::from("images"), "/media".to_owned());
     (dir, config)
+}
+
+fn file_storage(dir: &tempfile::TempDir) -> Arc<dyn systemprompt_traits::FileStorage> {
+    systemprompt_storage::build_file_storage(
+        systemprompt_models::profile::StorageBackend::Local,
+        dir.path(),
+    )
 }
 
 fn build_service(
@@ -200,9 +207,13 @@ fn build_service(
         map.insert(name, p);
     }
     let service = ImageService::with_providers(
-        systemprompt_ai::repository::AiRequestRepository::new(pool).expect("ai request repository"),
-        config,
-        file_provider,
+        ImageServiceParts {
+            ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(pool)
+                .expect("ai request repository"),
+            storage_config: config,
+            file_storage: file_storage(&dir),
+            file_provider,
+        },
         map,
         default,
     )
@@ -468,13 +479,14 @@ async fn provider_registry_accessors_report_state() {
     };
     let file_provider = Arc::new(InMemoryFileProvider::default());
     let provider: BoxedImageProvider = Arc::new(StubImageProvider::ok("stub", "stub-image-1"));
-    let (_dir, config) = storage_config();
-    let mut service = ImageService::new(
-        systemprompt_ai::repository::AiRequestRepository::new(&pool)
+    let (dir, config) = storage_config();
+    let mut service = ImageService::new(ImageServiceParts {
+        ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(&pool)
             .expect("ai request repository"),
-        config,
+        storage_config: config,
+        file_storage: file_storage(&dir),
         file_provider,
-    )
+    })
     .expect("new");
 
     assert!(service.list_providers().is_empty());
@@ -554,9 +566,13 @@ fn build_failing_service(pool: &DbPool) -> (tempfile::TempDir, ImageService) {
         Arc::new(StubImageProvider::ok("stub", "stub-image-1")) as BoxedImageProvider,
     );
     let service = ImageService::with_providers(
-        systemprompt_ai::repository::AiRequestRepository::new(pool).expect("ai request repository"),
-        config,
-        Arc::new(FailingFileProvider),
+        ImageServiceParts {
+            ai_request_repo: systemprompt_ai::repository::AiRequestRepository::new(pool)
+                .expect("ai request repository"),
+            storage_config: config,
+            file_storage: file_storage(&dir),
+            file_provider: Arc::new(FailingFileProvider),
+        },
         map,
         Some("stub".to_owned()),
     )

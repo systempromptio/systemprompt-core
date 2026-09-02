@@ -23,7 +23,6 @@ use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
-use crate::services::gateway::signature_cache::ThoughtSignatureCache;
 use authz::enforce_authz_pre_dispatch;
 use headers::{
     classify_client_headers, optional_gateway_conversation_id, read_gateway_body,
@@ -128,11 +127,10 @@ pub(super) async fn extract_request_context(
         .providers
         .find_provider(route.provider.as_str())
         .map(|p| p.wire);
-    ThoughtSignatureCache::global().hydrate_request(
-        &gateway_conversation_id,
-        &mut gateway_request,
-        wire,
-    );
+    rc.repos
+        .thought_signatures
+        .hydrate_request(&gateway_conversation_id, &mut gateway_request, wire)
+        .await;
 
     let upstream_model = route
         .effective_upstream_model(&gateway_request.model)

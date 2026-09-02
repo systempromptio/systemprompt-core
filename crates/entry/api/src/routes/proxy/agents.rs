@@ -10,7 +10,14 @@ use axum::routing::any;
 use systemprompt_runtime::{AppContext, ServiceCategory};
 
 pub fn router(ctx: &AppContext) -> Router {
-    let engine = ProxyEngine::new();
+    let identities = match crate::repository::proxy_identities(ctx.db_pool()) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to initialize MCP proxy identity repository");
+            return Router::new();
+        },
+    };
+    let engine = ProxyEngine::new(identities);
     let engine_with_path = engine.clone();
 
     Router::new()

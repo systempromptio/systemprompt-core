@@ -14,7 +14,7 @@
 //! process-wide test signing key — satisfies the bearer check for any service
 //! name (`validate_service_access` accepts the standard audience set).
 
-use std::sync::Once;
+use std::sync::{Arc, Once};
 
 use axum::body::Body;
 use axum::http::{Request, header};
@@ -237,11 +237,16 @@ async fn mcp_proxy_unknown_service_emits_challenge() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn proxy_engine_default_constructs() {
-    let engine = systemprompt_api::services::proxy::ProxyEngine::default();
+async fn proxy_engine_constructs_over_the_identity_repository() -> anyhow::Result<()> {
+    let (pool, _ctx) = setup_ctx().await?;
+    let identities = Arc::new(systemprompt_mcp::repository::McpProxyIdentityRepository::new(
+        &pool,
+    )?);
+    let engine = systemprompt_api::services::proxy::ProxyEngine::new(identities);
     let cloned = engine.clone();
     drop(cloned);
     drop(engine);
+    Ok(())
 }
 
 // `lookup_oauth_requirement` branches on the services row's `module_name`, and

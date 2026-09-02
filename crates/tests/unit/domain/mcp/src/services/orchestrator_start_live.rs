@@ -151,7 +151,7 @@ async fn live_server(prefix: &str) -> Option<LiveServer> {
         )
         .ok()?,
     );
-    let repo = ServiceRepository::new(&db).ok()?;
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).ok()?;
     let orchestrator = McpOrchestrator::new(
         db,
         repo.clone(),

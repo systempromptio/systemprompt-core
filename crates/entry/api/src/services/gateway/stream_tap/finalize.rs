@@ -46,18 +46,21 @@ pub(super) fn finalize(
     ctx: TapFinalizeCtx,
     origin: &'static str,
 ) {
-    match &audit.ctx.gateway_conversation_id {
-        Some(conversation) => {
-            ThoughtSignatureCache::global().store_from_response(conversation, &summary.response);
-        },
-        None => {
-            ThoughtSignatureCache::note_uncacheable_response(
-                &summary.response,
-                "no_conversation_id",
-            );
-        },
-    }
     tokio::spawn(async move {
+        match &audit.ctx.gateway_conversation_id {
+            Some(conversation) => {
+                ctx.repos
+                    .thought_signatures
+                    .store_from_response(conversation, &summary.response)
+                    .await;
+            },
+            None => {
+                ThoughtSignatureCache::note_uncacheable_response(
+                    &summary.response,
+                    "no_conversation_id",
+                );
+            },
+        }
         if let Some(model) = summary.served_model.as_deref() {
             audit.set_served_model(model).await;
         }

@@ -141,7 +141,7 @@ async fn start_server_rejects_external_servers() {
     let bootstrap = ensure_test_bootstrap();
     let registry = systemprompt_mcp::services::registry::RegistryService::new(fixture_user_id());
     let database = systemprompt_mcp::services::database::DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         Arc::new(bootstrap.app_paths.clone()),
         registry,
     );

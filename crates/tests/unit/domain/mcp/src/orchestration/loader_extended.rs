@@ -32,7 +32,7 @@ async fn create_mcp_extensions_empty_returns_empty_vec() {
     let Some(db) = db().await else { return };
     let registry = RegistryService::new(fixture_user_id());
     let loader = McpToolLoader::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         registry,
     );
 
@@ -49,7 +49,7 @@ async fn load_server_tools_missing_service_errors_after_retries() {
     let Some(db) = db().await else { return };
     let registry = RegistryService::new(fixture_user_id());
     let loader = McpToolLoader::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         registry,
     );
 
@@ -71,7 +71,7 @@ async fn service_manager_accessor_returns_reference() {
     let Some(db) = db().await else { return };
     let registry = RegistryService::new(fixture_user_id());
     let loader = McpToolLoader::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         registry,
     );
 

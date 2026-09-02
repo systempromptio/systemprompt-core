@@ -41,7 +41,7 @@ async fn make_lifecycle() -> Option<(LifecycleOrchestrator, systemprompt_databas
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(&db).expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         Arc::clone(&app_paths),
         registry,
     );
@@ -96,7 +96,7 @@ async fn stop_server_cleans_up_stale_db_row() {
     };
     let name = format!("stop-stale-{}", uuid::Uuid::new_v4().simple());
     let port = 65528;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -120,7 +120,7 @@ async fn health_check_dead_port_returns_false_and_updates_status() {
     };
     let name = format!("health-dead-{}", uuid::Uuid::new_v4().simple());
     let port = 65527;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -145,7 +145,7 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
     };
     let name = format!("clean-stale-{}", uuid::Uuid::new_v4().simple());
     let port = 65526;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -167,7 +167,7 @@ async fn sync_database_state_marks_unhealthy_crashed() {
     };
     let name = format!("sync-crash-{}", uuid::Uuid::new_v4().simple());
     let port = 65525;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -190,7 +190,7 @@ async fn reconcile_running_processes_reports_dead_ports() {
     };
     let name = format!("rec-{}", uuid::Uuid::new_v4().simple());
     let port = 65524;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -216,7 +216,7 @@ async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
     };
     let name = format!("repair-{}", uuid::Uuid::new_v4().simple());
     let port = 65523;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -237,7 +237,7 @@ async fn delete_crashed_services_runs() {
     };
     let name = format!("crash-{}", uuid::Uuid::new_v4().simple());
     let port = 65522;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -257,7 +257,7 @@ async fn health_check_with_stale_pid_marks_stopped() {
     };
     let name = format!("health-pid-{}", uuid::Uuid::new_v4().simple());
     let port = 65521;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
@@ -283,7 +283,7 @@ async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
     };
     let name = format!("stop-pid-{}", uuid::Uuid::new_v4().simple());
     let port = 65520;
-    let repo = ServiceRepository::new(&db).unwrap();
+    let repo = ServiceRepository::new(&db, systemprompt_identifiers::InstanceId::new("test-instance")).unwrap();
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: "mcp",
