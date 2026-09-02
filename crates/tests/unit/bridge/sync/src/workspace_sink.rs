@@ -43,7 +43,10 @@ fn artifact(id: &str, version: &str) -> ArtifactEntry {
 #[test]
 fn bundle_writes_manifest_and_one_verbatim_page_per_record() {
     let dir = tempdir();
-    let set = [artifact("business-overview", "1"), artifact("admin-users-directory", "2")];
+    let set = [
+        artifact("business-overview", "1"),
+        artifact("admin-users-directory", "2"),
+    ];
     write_bundle(&dir, &set).unwrap();
 
     let manifest: serde_json::Value =

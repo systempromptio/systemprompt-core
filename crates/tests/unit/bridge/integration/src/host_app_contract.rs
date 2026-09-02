@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::gateway::model_view::{effective_surfaces, has_surface_override};
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
     HostKind, ProbeEnv, ProfileGenInputs, ProfileRemoval, ProfileState,
 };
-use systemprompt_bridge::gateway::model_view::{effective_surfaces, has_surface_override};
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::services::ApiSurface;
 
