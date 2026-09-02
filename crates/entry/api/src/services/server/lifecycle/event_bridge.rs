@@ -17,7 +17,8 @@ pub(in crate::services::server) fn start_event_bridge(ctx: &AppContext) {
         return;
     };
 
-    let handle = PostgresEventBridge::new(pool.as_ref().clone()).start();
+    let instance_id = systemprompt_identifiers::InstanceId::new(&ctx.config().instance_id);
+    let handle = PostgresEventBridge::new(pool.as_ref().clone(), instance_id).start();
 
     if ctx.event_bridge().set(handle).is_err() {
         tracing::warn!("Event bridge already started; ignoring duplicate start");

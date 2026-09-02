@@ -11,6 +11,7 @@ use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSend
 
 use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
+    start_registry_heartbeat,
 };
 
 pub async fn run_server(
@@ -23,6 +24,7 @@ pub async fn run_server(
     let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
 
     start_event_bridge(&ctx);
+    let heartbeat = start_registry_heartbeat(&ctx);
     reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
 
     run_agents_phase(&ctx, events.as_ref()).await?;
@@ -35,6 +37,7 @@ pub async fn run_server(
     let addr = ctx.server_address();
 
     early.activate(router);
+    let metrics_listener = start_metrics_listener(&ctx).await?;
     super::readiness::signal_ready();
 
     if let Some(ref tx) = events {
@@ -50,6 +53,10 @@ pub async fn run_server(
     let serve_result = super::shutdown::join_within_drain_grace(early.join()).await;
 
     super::shutdown::arm_forced_exit();
+    heartbeat.abort();
+    if let Some(listener) = metrics_listener {
+        listener.abort();
+    }
     super::shutdown::drain(&ctx, scheduler_handle).await;
 
     serve_result
@@ -141,4 +148,15 @@ fn create_mcp_orchestrator(
         ctx.mcp_registry().clone(),
     )?;
     Ok(Arc::new(manager))
+}
+
+async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::JoinHandle<()>>> {
+    let Some(port) = ctx.config().metrics_port else {
+        return Ok(None);
+    };
+    let handle = super::metrics::install_recorder(&ctx.config().instance_id)?;
+    let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
+    Ok(Some(
+        super::metrics::serve_metrics_listener(addr, handle).await?,
+    ))
 }

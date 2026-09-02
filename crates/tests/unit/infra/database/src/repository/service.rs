@@ -5,6 +5,7 @@ use systemprompt_database::{CreateServiceInput, ServiceConfig};
 #[test]
 fn test_service_config_creation() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "api-server".to_string(),
         module_name: "api".to_string(),
         status: "running".to_string(),
@@ -12,6 +13,7 @@ fn test_service_config_creation() {
         port: 8080,
         binary_mtime: Some(1700000000),
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
@@ -25,6 +27,7 @@ fn test_service_config_creation() {
 #[test]
 fn test_service_config_without_pid() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "stopped-service".to_string(),
         module_name: "mcp".to_string(),
         status: "stopped".to_string(),
@@ -32,6 +35,7 @@ fn test_service_config_without_pid() {
         port: 3000,
         binary_mtime: None,
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
@@ -42,6 +46,7 @@ fn test_service_config_without_pid() {
 #[test]
 fn test_service_config_debug() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "test".to_string(),
         module_name: "test".to_string(),
         status: "running".to_string(),
@@ -49,6 +54,7 @@ fn test_service_config_debug() {
         port: 80,
         binary_mtime: None,
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
@@ -60,6 +66,7 @@ fn test_service_config_debug() {
 #[test]
 fn test_service_config_clone() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "original".to_string(),
         module_name: "agent".to_string(),
         status: "running".to_string(),
@@ -67,6 +74,7 @@ fn test_service_config_clone() {
         port: 4000,
         binary_mtime: Some(1700000000),
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
@@ -79,6 +87,7 @@ fn test_service_config_clone() {
 #[test]
 fn test_service_config_serialization() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "serializable".to_string(),
         module_name: "test".to_string(),
         status: "running".to_string(),
@@ -86,6 +95,7 @@ fn test_service_config_serialization() {
         port: 9999,
         binary_mtime: None,
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
@@ -168,6 +178,7 @@ fn test_create_service_input_zero_port() {
 #[test]
 fn test_service_config_status_running() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "test".to_string(),
         module_name: "test".to_string(),
         status: "running".to_string(),
@@ -175,6 +186,7 @@ fn test_service_config_status_running() {
         port: 80,
         binary_mtime: None,
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
@@ -184,6 +196,7 @@ fn test_service_config_status_running() {
 #[test]
 fn test_service_config_status_stopped() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "test".to_string(),
         module_name: "test".to_string(),
         status: "stopped".to_string(),
@@ -191,6 +204,7 @@ fn test_service_config_status_stopped() {
         port: 80,
         binary_mtime: None,
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 
@@ -201,6 +215,7 @@ fn test_service_config_status_stopped() {
 #[test]
 fn test_service_config_status_error() {
     let config = ServiceConfig {
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         name: "test".to_string(),
         module_name: "test".to_string(),
         status: "error".to_string(),
@@ -208,6 +223,7 @@ fn test_service_config_status_error() {
         port: 80,
         binary_mtime: None,
         created_at: "2024-01-01T00:00:00Z".to_string(),
+        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
     };
 

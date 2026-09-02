@@ -5,15 +5,18 @@
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::InstanceId;
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct ServiceConfig {
+    pub instance_id: InstanceId,
     pub name: String,
     pub module_name: String,
     pub status: String,
     pub pid: Option<i32>,
     pub port: i32,
     pub binary_mtime: Option<i64>,
+    pub heartbeat_at: String,
     pub created_at: String,
     pub updated_at: String,
 }

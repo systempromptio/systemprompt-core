@@ -113,6 +113,7 @@ impl AppContextBuilder {
             app_paths,
             database,
             authz_hook,
+            file_storage,
         } = init_core(self.authz_hook).await?;
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
@@ -138,7 +139,8 @@ impl AppContextBuilder {
             self.show_startup_warnings,
         )?;
 
-        let repositories = build_repositories(&database, analytics_repositories)?;
+        let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
+        let repositories = build_repositories(&database, analytics_repositories, instance_id)?;
 
         let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
 
@@ -151,8 +153,6 @@ impl AppContextBuilder {
         let marketplace_filter = self
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
-
-        let event_bridge = Arc::new(OnceLock::new());
 
         Ok(AppContext::from_parts(
             DataPlane {
@@ -182,13 +182,23 @@ impl AppContextBuilder {
                 mcp_registry,
                 marketplace_filter,
             },
-            Subsystems {
-                system_admin,
-                authz_hook,
-                event_bridge,
-                geoip_reader,
-            },
+            build_subsystems(system_admin, authz_hook, geoip_reader, file_storage),
         ))
+    }
+}
+
+fn build_subsystems(
+    system_admin: Arc<systemprompt_models::services::SystemAdmin>,
+    authz_hook: SharedAuthzHook,
+    geoip_reader: Option<systemprompt_analytics::GeoIpReader>,
+    file_storage: Arc<dyn systemprompt_traits::FileStorage>,
+) -> Subsystems {
+    Subsystems {
+        system_admin,
+        authz_hook,
+        event_bridge: Arc::new(OnceLock::new()),
+        geoip_reader,
+        file_storage,
     }
 }
 
@@ -228,6 +238,7 @@ struct RepositoryBundles {
 fn build_repositories(
     database: &systemprompt_database::DbPool,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    instance_id: systemprompt_identifiers::InstanceId,
 ) -> RuntimeResult<RepositoryBundles> {
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         Arc::new(analytics.sessions.clone());
@@ -235,6 +246,7 @@ fn build_repositories(
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,
             session_usage,
+            instance_id.clone(),
         )?),
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,
@@ -243,7 +255,10 @@ fn build_repositories(
             database,
         )?),
         users: Arc::new(systemprompt_users::UserRepository::new(database)?),
-        services: Arc::new(systemprompt_database::ServiceRepository::new(database)?),
+        services: Arc::new(systemprompt_database::ServiceRepository::new(
+            database,
+            instance_id,
+        )?),
         ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?),
         analytics,
         files: Arc::new(systemprompt_files::FileRepository::new(database)?),

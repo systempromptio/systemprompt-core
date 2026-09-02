@@ -1,0 +1,6 @@
+ALTER TABLE services ADD COLUMN IF NOT EXISTS instance_id TEXT NOT NULL DEFAULT 'legacy';
+ALTER TABLE services ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE services DROP CONSTRAINT IF EXISTS services_pkey;
+ALTER TABLE services ADD PRIMARY KEY (instance_id, name);
+ALTER TABLE services ALTER COLUMN instance_id DROP DEFAULT;
+CREATE INDEX IF NOT EXISTS idx_services_heartbeat ON services(heartbeat_at);
