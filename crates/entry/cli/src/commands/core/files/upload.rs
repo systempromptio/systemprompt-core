@@ -39,7 +39,11 @@ pub struct UploadArgs {
 pub async fn execute(args: UploadArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
     let files_config = FilesConfig::get()?;
-    let service = FileUploadService::new((**app.file_repository()).clone(), files_config.clone());
+    let service = FileUploadService::new(
+        (**app.file_repository()).clone(),
+        files_config.clone(),
+        std::sync::Arc::clone(app.file_storage()),
+    );
 
     if !service.is_enabled() {
         return Err(anyhow!("File uploads are disabled in configuration"));

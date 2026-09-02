@@ -15,7 +15,7 @@ use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
     EventRouter, OUTBOX_CHANNEL, PostgresEventBridge,
 };
-use systemprompt_identifiers::{ConnectionId, ContextId, EventOutboxId, TaskId, UserId};
+use systemprompt_identifiers::{ConnectionId, ContextId, EventOutboxId, InstanceId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,
@@ -98,7 +98,8 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
     let user = unique_user_id("bridge-agui");
     let conn = ConnectionId::new("bridge-agui-conn");
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     AGUI_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -137,7 +138,8 @@ async fn a2a_event_relays_through_bridge_to_local_subscriber() {
     let user = unique_user_id("bridge-a2a");
     let conn = ConnectionId::new("bridge-a2a-conn");
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     A2A_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -172,7 +174,8 @@ async fn system_event_relays_through_bridge_to_context_subscriber() {
     let user = unique_user_id("bridge-system");
     let conn = ConnectionId::new("bridge-system-conn");
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     CONTEXT_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -207,7 +210,8 @@ async fn analytics_event_relays_through_bridge_to_local_subscriber() {
     let user = unique_user_id("bridge-analytics");
     let conn = ConnectionId::new("bridge-analytics-conn");
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -245,7 +249,7 @@ async fn route_persists_queryable_outbox_row() {
     let _guard = BRIDGE_LOCK.lock().await;
     let user = unique_user_id("bridge-persist");
 
-    EventRouter::install_relay(pool.clone());
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
     EventRouter::route_analytics(&user, analytics_event()).await;
     EventRouter::route_system(&user, system_event()).await;
 
@@ -273,15 +277,28 @@ async fn insert_raw_outbox(
     user: &UserId,
     payload: &str,
 ) {
+    insert_raw_outbox_from(pool, id, channel, user, payload, "foreign").await;
+}
+
+async fn insert_raw_outbox_from(
+    pool: &sqlx::PgPool,
+    id: &str,
+    channel: &str,
+    user: &UserId,
+    payload: &str,
+    origin: &str,
+) {
     sqlx::query(
-        "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id) \
-         VALUES ($1, $2, $3, $4::jsonb, 'user', $5) ON CONFLICT (id) DO NOTHING",
+        "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \
+         origin_instance_id) VALUES ($1, $2, $3, $4::jsonb, 'user', $5, $6) ON CONFLICT (id) DO \
+         NOTHING",
     )
     .bind(id)
     .bind(channel)
     .bind(user.as_str())
     .bind(payload)
     .bind(user.as_str())
+    .bind(origin)
     .execute(pool)
     .await
     .expect("insert raw outbox row must succeed");
@@ -327,7 +344,8 @@ async fn bridge_survives_missing_outbox_row_notification() {
     let user = unique_user_id("bridge-missing-row");
     let conn = ConnectionId::new("bridge-missing-row-conn");
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -366,7 +384,8 @@ async fn bridge_survives_unknown_channel_row() {
     let bad_id = EventOutboxId::generate().as_str().to_owned();
     insert_raw_outbox(&pool, &bad_id, "not-a-real-channel", &user, "{}").await;
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -407,7 +426,8 @@ async fn bridge_survives_undecodable_payload() {
     let bad_id = EventOutboxId::generate().as_str().to_owned();
     insert_raw_outbox(&pool, &bad_id, "agui", &user, r#"{"unexpected":"shape"}"#).await;
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -452,7 +472,8 @@ async fn bridge_survives_undecodable_payloads_on_every_channel() {
         bad_ids.push(id);
     }
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -502,7 +523,8 @@ async fn bridge_reconnects_after_listener_connection_is_terminated() {
     let user = unique_user_id("bridge-reconnect");
     let conn = ConnectionId::new("bridge-reconnect-conn");
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
     let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
     ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
 
@@ -558,7 +580,8 @@ async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
         .expect("closed fixture pool must expose a pg pool"))
     .clone();
 
-    let handle = PostgresEventBridge::new(pool).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool, InstanceId::new("peer")).start();
     tokio::time::sleep(Duration::from_secs(30)).await;
 
     assert!(
@@ -583,7 +606,8 @@ async fn bridge_survives_listener_connect_failure_and_keeps_retrying() {
 async fn insert_outbox_with_age(pool: &sqlx::PgPool, id: &str, user: &UserId, age: &str) {
     sqlx::query(
         "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \
-         created_at) VALUES ($1, 'system', $2, '{}'::jsonb, 'user', $2, now() - $3::interval)",
+         origin_instance_id, created_at) VALUES ($1, 'system', $2, '{}'::jsonb, 'user', $2, \
+         'foreign', now() - $3::interval)",
     )
     .bind(id)
     .bind(user.as_str())
@@ -617,7 +641,8 @@ async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
     insert_outbox_with_age(&pool, &old_id, &user, "2 hours").await;
     insert_outbox_with_age(&pool, &fresh_id, &user, "0 seconds").await;
 
-    let handle = PostgresEventBridge::new(pool.clone()).start();
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("peer")).start();
 
     let mut old_pruned = false;
     for _ in 0..40 {
@@ -642,5 +667,54 @@ async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
     assert!(
         fresh_survived,
         "prune must keep rows younger than the retention window"
+    );
+}
+
+async fn notified_row_delivers(
+    pool: &sqlx::PgPool,
+    user: &UserId,
+    origin: &str,
+    rx: &mut tokio::sync::mpsc::Receiver<R>,
+) -> bool {
+    let payload = serde_json::to_string(&analytics_event()).expect("serialise analytics event");
+    for _ in 0..6 {
+        let id = EventOutboxId::generate().as_str().to_owned();
+        insert_raw_outbox_from(pool, &id, "analytics", user, &payload, origin).await;
+        notify_outbox(pool, &id).await;
+        if let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
+            return true;
+        }
+    }
+    false
+}
+
+#[tokio::test]
+async fn bridge_skips_rows_it_originated_and_delivers_peer_rows() {
+    let Some(pool) = pool().await else {
+        return;
+    };
+    let _guard = BRIDGE_LOCK.lock().await;
+    let user = unique_user_id("bridge-origin-filter");
+    let conn = ConnectionId::new("bridge-origin-filter-conn");
+
+    EventRouter::install_relay(pool.clone(), InstanceId::new("origin"));
+    let handle = PostgresEventBridge::new(pool.clone(), InstanceId::new("self-node")).start();
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<R>(systemprompt_events::SSE_BUFFER);
+    ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
+
+    let peer_delivered = notified_row_delivers(&pool, &user, "other-node", &mut rx).await;
+    let own_delivered = notified_row_delivers(&pool, &user, "self-node", &mut rx).await;
+
+    ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
+    handle.abort();
+    cleanup(&pool, &user).await;
+
+    assert!(
+        peer_delivered,
+        "a row written by another replica must be relayed to local subscribers"
+    );
+    assert!(
+        !own_delivered,
+        "a row this replica wrote was already routed locally; relaying it again duplicates the event"
     );
 }

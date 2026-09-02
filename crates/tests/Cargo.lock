@@ -8120,6 +8120,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tempfile",

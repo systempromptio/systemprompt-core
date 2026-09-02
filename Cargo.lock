@@ -4559,6 +4559,7 @@ dependencies = [
  "systemprompt-scheduler",
  "systemprompt-security",
  "systemprompt-slack",
+ "systemprompt-storage",
  "systemprompt-teams",
  "systemprompt-template-provider",
  "systemprompt-traits",
@@ -5171,6 +5172,7 @@ dependencies = [
  "base64 0.22.1",
  "bcrypt",
  "chrono",
+ "hex",
  "http",
  "inventory",
  "jsonwebtoken",
@@ -5241,6 +5243,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-security",
+ "systemprompt-storage",
  "systemprompt-traits",
  "systemprompt-users",
  "tempfile",
@@ -5339,6 +5342,20 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.19",
+]
+
+[[package]]
+name = "systemprompt-storage"
+version = "0.43.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -11,8 +11,15 @@ use systemprompt_files::{
     FileUploadError, FileUploadRequest, FileUploadService, FileValidator, FilesConfig,
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::profile::StorageBackend;
+use systemprompt_storage::build_file_storage;
+use systemprompt_traits::FileStorage;
 
 use crate::bootstrap::test_env;
+
+fn local_storage(files_config: &FilesConfig) -> std::sync::Arc<dyn FileStorage> {
+    build_file_storage(StorageBackend::Local, files_config.storage_root())
+}
 
 async fn get_db() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
@@ -45,7 +52,8 @@ async fn upload_service_new_and_is_enabled() {
 
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db).expect("file repository"),
-        files_config,
+        files_config.clone(),
+        local_storage(&files_config),
     );
     assert!(service.is_enabled(), "uploads should be enabled by default");
     let validator_ref = service.validator();
@@ -67,7 +75,8 @@ async fn upload_service_uploads_png_successfully() {
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db).expect("file repository"),
-        files_config,
+        files_config.clone(),
+        local_storage(&files_config),
     );
 
     let request = FileUploadRequest::builder(
@@ -97,7 +106,8 @@ async fn upload_service_rejects_blocked_mime_type() {
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db).expect("file repository"),
-        files_config,
+        files_config.clone(),
+        local_storage(&files_config),
     );
 
     let request = FileUploadRequest::builder(
@@ -121,7 +131,8 @@ async fn upload_service_rejects_oversized_base64() {
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db).expect("file repository"),
-        files_config,
+        files_config.clone(),
+        local_storage(&files_config),
     );
 
     let huge = "A".repeat(120 * 1024 * 1024);
@@ -141,7 +152,8 @@ async fn upload_service_rejects_unknown_mime_type() {
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
         systemprompt_files::FileRepository::new(&db).expect("file repository"),
-        files_config,
+        files_config.clone(),
+        local_storage(&files_config),
     );
 
     let request = FileUploadRequest::builder(

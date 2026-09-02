@@ -38,8 +38,8 @@ async fn install_relay_second_call_is_ignored_and_routing_persists_one_row() {
     };
     let user = unique_user_id("relay-idempotent");
 
-    EventRouter::install_relay(pool.clone());
-    EventRouter::install_relay(pool.clone());
+    EventRouter::install_relay(pool.clone(), systemprompt_identifiers::InstanceId::new("origin"));
+    EventRouter::install_relay(pool.clone(), systemprompt_identifiers::InstanceId::new("origin"));
     EventRouter::route_analytics(&user, AnalyticsEventBuilder::heartbeat()).await;
 
     let count: (i64,) = sqlx::query_as("SELECT count(*) FROM event_outbox WHERE user_id = $1")
@@ -63,7 +63,7 @@ async fn outbox_insert_failure_does_not_block_local_delivery() {
         .pool_arc()
         .expect("closed fixture pool must expose a pg pool"))
     .clone();
-    EventRouter::install_relay(closed);
+    EventRouter::install_relay(closed, systemprompt_identifiers::InstanceId::new("origin"));
 
     let user = unique_user_id("relay-insert-fail");
     let conn = ConnectionId::new("relay-insert-fail-conn");

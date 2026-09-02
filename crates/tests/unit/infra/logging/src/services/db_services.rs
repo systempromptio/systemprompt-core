@@ -28,6 +28,8 @@ fn make_entry(module: &str, msg: &str) -> LogEntry {
         trace_id: TraceId::new(uniq("svc-trace")),
         context_id: None,
         client_id: None,
+        instance_id: None,
+        metrics_port: None,
     }
 }
 

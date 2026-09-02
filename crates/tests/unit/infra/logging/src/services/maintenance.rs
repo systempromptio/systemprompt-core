@@ -28,6 +28,8 @@ fn seeded_entry(module: &str, message: &str) -> LogEntry {
         trace_id: TraceId::new(format!("maint-trace-{tag}")),
         context_id: None,
         client_id: None,
+        instance_id: None,
+        metrics_port: None,
     }
 }
 

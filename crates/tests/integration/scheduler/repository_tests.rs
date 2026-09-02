@@ -4,7 +4,8 @@
 
 use chrono::Utc;
 use systemprompt_database::DbPool;
-use systemprompt_scheduler::{JobStatus, SchedulerRepository};
+use systemprompt_identifiers::InstanceId;
+use systemprompt_scheduler::{JobRunRecord, JobStatus, SchedulerRepository};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 async fn try_db() -> Option<DbPool> {
@@ -84,9 +85,17 @@ async fn update_job_execution_records_status_and_error() {
         .expect("upsert");
 
     let next_run = Utc::now() + chrono::Duration::hours(1);
-    repo.update_job_execution(&name, JobStatus::Failed, Some("boom"), Some(next_run))
-        .await
-        .expect("update execution");
+    repo.update_job_execution(
+        &name,
+        JobRunRecord {
+            status: JobStatus::Failed,
+            error: Some("boom"),
+            next_run: Some(next_run),
+            instance_id: &InstanceId::new("test-node"),
+        },
+    )
+    .await
+    .expect("update execution");
 
     let row = repo.find_job(&name).await.expect("find").expect("row");
     assert_eq!(row.last_status.as_deref(), Some("failed"));
