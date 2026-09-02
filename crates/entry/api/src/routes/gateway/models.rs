@@ -7,9 +7,9 @@ use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use serde::Serialize;
 use std::collections::BTreeMap;
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::{ApiSurface, ProviderRegistry};
+use systemprompt_models::profile::{ApiSurface, ProviderRegistry};
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -80,20 +80,22 @@ pub async fn list(
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
 ) -> Result<axum::response::Response, (StatusCode, String)> {
-    let services = ServicesBootstrap::get().map_err(|e| {
+    let profile = ProfileBootstrap::get().map_err(|e| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
-            format!("Services config not ready: {e}"),
+            format!("Profile not ready: {e}"),
         )
     })?;
 
-    services
-        .gateway_config()
+    profile
+        .gateway
+        .as_ref()
+        .and_then(systemprompt_models::profile::GatewayState::resolved)
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
     let surfaces = surfaces_from_header(&headers)?;
-    let mut entries = model_entries(&services.providers, &surfaces);
+    let mut entries = model_entries(&profile.providers, &surfaces);
     let total = entries.len();
     let has_more = match query.limit {
         Some(limit) if limit < total => {

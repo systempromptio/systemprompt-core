@@ -23,7 +23,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, UserId};
-use systemprompt_models::services::{
+use systemprompt_models::profile::{
     ApiSurface, GatewayConfig, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
     synthesize_route_id,
 };

@@ -16,6 +16,7 @@
 
 #[cfg(test)]
 mod fixture;
+#[cfg(test)]
 mod instance_id;
 
 #[cfg(test)]
@@ -43,6 +44,8 @@ mod manifest;
 mod path_validation;
 
 #[cfg(test)]
+mod profile_gateway;
+
 #[cfg(test)]
 mod error_display;
 

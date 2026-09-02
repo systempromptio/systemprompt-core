@@ -16,7 +16,8 @@ mod strict;
 
 pub use blocks::content_to_anthropic_block;
 pub use headers::{
-    ANTHROPIC_VERSION, auth_headers, is_forwardable_request_header, is_identity_request_header,
+    ANTHROPIC_VERSION, REDACTED, auth_headers, is_credential_request_header,
+    is_forwardable_request_header, is_identity_request_header, recordable_header_value,
     strip_user_id,
 };
 pub use parse::parse_response;
@@ -27,8 +28,8 @@ use serde_json::{Map, Value, json};
 
 use blocks::{BlockAudience, canonical_message_to_anthropic};
 
+use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
-use crate::services::WireProtocol;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, Role, SearchConfig,

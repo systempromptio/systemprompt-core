@@ -19,9 +19,10 @@ use std::path::PathBuf;
 use systemprompt_identifiers::AgentId;
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::profile::ProviderRegistry;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
-    PluginComponentRef, ProviderRegistry,
+    PluginComponentRef,
 };
 use thiserror::Error;
 

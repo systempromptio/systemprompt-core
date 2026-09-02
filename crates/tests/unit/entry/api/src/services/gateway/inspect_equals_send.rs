@@ -22,7 +22,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
 use systemprompt_identifiers::{ProviderId, RouteId};
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_models::profile::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 

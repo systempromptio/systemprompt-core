@@ -10,6 +10,9 @@
 //! carry `additionalProperties: false`, and numeric, string-length and array
 //! bounds are rejected outright. Callers validate those dropped bounds after
 //! the response, as the official SDKs do.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Map, Value, json};
 

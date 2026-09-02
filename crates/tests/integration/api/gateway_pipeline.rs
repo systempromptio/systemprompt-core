@@ -24,7 +24,7 @@ use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, RouteId, SecretName,
     TraceId,
 };
-use systemprompt_models::services::{
+use systemprompt_models::profile::{
     ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
     WireProtocol,
 };

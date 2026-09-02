@@ -4,10 +4,9 @@
 //! profile (via [`systemprompt_config::ProfileBootstrap`]) to a YAML path,
 //! parses the root file, recursively resolves the `includes:` graph
 //! (rejecting cycles and duplicate definitions), inlines `!include`
-//! references inside agent system prompts, skill instructions and gateway
-//! prompt overrides, projects the gateway spec to its resolved runtime form,
-//! and finally validates the merged configuration — provider registry and
-//! gateway references included — before returning it to the caller.
+//! references inside agent system prompts and skill instructions, and
+//! finally validates the merged configuration before returning it to the
+//! caller.
 //!
 //! [`ConfigLoader::load`] — the active-profile entry point — memoises its
 //! result for the lifetime of the process. The explicit
@@ -18,7 +17,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod discovery;
-pub mod gateway;
 mod includes;
 mod merge;
 mod types;
@@ -168,8 +166,6 @@ impl ConfigLoader {
 
         resolve_system_prompt_includes(&self.base_path, &mut merged)?;
         resolve_skill_instruction_includes(&self.base_path, &mut merged)?;
-        gateway::resolve_file_gateway_includes(&self.base_path, &mut merged)?;
-        gateway::project_gateway(&mut merged);
 
         discover_skills(&self.base_path, &mut merged)?;
         discover_plugins(&self.base_path, &mut merged)?;

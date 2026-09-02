@@ -21,11 +21,10 @@ pub use checks::{
 };
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::ProfilePath;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
@@ -91,21 +90,7 @@ pub(in crate::commands::cloud) async fn run(
 
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
-    // Why: the catalog lives in the services tree the profile points at, which
-    // for a cloud profile exists on the host rather than here — so an
-    // unreadable tree is a warning that names the path, not a failed check.
-    let services_root = PathBuf::from(profile.paths.config());
-    match ConfigLoader::load_from_path(&services_root) {
-        Ok(services) => checks.push(check_provider_secrets(&services.providers, &secrets)),
-        Err(err) => checks.push(CheckResult::warn(
-            "providers",
-            format!(
-                "services config at {} could not be loaded, so provider credentials were not \
-                 checked: {err}",
-                services_root.display()
-            ),
-        )),
-    }
+    checks.push(check_provider_secrets(profile, &secrets));
     checks.push(check_extension_configs(profile));
     checks.push(check_proxy_topology(profile));
     checks.push(checks::check_governance_hook_url(profile));

@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
+use super::{GatewayProfileError, ProviderRegistryError};
 
 pub type ProfileResult<T> = Result<T, ProfileError>;
 
@@ -31,18 +32,11 @@ pub enum ProfileError {
     #[error("Invalid profile path: {path}")]
     InvalidProfilePath { path: PathBuf },
 
-    #[error(
-        "Profile {path} still carries a top-level `{key}:` section. The provider catalog and \
-         gateway routes are implementation configuration and now live in the services tree: \
-         move the `{key}:` block into `{destination}` (relative to `paths.services`), list that \
-         file in the root `includes:` of services/config/config.yaml, and delete it from the \
-         profile."
-    )]
-    MovedToServices {
-        path: PathBuf,
-        key: String,
-        destination: String,
-    },
+    #[error(transparent)]
+    Gateway(#[from] GatewayProfileError),
+
+    #[error(transparent)]
+    ProviderRegistry(#[from] ProviderRegistryError),
 
     #[error("Profile '{name}' validation failed:\n  - {}", errors.join("\n  - "))]
     Validation { name: String, errors: Vec<String> },

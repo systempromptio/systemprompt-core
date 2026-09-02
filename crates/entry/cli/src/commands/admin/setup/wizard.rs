@@ -22,7 +22,7 @@ use super::wizard_prompts::{
     collect_secrets, detect_project_root, get_environment_name, print_summary, resolve_admin_email,
     setup_postgres, should_run_migrations,
 };
-use super::{SetupArgs, ai_config, common, profile, secrets, services_files};
+use super::{SetupArgs, ai_config, common, profile, secrets};
 use crate::CliConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
@@ -174,6 +174,8 @@ fn write_configuration(
         secrets_path: "secrets.json",
         project_root,
         bin_path: None,
+        secrets: &secrets_data,
+        default_provider: primary_provider.as_ref(),
         port_offset: args.port_offset,
         admin_email: &admin_email,
     })?;
@@ -181,13 +183,6 @@ fn write_configuration(
     if should_write(&profile_path, args.force, config) {
         profile::save(&profile_data, &profile_path)?;
     }
-
-    services_files::seed(
-        &project_root.join("services"),
-        &secrets_data,
-        primary_provider.as_ref(),
-        args.force,
-    )?;
 
     if let Some(primary) = primary_provider.as_ref() {
         ai_config::reconcile(project_root, primary, &secrets_data, config)?;

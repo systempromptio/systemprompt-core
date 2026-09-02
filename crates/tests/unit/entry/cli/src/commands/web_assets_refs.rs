@@ -69,7 +69,8 @@ fn profile_with_services(services: &Path) -> Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
-        providers: systemprompt_models::services::ProviderRegistry::default(),
+        providers: systemprompt_models::profile::ProviderRegistry::default(),
+        gateway: None,
         governance: None,
         services: Default::default(),
         system_admin: SystemAdminConfig {

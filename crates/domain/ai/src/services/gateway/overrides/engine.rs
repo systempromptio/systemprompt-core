@@ -12,7 +12,7 @@
 
 use std::sync::{Arc, OnceLock};
 
-use systemprompt_models::services::{OverrideRuleAction, SystemPromptRule};
+use systemprompt_models::profile::{OverrideRuleAction, SystemPromptRule};
 
 use super::{
     OverrideAction, OverrideContext, OverrideResolution, OverrideSource, SystemPromptOverride,

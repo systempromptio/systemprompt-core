@@ -1,11 +1,11 @@
 //! Provider-registry mutations behind the `admin config catalog` surface.
 //!
-//! [`ProviderCatalogService`] edits a typed [`ProviderRegistry`] — the
-//! `providers:` list of `services/ai/providers.yaml`: declaring or removing
-//! upstream providers and the models each provider serves. Upserts replace an
-//! entry in place; a provider upsert preserves the existing model catalog so
-//! connectivity can be re-declared without re-listing models. Callers
-//! revalidate and persist the services file after a successful mutation.
+//! [`ProviderCatalogService`] edits the typed
+//! [`ProviderRegistry`] on a profile: declaring or removing upstream providers
+//! and the models each provider serves. Upserts replace an entry in place;
+//! a provider upsert preserves the existing model catalog so connectivity can
+//! be re-declared without re-listing models. Callers revalidate and persist
+//! the profile after a successful mutation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,10 +13,10 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
-use systemprompt_models::services::{
+use systemprompt_models::profile::{
     ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
 };
+use systemprompt_models::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
 
 use crate::error::{ConfigError, ConfigResult};
 

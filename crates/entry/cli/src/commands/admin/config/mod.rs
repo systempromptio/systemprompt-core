@@ -24,7 +24,6 @@ pub mod secret;
 pub mod security;
 pub mod server;
 pub mod services;
-pub mod services_io;
 pub mod show;
 pub mod types;
 pub mod validate;
@@ -75,7 +74,7 @@ pub enum ConfigCommands {
 
     #[command(
         subcommand,
-        about = "Provider registry (services/ai/providers.yaml: providers, models)"
+        about = "Provider registry (profile.providers: providers, models)"
     )]
     Catalog(catalog::CatalogCommands),
 

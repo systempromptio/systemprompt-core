@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use systemprompt_loader::ServicesBootstrap;
+use systemprompt_config::ProfileBootstrap;
 
 use super::types::{
     ConfigSection, ProviderInfo, ProviderListOutput, ProviderSetOutput, read_yaml_file,
@@ -97,7 +97,7 @@ fn get_ai_config_path() -> Result<std::path::PathBuf> {
 }
 
 fn list_providers() -> Result<ProviderListOutput> {
-    let registry = ServicesBootstrap::providers()?;
+    let registry = &ProfileBootstrap::get()?.providers;
     let file_path = get_ai_config_path()?;
     let content = read_yaml_file(&file_path)?;
 
@@ -151,11 +151,11 @@ fn list_providers() -> Result<ProviderListOutput> {
 }
 
 fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
-    let registry = ServicesBootstrap::providers()?;
+    let registry = &ProfileBootstrap::get()?.providers;
     if registry.find_provider(provider).is_none() {
         let available: Vec<&str> = registry.providers.iter().map(|p| p.name.as_str()).collect();
         anyhow::bail!(
-            "Unknown provider: '{}' is not in the services provider registry. Available: {:?}",
+            "Unknown provider: '{}' is not in profile.providers. Available: {:?}",
             provider,
             available
         );

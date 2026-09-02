@@ -21,7 +21,7 @@ use axum::http::{Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
+    TestBootstrap, fixture_app_context, fixture_db_pool, init_gateway_bootstrap,
     install_test_signing_key, seed_admin_credential,
 };
 use tower::ServiceExt;
@@ -69,7 +69,7 @@ gateway:
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
 fn boot() -> &'static TestBootstrap {
-    BOOT.get_or_init(|| init_services_bootstrap(GATEWAY_YAML))
+    BOOT.get_or_init(|| init_gateway_bootstrap(GATEWAY_YAML))
 }
 
 async fn app() -> anyhow::Result<Router> {

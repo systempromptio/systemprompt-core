@@ -8,13 +8,13 @@ use std::collections::HashMap;
 
 use systemprompt_identifiers::{ProviderId, RouteId};
 
-use crate::services::gateway::config::{
+use crate::profile::gateway::config::{
     BridgeReleasesSpec, DEFAULT_ROUTE_PATTERN, GatewayConfigSpec, default_auth_scheme,
     default_inference_path_prefix,
 };
-use crate::services::gateway::override_rule::SystemPromptRule;
-use crate::services::gateway::route::GatewayRoute;
-use crate::services::providers::ProviderRegistry;
+use crate::profile::gateway::override_rule::SystemPromptRule;
+use crate::profile::gateway::route::GatewayRoute;
+use crate::profile::providers::ProviderRegistry;
 use crate::wire::canonical::CanonicalRequest;
 
 /// Runtime gateway configuration: the post-resolution shape every non-loader

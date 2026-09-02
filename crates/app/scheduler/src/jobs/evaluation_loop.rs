@@ -117,6 +117,7 @@ fn build_ai_service(
     app_context: &Arc<AppContext>,
 ) -> Result<Arc<AiService>, SchedulerError> {
     let services_config = ConfigLoader::load().map_err(internal)?;
+    let profile = systemprompt_config::ProfileBootstrap::get().map_err(internal)?;
 
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(db_pool),
@@ -129,7 +130,7 @@ fn build_ai_service(
     Ok(Arc::new(
         AiService::new(
             db_pool,
-            &services_config.providers,
+            &profile.providers,
             &services_config.ai,
             AiServiceProviders {
                 tools: tool_provider,

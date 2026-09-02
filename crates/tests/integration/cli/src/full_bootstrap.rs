@@ -368,27 +368,6 @@ ai:
     anthropic:
       enabled: true
       default_model: claude-sonnet-4-5
-providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: https://api.anthropic.com/v1/messages
-    api_key_secret: anthropic
-    models:
-      - id: claude-sonnet-4-5
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-  - name: openai
-    wire: openai-chat
-    surface: openai
-    endpoint: https://api.openai.com/v1/chat/completions
-    api_key_secret: openai
-    models:
-      - id: gpt-5
-        pricing:
-          input_per_million: 1.25
-          output_per_million: 10.0
 "#;
 
 const AI_CONFIG: &str = r#"ai:
@@ -495,6 +474,27 @@ runtime:
   non_interactive: true
 extensions:
   disabled: []
+providers:
+  - name: anthropic
+    wire: anthropic
+    surface: anthropic
+    endpoint: https://api.anthropic.com/v1/messages
+    api_key_secret: anthropic
+    models:
+      - id: claude-sonnet-4-5
+        pricing:
+          input_per_million: 3.0
+          output_per_million: 15.0
+  - name: openai
+    wire: openai-chat
+    surface: openai
+    endpoint: https://api.openai.com/v1/chat/completions
+    api_key_secret: openai
+    models:
+      - id: gpt-5
+        pricing:
+          input_per_million: 1.25
+          output_per_million: 10.0
 governance:
   authz:
     hook:

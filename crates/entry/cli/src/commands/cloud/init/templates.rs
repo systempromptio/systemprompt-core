@@ -84,7 +84,7 @@ oauth:
 }
 
 pub fn ai_config(default_provider: &str) -> String {
-    let seed = systemprompt_models::services::ProviderRegistry::default_seed().ok();
+    let seed = systemprompt_models::profile::ProviderRegistry::default_seed().ok();
     let default_model = |provider: &str| -> String {
         seed.as_ref()
             .and_then(|registry| registry.find_provider(provider))

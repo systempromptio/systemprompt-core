@@ -72,18 +72,6 @@ pub enum ConfigLoadError {
     #[error("duplicate Teams app definition: {0}")]
     DuplicateTeamsApp(String),
 
-    #[error("duplicate provider definition across services includes: {0}")]
-    DuplicateProvider(String),
-
-    #[error(
-        "Services config not initialized. Call ServicesBootstrap::init() after \
-         ProfileBootstrap::init()"
-    )]
-    NotInitialized,
-
-    #[error("Services config already initialized")]
-    AlreadyInitialized,
-
     #[error("services config validation failed: {0}")]
     Validation(String),
 

@@ -15,7 +15,7 @@ use systemprompt_ai::{
     HeuristicScanner, NullScanner, SafetyConfig, SafetyScanner, SafetyScannerRegistration,
     ScannerFactory,
 };
-use systemprompt_models::services::WireProtocol;
+use systemprompt_models::profile::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
     entries: HashMap<String, Arc<dyn OutboundAdapter>>,

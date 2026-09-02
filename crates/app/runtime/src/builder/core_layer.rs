@@ -43,11 +43,6 @@ pub(super) async fn init_core(
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config()
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
-    // Why: the services tree carries the provider catalog and gateway routes,
-    // so a tree that does not load is a deployment that cannot serve inference
-    // — it fails boot here, not on the first request.
-    systemprompt_loader::ServicesBootstrap::try_init()
-        .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
     systemprompt_logging::set_instance_id(instance_id.clone());
@@ -74,7 +69,7 @@ pub(super) async fn init_core(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
-        chain_sources()?,
+        chain_sources(),
     )
     .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
 
@@ -132,12 +127,14 @@ async fn init_file_storage(
     ))
 }
 
-fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> {
-    let services = systemprompt_loader::ServicesBootstrap::get()
-        .map_err(|err| RuntimeError::Internal(format!("services config: {err}")))?;
-    Ok(systemprompt_security::authz::ChainSources::from_services(
-        services,
-    ))
+fn chain_sources() -> systemprompt_security::authz::ChainSources {
+    match systemprompt_loader::ConfigLoader::load() {
+        Ok(services) => systemprompt_security::authz::ChainSources::from_services(&services),
+        Err(error) => {
+            tracing::warn!(%error, "services config unavailable; authz resolves without parent cascade");
+            systemprompt_security::authz::ChainSources::default()
+        },
+    }
 }
 
 fn pool_config_from_profile(

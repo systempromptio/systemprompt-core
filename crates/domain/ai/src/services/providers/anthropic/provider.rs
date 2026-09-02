@@ -5,7 +5,7 @@
 
 use reqwest::Client;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
-use systemprompt_models::services::ProviderModel;
+use systemprompt_models::profile::ProviderModel;
 
 use crate::services::providers::http_client::build_client;
 

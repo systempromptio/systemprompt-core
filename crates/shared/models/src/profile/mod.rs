@@ -2,11 +2,8 @@
 //! `.systemprompt/profiles/<name>/profile.yaml` document.
 //!
 //! Covers server, database, paths, secrets, security, rate limits,
-//! governance, and runtime sections, plus validation rules and
-//! environment-variable interpolation. The provider catalog and gateway
-//! routes are not profile sections: they live in the services tree
-//! (`crate::services::{ProviderRegistry, GatewayState}`), and a profile that
-//! still carries them fails to parse with [`ProfileError::MovedToServices`].
+//! gateway, governance, and runtime sections, plus validation rules and
+//! environment-variable interpolation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +12,11 @@ mod cloud;
 mod database;
 mod error;
 mod from_env;
+mod gateway;
 mod governance;
 mod info;
 mod paths;
+mod providers;
 mod rate_limits;
 mod runtime;
 mod secrets;
@@ -32,11 +31,20 @@ mod validation;
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
+pub use gateway::{
+    BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult,
+    GatewayRoute, GatewayState, OverrideRuleAction, ResponseFormatKind, RouteMatch,
+    RouteRequirements, SystemPromptRule, slugify_pattern, synthesize_route_id,
+};
 pub use governance::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
+pub use providers::{
+    ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, ProviderRegistryError,
+    ProviderRegistryResult, WireProtocol,
+};
 pub use rate_limits::{
     RateLimitsConfig, default_agent_registry, default_agents, default_artifacts, default_burst,
     default_content, default_contexts, default_mcp, default_mcp_registry, default_oauth_auth,
@@ -131,6 +139,12 @@ pub struct Profile {
     pub extensions: ExtensionsConfig,
 
     #[serde(default)]
+    pub providers: ProviderRegistry,
+
+    #[serde(default)]
+    pub gateway: Option<GatewayState>,
+
+    #[serde(default)]
     pub governance: Option<GovernanceConfig>,
 
     #[serde(default)]
@@ -138,31 +152,6 @@ pub struct Profile {
 
     #[serde(default)]
     pub storage: StorageConfig,
-}
-
-const MOVED_SECTIONS: &[(&str, &str)] = &[
-    ("providers", "services/ai/providers.yaml"),
-    ("gateway", "services/ai/gateway.yaml"),
-];
-
-// Why: `Profile` is `deny_unknown_fields`, so a profile written for a release
-// that still carried these sections would otherwise fail with a bare "unknown
-// field" — the one message that does not say where the section went.
-fn reject_moved_sections(content: &str, profile_path: &Path) -> ProfileResult<()> {
-    let Ok(serde_yaml::Value::Mapping(map)) = serde_yaml::from_str::<serde_yaml::Value>(content)
-    else {
-        return Ok(());
-    };
-    for (key, destination) in MOVED_SECTIONS {
-        if map.contains_key(serde_yaml::Value::String((*key).to_owned())) {
-            return Err(ProfileError::MovedToServices {
-                path: profile_path.to_path_buf(),
-                key: (*key).to_owned(),
-                destination: (*destination).to_owned(),
-            });
-        }
-    }
-    Ok(())
 }
 
 impl Profile {
@@ -182,8 +171,6 @@ impl Profile {
 
     pub fn from_yaml(content: &str, profile_path: &Path) -> ProfileResult<Self> {
         let content = interpolate(content, &|name| read_env_optional(name));
-
-        reject_moved_sections(&content, profile_path)?;
 
         let mut profile: Self =
             serde_yaml::from_str(&content).map_err(|source| ProfileError::ParseYaml {

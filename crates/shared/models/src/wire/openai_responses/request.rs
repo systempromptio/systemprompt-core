@@ -10,8 +10,8 @@
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
+use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
-use crate::services::WireProtocol;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,

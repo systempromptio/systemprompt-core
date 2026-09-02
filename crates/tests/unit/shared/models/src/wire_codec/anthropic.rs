@@ -443,3 +443,43 @@ fn unrelated_headers_are_neither_forwarded_nor_recorded() {
         assert!(!anthropic::is_identity_request_header(name), "{name}");
     }
 }
+
+#[test]
+fn credential_headers_are_recorded_by_name_without_their_value() {
+    // The gateway logs the identity vec at INFO and writes it to the audit row.
+    // A live bearer token there leaks into anywhere those logs are pasted.
+    let secret = "eyJhbGciOiJSUzI1NiJ9.payload.signature";
+    for name in [
+        "authorization",
+        "Authorization",
+        "proxy-authorization",
+        "x-api-key",
+        "cookie",
+        "set-cookie",
+    ] {
+        assert!(
+            anthropic::is_credential_request_header(name),
+            "{name} must be classified as credential-bearing"
+        );
+        let recorded = anthropic::recordable_header_value(name, secret);
+        assert_eq!(recorded, anthropic::REDACTED, "{name} must be redacted");
+        assert!(
+            !recorded.contains(secret),
+            "{name} must not carry the credential"
+        );
+    }
+}
+
+#[test]
+fn non_credential_identity_headers_keep_their_value() {
+    // Redaction must not swallow the identity signal the audit row exists for.
+    for name in [
+        "user-agent",
+        "x-claude-code-session-id",
+        "x-stainless-os",
+        "x-forwarded-for",
+    ] {
+        assert!(!anthropic::is_credential_request_header(name), "{name}");
+        assert_eq!(anthropic::recordable_header_value(name, "value"), "value");
+    }
+}

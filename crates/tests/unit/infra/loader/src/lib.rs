@@ -9,8 +9,6 @@ mod config_loader_discovery;
 #[cfg(test)]
 mod config_loader_errors;
 #[cfg(test)]
-mod config_loader_gateway;
-#[cfg(test)]
 mod config_loader_merge;
 #[cfg(test)]
 mod config_writer;
@@ -30,7 +28,5 @@ mod extension_registry;
 mod module_loader;
 #[cfg(test)]
 mod profile_loader;
-#[cfg(test)]
-mod services_catalog;
 #[cfg(test)]
 mod services_loader;

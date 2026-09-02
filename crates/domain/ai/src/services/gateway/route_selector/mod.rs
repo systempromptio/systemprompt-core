@@ -1,7 +1,7 @@
 //! Programmatic refinement of the gateway's declaratively-matched route.
 //!
 //! The profile's `gateway.routes` select a backend by model glob and optional
-//! [`RouteMatch`](systemprompt_models::services::RouteMatch) predicates. When a
+//! [`RouteMatch`](systemprompt_models::profile::RouteMatch) predicates. When a
 //! request needs classification those predicates cannot express — accurate
 //! token counting, a learned task classifier, heuristic shape detection — a
 //! [`RouteSelector`] contributed through the
@@ -22,7 +22,7 @@
 use std::sync::{Arc, OnceLock};
 
 use async_trait::async_trait;
-use systemprompt_models::services::GatewayRoute;
+use systemprompt_models::profile::GatewayRoute;
 use systemprompt_models::wire::canonical::CanonicalRequest;
 
 #[derive(Debug, thiserror::Error)]

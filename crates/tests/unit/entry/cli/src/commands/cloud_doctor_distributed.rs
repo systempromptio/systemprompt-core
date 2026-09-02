@@ -11,7 +11,6 @@ use systemprompt_cli::cloud::doctor::distributed::{
     check_identity_fingerprints, check_instance_id, check_trusted_proxies,
 };
 use systemprompt_models::Profile;
-use systemprompt_models::profile::ProfileType;
 
 fn fixture_profile() -> Profile {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -61,19 +60,8 @@ fn identity_fingerprints_fail_when_a_secret_is_missing() {
 }
 
 #[test]
-fn instance_id_fails_on_a_cloud_profile_without_an_explicit_id() {
-    let mut profile = fixture_profile();
-    profile.target = ProfileType::Cloud;
-    profile.server.instance_id = None;
-    let result = check_instance_id(&profile);
-    assert_eq!(result.status, CheckStatus::Fail);
-    assert!(result.detail.contains("MCP subprocess"));
-}
-
-#[test]
 fn instance_id_warns_when_unset_and_passes_when_explicit() {
     let mut profile = fixture_profile();
-    profile.target = ProfileType::Local;
     profile.server.instance_id = None;
     assert_eq!(check_instance_id(&profile).status, CheckStatus::Warn);
     profile.server.instance_id = Some("node-a".to_owned());

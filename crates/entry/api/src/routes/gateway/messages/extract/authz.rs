@@ -68,12 +68,12 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
 )]
 pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
-    route: &systemprompt_models::services::GatewayRoute,
+    route: &systemprompt_models::profile::GatewayRoute,
     model: &str,
     hook: &SharedAuthzHook,
 ) -> Result<(), (StatusCode, String)> {
     let route_id = if route.id.as_str().trim().is_empty() {
-        systemprompt_models::services::synthesize_route_id(
+        systemprompt_models::profile::synthesize_route_id(
             &route.model_pattern,
             route.provider.as_str(),
         )

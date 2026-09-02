@@ -15,8 +15,8 @@
 //! - [`ConfigService`], [`ConfigValidator`] — utilities used by the
 //!   `systemprompt cloud config` deployment pipeline.
 //! - [`ProviderCatalogService`], [`SecurityConfigService`] — typed mutations of
-//!   the services provider registry and the profile's security section, backing
-//!   the `admin config catalog` / `admin config security` CLI surfaces.
+//!   the profile's provider registry and security section, backing the `admin
+//!   config catalog` / `admin config security` CLI surfaces.
 //! - [`SkillConfigValidator`] — `DomainConfig` implementation that walks
 //!   `skills/` and reports missing or malformed manifests.
 //!
@@ -42,6 +42,8 @@ pub mod bootstrap;
 pub(crate) mod config_loader;
 pub mod error;
 pub mod path_validation;
+pub mod profile_gateway;
+pub(crate) mod profile_loader;
 pub(crate) mod services;
 pub(crate) mod skill_validator;
 
@@ -55,6 +57,7 @@ pub use config_loader::{
     try_init_config, validate_database_config,
 };
 pub use error::{ConfigError, ConfigResult};
+pub use profile_loader::load_profile_with_catalog;
 pub use services::{
     ConfigService, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
     EnvironmentConfig, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,

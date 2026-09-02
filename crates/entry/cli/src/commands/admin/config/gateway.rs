@@ -1,13 +1,11 @@
-//! `admin config gateway` — edit the services gateway section
-//! (`services/ai/gateway.yaml`): enable state, routing patterns, and the
-//! default provider.
+//! `admin config gateway` — edit the profile's gateway section: enable state,
+//! routing patterns, and the default provider.
 //!
 //! Every mutation resolves the resulting spec and validates it against the
-//! merged services provider registry, so a route or default-provider that names
-//! a provider absent from the registry fails at the edit rather than at the
-//! next boot. The gateway owns no catalog: providers and models live in
-//! `services/ai/providers.yaml` (see `admin config catalog`). The profile is
-//! never touched.
+//! profile's provider registry (`profile.providers`), so a route or
+//! default-provider that names a provider absent from the registry fails at the
+//! edit rather than at the next boot. The gateway owns no catalog: providers
+//! and models live in `profile.providers` (see `admin config catalog`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,14 +14,12 @@ use std::collections::HashMap;
 
 use anyhow::{Result, anyhow, bail};
 use clap::{Args, Subcommand};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ProviderId, RouteId};
-use systemprompt_models::services::{
-    GatewayConfigSpec, GatewayRoute, GatewayState, ProviderRegistry,
-};
+use systemprompt_models::Profile;
+use systemprompt_models::profile::{GatewayConfigSpec, GatewayRoute, GatewayState};
 
-use super::services_io::{
-    GatewayFile, booted_services, gateway_relative, load_gateway_file, save_file,
-};
+use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
@@ -49,12 +45,9 @@ pub enum GatewayCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum DefaultProviderCommands {
-    #[command(about = "Set the default provider (must exist in the services provider registry)")]
+    #[command(about = "Set the default provider (must exist in profile.providers)")]
     Set {
-        #[arg(
-            long,
-            help = "Provider name declared in the services provider registry"
-        )]
+        #[arg(long, help = "Provider name declared in profile.providers")]
         provider: String,
     },
 
@@ -82,10 +75,7 @@ pub struct RouteAddArgs {
     #[arg(long, help = "Model pattern (e.g. claude-*)")]
     pub model_pattern: String,
 
-    #[arg(
-        long,
-        help = "Provider name (must exist in the services provider registry)"
-    )]
+    #[arg(long, help = "Provider name (must exist in profile.providers)")]
     pub provider: String,
 
     #[arg(long, help = "Upstream model name the provider expects (optional)")]
@@ -95,16 +85,16 @@ pub struct RouteAddArgs {
 pub async fn execute(command: &GatewayCommands, config: &CliConfig) -> Result<()> {
     match command {
         GatewayCommands::Route(RouteCommands::List) => list_routes(config),
-        GatewayCommands::Enable => apply(config, |file| set_enabled(file, true)).await,
-        GatewayCommands::Disable => apply(config, |file| set_enabled(file, false)).await,
+        GatewayCommands::Enable => apply(config, |profile| set_enabled(profile, true)).await,
+        GatewayCommands::Disable => apply(config, |profile| set_enabled(profile, false)).await,
         GatewayCommands::Route(RouteCommands::Add(args)) => {
-            apply(config, |file| add_route(file, args)).await
+            apply(config, |profile| add_route(profile, args)).await
         },
         GatewayCommands::Route(RouteCommands::Remove { model_pattern }) => {
-            apply(config, |file| remove_route(file, model_pattern)).await
+            apply(config, |profile| remove_route(profile, model_pattern)).await
         },
         GatewayCommands::DefaultProvider(DefaultProviderCommands::Set { provider }) => {
-            apply(config, |file| set_default_provider(file, provider)).await
+            apply(config, |profile| set_default_provider(profile, provider)).await
         },
         GatewayCommands::DefaultProvider(DefaultProviderCommands::Clear) => {
             apply(config, clear_default_provider).await
@@ -114,17 +104,15 @@ pub async fn execute(command: &GatewayCommands, config: &CliConfig) -> Result<()
 
 async fn apply(
     config: &CliConfig,
-    mutate: impl FnOnce(&mut GatewayFile) -> Result<String>,
+    mutate: impl FnOnce(&mut Profile) -> Result<String>,
 ) -> Result<()> {
-    let mut file = load_gateway_file()?;
-    let message = mutate(&mut file.content)?;
+    let profile_path = ProfileBootstrap::get_path()?;
+    let mut profile = load_profile(profile_path)?;
+    let message = mutate(&mut profile)?;
 
-    let registry = &booted_services()?.providers;
-    validate_gateway(&file.content, registry)?;
-    save_file(&file, gateway_relative())?;
-    let source = file.path.display().to_string();
-    let outcome =
-        super::reconcile::reconcile_authz(file.content.gateway.as_ref(), registry, &source).await;
+    validate_gateway(&profile)?;
+    save_profile(&profile, profile_path)?;
+    let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;
 
     render_result(
         &CommandOutput::card_value(
@@ -139,19 +127,20 @@ async fn apply(
     Ok(())
 }
 
-pub fn spec_mut(file: &mut GatewayFile) -> Result<&mut GatewayConfigSpec> {
-    file.gateway
+pub fn spec_mut(profile: &mut Profile) -> Result<&mut GatewayConfigSpec> {
+    profile
+        .gateway
         .get_or_insert_with(|| GatewayState::Spec(GatewayConfigSpec::default()))
         .as_spec_mut()
         .ok_or_else(|| anyhow!("gateway is in a resolved state and cannot be edited"))
 }
 
-pub fn set_enabled(file: &mut GatewayFile, enabled: bool) -> Result<String> {
-    spec_mut(file)?.enabled = enabled;
+pub fn set_enabled(profile: &mut Profile, enabled: bool) -> Result<String> {
+    spec_mut(profile)?.enabled = enabled;
     Ok(format!("Gateway enabled = {}", enabled))
 }
 
-pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> {
+pub fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
     let mut route = GatewayRoute {
         id: RouteId::new(""),
         model_pattern: args.model_pattern.clone(),
@@ -163,7 +152,7 @@ pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> 
         requires: None,
     };
     route.ensure_id();
-    let spec = spec_mut(file)?;
+    let spec = spec_mut(profile)?;
     spec.routes
         .retain(|r| r.model_pattern != args.model_pattern);
     spec.routes.push(route);
@@ -173,18 +162,18 @@ pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> 
     ))
 }
 
-pub fn set_default_provider(file: &mut GatewayFile, provider: &str) -> Result<String> {
-    spec_mut(file)?.default_provider = Some(ProviderId::new(provider));
+pub fn set_default_provider(profile: &mut Profile, provider: &str) -> Result<String> {
+    spec_mut(profile)?.default_provider = Some(ProviderId::new(provider));
     Ok(format!("Gateway default provider set to {}", provider))
 }
 
-pub fn clear_default_provider(file: &mut GatewayFile) -> Result<String> {
-    spec_mut(file)?.default_provider = None;
+pub fn clear_default_provider(profile: &mut Profile) -> Result<String> {
+    spec_mut(profile)?.default_provider = None;
     Ok("Gateway default provider cleared".to_owned())
 }
 
-pub fn remove_route(file: &mut GatewayFile, model_pattern: &str) -> Result<String> {
-    let spec = spec_mut(file)?;
+pub fn remove_route(profile: &mut Profile, model_pattern: &str) -> Result<String> {
+    let spec = spec_mut(profile)?;
     let before = spec.routes.len();
     spec.routes.retain(|r| r.model_pattern != model_pattern);
     if spec.routes.len() == before {
@@ -193,20 +182,22 @@ pub fn remove_route(file: &mut GatewayFile, model_pattern: &str) -> Result<Strin
     Ok(format!("Route {} removed", model_pattern))
 }
 
-pub fn validate_gateway(file: &GatewayFile, registry: &ProviderRegistry) -> Result<()> {
-    let Some(state) = &file.gateway else {
+pub fn validate_gateway(profile: &Profile) -> Result<()> {
+    let Some(state) = &profile.gateway else {
         return Ok(());
     };
     let resolved = state.clone().into_spec().resolve();
     resolved
-        .validate(registry)
+        .validate(&profile.providers)
         .map_err(|e| anyhow!("gateway validation failed: {e}"))
 }
 
 fn list_routes(config: &CliConfig) -> Result<()> {
-    let items: Vec<ListItem> = booted_services()?
-        .gateway_config()
-        .map(|gateway| gateway.routes.clone())
+    let profile_path = ProfileBootstrap::get_path()?;
+    let profile = load_profile(profile_path)?;
+    let items: Vec<ListItem> = profile
+        .gateway
+        .map(|state| state.into_spec().routes)
         .unwrap_or_default()
         .iter()
         .map(|r| {

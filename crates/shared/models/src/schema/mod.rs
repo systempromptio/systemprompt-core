@@ -4,7 +4,7 @@
 //! [`ProviderCapabilities`] declares which JSON-Schema constructs each provider
 //! accepts; [`SchemaSanitizer`] strips everything outside that set. A wire
 //! protocol resolves its matrix via
-//! [`crate::services::WireProtocol::schema_capabilities`].
+//! [`crate::profile::WireProtocol::schema_capabilities`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

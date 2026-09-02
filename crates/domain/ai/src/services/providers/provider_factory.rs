@@ -13,7 +13,8 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_models::services::{ProviderModel, ResilienceSettings, WireProtocol};
+use systemprompt_models::profile::{ProviderModel, WireProtocol};
+use systemprompt_models::services::ResilienceSettings;
 
 use crate::error::Result;
 

@@ -1,7 +1,6 @@
 use systemprompt_ai::services::providers::{ImageProviderFactory, ImageProviderParams};
-use systemprompt_models::services::{
-    AiProviderConfig, ProviderEntry, ProviderRegistry, WireProtocol,
-};
+use systemprompt_models::profile::{ProviderEntry, ProviderRegistry, WireProtocol};
+use systemprompt_models::services::AiProviderConfig;
 
 fn entry(name: &str) -> ProviderEntry {
     ProviderRegistry::default_seed()

@@ -6,7 +6,7 @@
 //! support. The matrices live here in `shared/models` so both the gateway wire
 //! codecs and the agent-flow provider clients resolve the same authority; the
 //! wire protocol picks one via
-//! [`crate::services::WireProtocol::schema_capabilities`].
+//! [`crate::profile::WireProtocol::schema_capabilities`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

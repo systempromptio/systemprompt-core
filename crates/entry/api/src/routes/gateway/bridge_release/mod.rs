@@ -17,9 +17,9 @@ use axum::extract::{Path, Query};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::JwtToken;
-use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::BridgeReleasesSpec;
+use systemprompt_models::profile::BridgeReleasesSpec;
 
 mod github;
 
@@ -168,14 +168,16 @@ async fn authenticate(
 }
 
 fn releases_spec() -> Result<BridgeReleasesSpec, (StatusCode, String)> {
-    let services = ServicesBootstrap::get().map_err(|e| {
+    let profile = ProfileBootstrap::get().map_err(|e| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
-            format!("Services config not ready: {e}"),
+            format!("Profile not ready: {e}"),
         )
     })?;
-    services
-        .gateway_config()
+    profile
+        .gateway
+        .as_ref()
+        .and_then(systemprompt_models::profile::GatewayState::resolved)
         .and_then(|g| g.bridge_releases.clone())
         .ok_or_else(|| {
             (

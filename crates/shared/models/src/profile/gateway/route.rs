@@ -16,10 +16,10 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ProviderId, RouteId};
 
+use super::super::providers::{ProviderEntry, ProviderRegistry};
 use super::error::{GatewayProfileError, GatewayResult};
 use crate::gateway_hash::fnv1a_segments;
 use crate::services::ai::ModelPricing;
-use crate::services::providers::{ProviderEntry, ProviderRegistry};
 use crate::wire::canonical::{CanonicalContent, CanonicalRequest, ReasoningEffort, ResponseFormat};
 
 fn default_route_id() -> RouteId {

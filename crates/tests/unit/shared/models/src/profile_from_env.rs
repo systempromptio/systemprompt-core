@@ -78,6 +78,7 @@ fn builds_cloud_profile_from_complete_env() {
     assert_eq!(profile.system_admin.username, "admin");
     assert!(profile.cloud.is_none());
     assert!(profile.secrets.is_none());
+    assert!(profile.gateway.is_none());
 }
 
 #[test]

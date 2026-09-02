@@ -5,10 +5,9 @@
 //! selects the providers whose AI key was actually supplied and emits a
 //! matching [`GatewayRoute`] per provider, so the generated profile resolves
 //! and passes both [`ProviderRegistry::validate`] and `GatewayConfig::validate`
-//! (every route provider must exist in the registry). The result is written to
-//! `services/ai/providers.yaml` and `services/ai/gateway.yaml`; operators
-//! reshape it — adding custom providers like `minimax` — by editing those
-//! files or through `admin config catalog` / `admin config gateway`.
+//! (every route provider must exist in the registry). Operators reshape the
+//! result — adding custom providers like `minimax` — by editing
+//! `profile.providers` directly.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +15,7 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ProviderId, RouteId};
-use systemprompt_models::services::{GatewayRoute, ProviderRegistry};
+use systemprompt_models::profile::{GatewayRoute, ProviderRegistry};
 
 use super::secrets::SecretsData;
 

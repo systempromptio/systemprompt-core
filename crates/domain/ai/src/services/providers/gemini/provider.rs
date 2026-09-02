@@ -7,7 +7,7 @@ use crate::error::Result;
 use reqwest::Client;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_models::services::ProviderModel;
+use systemprompt_models::profile::ProviderModel;
 use tokio::sync::Mutex;
 
 use crate::services::schema::ToolNameMapper;

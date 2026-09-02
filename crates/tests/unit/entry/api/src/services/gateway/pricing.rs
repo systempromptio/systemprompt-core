@@ -1,9 +1,10 @@
 use systemprompt_api::services::gateway::pricing::{CostTokens, cost_microdollars, resolve};
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
-    ProviderRegistry, WireProtocol,
+use systemprompt_models::profile::{
+    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
+    WireProtocol,
 };
+use systemprompt_models::services::ModelPricing;
 
 fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
     GatewayRoute {

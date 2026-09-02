@@ -9,13 +9,11 @@ pub mod artifacts;
 pub mod bridge_policy;
 pub mod external_agent;
 pub mod frontmatter;
-pub mod gateway;
 pub mod hooks;
 mod includable;
 pub mod marketplace;
 pub mod mcp;
 pub mod plugin;
-pub mod providers;
 pub mod runtime;
 pub mod scheduler;
 pub mod settings;
@@ -40,11 +38,6 @@ pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, Dis
 pub use bridge_policy::BridgePolicyConfig;
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
-pub use gateway::{
-    BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult,
-    GatewayRoute, GatewayState, OverrideRuleAction, ResponseFormatKind, RouteMatch,
-    RouteRequirements, SystemPromptRule, slugify_pattern, synthesize_route_id,
-};
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
@@ -57,10 +50,6 @@ pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
     PluginConfigFile, PluginHooksRef, PluginScript, PluginSummary, PluginVariableDef,
-};
-pub use providers::{
-    ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, ProviderRegistryError,
-    ProviderRegistryResult, WireProtocol,
 };
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
@@ -111,10 +100,6 @@ pub struct ServicesConfig {
     pub teams_apps: HashMap<String, TeamsAppConfig>,
     #[serde(default)]
     pub bridge_policy: Option<BridgePolicyConfig>,
-    #[serde(default)]
-    pub providers: ProviderRegistry,
-    #[serde(default)]
-    pub gateway: Option<GatewayState>,
 }
 
 impl ServicesConfig {
@@ -190,29 +175,7 @@ impl ServicesConfig {
             app.validate(name)?;
         }
 
-        self.validate_providers_and_gateway()
-    }
-
-    // Why: the registry is the authority for connectivity and the gateway only
-    // references into it, so both are checked here in that order — a route
-    // naming an undeclared provider is a services-tree error, not a boot-time
-    // surprise. A gateway still in `Spec` form is validated as it would resolve;
-    // the loader stores only the resolved form.
-    fn validate_providers_and_gateway(&self) -> Result<(), ConfigValidationError> {
-        self.providers
-            .validate()
-            .map_err(|e| ConfigValidationError::invalid_field(format!("providers: {e}")))?;
-        match &self.gateway {
-            Some(GatewayState::Resolved(config)) => config.validate(&self.providers),
-            Some(GatewayState::Spec(spec)) => spec.clone().resolve().validate(&self.providers),
-            None => Ok(()),
-        }
-        .map_err(|e| ConfigValidationError::invalid_field(format!("gateway: {e}")))
-    }
-
-    #[must_use]
-    pub fn gateway_config(&self) -> Option<&GatewayConfig> {
-        self.gateway.as_ref().and_then(GatewayState::resolved)
+        Ok(())
     }
 
     #[must_use]

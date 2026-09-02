@@ -11,9 +11,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_models::services::{
-    AiProviderConfig, ModelDefinition, ProviderEntry, WireProtocol,
-};
+use systemprompt_models::profile::{ProviderEntry, WireProtocol};
+use systemprompt_models::services::{AiProviderConfig, ModelDefinition};
 
 use crate::error::Result;
 

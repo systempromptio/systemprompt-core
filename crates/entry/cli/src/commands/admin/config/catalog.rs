@@ -1,13 +1,11 @@
-//! `admin config catalog` — edit the services provider registry
-//! (`services/ai/providers.yaml`).
+//! `admin config catalog` — edit the profile's provider registry
+//! (`profile.providers`).
 //!
 //! Parses the operator's arguments into typed specs and delegates the registry
-//! mutation to [`ProviderCatalogService`], validates the result against the
-//! merged services config, then writes the one file back. The profile is never
-//! touched: the catalog is implementation configuration shipped with the
-//! deployment. This is how an instance declares a custom provider such as
-//! `minimax` (its wire protocol, endpoint, credential, and model catalog)
-//! without hand-editing YAML.
+//! mutation to [`ProviderCatalogService`], then revalidates the whole profile
+//! before writing it back. This is how an instance declares a custom provider
+//! such as `minimax` (its wire protocol, endpoint, credential, and model
+//! catalog) without hand-editing YAML.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,13 +14,11 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use systemprompt_config::{ModelSpec, ProviderCatalogService, ProviderSpec};
+use systemprompt_config::{ModelSpec, ProfileBootstrap, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::{ApiSurface, ProviderRegistry, WireProtocol};
+use systemprompt_models::profile::{ApiSurface, WireProtocol};
 
-use super::services_io::{
-    booted_services, load_providers_file, merged_registry_after_edit, providers_relative, save_file,
-};
+use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
@@ -104,8 +100,11 @@ pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()
     match command {
         CatalogCommands::Provider(ProviderCommands::List) => list_providers(config),
         CatalogCommands::Provider(ProviderCommands::Add(args)) => {
-            apply(config, |registry| {
-                ProviderCatalogService::upsert_provider(registry, provider_spec(args)?);
+            apply(config, |profile| {
+                ProviderCatalogService::upsert_provider(
+                    &mut profile.providers,
+                    provider_spec(args)?,
+                );
                 Ok(format!(
                     "Provider {} (wire {}, surface {}) added",
                     args.name, args.wire, args.surface
@@ -114,23 +113,26 @@ pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()
             .await
         },
         CatalogCommands::Provider(ProviderCommands::Remove { name }) => {
-            apply(config, |registry| {
-                ProviderCatalogService::remove_provider(registry, &ProviderId::new(name))?;
+            apply(config, |profile| {
+                ProviderCatalogService::remove_provider(
+                    &mut profile.providers,
+                    &ProviderId::new(name),
+                )?;
                 Ok(format!("Provider {} removed", name))
             })
             .await
         },
         CatalogCommands::Model(ModelCommands::Add(args)) => {
-            apply(config, |registry| {
-                ProviderCatalogService::upsert_model(registry, model_spec(args))?;
+            apply(config, |profile| {
+                ProviderCatalogService::upsert_model(&mut profile.providers, model_spec(args))?;
                 Ok(format!("Model {} added to {}", args.id, args.provider))
             })
             .await
         },
         CatalogCommands::Model(ModelCommands::Remove { provider, id }) => {
-            apply(config, |registry| {
+            apply(config, |profile| {
                 ProviderCatalogService::remove_model(
-                    registry,
+                    &mut profile.providers,
                     &ProviderId::new(provider),
                     &ModelId::new(id),
                 )?;
@@ -143,24 +145,14 @@ pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()
 
 async fn apply(
     config: &CliConfig,
-    mutate: impl FnOnce(&mut ProviderRegistry) -> Result<String>,
+    mutate: impl FnOnce(&mut systemprompt_models::Profile) -> Result<String>,
 ) -> Result<()> {
-    let mut file = load_providers_file()?;
-    let before = file.content.providers.clone();
-    let message = mutate(&mut file.content.providers)?;
+    let profile_path = ProfileBootstrap::get_path()?;
+    let mut profile = load_profile(profile_path)?;
+    let message = mutate(&mut profile)?;
 
-    let merged = merged_registry_after_edit(&before, &file.content.providers)?;
-    let services = booted_services()?;
-    if let Some(gateway) = services.gateway_config() {
-        gateway
-            .validate(&merged)
-            .map_err(|e| anyhow::anyhow!("gateway no longer validates after edit: {e}"))?;
-    }
-
-    save_file(&file, providers_relative())?;
-    let source = file.path.display().to_string();
-    let outcome =
-        super::reconcile::reconcile_authz(services.gateway.as_ref(), &merged, &source).await;
+    save_profile(&profile, profile_path)?;
+    let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;
 
     render_result(
         &CommandOutput::card_value(
@@ -223,7 +215,9 @@ fn model_spec(args: &ModelAddArgs) -> ModelSpec {
 }
 
 fn list_providers(config: &CliConfig) -> Result<()> {
-    let items: Vec<ListItem> = booted_services()?
+    let profile_path = ProfileBootstrap::get_path()?;
+    let profile = load_profile(profile_path)?;
+    let items: Vec<ListItem> = profile
         .providers
         .providers
         .iter()

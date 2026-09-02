@@ -124,8 +124,8 @@ impl HostApp for HermesHost {
     // Why: the gateway serves Hermes over `/v1/chat/completions`; declaring the
     // OpenAI surface is what makes model negotiation offer compatible models and
     // the profile writer install the model half.
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
-        &[systemprompt_models::services::ApiSurface::OpenAi]
+    fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
+        &[systemprompt_models::profile::ApiSurface::OpenAi]
     }
 }
 

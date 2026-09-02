@@ -10,7 +10,7 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use systemprompt_ai::RouteSelectorEngine;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::services::{GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry};
+use systemprompt_models::profile::{GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry};
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
@@ -71,7 +71,7 @@ pub(super) async fn resolve_upstream<'a>(
 
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::PreAudit(anyhow!(
-            "Gateway route '{}' provider '{}' is not declared in services providers",
+            "Gateway route '{}' provider '{}' is not declared in profile.providers",
             route.id.as_str(),
             route.provider.as_str()
         ))

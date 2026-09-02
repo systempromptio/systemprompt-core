@@ -18,7 +18,7 @@ use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::services::GatewayConfig;
+use systemprompt_models::profile::GatewayConfig;
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::inspect;
 use systemprompt_security::authz::types::Decision;

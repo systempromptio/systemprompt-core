@@ -1,16 +1,15 @@
 //! Process-wide bootstrap fixture.
 //!
-//! Initialises [`ProfileBootstrap`], [`ServicesBootstrap`],
-//! [`SecretsBootstrap`], the runtime [`Config`] singleton, and [`FilesConfig`]
-//! from a tempdir-backed profile bundle.
+//! Initialises [`ProfileBootstrap`], [`SecretsBootstrap`], the runtime
+//! [`Config`] singleton, and [`FilesConfig`] from a tempdir-backed
+//! profile bundle.
 
 use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap, init_config_from_profile};
+use systemprompt_config::{init_config_from_profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
-use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use systemprompt_models::{AppPaths, Config};
 use tempfile::TempDir;
@@ -90,21 +89,31 @@ pub fn init_isolated_bootstrap(api_base_url: &str, services_config_yaml: &str) -
     init_bootstrap_inner(Some(api_base_url), Some(services_config_yaml))
 }
 
-// Bootstrap whose services `config.yaml` is caller-supplied — the one place a
-// test declares a provider registry (`providers:`), an enabled `gateway:`, and
-// the `ai.providers` policy that says which providers are enabled. The shared
-// fixture config has none of them, so every gateway route answers 404 "Gateway
-// not enabled" and `AiService::new` yields "No AI providers are enabled".
-// Anything constructing an `AiService` or exercising the dispatch/extract path
-// needs this. Callers own the process-global one-shot inits, so this must be
-// the first bootstrap call in the process (true under nextest) and must not be
-// mixed with `ensure_test_bootstrap` pointing at a different tree.
+// Bootstrap whose profile carries an enabled `gateway:` section and a provider
+// registry. The shared fixture profile has neither, so every gateway route
+// resolves `GatewayState::resolved()` to `None` and answers 404 "Gateway not
+// enabled" — which leaves the whole dispatch/extract path unreachable. Callers
+// own the process-global one-shot inits, so this must be the first bootstrap
+// call in the process (true under nextest) and must not be mixed with
+// `ensure_test_bootstrap` pointing at a different tree.
+pub fn init_gateway_bootstrap(gateway_yaml: &str) -> TestBootstrap {
+    init_bootstrap_inner_with(None, None, Some(gateway_yaml))
+}
+
+// Bootstrap carrying both halves of the AI configuration, which are separate
+// files and separately necessary. The profile's `providers:` registry supplies
+// connectivity; the services config's `ai.providers` supplies the deployment
+// policy that says which of them are enabled. `AiService::new` needs both — the
+// registry alone yields "No AI providers are enabled", because the policy map
+// is what it iterates. Anything constructing an `AiService`, and anything
+// reaching one through a command, needs this rather than
+// `init_gateway_bootstrap`.
 //
 // The api_key secret is deliberately not required: a missing one is a warning
 // and the provider is still built with an empty key, which is what lets a test
 // point the endpoint at a closed port or a stub.
-pub fn init_services_bootstrap(services_config_yaml: &str) -> TestBootstrap {
-    init_bootstrap_inner(None, Some(services_config_yaml))
+pub fn init_ai_bootstrap(gateway_yaml: &str, services_config_yaml: &str) -> TestBootstrap {
+    init_bootstrap_inner_with(None, Some(services_config_yaml), Some(gateway_yaml))
 }
 
 fn init_bootstrap() -> TestBootstrap {
@@ -114,6 +123,14 @@ fn init_bootstrap() -> TestBootstrap {
 fn init_bootstrap_inner(
     api_base_url: Option<&str>,
     services_config_yaml: Option<&str>,
+) -> TestBootstrap {
+    init_bootstrap_inner_with(api_base_url, services_config_yaml, None)
+}
+
+fn init_bootstrap_inner_with(
+    api_base_url: Option<&str>,
+    services_config_yaml: Option<&str>,
+    gateway_yaml: Option<&str>,
 ) -> TestBootstrap {
     let database_url = env::var("TEST_DATABASE_URL")
         .or_else(|_| env::var("DATABASE_URL"))
@@ -180,6 +197,7 @@ fn init_bootstrap_inner(
             web: &web_path,
         },
         api_base_url.unwrap_or("http://127.0.0.1"),
+        gateway_yaml,
     );
     let profile_path = tmp_path.join("profile.yaml");
     std::fs::write(&profile_path, profile_yaml).expect("write profile.yaml");
@@ -190,12 +208,6 @@ fn init_bootstrap_inner(
         }
     }
     let profile = ProfileBootstrap::get().expect("profile initialised");
-
-    if !ServicesBootstrap::is_initialized() {
-        if let Err(e) = ServicesBootstrap::init() {
-            panic!("ServicesBootstrap::init failed: {e}");
-        }
-    }
 
     if !SecretsBootstrap::is_initialized() {
         let _ = SecretsBootstrap::try_init();
@@ -314,7 +326,11 @@ struct ProfilePaths<'a> {
     web: &'a std::path::Path,
 }
 
-fn render_profile_yaml(paths: &ProfilePaths<'_>, api_base_url: &str) -> String {
+fn render_profile_yaml(
+    paths: &ProfilePaths<'_>,
+    api_base_url: &str,
+    gateway_yaml: Option<&str>,
+) -> String {
     let ProfilePaths {
         system,
         services,
@@ -411,5 +427,5 @@ governance:
         web = web.display(),
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
         api_base_url = api_base_url,
-    )
+    ) + gateway_yaml.unwrap_or("")
 }

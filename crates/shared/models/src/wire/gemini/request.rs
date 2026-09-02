@@ -13,8 +13,8 @@ use super::wire::{
     GeminiPart, GeminiRequest, GeminiSystemInstruction, GeminiThinkingConfig, GeminiTool,
     GeminiToolConfig,
 };
+use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
-use crate::services::WireProtocol;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,

@@ -17,7 +17,8 @@ use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderRegistry};
+use systemprompt_models::profile::ProviderRegistry;
+use systemprompt_models::services::{AiConfig, AiProviderConfig};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
     seed_user_row, seed_user_session, unique_user_id,

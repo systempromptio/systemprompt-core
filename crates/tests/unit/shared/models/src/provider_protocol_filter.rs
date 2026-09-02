@@ -6,7 +6,7 @@
 //! only through routes and must never appear in an advertised catalog.
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::services::{
+use systemprompt_models::profile::{
     ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
 };
 

@@ -224,8 +224,8 @@ fn api_key_principal(user: &str) -> AuthedPrincipal {
     })
 }
 
-fn gateway_route() -> systemprompt_models::services::GatewayRoute {
-    let mut route = systemprompt_models::services::GatewayRoute {
+fn gateway_route() -> systemprompt_models::profile::GatewayRoute {
+    let mut route = systemprompt_models::profile::GatewayRoute {
         id: systemprompt_identifiers::RouteId::new(""),
         model_pattern: "claude-*".to_owned(),
         provider: systemprompt_identifiers::ProviderId::new("anthropic"),

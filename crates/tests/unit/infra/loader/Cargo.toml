@@ -14,7 +14,6 @@ workspace = true
 systemprompt-loader = { workspace = true, features = ["expose-internals"] }
 systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
-systemprompt-identifiers = { workspace = true }
 serde = { workspace = true }
 tempfile = { workspace = true }
 serde_yaml = { workspace = true }

@@ -17,7 +17,7 @@
 use std::path::PathBuf;
 
 use systemprompt_models::errors::SecretsError;
-use systemprompt_models::profile::ProfileError;
+use systemprompt_models::profile::{GatewayProfileError, ProfileError};
 
 use crate::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
 use crate::services::ConfigValidationError;
@@ -44,6 +44,9 @@ pub enum ConfigError {
 
     #[error(transparent)]
     ProfileParse(#[from] ProfileError),
+
+    #[error(transparent)]
+    Gateway(#[from] GatewayProfileError),
 
     #[error(transparent)]
     SchemaValidation(#[from] ConfigValidationError),

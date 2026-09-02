@@ -28,13 +28,10 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `cloud` | object | no | absent | Cloud tenant binding. See [`cloud`](#cloud). |
 | `secrets` | object | no | absent | Pointer to the secrets document. See [`secrets`](#secrets). |
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
+| `gateway` | object | no | absent | Provider-facing inference proxy. See [`gateway`](#gateway). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
-
-Two keys that used to be top-level profile sections are rejected with a message naming their
-new home: `providers` and `gateway`. See [Provider catalog and gateway — moved to the services
-tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 
 ## `site`
 
@@ -226,58 +223,49 @@ replica count.
 
 See [`concepts/extensions.md`](../concepts/extensions.md) for the extension model.
 
-## Provider catalog and gateway — moved to the services tree
+## `gateway`
 
-`providers:` and `gateway:` are no longer profile sections. A profile that still carries either
-key fails to parse with `ProfileError::MovedToServices`, which names the key and the file it
-belongs in (`crates/shared/models/src/profile/mod.rs`). The reason is what the two sections
-are: a model catalog (providers, models, pricing, capabilities, limits) and the routes onto it
-change only when the product changes, carry no credential, and are identical across every
-environment — implementation configuration, like agents and MCP servers, not deployment
-configuration. In the profile they were the ~950 lines every environment hand-copied and
-drifted.
-
-Both now live under `paths.services` and are loaded, merged, and validated by the services
-loader (`crates/infra/loader/src/config_loader/`):
-
-| Services key | Conventional file | Type | Meaning |
-|--------------|-------------------|------|---------|
-| `providers` | `services/ai/providers.yaml` | list of provider entries | The provider registry: each upstream's wire protocol, surface, endpoint, `api_key_secret`, extra headers, per-model pricing/capabilities/limits, and governance flags (`crates/shared/models/src/services/providers/`). Entries concatenate across includes; a provider name declared twice is a load error. |
-| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/models/src/services/gateway/`). First file to declare it wins across includes. |
-
-Both files must be listed in the root aggregator's `includes:` (`services/config/config.yaml`);
-`systemprompt admin setup` writes them from the embedded seed catalog when absent and appends
-them. `admin config catalog …` and `admin config gateway …` edit those files, validate the
-result against the merged registry, and never touch the profile.
-
-### `gateway.routes[]`
-
-`crates/shared/models/src/services/gateway/route.rs`
+`crates/shared/models/src/profile/gateway/`. The provider-facing inference proxy. Optional; absent means the gateway is off.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `id` | string | no | derived | Stable route id; synthesized from pattern and provider when empty. Addressed from `access_control_rules`. |
+| `enabled` | bool | no | `false` | Enable the gateway. |
+| `routes` | list of object | no | `[]` | Inline model→provider routes. See [`gateway.routes[]`](#gatewayroutes). |
+| `auth_scheme` | string | no | `bearer` | Upstream auth scheme. |
+| `inference_path_prefix` | string | no | `/v1` | Path prefix the gateway serves provider-facing inference under. |
+
+Every route's resolved provider endpoint is validated through the shared outbound-URL guard (`validate_outbound_url`, `crates/shared/models/src/net.rs:81`), which rejects loopback, private-network, link-local and CGNAT destinations to prevent the proxy becoming an SSRF primitive.
+
+### `gateway.routes[]`
+
+`crates/shared/models/src/profile/gateway/:184`
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `id` | string | no | derived | Stable route id; synthesized from pattern+provider+endpoint when empty. |
 | `model_pattern` | string | yes | — | Match pattern. `*` matches all; `prefix*` and `*suffix` are supported; otherwise exact. |
-| `provider` | string | yes | — | Provider name; must be declared in `providers`. The route carries no endpoint or credential of its own. |
+| `provider` | string | yes | — | Provider name. |
+| `endpoint` | string | yes | — | Upstream endpoint URL (SSRF-guarded). |
+| `api_key_secret` | string | yes | — | Name of the secret holding the upstream API key. |
 | `upstream_model` | string | no | requested model | Override model name sent upstream. |
 | `extra_headers` | map<string,string> | no | `{}` | Additional upstream request headers. |
-| `pricing` | object | no | absent | Route-level pricing override; otherwise the matching `providers[].models[].pricing` applies. |
-| `when` | object | no | absent | Request-type match (`RouteMatch`). |
-| `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |
+| `pricing` | object | no | absent | Optional model pricing metadata. |
 
-Every provider endpoint is validated through the shared outbound-URL guard
-(`validate_outbound_url`, `crates/shared/models/src/net.rs`), which rejects loopback,
-private-network, link-local and CGNAT destinations so the proxy cannot become an SSRF primitive.
-`!include <file>` in a `system_prompt_overrides[].prompt` resolves relative to the file that
-carries the `gateway:` block.
+### Gateway catalog — removed
 
-### Migrating a profile
+`gateway.catalog` no longer exists. The gateway owns no catalogue of its own: every route
+resolves its provider against `profile.providers` at use time
+(`crates/shared/models/src/profile/gateway/mod.rs`).
 
-Move the `providers:` block of `profile.yaml` into `services/ai/providers.yaml` and the
-`gateway:` block into `services/ai/gateway.yaml`, list both under `includes:` in
-`services/config/config.yaml`, and delete them from the profile. Nothing inside either block
-changes shape. A profile that still carries a `gateway.catalog:` block (removed earlier) moves
-its `providers[]` entries into `providers` and expresses each `models[]` entry as a
+Model exposure is therefore the combination of two things you already configure:
+
+- **`profile.providers`** — the upstream endpoints, their `api_key_secret`, and any extra
+  headers. This is where a provider is declared.
+- **`gateway.routes[]`** — which external model names map onto which provider, documented in
+  [§`gateway.routes[]`](#gatewayroutes) above.
+
+If you are migrating a profile that still carries a `gateway.catalog:` block, move its
+`providers[]` entries into `profile.providers` and express each `models[]` entry as a
 `gateway.routes[]` entry.
 
 ## `governance`
@@ -366,11 +354,10 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 Configuration is assembled in a fixed sequence; later stages depend on earlier ones (`crates/infra/config/src/bootstrap/`). The type-state `BootstrapSequence` enforces that secrets cannot initialize before the profile (`bootstrap/mod.rs:48-93`).
 
 1. **ProfileBootstrap** — reads `profile.yaml`, performs `${VAR}` interpolation, resolves relative paths, deserializes into `Profile`.
-2. **ServicesBootstrap** — loads the services tree at `paths.services` through the services loader (`crates/infra/loader/src/services_bootstrap.rs`): merges every include, resolves the gateway spec to its runtime form, validates the provider registry and the gateway's references into it. A tree that does not load is a boot failure.
-3. **SecretsBootstrap** — loads the secrets document referenced by the profile (file or env), validates required fields (e.g. the 32-char pepper), ensures the manifest signing seed.
-4. **CredentialsBootstrap** — loads cloud credentials (file, or environment in a Fly.io container) and validates them against the cloud API for `cloud` targets (`crates/infra/cloud/src/credentials_bootstrap/`).
-5. **Config** — composes the validated profile and resolved secrets into the runtime config.
-6. **AppContext** — constructs the application context (database pool, services, resolved system admin) consumed by the API and CLI.
+2. **SecretsBootstrap** — loads the secrets document referenced by the profile (file or env), validates required fields (e.g. the 32-char pepper), ensures the manifest signing seed.
+3. **CredentialsBootstrap** — loads cloud credentials (file, or environment in a Fly.io container) and validates them against the cloud API for `cloud` targets (`crates/infra/cloud/src/credentials_bootstrap/`).
+4. **Config** — composes the validated profile and resolved secrets into the runtime config.
+5. **AppContext** — constructs the application context (database pool, services, resolved system admin) consumed by the API and CLI.
 
 ## Minimal local profile
 
