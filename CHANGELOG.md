@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Anthropic structured output now sends the forced tool with `strict: true` and a grammar-compatible schema (nullable fields as `anyOf` with `null`, closed objects, unsupported bounds dropped), so a `ResponseFormat::JsonSchema { strict: true }` response cannot violate its schema.
+
 ## [0.43.0] - 2026-09-01
 
 ### Added
