@@ -29,4 +29,6 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 
 [dev-dependencies]
+systemprompt-ai = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }

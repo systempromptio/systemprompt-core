@@ -48,6 +48,7 @@ systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tokio = { workspace = true }
+wiremock = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]

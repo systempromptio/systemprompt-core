@@ -7676,6 +7676,7 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
@@ -8804,6 +8805,7 @@ dependencies = [
  "inventory",
  "serde_json",
  "sqlx",
+ "systemprompt-ai",
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
@@ -8816,6 +8818,7 @@ dependencies = [
  "systemprompt-traits",
  "tokio",
  "tokio-cron-scheduler",
+ "uuid",
 ]
 
 [[package]]

@@ -41,6 +41,7 @@ mod cloud_deploy_target;
 mod cloud_dispatcher_fs;
 mod cloud_doctor;
 mod cloud_doctor_distributed;
+mod cloud_doctor_distributed_probes;
 mod cloud_doctor_profile_checks;
 mod cloud_edit_prompts;
 mod cloud_init_scaffolding;

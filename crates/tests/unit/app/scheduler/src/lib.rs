@@ -36,6 +36,8 @@ mod jobs_seeded_db;
 #[cfg(test)]
 mod models;
 #[cfg(test)]
+mod multi_replica_jobs_db;
+#[cfg(test)]
 mod orchestration;
 #[cfg(test)]
 mod plans;
