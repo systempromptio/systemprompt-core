@@ -61,3 +61,17 @@ pub(super) fn merge_config_file(
     })
     .map_err(|e| SetupError::Io(e.to_string()))
 }
+
+// Why: sign-out must drop every credential section, not just `[pat]`. A
+// surviving `[session] enabled = true` keeps the session provider configured,
+// and the next background refresh reports the user as needing to sign in to
+// an account they just left. Everything else (gateway, host sections) stays.
+pub(super) fn strip_credential_sections(contents: &str) -> Result<String, SetupError> {
+    let mut doc: DocumentMut = contents
+        .parse()
+        .map_err(|e| SetupError::Io(format!("parse config: {e}")))?;
+    for section in CREDENTIAL_SECTIONS {
+        write::remove(&mut doc, &[section]);
+    }
+    Ok(doc.to_string())
+}

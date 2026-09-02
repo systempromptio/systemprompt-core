@@ -9,6 +9,7 @@ use serde_json::json;
 
 use crate::auth::secret::Secret;
 use crate::auth::setup;
+use crate::config;
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::state::CancelScope;
@@ -220,10 +221,55 @@ pub(crate) fn on_logout_finished(
             ))
         },
     };
+    // Why: the serving proxy still holds the JWT minted for the account that
+    // just signed out; without this it keeps heartbeating as them until the
+    // token expires, and the sign-out looks undone.
+    app.ctx.proxy.reload_runtime_config();
     app.state.reload();
     app.refresh_ui();
     emit::emit_state(app);
     finish_unit(app, bridge_result, reply_to);
+}
+
+// Why: raised once per rejection by the proxy's token cache latch. Nothing is
+// retried and no browser is opened; the toast carries the Re-authenticate
+// action and the rail drops to signed-out until the user acts.
+pub(crate) fn on_credential_rejected(app: &mut GuiApp, reason: &str) {
+    let gateway = config::gateway_url_or_default(&config::load());
+    let line = i18n::t_args(
+        "session-rejected",
+        &[("gateway", gateway.as_str()), ("reason", reason)],
+    );
+    tracing::warn!(
+        reason,
+        "credential rejected; waiting for the user to sign in"
+    );
+    app.append_log_error(&line);
+    app.state.clear_verified_identity();
+    app.refresh_ui();
+    emit::emit_state(app);
+    emit::emit_error(
+        app,
+        &BridgeError::new(ErrorScope::Identity, ErrorCode::Unauthorized, line),
+    );
+}
+
+// Why: the proxy runtime cannot reach the GUI event loop, so the latch is
+// bridged here: one task awaits the watch channel and forwards each
+// transition into `SignInRequired` as a `CredentialRejected` event.
+pub(crate) fn watch_credential_state(app: &GuiApp) {
+    let Some(mut rx) = app.ctx.proxy.auth_state() else {
+        return;
+    };
+    let proxy = app.proxy.clone();
+    app.ctx.spawn(async move {
+        while rx.changed().await.is_ok() {
+            let state = rx.borrow_and_update().clone();
+            if let crate::proxy::token_cache::AuthState::SignInRequired { reason } = state {
+                proxy.send_event(UiEvent::CredentialRejected { reason });
+            }
+        }
+    });
 }
 
 fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId) {

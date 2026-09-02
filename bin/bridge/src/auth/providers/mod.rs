@@ -35,13 +35,15 @@ pub enum AuthFailedSource {
     Gateway(#[from] crate::gateway::GatewayError),
     #[error(transparent)]
     Custom(Box<dyn std::error::Error + Send + Sync>),
+    #[error("no valid session; sign in from the {} window", crate::brand::brand().app_name)]
+    SignInRequired,
 }
 
 impl AuthFailedSource {
     #[must_use]
     pub const fn is_terminal(&self) -> bool {
         match self {
-            Self::Keystore(_) | Self::Loopback(_) | Self::Custom(_) => true,
+            Self::Keystore(_) | Self::Loopback(_) | Self::Custom(_) | Self::SignInRequired => true,
             Self::Gateway(g) => {
                 use crate::gateway::GatewayError as G;
                 matches!(

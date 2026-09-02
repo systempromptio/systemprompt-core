@@ -161,6 +161,27 @@ fn logout_keeps_a_config_that_still_carries_a_gateway() {
     );
 }
 
+// Why: a surviving `[session]` keeps the session provider configured, and the
+// bridge's next background refresh treats the account the user just left as
+// one that merely needs signing back in to.
+#[test]
+fn logout_after_a_session_sign_in_removes_the_session_section() {
+    let ((config, present), _cfg) = sandbox(|| {
+        setup::session_setup(Some("http://gw.invalid:7500")).expect("session setup");
+        let paths = setup::logout().expect("logout");
+        let config = std::fs::read_to_string(&paths.config_file).expect("config survives");
+        let cfg: systemprompt_bridge::config::Config =
+            toml::from_str(&config).expect("valid config");
+        (
+            config,
+            systemprompt_bridge::auth::has_credential_source(&cfg),
+        )
+    });
+    assert!(!config.contains("[session]"), "{config}");
+    assert!(config.contains("http://gw.invalid:7500"), "{config}");
+    assert!(!present, "no credential source is left behind: {config}");
+}
+
 #[test]
 fn clean_reports_exactly_what_it_removed() {
     let ((first, second), _cfg) = sandbox(|| {

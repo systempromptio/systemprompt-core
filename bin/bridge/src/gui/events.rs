@@ -56,6 +56,9 @@ pub enum UiEvent {
     LogoutRequested {
         reply_to: ReplyId,
     },
+    CredentialRejected {
+        reason: String,
+    },
     SetGatewayRequested {
         url: String,
         reply_to: ReplyId,

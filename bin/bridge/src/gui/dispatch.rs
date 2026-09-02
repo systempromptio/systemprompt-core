@@ -21,6 +21,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::LoginRequested { .. } => "LoginRequested",
         UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
+        UiEvent::CredentialRejected { .. } => "CredentialRejected",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
         UiEvent::McpAuthProbeRequested { .. } => "McpAuthProbeRequested",
@@ -192,6 +193,9 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         },
         UiEvent::LogoutFinished { result, reply_to } => {
             handlers::auth::on_logout_finished(app, result, reply_to);
+        },
+        UiEvent::CredentialRejected { reason } => {
+            handlers::auth::on_credential_rejected(app, &reason);
         },
         UiEvent::SetGatewayFinished { result, reply_to } => {
             handlers::auth::on_set_gateway_finished(app, result, reply_to);

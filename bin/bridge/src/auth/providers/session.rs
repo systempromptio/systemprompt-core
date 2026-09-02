@@ -1,22 +1,27 @@
 //! Auth provider reusing an existing browser session grant.
 //!
+//! The provider itself never opens a browser: it is only ever run from the
+//! background token cache, where a consent pop-up would appear unbidden on
+//! every refresh tick. When the cached session token is gone it reports
+//! `SignInRequired` and the GUI asks the user. The interactive device-link
+//! capture (`capture_device_link_code`) lives here for the GUI sign-in
+//! handler, which is the one place a browser may be launched.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::auth::loopback::{LOOPBACK_TIMEOUT_SECS, LoopbackServer};
 use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use crate::config::Config;
-use crate::gateway::GatewayClient;
-use crate::gateway::types::{HelperOutput, SessionExchangeRequest};
+use crate::gateway::types::HelperOutput;
 use crate::stdio::diag;
 use async_trait::async_trait;
 use std::process::Command;
 use std::time::Duration;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct SessionProvider {
-    base_url: ValidatedUrl,
     configured: bool,
 }
 
@@ -27,10 +32,7 @@ impl SessionProvider {
             .session
             .as_ref()
             .is_some_and(|s| s.enabled.unwrap_or(true));
-        Self {
-            base_url: crate::config::gateway_url_or_default(config),
-            configured,
-        }
+        Self { configured }
     }
 }
 
@@ -42,24 +44,16 @@ impl AuthProvider for SessionProvider {
 
     async fn authenticate(
         &self,
-        session_id: &SessionId,
-        http: &reqwest::Client,
+        _session_id: &SessionId,
+        _http: &reqwest::Client,
     ) -> Result<HelperOutput, AuthError> {
         if !self.configured {
             return Err(AuthError::NotConfigured);
         }
-
-        let code = capture_device_link_code(&self.base_url).await?;
-        let req = SessionExchangeRequest { code };
-        let client = GatewayClient::new(self.base_url.clone(), http.clone());
-        let resp = client
-            .session_exchange(&req, session_id)
-            .await
-            .map_err(|e| AuthError::Failed {
-                provider: "session",
-                source: AuthFailedSource::Gateway(e),
-            })?;
-        Ok(resp.into())
+        Err(AuthError::Failed {
+            provider: "session",
+            source: AuthFailedSource::SignInRequired,
+        })
     }
 }
 

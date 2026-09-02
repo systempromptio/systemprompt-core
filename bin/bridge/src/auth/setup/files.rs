@@ -106,23 +106,3 @@ pub(super) fn remove_sync_state() -> Result<(), SetupError> {
     remove_if_exists(&meta_dir.join(crate::config::paths::LAST_SYNC_SENTINEL))?;
     remove_if_exists(&meta_dir.join(crate::config::paths::USER_FRAGMENT))
 }
-
-pub(super) fn strip_pat_section(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut in_pat = false;
-    for line in input.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') {
-            in_pat = trimmed == "[pat]";
-            if in_pat {
-                continue;
-            }
-        }
-        if in_pat {
-            continue;
-        }
-        out.push_str(line);
-        out.push('\n');
-    }
-    out
-}

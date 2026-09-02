@@ -37,6 +37,7 @@ impl ApplicationHandler for GuiApp {
 
     fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
         if self.tray.is_none() {
+            crate::gui::handlers::auth::watch_credential_state(self);
             let snap = self.state.snapshot();
             match tray::build(&snap, &self.ctx.schedule) {
                 Ok(handles) => {

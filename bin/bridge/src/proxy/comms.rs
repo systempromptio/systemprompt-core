@@ -177,7 +177,7 @@ async fn subscribe_once(
         .await?;
 
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        token_cache.invalidate().await;
+        token_cache.reject_upstream("/v1/bridge/stream").await;
         return Err(CommsError::Unauthorized);
     }
     if !response.status().is_success() {

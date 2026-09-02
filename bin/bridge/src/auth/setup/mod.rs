@@ -6,10 +6,12 @@
 mod config_file;
 mod files;
 
-use config_file::{merge_config_file, resolve_gateway, write_config_file};
+use config_file::{
+    merge_config_file, resolve_gateway, strip_credential_sections, write_config_file,
+};
 use files::{
     atomic_write, ensure_dir, remove_if_exists, remove_managed_mcp_fragment, remove_sync_state,
-    strip_pat_section, write_pat_file,
+    write_pat_file,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -96,7 +98,7 @@ pub fn logout() -> Result<PathLayout, SetupError> {
     if paths.config_file.exists() {
         match fs::read_to_string(&paths.config_file) {
             Ok(existing) => {
-                let stripped = strip_pat_section(&existing);
+                let stripped = strip_credential_sections(&existing)?;
                 if stripped.trim().is_empty() {
                     remove_if_exists(&paths.config_file)?;
                 } else {

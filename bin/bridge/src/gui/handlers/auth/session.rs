@@ -23,8 +23,18 @@ pub(crate) fn on_session_login_requested(
     let proxy = app.proxy.clone();
     let cancel = app.state.install_cancel(CancelScope::Login);
     let http = app.ctx.http.clone();
+    // Why: the proxy only serves a cached token bound to its own session id.
+    // Minting under a throwaway id would leave the proxy unable to use the
+    // session the user just granted, and it would report a sign-in as needed
+    // moments after one succeeded.
+    let session_id = app
+        .ctx
+        .proxy
+        .session_id()
+        .cloned()
+        .unwrap_or_else(systemprompt_identifiers::SessionId::generate);
     app.ctx.spawn(async move {
-        let result = run_session_login(gateway, keep_signed_in, &cancel, http)
+        let result = run_session_login(gateway, keep_signed_in, &cancel, http, session_id)
             .await
             .map_err(GuiError::from)
             .map_err(Arc::new);
@@ -37,11 +47,11 @@ async fn run_session_login(
     keep_signed_in: bool,
     cancel: &tokio_util::sync::CancellationToken,
     http: reqwest::Client,
+    session_id: systemprompt_identifiers::SessionId,
 ) -> Result<(), setup::SetupError> {
     use crate::auth::providers::session::capture_device_link_code;
     use crate::gateway::GatewayClient;
     use crate::gateway::types::{HelperOutput, SessionExchangeRequest, SessionPatRequest};
-    use systemprompt_identifiers::SessionId;
 
     if let Some(g) = gateway.clone()
         && !g.trim().is_empty()
@@ -50,7 +60,6 @@ async fn run_session_login(
     }
     let cfg = crate::config::load();
     let base = crate::config::gateway_url_or_default(&cfg);
-    let session_id = SessionId::generate();
 
     let code = tokio::select! {
         () = cancel.cancelled() => {
