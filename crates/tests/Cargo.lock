@@ -6843,7 +6843,9 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-storage",
  "systemprompt-test-fixtures",
+ "systemprompt-test-mocks",
  "systemprompt-traits",
  "tempfile",
  "tokio",
@@ -7179,7 +7181,6 @@ dependencies = [
  "systemprompt-identifiers",
  "tokio",
  "toml 0.9.12+spec-1.1.0",
- "wiremock",
 ]
 
 [[package]]
@@ -7639,6 +7640,7 @@ name = "systemprompt-cli-tests"
 version = "0.0.11"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "flate2",
@@ -7653,6 +7655,7 @@ dependencies = [
  "systemprompt-analytics",
  "systemprompt-cli",
  "systemprompt-cloud",
+ "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-extension",
@@ -7663,6 +7666,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
+ "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-users",
@@ -7936,6 +7940,7 @@ dependencies = [
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-identifiers",
  "systemprompt-test-fixtures",
  "tempfile",
  "thiserror 2.0.19",
@@ -8136,6 +8141,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tempfile",
@@ -8519,6 +8525,7 @@ dependencies = [
  "base64 0.22.1",
  "bcrypt",
  "chrono",
+ "hex",
  "http",
  "inventory",
  "jsonwebtoken",
@@ -8581,6 +8588,7 @@ dependencies = [
  "jsonwebtoken",
  "serde",
  "serde_json",
+ "sqlx",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",
@@ -8669,6 +8677,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-security",
+ "systemprompt-storage",
  "systemprompt-traits",
  "systemprompt-users",
  "thiserror 2.0.19",
@@ -8799,6 +8808,7 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
@@ -8950,6 +8960,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-storage"
+version = "0.43.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-storage-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-storage",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-teams"
 version = "0.43.0"
 dependencies = [
@@ -9064,6 +9100,7 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-security",
+ "systemprompt-storage",
  "systemprompt-traits",
  "systemprompt-users",
  "tempfile",

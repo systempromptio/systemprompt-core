@@ -68,17 +68,17 @@ curl http://127.0.0.1:8080/api/v1
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/health` | Public | Liveness. |
-| GET | `/api/v1/health` | Public | Liveness. |
+| GET | `/livez` | Public | Liveness: `200` once the port is bound, even while booting. |
+| GET | `/readyz` | Public | Readiness: `503` while starting, draining after `SIGTERM`, or when the database probe fails; `200` otherwise. Point load balancers here. |
+| GET | `/health` | Public | Health: `200` while starting, then healthy/degraded, `503` when the database is unreachable. |
+| GET | `/api/v1/health` | Public | Same as `/health`. |
 | GET | `/api/v1/core/oauth/health` | Public | OAuth subsystem liveness. |
 | GET | `/api/v1/health/detail` | Authenticated | Detailed health (subsystem status). |
-| GET | `/metrics` | Public | Prometheus exposition. Always mounted; restrict it at the network or proxy layer. |
-
-There are no `/health/live` or `/health/ready` aliases.
+| GET | `/metrics` | Public, separate listener | Prometheus exposition, served only on `server.metrics_port`; not mounted on the public router. Every series carries an `instance` label. |
 
 ```bash
-curl http://127.0.0.1:8080/health
-curl http://127.0.0.1:8080/metrics
+curl http://127.0.0.1:8080/readyz
+curl http://127.0.0.1:9100/metrics
 ```
 
 ## OAuth / OIDC

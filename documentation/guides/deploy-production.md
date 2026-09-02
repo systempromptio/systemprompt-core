@@ -72,37 +72,30 @@ Plain JSON secrets files carry `0600` permissions, owned by the dedicated servic
 
 The binary is stateless — all durable state lives in Postgres. Run N ≥ 2 replicas behind a load balancer. There is no session affinity requirement.
 
-**Health endpoints.** The binary mounts these probes (`crates/entry/api/src/services/server/discovery.rs:166-177`):
+**Health endpoints.** The binary mounts these probes (`crates/entry/api/src/services/server/discovery.rs`):
 
-| Endpoint | Auth | Cost | Returns |
-|----------|------|------|---------|
-| `GET /health` | none | `SELECT 1` round-trip | `200` healthy, `503` if the DB is unreachable |
-| `GET /api/v1/health` | none | `SELECT 1` round-trip | same as `/health` |
-| `GET /api/v1/health/detail` | authenticated | DB latency, service counts, memory, disk, table sizes | rich JSON |
+| Endpoint | Auth | Returns |
+|----------|------|---------|
+| `GET /livez` | none | `200` as soon as the process has bound its port, including while it is still booting. Liveness only. |
+| `GET /readyz` | none | `503 {"status":"starting"}` during boot, `503 {"status":"draining"}` after `SIGTERM`, `503 {"status":"unready"}` when the database probe fails, otherwise `200 {"status":"ready"}`. The admission signal for a load balancer. |
+| `GET /health` and `GET /api/v1/health` | none | `200 {"status":"starting"}` during boot, then `200` healthy / degraded or `503` when the database is unreachable. Kept at `200` during boot so a platform with a single probe (Fly) does not kill a machine mid-migration. |
+| `GET /api/v1/health/detail` | authenticated | DB latency, service counts, memory, disk, table sizes. |
 
-There are **no** `/livez`, `/readyz`, `/healthz`, or `/health/live`/`/health/ready` aliases. Wire orchestrator probes against the real endpoints:
+Every response carries the replica's `instance` and the binary `version`.
 
 ```yaml
-# Kubernetes example — both probes target /health
+# Kubernetes example
 livenessProbe:
-  httpGet: { path: /health, port: 8080 }
+  httpGet: { path: /livez, port: 8080 }
   periodSeconds: 10
 readinessProbe:
-  httpGet: { path: /health, port: 8080 }
+  httpGet: { path: /readyz, port: 8080 }
   periodSeconds: 5
 ```
 
-`/health` performs a `SELECT 1` against the database on every call (`crates/entry/api/src/services/server/health.rs:179`), so it serves as a combined liveness-and-readiness signal: a `200` means the process is up and the DB is reachable. `/api/v1/health/detail` requires authentication and is not usable as an unauthenticated probe; use it for operator dashboards and deeper checks, not for the load balancer.
+**Graceful shutdown.** On `SIGTERM` the process flips `/readyz` to `503` immediately, stops accepting connections, drains in-flight requests and SSE streams for `AXUM_DRAIN_GRACE_MS` (10 s), gives MCP and agent children 5 s to exit, and force-exits 10 s after that (`crates/entry/api/src/services/server/shutdown.rs`). Set the balancer's drain interval or `preStop` delay to at least 10 s and `terminationGracePeriodSeconds` to at least 30 s. A second `SIGTERM` exits at once.
 
-> **Operational caveat — no graceful shutdown on the main API server.** The main HTTP API server currently calls `axum::serve` without a graceful-shutdown future; on `SIGTERM` (container stop, rolling deploy, `systemctl restart`) the process is terminated mid-flight (`crates/entry/api/src/services/server/builder.rs`). In-flight requests are dropped and SSE connections are severed without notice. Until graceful shutdown is wired, mitigate at the orchestration layer:
->
-> - Set a `preStop` hook (or equivalent drain delay) that removes the replica from the load balancer and waits for in-flight requests to complete before sending `SIGTERM`. A delay covering your longest expected non-stream request (plus margin) bounds request loss.
-> - Keep the readiness probe pointed at `/health`; combined with a `preStop` drain, the LB stops sending new traffic before the process exits.
-> - Avoid long-lived SSE assumptions across deploys: clients re-fetch canonical state on reconnect.
->
-> The A2A agent server does wire graceful shutdown; this caveat is specific to the main API surface.
-
-Rolling deploys are otherwise safe — draining a replica only requires completing in-flight requests, bounded by the request timeout.
+Rolling deploys are safe: replace one replica at a time and wait for `/readyz` to answer `200` before moving on.
 
 ### 3.2 Database tier
 
@@ -157,6 +150,22 @@ CREATE TRIGGER analytics_events_append_only
 ```
 
 These triggers do not interfere with normal operation because the platform never issues `UPDATE`/`DELETE` on these tables.
+
+### 3.4 Multi-replica and multi-region requirements
+
+One image, N replicas, one Postgres primary. Every replica must agree with the others on the points below; `systemprompt cloud doctor --distributed` checks each of them and prints a fingerprint of every identity secret so nodes can be compared without revealing the values.
+
+- **One identity, generated once.** Run `systemprompt admin identity generate --json` on an operator machine and distribute the three values (`oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `signing_key_pem`) to every replica through the secrets store. The binary never mints them at boot: a cloud or deployment-host boot without the seed or the signing key fails with an error naming the command. A node with its own seed or key issues tokens and manifests the next node rejects.
+- **A stable `server.instance_id`.** Registry rows, the event outbox and node-scoped scheduler runs are keyed by it. Set it explicitly per replica; a cloud profile falls back to `HOSTNAME` and refuses to boot without either. It is stamped on every log line, every `ai_requests` row, every Prometheus series (`instance` label) and the `x-served-by` response header.
+- **`server.trusted_proxies` is required on cloud profiles.** Without it every request resolves to the balancer's address and all callers share one rate-limit bucket and one ban target. Validation refuses the profile.
+- **`/metrics` on its own port.** Set `server.metrics_port`; the scrape endpoint is served on that port only and never on the public router. Leave it unset and no metrics endpoint is exposed.
+- **Storage.** `paths.storage` holds uploads and generated images. With `storage.shared: true` it must be one mount every replica sees (NFS, EFS, SMB); the boot probe writes a marker per instance and warns when it finds none from other nodes. With `shared: false` those files are node-local and a request for a file uploaded through another replica is a 404 — acceptable only for a single node.
+- **Scheduler scope.** Jobs are `cluster` by default and run on exactly one replica under an advisory lock. Jobs that write the local filesystem (`content_prerender`, `page_prerender`, `copy_extension_assets`) declare `scope: node` and run on every replica so each serves a current `web/dist`. Override per job in `services.yaml` with `scope: cluster | node`.
+- **Databases.** `database_write_url` is the primary; `database_url` is the nearest replica. Security-critical lookups (session attestation, token and revocation checks, API keys, bans, MCP sessions) always read the primary, so a fresh login is valid in every region at once; listings and analytics read the replica. The cross-replica event relay (`LISTEN`/`NOTIFY`) also runs on the primary.
+- **MCP service registry.** Rows are keyed `(instance_id, name)`; each replica registers, reconciles and reaps only its own children, heartbeats every 15 s, and a scheduler job removes rows whose replica stopped heartbeating for 90 s. Replicas may boot concurrently.
+- **Session-free.** Passkey challenges, MCP proxy session identities and Gemini thought signatures live in Postgres, so no balancer affinity is required.
+
+**Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits and AI quotas are global. `web/dist` is rendered per node.
 
 ## 4. Backup and restore
 

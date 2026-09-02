@@ -264,15 +264,11 @@ impl ProxyHandle {
         tracing::info!(target: "bridge::config", "runtime config swapped");
     }
 
-    /// The serving proxy's own session id, which every token it mints is
-    /// bound to. `None` when this process is not the one serving.
     #[must_use]
     pub const fn session_id(&self) -> Option<&SessionId> {
         self.session_id.as_ref()
     }
 
-    /// Live view of the serving proxy's credential state; `None` when this
-    /// process is not the one serving.
     #[must_use]
     pub fn auth_state(&self) -> Option<tokio::sync::watch::Receiver<AuthState>> {
         self.token_cache.as_ref().map(|cache| cache.auth_state())

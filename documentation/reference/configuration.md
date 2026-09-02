@@ -68,9 +68,10 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `cors_allowed_origins` | list of string | no | `[]` | Allowed CORS origins. |
 | `content_negotiation` | object | no | see below | Markdown content negotiation. |
 | `security_headers` | object | no | see below | HTTP security response headers. |
-| `instance_id` | string | no | OS hostname / generated short id | Stable replica identifier; empty/unset resolves at config build time. |
+| `instance_id` | string | no (required on `cloud` unless `HOSTNAME` is set) | `HOSTNAME`, else a random id on local targets | Stable replica identifier. Keys the service registry, event outbox origin and node-scoped scheduler runs; stamped on logs, `ai_requests`, metrics and `x-served-by`. A cloud profile that resolves to neither refuses to boot. |
+| `metrics_port` | u16 | no | unset | Serve `GET /metrics` on a second listener bound to `host:metrics_port`. Unset means no metrics endpoint. Must differ from `port`. |
 | `max_concurrent_streams` | usize | no | `256` | Global cap on concurrent A2A SSE streams for this replica (`config/mod.rs:34`). |
-| `trusted_proxies` | list of CIDR string | no | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
+| `trusted_proxies` | list of CIDR string | required on `cloud` | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
 
 ### `server.content_negotiation`
 
@@ -158,7 +159,9 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
 that identity, and an unauthenticated request by the client address resolved through
 `trusted_proxies`. Hop headers from an untrusted peer are ignored, so a caller cannot select its
-own bucket.
+own bucket. Identity-keyed budgets are counted in the database and therefore hold across every
+replica; address-keyed throttles are per process, so their effective ceiling scales with the
+replica count.
 
 ## `system_admin`
 
@@ -299,7 +302,8 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 |-------|----------|------|----------|-------|
 | `oauth_at_rest_pepper` | `oauth_at_rest_pepper` | string | yes | Minimum 32 characters (`secrets.rs:13`); shorter values fail validation. |
 | `database_url` | `database_url` | string | yes | Primary connection string. |
-| `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string (base64, 32 bytes) | no | Ed25519 manifest signing seed. Generated and persisted at bootstrap if missing and the file is writable; ephemeral for the boot otherwise. |
+| `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string | yes | Standard base64 of exactly 32 random bytes; the Ed25519 manifest signing seed. Never generated at boot: every replica must carry the same value. Mint it with `systemprompt admin identity generate --json`. |
+| `signing_key_pem` | `signing_key_pem` | string | yes on `cloud` and deployment hosts | Standard base64 of the full PKCS#8 PEM text (`-----BEGIN PRIVATE KEY-----` …) of the RSA JWT signing key. Local profiles may point `security.signing_key_path` at a file instead. Mint it with `systemprompt admin identity generate --json`. |
 | `database_write_url` | `database_write_url` | string | no | Separate write endpoint. |
 | `external_database_url` | `external_database_url` | string | no | Used when `database.external_db_access` is `true`. |
 | `internal_database_url` | `internal_database_url` | string | no | Internal connection string. |
@@ -321,7 +325,8 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 |--------|----------------------|
 | `oauth_at_rest_pepper` | `OAUTH_AT_REST_PEPPER` (required) |
 | `database_url` | `DATABASE_URL` (required) |
-| `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` |
+| `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` (required) |
+| `signing_key_pem` | `SIGNING_KEY_PEM` (required on deployment hosts) |
 | `database_write_url` | `DATABASE_WRITE_URL` |
 | `external_database_url` | `EXTERNAL_DATABASE_URL` |
 | `internal_database_url` | `INTERNAL_DATABASE_URL` |
