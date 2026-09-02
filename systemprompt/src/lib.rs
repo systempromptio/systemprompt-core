@@ -17,6 +17,7 @@
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
 //! | `loader` | `systemprompt-loader` | Filesystem and module discovery. |
 //! | `events` | `systemprompt-events` | In-process event bus and SSE plumbing. |
+//! | `storage` | `systemprompt-storage` | File storage backends and the shared-mount probe. |
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
@@ -105,6 +106,12 @@ pub mod loader {
 #[cfg_attr(docsrs, doc(cfg(feature = "events")))]
 pub mod events {
     pub use systemprompt_events::*;
+}
+
+#[cfg(feature = "storage")]
+#[cfg_attr(docsrs, doc(cfg(feature = "storage")))]
+pub mod storage {
+    pub use systemprompt_storage::*;
 }
 
 /// HTTP API client used by the CLI and external tooling to drive a running

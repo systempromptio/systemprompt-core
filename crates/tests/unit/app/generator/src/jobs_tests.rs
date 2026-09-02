@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use systemprompt_database::DbPool;
 use systemprompt_generator::{ContentPrerenderJob, PagePrerenderJob};
-use systemprompt_provider_contracts::{Job, JobContext, ProviderError};
+use systemprompt_provider_contracts::{Job, JobContext, JobScope, ProviderError};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_actor, fixture_database_url, fixture_db_pool,
 };
@@ -29,6 +29,12 @@ fn content_prerender_job_metadata() {
     assert_eq!(job.name(), "content_prerender");
     assert!(!job.description().is_empty());
     assert_eq!(job.schedule(), "0 0 4 * * *");
+}
+
+#[test]
+fn prerender_jobs_are_node_scoped() {
+    assert_eq!(ContentPrerenderJob.scope(), JobScope::Node);
+    assert_eq!(PagePrerenderJob.scope(), JobScope::Node);
 }
 
 #[test]

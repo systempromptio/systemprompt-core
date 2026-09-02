@@ -12,7 +12,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::ScheduledJobId;
+use systemprompt_identifiers::{InstanceId, ScheduledJobId};
 
 pub use systemprompt_models::services::{JobConfig, SchedulerConfig};
 
@@ -51,6 +51,16 @@ impl std::fmt::Display for JobStatus {
     }
 }
 
+/// One completed (or started) run of a scheduled job, as written to its
+/// `scheduled_jobs` row.
+#[derive(Debug, Clone, Copy)]
+pub struct JobRunRecord<'a> {
+    pub status: JobStatus,
+    pub error: Option<&'a str>,
+    pub next_run: Option<DateTime<Utc>>,
+    pub instance_id: &'a InstanceId,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ScheduledJob {
     pub id: ScheduledJobId,
@@ -61,6 +71,7 @@ pub struct ScheduledJob {
     pub next_run: Option<DateTime<Utc>>,
     pub last_status: Option<String>,
     pub last_error: Option<String>,
+    pub last_instance_id: Option<String>,
     pub run_count: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

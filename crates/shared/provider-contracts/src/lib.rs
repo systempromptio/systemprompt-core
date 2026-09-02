@@ -59,7 +59,7 @@ pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
 pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
-pub use job::{Job, JobContext, JobResult};
+pub use job::{Job, JobContext, JobResult, JobScope};
 pub use llm::{
     ChatMessage, ChatRequest, ChatResponse, ChatRole, ChatStream, LlmProvider, LlmProviderError,
     LlmProviderResult, SamplingParameters, TokenUsage, ToolExecutionContext, ToolExecutor,

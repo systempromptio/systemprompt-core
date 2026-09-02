@@ -13,6 +13,7 @@ members = [
     "crates/infra/logging",
     "crates/infra/config",
     "crates/infra/events",
+    "crates/infra/storage",
     "crates/infra/security",
     "crates/infra/cloud",
     "crates/infra/loader",
@@ -308,6 +309,7 @@ systemprompt-database = { path = "crates/infra/database", version = "0.43.0" }
 systemprompt-logging = { path = "crates/infra/logging", version = "0.43.0" }
 systemprompt-config = { path = "crates/infra/config", version = "0.43.0" }
 systemprompt-events = { path = "crates/infra/events", version = "0.43.0" }
+systemprompt-storage = { path = "crates/infra/storage", version = "0.43.0" }
 systemprompt-security = { path = "crates/infra/security", version = "0.43.0" }
 systemprompt-cloud = { path = "crates/infra/cloud", version = "0.43.0" }
 systemprompt-loader = { path = "crates/infra/loader", version = "0.43.0" }

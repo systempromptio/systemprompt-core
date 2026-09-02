@@ -120,7 +120,7 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
         })?;
 
         Ok(ImageStorageConfig {
-            base_path: config.generated_images(),
+            base_path: FilesConfig::generated_images_relative(),
             url_prefix: format!("{}/images/generated", config.url_prefix()),
         })
     }

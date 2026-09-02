@@ -12,7 +12,7 @@ keywords.workspace = true
 categories.workspace = true
 description = "Background jobs, cron tasks, and job-extension dispatch for systemprompt.io AI governance infrastructure. Tokio-backed scheduling for the MCP governance pipeline."
 readme = "README.md"
-include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
+include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -20,6 +20,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [lints]
 workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core dependencies

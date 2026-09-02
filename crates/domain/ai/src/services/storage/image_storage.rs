@@ -1,9 +1,10 @@
-//! Filesystem storage for generated images.
+//! Storage for generated images behind the [`FileStorage`] backend.
 //!
-//! [`ImageStorage`] persists decoded image bytes under a configured base path,
-//! optionally sharding by capture date, and returns both the on-disk path and
-//! the public URL. [`StorageConfig`] holds the base path, URL prefix, size cap,
-//! and date-organisation flag and validates them before any write.
+//! [`ImageStorage`] persists decoded image bytes under a configured base path
+//! relative to the storage root, optionally sharding by capture date, and
+//! returns both the storage id and the public URL. [`StorageConfig`] holds
+//! the base path, URL prefix, size cap, and date-organisation flag and
+//! validates them before any write.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,9 +14,9 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use chrono::{Datelike, Utc};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::{Path, PathBuf};
-use systemprompt_traits::ImageStorageConfig;
+use std::path::PathBuf;
+use std::sync::Arc;
+use systemprompt_traits::{FileStorage, ImageStorageConfig, StoredFileId};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,57 +71,55 @@ impl StorageConfig {
     }
 }
 
-#[derive(Debug)]
 pub struct ImageStorage {
     config: StorageConfig,
+    storage: Arc<dyn FileStorage>,
+}
+
+impl std::fmt::Debug for ImageStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ImageStorage")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
+}
+
+const fn storage_error(message: String) -> AiError {
+    AiError::StorageError { message }
 }
 
 impl ImageStorage {
-    pub fn new(config: StorageConfig) -> Result<Self, AiError> {
-        config.validate().map_err(|e| AiError::StorageError {
-            message: format!("Invalid storage configuration: {e}"),
-        })?;
+    pub fn new(config: StorageConfig, storage: Arc<dyn FileStorage>) -> Result<Self, AiError> {
+        config
+            .validate()
+            .map_err(|e| storage_error(format!("Invalid storage configuration: {e}")))?;
 
-        if !config.base_path.exists() {
-            fs::create_dir_all(&config.base_path).map_err(|e| AiError::StorageError {
-                message: format!(
-                    "Failed to create storage directory {}: {}",
-                    config.base_path.display(),
-                    e
-                ),
-            })?;
-        }
-
-        Ok(Self { config })
+        Ok(Self { config, storage })
     }
 
-    pub fn save_base64_image(
+    pub async fn save_base64_image(
         &self,
         base64_data: &str,
         mime_type: &str,
-    ) -> Result<(PathBuf, String), AiError> {
+    ) -> Result<(StoredFileId, String), AiError> {
         let image_bytes = BASE64
             .decode(base64_data)
-            .map_err(|e| AiError::StorageError {
-                message: format!("Failed to decode base64 image: {e}"),
-            })?;
+            .map_err(|e| storage_error(format!("Failed to decode base64 image: {e}")))?;
 
-        self.save_image_bytes(&image_bytes, mime_type)
+        self.save_image_bytes(&image_bytes, mime_type).await
     }
 
-    pub fn save_image_bytes(
+    pub async fn save_image_bytes(
         &self,
         image_bytes: &[u8],
         mime_type: &str,
-    ) -> Result<(PathBuf, String), AiError> {
+    ) -> Result<(StoredFileId, String), AiError> {
         if image_bytes.len() > self.config.max_file_size_bytes {
-            return Err(AiError::StorageError {
-                message: format!(
-                    "Image size {} bytes exceeds maximum allowed size {} bytes",
-                    image_bytes.len(),
-                    self.config.max_file_size_bytes
-                ),
-            });
+            return Err(storage_error(format!(
+                "Image size {} bytes exceeds maximum allowed size {} bytes",
+                image_bytes.len(),
+                self.config.max_file_size_bytes
+            )));
         }
 
         let extension = Self::mime_type_to_extension(mime_type);
@@ -131,78 +130,57 @@ impl ImageStorage {
             extension
         );
 
-        let relative_path = if self.config.organize_by_date {
-            let now = Utc::now();
-            PathBuf::from(format!(
-                "{}/{:04}/{:02}/{:02}/{}",
-                self.config.base_path.display(),
-                now.year(),
-                now.month(),
-                now.day(),
-                filename
-            ))
-        } else {
-            self.config.base_path.join(&filename)
-        };
+        let partition = self.date_partition();
+        let relative_path = self.config.base_path.join(&partition).join(&filename);
+        let url_path = format!(
+            "{}/{}{}",
+            self.config.url_prefix,
+            if partition.is_empty() {
+                String::new()
+            } else {
+                format!("{partition}/")
+            },
+            filename
+        );
 
-        if let Some(parent) = relative_path.parent()
-            && !parent.exists()
-        {
-            fs::create_dir_all(parent).map_err(|e| AiError::StorageError {
-                message: format!("Failed to create directory {}: {e}", parent.display()),
+        let stored_id = self
+            .storage
+            .store(&relative_path, image_bytes)
+            .await
+            .map_err(|e| {
+                storage_error(format!(
+                    "Failed to write image file {}: {e}",
+                    relative_path.display()
+                ))
             })?;
-        }
 
-        fs::write(&relative_path, image_bytes).map_err(|e| AiError::StorageError {
-            message: format!(
-                "Failed to write image file {}: {e}",
-                relative_path.display()
-            ),
-        })?;
-
-        let url_path = if self.config.organize_by_date {
-            let now = Utc::now();
-            format!(
-                "{}/{:04}/{:02}/{:02}/{}",
-                self.config.url_prefix,
-                now.year(),
-                now.month(),
-                now.day(),
-                filename
-            )
-        } else {
-            format!("{}/{}", self.config.url_prefix, filename)
-        };
-
-        Ok((relative_path, url_path))
+        Ok((stored_id, url_path))
     }
 
-    pub fn delete_image(&self, file_path: &Path) -> Result<(), AiError> {
-        if !file_path.exists() {
-            return Err(AiError::StorageError {
-                message: format!("File does not exist: {}", file_path.display()),
-            });
-        }
-
-        fs::remove_file(file_path).map_err(|e| AiError::StorageError {
-            message: format!("Failed to delete file {}: {e}", file_path.display()),
-        })?;
-
-        if let Some(parent) = file_path.parent()
-            && let Err(e) = self.cleanup_empty_directories(parent)
-        {
-            tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
-        }
-
-        Ok(())
+    pub async fn delete_image(&self, id: &StoredFileId) -> Result<(), AiError> {
+        self.storage
+            .delete(id)
+            .await
+            .map_err(|e| storage_error(format!("Failed to delete file {id}: {e}")))
     }
 
-    pub fn exists(file_path: &Path) -> bool {
-        file_path.exists()
+    pub async fn exists(&self, id: &StoredFileId) -> Result<bool, AiError> {
+        self.storage
+            .exists(id)
+            .await
+            .map_err(|e| storage_error(format!("Failed to stat file {id}: {e}")))
     }
 
     pub fn get_full_path(&self, relative_path: &str) -> PathBuf {
         self.config.base_path.join(relative_path)
+    }
+
+    fn date_partition(&self) -> String {
+        if !self.config.organize_by_date {
+            return String::new();
+        }
+        let now = Utc::now();
+        format!("{:04}/{:02}/{:02}", now.year(), now.month(), now.day())
     }
 
     fn mime_type_to_extension(mime_type: &str) -> String {
@@ -213,23 +191,5 @@ impl ImageStorage {
             _ => "png",
         }
         .to_owned()
-    }
-
-    fn cleanup_empty_directories(&self, dir: &Path) -> Result<(), std::io::Error> {
-        if dir == self.config.base_path {
-            return Ok(());
-        }
-
-        if dir.read_dir()?.next().is_none() {
-            fs::remove_dir(dir)?;
-
-            if let Some(parent) = dir.parent()
-                && let Err(e) = self.cleanup_empty_directories(parent)
-            {
-                tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
-            }
-        }
-
-        Ok(())
     }
 }

@@ -41,6 +41,7 @@ members = [
     "unit/infra/config",
     "unit/infra/database",
     "unit/infra/events",
+    "unit/infra/storage",
     "unit/infra/loader",
     "unit/infra/logging",
     "unit/infra/security",
@@ -241,6 +242,7 @@ opentelemetry-proto = { version = "0.32", default-features = false, features = [
 prost = "0.14"
 systemprompt-config = { path = "../infra/config" }
 systemprompt-events = { path = "../infra/events" }
+systemprompt-storage = { path = "../infra/storage" }
 systemprompt-security = { path = "../infra/security" }
 systemprompt-cloud = { path = "../infra/cloud" }
 systemprompt-loader = { path = "../infra/loader" }

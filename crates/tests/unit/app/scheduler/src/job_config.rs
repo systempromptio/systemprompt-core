@@ -1,4 +1,5 @@
 use systemprompt_identifiers::UserId;
+use systemprompt_models::services::scheduler::JobScope;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig};
 
 mod job_config_tests {
@@ -131,6 +132,50 @@ mod job_config_tests {
         let schedule = String::from("0 0 1 * * *");
         let cfg = JobConfig::new("job").with_schedule(schedule.clone());
         assert_eq!(cfg.schedule, Some(schedule));
+    }
+}
+
+mod job_scope_tests {
+    use super::*;
+
+    #[test]
+    fn new_defaults_scope_to_none() {
+        assert_eq!(JobConfig::new("job").scope, None);
+    }
+
+    #[test]
+    fn with_scope_sets_explicit_scope() {
+        let cfg = JobConfig::new("job").with_scope(JobScope::Node);
+        assert_eq!(cfg.scope, Some(JobScope::Node));
+    }
+
+    #[test]
+    fn deserialized_config_defaults_scope_to_none() {
+        let cfg: JobConfig =
+            serde_json::from_str(r#"{"name": "page_prerender"}"#).expect("valid job config");
+        assert_eq!(cfg.scope, None);
+    }
+
+    #[test]
+    fn deserialized_config_honours_lowercase_scope() {
+        let cfg: JobConfig =
+            serde_json::from_str(r#"{"name": "j", "scope": "node"}"#).expect("valid job config");
+        assert_eq!(cfg.scope, Some(JobScope::Node));
+        let cfg: JobConfig =
+            serde_json::from_str(r#"{"name": "j", "scope": "cluster"}"#).expect("valid job config");
+        assert_eq!(cfg.scope, Some(JobScope::Cluster));
+    }
+
+    #[test]
+    fn serde_rejects_unknown_scope() {
+        let err = serde_json::from_str::<JobConfig>(r#"{"name": "j", "scope": "region"}"#)
+            .expect_err("`region` is not a job scope");
+        assert!(err.to_string().contains("region"), "{err}");
+    }
+
+    #[test]
+    fn job_scope_default_is_cluster() {
+        assert_eq!(JobScope::default(), JobScope::Cluster);
     }
 }
 

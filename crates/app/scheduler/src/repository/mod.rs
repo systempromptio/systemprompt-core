@@ -19,11 +19,10 @@ pub use analytics::AnalyticsRepository;
 pub use jobs::JobRepository;
 pub use security::{IpSessionRecord, SecurityRepository};
 
-use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 
 use crate::error::SchedulerResult;
-use crate::models::{JobStatus, ScheduledJob};
+use crate::models::{JobRunRecord, ScheduledJob};
 
 #[derive(Debug, Clone)]
 pub struct SchedulerRepository {
@@ -59,13 +58,9 @@ impl SchedulerRepository {
     pub async fn update_job_execution(
         &self,
         job_name: &str,
-        status: JobStatus,
-        error: Option<&str>,
-        next_run: Option<DateTime<Utc>>,
+        record: JobRunRecord<'_>,
     ) -> SchedulerResult<()> {
-        self.jobs
-            .update_job_execution(job_name, status, error, next_run)
-            .await
+        self.jobs.update_job_execution(job_name, record).await
     }
 
     pub async fn increment_run_count(&self, job_name: &str) -> SchedulerResult<()> {

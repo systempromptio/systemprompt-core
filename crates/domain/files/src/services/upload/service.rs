@@ -1,9 +1,10 @@
 //! [`FileUploadService`]: decode, validate, store, and record uploads.
 //!
 //! Decodes base64 payloads, enforces upload policy via [`FileValidator`],
-//! writes bytes to a traversal-checked storage path derived from the
-//! persistence mode, and records the file through [`FileRepository`], cleaning
-//! up the on-disk artefact if the database write fails.
+//! writes bytes through the [`FileStorage`] backend at a traversal-checked
+//! path derived from the persistence mode, and records the file through
+//! [`FileRepository`], deleting the stored artefact if the database write
+//! fails.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,9 +13,9 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
+use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, FileId, UserId};
-use tokio::fs;
-use tokio::io::AsyncWriteExt;
+use systemprompt_traits::{FileStorage, StoredFileId};
 use uuid::Uuid;
 
 use crate::config::{FilePersistenceMode, FilesConfig};
@@ -27,27 +28,42 @@ use super::validator::{FileCategory, FileValidator};
 
 struct StoredArtifact<'a> {
     file_id: &'a FileId,
-    storage_path: &'a std::path::Path,
+    stored_id: &'a StoredFileId,
     public_url: &'a str,
     size_bytes: u64,
     sha256: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FileUploadService {
     files_config: FilesConfig,
     file_repository: FileRepository,
     validator: FileValidator,
+    storage: Arc<dyn FileStorage>,
+}
+
+impl std::fmt::Debug for FileUploadService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileUploadService")
+            .field("files_config", &self.files_config)
+            .field("validator", &self.validator)
+            .finish_non_exhaustive()
+    }
 }
 
 impl FileUploadService {
-    pub const fn new(file_repository: FileRepository, files_config: FilesConfig) -> Self {
+    pub fn new(
+        file_repository: FileRepository,
+        files_config: FilesConfig,
+        storage: Arc<dyn FileStorage>,
+    ) -> Self {
         let validator = FileValidator::new(*files_config.upload());
 
         Self {
             files_config,
             file_repository,
             validator,
+            storage,
         }
     }
 
@@ -93,13 +109,7 @@ impl FileUploadService {
             request.user_id.as_ref(),
         )?;
 
-        if let Some(parent) = storage_path.parent() {
-            fs::create_dir_all(parent).await?;
-        }
-
-        let mut file = fs::File::create(&storage_path).await?;
-        file.write_all(&bytes).await?;
-        file.flush().await?;
+        let stored_id = self.storage.store(&storage_path, &bytes).await?;
 
         let sha256 = hex::encode(Sha256::digest(&bytes));
 
@@ -108,7 +118,7 @@ impl FileUploadService {
         self.record_file(
             StoredArtifact {
                 file_id: &file_id,
-                storage_path: &storage_path,
+                stored_id: &stored_id,
                 public_url: &public_url,
                 size_bytes,
                 sha256,
@@ -132,7 +142,7 @@ impl FileUploadService {
     ) -> Result<(), FileUploadError> {
         let StoredArtifact {
             file_id,
-            storage_path,
+            stored_id,
             public_url,
             size_bytes,
             sha256,
@@ -142,7 +152,7 @@ impl FileUploadService {
 
         let mut insert_request = InsertFileRequest::new(
             file_id.clone(),
-            storage_path.to_string_lossy().to_string(),
+            stored_id.as_str().to_owned(),
             public_url.to_owned(),
             request.mime_type.clone(),
         )
@@ -163,9 +173,9 @@ impl FileUploadService {
         }
 
         if let Err(e) = self.file_repository.insert(insert_request).await {
-            if let Err(cleanup_err) = fs::remove_file(storage_path).await {
+            if let Err(cleanup_err) = self.storage.delete(stored_id).await {
                 tracing::warn!(
-                    path = %storage_path.display(),
+                    stored_id = %stored_id,
                     error = %cleanup_err,
                     "Failed to clean up uploaded file after database error"
                 );
@@ -183,7 +193,7 @@ impl FileUploadService {
         context_id: &ContextId,
         user_id: Option<&UserId>,
     ) -> Result<(PathBuf, String), FileUploadError> {
-        let base = self.files_config.uploads();
+        let base = FilesConfig::uploads_relative();
         let upload_config = self.files_config.upload();
 
         let context_str = context_id.as_str();
@@ -225,12 +235,6 @@ impl FileUploadService {
                     ));
                 },
             }
-        }
-
-        if !full_path.starts_with(&base) {
-            return Err(FileUploadError::PathValidation(
-                "Resolved path escapes upload directory".to_owned(),
-            ));
         }
 
         Ok((full_path, relative))

@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::SchedulerResult;
-use crate::models::{JobStatus, ScheduledJob};
-use chrono::{DateTime, Utc};
+use crate::models::{JobRunRecord, ScheduledJob};
+use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -60,7 +60,7 @@ impl JobRepository {
             ScheduledJob,
             r#"
             SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
-                   run_count, created_at, updated_at
+                   last_instance_id, run_count, created_at, updated_at
             FROM scheduled_jobs
             WHERE job_name = $1
             "#,
@@ -76,7 +76,7 @@ impl JobRepository {
             ScheduledJob,
             r#"
             SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
-                   run_count, created_at, updated_at
+                   last_instance_id, run_count, created_at, updated_at
             FROM scheduled_jobs
             WHERE enabled = true
             ORDER BY job_name
@@ -90,10 +90,14 @@ impl JobRepository {
     pub async fn update_job_execution(
         &self,
         job_name: &str,
-        status: JobStatus,
-        error: Option<&str>,
-        next_run: Option<DateTime<Utc>>,
+        record: JobRunRecord<'_>,
     ) -> SchedulerResult<()> {
+        let JobRunRecord {
+            status,
+            error,
+            next_run,
+            instance_id,
+        } = record;
         let now = Utc::now();
         let status_str = status.as_str();
 
@@ -104,13 +108,15 @@ impl JobRepository {
                 last_status = $2,
                 last_error = $3,
                 next_run = $4,
-                updated_at = $5
-            WHERE job_name = $6
+                last_instance_id = $5,
+                updated_at = $6
+            WHERE job_name = $7
             "#,
             now,
             status_str,
             error,
             next_run,
+            instance_id.as_str(),
             now,
             job_name
         )
@@ -135,7 +141,7 @@ impl JobRepository {
             ScheduledJob,
             r#"
             SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
-                   run_count, created_at, updated_at
+                   last_instance_id, run_count, created_at, updated_at
             FROM scheduled_jobs
             WHERE last_run IS NOT NULL
             ORDER BY last_run DESC

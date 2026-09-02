@@ -27,7 +27,11 @@ mod service_management_db {
     async fn get_services_by_type_mcp_returns_vec() {
         let pool = pool_or_skip!();
         let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository"),
         );
 
         let rows = svc
@@ -43,7 +47,11 @@ mod service_management_db {
     async fn get_services_by_type_agent_returns_vec() {
         let pool = pool_or_skip!();
         let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository"),
         );
 
         let rows = svc
@@ -58,7 +66,11 @@ mod service_management_db {
     async fn get_running_services_with_pid_returns_vec() {
         let pool = pool_or_skip!();
         let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository"),
         );
 
         let rows = svc
@@ -81,7 +93,11 @@ mod service_management_db {
     async fn cleanup_stale_entries_returns_count() {
         let pool = pool_or_skip!();
         let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository"),
         );
 
         let affected = svc
@@ -97,7 +113,11 @@ mod service_management_db {
     async fn mark_service_stopped_noop_on_unknown_service() {
         let pool = pool_or_skip!();
         let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository"),
         );
 
         // An UPDATE that matches zero rows is still a successful query; the
@@ -111,7 +131,11 @@ mod service_management_db {
     async fn cleanup_stale_entries_is_idempotent() {
         let pool = pool_or_skip!();
         let svc = ServiceManagementService::new(
-            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+            systemprompt_database::ServiceRepository::new(
+                &pool,
+                systemprompt_identifiers::InstanceId::new("test-instance"),
+            )
+            .expect("service repository"),
         );
 
         let first = svc

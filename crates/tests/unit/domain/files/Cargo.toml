@@ -15,6 +15,7 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-config = { workspace = true }

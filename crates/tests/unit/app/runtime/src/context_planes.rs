@@ -62,7 +62,7 @@ async fn plane_debug_impls_flag_optional_members() {
         fingerprint_repo: None,
         user_service: None,
         a2a_repositories: Arc::new(
-            systemprompt_agent::repository::A2ARepositories::new(&pool, session_usage)
+            systemprompt_agent::repository::A2ARepositories::new(&pool, session_usage, systemprompt_identifiers::InstanceId::new("test-instance"))
                 .expect("a2a repositories"),
         ),
         content_repositories: Arc::new(
@@ -77,7 +77,7 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_users::UserRepository::new(&pool).expect("user repository"),
         ),
         service_repository: Arc::new(
-            systemprompt_database::ServiceRepository::new(&pool).expect("service repository"),
+            systemprompt_database::ServiceRepository::new(&pool, systemprompt_identifiers::InstanceId::new("test-instance")).expect("service repository"),
         ),
         ai_repositories: Arc::new(
             systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),

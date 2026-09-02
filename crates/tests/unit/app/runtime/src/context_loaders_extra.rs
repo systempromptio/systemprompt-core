@@ -12,6 +12,7 @@ use systemprompt_runtime::AppContext;
 fn cfg_without_geoip() -> Config {
     Config {
         instance_id: "t".to_string(),
+        metrics_port: None,
         max_concurrent_streams: 16,
         sitename: "t".to_string(),
         database_type: "postgres".to_string(),

@@ -17,6 +17,8 @@ mod evaluation_loop;
 mod ghost_session_cleanup;
 mod malicious_ip_blacklist;
 mod no_js_cleanup;
+mod service_registry_gc;
+mod thought_signature_cleanup;
 
 pub use backfill_session_geo::BackfillSessionGeoJob;
 pub use behavioral_analysis::BehavioralAnalysisJob;
@@ -27,3 +29,5 @@ pub use evaluation_loop::EvaluationLoopJob;
 pub use ghost_session_cleanup::GhostSessionCleanupJob;
 pub use malicious_ip_blacklist::MaliciousIpBlacklistJob;
 pub use no_js_cleanup::NoJsCleanupJob;
+pub use service_registry_gc::ServiceRegistryGcJob;
+pub use thought_signature_cleanup::ThoughtSignatureCleanupJob;

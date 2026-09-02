@@ -9,7 +9,9 @@ use std::sync::Arc;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_models::AppPaths;
-use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderError, ProviderResult};
+use systemprompt_provider_contracts::{
+    Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult,
+};
 
 use crate::prerender::prerender_pages;
 
@@ -28,6 +30,12 @@ impl Job for PagePrerenderJob {
 
     fn schedule(&self) -> &'static str {
         "0 30 4 * * *"
+    }
+
+    // Why: prerendered pages live on each replica's local disk, so every
+    // node must produce its own copy rather than one replica winning the lock.
+    fn scope(&self) -> JobScope {
+        JobScope::Node
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {

@@ -57,7 +57,7 @@ pub mod services;
 
 pub use extension::AiExtension;
 
-pub use services::core::{AiService, AiServiceProviders, ImageService};
+pub use services::core::{AiService, AiServiceProviders, ImageService, ImageServiceParts};
 
 pub use services::gateway::{
     Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry,

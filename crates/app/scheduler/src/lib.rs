@@ -55,7 +55,7 @@ pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
     GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
-pub use models::{JobConfig, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
+pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
     DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService, JobRunReport,
