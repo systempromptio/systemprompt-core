@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.46.0] - 2026-09-04
+
+A Mac install of the bridge on 2026-09-03 failed three separate ways at once.
+All three are fixed here, along with the architectural reason two of them were
+invisible to every test we had.
+
+### Fixed
+
+- **Security (governance):** the high-entropy secret backstop no longer denies filesystem paths. `/` is a legal token character and not a delimiter, so an absolute path was scored as a single token; a macOS `$TMPDIR` (`/var/folders/<12>/<30>/T/`) cleared every check, its random segment supplying the entropy and its `/T/` segment the uppercase the shape test demands. Claude Code carries those paths in its system prompt, so on an affected Mac **every** Claude Code request was denied with `secret detected: High-entropy token` while Claude Desktop, which sends no such path, was unaffected. The measured ratio sits either side of the 0.80 threshold depending on the machine's random segment, so this reached an unknown fraction of Mac users and looked like a flake to each. Path-shaped tokens are now exempt, scored per `/`-separated segment so key material cannot hide inside one, and tokens containing `+` or `=` stay in scope because those are base64's own characters.
+- **Bridge (macOS):** managed MCP servers could never authenticate. The macOS policy published each server's upstream gateway URL with no headers, where Windows published the loopback proxy URL and its bearer. Requests carried no credential, no per-user identity, and bypassed the governance the proxy applies. macOS now emits the same shape as Windows; the `oauth` key is dropped with it, since an empty dict asks for well-known discovery against a URL that authenticates by bearer.
+- **Bridge (macOS):** connectors never synced. The sync emitter's macOS arm was a no-op returning `"managedMcpServers refresh skipped"`, so a manifest that gained or lost a server never reached the plist until someone re-ran `install --apply` by hand. It re-renders the managed preferences now, as Windows re-asserts the registry; the existing byte comparison means an unchanged manifest raises no elevation prompt.
+- **Bridge (macOS):** sync failed closed when `/Library/Application Support/Claude/org-plugins` was missing, telling a double-click GUI user to run a `sudo` command. That single early return also skipped the MCP registry publish and every policy write behind it, so one missing directory zeroed the managed MCP registry. It raises the same one-time administrator prompt Windows raises, and hands the directory to the invoking user so later unelevated syncs can write it.
+- **Bridge (macOS):** the Claude Desktop install claimed `"loaded into managed preferences"` where `open -g` only queues the profile for System Settings, so the probe a second later correctly reported `"profile not installed"` and the pair read as a contradiction. It reports the profile as offered now, the wording its Codex CLI sibling already used, and the install path states the approval steps the way the Windows path states its UAC prompt.
+
+### Changed
+
+- **Bridge:** the Claude Desktop managed policy is one key set with per-platform renderers. It had been decided in three places — registry values on Windows, and hand-written plist XML in both the `install --apply` templates and the GUI host profile — and they had drifted: only Windows carried `allowedWorkspaceFolders`, only the GUI profile carried `inferenceModels`, and only Windows carried `managedMcpServers` at all. `policy::claude_desktop_policy` is now the only place the key set is decided, `reg_values` and `plist_body` render it, and a template supplies the surrounding document and nothing else. Both renderers are platform-neutral, so the macOS plist can be asserted from any host — it previously could not be, which is why none of that divergence was visible to a test.
+
+### Removed
+
+- `managed_mcp_servers_json`, `inference_values`, `inference_policy_values` and `windows_policy_values`, superseded by the policy module. The behaviour their tests described is re-asserted against the policy, where it runs on every platform rather than only Windows.
+
 ## [0.45.0] - 2026-09-03
 
 ### Fixed
