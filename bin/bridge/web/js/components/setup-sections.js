@@ -65,8 +65,11 @@ export function renderSetupAgentsStep(component) {
 // where they actually are.
 export function renderSetupUpdateNotice(component) {
   const update = updateStateOf(component.snapshot);
-  const restart = update.phase === "ready";
-  if (update.phase !== "available" && !restart) { return ""; }
+  // `can_install`/`can_restart` are the bridge's own read of the update state
+  // (`UpdatePayload`); deriving it again from the phase name is how the two
+  // answers drift apart.
+  const restart = !!update.can_restart;
+  if (!update.can_install && !restart) { return ""; }
   const label = restart
     ? (t("rail-profile-restart-cta") || "Restart to finish updating")
     : (t("rail-profile-update-cta") || "Click here to update");

@@ -29,10 +29,6 @@ fn egress_plist_block(from_flag: Option<&[String]>, indent: &str) -> String {
         .unwrap_or_default()
 }
 
-#[expect(
-    clippy::literal_string_with_formatting_args,
-    reason = "these braces are template placeholders substituted with str::replace, not format args"
-)]
 pub fn build_prefs_plist(mcp: &MdmPayloadInputs<'_>, gateway: &str) -> String {
     PREFS_PLIST_TMPL
         .replace("{gateway_esc}", &xml::escape(gateway))
@@ -48,6 +44,10 @@ pub fn build_prefs_plist(mcp: &MdmPayloadInputs<'_>, gateway: &str) -> String {
 }
 
 #[must_use]
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "these braces are template placeholders substituted with str::replace, not format args"
+)]
 pub fn build_bridge_prefs_plist(pubkey: &str) -> String {
     BRIDGE_PREFS_PLIST_TMPL.replace("{pubkey}", &xml::escape(pubkey))
 }
