@@ -215,8 +215,13 @@ fn a_valid_org_uuid_is_carried_and_a_malformed_one_is_dropped() {
         })
     };
     assert_eq!(
-        value_of(&with(Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963")), "deploymentOrganizationUuid"),
-        Some(&PolicyValue::Str("f8e4d915-f8ad-5304-ab0d-c1bf895df963".to_owned()))
+        value_of(
+            &with(Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963")),
+            "deploymentOrganizationUuid"
+        ),
+        Some(&PolicyValue::Str(
+            "f8e4d915-f8ad-5304-ab0d-c1bf895df963".to_owned()
+        ))
     );
     assert!(value_of(&with(Some("garbage")), "deploymentOrganizationUuid").is_none());
     assert!(value_of(&with(None), "deploymentOrganizationUuid").is_none());

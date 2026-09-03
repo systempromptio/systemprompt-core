@@ -209,4 +209,3 @@ fn mdm_inputs() -> systemprompt_bridge::install::MdmPayloadInputs<'static> {
         egress_allowed_hosts: None,
     }
 }
-
