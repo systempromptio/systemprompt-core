@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.46.0] - 2026-09-04
+
+### Fixed
+
+- The high-entropy secret backstop no longer reports filesystem paths as credentials. `/` is a token character rather than a delimiter, so an absolute path was scored as one token; a macOS `$TMPDIR` (`/var/folders/<12>/<30>/T/`) then satisfied every check, its random segment supplying the entropy and its `/T/` segment the uppercase the shape test requires. The measured ratio falls either side of the 0.80 threshold depending on the machine's random segment, so identical code denied one Mac and not another. Path-shaped tokens are exempt now, scored per `/`-separated segment so key material inside a path is still reported, and a token carrying `+` or `=` stays in scope because those are base64's own characters.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added
