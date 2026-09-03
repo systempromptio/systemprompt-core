@@ -6,6 +6,7 @@
 pub(crate) mod apply;
 mod error;
 mod manifest;
+mod provision;
 mod replay;
 mod summary;
 
@@ -84,10 +85,7 @@ pub async fn run_once(
                 tracing::info!(path = %location.path.display(), "provisioned per-user org-plugins directory");
             },
             paths::Scope::System => {
-                return Err(SyncError::PathMissing {
-                    bin: crate::brand::brand().binary_name,
-                    path: location.path.display().to_string(),
-                });
+                provision::provision_system_org_plugins(bridge, &location.path).await?;
             },
         }
     }
