@@ -504,3 +504,141 @@ async fn finish_link_rejects_token_swapped_between_sessions() {
         .expect_err("finishing session A with token B must fail");
     assert!(err.to_string().contains("Token mismatch"));
 }
+
+// The browser refuses a second concurrent `create()`, so a double-fired
+// `/link/start` completes the *first* ceremony and may pair it with either
+// response. Both starts must therefore describe the same ceremony.
+#[tokio::test]
+async fn overlapping_link_starts_share_one_challenge_and_either_id_finishes() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let email = unique_email("overlap");
+    let user_id = seed_uuid_user(&ctx.pool, &email).await;
+    let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
+    let mut auth = authenticator();
+
+    let (ccr_first, id_first, _) = ctx
+        .service
+        .start_registration_with_token(&raw_token)
+        .await
+        .expect("first start");
+    let (ccr_second, id_second, _) = ctx
+        .service
+        .start_registration_with_token(&raw_token)
+        .await
+        .expect("second start");
+
+    assert_eq!(
+        id_second, id_first,
+        "overlapping starts must share a challenge id"
+    );
+    assert_eq!(
+        ccr_second.public_key.challenge, ccr_first.public_key.challenge,
+        "overlapping starts must hand the browser the same challenge bytes"
+    );
+
+    let cred = auth
+        .do_registration(origin(), ccr_first)
+        .expect("registration against the first response");
+    let linked = ctx
+        .service
+        .finish_registration_with_token(&id_second, &raw_token, &cred)
+        .await
+        .expect("the second start's id finishes the ceremony the browser completed");
+    assert_eq!(linked, user_id);
+
+    let creds = ctx
+        .repo
+        .list_webauthn_credentials(&user_id)
+        .await
+        .expect("list credentials");
+    assert_eq!(creds.len(), 1);
+    assert!(matches!(
+        ctx.repo
+            .validate_setup_token(&hash_token(&raw_token))
+            .await
+            .expect("revalidate"),
+        TokenValidationResult::AlreadyUsed
+    ));
+}
+
+#[tokio::test]
+async fn link_start_after_a_failed_finish_mints_a_fresh_challenge() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let email = unique_email("refresh");
+    let user_id = seed_uuid_user(&ctx.pool, &email).await;
+    let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
+    let mut auth = authenticator();
+
+    let (_ccr, first_id, _) = ctx
+        .service
+        .start_registration_with_token(&raw_token)
+        .await
+        .expect("first start");
+    let (foreign_ccr, _) = ctx
+        .service
+        .start_registration("stranger", &unique_email("stranger"), None)
+        .await
+        .expect("foreign registration start");
+    let foreign_cred = auth
+        .do_registration(origin(), foreign_ccr)
+        .expect("foreign registration");
+    ctx.service
+        .finish_registration_with_token(&first_id, &raw_token, &foreign_cred)
+        .await
+        .expect_err("a credential minted for another challenge must not link");
+
+    let (ccr, second_id, _) = ctx
+        .service
+        .start_registration_with_token(&raw_token)
+        .await
+        .expect("start after the failed finish");
+    assert_ne!(second_id, first_id, "a consumed ceremony is never reissued");
+    let cred = auth.do_registration(origin(), ccr).expect("registration");
+    ctx.service
+        .finish_registration_with_token(&second_id, &raw_token, &cred)
+        .await
+        .expect("the fresh ceremony finishes");
+}
+
+#[tokio::test]
+async fn link_start_with_a_second_token_supersedes_the_first_ceremony() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let email = unique_email("supersede");
+    let user_id = seed_uuid_user(&ctx.pool, &email).await;
+    let token_a = store_link_token(&ctx.repo, &user_id, 600).await;
+    let token_b = store_link_token(&ctx.repo, &user_id, 600).await;
+    let mut auth = authenticator();
+
+    let (ccr_a, id_a, _) = ctx
+        .service
+        .start_registration_with_token(&token_a)
+        .await
+        .expect("start with token A");
+    let (ccr_b, id_b, _) = ctx
+        .service
+        .start_registration_with_token(&token_b)
+        .await
+        .expect("start with token B");
+    assert_ne!(id_b, id_a);
+
+    let cred_a = auth
+        .do_registration(origin(), ccr_a)
+        .expect("registration A");
+    let err = ctx
+        .service
+        .finish_registration_with_token(&id_a, &token_a, &cred_a)
+        .await
+        .expect_err("the superseded ceremony must be gone");
+    assert!(
+        err.to_string().contains("not found or expired"),
+        "got: {err}"
+    );
+
+    let cred_b = auth
+        .do_registration(origin(), ccr_b)
+        .expect("registration B");
+    ctx.service
+        .finish_registration_with_token(&id_b, &token_b, &cred_b)
+        .await
+        .expect("the live ceremony finishes");
+}

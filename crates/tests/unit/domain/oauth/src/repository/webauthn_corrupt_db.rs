@@ -130,9 +130,10 @@ async fn update_counter_for_an_unknown_credential_changes_nothing() {
     let ctx = setup("wa-noop").await;
     let id = format!("cred-{}", Uuid::new_v4());
     store_credential(&ctx, &id, 4).await;
+    let unknown = Uuid::new_v4();
 
     ctx.repo
-        .update_webauthn_credential_counter(&Uuid::new_v4().as_bytes().to_vec(), 99)
+        .update_webauthn_credential_counter(unknown.as_bytes(), 99)
         .await
         .expect("update against an unknown credential is not an error");
 

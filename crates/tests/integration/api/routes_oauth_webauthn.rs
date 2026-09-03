@@ -213,7 +213,8 @@ async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
     let token = generate_secure_token("webauthn_verified");
     service
         .store_verified_authentication(token.clone(), user.clone())
-        .await;
+        .await
+        .expect("store verified authentication");
     Ok(token)
 }
 

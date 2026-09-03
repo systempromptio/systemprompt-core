@@ -5,7 +5,7 @@
 
 use super::WebAuthnService;
 use crate::error::{OauthError, OauthResult as Result};
-use crate::repository::{StoreChallengeParams, TokenValidationResult, WebAuthnChallengeKind};
+use crate::repository::{ReserveLinkChallengeParams, TokenValidationResult, WebAuthnChallengeKind};
 use crate::services::webauthn::token::hash_token;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -15,11 +15,13 @@ use uuid::Uuid;
 use webauthn_rs::prelude::*;
 
 const LINK_CHALLENGE_TTL: Duration = Duration::from_secs(300);
+const LINK_CHALLENGE_MIN_REMAINING: Duration = Duration::from_secs(60);
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LinkRegistrationState {
     reg_state: PasskeyRegistration,
     token_id: TokenId,
+    challenge: CreationChallengeResponse,
 }
 
 #[derive(Debug, Clone)]
@@ -69,32 +71,36 @@ impl WebAuthnService {
             ))
         })?;
 
-        let (challenge, reg_state) = self.webauthn.start_passkey_registration(
-            user_unique_id,
-            &user.username,
-            &user.username,
-            if exclude_credentials.is_empty() {
-                None
-            } else {
-                Some(exclude_credentials)
-            },
-        )?;
-
-        let challenge_id = Uuid::new_v4().to_string();
-        let state = serde_json::to_value(LinkRegistrationState {
-            reg_state,
-            token_id: token_record.id.clone(),
-        })?;
-        self.oauth_repo
-            .store_webauthn_challenge(StoreChallengeParams {
-                challenge: &challenge_id,
-                kind: WebAuthnChallengeKind::Link,
-                user_id: Some(&token_record.user_id),
-                state: &state,
-                oauth_state: None,
-                ttl: LINK_CHALLENGE_TTL,
-            })
+        let reservation = self
+            .oauth_repo
+            .reserve_link_challenge(
+                ReserveLinkChallengeParams {
+                    user_id: &token_record.user_id,
+                    token_id: &token_record.id,
+                    ttl: LINK_CHALLENGE_TTL,
+                    min_remaining: LINK_CHALLENGE_MIN_REMAINING,
+                },
+                |_challenge_id| {
+                    let (challenge, reg_state) = self.webauthn.start_passkey_registration(
+                        user_unique_id,
+                        &user.username,
+                        &user.username,
+                        if exclude_credentials.is_empty() {
+                            None
+                        } else {
+                            Some(exclude_credentials)
+                        },
+                    )?;
+                    Ok(serde_json::to_value(LinkRegistrationState {
+                        reg_state,
+                        token_id: token_record.id.clone(),
+                        challenge,
+                    })?)
+                },
+            )
             .await?;
+        let state: LinkRegistrationState = serde_json::from_value(reservation.state)?;
+        let challenge_id = reservation.challenge_id;
 
         let user_info = LinkUserInfo {
             id: token_record.user_id.clone(),
@@ -105,10 +111,11 @@ impl WebAuthnService {
         tracing::info!(
             user_id = %user_info.id,
             challenge_id = %challenge_id,
+            reused = reservation.reused,
             "Link registration ceremony initiated"
         );
 
-        Ok((challenge, challenge_id, user_info))
+        Ok((state.challenge, challenge_id, user_info))
     }
 
     #[instrument(skip(self, setup_token, credential))]

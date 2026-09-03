@@ -56,3 +56,5 @@ tempfile = { workspace = true }
 wiremock = { workspace = true }
 url = { workspace = true }
 chrono = { workspace = true }
+webauthn-rs = { workspace = true }
+webauthn-authenticator-rs = { workspace = true }
