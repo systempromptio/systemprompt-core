@@ -224,7 +224,10 @@ fn no_known_host_resolves_as_unknown() {
 fn sync_only_agent_resolves_without_a_host_app() {
     use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
 
-    assert!(find_host_by_id("claude-code").is_none(), "sync-only by design");
+    assert!(
+        find_host_by_id("claude-code").is_none(),
+        "sync-only by design"
+    );
     let ResolvedHost::SyncOnly(agent) = resolve_host("claude-code") else {
         panic!("claude-code must resolve as a sync-only agent, not an unknown id");
     };
