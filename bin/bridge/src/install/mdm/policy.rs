@@ -10,7 +10,7 @@
 //! and its bearer.
 //!
 //! [`claude_desktop_policy`] is now the only place the key set is decided.
-//! [`reg_values`] and [`plist_body`] render it; a template supplies the
+//! `reg_values` and [`plist_body`] render it; a template supplies the
 //! surrounding document and nothing else. Both renderers are platform-neutral,
 //! so the macOS plist can be tested from any host — it previously could not be.
 //!
