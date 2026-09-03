@@ -29,8 +29,8 @@ pub use error::InstallError;
 pub use mdm::windows_policy_values;
 pub use mdm::{
     LEGACY_PUBKEY_KEY, MdmError, MdmPayloadInputs, bridge_policy_values,
-    cowork_egress_allowed_hosts, inference_policy_values, is_uuid_like, parse_egress_allowed_hosts,
-    snippet as mdm_snippet,
+    cowork_egress_allowed_hosts, default_inference_models, inference_policy_values, is_uuid_like,
+    parse_egress_allowed_hosts, snippet as mdm_snippet,
 };
 pub use schedule_apply::{
     ScheduleStatus, apply_gui_autostart, apply_schedule, gui_autostart_status,

@@ -41,8 +41,6 @@ pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
     display_keys: KEYS_OF_INTEREST,
 };
 
-const DEFAULT_MODELS: &[&str] = &["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"];
-
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Clone, Default)]
 pub(super) struct DomainRead {
@@ -65,7 +63,7 @@ pub use crate::integration::host_app::ProfileGenInputs;
 
 #[must_use]
 pub fn default_models() -> Vec<String> {
-    DEFAULT_MODELS.iter().map(|s| (*s).to_owned()).collect()
+    crate::install::default_inference_models()
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

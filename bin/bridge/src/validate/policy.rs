@@ -80,7 +80,7 @@ pub(super) fn check_managed_policy(report: &mut Report) {
             Err(e) => report.fail(&format!("policy {key}"), &format!("unreadable: {e}")),
         }
     }
-    match store.read_managed_policy(crate::install::LEGACY_PUBKEY_KEY) {
+    match store.read_managed_policy(crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY) {
         Ok(Some(_)) => report.warn(
             "policy inferenceManifestPubkey",
             "stale copy in Claude's hive — Claude Desktop warns on every launch; sync moves it",

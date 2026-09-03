@@ -96,7 +96,21 @@ pub fn bridge_policy_values(pubkey: Option<&str>) -> Vec<(&'static str, &'static
         .unwrap_or_default()
 }
 
-pub const LEGACY_PUBKEY_KEY: &str = "inferenceManifestPubkey";
+pub use crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY as LEGACY_PUBKEY_KEY;
+
+// Why: the models the managed gateway block advertises when the policy has none
+// yet. It lives here, with the block that writes it, rather than in the Claude
+// Desktop host — `install` sits below `integration`, so the host reads it from
+// here and not the other way round.
+const DEFAULT_INFERENCE_MODELS: &[&str] = &["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"];
+
+#[must_use]
+pub fn default_inference_models() -> Vec<String> {
+    DEFAULT_INFERENCE_MODELS
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect()
+}
 
 #[cfg(target_os = "windows")]
 #[must_use]
@@ -155,8 +169,7 @@ pub fn inference_policy_values(
     let models = existing_models
         .filter(|m| !m.trim().is_empty())
         .unwrap_or_else(|| {
-            serde_json::to_string(&crate::integration::claude_desktop::default_models())
-                .unwrap_or_else(|_| "[]".into())
+            serde_json::to_string(&default_inference_models()).unwrap_or_else(|_| "[]".into())
         });
     vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
