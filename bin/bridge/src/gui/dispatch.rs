@@ -21,6 +21,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::LoginRequested { .. } => "LoginRequested",
         UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
+        UiEvent::PurgeRequested { .. } => "PurgeRequested",
         UiEvent::CredentialRejected { .. } => "CredentialRejected",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
@@ -38,6 +39,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::LoginFinished { .. } => "LoginFinished",
         UiEvent::SessionLoginFinished { .. } => "SessionLoginFinished",
         UiEvent::LogoutFinished { .. } => "LogoutFinished",
+        UiEvent::PurgeFinished { .. } => "PurgeFinished",
         UiEvent::SetGatewayFinished { .. } => "SetGatewayFinished",
         UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
         UiEvent::McpAuthProbeFinished { .. } => "McpAuthProbeFinished",
@@ -137,6 +139,7 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
             handlers::auth::on_session_login_requested(app, gateway, keep_signed_in, reply_to);
         },
         UiEvent::LogoutRequested { reply_to } => handlers::auth::on_logout_requested(app, reply_to),
+        UiEvent::PurgeRequested { reply_to } => handlers::purge::on_purge_requested(app, reply_to),
         UiEvent::SetGatewayRequested { url, reply_to } => {
             handlers::auth::on_set_gateway_requested(app, &url, reply_to);
         },
@@ -186,6 +189,9 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         },
         UiEvent::LogoutFinished { result, reply_to } => {
             handlers::auth::on_logout_finished(app, result, reply_to);
+        },
+        UiEvent::PurgeFinished { result, reply_to } => {
+            handlers::purge::on_purge_finished(app, result, reply_to);
         },
         UiEvent::CredentialRejected { reason } => {
             handlers::auth::on_credential_rejected(app, &reason);

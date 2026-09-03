@@ -274,7 +274,7 @@ pub(crate) fn watch_credential_state(app: &GuiApp) {
     });
 }
 
-fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId) {
+pub(crate) fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId) {
     let Some(id) = reply_to else {
         if let Err(err) = result {
             emit::emit_error(app, &err);

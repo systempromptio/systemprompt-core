@@ -175,3 +175,63 @@ fn uninstall_on_a_never_installed_machine_is_clean() {
         "nothing to remove, nothing created"
     );
 }
+
+#[test]
+fn purge_device_returns_the_machine_to_a_never_installed_state() {
+    use systemprompt_bridge::context::{BridgeContext, ProxyMode};
+    use systemprompt_bridge::integration::uninstall::purge_device;
+
+    let sb = Sandbox::new();
+    let config_dir = sb.config.path().join("systemprompt");
+    let report = sb.run(|| {
+        let _ = run_with_args(&argv(&[
+            "login",
+            "sp-live-testprefix.secretsecretsecretsecretsecret012345",
+            "--gateway",
+            "http://gateway.invalid:9100",
+        ]));
+        let _ = run_with_args(&argv(&["install"]));
+        std::fs::create_dir_all(sb.org_plugins().join("acme-plugin")).expect("seed a plugin dir");
+        std::fs::write(sb.metadata().join("onboarded.json"), "{}").expect("seed onboarding");
+        assert!(
+            config_dir.join("systemprompt-bridge.pat").exists(),
+            "precondition: login stored a PAT"
+        );
+        assert!(
+            sb.metadata().join("onboarded.json").exists(),
+            "precondition: onboarding recorded"
+        );
+        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        purge_device(&ctx).expect("purge succeeds in a sandbox")
+    });
+
+    assert!(
+        matches!(
+            report.uninstall.credentials,
+            systemprompt_bridge::install::CredentialsOutcome::Purged(_)
+        ),
+        "the uninstall step purged the credential: {:?}",
+        report.uninstall.credentials
+    );
+    assert!(
+        !report.clean.pat_removed,
+        "nothing left for the clean step to remove"
+    );
+    assert!(
+        report.clean.config_removed,
+        "the report says the config went"
+    );
+    assert!(!sb.metadata().exists(), "metadata dir (sentinels) removed");
+    assert!(
+        !sb.org_plugins().join("acme-plugin").exists(),
+        "provisioned plugin dirs removed"
+    );
+    assert!(
+        !config_dir.join("systemprompt-bridge.pat").exists(),
+        "PAT removed"
+    );
+    assert!(
+        !config_dir.join("systemprompt-bridge.toml").exists(),
+        "config (gateway url) removed, unlike `uninstall --purge`"
+    );
+}

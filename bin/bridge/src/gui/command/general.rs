@@ -153,6 +153,10 @@ pub(super) fn auth_dispatch(
             send(app, UiEvent::LogoutRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        "system.purge" => {
+            send(app, UiEvent::PurgeRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
         "profile.fetch" => {
             send(app, UiEvent::ProfileFetchRequested { reply_to: reply_id });
             CommandOutcome::Async

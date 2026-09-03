@@ -56,6 +56,9 @@ pub enum UiEvent {
     LogoutRequested {
         reply_to: ReplyId,
     },
+    PurgeRequested {
+        reply_to: ReplyId,
+    },
     CredentialRejected {
         reason: String,
     },
@@ -91,6 +94,10 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     LogoutFinished {
+        result: Result<(), Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+    PurgeFinished {
         result: Result<(), Arc<GuiError>>,
         reply_to: ReplyId,
     },

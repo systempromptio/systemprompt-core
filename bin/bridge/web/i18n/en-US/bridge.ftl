@@ -26,6 +26,14 @@ setup-agents-lede = Pick the coding agents you want systemprompt bridge to gover
 setup-finish = Finish
 setup-warning-strong = Demo software.
 setup-warning-body = This build of systemprompt bridge is provided for demonstration purposes only and is not licensed for production use.
+setup-purge-summary = Remove everything from this computer
+setup-purge-explainer = Removes the bridge's installed plugins, scheduled sync, managed profile, sign-in, identity and every saved setting. The app returns to this screen as if it had never been set up.
+setup-purge-button = Remove everything
+setup-purge-confirm = Remove everything the bridge installed on this computer? This cannot be undone.
+setup-purge-confirm-button = Yes, remove it all
+setup-purge-cancel = Keep it
+setup-purge-working = Removing…
+toast-purge-failed = Could not remove everything
 
 # Sync / actions --------------------------------------------------------------
 sync-button = Sync now
@@ -50,6 +58,9 @@ login-pat-empty = Enter a personal access token.
 login-saving = Signing in…
 login-pull-manifest = Signed in — fetching your plugins…
 logout-running = Signing out…
+purge-running = Removing everything the bridge installed on this computer…
+purge-success = Removed everything. The bridge is back to a fresh install.
+purge-failure = Remove everything failed: { $error }
 logout-success = Signed out
 logout-failure = Could not sign out: { $error }
 session-rejected = { $gateway } no longer accepts this bridge's credentials ({ $reason }). Sign in again to resume.

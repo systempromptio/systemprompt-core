@@ -2,6 +2,10 @@
 
 ## [0.36.0] - 2026-09-03
 
+### Added
+
+- "Remove everything from this computer", folded under the sign-in form. `uninstall --purge` existed, but it leaves the config file and the onboarding sentinels in place, so the next launch still knew the gateway and skipped the wizard; `clean` wipes those but never touches the plugins, the schedule or the managed profile. `integration::uninstall::purge_device` is the union of the two plus the host cleanup, run by the GUI's `system.purge` command behind a second click, and the app rebuilds its state from disk afterwards so it lands back on the first-launch screen without a restart.
+
 ### Fixed
 
 - The Windows elevation job file was one fixed name, so the first-run host-profile write and the first sync's org-plugins provisioning overwrote each other: the elevated child ran the org-plugins job twice, both callers read the same `ok` result, and the profile was logged as installed with no registry write behind it. Every elevation request now stages its own job and result file and removes them afterwards.

@@ -345,6 +345,15 @@ const COMMANDS = {
     emit("state.changed", state);
     return {};
   },
+  "system.purge": () => {
+    COMMANDS.logout();
+    state.pat_present = false;
+    state.config_present = false;
+    state.agents_onboarded = false;
+    state.last_sync_summary = null;
+    emit("state.changed", state);
+    return {};
+  },
   "setup.complete": () => {
     state.agents_onboarded = true;
     emit("state.changed", state);
@@ -417,6 +426,7 @@ const FAIL_SCOPE = {
   "session.login": "identity",
   login: "identity",
   logout: "identity",
+  "system.purge": "identity",
   "profile.fetch": "identity",
 };
 

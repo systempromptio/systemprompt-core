@@ -23,3 +23,24 @@ pub fn clear_hosts() {
         diag(&format!("warning: Claude Code CLI cleanup failed: {e}"));
     }
 }
+
+#[derive(Debug)]
+pub struct PurgeReport {
+    pub uninstall: crate::install::UninstallSummary,
+    pub clean: crate::auth::setup::CleanReport,
+}
+
+// Why: `uninstall --purge` leaves the config file and the onboarding sentinels
+// behind, so the next launch still knows the gateway and skips the wizard. The
+// GUI's "remove everything" promises a machine that has never seen the bridge,
+// which is the union of uninstall, the host cleanup and `clean`.
+#[tracing::instrument(level = "info", skip(ctx))]
+pub fn purge_device(
+    ctx: &crate::context::BridgeContext,
+) -> Result<PurgeReport, crate::install::InstallError> {
+    let uninstall = crate::install::uninstall(true, ctx)?;
+    clear_hosts();
+    let clean = crate::auth::setup::clean()
+        .map_err(|e| crate::install::InstallError::Bootstrap(format!("clean local state: {e}")))?;
+    Ok(PurgeReport { uninstall, clean })
+}

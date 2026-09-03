@@ -60,6 +60,7 @@ export const bridge = {
   login:                (token, gateway)    => invoke("login", { token, gateway }),
   signIn:               (gateway, keepSignedIn) => invoke("session.login", { gateway, keep_signed_in: !!keepSignedIn }),
   logout:               ()                  => invoke("logout"),
+  systemPurge:          ()                  => invoke("system.purge"),
   sync:                 ()                  => invoke("sync"),
   validate:             ()                  => invoke("validate"),
   activityRecent:       (limit)             => invoke("activity.recent", { limit }),

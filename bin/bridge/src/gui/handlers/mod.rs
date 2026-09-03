@@ -10,6 +10,7 @@ pub mod diagnostics;
 pub mod gateway_probe;
 pub mod mcp_auth_probe;
 pub mod profile;
+pub mod purge;
 pub mod quit;
 pub mod settings;
 pub mod settings_write;
