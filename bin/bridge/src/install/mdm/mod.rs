@@ -15,6 +15,8 @@ mod macos_payload;
 mod sync;
 #[cfg(target_os = "windows")]
 mod windows;
+#[cfg(target_os = "windows")]
+mod windows_policy;
 
 pub use egress::{cowork_egress_allowed_hosts, parse_egress_allowed_hosts};
 pub use error::MdmError;
@@ -79,10 +81,26 @@ pub(crate) fn apply_mdm(
     }
 }
 
+// Why: Claude's hive is Claude's; the value Cowork does not know is the
+// bridge's own supply-chain pin, so it is written under the brand's key.
+#[must_use]
+pub fn bridge_policy_values(pubkey: Option<&str>) -> Vec<(&'static str, &'static str, String)> {
+    pubkey
+        .map(|pk| {
+            vec![(
+                crate::config::store::MANIFEST_PUBKEY_KEY,
+                "REG_SZ",
+                pk.to_owned(),
+            )]
+        })
+        .unwrap_or_default()
+}
+
+pub const LEGACY_PUBKEY_KEY: &str = "inferenceManifestPubkey";
+
 #[cfg(target_os = "windows")]
 #[must_use]
 pub fn windows_policy_values(
-    pubkey: Option<&str>,
     org_uuid: Option<&str>,
     egress_allowed_hosts: Option<&[String]>,
 ) -> Vec<(&'static str, &'static str, String)> {
@@ -115,9 +133,6 @@ pub fn windows_policy_values(
         let json =
             serde_json::json!([{ "path": format!("~/{workspace}"), "isDefaultSelected": true }]);
         values.push(("allowedWorkspaceFolders", "REG_SZ", json.to_string()));
-    }
-    if let Some(pk) = pubkey {
-        values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_owned()));
     }
     if let Some(uuid) = org_uuid.filter(|u| is_uuid_like(u)) {
         values.push(("deploymentOrganizationUuid", "REG_SZ", uuid.to_owned()));
@@ -221,7 +236,9 @@ pub(crate) fn managed_mcp_servers_json(mcp: &MdmPayloadInputs<'_>) -> Option<Str
 pub fn snippet(os: Os, gateway_url: Option<&str>) -> String {
     let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
     match os {
-        Os::Mac => MDM_MACOS_SNIPPET_TMPL.replace("{gateway}", gateway),
+        Os::Mac => MDM_MACOS_SNIPPET_TMPL
+            .replace("{gateway}", gateway)
+            .replace("{config_dir}", crate::brand::brand().config_dir),
         Os::Windows => {
             r#"Registry key: HKLM\SOFTWARE\Policies\Claude (machine-wide; HKCU as per-user fallback)
 Format: .reg — distribute via Group Policy, Intune, or any MDM that imports .reg files
@@ -244,6 +261,10 @@ Windows Registry Editor Version 5.00
 ; Optional: identify this deployment to your org for telemetry/support.
 ; Omit to use Anthropic's shared placeholder UUID. Standard hyphenated form only.
 ; "deploymentOrganizationUuid"="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+; The bridge's own manifest signing key lives under the brand's key, not Claude's
+; (Claude Desktop ignores keys it does not know and logs a warning for them):
+; [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\{config_dir}]
+; "manifestPubkey"="<base64 ed25519 pubkey>"
 ; inferenceProvider, inferenceGatewayBaseUrl, inferenceGatewayApiKey,
 ; inferenceGatewayAuthScheme and inferenceModels are written into this policy key
 ; as one block by `install --apply` and re-asserted on every Bridge sync, so a
@@ -251,6 +272,7 @@ Windows Registry Editor Version 5.00
 ; with no base URL makes Cowork refuse to start any task.
 "#
             .replace("{workspace}", crate::brand::brand().workspace_dir_name)
+            .replace("{config_dir}", crate::brand::brand().config_dir)
         },
         Os::Linux => {
             let config_dir = crate::brand::brand().config_dir;

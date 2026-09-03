@@ -124,6 +124,7 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             reg_path: Some(path.to_owned()),
             org_plugins: crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user(),
             clear_values: Vec::new(),
+            bridge_values: Vec::new(),
             managed_files: Vec::new(),
             remove_files: Vec::new(),
         };
@@ -156,6 +157,7 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
         reg_path: None,
         org_plugins: None,
         clear_values: KEYS_OF_INTEREST.iter().map(|k| (*k).to_owned()).collect(),
+        bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
     };

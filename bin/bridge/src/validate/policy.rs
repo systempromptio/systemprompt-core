@@ -80,6 +80,20 @@ pub(super) fn check_managed_policy(report: &mut Report) {
             Err(e) => report.fail(&format!("policy {key}"), &format!("unreadable: {e}")),
         }
     }
+    match store.read_managed_policy(crate::install::LEGACY_PUBKEY_KEY) {
+        Ok(Some(_)) => report.warn(
+            "policy inferenceManifestPubkey",
+            "stale copy in Claude's hive — Claude Desktop warns on every launch; sync moves it",
+        ),
+        Ok(None) => report.ok(
+            "policy inferenceManifestPubkey",
+            "absent from Claude's hive",
+        ),
+        Err(e) => report.fail(
+            "policy inferenceManifestPubkey",
+            &format!("unreadable: {e}"),
+        ),
+    }
     check_workspace_dir(report);
     check_claude_code_policy_dir(report);
     check_workspace_bundle(report);

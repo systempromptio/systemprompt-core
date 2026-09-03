@@ -34,34 +34,35 @@ fn pubkey_not_pinned_error_has_distinct_exit_code() {
     assert!(rendered.contains("--allow-tofu"));
 }
 
-#[cfg(target_os = "windows")]
+// Why: `inferenceManifestPubkey` in Claude's hive is the key Claude Desktop
+// 1.44121 logs as unrecognized on every launch; the pin is the bridge's and
+// lives under the brand's own key.
 #[test]
-fn windows_policy_values_includes_pubkey_when_provided() {
-    let values =
-        systemprompt_bridge::install::windows_policy_values(Some("BASE64-PUBKEY"), None, None);
-    let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
-    assert!(names.contains(&"inferenceManifestPubkey"));
-    let pubkey_entry = values
-        .iter()
-        .find(|(n, _, _)| *n == "inferenceManifestPubkey")
-        .unwrap();
-    assert_eq!(pubkey_entry.1, "REG_SZ");
-    assert_eq!(pubkey_entry.2, "BASE64-PUBKEY");
+fn bridge_policy_values_carry_the_pin_under_its_own_key() {
+    let values = systemprompt_bridge::install::bridge_policy_values(Some("BASE64-PUBKEY"));
+    assert_eq!(
+        values,
+        vec![("manifestPubkey", "REG_SZ", "BASE64-PUBKEY".to_owned())]
+    );
+    assert!(systemprompt_bridge::install::bridge_policy_values(None).is_empty());
+    let subkey = systemprompt_bridge::config::store::bridge_policy_subkey();
+    assert!(subkey.starts_with(r"SOFTWARE\Policies\"), "{subkey}");
+    assert_ne!(subkey, r"SOFTWARE\Policies\Claude");
 }
 
 #[cfg(target_os = "windows")]
 #[test]
-fn windows_policy_values_omits_pubkey_when_absent() {
-    let values = systemprompt_bridge::install::windows_policy_values(None, None, None);
+fn windows_policy_values_never_put_the_pin_in_claudes_hive() {
+    let values = systemprompt_bridge::install::windows_policy_values(None, None);
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(!names.contains(&"inferenceManifestPubkey"));
+    assert!(!names.contains(&"manifestPubkey"));
 }
 
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_includes_valid_org_uuid() {
     let values = systemprompt_bridge::install::windows_policy_values(
-        None,
         Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963"),
         None,
     );
@@ -76,13 +77,13 @@ fn windows_policy_values_includes_valid_org_uuid() {
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_omits_missing_or_invalid_org_uuid() {
-    let none = systemprompt_bridge::install::windows_policy_values(None, None, None);
+    let none = systemprompt_bridge::install::windows_policy_values(None, None);
     assert!(
         !none
             .iter()
             .any(|(k, _, _)| *k == "deploymentOrganizationUuid")
     );
-    let bad = systemprompt_bridge::install::windows_policy_values(None, Some("garbage"), None);
+    let bad = systemprompt_bridge::install::windows_policy_values(Some("garbage"), None);
     assert!(
         !bad.iter()
             .any(|(k, _, _)| *k == "deploymentOrganizationUuid")
@@ -113,37 +114,41 @@ fn is_uuid_like_rejects_malformed() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn macos_prefs_plist_includes_pubkey_when_provided() {
+fn macos_claude_prefs_plist_never_carries_the_pin() {
     let plist = systemprompt_bridge::install::build_macos_prefs_plist(
         &mdm_inputs(),
         "https://gateway.example",
-        Some("BASE64-PUBKEY"),
     );
-    assert!(plist.contains("<key>inferenceManifestPubkey</key>"));
-    assert!(plist.contains("<string>BASE64-PUBKEY</string>"));
+    assert!(!plist.contains("ManifestPubkey"));
+    assert!(!plist.contains("manifestPubkey"));
 }
 
 #[cfg(target_os = "macos")]
 #[test]
-fn macos_prefs_plist_omits_pubkey_when_absent() {
-    let plist = systemprompt_bridge::install::build_macos_prefs_plist(
-        &mdm_inputs(),
-        "https://gateway.example",
-        None,
-    );
-    assert!(!plist.contains("inferenceManifestPubkey"));
+fn macos_bridge_prefs_plist_carries_the_pin() {
+    let plist = systemprompt_bridge::install::build_macos_bridge_prefs_plist("BASE64-PUBKEY");
+    assert!(plist.contains("<key>manifestPubkey</key><string>BASE64-PUBKEY</string>"));
 }
 
 #[cfg(target_os = "macos")]
 #[test]
-fn macos_mobileconfig_includes_pubkey_when_provided() {
+fn macos_mobileconfig_carries_the_pin_as_its_own_payload() {
     let mc = systemprompt_bridge::install::build_macos_mobileconfig(
         &mdm_inputs(),
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
     );
-    assert!(mc.contains("<key>inferenceManifestPubkey</key>"));
-    assert!(mc.contains("<string>BASE64-PUBKEY</string>"));
+    assert!(mc.contains("<key>manifestPubkey</key><string>BASE64-PUBKEY</string>"));
+    assert!(!mc.contains("inferenceManifestPubkey"));
+    let domain = systemprompt_bridge::config::store::bridge_policy_domain();
+    assert!(mc.contains(&format!("<key>PayloadType</key><string>{domain}</string>")));
+    let without = systemprompt_bridge::install::build_macos_mobileconfig(
+        &mdm_inputs(),
+        "https://gateway.example",
+        None,
+    );
+    assert!(!without.contains("manifestPubkey"));
+    assert!(!without.contains(&domain));
 }
 
 #[test]
@@ -251,7 +256,7 @@ fn mdm_inputs() -> systemprompt_bridge::install::MdmPayloadInputs<'static> {
 #[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_keep_nonessential_services_enabled() {
-    let values = systemprompt_bridge::install::windows_policy_values(None, None, None);
+    let values = systemprompt_bridge::install::windows_policy_values(None, None);
     let flag = values
         .iter()
         .find(|(name, _, _)| *name == "disableNonessentialServices")

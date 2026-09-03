@@ -76,6 +76,16 @@ fn windows_snippet_never_seeds_a_gateway_provider_without_its_url() {
 }
 
 #[test]
+fn snippets_point_the_pin_at_the_bridge_key_not_claudes() {
+    for os in [Os::Windows, Os::Mac] {
+        let text = mdm_snippet(os, Some("https://gateway.example"));
+        assert!(!text.contains("inferenceManifestPubkey"), "{os:?}: {text}");
+        assert!(text.contains("manifestPubkey"), "{os:?}: {text}");
+        assert!(!text.contains("{config_dir}"), "{os:?}: {text}");
+    }
+}
+
+#[test]
 fn inference_policy_values_is_a_complete_gateway_block() {
     let values = systemprompt_bridge::install::inference_policy_values(
         "http://127.0.0.1:5010",

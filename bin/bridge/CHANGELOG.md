@@ -9,6 +9,7 @@
 
 ### Changed
 
+- The manifest signing key no longer rides in Claude's policy hive as `inferenceManifestPubkey`, which Claude Desktop 1.44121 logs as an unrecognized key on every launch and a later build may reject. It is written as `manifestPubkey` under the brand's own location — `HKLM\SOFTWARE\Policies\<config_dir>` on Windows, the `io.systemprompt.<config_dir>` managed domain on macOS (a second `.mobileconfig` payload) — and read from there. Sync clears the stale copy from Claude's hive and `validate` warns while one remains. The MDM snippets show the new location.
 - Rail order is Marketplace, Agents, Account, Settings, Status, Activity (Ctrl/⌘ 1–6 follow); the Activity pane header lost its leftover column divider.
 
 ### Removed

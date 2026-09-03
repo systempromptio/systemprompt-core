@@ -7,14 +7,14 @@
 #![cfg(target_os = "macos")]
 
 use super::MdmPayloadInputs;
-use super::macos::{INNER_PAYLOAD_IDENTIFIER, PAYLOAD_IDENTIFIER};
+use super::macos::{BRIDGE_PAYLOAD_IDENTIFIER, INNER_PAYLOAD_IDENTIFIER, PAYLOAD_IDENTIFIER};
 use crate::install::xml;
 
 const PREFS_PLIST_TMPL: &str = include_str!("../templates/prefs.plist.tmpl");
-const PREFS_PUBKEY_LINE_TMPL: &str = include_str!("../templates/prefs_pubkey_line.tmpl");
+const BRIDGE_PREFS_PLIST_TMPL: &str = include_str!("../templates/bridge_prefs.plist.tmpl");
 const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
-const MOBILECONFIG_PUBKEY_LINE_TMPL: &str =
-    include_str!("../templates/mobileconfig_pubkey_line.tmpl");
+const MOBILECONFIG_BRIDGE_PAYLOAD_TMPL: &str =
+    include_str!("../templates/mobileconfig_bridge_payload.tmpl");
 
 fn loopback_api_key(loopback: &crate::proxy::LoopbackEndpoint) -> String {
     loopback
@@ -33,14 +33,7 @@ fn egress_plist_block(from_flag: Option<&[String]>, indent: &str) -> String {
     clippy::literal_string_with_formatting_args,
     reason = "these braces are template placeholders substituted with str::replace, not format args"
 )]
-pub fn build_prefs_plist(
-    mcp: &MdmPayloadInputs<'_>,
-    gateway: &str,
-    pubkey: Option<&str>,
-) -> String {
-    let pubkey_block = pubkey
-        .map(|pk| PREFS_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
-        .unwrap_or_default();
+pub fn build_prefs_plist(mcp: &MdmPayloadInputs<'_>, gateway: &str) -> String {
     PREFS_PLIST_TMPL
         .replace("{gateway_esc}", &xml::escape(gateway))
         .replace(
@@ -52,7 +45,11 @@ pub fn build_prefs_plist(
             &egress_plist_block(mcp.egress_allowed_hosts, "  "),
         )
         .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
-        .replace("{pubkey_block}", &pubkey_block)
+}
+
+#[must_use]
+pub fn build_bridge_prefs_plist(pubkey: &str) -> String {
+    BRIDGE_PREFS_PLIST_TMPL.replace("{pubkey}", &xml::escape(pubkey))
 }
 
 #[expect(
@@ -64,8 +61,18 @@ pub fn build_mobileconfig(
     gateway: &str,
     pubkey: Option<&str>,
 ) -> String {
-    let pubkey_block = pubkey
-        .map(|pk| MOBILECONFIG_PUBKEY_LINE_TMPL.replace("{pubkey}", &xml::escape(pk)))
+    let bridge_payload = pubkey
+        .map(|pk| {
+            let domain = crate::config::store::bridge_policy_domain();
+            MOBILECONFIG_BRIDGE_PAYLOAD_TMPL
+                .replace("{bridge_domain}", &xml::escape(&domain))
+                .replace("{bridge_payload_identifier}", BRIDGE_PAYLOAD_IDENTIFIER)
+                .replace(
+                    "{bridge_uuid}",
+                    &xml::stable_uuid(BRIDGE_PAYLOAD_IDENTIFIER),
+                )
+                .replace("{pubkey}", &xml::escape(pk))
+        })
         .unwrap_or_default();
     MOBILECONFIG_TMPL
         .replace("{inner_payload_identifier}", INNER_PAYLOAD_IDENTIFIER)
@@ -82,7 +89,7 @@ pub fn build_mobileconfig(
             &egress_plist_block(mcp.egress_allowed_hosts, "      "),
         )
         .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
-        .replace("{pubkey_block}", &pubkey_block)
+        .replace("{bridge_payload}", &bridge_payload)
 }
 
 // Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do

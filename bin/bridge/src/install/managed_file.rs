@@ -97,6 +97,7 @@ fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
         reg_path: None,
         org_plugins: None,
         clear_values: Vec::new(),
+        bridge_values: Vec::new(),
         managed_files: vec![ManagedFileJob {
             staged,
             dest: path.to_path_buf(),
@@ -116,6 +117,7 @@ fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
         reg_path: None,
         org_plugins: None,
         clear_values: Vec::new(),
+        bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: vec![path.to_path_buf()],
     };

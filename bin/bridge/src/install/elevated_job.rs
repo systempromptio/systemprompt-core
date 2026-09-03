@@ -16,7 +16,9 @@ use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::store::{clear_managed_claude_policy, write_managed_claude_policy};
+use crate::config::store::{
+    clear_managed_claude_policy, write_bridge_policy, write_managed_claude_policy,
+};
 use crate::winproc::{ElevationOutcome, run_elevated};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,6 +27,8 @@ pub(crate) struct ElevatedJob {
     pub org_plugins: Option<OrgPluginsJob>,
     #[serde(default)]
     pub clear_values: Vec<String>,
+    #[serde(default)]
+    pub bridge_values: Vec<(String, String)>,
     #[serde(default)]
     pub managed_files: Vec<ManagedFileJob>,
     #[serde(default)]
@@ -137,6 +141,9 @@ fn run_job(job_path: &str) -> Result<(), ElevateError> {
     if !job.clear_values.is_empty() {
         let names: Vec<&str> = job.clear_values.iter().map(String::as_str).collect();
         clear_managed_claude_policy(true, &names).map_err(ElevateError::Policy)?;
+    }
+    if !job.bridge_values.is_empty() {
+        write_bridge_policy(true, &job.bridge_values).map_err(ElevateError::Policy)?;
     }
     if let Some(org) = &job.org_plugins {
         provision_org_plugins(&org.path, &org.grant_user)?;

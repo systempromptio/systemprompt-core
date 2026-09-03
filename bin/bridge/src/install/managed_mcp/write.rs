@@ -100,6 +100,7 @@ pub(super) fn clear_elevated(
         reg_path: None,
         org_plugins: None,
         clear_values: Vec::new(),
+        bridge_values: Vec::new(),
         managed_files: staging
             .iter()
             .map(|(_, staged)| crate::install::elevated_job::ManagedFileJob {
