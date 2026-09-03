@@ -27,21 +27,29 @@ pub(super) fn write_policy_values(
     hive: PolicyHive,
     entries: &[(String, PolicyDocumentValue)],
 ) -> Result<(), ConfigStoreError> {
+    write_values_at(hive, POLICY_SUBKEY, entries)
+}
+
+pub(super) fn write_values_at(
+    hive: PolicyHive,
+    subkey: &str,
+    entries: &[(String, PolicyDocumentValue)],
+) -> Result<(), ConfigStoreError> {
     let hive_label = hive.label();
     tracing::info!(
         hive = hive_label,
-        subkey = POLICY_SUBKEY,
+        subkey,
         value_count = entries.len(),
-        "writing managed Claude policy via in-process registry FFI"
+        "writing managed policy via in-process registry FFI"
     );
-    let key = create_policy_key(hkey(hive), hive_label)?;
+    let key = create_key(hkey(hive), hive_label, subkey)?;
     for (name, value) in entries {
         let Some(text) = value.as_str() else {
             return Err(ConfigStoreError::Backend(format!(
                 "{name}: Windows policy values are REG_SZ strings"
             )));
         };
-        set_string_value(key.0, hive_label, name, text)?;
+        set_string_value(key.0, hive_label, subkey, name, text)?;
     }
     Ok(())
 }
@@ -131,11 +139,8 @@ fn open_policy_key_for_write(
         )))
     }
 }
-fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigStoreError> {
-    let subkey: Vec<u16> = POLICY_SUBKEY
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect();
+fn create_key(hive: HKEY, hive_label: &str, subkey: &str) -> Result<OwnedKey, ConfigStoreError> {
+    let subkey_w: Vec<u16> = subkey.encode_utf16().chain(std::iter::once(0)).collect();
     let mut handle: HKEY = std::ptr::null_mut();
     // SAFETY: `hive` is a predefined HKEY, `subkey` is NUL-terminated, the null
     // security and class pointers request defaults, and `handle` is a live
@@ -143,7 +148,7 @@ fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigSto
     let status = unsafe {
         RegCreateKeyExW(
             hive,
-            subkey.as_ptr(),
+            subkey_w.as_ptr(),
             0,
             std::ptr::null(),
             REG_OPTION_NON_VOLATILE,
@@ -156,24 +161,29 @@ fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigSto
     if status == ERROR_SUCCESS {
         Ok(OwnedKey(handle))
     } else if status == ERROR_ACCESS_DENIED {
-        Err(access_denied(hive_label))
+        Err(access_denied_at(hive_label, subkey))
     } else {
         Err(ConfigStoreError::Backend(format!(
-            "RegCreateKeyExW({POLICY_SUBKEY}) failed with status {status}"
+            "RegCreateKeyExW({subkey}) failed with status {status}"
         )))
     }
 }
 // Why: `SOFTWARE\Policies` is ACL-protected in both hives; a non-elevated
 // create/set returns status 5.
 fn access_denied(hive_label: &str) -> ConfigStoreError {
+    access_denied_at(hive_label, POLICY_SUBKEY)
+}
+
+fn access_denied_at(hive_label: &str, subkey: &str) -> ConfigStoreError {
     ConfigStoreError::AccessDenied {
         hive: hive_label.to_owned(),
-        subkey: POLICY_SUBKEY.to_owned(),
+        subkey: subkey.to_owned(),
     }
 }
 fn set_string_value(
     key: HKEY,
     hive_label: &str,
+    subkey: &str,
     name: &str,
     value: &str,
 ) -> Result<(), ConfigStoreError> {
@@ -199,7 +209,7 @@ fn set_string_value(
     if status == ERROR_SUCCESS {
         Ok(())
     } else if status == ERROR_ACCESS_DENIED {
-        Err(access_denied(hive_label))
+        Err(access_denied_at(hive_label, subkey))
     } else {
         Err(ConfigStoreError::Backend(format!(
             "RegSetValueExW({name}) failed with status {status}"

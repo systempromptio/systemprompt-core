@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.45.0] - 2026-09-03
+
+### Removed
+
+- `create_request_span`. Its only caller built the span and dropped it without entering it, so the fields it recorded never reached a log line. Migrate by opening the span at the HTTP boundary with `systemprompt_api`'s context middleware.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

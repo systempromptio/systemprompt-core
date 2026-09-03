@@ -15,17 +15,6 @@ sp-settings { display: flex; flex-direction: column; gap: var(--sp-space-6); }
 .sp-settings__note { font-size: 12px; margin: var(--sp-space-1-5) 0 0; }
 .sp-settings__note a { color: var(--sp-accent-text); }
 
-.sp-settings__prefs { gap: var(--sp-space-4); }
-.sp-settings__pref {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-space-2);
-  font-size: 12px;
-  color: var(--sp-muted);
-  cursor: pointer;
-}
-.sp-settings__pref:hover { color: var(--sp-text); }
-
 .sp-select {
   font: inherit;
   color: var(--sp-text);
@@ -74,5 +63,3 @@ sp-settings { display: flex; flex-direction: column; gap: var(--sp-space-6); }
 /* The provenance badge sits under the key it describes, not stretched across
    the row -- it qualifies one value. */
 .sp-settings__section .sp-badge { justify-self: start; width: fit-content; }
-.sp-settings__pref.is-unavailable { color: var(--sp-muted); cursor: not-allowed; opacity: 0.72; }
-.sp-settings__pref.is-unavailable:hover { color: var(--sp-muted); }

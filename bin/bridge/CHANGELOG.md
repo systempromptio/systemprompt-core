@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.36.0] - 2026-09-03
+
+### Added
+
+- "Remove everything from this computer", folded under the sign-in form. `uninstall --purge` existed, but it leaves the config file and the onboarding sentinels in place, so the next launch still knew the gateway and skipped the wizard; `clean` wipes those but never touches the plugins, the schedule or the managed profile. `integration::uninstall::purge_device` is the union of the two plus the host cleanup, run by the GUI's `system.purge` command behind a second click, and the app rebuilds its state from disk afterwards so it lands back on the first-launch screen without a restart.
+
+### Fixed
+
+- The module layering gate passes again: `install::mdm` named `integration::claude_desktop` for the default model list, and `validate::policy` named `install` for the legacy pubkey key. The model list now lives in `install::mdm` beside the gateway block that writes it and the Claude Desktop host reads it from there, and the legacy key sits in `config::store` beside the key that replaced it — both below every module that names them.
+- macOS `cargo clippy -D warnings` builds again: `build_bridge_prefs_plist`'s `{pubkey}` placeholder tripped `literal_string_with_formatting_args` while the `#[expect]` sat on `build_prefs_plist`, whose placeholders all carry an underscore and never fire it. The attribute moved to the function that needs it.
+- A fresh install stages the Cowork dashboard bundle. `workspace_sink` was driven through `emit::write_artifacts`, which returns early when `resolve_artifacts_dir()` finds no Cowork session directory — and a machine that has never opened Cowork has none. Sync reported success, staged nothing, and the setup skill read the empty folder as "the bridge has never synced". The bundle resolves its own destination under the pre-trusted workspace and needs nothing from the session dir, so `workspace_sink::stage_bundle` is now called first and unconditionally from `CoworkArtifactsSync::apply`; the sink that made it look session-scoped is gone. An empty artifact set still preserves the staged bundle rather than clearing it. Covered by a sync-e2e test that removes the session directory outright.
+- One host id resolves in one place. `claude-code` has no `HostApp` — it is governed from the gateway — so `find_host_by_id` misses it by design, and each of the seven per-host handlers had its own copy of the "is this id real" decision. v0.43.0 shipped with all seven answering `unknown host: claude-code`, a toast naming the agent most readers are running, and the fix was seven separate shims. `integration::resolve_host` now returns `Local`, `SyncOnly`, `Suppressed` or `Unknown`, and `gui::hosts::resolve::resolve_or_reply` is the single boundary every handler passes through; the shims and their duplicated errors are gone. A white-label build that calls `suppress_host_app!` gets "not offered on this installation" for that id rather than "unknown host" — the shape Astound's suppressed `codex-cli` was in. A test asserts no `KNOWN_HOSTS` id can resolve as `Unknown`.
+- The Windows elevation job file was one fixed name, so the first-run host-profile write and the first sync's org-plugins provisioning overwrote each other: the elevated child ran the org-plugins job twice, both callers read the same `ok` result, and the profile was logged as installed with no registry write behind it. Every elevation request now stages its own job and result file and removes them afterwards.
+- Sync wrote `inferenceProvider=gateway` into `HKLM\SOFTWARE\Policies\Claude` without the base URL and credential, which only the Claude Desktop host profile wrote. On a fresh or wiped policy key that half-written block made Cowork refuse every task ("Configuration can't be used: inferenceGatewayBaseUrl is not set") and hid every connector until Repair rewrote the profile. The gateway block — provider, loopback base URL, loopback secret, auth scheme and models — is now one unit written by `install --apply` and re-asserted on every sync, so a rotated secret self-heals too; a sync that cannot read the secret fails instead of writing the provider alone. `validate` now requires `inferenceProvider` alongside the URL and key, and the Windows MDM snippet no longer pins half of the block.
+
+### Changed
+
+- The sync summary line counts artifacts alongside plugins, skills, agents, hooks and MCP servers, so a sync that staged no dashboards is visible in the line itself rather than only in the workspace folder.
+- The setup footer names the code, not just the brand. A white-label build pins its own display version (Astound ships `0.1.1`), which says nothing about the bridge underneath, so a screenshot of the wizard could not identify the build; the core version now sits beside it and the commit is on the title attribute.
+- The update affordance is reachable from the setup wizard. It lived only in the signed-in rail, so a user who never got past onboarding was never told a newer build existed; the wizard checks once sign-in lands (the endpoint is authenticated, so it cannot run earlier) and offers install/restart in place.
+- The dev fixtures carry every `KNOWN_HOSTS` id — `no-models.json` and `proxy-down.json` had quietly dropped `codex-cli`, and nothing checked — and `mock-ipc` rejects an unknown `host.probe` id the way the real handler does, so the preview can show the failure it used to hide.
+- The manifest signing key no longer rides in Claude's policy hive as `inferenceManifestPubkey`, which Claude Desktop 1.44121 logs as an unrecognized key on every launch and a later build may reject. It is written as `manifestPubkey` under the brand's own location — `HKLM\SOFTWARE\Policies\<config_dir>` on Windows, the `io.systemprompt.<config_dir>` managed domain on macOS (a second `.mobileconfig` payload) — and read from there. Sync clears the stale copy from Claude's hive and `validate` warns while one remains. The MDM snippets show the new location.
+- Rail order is Marketplace, Agents, Account, Settings, Status, Activity (Ctrl/⌘ 1–6 follow); the Activity pane header lost its leftover column divider.
+
+### Removed
+
+- The Settings pane's Contrast selector and the "Start with…", "Install updates automatically" and "Sign in through the browser" toggles, with the `settings.set` IPC command behind them. Contrast now follows the OS `prefers-contrast` setting only; start-at-login stays on the tray menu; `update.automatic` and `session.enabled` are config-file settings.
+
 ## [0.35.0] - 2026-09-02
 
 ### Added

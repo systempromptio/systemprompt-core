@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.45.0] - 2026-09-03
+
+### Fixed
+
+- The `request` tracing span is opened once per request. `PublicContextMiddleware` was applied as a global router layer and again per route through `with_auth`, and both opened the span, so every log line carried `user_id`, `session_id`, `trace_id` and `context_id` twice. The global layer now only seeds the fallback context; the route-resolved context opens the span.
+
 ## [0.44.0] - 2026-09-02
 
 ### Fixed

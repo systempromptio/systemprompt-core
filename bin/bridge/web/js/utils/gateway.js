@@ -112,6 +112,7 @@ export function renderGatewayForm(state) {
         </button>
       </div>
     </details>
+    <sp-setup-purge></sp-setup-purge>
     ${errBlock}
   `;
 }

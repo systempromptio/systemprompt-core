@@ -11,6 +11,7 @@ pub mod exchange_code;
 pub mod oauth;
 pub mod setup_token;
 pub mod webauthn;
+pub mod webauthn_challenge;
 
 pub use bridge_host_prefs::BridgeHostPrefsRepository;
 pub use bridge_session::{BridgeSessionRepository, BridgeSessionRow, UpsertBridgeSession};
@@ -25,9 +26,10 @@ pub use oauth::{
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,
 };
-pub use webauthn::{
-    ConsumedChallenge, StoreChallengeParams, WebAuthnChallengeKind, WebAuthnCredential,
-    WebAuthnCredentialParams,
+pub use webauthn::{WebAuthnCredential, WebAuthnCredentialParams};
+pub use webauthn_challenge::{
+    ConsumedChallenge, LinkChallengeReservation, ReserveLinkChallengeParams, StoreChallengeParams,
+    WebAuthnChallengeKind,
 };
 
 use crate::error::OauthResult;

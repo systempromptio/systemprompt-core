@@ -26,6 +26,14 @@ setup-agents-lede = Pick the coding agents you want systemprompt bridge to gover
 setup-finish = Finish
 setup-warning-strong = Demo software.
 setup-warning-body = This build of systemprompt bridge is provided for demonstration purposes only and is not licensed for production use.
+setup-purge-summary = Remove everything from this computer
+setup-purge-explainer = Removes the bridge's installed plugins, scheduled sync, managed profile, sign-in, identity and every saved setting. The app returns to this screen as if it had never been set up.
+setup-purge-button = Remove everything
+setup-purge-confirm = Remove everything the bridge installed on this computer? This cannot be undone.
+setup-purge-confirm-button = Yes, remove it all
+setup-purge-cancel = Keep it
+setup-purge-working = Removing…
+toast-purge-failed = Could not remove everything
 
 # Sync / actions --------------------------------------------------------------
 sync-button = Sync now
@@ -50,6 +58,9 @@ login-pat-empty = Enter a personal access token.
 login-saving = Signing in…
 login-pull-manifest = Signed in — fetching your plugins…
 logout-running = Signing out…
+purge-running = Removing everything the bridge installed on this computer…
+purge-success = Removed everything. The bridge is back to a fresh install.
+purge-failure = Remove everything failed: { $error }
 logout-success = Signed out
 logout-failure = Could not sign out: { $error }
 session-rejected = { $gateway } no longer accepts this bridge's credentials ({ $reason }). Sign in again to resume.
@@ -211,19 +222,10 @@ settings-theme-label = Appearance
 settings-theme-system = Match my system
 settings-theme-light = Light
 settings-theme-dark = Dark
-settings-contrast-label = Contrast
-settings-contrast-system = Match my system
-settings-contrast-default = Standard
-settings-contrast-elevated = Increased
 settings-action-open-folder = Open config folder
 settings-action-validate = Re-check
 settings-action-change-gateway = Change gateway
-settings-prefs-label = Startup and updates
 # Composed with the platform name, e.g. "Start with Windows".
-settings-startup-label = Start with
-settings-startup-label-generic = Start at login
-settings-startup-unknown = could not be determined on this system
-settings-auto-update-label = Install updates automatically
 settings-licensing-note-prefix = Demo build — for production licensing contact
 
 # Activity drawer / footer ----------------------------------------------------
@@ -403,6 +405,8 @@ setup-settle-slow = Still checking this computer. Some agents have not reported 
 setup-settle-unreachable = Could not reach { $gateway }. Check the URL and that the gateway is running.
 setup-retry = Check again
 setup-continue-anyway = Continue anyway
+setup-update-available = Version { $version } is available for this build.
+setup-update-ready = Version { $version } is ready to finish installing.
 setup-finish-empty-warning = You have not added an agent yet, so nothing will be routed through systemprompt.
 setup-finish-anyway = Finish anyway
 setup-gateway-required-url = Enter the gateway URL.
@@ -436,7 +440,6 @@ settings-pin-source-policy = Set by device policy
 settings-schedule-installed = Registered with the system scheduler as { $label }
 settings-schedule-unknown = Could not be determined on this system
 settings-security-heading = Security
-settings-session-label = Sign in through the browser instead of a personal access token
 status-health-heading = Setup health
 status-health-caption = Every check the bridge runs on this machine, failures first. Empty when there is nothing to fix.
 setup-finalizing-head = Finishing setup…
@@ -456,7 +459,6 @@ setup-health-ran-failed = Check finished — some checks did not pass.
 setup-health-ran-ok = All checks passed.
 setup-health-run = Re-check
 toast-gateway-saved = Gateway saved.
-toast-setting-saved = Saved.
 
 # Verdicts ---------------------------------------------------------------------
 # One key per code the bridge can emit; the enum is the producer and

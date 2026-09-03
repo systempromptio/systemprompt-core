@@ -361,6 +361,75 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
     assert!(artifacts_dir.join("version.json").is_file());
 }
 
+// Why: a fresh install has never opened a Cowork session, so
+// `%LOCALAPPDATA%\Claude-3p\local-agent-mode-sessions` does not exist and
+// `resolve_artifacts_dir()` returns `None`. The workspace bundle is the only
+// thing the setup skill installs from and it resolves its own path, so it must
+// still be staged. It once rode inside `write_artifacts`, behind that `None`:
+// sync reported success, staged nothing, and the setup skill read the empty
+// folder as "the bridge has never synced".
+#[test]
+fn a_sync_with_no_cowork_session_dir_still_stages_the_workspace_bundle() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let m = manifest(
+        vec!["claude-code".into(), "claude-desktop".into()],
+        true,
+        "cccc0001",
+    );
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        mount_gateway(&server, &m).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    let _ = &server;
+
+    // The sandbox seeds a session dir for the other tests; this one is about
+    // the host that has none.
+    let sessions_root = PathBuf::from(&dirs.config_home)
+        .join("Claude-3p")
+        .join("local-agent-mode-sessions");
+    fs::remove_dir_all(&sessions_root).unwrap();
+    assert!(!sessions_root.exists());
+
+    let summary = run_sync(&dirs).expect("run_once should succeed");
+    assert!(
+        summary.host_failures.is_empty(),
+        "host emitters must succeed: {:?}",
+        summary.host_failures
+    );
+
+    let bundle = PathBuf::from(&dirs.home)
+        .join("Systemprompt")
+        .join("systemprompt")
+        .join("artifacts");
+    let staged: serde_json::Value =
+        serde_json::from_slice(&fs::read(bundle.join("manifest.json")).unwrap())
+            .expect("bundle manifest is staged without a Cowork session dir");
+    assert_eq!(staged["artifacts"][0]["id"], "welcome-doc");
+    assert_eq!(
+        fs::read_to_string(bundle.join("welcome-doc.html")).unwrap(),
+        "<h1>Welcome</h1>",
+        "the page must be staged verbatim beside the manifest"
+    );
+
+    // The Cowork-session sinks are the ones that legitimately no-op here.
+    assert!(!sessions_root.exists());
+
+    // And the count is on the summary line, so an artifact no-op can never
+    // again read as a clean sync.
+    assert!(
+        summary.one_line().contains("1 artifacts"),
+        "{}",
+        summary.one_line()
+    );
+}
+
 #[test]
 fn run_once_with_hosts_disabled_clears_all_host_state() {
     let rt = tokio::runtime::Builder::new_multi_thread()

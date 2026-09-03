@@ -17,6 +17,7 @@ pub struct SyncSummary {
     pub agent_count: usize,
     pub hook_count: usize,
     pub mcp_count: usize,
+    pub artifact_count: usize,
     pub installed: Vec<String>,
     pub updated: Vec<String>,
     pub removed: Vec<String>,
@@ -68,7 +69,7 @@ impl SyncSummary {
         };
         format!(
             "{status} ({}): {} plugins ({} new, {} updated, {} removed), {} skills installed, {} \
-             agents, {} hooks, {} MCP — manifest {}{}{}{}",
+             agents, {} hooks, {} MCP, {} artifacts — manifest {}{}{}{}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
@@ -78,6 +79,7 @@ impl SyncSummary {
             self.agent_count,
             self.hook_count,
             self.mcp_count,
+            self.artifact_count,
             self.manifest_version,
             malformed_suffix,
             host_suffix,
@@ -116,6 +118,7 @@ pub(super) fn build_summary(manifest: &SignedManifest, report: apply::ApplyRepor
         agent_count: manifest.agents.len(),
         hook_count: manifest.hooks.len(),
         mcp_count: manifest.managed_mcp_servers.len(),
+        artifact_count: manifest.artifacts.len(),
         installed: report.installed,
         updated: report.updated,
         removed: report.removed,

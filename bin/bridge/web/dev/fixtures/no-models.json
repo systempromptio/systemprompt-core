@@ -114,6 +114,66 @@
       }
     },
     {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli-tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\codex-bridge-1787902828-38012-0-codex.json",
+        "bytes": 418,
+        "payload_uuid": "ce0c6a91-0pc0-40pc-0pc0-deadbeefa07a",
+        "profile_uuid": "ce0d78a5-0pc0-40pc-0pc0-feedfaceb54d"
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "codex"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [],
+      "models_checked": true,
+      "compatible_models_available": false,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "attention",
+        "tone": "warn",
+        "reason": {
+          "code": "no-models"
+        },
+        "action": null,
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
+    },
+    {
       "id": "hermes",
       "display_name": "Hermes",
       "kind": "desktop-app",
@@ -369,26 +429,26 @@
   },
   "agent_fleet": {
     "all": {
-      "total": 4,
+      "total": 5,
       "working": 1,
       "ready": 0,
-      "attention": 3,
+      "attention": 4,
       "not_set_up": 0,
       "down": 0,
       "checking": 0,
-      "running": 3,
+      "running": 4,
       "state": "warn",
       "headline": "needs-attention"
     },
     "set_up": {
-      "total": 4,
+      "total": 5,
       "working": 1,
       "ready": 0,
-      "attention": 3,
+      "attention": 4,
       "not_set_up": 0,
       "down": 0,
       "checking": 0,
-      "running": 3,
+      "running": 4,
       "state": "warn",
       "headline": "needs-attention"
     }

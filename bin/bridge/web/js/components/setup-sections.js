@@ -1,70 +1,13 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
+import { updateStateOf } from "/assets/js/utils/update-check.js";
+import { appNameOf } from "/assets/js/components/setup-brand.js";
 
 const STEP_LABEL = {
   connect: () => t("setup-step-label-connect") || "Step 1 of 2",
   agents: () => t("setup-step-label-agents") || "Step 2 of 2",
 };
 
-function appNameOf(component) {
-  // Brand name comes from the snapshot (Brand::app_name), so white-label builds
-  // get their own name with no forked component.
-  return (component.snapshot && component.snapshot.app_name) || "systemprompt bridge";
-}
-
-// Left column of the setup split: the brand mark, its pitch, and the
-// docs/licensing footer. The pitch comes from the snapshot
-// (Brand::pitch_head/body) so a white-label build states its own value
-// proposition with no forked component.
-export function renderSetupBrand(component) {
-  const snap = component.snapshot || {};
-  const pitchHead = escapeHtml(snap.pitch_head || "Govern every coding agent.");
-  const pitchBody = escapeHtml(
-    snap.pitch_body || "One gateway. Every agent. Every tool call audited.",
-  );
-  return `
-    <aside class="sp-setup__brand">
-      <div class="sp-setup__mark" data-logo-slot data-preserve></div>
-      <div class="sp-setup__pitch">
-        <p class="sp-setup__pitch-head">${pitchHead}</p>
-        <p class="sp-setup__pitch-body">${pitchBody}</p>
-      </div>
-      ${renderSetupBrandFoot(component)}
-    </aside>`;
-}
-
-function renderSetupBrandFoot(component) {
-  const version = component.dataset.version || "";
-  const platform = component.dataset.platform || "linux";
-  const platformDisplay = component.dataset.platformDisplay || "";
-  const snap = component.snapshot || {};
-  const appName = appNameOf(component);
-  // Docs base + contact come from the Brand (via the snapshot) so a white-label
-  // footer links to its own docs/licensing, not systemprompt's.
-  const docsBase = snap.docs_url || "https://systemprompt.io/docs/bridge";
-  const docsHref = escapeHtml(`${docsBase}/${platform}`);
-  const email = escapeHtml(snap.contact_email || "ed@systemprompt.io");
-  const subject = escapeHtml(encodeURIComponent(`${appName} licensing`));
-  return `
-    <footer class="sp-setup__brand-foot">
-      <p class="sp-setup__demo">
-        <strong data-l10n-id="setup-warning-strong">Demo software.</strong>
-        <span data-l10n-id="setup-warning-body">This build is provided for demonstration purposes only and is not licensed for production use.</span>
-      </p>
-      <p class="sp-setup__meta">
-        <span class="sp-setup__version">${escapeHtml(appName)} v${escapeHtml(version)}</span>
-        <span class="sp-setup__meta-sep">·</span>
-        <a class="sp-setup__docs" href="${docsHref}" target="_blank" rel="noopener noreferrer">
-          Documentation for ${escapeHtml(platformDisplay)} →
-        </a>
-        <span class="sp-setup__meta-sep">·</span>
-        <span>Licensing — <a href="mailto:${email}?subject=${subject}">${email}</a></span>
-      </p>
-    </footer>`;
-}
-
-// Right column heading: the eyebrow (build tag + step) and the welcome line
-// that sits above whichever step is active.
 export function renderSetupHeading(component) {
   const stepLabel = (STEP_LABEL[component.step] || (() => ""))();
   const version = component.dataset.version || "";
@@ -113,6 +56,32 @@ export function renderSetupAgentsStep(component) {
         ? `<p class="sp-setup__note" role="alert">${escapeHtml(t("setup-finish-empty-warning") || `You have not added an agent yet, so nothing will be routed through ${appName}.`)}</p>`
         : ""}
       <div class="sp-setup__actions">${finishButton}</div>
+    </div>`;
+}
+
+// A build too old for its gateway is told so in the log and, for a sync, in a
+// toast — but a user who never gets past the wizard sees neither, and the
+// update affordance lives only in the signed-in rail. This is that affordance,
+// where they actually are.
+export function renderSetupUpdateNotice(component) {
+  const update = updateStateOf(component.snapshot);
+  // `can_install`/`can_restart` are the bridge's own read of the update state
+  // (`UpdatePayload`); deriving it again from the phase name is how the two
+  // answers drift apart.
+  const restart = !!update.can_restart;
+  if (!update.can_install && !restart) { return ""; }
+  const label = restart
+    ? (t("rail-profile-restart-cta") || "Restart to finish updating")
+    : (t("rail-profile-update-cta") || "Click here to update");
+  const line = restart
+    ? (t("setup-update-ready", { version: update.version || "" }) || `Version ${update.version || ""} is ready to finish installing.`)
+    : (t("setup-update-available", { version: update.version || "" }) || `Version ${update.version || ""} is available for this build.`);
+  return `
+    <div class="sp-setup__note sp-setup__note--warn" role="status">
+      <p>${escapeHtml(line)}</p>
+      <div class="sp-setup__actions">
+        <button class="sp-btn-ghost" type="button" data-action="${restart ? "restart-update" : "install-update"}">${escapeHtml(label)}</button>
+      </div>
     </div>`;
 }
 

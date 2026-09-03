@@ -16,7 +16,9 @@ use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::store::{clear_managed_claude_policy, write_managed_claude_policy};
+use crate::config::store::{
+    clear_managed_claude_policy, write_bridge_policy, write_managed_claude_policy,
+};
 use crate::winproc::{ElevationOutcome, run_elevated};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,6 +27,8 @@ pub(crate) struct ElevatedJob {
     pub org_plugins: Option<OrgPluginsJob>,
     #[serde(default)]
     pub clear_values: Vec<String>,
+    #[serde(default)]
+    pub bridge_values: Vec<(String, String)>,
     #[serde(default)]
     pub managed_files: Vec<ManagedFileJob>,
     #[serde(default)]
@@ -138,6 +142,9 @@ fn run_job(job_path: &str) -> Result<(), ElevateError> {
         let names: Vec<&str> = job.clear_values.iter().map(String::as_str).collect();
         clear_managed_claude_policy(true, &names).map_err(ElevateError::Policy)?;
     }
+    if !job.bridge_values.is_empty() {
+        write_bridge_policy(true, &job.bridge_values).map_err(ElevateError::Policy)?;
+    }
     if let Some(org) = &job.org_plugins {
         provision_org_plugins(&org.path, &org.grant_user)?;
     }
@@ -186,9 +193,18 @@ pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(),
     Ok(())
 }
 
+// Why: the job file used to be one fixed name. The first-run host-profile
+// write and the first sync's org-plugins provisioning both staged to it within
+// a second of each other; the second overwrote the first before its elevated
+// child had read it, the child ran the org-plugins job twice, both callers
+// read the same `ok` result, and the profile was logged as installed with no
+// registry write behind it — Cowork then started with a gateway provider and
+// no base URL. Every request now owns its own job and result file.
 pub(crate) fn elevate_and_run(stage_dir: &Path, job: &ElevatedJob) -> std::io::Result<()> {
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let exe = std::env::current_exe()?;
-    let job_path = stage_dir.join("elevated-job.json");
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let job_path = stage_dir.join(format!("elevated-job-{}-{seq}.json", std::process::id()));
     let body = serde_json::to_string(job).map_err(std::io::Error::other)?;
     std::fs::write(&job_path, body)?;
     let job_path = job_path.to_string_lossy().into_owned();
@@ -203,14 +219,17 @@ pub(crate) fn elevate_and_run(stage_dir: &Path, job: &ElevatedJob) -> std::io::R
         &exe,
         &["__install-claude-policy", &job_path, result_path.as_str()],
     );
-    match outcome {
+    let result = match outcome {
         ElevationOutcome::Declined => Err(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             "administrator approval was declined — the managed Claude policy was not written",
         )),
         ElevationOutcome::Failed(msg) => Err(std::io::Error::other(msg)),
         ElevationOutcome::Completed { exit_code } => finish(&result_path, exit_code),
-    }
+    };
+    _ = std::fs::remove_file(&job_path);
+    _ = std::fs::remove_file(&result_path);
+    result
 }
 
 fn finish(result_path: &str, exit_code: u32) -> std::io::Result<()> {

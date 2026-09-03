@@ -28,7 +28,8 @@ pub use error::InstallError;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
 pub use mdm::{
-    MdmError, MdmPayloadInputs, cowork_egress_allowed_hosts, is_uuid_like,
+    LEGACY_PUBKEY_KEY, MdmError, MdmPayloadInputs, bridge_policy_values,
+    cowork_egress_allowed_hosts, default_inference_models, inference_policy_values, is_uuid_like,
     parse_egress_allowed_hosts, snippet as mdm_snippet,
 };
 pub use schedule_apply::{
@@ -44,6 +45,7 @@ use crate::schedule::Os;
 use crate::stdio::diag;
 #[cfg(target_os = "macos")]
 pub use mdm::macos::{
+    build_bridge_prefs_plist as build_macos_bridge_prefs_plist,
     build_mobileconfig as build_macos_mobileconfig, build_prefs_plist as build_macos_prefs_plist,
 };
 use std::fs;

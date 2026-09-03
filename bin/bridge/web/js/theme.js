@@ -8,7 +8,6 @@ import { subscribe } from "./bridge.js";
 // a machine with neither OS setting left the user no recourse at all.
 
 const STORAGE_THEME = "bridge.theme";
-const STORAGE_CONTRAST = "bridge.contrast";
 
 const darkQ = window.matchMedia("(prefers-color-scheme: dark)");
 const contrastQ = window.matchMedia("(prefers-contrast: more)");
@@ -34,20 +33,15 @@ export function themePreference() {
   if (forcedDark()) { return "dark"; }
   return stored(STORAGE_THEME) || "system";
 }
-export function contrastPreference() { return stored(STORAGE_CONTRAST) || "system"; }
 
 function apply() {
   const theme = themePreference();
-  const contrast = contrastPreference();
   const root = document.documentElement;
   root.dataset.theme = theme === "system" ? (darkQ.matches ? "dark" : "light") : theme;
-  root.dataset.contrast = contrast === "system"
-    ? (contrastQ.matches ? "elevated" : "default")
-    : contrast;
+  root.dataset.contrast = contrastQ.matches ? "elevated" : "default";
 }
 
 export function setTheme(value) { store(STORAGE_THEME, value); apply(); }
-export function setContrast(value) { store(STORAGE_CONTRAST, value); apply(); }
 
 export function initTheme() {
   darkQ.addEventListener("change", apply);

@@ -10,7 +10,7 @@
 //! branch that matters for a linking flow (a bad or replayed link token must
 //! never attach a credential to an account).
 
-use std::sync::Once;
+use std::sync::{Arc, Once};
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -18,13 +18,20 @@ use axum::http::{Request, Response, StatusCode, header};
 use axum::response::IntoResponse;
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_api::routes::oauth::webauthn::link::link_passkey_page;
-use systemprompt_identifiers::ChallengeId;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_models::Config;
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{fixture_config, install_test_signing_key};
+use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
+use systemprompt_oauth::services::webauthn::hash_token;
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, fixture_config, fixture_db_pool, install_test_signing_key, seed_user_row,
+};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
+use webauthn_authenticator_rs::WebauthnAuthenticator;
+use webauthn_authenticator_rs::softtoken::SoftToken;
+use webauthn_rs::prelude::CreationChallengeResponse;
 
 use super::common::setup_ctx;
 
@@ -213,5 +220,190 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
     let resp = merged.oneshot(get("/health")).await?;
 
     assert!(resp.status().is_success(), "{}", resp.status());
+    Ok(())
+}
+
+// A double-fired `/link/start` must describe one ceremony: the browser
+// completes `create()` for the first response and the client may send either
+// challenge id back, so both must be accepted by `/link/finish`.
+
+async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, String) {
+    let user_id = UserId::new(Uuid::new_v4().to_string());
+    let email = format!("{}@link.invalid", Uuid::new_v4().simple());
+    let pool = fixture_db_pool(&ensure_test_bootstrap().database_url)
+        .await
+        .expect("pool");
+    seed_user_row(&pool, &user_id, &email)
+        .await
+        .expect("seed user");
+    let raw = format!("link-{}", Uuid::new_v4().simple());
+    ctx.oauth_repositories()
+        .oauth
+        .store_setup_token(CreateSetupTokenParams {
+            user_id: user_id.clone(),
+            token_hash: hash_token(&raw),
+            purpose: SetupTokenPurpose::CredentialLink,
+            expires_at: chrono::Utc::now() + chrono::Duration::seconds(600),
+        })
+        .await
+        .expect("store setup token");
+    (user_id, raw)
+}
+
+async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppContext>)> {
+    ensure_config();
+    install_test_signing_key();
+    let (_pool, ctx) = setup_ctx().await?;
+    let state = OAuthState::new(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.analytics_provider().expect("analytics"),
+        ctx.user_provider().expect("user"),
+    );
+    Ok((public_router().with_state(state), ctx))
+}
+
+async fn start_link(
+    app: &Router,
+    token: &str,
+) -> anyhow::Result<(String, CreationChallengeResponse)> {
+    let resp = app
+        .clone()
+        .oneshot(get(&format!("/webauthn/link/start?token={token}")))
+        .await?;
+    let status = resp.status();
+    let challenge_id = resp
+        .headers()
+        .get("x-challenge-id")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    let body = read_json(resp).await?;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let challenge_id = challenge_id.expect("x-challenge-id header");
+    let ccr: CreationChallengeResponse = serde_json::from_value(body["challenge"].clone())?;
+    Ok((challenge_id, ccr))
+}
+
+fn softtoken() -> WebauthnAuthenticator<SoftToken> {
+    let (token, _ca) = SoftToken::new(true).expect("softtoken");
+    WebauthnAuthenticator::new(token)
+}
+
+fn rp_origin() -> url::Url {
+    url::Url::parse("http://localhost").expect("origin")
+}
+
+#[tokio::test]
+async fn two_link_starts_return_one_challenge_id() -> anyhow::Result<()> {
+    let (app, ctx) = linked_app().await?;
+    let (_user, token) = issue_link_token(&ctx).await;
+
+    let (first_id, first) = start_link(&app, &token).await?;
+    let (second_id, second) = start_link(&app, &token).await?;
+
+    assert_eq!(
+        second_id, first_id,
+        "overlapping starts must share one challenge id"
+    );
+    assert_eq!(
+        second.public_key.challenge, first.public_key.challenge,
+        "overlapping starts must carry the same challenge bytes"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn link_finish_accepts_the_id_from_either_start() -> anyhow::Result<()> {
+    let (app, ctx) = linked_app().await?;
+    let (user_id, token) = issue_link_token(&ctx).await;
+    let mut auth = softtoken();
+
+    let (_first_id, first) = start_link(&app, &token).await?;
+    let (second_id, _second) = start_link(&app, &token).await?;
+    let cred = auth
+        .do_registration(rp_origin(), first)
+        .expect("registration against the first response");
+
+    let resp = app
+        .clone()
+        .oneshot(json_post(
+            "/webauthn/link/finish",
+            serde_json::json!({
+                "challenge_id": second_id,
+                "token": token,
+                "credential": serde_json::to_value(&cred)?,
+            }),
+        ))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let v = read_json(resp).await?;
+    assert_eq!(v["success"].as_bool(), Some(true), "{v}");
+    assert_eq!(v["user_id"].as_str(), Some(user_id.as_str()), "{v}");
+
+    let creds = ctx
+        .oauth_repositories()
+        .oauth
+        .list_webauthn_credentials(&user_id)
+        .await?;
+    assert_eq!(
+        creds.len(),
+        1,
+        "the credential the browser holds is on the server"
+    );
+
+    let resp = app
+        .oneshot(get(&format!("/webauthn/link/start?token={token}")))
+        .await?;
+    assert_ne!(
+        resp.status(),
+        StatusCode::OK,
+        "a linked token must not start again"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn link_finish_with_a_superseded_challenge_is_rejected() -> anyhow::Result<()> {
+    let (app, ctx) = linked_app().await?;
+    let (user_id, token_a) = issue_link_token(&ctx).await;
+    let raw_b = format!("link-{}", Uuid::new_v4().simple());
+    ctx.oauth_repositories()
+        .oauth
+        .store_setup_token(CreateSetupTokenParams {
+            user_id: user_id.clone(),
+            token_hash: hash_token(&raw_b),
+            purpose: SetupTokenPurpose::CredentialLink,
+            expires_at: chrono::Utc::now() + chrono::Duration::seconds(600),
+        })
+        .await?;
+    let mut auth = softtoken();
+
+    let (id_a, ccr_a) = start_link(&app, &token_a).await?;
+    let (id_b, _ccr_b) = start_link(&app, &raw_b).await?;
+    assert_ne!(id_b, id_a, "a second token supersedes the first ceremony");
+
+    let cred_a = auth
+        .do_registration(rp_origin(), ccr_a)
+        .expect("registration A");
+    let resp = app
+        .oneshot(json_post(
+            "/webauthn/link/finish",
+            serde_json::json!({
+                "challenge_id": id_a,
+                "token": token_a,
+                "credential": serde_json::to_value(&cred_a)?,
+            }),
+        ))
+        .await?;
+    assert_ne!(resp.status(), StatusCode::OK, "{}", resp.status());
+
+    let creds = ctx
+        .oauth_repositories()
+        .oauth
+        .list_webauthn_credentials(&user_id)
+        .await?;
+    assert!(
+        creds.is_empty(),
+        "a superseded ceremony must attach nothing"
+    );
     Ok(())
 }

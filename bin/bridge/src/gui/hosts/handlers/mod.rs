@@ -20,7 +20,7 @@ use crate::gui::events::ReplyId;
 use crate::gui::{GuiApp, emit};
 use crate::wire::ipc::{BridgeError, IpcReplyPayload};
 
-pub(super) fn finish(
+pub(crate) fn finish(
     app: &GuiApp,
     result: Result<serde_json::Value, BridgeError>,
     reply_to: ReplyId,

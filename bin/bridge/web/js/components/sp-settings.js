@@ -3,10 +3,9 @@ import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { runAction } from "/assets/js/utils/action.js";
 import { t } from "/assets/js/i18n.js";
-import { setTheme, setContrast } from "/assets/js/theme.js";
-import { gatewayUrlError, loadPrefs, setPref } from "/assets/js/utils/settings-prefs.js";
+import { setTheme } from "/assets/js/theme.js";
+import { gatewayUrlError, loadPrefs } from "/assets/js/utils/settings-prefs.js";
 import { renderSettingsPaths, renderSettingsAppearance, renderSettingsSecurity } from "/assets/js/components/settings-sections.js";
-import { renderSettingsPrefsRow } from "/assets/js/components/settings-prefs-row.js";
 
 export class SpSettings extends SpElement {
   constructor() {
@@ -14,9 +13,6 @@ export class SpSettings extends SpElement {
     this.snapshot = null;
     this.prefs = null;
     this.gatewayDraft = null;
-    this.registerAction("toggle-autostart", (el) => setPref(this, "autostart", !!el.checked));
-    this.registerAction("toggle-auto-update", (el) => setPref(this, "update_automatic", !!el.checked));
-    this.registerAction("toggle-session", (el) => setPref(this, "session_enabled", !!el.checked));
     this.registerAction("open-folder", (trigger) => runAction(trigger, {
       run: () => bridge.openConfigFolder(),
       success: t("toast-folder-opened") || "Opened the configuration folder.",
@@ -28,7 +24,6 @@ export class SpSettings extends SpElement {
       context: t("settings-action-validate") || "Re-check",
     }));
     this.registerAction("change:theme", (el) => { setTheme(el.value); this.invalidate(); });
-    this.registerAction("change:contrast", (el) => { setContrast(el.value); this.invalidate(); });
     this._registerGatewayActions();
   }
 
@@ -72,7 +67,6 @@ export class SpSettings extends SpElement {
       ${banner}
       ${renderSettingsPaths(this)}
       ${renderSettingsAppearance()}
-      ${renderSettingsPrefsRow(this)}
       ${renderSettingsSecurity(this)}
       <div class="sp-row">
         <button class="sp-btn-ghost" type="button" data-l10n-id="settings-action-open-folder" data-action="open-folder">Open config folder</button>

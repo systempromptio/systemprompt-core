@@ -30,5 +30,5 @@ pub use output::{
     set_log_publisher, set_startup_mode, set_structured_output, structured_was_emitted,
 };
 pub use retention::{RetentionConfig, RetentionPolicy, RetentionScheduler};
-pub use spans::{RequestSpan, RequestSpanBuilder, SystemSpan};
+pub use spans::SystemSpan;
 pub use throttle::LogThrottle;

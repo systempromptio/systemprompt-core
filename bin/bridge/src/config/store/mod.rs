@@ -66,6 +66,52 @@ pub trait ConfigStore: Send + Sync {
     fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError>;
 }
 
+pub const MANIFEST_PUBKEY_KEY: &str = "manifestPubkey";
+
+// Why: where the same key used to live, inside Claude's own policy hive. Sync
+// clears it and `validate` warns while one remains, so it is named from both
+// `install` and `validate` — it belongs beside its replacement, below both.
+pub const LEGACY_MANIFEST_PUBKEY_KEY: &str = "inferenceManifestPubkey";
+
+// Why: the manifest pubkey used to ride in Claude's own policy hive as
+// `inferenceManifestPubkey`. Claude Desktop 1.44121 logs it as an unrecognized
+// key and ignores it; a later build may reject the hive. It is the bridge's
+// policy, so it lives under a bridge-owned location keyed by the brand.
+#[must_use]
+pub fn bridge_policy_subkey() -> String {
+    format!(r"SOFTWARE\Policies\{}", crate::brand::brand().config_dir)
+}
+
+#[must_use]
+pub fn bridge_policy_domain() -> String {
+    format!("io.systemprompt.{}", crate::brand::brand().config_dir)
+}
+
+#[cfg(target_os = "windows")]
+#[must_use]
+pub fn read_bridge_policy(key: &str) -> Option<String> {
+    use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+    let subkey = bridge_policy_subkey();
+    for hive in [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER] {
+        if let Ok(Some(v)) = windows_registry::read_string(hive, &subkey, key) {
+            return Some(v);
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
+#[must_use]
+pub fn read_bridge_policy(key: &str) -> Option<String> {
+    macos_plist_store::read_string_at(&macos_plist_store::bridge_plist_path(), key)
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+#[must_use]
+pub const fn read_bridge_policy(_key: &str) -> Option<String> {
+    None
+}
+
 #[must_use]
 pub fn managed_policy_store() -> Box<dyn ConfigStore> {
     #[cfg(target_os = "windows")]
@@ -97,6 +143,23 @@ pub(crate) fn write_managed_claude_policy(
         .map(|(n, v)| (n.clone(), PolicyDocumentValue::Str(v.clone())))
         .collect();
     windows_registry_write::write_policy_values(hive, &typed)
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn write_bridge_policy(
+    elevated: bool,
+    entries: &[(String, String)],
+) -> Result<(), ConfigStoreError> {
+    let hive = if elevated {
+        PolicyHive::Machine
+    } else {
+        PolicyHive::User
+    };
+    let typed: Vec<(String, PolicyDocumentValue)> = entries
+        .iter()
+        .map(|(n, v)| (n.clone(), PolicyDocumentValue::Str(v.clone())))
+        .collect();
+    windows_registry_write::write_values_at(hive, &bridge_policy_subkey(), &typed)
 }
 
 #[cfg(target_os = "windows")]

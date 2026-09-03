@@ -40,12 +40,6 @@ pub(super) struct McpProbeArgs {
     pub(super) server_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub(super) struct SettingsSetArgs {
-    pub(super) key: String,
-    pub(super) value: serde_json::Value,
-}
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub(super) struct CancelArgs {

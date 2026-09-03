@@ -29,4 +29,5 @@ import "/assets/js/components/sp-marketplace-list.js";
 import "/assets/js/components/sp-marketplace-detail.js";
 import "/assets/js/components/sp-setup.js";
 import "/assets/js/components/sp-setup-gateway.js";
+import "/assets/js/components/sp-setup-purge.js";
 import "/assets/js/components/sp-setup-agents.js";

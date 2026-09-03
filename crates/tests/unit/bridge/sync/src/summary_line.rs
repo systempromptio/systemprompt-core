@@ -9,6 +9,7 @@ fn summary() -> SyncSummary {
         agent_count: 1,
         hook_count: 4,
         mcp_count: 5,
+        artifact_count: 7,
         installed: vec!["a".into()],
         updated: vec!["b".into()],
         removed: vec![],
@@ -27,7 +28,7 @@ fn a_clean_sync_renders_ok_with_every_count() {
         "{line}"
     );
     assert!(
-        line.contains("3 skills installed, 1 agents, 4 hooks, 5 MCP"),
+        line.contains("3 skills installed, 1 agents, 4 hooks, 5 MCP, 7 artifacts"),
         "{line}"
     );
     assert!(

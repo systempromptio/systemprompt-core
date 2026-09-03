@@ -16,6 +16,8 @@ mod bootstrap;
 #[cfg(test)]
 mod bootstrap_dispatch_db;
 #[cfg(test)]
+mod dispatch_instance_stamp_db;
+#[cfg(test)]
 mod dispatch_scope_db;
 #[cfg(test)]
 mod error_variants;
@@ -35,6 +37,8 @@ mod jobs_db;
 mod jobs_seeded_db;
 #[cfg(test)]
 mod models;
+#[cfg(test)]
+mod multi_replica_jobs_db;
 #[cfg(test)]
 mod orchestration;
 #[cfg(test)]

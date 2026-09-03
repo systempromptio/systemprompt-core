@@ -4,12 +4,14 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
-use systemprompt_identifiers::UserId;
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::{TokenId, UserId};
 use systemprompt_oauth::error::OauthError;
 use systemprompt_oauth::repository::{
-    CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose, StoreChallengeParams,
-    WebAuthnChallengeKind,
+    CreateSetupTokenParams, LinkChallengeReservation, OAuthRepository, ReserveLinkChallengeParams,
+    SetupTokenPurpose, StoreChallengeParams, WebAuthnChallengeKind,
 };
 use systemprompt_oauth::services::webauthn::hash_token;
 use systemprompt_oauth::services::{WebAuthnConfig, WebAuthnService};
@@ -86,6 +88,7 @@ fn test_config() -> WebAuthnConfig {
 }
 
 struct Ctx {
+    pool: DbPool,
     repo: OAuthRepository,
     replica_a: WebAuthnService,
     replica_b: WebAuthnService,
@@ -112,6 +115,7 @@ async fn setup() -> Option<Ctx> {
         .expect("svc")
     };
     Some(Ctx {
+        pool: pool.clone(),
         repo,
         replica_a: build(),
         replica_b: build(),
@@ -345,4 +349,225 @@ async fn link_started_on_replica_a_finishes_on_replica_b() {
         row.is_none(),
         "the link challenge row was consumed by replica B"
     );
+}
+
+async fn link_rows(pool: &DbPool, user_id: &UserId) -> i64 {
+    sqlx::query_scalar::<_, i64>(
+        "SELECT count(*) FROM webauthn_challenges WHERE user_id = $1 AND challenge_type = 'link'",
+    )
+    .bind(user_id.as_str())
+    .fetch_one(&*pool.pool().expect("pool"))
+    .await
+    .expect("count link rows")
+}
+
+fn link_state(token_id: &TokenId, marker: u32) -> serde_json::Value {
+    serde_json::json!({ "token_id": token_id.as_str(), "marker": marker })
+}
+
+async fn reserve(
+    repo: &OAuthRepository,
+    user_id: &UserId,
+    token_id: &TokenId,
+    ttl: Duration,
+    marker: u32,
+) -> LinkChallengeReservation {
+    repo.reserve_link_challenge(
+        ReserveLinkChallengeParams {
+            user_id,
+            token_id,
+            ttl,
+            min_remaining: Duration::from_secs(60),
+        },
+        |_| Ok(link_state(token_id, marker)),
+    )
+    .await
+    .expect("reserve link challenge")
+}
+
+#[tokio::test]
+async fn reserve_link_challenge_returns_the_live_challenge_for_the_same_token() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let token = TokenId::generate();
+
+    let first = reserve(&ctx.repo, &ctx.user_id, &token, Duration::from_secs(300), 1).await;
+    let second = reserve(&ctx.repo, &ctx.user_id, &token, Duration::from_secs(300), 2).await;
+
+    assert!(!first.reused);
+    assert!(
+        second.reused,
+        "an overlapping start must reuse the live ceremony"
+    );
+    assert_eq!(second.challenge_id, first.challenge_id);
+    assert_eq!(
+        second.state,
+        link_state(&token, 1),
+        "the reused state is the first mint"
+    );
+    assert_eq!(link_rows(&ctx.pool, &ctx.user_id).await, 1);
+}
+
+#[tokio::test]
+async fn reserve_link_challenge_replaces_a_challenge_issued_for_another_token() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let token_a = TokenId::generate();
+    let token_b = TokenId::generate();
+
+    let first = reserve(
+        &ctx.repo,
+        &ctx.user_id,
+        &token_a,
+        Duration::from_secs(300),
+        1,
+    )
+    .await;
+    let second = reserve(
+        &ctx.repo,
+        &ctx.user_id,
+        &token_b,
+        Duration::from_secs(300),
+        2,
+    )
+    .await;
+
+    assert!(!second.reused);
+    assert_ne!(second.challenge_id, first.challenge_id);
+    assert_eq!(link_rows(&ctx.pool, &ctx.user_id).await, 1);
+    let stale = ctx
+        .repo
+        .consume_webauthn_challenge(&first.challenge_id, WebAuthnChallengeKind::Link)
+        .await
+        .expect("consume");
+    assert!(stale.is_none(), "the superseded challenge must be gone");
+}
+
+#[tokio::test]
+async fn reserve_link_challenge_replaces_a_near_expiry_challenge() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let token = TokenId::generate();
+
+    let first = reserve(&ctx.repo, &ctx.user_id, &token, Duration::from_secs(30), 1).await;
+    let second = reserve(&ctx.repo, &ctx.user_id, &token, Duration::from_secs(300), 2).await;
+
+    assert!(
+        !second.reused,
+        "a challenge with less than a minute left must not be handed out again"
+    );
+    assert_ne!(second.challenge_id, first.challenge_id);
+    assert_eq!(link_rows(&ctx.pool, &ctx.user_id).await, 1);
+}
+
+#[tokio::test]
+async fn reserve_link_challenge_ignores_other_kinds_and_other_users() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let other = unique_user_id("wa-other");
+    seed_user_row(
+        &ctx.pool,
+        &other,
+        &format!("{}@wastore.invalid", other.as_str()),
+    )
+    .await
+    .expect("seed other user");
+    let auth_challenge = format!("auth-{}", Uuid::new_v4().simple());
+    ctx.repo
+        .store_webauthn_challenge(StoreChallengeParams {
+            challenge: &auth_challenge,
+            kind: WebAuthnChallengeKind::Authentication,
+            user_id: Some(&ctx.user_id),
+            state: &serde_json::Value::Null,
+            oauth_state: None,
+            ttl: Duration::from_secs(60),
+        })
+        .await
+        .expect("store auth challenge");
+    let theirs = reserve(
+        &ctx.repo,
+        &other,
+        &TokenId::generate(),
+        Duration::from_secs(300),
+        1,
+    )
+    .await;
+
+    reserve(
+        &ctx.repo,
+        &ctx.user_id,
+        &TokenId::generate(),
+        Duration::from_secs(300),
+        2,
+    )
+    .await;
+    reserve(
+        &ctx.repo,
+        &ctx.user_id,
+        &TokenId::generate(),
+        Duration::from_secs(300),
+        3,
+    )
+    .await;
+
+    assert!(
+        ctx.repo
+            .consume_webauthn_challenge(&auth_challenge, WebAuthnChallengeKind::Authentication)
+            .await
+            .expect("consume")
+            .is_some(),
+        "an authentication challenge for the same user must survive a link reservation"
+    );
+    assert!(
+        ctx.repo
+            .consume_webauthn_challenge(&theirs.challenge_id, WebAuthnChallengeKind::Link)
+            .await
+            .expect("consume")
+            .is_some(),
+        "another user's link challenge must survive"
+    );
+}
+
+#[tokio::test]
+async fn concurrent_reservations_converge_on_one_challenge() {
+    let ctx = setup().await.expect("DATABASE_URL must be set");
+    let token = TokenId::generate();
+    let mints = Arc::new(AtomicUsize::new(0));
+
+    let mut tasks = tokio::task::JoinSet::new();
+    for _ in 0..8 {
+        let repo = OAuthRepository::new(&ctx.pool).expect("repo");
+        let user_id = ctx.user_id.clone();
+        let token = token.clone();
+        let mints = Arc::clone(&mints);
+        tasks.spawn(async move {
+            repo.reserve_link_challenge(
+                ReserveLinkChallengeParams {
+                    user_id: &user_id,
+                    token_id: &token,
+                    ttl: Duration::from_secs(300),
+                    min_remaining: Duration::from_secs(60),
+                },
+                |_| {
+                    mints.fetch_add(1, Ordering::SeqCst);
+                    Ok(link_state(&token, 1))
+                },
+            )
+            .await
+            .expect("reserve")
+            .challenge_id
+        });
+    }
+    let mut ids = Vec::new();
+    while let Some(id) = tasks.join_next().await {
+        ids.push(id.expect("task"));
+    }
+
+    assert_eq!(ids.len(), 8);
+    assert!(
+        ids.iter().all(|id| id == &ids[0]),
+        "every concurrent start must receive the same challenge id: {ids:?}"
+    );
+    assert_eq!(
+        mints.load(Ordering::SeqCst),
+        1,
+        "exactly one ceremony is minted"
+    );
+    assert_eq!(link_rows(&ctx.pool, &ctx.user_id).await, 1);
 }

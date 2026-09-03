@@ -28,7 +28,6 @@ mod context_traits;
 mod database_context;
 mod error;
 mod registry;
-mod span;
 mod startup_validation;
 mod validation;
 mod wellknown;
@@ -38,7 +37,6 @@ pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleType, WellKnownRoute};
-pub use span::create_request_span;
 pub use startup_validation::{
     ExtensionConfigOutcome, FilesConfigValidator, StartupValidator, collect_manifest_errors,
     display_validation_report, display_validation_warnings, merge_mcp_errors,

@@ -51,8 +51,6 @@ mod registry;
 #[cfg(test)]
 mod registry_populated;
 #[cfg(test)]
-mod span_tests;
-#[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
 mod validate_database_path;

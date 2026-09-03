@@ -6,18 +6,22 @@
 
 use super::Report;
 
-const REQUIRED: [(&str, &str); 3] = [
+const REQUIRED: [(&str, &str); 4] = [
     (
         "allowedWorkspaceFolders",
         "missing — Cowork blocks on request_cowork_directory. Sync and approve the admin prompt.",
     ),
     (
+        "inferenceProvider",
+        "missing — Cowork is not routed through the gateway. Sync and approve the admin prompt.",
+    ),
+    (
         "inferenceGatewayBaseUrl",
-        "missing — Cowork has no model routing. Re-apply the Claude Desktop host profile.",
+        "missing — with inferenceProvider=gateway Cowork refuses to start any task. Sync and approve the admin prompt.",
     ),
     (
         "inferenceGatewayApiKey",
-        "missing — Cowork cannot authenticate to the gateway. Re-apply the Claude Desktop host profile.",
+        "missing — Cowork cannot authenticate to the gateway. Sync and approve the admin prompt.",
     ),
 ];
 
@@ -75,6 +79,20 @@ pub(super) fn check_managed_policy(report: &mut Report) {
             Ok(None) => report.ok(&format!("policy {key}"), "absent"),
             Err(e) => report.fail(&format!("policy {key}"), &format!("unreadable: {e}")),
         }
+    }
+    match store.read_managed_policy(crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY) {
+        Ok(Some(_)) => report.warn(
+            "policy inferenceManifestPubkey",
+            "stale copy in Claude's hive — Claude Desktop warns on every launch; sync moves it",
+        ),
+        Ok(None) => report.ok(
+            "policy inferenceManifestPubkey",
+            "absent from Claude's hive",
+        ),
+        Err(e) => report.fail(
+            "policy inferenceManifestPubkey",
+            &format!("unreadable: {e}"),
+        ),
     }
     check_workspace_dir(report);
     check_claude_code_policy_dir(report);

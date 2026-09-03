@@ -399,3 +399,36 @@ fn every_fixture_host_entry_carries_exactly_the_wire_key_set() {
 
     assert!(checked > 0, "no fixture host entries were checked");
 }
+
+// Why: a fixture id that is not a real host is a preview of a screen the app
+// cannot produce, and a missing one is a screen no reviewer ever sees —
+// `no-models.json` and `proxy-down.json` had quietly dropped `codex-cli`.
+#[test]
+fn every_fixture_lists_exactly_the_known_hosts() {
+    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+
+    let mut expected: Vec<&str> = KNOWN_HOSTS.to_vec();
+    expected.sort_unstable();
+    let mut checked = 0_usize;
+
+    for path in fixture_paths() {
+        let raw = std::fs::read_to_string(&path).expect("read fixture");
+        let value: Value = serde_json::from_str(&raw).expect("fixture is JSON");
+        let Some(hosts) = value.get("host_apps").and_then(Value::as_array) else {
+            continue;
+        };
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        let mut ids: Vec<&str> = hosts
+            .iter()
+            .filter_map(|h| h.get("id").and_then(Value::as_str))
+            .collect();
+        ids.sort_unstable();
+        assert_eq!(
+            ids, expected,
+            "{name}: fixture host ids have drifted from KNOWN_HOSTS"
+        );
+        checked += 1;
+    }
+
+    assert!(checked > 0, "no fixtures carried host_apps");
+}

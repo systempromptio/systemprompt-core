@@ -8,13 +8,21 @@
 
 use std::path::Path;
 
-pub use super::macos_payload::{build_mobileconfig, build_prefs_plist};
+pub use super::macos_payload::{build_bridge_prefs_plist, build_mobileconfig, build_prefs_plist};
 use super::{MdmError, MdmPayloadInputs};
 
 pub(crate) const PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm";
 pub(super) const INNER_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm.inference";
+pub(super) const BRIDGE_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm.policy";
 pub(crate) const MANAGED_PREFS_PATH: &str =
     "/Library/Managed Preferences/com.anthropic.claudefordesktop.plist";
+
+fn bridge_prefs_path() -> String {
+    format!(
+        "/Library/Managed Preferences/{}.plist",
+        crate::config::store::bridge_policy_domain()
+    )
+}
 
 fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
     if gateway.starts_with("http://")
@@ -37,7 +45,7 @@ pub(crate) fn apply(
 
     validate_gateway(gateway)?;
 
-    let plist = build_prefs_plist(mcp, gateway, pubkey);
+    let plist = build_prefs_plist(mcp, gateway);
     let tmp_path =
         std::env::temp_dir().join(format!("{}.prefs.plist", crate::brand::brand().binary_name));
     fs::write(&tmp_path, plist.as_bytes()).map_err(|e| MdmError::Io {
@@ -45,24 +53,43 @@ pub(crate) fn apply(
         path: tmp_path.clone(),
         source: e,
     })?;
+    let bridge_plist = pubkey.map(build_bridge_prefs_plist);
+    let bridge_tmp = std::env::temp_dir().join(format!(
+        "{}.bridge-prefs.plist",
+        crate::brand::brand().binary_name
+    ));
+    if let Some(body) = &bridge_plist {
+        fs::write(&bridge_tmp, body.as_bytes()).map_err(|e| MdmError::Io {
+            action: "write",
+            path: bridge_tmp.clone(),
+            source: e,
+        })?;
+    }
 
     let user = std::env::var("USER").unwrap_or_default();
     let tmp_str = tmp_path.to_string_lossy();
+    let bridge_tmp_str = bridge_tmp.to_string_lossy();
     let dest_system = MANAGED_PREFS_PATH;
     let dest_user =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
-
-    // Why: skip elevation when the on-disk plist already matches. The read is
-    // only possible because Managed Preferences is world-readable.
+    let bridge_dest = bridge_prefs_path();
     let existing_matches = fs::read(dest_system).is_ok_and(|b| b == plist.as_bytes())
-        && (user.is_empty() || fs::read(&dest_user).is_ok_and(|b| b == plist.as_bytes()));
+        && (user.is_empty() || fs::read(&dest_user).is_ok_and(|b| b == plist.as_bytes()))
+        && bridge_plist
+            .as_ref()
+            .is_none_or(|b| fs::read(&bridge_dest).is_ok_and(|on_disk| on_disk == b.as_bytes()));
+    let bridge_line = if bridge_plist.is_some() {
+        format!("/usr/bin/install -m 0644 \"{bridge_tmp_str}\" \"{bridge_dest}\"\n")
+    } else {
+        String::new()
+    };
 
     let script = if user.is_empty() {
         format!(
             r#"set -e
 mkdir -p "/Library/Managed Preferences"
 /usr/bin/install -m 0644 "{tmp_str}" "{dest_system}"
-/usr/bin/killall cfprefsd 2>/dev/null || true
+{bridge_line}/usr/bin/killall cfprefsd 2>/dev/null || true
 "#
         )
     } else {
@@ -71,7 +98,7 @@ mkdir -p "/Library/Managed Preferences"
 mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
 /usr/bin/install -m 0644 "{tmp_str}" "{dest_system}"
 /usr/bin/install -m 0644 "{tmp_str}" "{dest_user}"
-/usr/bin/killall cfprefsd 2>/dev/null || true
+{bridge_line}/usr/bin/killall cfprefsd 2>/dev/null || true
 "#
         )
     };
@@ -85,6 +112,7 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
         )
     };
     _ = fs::remove_file(&tmp_path);
+    _ = fs::remove_file(&bridge_tmp);
     result.map_err(|e| MdmError::ApplyElevation {
         binary: crate::brand::brand().binary_name,
         source: e,
@@ -194,9 +222,12 @@ pub(crate) fn remove_profile() -> Result<bool, MdmError> {
 /usr/bin/killall cfprefsd 2>/dev/null || true
 ",
         rm_lines = if user_exists {
-            format!(r#"rm -f "{MANAGED_PREFS_PATH}" "{user_path}""#)
+            format!(
+                r#"rm -f "{MANAGED_PREFS_PATH}" "{user_path}" "{}""#,
+                bridge_prefs_path()
+            )
         } else {
-            format!(r#"rm -f "{MANAGED_PREFS_PATH}""#)
+            format!(r#"rm -f "{MANAGED_PREFS_PATH}" "{}""#, bridge_prefs_path())
         },
     );
     crate::install::elevate::run_privileged(

@@ -30,3 +30,11 @@ Format: .mobileconfig (managed preference)
   </array>
   -->
 </dict>
+
+The bridge's own manifest signing key is a second managed domain, not a key in
+Claude's (Claude Desktop ignores keys it does not know and logs a warning):
+Domain: io.systemprompt.{config_dir}
+<dict>
+  <key>manifestPubkey</key>
+  <string>&lt;base64 ed25519 pubkey&gt;</string>
+</dict>

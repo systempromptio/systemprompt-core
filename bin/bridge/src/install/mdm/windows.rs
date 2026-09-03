@@ -6,6 +6,7 @@
 #![cfg(target_os = "windows")]
 
 use super::error::MdmError;
+use super::windows_policy;
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, MdmError> {
     // Why: HKLM writes need elevation — hence the drift-only UAC.
@@ -87,6 +88,7 @@ fn elevated_write(value: &str) -> Result<(), MdmError> {
     );
     let job = crate::install::elevated_job::ElevatedJob {
         clear_values: Vec::new(),
+        bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
         reg_path: Some(path.to_string_lossy().into_owned()),
@@ -111,54 +113,24 @@ pub(super) fn enforce_managed_policy(
     ensure_workspace_dir();
     let org_uuid = crate::config::load().deployment_organization_uuid;
     let pubkey = crate::config::pinned_pubkey();
-    let mut values = super::windows_policy_values(
-        pubkey.as_ref().map(crate::ids::PinnedPubKey::as_str),
-        org_uuid.as_deref(),
-        inputs.egress_allowed_hosts,
-    );
+    let mut values = super::windows_policy_values(org_uuid.as_deref(), inputs.egress_allowed_hosts);
+    values.extend(super::inference::inference_values(inputs)?);
     let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
     values.push(("managedMcpServers", "REG_SZ", mcp));
-
-    if !policy_drifted(&values) {
+    let bridge = super::bridge_policy_values(pubkey.as_ref().map(crate::ids::PinnedPubKey::as_str));
+    let plan = windows_policy::WritePlan::new(&values, &bridge);
+    if !plan.drifted() {
         return Ok("managed policy already in step; nothing to write".into());
     }
     if crate::winproc::is_elevated() {
-        write_values_in_process(&values)?;
+        plan.write_in_process()?;
         return Ok(format!(
             "{} ← full managed policy re-asserted (elevated)",
             crate::cowork_compat::HKLM_POLICY_KEY
         ));
     }
     let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
-    stage_elevated_apply(&values, org_job)
-}
-
-fn write_values_in_process(
-    values: &[(&'static str, &'static str, String)],
-) -> Result<(), MdmError> {
-    let key = crate::cowork_compat::HKLM_POLICY_KEY;
-    for (name, kind, data) in values {
-        let status = crate::winproc::reg_command()
-            .args(["add", key, "/v", name, "/t", kind, "/d", data, "/f"])
-            .status()
-            .map_err(|e| MdmError::Windows(format!("reg add {name}: {e}")))?;
-        if !status.success() {
-            return Err(MdmError::Windows(format!(
-                "reg add {name} exited with {}",
-                status.code().unwrap_or(-1)
-            )));
-        }
-    }
-    Ok(())
-}
-
-// Why: a read error counts as drift — an unknown on-disk state must never be
-// mistaken for an up-to-date one.
-fn policy_drifted(values: &[(&'static str, &'static str, String)]) -> bool {
-    let store = crate::config::store::managed_policy_store();
-    values.iter().any(|(name, _, data)| {
-        !matches!(store.read_managed_policy(name), Ok(Some(current)) if &current == data)
-    })
+    plan.stage_elevated(org_job)
 }
 
 // Why: Cowork prompts instead of pre-trusting unless the directory named by
@@ -214,11 +186,13 @@ pub(super) fn apply(
     let elevated = crate::winproc::is_elevated();
     let key = crate::cowork_compat::HKLM_POLICY_KEY;
     let org_uuid = crate::config::load().deployment_organization_uuid;
-    let mut values =
-        super::windows_policy_values(pubkey, org_uuid.as_deref(), inputs.egress_allowed_hosts);
+    let mut values = super::windows_policy_values(org_uuid.as_deref(), inputs.egress_allowed_hosts);
+    values.extend(super::inference::inference_values(inputs)?);
     let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
     values.push(("managedMcpServers", "REG_SZ", mcp));
-    let mut summary = Vec::with_capacity(values.len() + 4);
+    let bridge = super::bridge_policy_values(pubkey);
+    let plan = windows_policy::WritePlan::new(&values, &bridge);
+    let mut summary = Vec::with_capacity(values.len() + bridge.len() + 4);
     summary.push(format!("registry key: {key}"));
     summary.extend(ensure_workspace_dir());
     let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
@@ -226,8 +200,8 @@ pub(super) fn apply(
     // the HKLM key exists, so an unelevated run stages ONE administrator pass
     // rather than writing a per-user copy that would never be read.
     if elevated {
-        write_values_in_process(&values)?;
-        for (name, kind, _) in &values {
+        plan.write_in_process()?;
+        for (name, kind, _) in values.iter().chain(&bridge) {
             summary.push(format!("wrote {name} ({kind})"));
         }
         if let Some(org) = org_job {
@@ -240,7 +214,7 @@ pub(super) fn apply(
             ));
         }
     } else {
-        summary.push(stage_elevated_apply(&values, org_job)?);
+        summary.push(plan.stage_elevated(org_job)?);
     }
     if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
         summary.push(
@@ -249,45 +223,4 @@ pub(super) fn apply(
     }
     summary.push("Fully quit Bridge (tray icon → Quit) and relaunch to pick up new policy.".into());
     Ok(summary)
-}
-
-// Why: the error shown when Cowork sync cannot write org-plugins tells the
-// user to re-run `install --apply` and approve ONE administrator prompt — this
-// is the step that makes that promise true: one UAC pass writes the HKLM
-// policy and grants the invoking user Modify on org-plugins.
-fn stage_elevated_apply(
-    values: &[(&'static str, &'static str, String)],
-    org_plugins: Option<crate::install::elevated_job::OrgPluginsJob>,
-) -> Result<String, MdmError> {
-    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir).map_err(|source| MdmError::Io {
-        action: "create staging dir",
-        path: dir.clone(),
-        source,
-    })?;
-    let entries: Vec<(&str, String)> = values.iter().map(|(n, _, d)| (*n, d.clone())).collect();
-    let body = crate::install::reg_values::render_reg_values(true, &entries);
-    let path = dir.join("bridge-policy-apply.reg");
-    std::fs::write(&path, body).map_err(|source| MdmError::Io {
-        action: "stage policy profile",
-        path: path.clone(),
-        source,
-    })?;
-    let job = crate::install::elevated_job::ElevatedJob {
-        clear_values: Vec::new(),
-        managed_files: Vec::new(),
-        remove_files: Vec::new(),
-        reg_path: Some(path.to_string_lossy().into_owned()),
-        org_plugins,
-    };
-    crate::install::elevated_job::elevate_and_run(&dir, &job)
-        .map(|()| {
-            "elevated step complete: HKLM policy written and org-plugins provisioned".to_owned()
-        })
-        .map_err(|e| {
-            MdmError::Windows(format!(
-                "elevated step did not complete ({e}); the machine policy was not written and \
-                 org-plugins was not provisioned — Cowork stays unmanaged"
-            ))
-        })
 }

@@ -5,7 +5,9 @@ import { t } from "/assets/js/i18n.js";
 import { notifyErr } from "/assets/js/utils/notify.js";
 import { stepsFromSnapshot } from "/assets/js/utils/setup-steps.js";
 import { clearSettleTimer, trackSettle, retrySettle } from "/assets/js/utils/setup-settle.js";
-import { renderSetupBrand, renderSetupHeading, renderSetupFinalizing, renderSetupAgentsStep, renderSetupSettleNotice } from "/assets/js/components/setup-sections.js";
+import { renderSetupHeading, renderSetupFinalizing, renderSetupAgentsStep, renderSetupSettleNotice, renderSetupUpdateNotice } from "/assets/js/components/setup-sections.js";
+import { renderSetupBrand } from "/assets/js/components/setup-brand.js";
+import { maybeCheckForUpdate, installUpdate, restartForUpdate } from "/assets/js/utils/update-check.js";
 import "/assets/js/components/sp-setup-gateway.js";
 import "/assets/js/components/sp-setup-agents.js";
 
@@ -30,6 +32,8 @@ export class SpSetup extends SpElement {
     this.registerAction("retry-settle", () => retrySettle(this));
     this.registerAction("continue-anyway", () => this._leaveSetup());
     this.registerAction("open-bridge", () => this._leaveSetup());
+    this.registerAction("install-update", () => installUpdate(this));
+    this.registerAction("restart-update", () => restartForUpdate());
   }
 
   onConnect() {
@@ -62,6 +66,10 @@ export class SpSetup extends SpElement {
     this.finalizing = model.finalizing;
     this.firstRunActive = model.firstRunActive;
     this._leftSetup = model.leftSetup;
+    // Why: the update endpoint is authenticated, so this cannot run on step 1.
+    // Sign-in is the earliest honest moment, and it is also the moment a user
+    // whose build is too old for the gateway most needs telling.
+    maybeCheckForUpdate(this);
     if (model.setupMode !== null) { document.body.classList.toggle("is-setup-mode", model.setupMode); }
   }
 
@@ -107,6 +115,7 @@ export class SpSetup extends SpElement {
                 </div>
                 ${renderSetupAgentsStep(this)}
                 ${renderSetupSettleNotice(this)}
+                ${renderSetupUpdateNotice(this)}
               `}
           </div>
         </section>

@@ -195,3 +195,110 @@ fn higher_priority_registration_shadows_builtin() {
     let count = host_apps().iter().filter(|h| h.id() == "codex-cli").count();
     assert_eq!(count, 1, "shadowed id must appear exactly once (deduped)");
 }
+
+// Why: v0.43.0 toasted `unknown host: claude-code` from seven handlers at once,
+// each of which had re-derived "is this id real" for itself. `resolve_host` is
+// the one place that decision is made now, so this is the one place it is
+// asserted: no id the gateway may send can come back Unknown.
+#[test]
+fn no_known_host_resolves_as_unknown() {
+    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
+    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+
+    for id in KNOWN_HOSTS {
+        if !cfg!(any(target_os = "macos", target_os = "windows")) && *id == "claude-desktop" {
+            continue;
+        }
+        assert!(
+            matches!(
+                resolve_host(id),
+                ResolvedHost::Local(_) | ResolvedHost::SyncOnly(_) | ResolvedHost::Suppressed
+            ),
+            "{id} resolves as Unknown — a per-host command for it would answer \
+             \"unknown host: {id}\""
+        );
+    }
+}
+
+#[test]
+fn sync_only_agent_resolves_without_a_host_app() {
+    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
+
+    assert!(
+        find_host_by_id("claude-code").is_none(),
+        "sync-only by design"
+    );
+    let ResolvedHost::SyncOnly(agent) = resolve_host("claude-code") else {
+        panic!("claude-code must resolve as a sync-only agent, not an unknown id");
+    };
+    assert_eq!(agent.display_name, "Claude Code");
+}
+
+#[test]
+fn an_id_belonging_to_nothing_is_the_only_unknown() {
+    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
+
+    assert!(matches!(
+        resolve_host("no-such-agent"),
+        ResolvedHost::Unknown
+    ));
+}
+
+struct SuppressedHost;
+
+impl HostApp for SuppressedHost {
+    fn id(&self) -> &'static str {
+        "dummy-suppressed-host"
+    }
+    fn display_name(&self) -> &'static str {
+        "Suppressed Host"
+    }
+    fn config_schema(&self) -> &'static HostConfigSchema {
+        &DUMMY_SCHEMA
+    }
+    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
+        HostAppSnapshot {
+            host_id: "dummy-suppressed-host",
+            display_name: "Suppressed Host",
+            profile_state: ProfileState::Absent,
+            profile_source: None,
+            profile_keys: BTreeMap::new(),
+            host_running: false,
+            host_processes: Vec::new(),
+            app_installed: AppInstallState::NotInstalled,
+            probed_at_unix: 0,
+        }
+    }
+    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+        Ok(GeneratedProfile {
+            path: String::new(),
+            bytes: 0,
+            payload_uuid: String::new(),
+            profile_uuid: String::new(),
+        })
+    }
+    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn install_action_label(&self) -> &'static str {
+        "install"
+    }
+}
+
+register_host_app!(SuppressedHost);
+systemprompt_bridge::suppress_host_app!("dummy-suppressed-host");
+
+// Why: this is the Astound shape — a white-label build calls
+// `suppress_host_app!("codex-cli")`, and the id is then in neither the registry
+// nor the sync-only table. "Not offered on this installation" is the truthful
+// answer; "unknown host" is not.
+#[test]
+fn suppressed_host_is_not_unknown() {
+    use systemprompt_bridge::integration::{ResolvedHost, resolve_host};
+
+    assert!(find_host_by_id("dummy-suppressed-host").is_none());
+    assert!(matches!(
+        resolve_host("dummy-suppressed-host"),
+        ResolvedHost::Suppressed
+    ));
+}

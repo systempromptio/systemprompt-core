@@ -36,4 +36,4 @@ pub use host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
     ProfileGenInputs, ProfileState, StaleReason,
 };
-pub use registry::{find_host_by_id, host_apps};
+pub use registry::{ResolvedHost, find_host_by_id, host_apps, resolve_host};

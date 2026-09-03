@@ -47,11 +47,7 @@ pub fn policy_pubkey() -> Option<PinnedPubKey> {
 }
 
 fn read_policy_pubkey_native() -> Option<String> {
-    let store = super::store::managed_policy_store();
-    let value = store
-        .read_managed_policy("inferenceManifestPubkey")
-        .ok()
-        .flatten()?;
+    let value = super::store::read_bridge_policy(super::store::MANIFEST_PUBKEY_KEY)?;
     let trimmed = value.trim();
     if trimmed.is_empty() {
         None

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.45.0] - 2026-09-03
+
+### Added
+
+- `OAuthRepository::reserve_link_challenge` reserves the single live link challenge for an account inside one transaction, handing back the existing ceremony when one is in flight for the same setup token.
+
+### Fixed
+
+- `WebAuthnService::start_registration_with_token` returns the same challenge and challenge id for overlapping calls with the same setup token, so the ceremony the browser completed can always be finished. Competing challenges for one account left a browser-side passkey the server never stored.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

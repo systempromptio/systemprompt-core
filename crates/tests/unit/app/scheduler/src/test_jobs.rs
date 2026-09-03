@@ -16,9 +16,12 @@ pub const FAILING_JOB: &str = "sp_test_failing_job";
 pub const SLOW_JOB: &str = "sp_test_slow_job";
 pub const EMPTY_SCHEDULE_JOB: &str = "sp_test_empty_schedule_job";
 pub const NODE_JOB: &str = "sp_test_node_job";
+pub const STAMP_FAIL_JOB: &str = "sp_test_stamp_fail_job";
+pub const STAMP_PANIC_JOB: &str = "sp_test_stamp_panic_job";
 
 pub static SLOW_JOB_STARTS: AtomicU64 = AtomicU64::new(0);
 pub static NODE_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
+pub static STAMP_FAIL_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
 
 struct PanicJob;
 
@@ -147,7 +150,58 @@ impl Job for NodeJob {
     }
 }
 
+struct StampFailJob;
+
+#[async_trait]
+impl Job for StampFailJob {
+    fn name(&self) -> &'static str {
+        STAMP_FAIL_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        _ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        STAMP_FAIL_JOB_RUNS.fetch_add(1, Ordering::SeqCst);
+        Ok(JobResult::failure("stamp job failed on purpose"))
+    }
+}
+
+struct StampPanicJob;
+
+#[async_trait]
+impl Job for StampPanicJob {
+    fn name(&self) -> &'static str {
+        STAMP_PANIC_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(
+        &self,
+        _ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        panic!("stamp job panic payload");
+    }
+}
+
 systemprompt_provider_contracts::submit_job!(&NodeJob);
+systemprompt_provider_contracts::submit_job!(&StampFailJob);
+systemprompt_provider_contracts::submit_job!(&StampPanicJob);
 systemprompt_provider_contracts::submit_job!(&PanicJob);
 systemprompt_provider_contracts::submit_job!(&FailingJob);
 systemprompt_provider_contracts::submit_job!(&SlowJob);

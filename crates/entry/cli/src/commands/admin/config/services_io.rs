@@ -137,18 +137,21 @@ pub fn append_include(root: &Path, relative: &str) -> Result<()> {
         return Ok(());
     }
     let entry = format!("  - {relative}\n");
+    // Why: a key that ends the file carries no newline of its own, so the entry
+    // would splice onto the same line and `includes:` would parse as a scalar —
+    // the include is then silently never loaded.
+    let splice = |line_end: Option<usize>| {
+        line_end.map_or_else(
+            || format!("{existing}\n{entry}"),
+            |end| format!("{}{entry}{}", &existing[..end], &existing[end..]),
+        )
+    };
     let updated = match existing.find("\nincludes:") {
         Some(idx) => {
             let insert_at = idx + "\nincludes:".len();
-            let line_end = existing[insert_at..]
-                .find('\n')
-                .map_or(existing.len(), |n| insert_at + n + 1);
-            format!("{}{entry}{}", &existing[..line_end], &existing[line_end..])
+            splice(existing[insert_at..].find('\n').map(|n| insert_at + n + 1))
         },
-        None if existing.starts_with("includes:") => {
-            let line_end = existing.find('\n').map_or(existing.len(), |n| n + 1);
-            format!("{}{entry}{}", &existing[..line_end], &existing[line_end..])
-        },
+        None if existing.starts_with("includes:") => splice(existing.find('\n').map(|n| n + 1)),
         None => {
             let sep = if existing.is_empty() || existing.ends_with('\n') {
                 ""

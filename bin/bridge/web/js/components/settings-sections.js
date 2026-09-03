@@ -1,6 +1,6 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t } from "/assets/js/i18n.js";
-import { themePreference, contrastPreference, forcedDark } from "/assets/js/theme.js";
+import { themePreference, forcedDark } from "/assets/js/theme.js";
 import { gatewayUrlError } from "/assets/js/utils/settings-prefs.js";
 
 function gatewayReadRow(current) {
@@ -77,11 +77,6 @@ export function renderSettingsAppearance() {
     ["light", t("settings-theme-light") || "Light"],
     ["dark", t("settings-theme-dark") || "Dark"],
   ];
-  const contrastOptions = [
-    ["system", t("settings-contrast-system") || "Match my system"],
-    ["default", t("settings-contrast-default") || "Standard"],
-    ["elevated", t("settings-contrast-elevated") || "Increased"],
-  ];
   const themeRow = forcedDark() ? "" : `
       <div class="sp-kv">
         <label for="settings-theme" data-l10n-id="settings-theme-label">Appearance</label>
@@ -92,12 +87,6 @@ export function renderSettingsAppearance() {
   return `
     <div class="sp-kv__grid">
       ${themeRow}
-      <div class="sp-kv">
-        <label for="settings-contrast" data-l10n-id="settings-contrast-label">Contrast</label>
-        <select id="settings-contrast" class="sp-select" data-change="contrast">
-          ${selectOptions(contrastOptions, contrastPreference())}
-        </select>
-      </div>
     </div>`;
 }
 

@@ -37,12 +37,32 @@ pub(super) fn read_document(
     let Some(path) = plist_path(hive) else {
         return Ok(PolicyDocument::new());
     };
+    read_document_at(&path, keys)
+}
+
+#[must_use]
+pub(super) fn bridge_plist_path() -> PathBuf {
+    PathBuf::from(MANAGED_PREFS_ROOT).join(format!("{}.plist", super::bridge_policy_domain()))
+}
+
+pub(super) fn read_string_at(path: &std::path::Path, key: &str) -> Option<String> {
+    read_document_at(path, &[key])
+        .ok()?
+        .get(key)
+        .and_then(PolicyDocumentValue::as_str)
+        .map(str::to_owned)
+}
+
+fn read_document_at(
+    path: &std::path::Path,
+    keys: &[&str],
+) -> Result<PolicyDocument, ConfigStoreError> {
     if !path.exists() {
         return Ok(PolicyDocument::new());
     }
     let output = Command::new("/usr/bin/plutil")
         .args(["-convert", "json", "-o", "-"])
-        .arg(&path)
+        .arg(path)
         .output()
         .map_err(|e| ConfigStoreError::Backend(format!("plutil: {e}")))?;
     if !output.status.success() {

@@ -17,6 +17,8 @@ mod messaging_helpers;
 #[cfg(test)]
 mod middleware;
 #[cfg(test)]
+mod probes;
+#[cfg(test)]
 mod routes;
 #[cfg(test)]
 mod services;

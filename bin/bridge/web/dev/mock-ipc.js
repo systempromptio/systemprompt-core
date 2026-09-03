@@ -193,22 +193,7 @@ function sampleActivity(limit) {
   return out.slice(-(limit || 500));
 }
 
-// Mirrors `current()` in src/gui/handlers/settings_write.rs.
-// Why: `unknown` is only reachable when the OS scheduler itself declines to
-// answer, which no fixture can stage, so the preview takes it from localStorage.
-function autostartSeed() {
-  try {
-    return window.localStorage.getItem("bridge.dev.autostart") || "not_installed";
-  } catch (_) {
-    return "not_installed";
-  }
-}
-
-const prefs = {
-  autostart: { state: autostartSeed() },
-  update_automatic: false,
-  session_enabled: false,
-};
+const prefs = {};
 
 function settingsPayload() {
   return {
@@ -315,16 +300,6 @@ const COMMANDS = {
   "quit": () => ({}),
   "mcp.auth.probe": () => ({}),
   "settings.get": () => settingsPayload(),
-  "settings.set": ({ key, value }) => {
-    const malformed = prefs.config_malformed || state.config_malformed;
-    if (key !== "autostart" && malformed) {
-      throw new Error(`refusing to save: ${malformed}`);
-    }
-    prefs[key] = key === "autostart"
-      ? { state: value ? "installed" : "not_installed" }
-      : value;
-    return settingsPayload();
-  },
   "validate": () => ({ ok: true }),
   "sync": () => {
     state.sync_in_flight = true;
@@ -367,6 +342,15 @@ const COMMANDS = {
     state.overall = { tone: "warn", code: "needs-sign-in" };
     state.cloud_tone = "warn";
     state.cached_token = null;
+    emit("state.changed", state);
+    return {};
+  },
+  "system.purge": () => {
+    COMMANDS.logout();
+    state.pat_present = false;
+    state.config_present = false;
+    state.agents_onboarded = false;
+    state.last_sync_summary = null;
     emit("state.changed", state);
     return {};
   },
@@ -419,7 +403,11 @@ const COMMANDS = {
   },
   "host.probe": ({ hostId }) => {
     const host = hostById(hostId);
-    if (host) { touch(host); }
+    // An id belonging to no host is the one case the real handler rejects
+    // (`resolve_host` → Unknown). Returning `{}` for it made the preview the
+    // one place that bug could not be seen.
+    if (!host) { throw { scope: "host", code: "not-found", message: `unknown host: ${hostId}` }; }
+    touch(host);
     return {};
   },
   "host.model-filter.set": ({ hostId, protocols }) => {
@@ -442,6 +430,7 @@ const FAIL_SCOPE = {
   "session.login": "identity",
   login: "identity",
   logout: "identity",
+  "system.purge": "identity",
   "profile.fetch": "identity",
 };
 
@@ -472,7 +461,18 @@ window.ipc = {
         reply(id, { ok: true, value: {} });
         return;
       }
-      reply(id, { ok: true, value: handler(args || {}) });
+      let value;
+      try {
+        value = handler(args || {});
+      } catch (e) {
+        // A handler throws the same `{scope, code, message}` a Rust
+        // `BridgeError` serialises to, and takes the same double path.
+        const error = (e && e.code) ? e : failureFor(cmd);
+        emit("error", error);
+        reply(id, { ok: false, error });
+        return;
+      }
+      reply(id, { ok: true, value });
     };
     // A real IPC round-trip is never synchronous; resolving in a microtask
     // keeps the components on the same code path they take in the app.

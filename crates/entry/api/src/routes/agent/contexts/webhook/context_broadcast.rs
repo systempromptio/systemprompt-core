@@ -10,23 +10,11 @@ use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_events::EventRouter;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
-use systemprompt_runtime::{AppContext, create_request_span};
+use systemprompt_runtime::AppContext;
 
 use super::event_loader::load_event_data;
 use super::types::WebhookRequest;
 use crate::error::ApiHttpError;
-
-fn record_task_span(req_ctx: &systemprompt_models::RequestContext, request: &WebhookRequest) {
-    let span = create_request_span(req_ctx);
-    if matches!(
-        request.event_type.as_str(),
-        "task_completed" | "task_created"
-    ) {
-        span.record_task_id(&systemprompt_identifiers::TaskId::new(
-            request.entity_id.clone(),
-        ));
-    }
-}
 
 async fn authorize_broadcast(
     repos: &systemprompt_agent::repository::A2ARepositories,
@@ -73,7 +61,6 @@ pub async fn broadcast_context_event(
     Json(request): Json<WebhookRequest>,
 ) -> Result<Response, ApiHttpError> {
     let start_time = std::time::Instant::now();
-    record_task_span(&req_ctx, &request);
 
     if let Err(response) =
         authorize_broadcast(app_context.a2a_repositories(), &req_ctx, &request).await

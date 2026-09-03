@@ -200,6 +200,7 @@ async fn heal_org_plugins_scope(
     );
     let job = crate::install::elevated_job::ElevatedJob {
         clear_values: Vec::new(),
+        bridge_values: Vec::new(),
         managed_files: Vec::new(),
         remove_files: Vec::new(),
         reg_path: None,
