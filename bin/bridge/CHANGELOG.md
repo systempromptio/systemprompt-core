@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- The Windows elevation job file was one fixed name, so the first-run host-profile write and the first sync's org-plugins provisioning overwrote each other: the elevated child ran the org-plugins job twice, both callers read the same `ok` result, and the profile was logged as installed with no registry write behind it. Every elevation request now stages its own job and result file and removes them afterwards.
 - Sync wrote `inferenceProvider=gateway` into `HKLM\SOFTWARE\Policies\Claude` without the base URL and credential, which only the Claude Desktop host profile wrote. On a fresh or wiped policy key that half-written block made Cowork refuse every task ("Configuration can't be used: inferenceGatewayBaseUrl is not set") and hid every connector until Repair rewrote the profile. The gateway block — provider, loopback base URL, loopback secret, auth scheme and models — is now one unit written by `install --apply` and re-asserted on every sync, so a rotated secret self-heals too; a sync that cannot read the secret fails instead of writing the provider alone. `validate` now requires `inferenceProvider` alongside the URL and key, and the Windows MDM snippet no longer pins half of the block.
 
 ### Changed
