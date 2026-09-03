@@ -7,6 +7,8 @@
 - **OAuth:** the passkey account-link ceremony is single-flight per account. Overlapping `GET /webauthn/link/start` calls for the same setup token return the same challenge and challenge id instead of minting competing ceremonies, so a browser that completed `create()` for one response can finish with either id. Before this, a double-fired start could leave a resident passkey in the browser that the server never stored, after which sign-in failed and re-registration was refused by the authenticator.
 - **API:** every request-scoped log line carried two nested `request{...}` span prefixes with near-duplicate `user_id`/`session_id`/`trace_id`/`context_id` fields. `PublicContextMiddleware` opened a `"request"` tracing span both as the global router layer (seeding a session-derived fallback `RequestContext`) and again per-route via `with_auth`, which always applies a second context-middleware flavour that opens the same span. The global layer now seeds the fallback context without instrumenting; only the route-resolved, authoritative context opens the span, so each request logs exactly one `request{...}` prefix.
 
+- **CLI:** `admin setup` no longer splices an `includes:` entry onto the last line of a root services aggregator that ends without a newline, which produced a file that parsed but loaded nothing.
+
 ### Removed
 
 - `RequestSpan`, `RequestSpanBuilder`, and the `app/runtime` `create_request_span` wrapper. Their only caller built a span, conditionally recorded a `task_id` field on it, and dropped it without ever entering or instrumenting it — the recorded field never reached any emitted log line.

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.45.0] - 2026-09-03
+
+### Removed
+
+- `RequestSpan` and `RequestSpanBuilder`. The request span is opened by the API's context middleware from a resolved `RequestContext`; nothing else built one.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

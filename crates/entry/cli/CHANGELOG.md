@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.45.0] - 2026-09-03
+
+### Fixed
+
+- `admin setup` no longer splices an `includes:` entry onto the last line of a root services aggregator that ends without a newline. The result parsed as a scalar, so the include was silently never loaded and the next boot was missing a services file.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added
