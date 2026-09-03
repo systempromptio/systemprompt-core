@@ -114,7 +114,7 @@ pub(super) fn enforce_managed_policy(
     let org_uuid = crate::config::load().deployment_organization_uuid;
     let pubkey = crate::config::pinned_pubkey();
     let mut values = super::windows_policy_values(org_uuid.as_deref(), inputs.egress_allowed_hosts);
-    values.extend(super::inference_values(inputs)?);
+    values.extend(super::inference::inference_values(inputs)?);
     let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
     values.push(("managedMcpServers", "REG_SZ", mcp));
     let bridge = super::bridge_policy_values(pubkey.as_ref().map(crate::ids::PinnedPubKey::as_str));
@@ -187,7 +187,7 @@ pub(super) fn apply(
     let key = crate::cowork_compat::HKLM_POLICY_KEY;
     let org_uuid = crate::config::load().deployment_organization_uuid;
     let mut values = super::windows_policy_values(org_uuid.as_deref(), inputs.egress_allowed_hosts);
-    values.extend(super::inference_values(inputs)?);
+    values.extend(super::inference::inference_values(inputs)?);
     let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
     values.push(("managedMcpServers", "REG_SZ", mcp));
     let bridge = super::bridge_policy_values(pubkey);
