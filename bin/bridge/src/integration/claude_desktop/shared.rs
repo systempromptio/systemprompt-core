@@ -18,6 +18,10 @@ pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
 pub(super) const API_KEY_KEY: &str = "inferenceGatewayApiKey";
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+// Why: `managedMcpServers` and `allowedWorkspaceFolders` are part of the
+// policy the bridge writes, so the probe must read them back — a key that is
+// written but never verified is how the macOS profile shipped for months with
+// no connectors in it.
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "inferenceProvider",
     "inferenceGatewayBaseUrl",
@@ -25,6 +29,8 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "inferenceGatewayAuthScheme",
     "inferenceCustomHeaders",
     "inferenceModels",
+    "allowedWorkspaceFolders",
+    "managedMcpServers",
 ];
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

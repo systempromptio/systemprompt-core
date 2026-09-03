@@ -18,6 +18,7 @@ pub(crate) fn escape(s: &str) -> String {
     out
 }
 
+#[cfg(target_os = "macos")]
 pub(crate) fn stable_uuid(seed: &str) -> String {
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(seed.as_bytes());

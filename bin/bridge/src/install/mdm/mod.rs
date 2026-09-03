@@ -12,6 +12,7 @@ pub(crate) mod linux;
 pub(super) mod macos;
 #[cfg(target_os = "macos")]
 mod macos_payload;
+pub mod policy;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;
 #[cfg(target_os = "windows")]
@@ -21,7 +22,7 @@ mod windows_policy;
 
 pub use egress::{cowork_egress_allowed_hosts, parse_egress_allowed_hosts};
 pub use error::MdmError;
-pub use inference::{default_inference_models, inference_policy_values};
+pub use inference::default_inference_models;
 
 use crate::schedule::Os;
 
@@ -140,44 +141,6 @@ pub fn windows_policy_values(
         values.push(("deploymentOrganizationUuid", "REG_SZ", uuid.to_owned()));
     }
     values
-}
-
-// Why: Cowork's OAuth flow rejects the gateway's non-HTTPS authorize URL, so
-// servers must point at the loopback proxy that injects the gateway JWT.
-#[cfg(target_os = "windows")]
-#[must_use]
-pub(crate) fn managed_mcp_servers_json(mcp: &MdmPayloadInputs<'_>) -> Option<String> {
-    let MdmPayloadInputs {
-        loopback, registry, ..
-    } = *mcp;
-    if registry.is_empty() {
-        return Some("[]".to_owned());
-    }
-    let bearer = match loopback.bearer() {
-        Ok(b) => b,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::mdm",
-                error = %e,
-                "loopback secret unavailable; emitting empty managed MCP server list"
-            );
-            return None;
-        },
-    };
-    let mut slugs: Vec<&String> = registry.keys().collect();
-    slugs.sort();
-    let entries: Vec<serde_json::Value> = slugs
-        .iter()
-        .map(|slug| {
-            serde_json::json!({
-                "name": slug,
-                "url": loopback.mcp_url(slug.as_str()),
-                "transport": "http",
-                "headers": { "Authorization": bearer.clone() },
-            })
-        })
-        .collect();
-    serde_json::to_string(&entries).ok()
 }
 
 #[expect(

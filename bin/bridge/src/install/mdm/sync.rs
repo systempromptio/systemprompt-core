@@ -16,8 +16,12 @@ fn refresh_managed_mcp_servers(
     mcp: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, super::MdmError> {
     let base_url = mcp.loopback.origin();
-    super::macos::apply(mcp, &base_url, None)
-        .map(|_| format!("managedMcpServers refreshed ({} servers)", mcp.registry.len()))
+    super::macos::apply(mcp, &base_url, None).map(|_| {
+        format!(
+            "managedMcpServers refreshed ({} servers)",
+            mcp.registry.len()
+        )
+    })
 }
 
 // Why: both platforms re-assert the whole policy on sync so a drifted key

@@ -93,16 +93,15 @@ fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
 // profile is only queued in System Settings, which stays backgrounded, and the
 // probe that follows reports it absent until the user approves it by hand.
 fn manual_approval_notice(host: &dyn crate::integration::HostApp) -> Option<String> {
-    (cfg!(target_os = "macos")
-        && host.config_format() == crate::integration::ConfigFormat::Plist)
-    .then(|| {
-        format!(
-            "macOS holds the profile until you approve it: open System Settings › General › \
+    (cfg!(target_os = "macos") && host.config_format() == crate::integration::ConfigFormat::Plist)
+        .then(|| {
+            format!(
+                "macOS holds the profile until you approve it: open System Settings › General › \
              Device Management, select the {} profile and click Install. Until then this host \
              correctly reports no profile.",
-            host.display_name()
-        )
-    })
+                host.display_name()
+            )
+        })
 }
 
 pub(crate) fn on_profile_install_requested(

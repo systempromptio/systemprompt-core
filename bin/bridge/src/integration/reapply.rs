@@ -105,12 +105,20 @@ pub async fn build_profile_inputs(
         );
     }
 
+    // Why: the host profile carries the managed MCP servers too, so the GUI
+    // install and `install --apply` publish the same policy. Without them the
+    // profile a double-click user gets has no connectors at all.
+    let mcp_servers =
+        crate::install::mdm::policy::mcp_entries(loopback, &bridge.mcp_registry.load())
+            .map_err(|e| io_err("resolve managed MCP servers", &e))?;
+
     Ok(ProfileGenInputs {
         gateway_base_url,
         api_key,
         models: view.compatible_models,
         organization_uuid: server_profile.organization_uuid,
         headers,
+        mcp_servers,
     })
 }
 

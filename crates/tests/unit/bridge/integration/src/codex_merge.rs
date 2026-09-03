@@ -28,6 +28,7 @@ fn codex_inputs() -> ProfileGenInputs {
         models: vec!["claude-opus-4-7".to_string()],
         organization_uuid: Some("org-abc".to_string()),
         headers: Default::default(),
+        mcp_servers: Vec::new(),
     }
 }
 

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{SyncError, paths};
+use super::SyncError;
 
 // Why: Claude Desktop only reads org-plugins from a root-owned system path on
 // macOS, and the GUI had no way to create it — sync failed closed telling a
@@ -32,9 +32,8 @@ pub(super) async fn provision_system_org_plugins(
         return Err(missing());
     }
     let quoted = path.display().to_string().replace('"', "\\\"");
-    let script = format!(
-        "set -e\nmkdir -p \"{quoted}\"\n/usr/sbin/chown -R \"{user}\" \"{quoted}\"\n"
-    );
+    let script =
+        format!("set -e\nmkdir -p \"{quoted}\"\n/usr/sbin/chown -R \"{user}\" \"{quoted}\"\n");
     tracing::info!(
         path = %path.display(),
         "requesting one-time administrator approval to provision org-plugins for Cowork"

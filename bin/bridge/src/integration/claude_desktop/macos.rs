@@ -174,35 +174,25 @@ fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &
     } else {
         inputs.models.clone()
     };
-    let models_xml: String = models
-        .iter()
-        .map(|m| format!("            <string>{}</string>", escape(m)))
-        .collect::<Vec<_>>()
-        .join("\n");
+    let policy = crate::install::mdm::policy::claude_desktop_policy(
+        &crate::install::mdm::policy::PolicyInputs {
+            base_url: &inputs.gateway_base_url,
+            api_key: &inputs.api_key,
+            models: serde_json::to_string(&models).ok(),
+            headers: &inputs.headers,
+            egress_allowed_hosts: None,
+            org_uuid: inputs.organization_uuid.as_deref(),
+            mcp_servers: &inputs.mcp_servers,
+        },
+    );
 
     PROFILE_TMPL
         .replace("{profile_uuid}", &escape(profile_uuid))
         .replace("{payload_uuid}", &escape(payload_uuid))
-        .replace("{base_url}", &escape(&inputs.gateway_base_url))
-        .replace("{api_key}", &escape(&inputs.api_key))
-        .replace("{models_xml}", &models_xml)
-        .replace("{headers_xml}", &render_headers_xml(&inputs.headers))
-}
-
-fn render_headers_xml(headers: &std::collections::BTreeMap<String, String>) -> String {
-    if headers.is_empty() {
-        return String::new();
-    }
-    let mut out = String::from("        <key>inferenceCustomHeaders</key>\n        <dict>\n");
-    for (name, value) in headers {
-        out.push_str(&format!(
-            "          <key>{}</key>\n          <string>{}</string>\n",
-            escape(name),
-            escape(value)
-        ));
-    }
-    out.push_str("        </dict>\n");
-    out
+        .replace(
+            "{policy_body}",
+            &crate::install::mdm::policy::plist_body(&policy, "        "),
+        )
 }
 
 // Why: the `HostApp::remove_profile` trait method is fallible and the Windows

@@ -256,6 +256,7 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
                 models: vec!["claude-sonnet-5".to_owned(), "gpt-4.1".to_owned()],
                 organization_uuid: None,
                 headers,
+                mcp_servers: Vec::new(),
             })
             .expect("profile generated")
     });

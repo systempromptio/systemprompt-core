@@ -31,6 +31,7 @@ fn inputs() -> ProfileGenInputs {
         models: vec![MODEL.to_owned()],
         organization_uuid: None,
         headers: BTreeMap::new(),
+        mcp_servers: Vec::new(),
     }
 }
 

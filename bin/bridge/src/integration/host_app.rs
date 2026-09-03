@@ -47,6 +47,7 @@ pub struct ProfileGenInputs {
     pub models: Vec<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,
+    pub mcp_servers: Vec<crate::install::mdm::policy::McpServerEntry>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]

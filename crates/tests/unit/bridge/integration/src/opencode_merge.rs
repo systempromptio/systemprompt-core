@@ -45,6 +45,7 @@ fn inputs(models: &[&str]) -> ProfileGenInputs {
         models: models.iter().map(|m| (*m).to_owned()).collect(),
         organization_uuid: Some("org-abc".to_owned()),
         headers,
+        mcp_servers: Vec::new(),
     }
 }
 

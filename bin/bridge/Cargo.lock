@@ -4580,7 +4580,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.35.0"
+version = "0.36.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",

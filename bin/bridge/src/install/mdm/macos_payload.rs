@@ -16,31 +16,47 @@ const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
 const MOBILECONFIG_BRIDGE_PAYLOAD_TMPL: &str =
     include_str!("../templates/mobileconfig_bridge_payload.tmpl");
 
-fn loopback_api_key(loopback: &crate::proxy::LoopbackEndpoint) -> String {
-    loopback
+fn policy_body(mcp: &MdmPayloadInputs<'_>, gateway: &str, indent: &str) -> String {
+    let api_key = mcp
+        .loopback
         .secret()
         .map(crate::ids::LoopbackSecret::into_inner)
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // Why: a registry that cannot be resolved into loopback entries (no
+    // secret yet) publishes an empty list rather than servers with no
+    // credential — the shape that could never authenticate.
+    let servers = super::policy::mcp_entries(mcp.loopback, mcp.registry).unwrap_or_else(|e| {
+        tracing::warn!(
+            target: "bridge::install::mdm",
+            error = %e,
+            "loopback secret unavailable; publishing an empty managed MCP server list"
+        );
+        Vec::new()
+    });
+    let existing_models = crate::config::store::managed_policy_store()
+        .read_managed_policy("inferenceModels")
+        .ok()
+        .flatten();
+    let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
+        base_url: gateway,
+        api_key: &api_key,
+        models: existing_models,
+        headers: &std::collections::BTreeMap::new(),
+        egress_allowed_hosts: mcp.egress_allowed_hosts,
+        org_uuid: crate::config::load()
+            .deployment_organization_uuid
+            .as_deref(),
+        mcp_servers: &servers,
+    });
+    super::policy::plist_body(&policy, indent)
 }
 
-fn egress_plist_block(from_flag: Option<&[String]>, indent: &str) -> String {
-    super::egress::cowork_egress_allowed_hosts(from_flag)
-        .map(|hosts| super::egress::macos_plist_block(&hosts, indent))
-        .unwrap_or_default()
-}
-
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "these braces are template placeholders substituted with str::replace, not format args"
+)]
 pub fn build_prefs_plist(mcp: &MdmPayloadInputs<'_>, gateway: &str) -> String {
-    PREFS_PLIST_TMPL
-        .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace(
-            "{api_key_esc}",
-            &xml::escape(&loopback_api_key(mcp.loopback)),
-        )
-        .replace(
-            "{egress_block}",
-            &egress_plist_block(mcp.egress_allowed_hosts, "  "),
-        )
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
+    PREFS_PLIST_TMPL.replace("{policy_body}", &policy_body(mcp, gateway, "  "))
 }
 
 #[must_use]
@@ -79,75 +95,6 @@ pub fn build_mobileconfig(
         .replace("{outer_payload_identifier}", PAYLOAD_IDENTIFIER)
         .replace("{inner_uuid}", &xml::stable_uuid(INNER_PAYLOAD_IDENTIFIER))
         .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
-        .replace("{gateway_esc}", &xml::escape(gateway))
-        .replace(
-            "{api_key_esc}",
-            &xml::escape(&loopback_api_key(mcp.loopback)),
-        )
-        .replace(
-            "{egress_block}",
-            &egress_plist_block(mcp.egress_allowed_hosts, "      "),
-        )
-        .replace("{managed_mcp_block}", &managed_mcp_plist_block(mcp))
+        .replace("{policy_body}", &policy_body(mcp, gateway, "      "))
         .replace("{bridge_payload}", &bridge_payload)
-}
-
-// Why: this published `upstream.url` with no headers, so Claude Desktop was
-// pointed at the gateway with no credential — servers could never authenticate,
-// and any request that left carried no per-user identity and bypassed
-// governance. It matches the Windows shape now: loopback URL plus the bearer
-// that makes the proxy stamp the gateway JWT. `oauth` went with it — an empty
-// `<dict/>` asks for well-known discovery, wrong against a bearer-authenticated
-// loopback URL. An empty registry emits an empty array so stale servers clear.
-fn managed_mcp_plist_block(mcp: &MdmPayloadInputs<'_>) -> String {
-    let MdmPayloadInputs {
-        loopback, registry, ..
-    } = *mcp;
-
-    let mut out = String::new();
-    out.push_str("  <key>managedMcpServers</key>\n");
-    if registry.is_empty() {
-        out.push_str("  <array/>\n");
-        return out;
-    }
-
-    let bearer = match loopback.bearer() {
-        Ok(b) => b,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::mdm",
-                error = %e,
-                "loopback secret unavailable; emitting empty managed MCP server list"
-            );
-            out.push_str("  <array/>\n");
-            return out;
-        },
-    };
-
-    let mut slugs: Vec<&String> = registry.keys().collect();
-    slugs.sort();
-
-    out.push_str("  <array>\n");
-    for slug in slugs {
-        out.push_str("    <dict>\n");
-        out.push_str(&format!(
-            "      <key>name</key><string>{}</string>\n",
-            xml::escape(slug)
-        ));
-        out.push_str(&format!(
-            "      <key>url</key><string>{}</string>\n",
-            xml::escape(&loopback.mcp_url(slug.as_str()))
-        ));
-        out.push_str("      <key>transport</key><string>http</string>\n");
-        out.push_str("      <key>headers</key>\n");
-        out.push_str("      <dict>\n");
-        out.push_str(&format!(
-            "        <key>Authorization</key><string>{}</string>\n",
-            xml::escape(&bearer)
-        ));
-        out.push_str("      </dict>\n");
-        out.push_str("    </dict>\n");
-    }
-    out.push_str("  </array>\n");
-    out
 }

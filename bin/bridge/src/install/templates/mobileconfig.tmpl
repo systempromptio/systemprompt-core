@@ -11,17 +11,7 @@
       <key>PayloadDisplayName</key><string>Claude Bridge Inference Gateway</string>
       <key>PayloadEnabled</key><true/>
       <key>PayloadVersion</key><integer>1</integer>
-      <key>inferenceProvider</key><string>gateway</string>
-      <key>inferenceGatewayBaseUrl</key><string>{gateway_esc}</string>
-      <key>inferenceGatewayApiKey</key><string>{api_key_esc}</string>
-      <key>inferenceGatewayAuthScheme</key><string>bearer</string>
-      <key>disableEssentialTelemetry</key><string>true</string>
-      <key>disableNonessentialTelemetry</key><string>true</string>
-      <key>disableNonessentialServices</key><string>false</string>
-      <key>disableAutoUpdates</key><string>true</string>
-      <key>disableDeploymentModeChooser</key><string>true</string>
-      <key>isLocalDevMcpEnabled</key><false/>
-{egress_block}{managed_mcp_block}    </dict>
+{policy_body}    </dict>
 {bridge_payload}  </array>
   <key>PayloadType</key><string>Configuration</string>
   <key>PayloadIdentifier</key><string>{outer_payload_identifier}</string>
