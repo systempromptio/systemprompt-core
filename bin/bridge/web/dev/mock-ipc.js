@@ -403,7 +403,11 @@ const COMMANDS = {
   },
   "host.probe": ({ hostId }) => {
     const host = hostById(hostId);
-    if (host) { touch(host); }
+    // An id belonging to no host is the one case the real handler rejects
+    // (`resolve_host` → Unknown). Returning `{}` for it made the preview the
+    // one place that bug could not be seen.
+    if (!host) { throw { scope: "host", code: "not-found", message: `unknown host: ${hostId}` }; }
+    touch(host);
     return {};
   },
   "host.model-filter.set": ({ hostId, protocols }) => {
@@ -457,7 +461,18 @@ window.ipc = {
         reply(id, { ok: true, value: {} });
         return;
       }
-      reply(id, { ok: true, value: handler(args || {}) });
+      let value;
+      try {
+        value = handler(args || {});
+      } catch (e) {
+        // A handler throws the same `{scope, code, message}` a Rust
+        // `BridgeError` serialises to, and takes the same double path.
+        const error = (e && e.code) ? e : failureFor(cmd);
+        emit("error", error);
+        reply(id, { ok: false, error });
+        return;
+      }
+      reply(id, { ok: true, value });
     };
     // A real IPC round-trip is never synchronous; resolving in a microtask
     // keeps the components on the same code path they take in the app.

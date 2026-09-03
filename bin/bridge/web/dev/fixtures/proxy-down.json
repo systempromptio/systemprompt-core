@@ -121,6 +121,76 @@
       }
     },
     {
+      "id": "codex-cli",
+      "display_name": "Codex CLI",
+      "kind": "cli-tool",
+      "description": "OpenAI's terminal coding agent",
+      "icon": "codex-cli",
+      "config_format": "toml",
+      "download_url": "https://github.com/openai/codex",
+      "install_action_label": "written to config file",
+      "can_open": true,
+      "can_verify": true,
+      "can_repair": true,
+      "can_open_config": true,
+      "can_remove": true,
+      "probe_in_flight": false,
+      "enabled": true,
+      "last_generated_profile": {
+        "path": "C:\\Users\\ejb50\\AppData\\Local\\Temp\\systemprompt-internal-bridge\\codex-bridge-1787902828-38012-0-codex.json",
+        "bytes": 418,
+        "payload_uuid": "ce0c6a91-0pc0-40pc-0pc0-deadbeefa07a",
+        "profile_uuid": "ce0d78a5-0pc0-40pc-0pc0-feedfaceb54d"
+      },
+      "health": {
+        "profile": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "missing_required": [],
+        "app": {
+          "tone": "ok",
+          "code": "installed"
+        },
+        "host_running": true,
+        "host_processes": [
+          "codex"
+        ],
+        "inference_models": [],
+        "probed_at_unix": 1787905697
+      },
+      "compatible_models": [
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-haiku-4-5",
+        "claude-sonnet-4-5"
+      ],
+      "models_checked": true,
+      "compatible_models_available": true,
+      "unconfigured_providers": [],
+      "model_protocols": [
+        "openai"
+      ],
+      "model_protocols_overridden": false,
+      "surface": "local-profile",
+      "verdict": {
+        "state": "down",
+        "tone": "err",
+        "reason": {
+          "code": "proxy-down",
+          "probe": "refused"
+        },
+        "action": {
+          "code": "verify"
+        },
+        "is_set_up": true,
+        "is_installed": true,
+        "is_running": true
+      }
+    },
+    {
       "id": "hermes",
       "display_name": "Hermes",
       "kind": "desktop-app",
@@ -396,26 +466,26 @@
   },
   "agent_fleet": {
     "all": {
-      "total": 4,
+      "total": 5,
       "working": 1,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
-      "down": 3,
+      "down": 4,
       "checking": 0,
-      "running": 3,
+      "running": 4,
       "state": "err",
       "headline": "not-working"
     },
     "set_up": {
-      "total": 4,
+      "total": 5,
       "working": 1,
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
-      "down": 3,
+      "down": 4,
       "checking": 0,
-      "running": 3,
+      "running": 4,
       "state": "err",
       "headline": "not-working"
     }

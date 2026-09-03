@@ -74,7 +74,12 @@ register_host_app!(super::opencode::OPENCODE_HOST);
 #[cfg(feature = "dev-stub-host")]
 register_host_app!(super::stub_host::STUB_HOST);
 
-static REGISTRY: LazyLock<Vec<&'static dyn HostApp>> = LazyLock::new(|| {
+struct Registry {
+    hosts: Vec<&'static dyn HostApp>,
+    suppressed: BTreeSet<&'static str>,
+}
+
+static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
     let mut regs: Vec<&'static HostAppRegistration> =
         inventory::iter::<HostAppRegistration>().collect();
     regs.sort_by(|a, b| {
@@ -86,21 +91,60 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostApp>> = LazyLock::new(|| {
         .map(|s| s.id)
         .collect();
     let mut seen: BTreeSet<&'static str> = BTreeSet::new();
-    let mut v: Vec<&'static dyn HostApp> = regs
+    let mut hosts: Vec<&'static dyn HostApp> = regs
         .into_iter()
         .filter(|r| !suppressed.contains(r.app.id()))
         .filter(|r| seen.insert(r.app.id()))
         .map(|r| r.app)
         .collect();
-    v.sort_by_key(|h| h.id());
-    v
+    hosts.sort_by_key(|h| h.id());
+    Registry { hosts, suppressed }
 });
 
 pub fn host_apps() -> &'static [&'static dyn HostApp] {
-    REGISTRY.as_slice()
+    REGISTRY.hosts.as_slice()
 }
 
 #[must_use]
 pub fn find_host_by_id(id: &str) -> Option<&'static dyn HostApp> {
-    REGISTRY.iter().copied().find(|h| h.id() == id)
+    REGISTRY.hosts.iter().copied().find(|h| h.id() == id)
+}
+
+/// What a host id means to this binary.
+///
+/// Every caller acting on a user-supplied host id resolves it through
+/// [`resolve_host`] rather than treating a [`find_host_by_id`] miss as an
+/// unknown id: three of the four states below are perfectly ordinary, and only
+/// [`ResolvedHost::Unknown`] is a caller error.
+#[derive(Clone, Copy)]
+pub enum ResolvedHost {
+    Local(&'static dyn HostApp),
+    SyncOnly(&'static super::sync_only::SyncOnlyAgent),
+    Suppressed,
+    Unknown,
+}
+
+impl std::fmt::Debug for ResolvedHost {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::Local(host) => f.debug_tuple("Local").field(&host.id()).finish(),
+            Self::SyncOnly(agent) => f.debug_tuple("SyncOnly").field(&agent.id).finish(),
+            Self::Suppressed => f.write_str("Suppressed"),
+            Self::Unknown => f.write_str("Unknown"),
+        }
+    }
+}
+
+#[must_use]
+pub fn resolve_host(id: &str) -> ResolvedHost {
+    if let Some(host) = find_host_by_id(id) {
+        return ResolvedHost::Local(host);
+    }
+    if let Some(agent) = super::sync_only::sync_only_agent(id) {
+        return ResolvedHost::SyncOnly(agent);
+    }
+    if REGISTRY.suppressed.contains(id) {
+        return ResolvedHost::Suppressed;
+    }
+    ResolvedHost::Unknown
 }
