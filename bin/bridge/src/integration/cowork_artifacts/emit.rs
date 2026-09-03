@@ -18,13 +18,16 @@ use crate::host_sync::ApplyError;
 use crate::integration::cowork_plugins::resolve_target;
 
 use super::sink::{ArtifactSink, FileSink, SeedStaging};
-use super::workspace_sink::WorkspaceSink;
 
 const VERSION_FILE: &str = "version.json";
 
+// Why: the workspace bundle is deliberately not one of these. It resolves its
+// own destination under `$HOME/Systemprompt` and needs nothing from the session
+// dir, so gating it on one made it unreachable on a fresh install — see
+// `workspace_sink::stage_bundle`, which `apply` calls first.
 #[must_use]
 pub fn active_sinks() -> &'static [&'static dyn ArtifactSink] {
-    &[&FileSink, &SeedStaging, &WorkspaceSink]
+    &[&FileSink, &SeedStaging]
 }
 
 #[must_use]

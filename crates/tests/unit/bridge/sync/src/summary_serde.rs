@@ -10,6 +10,7 @@ fn summary() -> SyncSummary {
         agent_count: 1,
         hook_count: 4,
         mcp_count: 5,
+        artifact_count: 7,
         installed: vec!["governance-pack".into()],
         updated: vec!["review-standards".into()],
         removed: vec![],

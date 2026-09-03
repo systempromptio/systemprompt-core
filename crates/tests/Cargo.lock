@@ -7537,6 +7537,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-bridge",
+ "systemprompt-models",
 ]
 
 [[package]]

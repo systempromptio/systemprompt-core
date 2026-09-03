@@ -14,9 +14,10 @@
 //! [`sink`]): the live Cowork library ingests artifacts only via its native
 //! `create_artifact` tool, so [`emit::active_sinks`] writes through both
 //! [`sink::SeedStaging`] (input for the first-run seed skill),
-//! [`sink::FileSink`] (GUI listing + future directly-writable library) and
-//! [`workspace_sink::WorkspaceSink`] (the bundle the setup skills install from
-//! with file tools alone, staged in the pre-trusted workspace).
+//! [`sink::FileSink`] (GUI listing + future directly-writable library). The
+//! bundle the setup skills install from with file tools alone is staged
+//! separately by [`workspace_sink::stage_bundle`], which runs before the
+//! session dir is resolved and independently of whether it resolves at all.
 //!
 //! The emitter reuses the `"cowork"` host id, so it fires whenever Cowork is in
 //! the manifest's `enabled_hosts` — the same gate as the plugin emitter.
@@ -42,6 +43,11 @@ impl HostSync for CoworkArtifactsSync {
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+        // Why: staged first and unconditionally. The workspace bundle is what
+        // the setup skills install from, and it resolves its own path, so it
+        // must not ride on `resolve_artifacts_dir` — that returns `None` until
+        // Cowork has created a session dir, which a fresh install has not.
+        workspace_sink::stage_bundle(&ctx.manifest.artifacts)?;
         let Some(dir) = emit::resolve_artifacts_dir() else {
             return Ok(());
         };

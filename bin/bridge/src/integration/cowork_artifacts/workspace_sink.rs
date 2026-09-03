@@ -6,6 +6,12 @@
 //! is connected by default. Staging there lets the setup skills install
 //! dashboards with file tools alone — no shell, which Cowork may not grant.
 //!
+//! [`stage_bundle`] resolves that destination itself and is called directly by
+//! `CoworkArtifactsSync::apply`, before the session directory is resolved: it
+//! needs nothing from that directory, and being driven through
+//! [`super::emit::write_artifacts`] made it unreachable until Cowork had
+//! created one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -16,34 +22,12 @@ use systemprompt_models::bridge::cowork_artifact::{
     CoworkArtifactBundleManifest, CoworkArtifactBundleRecord,
 };
 
-use super::sink::ArtifactSink;
 use crate::config::paths;
 use crate::gateway::manifest::ArtifactEntry;
 use crate::hash::safe_id_segment;
 use crate::host_sync::ApplyError;
 
 pub const BUNDLE_MANIFEST_FILE: &str = "manifest.json";
-
-#[derive(Debug, Clone, Copy)]
-pub struct WorkspaceSink;
-
-impl ArtifactSink for WorkspaceSink {
-    fn is_materialized(&self, _target_dir: &Path) -> bool {
-        paths::workspace_artifacts_dir().is_some_and(|dir| dir.join(BUNDLE_MANIFEST_FILE).is_file())
-    }
-
-    fn is_current(&self, _target_dir: &Path, artifacts: &[ArtifactEntry]) -> bool {
-        paths::workspace_artifacts_dir().is_some_and(|dir| bundle_is_current(&dir, artifacts))
-    }
-
-    fn write(&self, _target_dir: &Path, artifacts: &[ArtifactEntry]) -> Result<(), ApplyError> {
-        let Some(dir) = paths::workspace_artifacts_dir() else {
-            tracing::info!("cowork artifacts: no workspace dir on this host; bundle not staged");
-            return Ok(());
-        };
-        write_bundle(&dir, artifacts)
-    }
-}
 
 #[must_use]
 pub fn bundle_is_current(dir: &Path, artifacts: &[ArtifactEntry]) -> bool {
@@ -115,6 +99,41 @@ pub fn write_bundle(dir: &Path, artifacts: &[ArtifactEntry]) -> Result<(), Apply
         context: format!("write {}", path.display()),
         source: e,
     })
+}
+
+// Why: driving this through `emit::write_artifacts` made it unreachable until
+// Cowork had created a session dir, so a fresh install staged no dashboards and
+// the setup skill read the empty folder as "the bridge has never synced".
+pub fn stage_bundle(artifacts: &[ArtifactEntry]) -> Result<(), ApplyError> {
+    let Some(dir) = paths::workspace_artifacts_dir() else {
+        tracing::info!("cowork artifacts: no workspace dir on this host; bundle not staged");
+        return Ok(());
+    };
+    // Why: same contract as `emit::write_artifacts` — an enabled host sending an
+    // empty set signals an upstream scoping bug, so the staged bundle is
+    // preserved rather than cleared.
+    if artifacts.is_empty() {
+        tracing::warn!(
+            workspace_dir = %dir.display(),
+            "cowork artifacts: enabled host sent an empty artifact set — preserving staged workspace bundle (not clearing); check gateway marketplace scoping/gating"
+        );
+        return Ok(());
+    }
+    if dir.join(BUNDLE_MANIFEST_FILE).is_file() && bundle_is_current(&dir, artifacts) {
+        tracing::info!(
+            count = artifacts.len(),
+            workspace_dir = %dir.display(),
+            "cowork artifacts: workspace bundle up to date, skipping"
+        );
+        return Ok(());
+    }
+    write_bundle(&dir, artifacts)?;
+    tracing::info!(
+        count = artifacts.len(),
+        workspace_dir = %dir.display(),
+        "cowork artifacts: workspace bundle staged"
+    );
+    Ok(())
 }
 
 pub fn remove_bundle(dir: &Path) -> Result<(), ApplyError> {
