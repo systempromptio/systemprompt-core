@@ -92,23 +92,43 @@ pub fn build_mobileconfig(
         .replace("{bridge_payload}", &bridge_payload)
 }
 
-// Why: Cowork reads an empty `<dict/>` under `oauth` as "needs OAuth, do
-// well-known discovery"; omitting the key disables discovery entirely.
+// Why: this published `upstream.url` with no headers, so Claude Desktop was
+// pointed at the gateway with no credential — servers could never authenticate,
+// and any request that left carried no per-user identity and bypassed
+// governance. It matches the Windows shape now: loopback URL plus the bearer
+// that makes the proxy stamp the gateway JWT. `oauth` went with it — an empty
+// `<dict/>` asks for well-known discovery, wrong against a bearer-authenticated
+// loopback URL. An empty registry emits an empty array so stale servers clear.
 fn managed_mcp_plist_block(mcp: &MdmPayloadInputs<'_>) -> String {
-    let MdmPayloadInputs { registry, .. } = *mcp;
-    if registry.is_empty() {
-        return String::new();
-    }
-    let mut slugs: Vec<&String> = registry.keys().collect();
-    slugs.sort();
+    let MdmPayloadInputs {
+        loopback, registry, ..
+    } = *mcp;
 
     let mut out = String::new();
     out.push_str("  <key>managedMcpServers</key>\n");
+    if registry.is_empty() {
+        out.push_str("  <array/>\n");
+        return out;
+    }
+
+    let bearer = match loopback.bearer() {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::install::mdm",
+                error = %e,
+                "loopback secret unavailable; emitting empty managed MCP server list"
+            );
+            out.push_str("  <array/>\n");
+            return out;
+        },
+    };
+
+    let mut slugs: Vec<&String> = registry.keys().collect();
+    slugs.sort();
+
     out.push_str("  <array>\n");
     for slug in slugs {
-        let Some(upstream) = registry.get(slug) else {
-            continue;
-        };
         out.push_str("    <dict>\n");
         out.push_str(&format!(
             "      <key>name</key><string>{}</string>\n",
@@ -116,11 +136,16 @@ fn managed_mcp_plist_block(mcp: &MdmPayloadInputs<'_>) -> String {
         ));
         out.push_str(&format!(
             "      <key>url</key><string>{}</string>\n",
-            xml::escape(upstream.url.as_str())
+            xml::escape(&loopback.mcp_url(slug.as_str()))
         ));
         out.push_str("      <key>transport</key><string>http</string>\n");
-        out.push_str("      <key>oauth</key>\n");
-        out.push_str("      <dict/>\n");
+        out.push_str("      <key>headers</key>\n");
+        out.push_str("      <dict>\n");
+        out.push_str(&format!(
+            "        <key>Authorization</key><string>{}</string>\n",
+            xml::escape(&bearer)
+        ));
+        out.push_str("      </dict>\n");
         out.push_str("    </dict>\n");
     }
     out.push_str("  </array>\n");

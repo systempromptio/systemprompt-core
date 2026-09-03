@@ -4,22 +4,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+// Why: this used to be a no-op that returned "written by install --apply", so
+// a manifest that gained or lost an MCP server never reached the plist until
+// somebody re-ran that command by hand — connectors simply did not sync on
+// macOS. Re-rendering the managed preferences is the macOS equivalent of the
+// Windows registry re-assert. `macos::apply` compares the rendered bytes with
+// what is on disk and elevates only when they differ, so an unchanged manifest
+// costs one file read and raises no prompt.
 #[cfg(target_os = "macos")]
-fn refresh_managed_mcp_servers(mcp: &super::MdmPayloadInputs<'_>) -> String {
-    _ = mcp;
-    "managedMcpServers refresh skipped (managed preferences are written by install --apply)".into()
+fn refresh_managed_mcp_servers(
+    mcp: &super::MdmPayloadInputs<'_>,
+) -> Result<String, super::MdmError> {
+    let base_url = mcp.loopback.origin();
+    super::macos::apply(mcp, &base_url, None)
+        .map(|_| format!("managedMcpServers refreshed ({} servers)", mcp.registry.len()))
 }
 
-// Why: Windows re-asserts the whole policy so a drifted key self-heals; macOS
-// keeps the plist written by `install --apply`.
+// Why: both platforms re-assert the whole policy on sync so a drifted key
+// self-heals.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-#[cfg_attr(
-    target_os = "macos",
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
-    )
-)]
 fn enforce_managed_policy(mcp: &super::MdmPayloadInputs<'_>) -> Result<String, super::MdmError> {
     #[cfg(target_os = "windows")]
     {
@@ -27,26 +30,22 @@ fn enforce_managed_policy(mcp: &super::MdmPayloadInputs<'_>) -> Result<String, s
     }
     #[cfg(not(target_os = "windows"))]
     {
-        Ok(refresh_managed_mcp_servers(mcp))
+        refresh_managed_mcp_servers(mcp)
     }
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-#[cfg_attr(
-    target_os = "macos",
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "only the Windows branch is fallible; the signature stays uniform so callers need no cfg"
-    )
-)]
-fn write_empty_managed_mcp_servers() -> Result<String, super::MdmError> {
+fn write_empty_managed_mcp_servers(
+    mcp: &super::MdmPayloadInputs<'_>,
+) -> Result<String, super::MdmError> {
     #[cfg(target_os = "windows")]
     {
+        _ = mcp;
         super::windows::write_managed_mcp_servers_value("[]")
     }
     #[cfg(not(target_os = "windows"))]
     {
-        Ok("managedMcpServers clear skipped (non-Windows)".into())
+        refresh_managed_mcp_servers(mcp)
     }
 }
 
@@ -86,9 +85,16 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
 
     fn clear(
         &self,
-        _ctx: &crate::host_sync::HostSyncCtx<'_>,
+        ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
-        match write_empty_managed_mcp_servers() {
+        // Why: clearing means publishing no servers, so the payload is
+        // rendered from an empty registry rather than the context's.
+        let empty = crate::mcp_registry::McpRegistry::new();
+        match write_empty_managed_mcp_servers(&super::MdmPayloadInputs {
+            loopback: ctx.loopback,
+            registry: &empty,
+            egress_allowed_hosts: None,
+        }) {
             Ok(line) => {
                 tracing::info!(
                     target: "bridge::mdm",
