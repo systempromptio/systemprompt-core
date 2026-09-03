@@ -40,12 +40,35 @@ impl PublicContextMiddleware {
     }
 
     pub async fn handle(&self, mut request: Request, next: Next) -> Response {
-        let Some(mut req_ctx) = request.extensions().get::<RequestContext>().cloned() else {
+        let Some(req_ctx) = Self::resolve(&request) else {
             let trace_id = HeaderExtractor::extract_trace_id(request.headers());
             let path = request.uri().path().to_owned();
             let method = request.method().to_string();
             return session_context_required_error(&trace_id, &path, &method);
         };
+
+        let span = create_request_span(&req_ctx);
+        request.extensions_mut().insert(req_ctx);
+        next.run(request).instrument(span).await
+    }
+
+    // Why: no span here — every route re-resolves and re-spans this context
+    // via its own `with_auth` flavour, so spanning here too would double-nest
+    // the same "request" span in every log line.
+    pub async fn seed(&self, mut request: Request, next: Next) -> Response {
+        let Some(req_ctx) = Self::resolve(&request) else {
+            let trace_id = HeaderExtractor::extract_trace_id(request.headers());
+            let path = request.uri().path().to_owned();
+            let method = request.method().to_string();
+            return session_context_required_error(&trace_id, &path, &method);
+        };
+
+        request.extensions_mut().insert(req_ctx);
+        next.run(request).await
+    }
+
+    fn resolve(request: &Request) -> Option<RequestContext> {
+        let mut req_ctx = request.extensions().get::<RequestContext>().cloned()?;
 
         let headers = request.headers();
         if let Some(context_id) = headers.get("x-context-id")
@@ -70,9 +93,7 @@ impl PublicContextMiddleware {
             }
         }
 
-        let span = create_request_span(&req_ctx);
-        request.extensions_mut().insert(req_ctx);
-        next.run(request).instrument(span).await
+        Some(req_ctx)
     }
 }
 

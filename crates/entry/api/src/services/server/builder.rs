@@ -55,7 +55,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let global_context_middleware = PublicContextMiddleware::new();
     router = router.layer(axum::middleware::from_fn({
         let middleware = global_context_middleware;
-        move |req, next| async move { middleware.handle(req, next).await }
+        move |req, next| async move { middleware.seed(req, next).await }
     }));
 
     let session_middleware = SessionMiddleware::new(ctx);
