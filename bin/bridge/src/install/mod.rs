@@ -26,8 +26,6 @@ pub(crate) mod xml;
 pub use apply::install;
 pub use builders::{InstallOptionsBuilder, UninstallSummaryBuilder};
 pub use error::InstallError;
-#[cfg(target_os = "windows")]
-pub use mdm::windows_policy_values;
 pub use mdm::{
     LEGACY_PUBKEY_KEY, MdmError, MdmPayloadInputs, bridge_policy_values,
     cowork_egress_allowed_hosts, default_inference_models, is_uuid_like,

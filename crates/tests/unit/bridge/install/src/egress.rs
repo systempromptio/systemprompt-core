@@ -81,41 +81,6 @@ fn empty_value_means_unrestricted() {
     );
 }
 
-#[cfg(target_os = "windows")]
-#[test]
-fn windows_policy_omits_egress_key_by_default() {
-    let _guard = env_lock();
-    unsafe {
-        std::env::remove_var(ENV);
-    }
-    let values = systemprompt_bridge::install::windows_policy_values(None, None, None);
-    assert!(
-        !values
-            .iter()
-            .any(|(k, _, _)| *k == "coworkEgressAllowedHosts"),
-        "a stock install must not restrict Cowork egress"
-    );
-}
-
-#[cfg(target_os = "windows")]
-#[test]
-fn windows_policy_writes_json_array_when_opted_in() {
-    let _guard = env_lock();
-    unsafe {
-        std::env::set_var(ENV, "loopback");
-    }
-    let values = systemprompt_bridge::install::windows_policy_values(None, None, None);
-    unsafe {
-        std::env::remove_var(ENV);
-    }
-    let entry = values
-        .iter()
-        .find(|(k, _, _)| *k == "coworkEgressAllowedHosts")
-        .expect("opt-in must write the policy value");
-    assert_eq!(entry.1, "REG_SZ");
-    assert_eq!(entry.2, r#"["127.0.0.1"]"#);
-}
-
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_payloads_omit_egress_key_by_default() {

@@ -177,3 +177,47 @@ fn an_installed_model_list_wins_over_the_default() {
     };
     assert_eq!(models, &serde_json::json!(["claude-opus-5"]));
 }
+
+// Why: the pin is the bridge's own supply-chain value, not Claude's, so it
+// must never be written into Claude's policy hive.
+#[test]
+fn the_policy_never_carries_the_manifest_pin() {
+    let policy = policy_with(&[]);
+    for key in ["manifestPubkey", "inferenceManifestPubkey"] {
+        assert!(value_of(&policy, key).is_none(), "pin leaked as {key}");
+    }
+}
+
+// Why: `disableNonessentialServices=true` blocks the renderer Cowork's MCP
+// display extensions load from, so it is written as an explicit `false` and an
+// older `true` is corrected on the next sync rather than left standing.
+#[test]
+fn nonessential_services_stay_enabled_and_are_written_explicitly() {
+    let policy = policy_with(&[]);
+    assert_eq!(
+        value_of(&policy, "disableNonessentialServices"),
+        Some(&PolicyValue::Bool(false))
+    );
+}
+
+#[test]
+fn a_valid_org_uuid_is_carried_and_a_malformed_one_is_dropped() {
+    let headers = BTreeMap::new();
+    let with = |uuid: Option<&str>| {
+        claude_desktop_policy(&PolicyInputs {
+            base_url: "http://127.0.0.1:48217",
+            api_key: "s",
+            models: None,
+            headers: &headers,
+            egress_allowed_hosts: None,
+            org_uuid: uuid,
+            mcp_servers: &[],
+        })
+    };
+    assert_eq!(
+        value_of(&with(Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963")), "deploymentOrganizationUuid"),
+        Some(&PolicyValue::Str("f8e4d915-f8ad-5304-ab0d-c1bf895df963".to_owned()))
+    );
+    assert!(value_of(&with(Some("garbage")), "deploymentOrganizationUuid").is_none());
+    assert!(value_of(&with(None), "deploymentOrganizationUuid").is_none());
+}

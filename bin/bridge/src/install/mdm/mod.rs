@@ -101,48 +101,6 @@ pub fn bridge_policy_values(pubkey: Option<&str>) -> Vec<(&'static str, &'static
 
 pub use crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY as LEGACY_PUBKEY_KEY;
 
-#[cfg(target_os = "windows")]
-#[must_use]
-pub fn windows_policy_values(
-    org_uuid: Option<&str>,
-    egress_allowed_hosts: Option<&[String]>,
-) -> Vec<(&'static str, &'static str, String)> {
-    let mut values: Vec<(&'static str, &'static str, String)> = vec![
-        ("disableEssentialTelemetry", "REG_SZ", "true".into()),
-        ("disableNonessentialTelemetry", "REG_SZ", "true".into()),
-        // Why: `true` blocks the claudemcpcontent.com renderer that MCP display
-        // extensions (dashboards, artifacts) load from; it is written as an
-        // explicit `false` so an older `true` is corrected on drift.
-        ("disableNonessentialServices", "REG_SZ", "false".into()),
-        ("disableAutoUpdates", "REG_SZ", "true".into()),
-        ("disableDeploymentModeChooser", "REG_SZ", "true".into()),
-        ("isLocalDevMcpEnabled", "REG_SZ", "false".into()),
-    ];
-    // Why: omitted by default so Cowork keeps its own unrestricted egress. A
-    // pinned allowlist here left agents with no internet at all; it is now an
-    // explicit opt-in for regulated deployments.
-    if let Some(hosts) = cowork_egress_allowed_hosts(egress_allowed_hosts) {
-        values.push((
-            "coworkEgressAllowedHosts",
-            "REG_SZ",
-            egress::windows_policy_value(&hosts),
-        ));
-    }
-    // Why: without a pre-trusted workspace Cowork falls back to protected host
-    // paths and blocks on `request_cowork_directory`; `isDefaultSelected` skips
-    // the trust prompt.
-    let workspace = crate::brand::brand().workspace_dir_name;
-    if !workspace.is_empty() {
-        let json =
-            serde_json::json!([{ "path": format!("~/{workspace}"), "isDefaultSelected": true }]);
-        values.push(("allowedWorkspaceFolders", "REG_SZ", json.to_string()));
-    }
-    if let Some(uuid) = org_uuid.filter(|u| is_uuid_like(u)) {
-        values.push(("deploymentOrganizationUuid", "REG_SZ", uuid.to_owned()));
-    }
-    values
-}
-
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "{gateway} is a template placeholder consumed by str::replace, not a fmt arg"

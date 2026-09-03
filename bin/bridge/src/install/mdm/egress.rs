@@ -38,25 +38,3 @@ fn parse(raw: &str) -> Option<Vec<String>> {
         .collect();
     (!hosts.is_empty()).then_some(hosts)
 }
-
-#[cfg(target_os = "windows")]
-#[must_use]
-pub(crate) fn windows_policy_value(hosts: &[String]) -> String {
-    serde_json::json!(hosts).to_string()
-}
-
-#[cfg(target_os = "macos")]
-#[must_use]
-pub(crate) fn macos_plist_block(hosts: &[String], indent: &str) -> String {
-    let mut out = String::new();
-    out.push_str(&format!("{indent}<key>coworkEgressAllowedHosts</key>\n"));
-    out.push_str(&format!("{indent}<array>\n"));
-    for host in hosts {
-        out.push_str(&format!(
-            "{indent}  <string>{}</string>\n",
-            crate::install::xml::escape(host)
-        ));
-    }
-    out.push_str(&format!("{indent}</array>\n"));
-    out
-}
