@@ -28,7 +28,7 @@ pub use error::InstallError;
 #[cfg(target_os = "windows")]
 pub use mdm::windows_policy_values;
 pub use mdm::{
-    MdmError, MdmPayloadInputs, cowork_egress_allowed_hosts, is_uuid_like,
+    MdmError, MdmPayloadInputs, cowork_egress_allowed_hosts, inference_policy_values, is_uuid_like,
     parse_egress_allowed_hosts, snippet as mdm_snippet,
 };
 pub use schedule_apply::{

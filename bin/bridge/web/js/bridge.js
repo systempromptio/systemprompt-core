@@ -81,7 +81,6 @@ export const bridge = {
   diagnosticsExportBundle: ()               => invoke("diagnostics.exportBundle"),
   diagnosticsInfo:      ()                  => invoke("diagnostics.info"),
   settingsGet:          ()                  => invoke("settings.get"),
-  settingsSet:          (key, value)        => invoke("settings.set", { key, value }),
   updateCheck:          ()                  => invoke("update.check"),
   updateInstall:        ()                  => invoke("update.install"),
   updateRestart:        ()                  => invoke("update.restart"),

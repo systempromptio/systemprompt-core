@@ -193,22 +193,7 @@ function sampleActivity(limit) {
   return out.slice(-(limit || 500));
 }
 
-// Mirrors `current()` in src/gui/handlers/settings_write.rs.
-// Why: `unknown` is only reachable when the OS scheduler itself declines to
-// answer, which no fixture can stage, so the preview takes it from localStorage.
-function autostartSeed() {
-  try {
-    return window.localStorage.getItem("bridge.dev.autostart") || "not_installed";
-  } catch (_) {
-    return "not_installed";
-  }
-}
-
-const prefs = {
-  autostart: { state: autostartSeed() },
-  update_automatic: false,
-  session_enabled: false,
-};
+const prefs = {};
 
 function settingsPayload() {
   return {
@@ -315,16 +300,6 @@ const COMMANDS = {
   "quit": () => ({}),
   "mcp.auth.probe": () => ({}),
   "settings.get": () => settingsPayload(),
-  "settings.set": ({ key, value }) => {
-    const malformed = prefs.config_malformed || state.config_malformed;
-    if (key !== "autostart" && malformed) {
-      throw new Error(`refusing to save: ${malformed}`);
-    }
-    prefs[key] = key === "autostart"
-      ? { state: value ? "installed" : "not_installed" }
-      : value;
-    return settingsPayload();
-  },
   "validate": () => ({ ok: true }),
   "sync": () => {
     state.sync_in_flight = true;

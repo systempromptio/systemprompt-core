@@ -211,19 +211,10 @@ settings-theme-label = Appearance
 settings-theme-system = Match my system
 settings-theme-light = Light
 settings-theme-dark = Dark
-settings-contrast-label = Contrast
-settings-contrast-system = Match my system
-settings-contrast-default = Standard
-settings-contrast-elevated = Increased
 settings-action-open-folder = Open config folder
 settings-action-validate = Re-check
 settings-action-change-gateway = Change gateway
-settings-prefs-label = Startup and updates
 # Composed with the platform name, e.g. "Start with Windows".
-settings-startup-label = Start with
-settings-startup-label-generic = Start at login
-settings-startup-unknown = could not be determined on this system
-settings-auto-update-label = Install updates automatically
 settings-licensing-note-prefix = Demo build — for production licensing contact
 
 # Activity drawer / footer ----------------------------------------------------
@@ -436,7 +427,6 @@ settings-pin-source-policy = Set by device policy
 settings-schedule-installed = Registered with the system scheduler as { $label }
 settings-schedule-unknown = Could not be determined on this system
 settings-security-heading = Security
-settings-session-label = Sign in through the browser instead of a personal access token
 status-health-heading = Setup health
 status-health-caption = Every check the bridge runs on this machine, failures first. Empty when there is nothing to fix.
 setup-finalizing-head = Finishing setup…
@@ -456,7 +446,6 @@ setup-health-ran-failed = Check finished — some checks did not pass.
 setup-health-ran-ok = All checks passed.
 setup-health-run = Re-check
 toast-gateway-saved = Gateway saved.
-toast-setting-saved = Saved.
 
 # Verdicts ---------------------------------------------------------------------
 # One key per code the bridge can emit; the enum is the producer and

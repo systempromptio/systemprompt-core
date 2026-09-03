@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.36.0] - 2026-09-03
+
+### Fixed
+
+- Sync wrote `inferenceProvider=gateway` into `HKLM\SOFTWARE\Policies\Claude` without the base URL and credential, which only the Claude Desktop host profile wrote. On a fresh or wiped policy key that half-written block made Cowork refuse every task ("Configuration can't be used: inferenceGatewayBaseUrl is not set") and hid every connector until Repair rewrote the profile. The gateway block — provider, loopback base URL, loopback secret, auth scheme and models — is now one unit written by `install --apply` and re-asserted on every sync, so a rotated secret self-heals too; a sync that cannot read the secret fails instead of writing the provider alone. `validate` now requires `inferenceProvider` alongside the URL and key, and the Windows MDM snippet no longer pins half of the block.
+
+### Changed
+
+- Rail order is Marketplace, Agents, Account, Settings, Status, Activity (Ctrl/⌘ 1–6 follow); the Activity pane header lost its leftover column divider.
+
+### Removed
+
+- The Settings pane's Contrast selector and the "Start with…", "Install updates automatically" and "Sign in through the browser" toggles, with the `settings.set` IPC command behind them. Contrast now follows the OS `prefers-contrast` setting only; start-at-login stays on the tray menu; `update.automatic` and `session.enabled` are config-file settings.
+
 ## [0.35.0] - 2026-09-02
 
 ### Added

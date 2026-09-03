@@ -1,5 +1,4 @@
 import { bridge } from "/assets/js/bridge.js";
-import { notifyErr, notifyOk } from "/assets/js/utils/notify.js";
 import { t } from "/assets/js/i18n.js";
 
 /**
@@ -22,16 +21,4 @@ export function loadPrefs(component) {
   bridge.settingsGet()
     .then((p) => { component.prefs = p; })
     .catch((e) => console.warn("settings read failed", e));
-}
-
-// Why: the checkbox is the source of truth for the click that just happened,
-// but the registration it triggers can fail (a locked-down machine refuses
-// schtasks), so the reply — not the DOM — decides what renders next.
-export function setPref(component, key, value) {
-  return bridge.settingsSet(key, value)
-    .then((p) => { component.prefs = p; notifyOk(t("toast-setting-saved") || "Saved."); })
-    .catch((e) => {
-      notifyErr(e, t("settings-prefs-label") || "Startup and updates");
-      loadPrefs(component);
-    });
 }

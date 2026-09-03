@@ -31,7 +31,6 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::UpdateRestartRequested => "UpdateRestartRequested",
         UiEvent::AutostartToggleRequested => "AutostartToggleRequested",
         UiEvent::SettingsReadRequested { .. } => "SettingsReadRequested",
-        UiEvent::SettingsWriteRequested { .. } => "SettingsWriteRequested",
         UiEvent::SyncStarted => "SyncStarted",
         UiEvent::SyncStep(_) => "SyncStep",
         UiEvent::SyncFinished { .. } => "SyncFinished",
@@ -167,13 +166,6 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
         },
         UiEvent::SettingsReadRequested { reply_to } => {
             handlers::settings_write::on_settings_read(app, reply_to);
-        },
-        UiEvent::SettingsWriteRequested {
-            key,
-            value,
-            reply_to,
-        } => {
-            handlers::settings_write::on_settings_write(app, &key, &value, reply_to);
         },
         other => return Err(Box::new(other)),
     }

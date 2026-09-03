@@ -87,8 +87,6 @@ pub fn windows_policy_values(
     egress_allowed_hosts: Option<&[String]>,
 ) -> Vec<(&'static str, &'static str, String)> {
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
-        ("inferenceProvider", "REG_SZ", "gateway".into()),
-        ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
         ("disableEssentialTelemetry", "REG_SZ", "true".into()),
         ("disableNonessentialTelemetry", "REG_SZ", "true".into()),
         // Why: `true` blocks the claudemcpcontent.com renderer that MCP display
@@ -125,6 +123,57 @@ pub fn windows_policy_values(
         values.push(("deploymentOrganizationUuid", "REG_SZ", uuid.to_owned()));
     }
     values
+}
+
+// Why: Cowork treats `inferenceProvider=gateway` without a base URL and a
+// credential as an unusable configuration and refuses to start any task, so
+// the gateway block is written as one unit or not at all. The URL and secret
+// are the loopback proxy's, so a rotated secret self-heals on the next sync;
+// an `inferenceModels` value already on the machine (the host profile writes
+// the gateway's compatible list) is kept over the default.
+#[must_use]
+pub fn inference_policy_values(
+    base_url: &str,
+    api_key: &str,
+    existing_models: Option<String>,
+) -> Vec<(&'static str, &'static str, String)> {
+    let models = existing_models
+        .filter(|m| !m.trim().is_empty())
+        .unwrap_or_else(|| {
+            serde_json::to_string(&crate::integration::claude_desktop::default_models())
+                .unwrap_or_else(|_| "[]".into())
+        });
+    vec![
+        ("inferenceProvider", "REG_SZ", "gateway".into()),
+        ("inferenceGatewayBaseUrl", "REG_SZ", base_url.to_owned()),
+        ("inferenceGatewayApiKey", "REG_SZ", api_key.to_owned()),
+        ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
+        ("inferenceModels", "REG_SZ", models),
+    ]
+}
+
+// Why: a sync that cannot read the loopback secret must not write a gateway
+// block with no credential — that half-written policy is exactly what makes
+// Cowork refuse to start tasks — so it fails and leaves the current one alone.
+#[cfg(target_os = "windows")]
+pub(super) fn inference_values(
+    inputs: &MdmPayloadInputs<'_>,
+) -> Result<Vec<(&'static str, &'static str, String)>, MdmError> {
+    let secret = inputs.loopback.secret().map_err(|e| {
+        MdmError::Windows(format!(
+            "loopback secret unavailable ({e}); the gateway policy block was not written. Start \
+             the Bridge proxy, then sync again."
+        ))
+    })?;
+    let existing_models = crate::config::store::managed_policy_store()
+        .read_managed_policy("inferenceModels")
+        .ok()
+        .flatten();
+    Ok(inference_policy_values(
+        &inputs.loopback.origin(),
+        secret.as_str(),
+        existing_models,
+    ))
 }
 
 // Why: Cowork's OAuth flow rejects the gateway's non-HTTPS authorize URL, so
@@ -180,8 +229,6 @@ Format: .reg — distribute via Group Policy, Intune, or any MDM that imports .r
 Windows Registry Editor Version 5.00
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]
-"inferenceProvider"="gateway"
-"inferenceGatewayAuthScheme"="bearer"
 "disableEssentialTelemetry"="true"
 "disableNonessentialTelemetry"="true"
 "disableNonessentialServices"="false"
@@ -197,9 +244,11 @@ Windows Registry Editor Version 5.00
 ; Optional: identify this deployment to your org for telemetry/support.
 ; Omit to use Anthropic's shared placeholder UUID. Standard hyphenated form only.
 ; "deploymentOrganizationUuid"="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-; inferenceGatewayBaseUrl and inferenceGatewayApiKey are written into this policy
-; key by the Bridge when you apply the Claude Desktop host profile, and re-applied
-; whenever the local loopback secret rotates. Do not pin them here.
+; inferenceProvider, inferenceGatewayBaseUrl, inferenceGatewayApiKey,
+; inferenceGatewayAuthScheme and inferenceModels are written into this policy key
+; as one block by `install --apply` and re-asserted on every Bridge sync, so a
+; rotated loopback secret self-heals. Do not pin them here: a gateway provider
+; with no base URL makes Cowork refuse to start any task.
 "#
             .replace("{workspace}", crate::brand::brand().workspace_dir_name)
         },

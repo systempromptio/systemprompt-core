@@ -12,7 +12,7 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
     CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,
-    SessionLoginArgs, SettingsSetArgs,
+    SessionLoginArgs,
 };
 use super::{CommandOutcome, parse, send};
 
@@ -191,20 +191,6 @@ pub(super) fn sync_dispatch(
         "settings.get" => {
             send(app, UiEvent::SettingsReadRequested { reply_to: reply_id });
             CommandOutcome::Async
-        },
-        "settings.set" => match parse::<SettingsSetArgs>(args) {
-            Ok(a) => {
-                send(
-                    app,
-                    UiEvent::SettingsWriteRequested {
-                        key: a.key,
-                        value: a.value,
-                        reply_to: reply_id,
-                    },
-                );
-                CommandOutcome::Async
-            },
-            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "cancel" => match parse::<CancelArgs>(args) {
             Ok(a) => match cancel_scope(a.scope.as_deref()) {

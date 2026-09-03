@@ -6,18 +6,22 @@
 
 use super::Report;
 
-const REQUIRED: [(&str, &str); 3] = [
+const REQUIRED: [(&str, &str); 4] = [
     (
         "allowedWorkspaceFolders",
         "missing — Cowork blocks on request_cowork_directory. Sync and approve the admin prompt.",
     ),
     (
+        "inferenceProvider",
+        "missing — Cowork is not routed through the gateway. Sync and approve the admin prompt.",
+    ),
+    (
         "inferenceGatewayBaseUrl",
-        "missing — Cowork has no model routing. Re-apply the Claude Desktop host profile.",
+        "missing — with inferenceProvider=gateway Cowork refuses to start any task. Sync and approve the admin prompt.",
     ),
     (
         "inferenceGatewayApiKey",
-        "missing — Cowork cannot authenticate to the gateway. Re-apply the Claude Desktop host profile.",
+        "missing — Cowork cannot authenticate to the gateway. Sync and approve the admin prompt.",
     ),
 ];
 

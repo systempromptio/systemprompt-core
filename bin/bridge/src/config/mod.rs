@@ -192,11 +192,3 @@ pub fn read() -> Result<Config, ConfigReadError> {
 pub fn ensure_gateway_url(url: &str) -> Result<(), ConfigWriteError> {
     write::edit(|doc| write::set_if_absent(doc, &["gateway_url"], url))
 }
-
-pub fn set_update_automatic(enabled: bool) -> Result<(), ConfigWriteError> {
-    write::edit(|doc| write::set(doc, &["update", "automatic"], enabled))
-}
-
-pub fn set_session_enabled(enabled: bool) -> Result<(), ConfigWriteError> {
-    write::edit(|doc| write::set(doc, &["session", "enabled"], enabled))
-}

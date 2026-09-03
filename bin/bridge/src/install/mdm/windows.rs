@@ -216,6 +216,7 @@ pub(super) fn apply(
     let org_uuid = crate::config::load().deployment_organization_uuid;
     let mut values =
         super::windows_policy_values(pubkey, org_uuid.as_deref(), inputs.egress_allowed_hosts);
+    values.extend(super::inference_values(inputs)?);
     let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
     values.push(("managedMcpServers", "REG_SZ", mcp));
     let mut summary = Vec::with_capacity(values.len() + 4);
