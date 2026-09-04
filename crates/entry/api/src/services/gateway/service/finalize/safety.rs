@@ -96,7 +96,10 @@ async fn persist_findings(
     repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     findings: &[Finding],
-    blocks: &dyn Fn(&Finding) -> bool,
+    // Why: `Sync`, not just `Fn`. The persisted findings are handed to
+    // `tokio::spawn` on the buffered path, and `&dyn Fn` is only `Send` when
+    // the closure behind it is `Sync`.
+    blocks: &(dyn Fn(&Finding) -> bool + Sync),
 ) {
     for f in findings {
         let params = InsertSafetyFinding {
