@@ -110,6 +110,18 @@ Commands (plugin + MCP sync):
                                           (127.0.0.1 only), or a comma-separated
                                           host list. Also read from
                                           {egress_env}.
+    [--host <id>]                         Enrol a host application: write its
+                                          provider profile against this proxy's
+                                          port and loopback secret, and its API
+                                          key. Repeatable, and accepts a comma-
+                                          separated list. Without it `install`
+                                          enrols nothing and a client such as
+                                          OpenCode gets MCP servers from `sync`
+                                          but no credential, which the proxy
+                                          rejects with 403.
+                                          Ids: claude-code, claude-desktop,
+                                          codex-cli, hermes, opencode.
+    [--hosts all]                         Enrol every host this build offers.
     [--print-mdm macos|windows|linux]     Print MDM snippet for target OS (default: current OS)
     [--emit-schedule-template macos|windows|linux]
                                           Write an OS scheduler template to CWD

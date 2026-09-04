@@ -29,3 +29,27 @@ pub(crate) fn should_default_to_gui() -> bool {
 pub(crate) const fn should_default_to_gui() -> bool {
     false
 }
+
+/// Collects every occurrence of a repeatable `--flag <value>` option.
+///
+/// Why: `parse_opt_flag` returns the first match only, which silently drops
+/// every later `--host` on a line that names several. Values are additionally
+/// split on commas so `--host a,b` and `--host a --host b` mean the same
+/// thing, and blanks are dropped so a trailing comma is not an unknown id.
+pub fn parse_multi_flag(args: &[String], flag: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut i = 2;
+    while i < args.len() {
+        if args[i] == flag && i + 1 < args.len() {
+            for part in args[i + 1].split(',') {
+                let part = part.trim();
+                if !part.is_empty() && !out.iter().any(|v: &String| v == part) {
+                    out.push(part.to_owned());
+                }
+            }
+            i += 1;
+        }
+        i += 1;
+    }
+    out
+}

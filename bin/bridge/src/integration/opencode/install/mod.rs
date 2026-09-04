@@ -59,14 +59,41 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
         upsert_auth_key(&config::auth_json_path(), &key)?;
     }
 
-    merge::install(&source, &config::managed_config_path()).map(|_| ())
+    let managed = config::managed_config_path();
+    match merge::install(&source, &managed) {
+        Ok(_) => Ok(()),
+        // Why: on Linux `write_managed_file` has no elevation to offer, so a
+        // read-only /etc/opencode used to fail the whole enrolment and leave
+        // the client with MCP servers and no credential — the 403 this fallback
+        // exists to prevent. See `config::fallback_config_path`.
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            let Some(fallback) = config::fallback_config_path() else {
+                return Err(e);
+            };
+            tracing::warn!(
+                managed = %managed.display(),
+                fallback = %fallback.display(),
+                error = %e,
+                "opencode install: managed tier not writable; writing the provider block to the \
+                 user tier instead (weaker: the user can edit it)"
+            );
+            merge::install(&source, &fallback).map(|_| ())
+        },
+        Err(e) => Err(e),
+    }
 }
 
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     let target = config::managed_config_path();
     let removed_config = merge::uninstall(&target)?;
+    // Why: an install that fell back to the user tier left its block there, so
+    // uninstall has to sweep both or the client keeps routing at a dead port.
+    let removed_fallback = match config::fallback_config_path() {
+        Some(path) => merge::uninstall(&path)?,
+        None => false,
+    };
     let removed_auth = remove_auth_key(&config::auth_json_path())?;
-    Ok(if removed_config || removed_auth {
+    Ok(if removed_config || removed_fallback || removed_auth {
         ProfileRemoval::Removed {
             path: Some(target.display().to_string()),
         }

@@ -156,11 +156,18 @@ fn no_credential_body(ctx: &ProxyContext) -> String {
          \n\
          this install: {config_dir} (port {port})\n\
          \n\
+         Most often the client was never enrolled: `sync` writes its MCP connectors\n\
+         without writing the provider block or the API key, so it reaches this port\n\
+         with no credential at all.\n\
+         \n\
+         remediation: {remediation}\n\
+         \n\
          If your client was configured by a different bridge install, it is talking to\n\
          the wrong proxy.\n",
         app = crate::brand::brand().app_name,
         config_dir = crate::proxy::identity::config_dir_display(),
         port = ctx.port,
+        remediation = secret::reapply_hint(),
     )
 }
 

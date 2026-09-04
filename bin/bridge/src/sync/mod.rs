@@ -13,7 +13,8 @@ mod summary;
 pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use replay::{
-    LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,
+    LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew,
+    last_synced_enabled_hosts, read_last_sync,
 };
 pub use summary::SyncSummary;
 use summary::build_summary;

@@ -1,4 +1,5 @@
-//! `install` command: installs the bridge binary and scheduled sync task.
+//! `install` command: installs the bridge binary and scheduled sync task, and
+//! optionally enrols named host applications (`--host <id>`, `--hosts all`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,8 +8,9 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-use crate::cli::args::{has_flag, parse_opt_flag};
+use crate::cli::args::{has_flag, parse_multi_flag, parse_opt_flag};
 use crate::context::BridgeContext;
+use crate::integration::enrol::{self, Selection};
 use crate::ids::PinnedPubKey;
 use crate::schedule::Os;
 use crate::stdio::diag;
@@ -38,6 +40,13 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let egress_allowed_hosts = parse_opt_flag(args, "--egress-allowed-hosts")
         .as_deref()
         .and_then(install::parse_egress_allowed_hosts);
+    let host_selection = match parse_host_selection(args) {
+        Ok(sel) => sel,
+        Err(msg) => {
+            diag(&msg);
+            return ExitCode::from(64);
+        },
+    };
     match install::install(
         &install::InstallOptions {
             print_mdm,
@@ -63,11 +72,53 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
                 ));
                 stdio::print_str(&crate::integration::reapply::render(&reports));
             }
-            ExitCode::SUCCESS
+            // Why: enrolment is deliberately independent of --apply. --apply
+            // lands MDM policy and the scheduled task and only *repairs*
+            // profiles that already exist; --host is how a client that was
+            // never set up gets one, which is the whole Linux install path.
+            match host_selection {
+                Some(selection) => enrol_selected(ctx, &selection),
+                None => ExitCode::SUCCESS,
+            }
         },
         Err(err) => {
             diag(&err.to_string());
             install::InstallError::EXIT_CODE
+        },
+    }
+}
+
+// Why: `--hosts all` and a repeated `--host` are the same request expressed
+// two ways; naming both on one line is a contradiction rather than a union, so
+// it is refused instead of guessed at.
+fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, String> {
+    let ids = parse_multi_flag(args, "--host");
+    let all = parse_multi_flag(args, "--hosts");
+    if !all.is_empty() && all.iter().any(|v| v != "all") {
+        return Err("--hosts takes only 'all'; name individual hosts with --host <id>".to_owned());
+    }
+    match (ids.is_empty(), all.is_empty()) {
+        (true, true) => Ok(None),
+        (false, true) => Ok(Some(Selection::Ids(ids))),
+        (true, false) => Ok(Some(Selection::All)),
+        (false, false) => Err("pass either --hosts all or --host <id>, not both".to_owned()),
+    }
+}
+
+fn enrol_selected(ctx: &BridgeContext, selection: &Selection) -> ExitCode {
+    let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+    match ctx.block_on(enrol::enrol_hosts(ctx, selection, &overrides)) {
+        Ok(reports) => {
+            stdio::print_str(&enrol::render(&reports));
+            if reports.iter().any(enrol::Report::is_failure) {
+                ExitCode::from(1)
+            } else {
+                ExitCode::SUCCESS
+            }
+        },
+        Err(msg) => {
+            diag(&msg);
+            ExitCode::from(64)
         },
     }
 }

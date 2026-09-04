@@ -180,7 +180,9 @@ fn verify(host: &'static dyn HostApp, env: &ProbeEnv) -> Outcome {
     }
 }
 
-fn is_declined(e: &std::io::Error) -> bool {
+// Why: declining the administrator prompt is a decision, not a fault. Shared
+// with `super::enrol`, which draws the same distinction.
+pub(crate) fn is_declined(e: &std::io::Error) -> bool {
     e.kind() == std::io::ErrorKind::PermissionDenied
         || e.to_string().contains("cancelled the administrator")
 }

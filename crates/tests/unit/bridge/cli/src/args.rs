@@ -1,4 +1,4 @@
-use systemprompt_bridge::cli::args::{has_flag, parse_opt_flag};
+use systemprompt_bridge::cli::args::{has_flag, parse_multi_flag, parse_opt_flag};
 
 fn args(items: &[&str]) -> Vec<String> {
     items.iter().map(|s| (*s).to_owned()).collect()
@@ -50,4 +50,46 @@ fn has_flag_false_when_absent() {
 fn has_flag_false_when_only_at_index_one() {
     let a = args(&["bin", "--apply"]);
     assert!(!has_flag(&a, "--apply"));
+}
+
+#[test]
+fn parse_multi_flag_collects_every_occurrence() {
+    let a = args(&["bin", "sub", "--host", "opencode", "--host", "codex-cli"]);
+    assert_eq!(
+        parse_multi_flag(&a, "--host"),
+        vec!["opencode".to_owned(), "codex-cli".to_owned()]
+    );
+}
+
+#[test]
+fn parse_multi_flag_splits_comma_separated_values() {
+    let a = args(&["bin", "sub", "--host", "claude-code,opencode"]);
+    assert_eq!(
+        parse_multi_flag(&a, "--host"),
+        vec!["claude-code".to_owned(), "opencode".to_owned()]
+    );
+}
+
+#[test]
+fn parse_multi_flag_drops_blanks_and_duplicates() {
+    let a = args(&["bin", "sub", "--host", "opencode, ,opencode,", "--host", " opencode "]);
+    assert_eq!(parse_multi_flag(&a, "--host"), vec!["opencode".to_owned()]);
+}
+
+#[test]
+fn parse_multi_flag_absent_is_empty() {
+    let a = args(&["bin", "sub", "--apply"]);
+    assert!(parse_multi_flag(&a, "--host").is_empty());
+}
+
+#[test]
+fn parse_multi_flag_ignores_index_below_two() {
+    let a = args(&["bin", "--host", "ignored"]);
+    assert!(parse_multi_flag(&a, "--host").is_empty());
+}
+
+#[test]
+fn parse_multi_flag_last_arg_without_value_is_empty() {
+    let a = args(&["bin", "sub", "--host"]);
+    assert!(parse_multi_flag(&a, "--host").is_empty());
 }

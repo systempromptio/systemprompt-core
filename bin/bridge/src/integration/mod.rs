@@ -14,6 +14,7 @@ pub mod codex_cli;
 pub(crate) mod config_read;
 pub mod cowork_artifacts;
 pub mod cowork_plugins;
+pub mod enrol;
 pub mod hermes;
 pub mod host_app;
 pub(crate) mod managed_skills;
