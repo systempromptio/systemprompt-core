@@ -72,8 +72,10 @@ pub(crate) fn on_login_finished(
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
-            app.proxy
-                .send_event(UiEvent::ValidateRequested { reply_to: None });
+            // Why: validate reads the machine policy and host files a sync
+            // writes, so an eager call here races the provisioning it is meant
+            // to describe. Both branches end in a sync, and sync re-validates
+            // on success and on failure alike.
             if crate::gui::first_run::should_run(app) {
                 app.proxy.send_event(UiEvent::FirstRunStart);
             } else {

@@ -54,7 +54,7 @@ pub async fn run_once(
             "manifest", "manifest", 1, 1,
         ));
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
-    let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
+    let synced = manifest::verify_and_decode(bridge, &fetch, allow_unsigned, allow_tofu).await?;
 
     #[cfg_attr(
         not(target_os = "windows"),

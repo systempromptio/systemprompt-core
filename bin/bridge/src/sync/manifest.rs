@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::atomic::Ordering;
+
 use super::error::SyncError;
 use crate::auth::secret::Secret;
 use crate::config;
@@ -181,18 +183,20 @@ const fn is_unauthorized<T>(result: &Result<T, GatewayError>) -> bool {
 }
 
 pub(super) async fn verify_and_decode(
+    bridge: &crate::context::BridgeContext,
     fetch: &ManifestFetch,
     allow_unsigned: bool,
     allow_tofu: bool,
 ) -> Result<SignedManifest, SyncError> {
     if !allow_unsigned {
-        let pubkey = resolve_pubkey(&fetch.client, allow_tofu).await?;
+        let pubkey = resolve_pubkey(bridge, &fetch.client, allow_tofu).await?;
         verify_envelope(&fetch.envelope, pubkey.as_str()).map_err(map_manifest_error)?;
     }
     decode_payload(&fetch.envelope).map_err(map_manifest_error)
 }
 
 async fn resolve_pubkey(
+    bridge: &crate::context::BridgeContext,
     client: &GatewayClient,
     allow_tofu: bool,
 ) -> Result<PinnedPubKey, SyncError> {
@@ -213,13 +217,27 @@ async fn resolve_pubkey(
             },
         )
     })?;
-    if let Err(e) = config::persist_pinned_pubkey(&fetched) {
-        tracing::warn!(error = %e, "failed to persist pinned pubkey; next run will re-trust on first use");
-    }
     let prefix: String = fetched.chars().take(12).collect();
-    tracing::info!(
-        "pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation"
-    );
+    if let Err(e) = config::persist_pinned_pubkey(&fetched) {
+        bridge
+            .unpersisted_tofu_pubkey
+            .store(true, Ordering::Relaxed);
+        tracing::warn!(error = %e, "failed to persist pinned pubkey; next run will re-trust on first use");
+        // Why: the sync itself still succeeds, so without a line here the only
+        // trace of a pin that never landed is a warn in the rolling log -- and
+        // the key silently stops protecting anything from the next run on.
+        bridge.activity.append_error(format!(
+            "manifest pubkey ({prefix}…) could not be pinned: {e}. This sync is verified, but \
+             the next one will trust whatever key the gateway serves."
+        ));
+    } else {
+        bridge
+            .unpersisted_tofu_pubkey
+            .store(false, Ordering::Relaxed);
+        tracing::info!(
+            "pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation"
+        );
+    }
     Ok(PinnedPubKey::new(fetched))
 }
 

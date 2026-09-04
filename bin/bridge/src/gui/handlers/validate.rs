@@ -14,9 +14,9 @@ use crate::{i18n, validate};
 pub(crate) fn on_validate_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("validate-running"));
     let proxy = app.proxy.clone();
-    let http = app.ctx.http.clone();
+    let ctx = app.ctx.clone();
     app.ctx.spawn(async move {
-        let report = validate::run(&http).await;
+        let report = validate::run(&ctx).await;
         proxy.send_event(UiEvent::ValidateFinished { report, reply_to });
     });
 }
@@ -48,9 +48,9 @@ pub(crate) fn on_validate_finished(
             ("warned", &warned.to_string()),
         ],
     );
-    if report.any_failed {
+    if report.any_failed && !app.state.first_run_active() {
         app.append_log_error(&summary);
-    } else if warned > 0 {
+    } else if report.any_failed || warned > 0 {
         app.append_log_warn(&summary);
     } else {
         app.append_log(&summary);
