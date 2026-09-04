@@ -131,10 +131,23 @@ pub enum PendingReason {
     ApprovalRequired { tool: McpToolName, rule: String },
 }
 
+/// The verdict of one policy chain run.
+///
+/// `Warn` is the observability verdict: a policy in `mode: warn` found what it
+/// would normally refuse, the finding is recorded verbatim, and the call
+/// proceeds anyway. It carries the same [`DenyReason`] the enforcing form
+/// would have carried, so a warn row and a deny row are directly comparable —
+/// that is the whole point of warn mode, which exists so tunables can be
+/// adjusted from real traffic instead of guesses.
+///
+/// Every enforcement point must treat `Warn` as an allow. A site that lets it
+/// fall into a deny arm turns warn mode back into enforcement silently, which
+/// is the one failure this type exists to prevent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "decision", rename_all = "lowercase")]
 pub enum Decision {
     Allow { matched_by: MatchedBy },
+    Warn { reason: DenyReason },
     Deny { reason: DenyReason },
     Pending { reason: PendingReason },
 }
@@ -144,9 +157,18 @@ impl Decision {
     pub const fn tag(&self) -> DecisionTag {
         match self {
             Self::Allow { .. } => DecisionTag::Allow,
+            Self::Warn { .. } => DecisionTag::Warn,
             Self::Deny { .. } => DecisionTag::Deny,
             Self::Pending { .. } => DecisionTag::Pending,
         }
+    }
+
+    // Why: the predicate every enforcement point should use. Matching on
+    // `Allow` alone turns warn mode back into enforcement silently, which is
+    // the one failure the `Warn` variant exists to prevent.
+    #[must_use]
+    pub const fn permits(&self) -> bool {
+        matches!(self, Self::Allow { .. } | Self::Warn { .. })
     }
 }
 
@@ -161,6 +183,7 @@ impl Decision {
 #[serde(rename_all = "lowercase")]
 pub enum DecisionTag {
     Allow,
+    Warn,
     Deny,
     Pending,
 }
@@ -170,6 +193,7 @@ impl DecisionTag {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Allow => "allow",
+            Self::Warn => "warn",
             Self::Deny => "deny",
             Self::Pending => "pending",
         }

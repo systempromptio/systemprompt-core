@@ -58,7 +58,8 @@ fn validate_run_reports_healthy_gateway() {
     let (_server, uri) = health_server(200, false);
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
-        let report = block_on(validate::run(&reqwest::Client::new()));
+        let ctx = bridge();
+        let report = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
         assert!(!report.lines.is_empty(), "report must have lines");
 
         let rendered = report.rendered();
@@ -86,7 +87,8 @@ fn validate_run_reports_failing_gateway() {
     let (_server, uri) = health_server(503, false);
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
-        let report = block_on(validate::run(&reqwest::Client::new()));
+        let ctx = bridge();
+        let report = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
 
         let health = report
             .lines
@@ -149,4 +151,44 @@ fn doctor_run_checks_returns_named_checks() {
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+}
+
+#[test]
+fn unpersisted_tofu_pubkey_is_reported_distinctly_from_never_pinned() {
+    let home = TempDir::new().unwrap();
+    let (_server, uri) = health_server(200, false);
+
+    temp_env::with_vars(sandbox_vars(&home, &uri), || {
+        let ctx = bridge();
+
+        let never = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
+        let line = never
+            .lines
+            .iter()
+            .find(|l| l.label == "pinned manifest pubkey")
+            .expect("pubkey line present");
+        assert_eq!(line.level, CheckLevel::Fail);
+        assert!(
+            line.value.contains("not pinned"),
+            "an unsynced install reports the provisioning hint:\n{}",
+            line.value
+        );
+
+        ctx.unpersisted_tofu_pubkey
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+
+        let unpersisted = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
+        let line = unpersisted
+            .lines
+            .iter()
+            .find(|l| l.label == "pinned manifest pubkey")
+            .expect("pubkey line present");
+        assert_eq!(line.level, CheckLevel::Fail);
+        assert!(
+            line.value.contains("not written to the config"),
+            "a TOFU key that could not be stored reports the write failure, not the \
+             provisioning hint:\n{}",
+            line.value
+        );
+    });
 }

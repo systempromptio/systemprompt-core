@@ -16,7 +16,7 @@ pub(super) use self::finalize::run_response_safety_scan;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
-    pub use super::blocks_at_phase;
+    pub use super::finalize::safety::blocks_at_phase;
     pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
     pub use super::resolve::{describe_route_match, enforce_route_requirements};
 }
@@ -27,16 +27,17 @@ use anyhow::{Result, anyhow};
 use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
-use systemprompt_ai::{PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyHistoryMode};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
 
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::resolve::{ResolvedUpstream, resolve_upstream};
-use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
+use self::stages::{
+    GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay, record_quota_warning,
+};
 use super::audit::{GatewayAudit, GatewayRequestContext};
-use super::policy::{PolicyResolver, QuotaWindow};
+use super::policy::{GatewayPolicySpec, PolicyResolver};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
 use super::quota;
@@ -142,7 +143,7 @@ impl GatewayService {
             audit.set_route_match(descriptor).await;
         }
 
-        enforce_quota(db, repos, &ctx.user_id, &policy.quota_windows, &audit).await?;
+        enforce_quota(db, repos, &ctx, &policy, &audit).await?;
         enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
 
         let prepared = PreparedDispatch::build(
@@ -207,17 +208,37 @@ async fn open_audit(
 async fn enforce_quota(
     db: &DbPool,
     repos: &super::GatewayRepositories,
-    user_id: &UserId,
-    quota_windows: &[QuotaWindow],
+    ctx: &GatewayRequestContext,
+    policy: &GatewayPolicySpec,
     audit: &GatewayAudit,
 ) -> Result<(), DispatchError> {
-    let reservation = quota::precheck_and_reserve(db, &repos.quota_buckets, user_id, quota_windows)
-        .await
-        .map_err(DispatchError::Recorded)?;
+    let reservation = quota::precheck_and_reserve(
+        db,
+        &repos.quota_buckets,
+        &ctx.user_id,
+        &policy.quota_windows,
+    )
+    .await
+    .map_err(DispatchError::Recorded)?;
     let Some(decision) = reservation else {
         return Ok(());
     };
     if decision.allow {
+        return Ok(());
+    }
+    // Why: warn mode on the quota plane. The window was reserved against and
+    // the ceiling was breached exactly as under enforce; only the refusal is
+    // dropped, and the breach lands in `governance_decisions` under policy
+    // `quota` so the report can price what enforcement would have cost.
+    if policy.quota_mode.is_warn() {
+        tracing::warn!(
+            ai_request_id = %ctx.ai_request_id,
+            user_id = %ctx.user_id,
+            window_seconds = decision.window_seconds,
+            reason = %decision.message,
+            "Gateway quota window exhausted in warn mode; allowing the request"
+        );
+        record_quota_warning(db, ctx, &decision.message).await;
         return Ok(());
     }
     let msg = decision.message;
@@ -276,12 +297,4 @@ async fn enforce_request_guards(
         .into(),
     };
     Err(DispatchError::Recorded(inner))
-}
-
-pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
-    match phase {
-        PHASE_REQUEST => true,
-        PHASE_REQUEST_HISTORY => history == SafetyHistoryMode::Block,
-        _ => false,
-    }
 }

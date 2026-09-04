@@ -8,6 +8,14 @@
 //! discriminator — key material decodes to bytes with no readable structure,
 //! whereas a tool result decodes to text or to a self-consistent wire format.
 //!
+//! `/` is a legal token character, so an absolute path is scored as one token
+//! rather than split on its separators. A macOS `$TMPDIR`
+//! (`/var/folders/<12>/<30>/T/`) clears every check that way — the random
+//! segment supplies the entropy, and the `T` supplies the uppercase the shape
+//! test demands — so [`is_filesystem_path`] exempts path-shaped tokens. Claude
+//! Code carries those paths in its system prompt, and without the exemption
+//! every request from an affected Mac is denied.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -64,6 +72,14 @@ pub fn find_high_entropy_token<'a>(text: &'a str, config: &EntropyConfig) -> Opt
 }
 
 fn is_credential_shaped(token: &str, config: &EntropyConfig) -> bool {
+    has_credential_shape(token, config)
+        && !config.allowlist.iter().any(|re| re.is_match(token))
+        && !is_verified_digest(token)
+        && !is_structured_payload(token)
+        && !is_filesystem_path(token, config)
+}
+
+fn has_credential_shape(token: &str, config: &EntropyConfig) -> bool {
     token.len() >= config.min_len
         && token
             .chars()
@@ -72,9 +88,21 @@ fn is_credential_shaped(token: &str, config: &EntropyConfig) -> bool {
         && token.chars().any(|c| c.is_ascii_lowercase())
         && token.chars().any(|c| c.is_ascii_digit())
         && entropy_ratio(token) >= config.threshold
-        && !config.allowlist.iter().any(|re| re.is_match(token))
-        && !is_verified_digest(token)
-        && !is_structured_payload(token)
+}
+
+// Why: a whole path is one token, so exonerating it wholesale would let key
+// material hide in a segment — each segment is scored separately instead.
+// `+` and `=` are base64's own characters and effectively never appear in a
+// path, so their presence keeps the token in scope. Windows paths need no
+// handling: `:` is a delimiter and `\` is outside the charset, so they never
+// survive tokenisation as a single token.
+fn is_filesystem_path(token: &str, config: &EntropyConfig) -> bool {
+    token.starts_with('/')
+        && token.matches('/').count() >= 2
+        && !token.contains(['+', '='])
+        && !token
+            .split('/')
+            .any(|segment| has_credential_shape(segment, config))
 }
 
 // Why: an SRI hash (`sha384-<base64>`) is public integrity metadata, not key

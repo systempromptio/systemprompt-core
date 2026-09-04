@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use crate::auth::cache;
 use crate::config;
 use crate::config::paths::{self, Scope};
@@ -94,7 +96,8 @@ impl ValidationReport {
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod policy;
 
-pub async fn run(http: &reqwest::Client) -> ValidationReport {
+// Why: `BridgeContext` sits above `validate`, so this takes what it reads.
+pub async fn run(http: &reqwest::Client, unpersisted_tofu_pubkey: &AtomicBool) -> ValidationReport {
     let mut report = Report::new();
     check_binary(&mut report);
     check_org_plugins(&mut report);
@@ -102,7 +105,7 @@ pub async fn run(http: &reqwest::Client) -> ValidationReport {
     policy::check_managed_policy(&mut report);
     check_gateway(&mut report, http).await;
     check_cached_token(&mut report);
-    check_pinned_pubkey(&mut report);
+    check_pinned_pubkey(&mut report, unpersisted_tofu_pubkey);
     report.into_report()
 }
 
@@ -195,11 +198,17 @@ fn check_cached_token(report: &mut Report) {
     }
 }
 
-fn check_pinned_pubkey(report: &mut Report) {
+fn check_pinned_pubkey(report: &mut Report, unpersisted_tofu_pubkey: &AtomicBool) {
     match config::pinned_pubkey() {
         Some(k) => report.ok(
             "pinned manifest pubkey",
             &format!("{} chars", k.as_str().len()),
+        ),
+        None if unpersisted_tofu_pubkey.load(Ordering::Relaxed) => report.fail(
+            "pinned manifest pubkey",
+            "fetched over the wire but not written to the config — the pin is not in effect and \
+             the next sync will trust any key. Fix the config write (see the activity log for the \
+             underlying error), then rerun `sync`",
         ),
         None => report.fail(
             "pinned manifest pubkey",

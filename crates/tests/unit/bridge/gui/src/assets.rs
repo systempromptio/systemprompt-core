@@ -12,6 +12,10 @@ fn render_index_substitutes_template_markers() {
         !html.contains("__VERSION__"),
         "version placeholder should be substituted"
     );
+    assert!(
+        !html.contains("__BRIDGE_VERSION__"),
+        "bridge version placeholder should be substituted"
+    );
 }
 
 #[test]

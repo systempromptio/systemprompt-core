@@ -12,6 +12,7 @@ pub(crate) mod linux;
 pub(super) mod macos;
 #[cfg(target_os = "macos")]
 mod macos_payload;
+pub mod policy;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;
 #[cfg(target_os = "windows")]
@@ -21,7 +22,7 @@ mod windows_policy;
 
 pub use egress::{cowork_egress_allowed_hosts, parse_egress_allowed_hosts};
 pub use error::MdmError;
-pub use inference::{default_inference_models, inference_policy_values};
+pub use inference::default_inference_models;
 
 use crate::schedule::Os;
 
@@ -100,92 +101,15 @@ pub fn bridge_policy_values(pubkey: Option<&str>) -> Vec<(&'static str, &'static
 
 pub use crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY as LEGACY_PUBKEY_KEY;
 
-#[cfg(target_os = "windows")]
-#[must_use]
-pub fn windows_policy_values(
-    org_uuid: Option<&str>,
-    egress_allowed_hosts: Option<&[String]>,
-) -> Vec<(&'static str, &'static str, String)> {
-    let mut values: Vec<(&'static str, &'static str, String)> = vec![
-        ("disableEssentialTelemetry", "REG_SZ", "true".into()),
-        ("disableNonessentialTelemetry", "REG_SZ", "true".into()),
-        // Why: `true` blocks the claudemcpcontent.com renderer that MCP display
-        // extensions (dashboards, artifacts) load from; it is written as an
-        // explicit `false` so an older `true` is corrected on drift.
-        ("disableNonessentialServices", "REG_SZ", "false".into()),
-        ("disableAutoUpdates", "REG_SZ", "true".into()),
-        ("disableDeploymentModeChooser", "REG_SZ", "true".into()),
-        ("isLocalDevMcpEnabled", "REG_SZ", "false".into()),
-    ];
-    // Why: omitted by default so Cowork keeps its own unrestricted egress. A
-    // pinned allowlist here left agents with no internet at all; it is now an
-    // explicit opt-in for regulated deployments.
-    if let Some(hosts) = cowork_egress_allowed_hosts(egress_allowed_hosts) {
-        values.push((
-            "coworkEgressAllowedHosts",
-            "REG_SZ",
-            egress::windows_policy_value(&hosts),
-        ));
-    }
-    // Why: without a pre-trusted workspace Cowork falls back to protected host
-    // paths and blocks on `request_cowork_directory`; `isDefaultSelected` skips
-    // the trust prompt.
-    let workspace = crate::brand::brand().workspace_dir_name;
-    if !workspace.is_empty() {
-        let json =
-            serde_json::json!([{ "path": format!("~/{workspace}"), "isDefaultSelected": true }]);
-        values.push(("allowedWorkspaceFolders", "REG_SZ", json.to_string()));
-    }
-    if let Some(uuid) = org_uuid.filter(|u| is_uuid_like(u)) {
-        values.push(("deploymentOrganizationUuid", "REG_SZ", uuid.to_owned()));
-    }
-    values
-}
-
-// Why: Cowork's OAuth flow rejects the gateway's non-HTTPS authorize URL, so
-// servers must point at the loopback proxy that injects the gateway JWT.
-#[cfg(target_os = "windows")]
-#[must_use]
-pub(crate) fn managed_mcp_servers_json(mcp: &MdmPayloadInputs<'_>) -> Option<String> {
-    let MdmPayloadInputs {
-        loopback, registry, ..
-    } = *mcp;
-    if registry.is_empty() {
-        return Some("[]".to_owned());
-    }
-    let bearer = match loopback.bearer() {
-        Ok(b) => b,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::mdm",
-                error = %e,
-                "loopback secret unavailable; emitting empty managed MCP server list"
-            );
-            return None;
-        },
-    };
-    let mut slugs: Vec<&String> = registry.keys().collect();
-    slugs.sort();
-    let entries: Vec<serde_json::Value> = slugs
-        .iter()
-        .map(|slug| {
-            serde_json::json!({
-                "name": slug,
-                "url": loopback.mcp_url(slug.as_str()),
-                "transport": "http",
-                "headers": { "Authorization": bearer.clone() },
-            })
-        })
-        .collect();
-    serde_json::to_string(&entries).ok()
-}
-
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "{gateway} is a template placeholder consumed by str::replace, not a fmt arg"
 )]
 pub fn snippet(os: Os, gateway_url: Option<&str>) -> String {
-    let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
+    // Why: the fallback has to be the gateway the bridge would actually use, so
+    // an admin never pastes a host this build never talks to -- and a
+    // white-label prints its own gateway rather than systemprompt's.
+    let gateway = gateway_url.unwrap_or_else(|| crate::brand::brand().default_gateway_url);
     match os {
         Os::Mac => MDM_MACOS_SNIPPET_TMPL
             .replace("{gateway}", gateway)

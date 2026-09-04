@@ -15,6 +15,8 @@ mod managed_settings;
 #[cfg(test)]
 mod mdm_snippet;
 #[cfg(test)]
+mod policy;
+#[cfg(test)]
 mod pubkey;
 #[cfg(test)]
 mod schedule;

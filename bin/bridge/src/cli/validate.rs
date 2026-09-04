@@ -9,7 +9,7 @@ use crate::context::BridgeContext;
 use crate::{stdio, validate};
 
 pub fn cmd_validate(ctx: &BridgeContext) -> ExitCode {
-    let report = ctx.block_on(validate::run(&ctx.http));
+    let report = ctx.block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
     stdio::print_str(&report.rendered());
     if report.any_failed {
         ExitCode::from(1)

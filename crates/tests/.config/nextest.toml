@@ -88,6 +88,15 @@ cloud-checkout-port = { max-threads = 1 }
 # its own process, so two of them race for the same candidate and one fails on a
 # collision that says nothing about the code under test.
 bridge-proxy-port = { max-threads = 1 }
+# Why: `McpProxyIdentityRepository::cleanup_expired` is an unscoped
+# `DELETE FROM mcp_proxy_identities WHERE expires_at <= NOW()`, so it reaps
+# every expired row in the shared database, not just its own. The delete and
+# count tests seed deliberately-expired rows and then assert on them, so a
+# concurrent cleanup wipes the fixture between the insert and the assertion —
+# `delete_removes_the_row_even_once_it_has_expired` failed in CI counting 0
+# rows immediately after inserting one.
+mcp-proxy-identity-db = { max-threads = 1 }
+
 # Why: `ApprovalRepository::expire_due` is an unscoped UPDATE over every
 # overdue pending row, so it sweeps other tests' fixtures. Without this the
 # deadline test passes by reading a status column another test set, rather
@@ -105,6 +114,14 @@ gateway-reconcile-db = { max-threads = 1 }
 # installed schema is a no-op. That assertion is false for as long as a
 # tampered checksum is outstanding, so the two must not overlap.
 cli-migration-ledger-db = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-mcp-tests) and test(/repository::proxy_identity(_db|_corrupt_db)?::/)'
+test-group = 'mcp-proxy-identity-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-mcp-tests) and test(/repository::proxy_identity(_db|_corrupt_db)?::/)'
+test-group = 'mcp-proxy-identity-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'

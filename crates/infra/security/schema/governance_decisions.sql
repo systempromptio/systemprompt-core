@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     tool_name TEXT NOT NULL,
     agent_id TEXT,
     agent_scope TEXT,
-    decision TEXT NOT NULL CHECK (decision IN ('allow', 'deny', 'pending')),
+    decision TEXT NOT NULL CHECK (decision IN ('allow', 'warn', 'deny', 'pending')),
     policy TEXT NOT NULL,
     reason TEXT NOT NULL,
     evaluated_rules JSONB DEFAULT '[]',

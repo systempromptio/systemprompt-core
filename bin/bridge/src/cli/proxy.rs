@@ -59,6 +59,19 @@ pub(super) fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
          export ANTHROPIC_BASE_URL={origin}\n  \
          export ANTHROPIC_AUTH_TOKEN={secret}\n\
          \n\
+         An OpenAI-compatible client reads the same wire at {origin}/v1.\n\
+         OpenCode has no environment override for a provider, so it is\n\
+         configured by file. Let the bridge write both halves:\n\
+         \n  \
+         {bin} install --host opencode\n\
+         \n\
+         or add this to ~/.config/opencode/opencode.json by hand and put the\n\
+         same token in ~/.local/share/opencode/auth.json as\n\
+         {{\"systemprompt\": {{\"type\": \"api\", \"key\": \"<token above>\"}}}}:\n\
+         \n  \
+         {{\"provider\": {{\"systemprompt\": {{\"npm\": \"@ai-sdk/openai-compatible\",\n  \
+         \"options\": {{\"baseURL\": \"{origin}/v1\"}}}}}}}}\n\
+         \n\
          The proxy swaps that loopback token for a short-lived gateway JWT,\n\
          injects the canonical identity headers, and refreshes in the\n\
          background. Press Ctrl-C to stop.\n",

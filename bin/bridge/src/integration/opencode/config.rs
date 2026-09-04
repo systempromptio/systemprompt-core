@@ -100,6 +100,25 @@ pub(super) fn user_config_path() -> PathBuf {
     user_dir().join(CONFIG_FILE)
 }
 
+// Why: this is Linux-only because macOS and Windows have an elevation path to
+// offer, so a refused managed write there is the user's decision and must not
+// be quietly downgraded. Linux has no prompt — the choice is a user-tier
+// provider block or no working client. The tier is weaker (the user can edit
+// it), so it is not governance; `probe` reports which tier it found.
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub(super) fn fallback_config_path() -> Option<PathBuf> {
+    let path = user_config_path();
+    if path == managed_config_path() {
+        return None;
+    }
+    Some(path)
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(super) const fn fallback_config_path() -> Option<PathBuf> {
+    None
+}
+
 pub(super) fn skills_dir() -> PathBuf {
     user_dir().join("skills")
 }

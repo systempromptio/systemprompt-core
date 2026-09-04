@@ -16,7 +16,7 @@ export function shortcut(key) {
   return `${modKey()}${key}`;
 }
 
-export const TAB_KEYS = { "1": "marketplace", "2": "agents", "3": "account", "4": "settings", "5": "status", "6": "activity" };
+export const TAB_KEYS = { "1": "account", "2": "marketplace", "3": "agents", "4": "settings", "5": "status", "6": "activity" };
 
 export const TAB_GLYPHS = {
   account: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3.2"/><path d="M5.5 19a7 7 0 0 1 13 0"/></svg>`,
@@ -28,33 +28,26 @@ export const TAB_GLYPHS = {
 };
 
 // Ordered by how often a person needs the pane, not by how much is on it.
-// Marketplace is what the bridge is for, so it leads; Status and Activity are
-// diagnostics, not daily destinations, so they close the rail.
+// Account leads because it answers the question every other pane depends on --
+// which account this computer is linked to -- and it is where a person lands on
+// open; Status and Activity are diagnostics, not daily destinations, so they
+// close the rail.
 export const TAB_DEFS = [
-  { name: "marketplace", label: "Marketplace", l10n: "nav-marketplace", key: "1", showCount: true, countFor: "marketplaceCount" },
-  { name: "agents", label: "Agents", l10n: "nav-agents", key: "2", showCount: true, countFor: "agentCount" },
-  { name: "account", label: "Account", l10n: "nav-account", key: "3", showCount: false },
+  { name: "account", label: "Account", l10n: "nav-account", key: "1", showCount: false },
+  { name: "marketplace", label: "Marketplace", l10n: "nav-marketplace", key: "2", showCount: true, countFor: "marketplaceCount" },
+  { name: "agents", label: "Agents", l10n: "nav-agents", key: "3", showCount: true, countFor: "agentCount" },
   { name: "settings", label: "Settings", l10n: "nav-settings", key: "4", showCount: false },
   { name: "status", label: "Status", l10n: "nav-status", key: "5", showCount: false },
   { name: "activity", label: "Activity", l10n: "nav-activity", key: "6", showCount: false },
 ];
 
-const DEFAULT_TAB = "account";
-const TAB_NAMES = new Set(TAB_DEFS.map((d) => d.name));
+// Why: the bridge is a window a person opens to check on their deployment, not
+// a document they resume editing, so every open starts on the same pane rather
+// than wherever they happened to stop last time.
+export const DEFAULT_TAB = "account";
 
 export function readInitialTab() {
-  try {
-    const stored = localStorage.getItem("bridge.tab");
-    // Why: a stored name from an older build ("profile") no longer exists, and
-    // an unknown name would leave every panel hidden.
-    return TAB_NAMES.has(stored) ? stored : DEFAULT_TAB;
-  } catch (_) {
-    return DEFAULT_TAB;
-  }
-}
-
-export function persistTab(name) {
-  try { localStorage.setItem("bridge.tab", name); } catch (_) {}
+  return DEFAULT_TAB;
 }
 
 export function isTextInput(target) {

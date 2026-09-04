@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.46.0] - 2026-09-04
+
+### Added
+
+- `infra logs governance report` rolls up warn-mode governance decisions and gateway safety findings over one window, grouped by policy, tool or user, with CSV output.
+- `infra logs trace list --decision <verdict>` filters traces to those carrying a governance decision of that verdict.
+
 ## [0.45.0] - 2026-09-03
 
 ### Fixed

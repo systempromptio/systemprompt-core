@@ -6,13 +6,15 @@
 pub(crate) mod apply;
 mod error;
 mod manifest;
+mod provision;
 mod replay;
 mod summary;
 
 pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use replay::{
-    LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,
+    LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew,
+    last_synced_enabled_hosts, read_last_sync,
 };
 pub use summary::SyncSummary;
 use summary::build_summary;
@@ -52,7 +54,7 @@ pub async fn run_once(
             "manifest", "manifest", 1, 1,
         ));
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
-    let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
+    let synced = manifest::verify_and_decode(bridge, &fetch, allow_unsigned, allow_tofu).await?;
 
     #[cfg_attr(
         not(target_os = "windows"),
@@ -84,10 +86,7 @@ pub async fn run_once(
                 tracing::info!(path = %location.path.display(), "provisioned per-user org-plugins directory");
             },
             paths::Scope::System => {
-                return Err(SyncError::PathMissing {
-                    bin: crate::brand::brand().binary_name,
-                    path: location.path.display().to_string(),
-                });
+                provision::provision_system_org_plugins(bridge, &location.path).await?;
             },
         }
     }

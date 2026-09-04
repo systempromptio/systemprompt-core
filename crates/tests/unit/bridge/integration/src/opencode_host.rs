@@ -183,18 +183,45 @@ fn a_jsonc_only_managed_dir_is_reported_as_the_source_but_never_read() {
     );
 }
 
-#[test]
-fn a_user_scope_provider_block_is_not_governance() {
-    let snapshot = sandbox(None, |root| {
+fn probe_with_user_scope_block() -> ProfileState {
+    sandbox(None, |root| {
         let user = root.join("config").join("opencode");
         std::fs::create_dir_all(&user).expect("user dir");
         std::fs::write(user.join("opencode.json"), COMPLETE).expect("seed user config");
         OPENCODE_HOST.probe(&probe_env())
-    });
+    })
+    .profile_state
+}
+
+// Why: where a managed tier exists there is no reason for the bridge to write
+// user scope, so a `provider.systemprompt` block there was put by a user or a
+// project. Trusting it would let a hand-edited file answer "governed" for a
+// host the managed tier never reached.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[test]
+fn a_user_scope_provider_block_is_not_governance() {
+    let state = probe_with_user_scope_block();
     assert!(
-        matches!(snapshot.profile_state, ProfileState::Absent),
-        "a provider block the user can edit must not read as installed: {:?}",
-        snapshot.profile_state
+        matches!(state, ProfileState::Absent),
+        "a provider block the user can edit must not read as installed: {state:?}"
+    );
+}
+
+// Why: Linux has no managed tier the bridge can always write, so `install`
+// falls back to the user config (`config::fallback_config_path`) and the probe
+// reads it last. That makes scope alone useless as a provenance signal here —
+// the block the bridge wrote and one a user wrote sit in the same file — so
+// the platform where the invariant above cannot hold is pinned explicitly
+// rather than left untested. Content is still checked: the companion
+// stale-port test covers a block that does not match the running proxy.
+#[cfg(target_os = "linux")]
+#[test]
+fn the_linux_user_scope_fallback_is_read_as_installed() {
+    let state = probe_with_user_scope_block();
+    assert!(
+        matches!(state, ProfileState::Installed),
+        "the Linux fallback tier is the bridge's own write and must not read as \
+         unconfigured: {state:?}"
     );
 }
 
@@ -256,6 +283,7 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
                 models: vec!["claude-sonnet-5".to_owned(), "gpt-4.1".to_owned()],
                 organization_uuid: None,
                 headers,
+                mcp_servers: Vec::new(),
             })
             .expect("profile generated")
     });

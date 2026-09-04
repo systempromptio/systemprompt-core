@@ -10,6 +10,7 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
 pub const LOOPBACK_PORT: u16 = 8767;
+pub const LOOPBACK_PORTS: [u16; 4] = [LOOPBACK_PORT, 8768, 8769, 8770];
 pub const LOOPBACK_TIMEOUT_SECS: u64 = 300;
 
 const SUCCESS_HTML: &str = include_str!("success.html");
@@ -25,6 +26,11 @@ pub enum LoopbackError {
         #[source]
         source: std::io::Error,
     },
+    #[error(
+        "every loopback callback port is already in use ({ports}); another application is \
+         holding them — close it and sign in again"
+    )]
+    PortsExhausted { ports: String },
     #[error("timed out after {0}s waiting for browser callback")]
     Timeout(u64),
     #[error("unexpected method {0}")]
@@ -50,7 +56,28 @@ pub struct LoopbackServer {
 
 impl LoopbackServer {
     pub async fn bind() -> Result<Self> {
-        Self::bind_on(LOOPBACK_PORT).await
+        Self::bind_first_available(&LOOPBACK_PORTS).await
+    }
+
+    pub async fn bind_first_available(ports: &[u16]) -> Result<Self> {
+        for &port in ports {
+            match Self::bind_on(port).await {
+                // Why: only a port already taken is worth stepping over. Any
+                // other bind failure is a real fault and stepping past it
+                // would report the last port's error for a problem the first
+                // one already had.
+                Err(LoopbackError::Bind { source, .. })
+                    if source.kind() == std::io::ErrorKind::AddrInUse => {},
+                other => return other,
+            }
+        }
+        Err(LoopbackError::PortsExhausted {
+            ports: ports
+                .iter()
+                .map(u16::to_string)
+                .collect::<Vec<_>>()
+                .join(", "),
+        })
     }
 
     pub async fn bind_on(port: u16) -> Result<Self> {

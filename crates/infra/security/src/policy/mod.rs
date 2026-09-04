@@ -44,7 +44,7 @@ pub use audit::{
     DecisionAudit, PrincipalSnapshot, record_decision,
 };
 pub use builtin::ApprovalSettings;
-pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
+pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
 pub use engine::{Evaluation, GovernanceEngine};
 pub use governed::{
     GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,

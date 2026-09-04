@@ -36,6 +36,21 @@ async fn deliver_callback(port: u16, query: &str) -> String {
     body
 }
 
+// Why: asserting a candidate port is simply free makes the test depend on
+// whatever else is running on the machine — Docker Desktop takes 8767 and the
+// assertion fails for a reason that has nothing to do with the provider. What
+// matters is that the provider adds no listener of its own, so compare the
+// occupied set before and after instead of demanding an empty one.
+async fn occupied_candidates() -> Vec<u16> {
+    let mut occupied = Vec::new();
+    for port in systemprompt_bridge::auth::loopback::LOOPBACK_PORTS {
+        if TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+            occupied.push(port);
+        }
+    }
+    occupied
+}
+
 fn session_config(gateway: &str) -> Config {
     let toml = format!("gateway_url = \"{gateway}\"\n\n[session]\nenabled = true\n");
     toml::from_str(&toml).expect("config parses")
@@ -102,7 +117,7 @@ async fn a_provider_without_a_session_section_is_not_configured() {
 // bind the loopback port.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_configured_provider_never_opens_a_browser_and_reports_sign_in_required() {
-    let port = systemprompt_bridge::auth::loopback::LOOPBACK_PORT;
+    let before = occupied_candidates().await;
     let provider = SessionProvider::new(&session_config("http://gw.invalid:7000"));
     let err = tokio::time::timeout(
         Duration::from_secs(2),
@@ -123,8 +138,9 @@ async fn a_configured_provider_never_opens_a_browser_and_reports_sign_in_require
         },
         AuthError::NotConfigured => panic!("the provider was configured"),
     }
-    assert!(
-        TcpStream::connect(("127.0.0.1", port)).await.is_err(),
-        "no loopback callback server was started"
+    assert_eq!(
+        occupied_candidates().await,
+        before,
+        "no loopback callback server was started on any candidate port"
     );
 }

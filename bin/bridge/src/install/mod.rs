@@ -14,22 +14,21 @@ pub mod elevation_script;
 mod error;
 pub(crate) mod managed_file;
 pub mod managed_mcp;
-pub(crate) mod mdm;
+pub mod mdm;
 pub mod reg_values;
 mod schedule_apply;
 mod schedule_emit;
 mod summary;
-#[cfg(target_os = "macos")]
+// Why: plist rendering moved into the platform-neutral policy module so it can
+// be tested from any host, so its XML escaping must build everywhere too.
 pub(crate) mod xml;
 
 pub use apply::install;
 pub use builders::{InstallOptionsBuilder, UninstallSummaryBuilder};
 pub use error::InstallError;
-#[cfg(target_os = "windows")]
-pub use mdm::windows_policy_values;
 pub use mdm::{
     LEGACY_PUBKEY_KEY, MdmError, MdmPayloadInputs, bridge_policy_values,
-    cowork_egress_allowed_hosts, default_inference_models, inference_policy_values, is_uuid_like,
+    cowork_egress_allowed_hosts, default_inference_models, is_uuid_like,
     parse_egress_allowed_hosts, snippet as mdm_snippet,
 };
 pub use schedule_apply::{

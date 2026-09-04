@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.46.0] - 2026-09-04
+
+### Added
+
+- Governance policies take a `mode: enforce | warn`, with a top-level `governance.mode` supplying the default for every policy that does not name its own. An unrecognised value is a parse error rather than a silent fallback, because reading it either way changes what is enforced without saying so.
+- `Decision::Warn` carries the same `DenyReason` the enforcing form would have, so a warn row and a deny row are directly comparable. `Decision::permits` is the predicate every enforcement point should use; matching on `Allow` alone turns warn mode back into enforcement silently. `DecisionTag::Warn` and a migration extending the `governance_decisions` CHECK constraint go with it.
+- A policy in warn mode records a `ChainEntryResult::Warn` and does not halt the chain, so the audit row carries every finding on the call rather than only the first.
+- `list_governance_warnings` and `list_trace_ids_with_decision` read the warn-mode rollup back for `infra logs governance report` and `trace list --decision`.
+
+### Fixed
+
+- The high-entropy secret backstop no longer reports filesystem paths as credentials. `/` is a token character rather than a delimiter, so an absolute path was scored as one token; a macOS `$TMPDIR` (`/var/folders/<12>/<30>/T/`) then satisfied every check, its random segment supplying the entropy and its `/T/` segment the uppercase the shape test requires. The measured ratio falls either side of the 0.80 threshold depending on the machine's random segment, so identical code denied one Mac and not another. Path-shaped tokens are exempt now, scored per `/`-separated segment so key material inside a path is still reported, and a token carrying `+` or `=` stays in scope because those are base64's own characters.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

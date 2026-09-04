@@ -49,6 +49,8 @@ mod policy_prompt_governance;
 #[cfg(test)]
 mod policy_types;
 #[cfg(test)]
+mod policy_warn_mode;
+#[cfg(test)]
 mod rs256_cutover;
 #[cfg(test)]
 mod services;

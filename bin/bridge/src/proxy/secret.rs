@@ -122,7 +122,9 @@ pub fn reapply_hint() -> String {
     let bin = crate::brand::brand().binary_name;
     format!(
         "re-apply the host profile from the bridge (Re-apply in the app, or `{bin} install \
-         --apply`), then restart the client"
+         --apply`), then restart the client. A client that was never enrolled has no profile \
+         to re-apply — enrol it with `{bin} install --host <id>` (for example `--host \
+         opencode`), then restart the client"
     )
 }
 

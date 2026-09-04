@@ -223,6 +223,43 @@ fn shas_uuids_and_identifiers_do_not_trip_the_entropy_detector() {
     }
 }
 
+// Why: `/` is a token character, so an absolute path is scored whole. A macOS
+// `$TMPDIR` carries a 30-char random segment and the uppercase `/T/` the
+// detector demands, and Claude Code puts those paths in its system prompt —
+// which denied every request from affected Macs on 2026-09-03. The first
+// fixture is the measured 0.8142 shape that actually blocked; the second is
+// the 0.7646 shape that passed only by luck of its random segment.
+#[test]
+fn macos_temp_paths_do_not_trip_the_entropy_detector() {
+    for text in [
+        "/var/folders/zz/8k2m4x1s7dq9_p0lrb3nvxrm0000gn/T/",
+        "/var/folders/_n/grm3gff51ngcg3n71m8k0ms40000gn/T",
+        "cwd is /private/var/folders/zz/8k2m4x1s7dq9_p0lrb3nvxrm0000gn/T/claude-shell",
+        "/Users/victorperis/Library/Application/T1/aB3kZ9qX2mW7pL4nR8vY",
+    ] {
+        assert!(
+            scan_str_for_secret(text).is_none(),
+            "false positive on: {text}"
+        );
+    }
+}
+
+// Why: exonerating a path wholesale would let key material hide in one of its
+// segments, so the path check clears a token only when no single segment is
+// itself credential-shaped. These must still be reported.
+#[test]
+fn secrets_embedded_in_path_shaped_tokens_are_still_reported() {
+    for text in [
+        "/var/folders/zz/T/wY3kQ9mZ2xV8pL5nR7tJ4bF6cH0dG1sA8eU3iO9yK2w",
+        "/tmp/AKIAIOSFODNN7EXAMPLE/wJalrXUtnFEMI0K7MDENGbPxRfiCYEXAMPLEKEY",
+    ] {
+        assert!(
+            scan_str_for_secret(text).is_some(),
+            "missed a secret in: {text}"
+        );
+    }
+}
+
 // Why: SRI integrity hashes are public metadata that ride along in page
 // markup and tool content; each is dense base64 behind an `algo-` prefix and
 // used to deny every request whose forwarded surface carried one.

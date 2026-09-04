@@ -49,6 +49,12 @@ pub struct BridgeContext {
     // reporting calls inside `sync::apply` need no new parameters and cost
     // nothing when nobody is watching.
     pub sync_progress: crate::progress::SyncProgressSink,
+    // Why: a trust-on-first-use pubkey that could not be written to the config
+    // leaves the process trusting a key nothing will remember, so the next sync
+    // re-trusts whatever the gateway serves. There is no on-disk trace to read
+    // back -- the failure *is* that nothing was written -- so validate learns it
+    // from here.
+    pub unpersisted_tofu_pubkey: AtomicBool,
     // Why: one administrator prompt per process — a declined prompt must not
     // re-fire from the GUI auto-sync, tray retries, or a `sync --watch` loop.
     pub elevation_attempted: AtomicBool,
@@ -95,6 +101,7 @@ impl BridgeContext {
             schedule: ScheduleStatusCache::default(),
             start_menu: Arc::new(StartMenuCache::default()),
             sync_progress: crate::progress::SyncProgressSink::default(),
+            unpersisted_tofu_pubkey: AtomicBool::new(false),
             elevation_attempted: AtomicBool::new(false),
         }))
     }

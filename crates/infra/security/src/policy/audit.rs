@@ -26,6 +26,10 @@ use crate::authz::{GovernanceDecisionRecord, insert_governance_decision};
 pub enum ChainEntryResult {
     Pass,
     Fail,
+    // Why: the policy found what it would normally refuse but runs in
+    // `mode: warn`, so the chain continued. Kept distinct from `Fail` so a
+    // warn-mode installation cannot be misread as an enforcing one.
+    Warn,
     Disabled,
     Skip,
     Hold,
@@ -157,6 +161,17 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
                 .find(|e| e.result == ChainEntryResult::Fail)
                 .map_or_else(|| "unknown".to_owned(), |e| e.policy_id.as_str().to_owned());
             (DecisionTag::Deny, reason.to_string(), policy_str)
+        },
+        // Why: the `policy` column names the first policy that warned, not
+        // `default_allow`. A warn row whose policy read `default_allow` would
+        // be useless to the report the mode exists to feed.
+        Decision::Warn { reason } => {
+            let policy_str = audit
+                .chain
+                .iter()
+                .find(|e| e.result == ChainEntryResult::Warn)
+                .map_or_else(|| "unknown".to_owned(), |e| e.policy_id.as_str().to_owned());
+            (DecisionTag::Warn, reason.to_string(), policy_str)
         },
         Decision::Pending { reason } => {
             let policy_str = audit

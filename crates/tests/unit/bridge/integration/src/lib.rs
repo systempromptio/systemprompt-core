@@ -11,6 +11,8 @@ mod cowork_artifacts;
 #[cfg(test)]
 mod doctor_hook_token;
 #[cfg(test)]
+mod enrol_selection;
+#[cfg(test)]
 mod gateway_hook_token;
 #[cfg(test)]
 mod hermes_host;
@@ -27,6 +29,8 @@ mod host_app_contract;
 mod keystore_linux;
 #[cfg(test)]
 mod managed_skills;
+#[cfg(test)]
+mod opencode_fallback;
 #[cfg(test)]
 mod opencode_host;
 #[cfg(test)]

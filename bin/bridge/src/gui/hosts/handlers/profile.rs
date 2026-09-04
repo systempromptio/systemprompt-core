@@ -88,6 +88,22 @@ fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
     }
 }
 
+// Why: the Windows UAC notice had no macOS counterpart, so the one platform
+// whose install cannot complete on its own was the one that said nothing. The
+// profile is only queued in System Settings, which stays backgrounded, and the
+// probe that follows reports it absent until the user approves it by hand.
+fn manual_approval_notice(host: &dyn crate::integration::HostApp) -> Option<String> {
+    (cfg!(target_os = "macos") && host.config_format() == crate::integration::ConfigFormat::Plist)
+        .then(|| {
+            format!(
+                "macOS holds the profile until you approve it: open System Settings › General › \
+             Device Management, select the {} profile and click Install. Until then this host \
+             correctly reports no profile.",
+                host.display_name()
+            )
+        })
+}
+
 pub(crate) fn on_profile_install_requested(
     app: &GuiApp,
     host_id: &HostId,
@@ -109,6 +125,9 @@ pub(crate) fn on_profile_install_requested(
              policy (HKLM\\SOFTWARE\\Policies\\Claude). A Windows UAC prompt will appear — \
              approve it to continue."
         ));
+    }
+    if let Some(notice) = manual_approval_notice(host) {
+        app.append_log(format!("[{host_id}] {notice}"));
     }
     let host_id_owned = host_id.clone();
     let path_clone = path.clone();

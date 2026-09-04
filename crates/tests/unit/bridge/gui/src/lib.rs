@@ -7,6 +7,8 @@
 #[cfg(test)]
 mod assets;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
+mod cancel_scopes;
+#[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod host_model_view;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod ipc;

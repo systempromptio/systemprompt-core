@@ -1,7 +1,7 @@
 use std::fs;
 
 use serde_json::{Value, json};
-use systemprompt_bridge::install::managed_mcp::stripped_settings;
+use systemprompt_bridge::claude_policy::stripped_settings;
 
 fn strip(existing: Option<&Value>) -> Option<Value> {
     let dir = tempfile::tempdir().expect("tempdir");

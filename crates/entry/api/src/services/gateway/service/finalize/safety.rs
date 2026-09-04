@@ -5,7 +5,25 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_ai::repository::AiSafetyFindingRepository;
-use systemprompt_ai::{Finding, InsertSafetyFinding, SafetyConfig, SafetyHistoryMode};
+use systemprompt_ai::{
+    Finding, InsertSafetyFinding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyConfig,
+    SafetyHistoryMode,
+};
+
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported by the feature-gated `test_api` module"
+    )
+)]
+pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
+    match phase {
+        PHASE_REQUEST => true,
+        PHASE_REQUEST_HISTORY => history == SafetyHistoryMode::Block,
+        _ => false,
+    }
+}
 use systemprompt_identifiers::AiRequestId;
 
 use super::super::super::protocol::canonical::CanonicalRequest;
@@ -33,9 +51,24 @@ pub(in crate::services::gateway) async fn run_request_safety_scan(
     }
     dedupe_findings(&mut findings);
     if !findings.is_empty() {
-        persist_findings(safety_repo, ai_request_id, &findings).await;
+        persist_findings(safety_repo, ai_request_id, &findings, &|f: &Finding| {
+            request_finding_blocks(f, safety)
+        })
+        .await;
     }
     findings
+}
+
+// Why: one predicate decides both the `blocked` column and the refusal itself,
+// so the report can never disagree with what the gateway actually did. It is
+// false throughout under `safety.mode: warn`.
+pub(in crate::services::gateway) fn request_finding_blocks(
+    finding: &Finding,
+    safety: &SafetyConfig,
+) -> bool {
+    !safety.mode.is_warn()
+        && safety.block_categories.contains(&finding.category)
+        && blocks_at_phase(finding.phase, safety.history)
 }
 
 #[cfg_attr(
@@ -67,7 +100,10 @@ pub(in crate::services::gateway) async fn run_response_safety_scan(
     }
     dedupe_findings(&mut findings);
     if !findings.is_empty() {
-        persist_findings(safety_repo, ai_request_id, &findings).await;
+        persist_findings(safety_repo, ai_request_id, &findings, &|f: &Finding| {
+            !safety.mode.is_warn() && safety.block_response_categories.contains(&f.category)
+        })
+        .await;
     }
     findings
 }
@@ -76,6 +112,10 @@ async fn persist_findings(
     repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     findings: &[Finding],
+    // Why: `Sync`, not just `Fn`. The persisted findings are handed to
+    // `tokio::spawn` on the buffered path, and `&dyn Fn` is only `Send` when
+    // the closure behind it is `Sync`.
+    blocks: &(dyn Fn(&Finding) -> bool + Sync),
 ) {
     for f in findings {
         let params = InsertSafetyFinding {
@@ -85,6 +125,7 @@ async fn persist_findings(
             category: &f.category,
             scanner: f.scanner,
             excerpt: f.excerpt.as_deref(),
+            blocked: blocks(f),
         };
         if let Err(e) = repo.insert(params).await {
             tracing::warn!(error = %e, "safety finding insert failed");

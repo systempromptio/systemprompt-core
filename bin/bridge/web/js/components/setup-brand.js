@@ -28,30 +28,30 @@ export function renderSetupBrand(component) {
     </aside>`;
 }
 
-// The eyebrow version is the brand's own (a white-label pins its own 0.1.x),
+// The displayed version is the brand's own (a white-label pins its own line),
 // which says nothing about the code underneath. A screenshot has to identify
-// the build, so the core version and commit ride alongside it.
+// the build, so the bridge library version and commit ride alongside it. This
+// is the bridge's own crate version -- the bridge links no core crate, so no
+// core version exists here to report.
 function buildSuffix(component) {
-  const core = component.dataset.coreVersion || "";
-  return core ? ` · core ${core}` : "";
+  const ver = component.dataset.bridgeVersion || "";
+  return ver ? ` · bridge ${ver}` : "";
 }
 
 function buildTitle(component) {
-  const core = component.dataset.coreVersion || "";
+  const ver = component.dataset.bridgeVersion || "";
   const sha = component.dataset.gitSha || "";
-  return [core && `core ${core}`, sha && `build ${sha}`].filter(Boolean).join(" · ");
+  return [ver && `bridge ${ver}`, sha && `build ${sha}`].filter(Boolean).join(" · ");
 }
 
 function renderSetupBrandFoot(component) {
   const version = component.dataset.version || "";
-  const platform = component.dataset.platform || "linux";
-  const platformDisplay = component.dataset.platformDisplay || "";
   const snap = component.snapshot || {};
   const appName = appNameOf(component);
   // Docs base + contact come from the Brand (via the snapshot) so a white-label
   // footer links to its own docs/licensing, not systemprompt's.
-  const docsBase = snap.docs_url || "https://systemprompt.io/docs/bridge";
-  const docsHref = escapeHtml(`${docsBase}/${platform}`);
+  const docsBase = snap.docs_url || "https://systemprompt.io/documentation";
+  const docsHref = escapeHtml(docsBase);
   const email = escapeHtml(snap.contact_email || "ed@systemprompt.io");
   const subject = escapeHtml(encodeURIComponent(`${appName} licensing`));
   return `
@@ -64,7 +64,7 @@ function renderSetupBrandFoot(component) {
         <span class="sp-setup__version" title="${escapeHtml(buildTitle(component))}">${escapeHtml(appName)} v${escapeHtml(version)}${escapeHtml(buildSuffix(component))}</span>
         <span class="sp-setup__meta-sep">·</span>
         <a class="sp-setup__docs" href="${docsHref}" target="_blank" rel="noopener noreferrer">
-          Documentation for ${escapeHtml(platformDisplay)} →
+          Documentation →
         </a>
         <span class="sp-setup__meta-sep">·</span>
         <span>Licensing — <a href="mailto:${email}?subject=${subject}">${email}</a></span>

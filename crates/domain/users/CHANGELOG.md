@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.46.0] - 2026-09-04
+
+### Added
+
+- `bulk_update_status` and `bulk_delete` apply one statement over `ANY($2)` for an id set, instead of one round trip per row. `bulk_delete` is a soft delete — it sets `UserStatus::Deleted` and leaves the account resolvable for audit.
+
+### Fixed
+
+- Anonymous visitors are out of the default user listings. `create_anonymous` stores every visitor as an ordinary `users` row, so `list`, `list_all`, `search` and `count` were presenting traffic as people — a page of 50 spent its budget on visitors before it reached an account. The exclusion is the default and the opt-in is explicit (`list_including_anonymous` and siblings, surfaced as `--include-anonymous`); `--role anonymous` is unaffected, since it routes through `find_by_role`.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

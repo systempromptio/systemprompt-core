@@ -111,12 +111,8 @@ pub(super) fn enforce_managed_policy(
     inputs: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, MdmError> {
     ensure_workspace_dir();
-    let org_uuid = crate::config::load().deployment_organization_uuid;
     let pubkey = crate::config::pinned_pubkey();
-    let mut values = super::windows_policy_values(org_uuid.as_deref(), inputs.egress_allowed_hosts);
-    values.extend(super::inference::inference_values(inputs)?);
-    let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
-    values.push(("managedMcpServers", "REG_SZ", mcp));
+    let values = policy_values(inputs, &inputs.loopback.origin())?;
     let bridge = super::bridge_policy_values(pubkey.as_ref().map(crate::ids::PinnedPubKey::as_str));
     let plan = windows_policy::WritePlan::new(&values, &bridge);
     if !plan.drifted() {
@@ -178,6 +174,41 @@ pub(super) fn remove_policy() -> Result<bool, MdmError> {
     Ok(hkcu || hklm)
 }
 
+// Why: `apply` and `enforce_managed_policy` both write the whole policy, and
+// assembling it twice is how the two drifted apart before. Both take it from
+// here, and `policy::claude_desktop_policy` is the only place the key set is
+// decided for either platform.
+fn policy_values(
+    inputs: &super::MdmPayloadInputs<'_>,
+    base_url: &str,
+) -> Result<Vec<(&'static str, &'static str, String)>, MdmError> {
+    let secret = inputs.loopback.secret().map_err(|e| {
+        MdmError::Windows(format!(
+            "loopback secret unavailable ({e}); the gateway policy block was not written. Start \
+             the Bridge proxy, then sync again."
+        ))
+    })?;
+    let servers = super::policy::mcp_entries(inputs.loopback, inputs.registry).map_err(|e| {
+        MdmError::Windows(format!("the MCP connector list could not be built: {e}"))
+    })?;
+    let existing_models = crate::config::store::managed_policy_store()
+        .read_managed_policy("inferenceModels")
+        .ok()
+        .flatten();
+    let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
+        base_url,
+        api_key: secret.as_str(),
+        models: existing_models,
+        headers: &std::collections::BTreeMap::new(),
+        egress_allowed_hosts: inputs.egress_allowed_hosts,
+        org_uuid: crate::config::load()
+            .deployment_organization_uuid
+            .as_deref(),
+        mcp_servers: &servers,
+    });
+    Ok(super::policy::reg_values(&policy))
+}
+
 pub(super) fn apply(
     inputs: &super::MdmPayloadInputs<'_>,
     gateway: &str,
@@ -185,11 +216,7 @@ pub(super) fn apply(
 ) -> Result<Vec<String>, MdmError> {
     let elevated = crate::winproc::is_elevated();
     let key = crate::cowork_compat::HKLM_POLICY_KEY;
-    let org_uuid = crate::config::load().deployment_organization_uuid;
-    let mut values = super::windows_policy_values(org_uuid.as_deref(), inputs.egress_allowed_hosts);
-    values.extend(super::inference::inference_values(inputs)?);
-    let mcp = super::managed_mcp_servers_json(inputs).unwrap_or_else(|| "[]".to_owned());
-    values.push(("managedMcpServers", "REG_SZ", mcp));
+    let values = policy_values(inputs, gateway)?;
     let bridge = super::bridge_policy_values(pubkey);
     let plan = windows_policy::WritePlan::new(&values, &bridge);
     let mut summary = Vec::with_capacity(values.len() + bridge.len() + 4);

@@ -27,7 +27,9 @@ pub use ai_quota_buckets::{
 };
 pub use ai_request_payloads::{AiRequestPayload, AiRequestPayloadRepository, UpsertPayloadParams};
 pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
-pub use ai_safety_findings::{AiSafetyFindingRepository, InsertSafetyFinding};
+pub use ai_safety_findings::{
+    AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,
+};
 pub use thought_signatures::AiThoughtSignatureRepository;
 
 #[derive(Debug, Clone)]

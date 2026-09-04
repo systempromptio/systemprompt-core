@@ -23,11 +23,12 @@ fn with_codex_home<R>(body: impl FnOnce(&Path) -> R) -> R {
 
 fn codex_inputs() -> ProfileGenInputs {
     ProfileGenInputs {
-        gateway_base_url: "https://gateway.systemprompt.io".to_string(),
+        gateway_base_url: "https://gateway.example.com".to_string(),
         api_key: "sp-test-key".to_string(),
         models: vec!["claude-opus-4-7".to_string()],
         organization_uuid: Some("org-abc".to_string()),
         headers: Default::default(),
+        mcp_servers: Vec::new(),
     }
 }
 
@@ -47,7 +48,7 @@ fn generated_managed_toml_contains_required_keys() {
         };
 
         assert!(toml_text.contains("model_provider = \"systemprompt\""));
-        assert!(toml_text.contains("base_url = \"https://gateway.systemprompt.io/v1\""));
+        assert!(toml_text.contains("base_url = \"https://gateway.example.com/v1\""));
         assert!(toml_text.contains("wire_api = \"responses\""));
         assert!(toml_text.contains("[model_providers.systemprompt.auth]"));
         assert!(toml_text.contains("credential-helper"));
@@ -96,7 +97,7 @@ fn install_merges_into_codex_system_config() {
             "missing model_provider in: {written}"
         );
         assert!(
-            written.contains("base_url = \"https://gateway.systemprompt.io/v1\""),
+            written.contains("base_url = \"https://gateway.example.com/v1\""),
             "missing base_url in: {written}"
         );
     });
@@ -174,7 +175,7 @@ fn install_overwrites_stale_systemprompt_provider_entry() {
             "stale base_url survived: {written}"
         );
         assert!(
-            written.contains("base_url = \"https://gateway.systemprompt.io/v1\""),
+            written.contains("base_url = \"https://gateway.example.com/v1\""),
             "fresh base_url missing: {written}"
         );
         assert!(

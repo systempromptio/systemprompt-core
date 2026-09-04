@@ -180,7 +180,7 @@ impl ParentChainIndex {
         let mut first_deny = None;
         for chain in self.chains_for(kind, id) {
             let decision = resolve_with(&chain);
-            if matches!(decision, Decision::Allow { .. }) {
+            if decision.permits() {
                 return decision;
             }
             first_deny.get_or_insert(decision);

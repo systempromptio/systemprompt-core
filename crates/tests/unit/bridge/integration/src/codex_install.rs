@@ -40,6 +40,7 @@ fn inputs() -> ProfileGenInputs {
         models: vec!["gpt-5".to_owned()],
         organization_uuid: Some("org-1234".to_owned()),
         headers,
+        mcp_servers: Vec::new(),
     }
 }
 

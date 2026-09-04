@@ -5,6 +5,22 @@
 //! content as a preformatted block, since its payload is meant to be copied
 //! verbatim rather than read as prose.
 //!
+//! # Blank lines and the markdown subset
+//!
+//! Prose was once rendered a line at a time, with a blank line becoming
+//! `<p>&nbsp;</p>` — a full-height empty paragraph — while `.text-content` also
+//! carried `white-space: pre-wrap`, so the newline between the tags rendered
+//! again. One blank line in the source cost roughly two on screen, which is
+//! what made a one-sentence tool result occupy a screenful. Blank lines are now
+//! dropped and the separation comes from `p + p { margin-top }`, which is one
+//! gap however many blank lines were typed.
+//!
+//! `format_prose` also renders three markdown constructs — `**bold**`,
+//! `` `code` `` and `- ` bullets. Tools emit these constantly, and rendering
+//! the markers literally is what put `- **[23] Follow up**` in front of a
+//! reader. The subset stops there deliberately: anything richer is a markdown
+//! renderer's job, not a plain-text artifact's.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -185,11 +201,67 @@ fn string_field(data: &serde_json::Value, field: &str) -> Option<String> {
 }
 
 fn format_prose(text: &str) -> String {
-    html_escape(text)
-        .lines()
-        .map(|line| format!("<p>{}</p>", if line.is_empty() { "&nbsp;" } else { line }))
-        .collect::<Vec<_>>()
-        .join("\n")
+    let escaped = html_escape(text);
+    let mut out = String::with_capacity(escaped.len());
+    let mut list_open = false;
+
+    for line in escaped.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if let Some(item) = bullet_body(trimmed) {
+            if !list_open {
+                out.push_str(r#"<ul class="text-list">"#);
+                list_open = true;
+            }
+            out.push_str(&format!("<li>{}</li>", format_inline(item)));
+        } else {
+            if list_open {
+                out.push_str("</ul>");
+                list_open = false;
+            }
+            out.push_str(&format!("<p>{}</p>", format_inline(trimmed)));
+        }
+    }
+
+    if list_open {
+        out.push_str("</ul>");
+    }
+
+    out
+}
+
+// Why: a `*` bullet needs the trailing space, which is what keeps `**bold**` at
+// the start of a line from being mistaken for one.
+fn bullet_body(line: &str) -> Option<&str> {
+    line.strip_prefix("- ").or_else(|| line.strip_prefix("* "))
+}
+
+fn format_inline(text: &str) -> String {
+    let bolded = wrap_delimited(text, "**", "strong");
+    wrap_delimited(&bolded, "`", "code")
+}
+
+// Why: this operates on already-escaped text, so it can only introduce the tag
+// it is asked for. An odd number of delimiters means the author wrote a literal
+// marker rather than a pair, and the text is returned untouched.
+fn wrap_delimited(text: &str, delimiter: &str, tag: &str) -> String {
+    let parts: Vec<&str> = text.split(delimiter).collect();
+    if parts.len() < 3 || parts.len().is_multiple_of(2) {
+        return text.to_owned();
+    }
+
+    let mut out = String::with_capacity(text.len());
+    for (index, part) in parts.iter().enumerate() {
+        if index % 2 == 0 {
+            out.push_str(part);
+        } else {
+            out.push_str(&format!("<{tag}>{part}</{tag}>"));
+        }
+    }
+    out
 }
 
 const fn text_styles() -> &'static str {

@@ -1,8 +1,16 @@
 //! `OpenCode` configuration probing over the managed tier.
 //!
-//! Only the managed sources count: a `provider.systemprompt` block in a user
-//! or project file is not governance, and reporting it as installed would hide
-//! that the managed tier is missing.
+//! The managed sources are read first: a `provider.systemprompt` block a user
+//! or project put there is not governance, and reporting it as installed would
+//! hide that the managed tier is missing.
+//!
+//! The one exception is the bridge's own Linux fallback tier. Where `/etc` is
+//! not writable and there is no elevation to offer, `install` writes the
+//! provider block to the user config instead (see
+//! `config::fallback_config_path`), and a probe that ignored it would report a
+//! host as unconfigured while it is in fact working — sending the operator
+//! back to a re-apply that changes nothing. So it is read last, only when no
+//! managed source answered, and only on the platforms that fallback exists on.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -65,6 +73,13 @@ pub(super) fn read_config() -> DomainRead {
             source_path: Some(jsonc.display().to_string()),
             keys: BTreeMap::new(),
         };
+    }
+    if let Some(fallback) = config::fallback_config_path()
+        && fallback.exists()
+        && let Ok(text) = std::fs::read_to_string(&fallback)
+        && let Some(read) = parse_into_keys(&text, &fallback.display().to_string())
+    {
+        return read;
     }
     DomainRead::default()
 }

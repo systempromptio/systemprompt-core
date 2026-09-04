@@ -6,6 +6,11 @@ CREATE TABLE IF NOT EXISTS ai_safety_findings (
     category VARCHAR(64) NOT NULL,
     scanner VARCHAR(64) NOT NULL,
     excerpt TEXT,
+    -- Whether this finding actually refused the call. Under `safety.mode:
+    -- warn` a finding in a block category is recorded and the call proceeds,
+    -- so "matched a block category" and "blocked" stop being the same fact and
+    -- the report needs both.
+    blocked BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ai_request_id) REFERENCES ai_requests(id) ON DELETE CASCADE
 );
