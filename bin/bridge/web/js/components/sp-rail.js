@@ -1,7 +1,7 @@
 import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
-import { TAB_DEFS, TAB_GLYPHS, readInitialTab, persistTab, shortcut } from "/assets/js/utils/rail-tabs.js";
+import { TAB_DEFS, TAB_GLYPHS, readInitialTab, shortcut } from "/assets/js/utils/rail-tabs.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 import { handleRovingKey } from "/assets/js/utils/roving.js";
 
@@ -52,7 +52,6 @@ export class SpRail extends SpElement {
   activateTab(name, { moveFocus = false } = {}) {
     const changed = this.activeTab !== name;
     this.activeTab = name;
-    persistTab(name);
     if (changed || moveFocus) { this._focusPanel = moveFocus; }
   }
 

@@ -5,10 +5,11 @@ import { notifyErr } from "/assets/js/utils/notify.js";
 import { toneDot } from "/assets/js/utils/verdict.js";
 
 
-function docsUrl(platform) {
-  if (platform === "macos") { return "https://systemprompt.io/documentation/services/bridge-deployment-macos"; }
-  if (platform === "windows") { return "https://systemprompt.io/documentation/services/bridge-deployment-windows"; }
-  return "https://systemprompt.io/documentation/services/bridge-deployment";
+// Why: there are no per-platform bridge pages published -- every
+// `/documentation/services/bridge-deployment*` variant 404s -- so the link goes
+// to the brand's documentation root, which a white-label overrides.
+function docsUrl(snap) {
+  return snap.docs_url || "https://systemprompt.io/documentation";
 }
 
 function isMissing(v) {
@@ -40,7 +41,6 @@ export class SpFooter extends SpElement {
   render() {
     const snap = this.snapshot || {};
     const platformDisplay = this.dataset.platformDisplay || "";
-    const platform = this.dataset.platform || "linux";
     const version = this.dataset.version || "";
     const gitSha = this.dataset.gitSha || "";
     const buildDate = this.dataset.buildDate || "";
@@ -59,7 +59,7 @@ export class SpFooter extends SpElement {
           ? `<span class="sp-footer__version" title="Build ${escapeHtml(gitSha)} committed ${escapeHtml(buildDate)}">v${escapeHtml(version)} (${escapeHtml(gitSha)}, ${escapeHtml(buildDate)})</span>`
           : `<span class="sp-footer__version">v${escapeHtml(version)}</span>`}
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <a href="${escapeHtml(docsUrl(platform))}" data-href="${escapeHtml(docsUrl(platform))}" data-action="open-external" data-l10n-id="footer-docs">docs</a>
+        <a href="${escapeHtml(docsUrl(snap))}" data-href="${escapeHtml(docsUrl(snap))}" data-action="open-external" data-l10n-id="footer-docs">docs</a>
         <span class="sp-footer__sep" aria-hidden="true">·</span>
         <a href="https://systemprompt.io/documentation/licensing" data-href="https://systemprompt.io/documentation/licensing" data-action="open-external" data-l10n-id="footer-licensing">licensing</a>
       </div>

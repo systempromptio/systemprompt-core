@@ -147,7 +147,6 @@ under *Add agent* rather than listed with a status.
 | Variable | Purpose |
 |---|---|
 | `SP_BRIDGE_CONFIG` | Path to `systemprompt-bridge.toml` (default: `<config_dir>/systemprompt/systemprompt-bridge.toml`) |
-| `SP_BRIDGE_GATEWAY_URL` | Gateway base URL (default `https://gateway.systemprompt.io`) |
 | `SP_BRIDGE_PAT` | Inline PAT (overrides file-based `[pat]`) |
 | `SP_BRIDGE_POLICY_PUBKEY` | Pinned manifest signing pubkey (overrides operator value) |
 | `SP_BRIDGE_ORG_PLUGINS_SYSTEM` | Override the system-scope org-plugins root (nonstandard installs, hermetic tests) |
@@ -163,7 +162,7 @@ Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 060
 `systemprompt-bridge.toml` (location above, or `SP_BRIDGE_CONFIG`). Every key is optional.
 
 ```toml
-gateway_url = "https://gateway.systemprompt.io"
+gateway_url = "https://gateway.example.com"
 deployment_organization_uuid = "…"   # Cowork organization this deployment targets
 
 [pat]

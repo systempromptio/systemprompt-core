@@ -84,7 +84,7 @@ pub fn render_index_from(source: &str) -> String {
     let brand = crate::brand::brand();
     let html = source
         .replace("__VERSION__", brand.version)
-        .replace("__CORE_VERSION__", crate::brand::COMPAT_VERSION)
+        .replace("__BRIDGE_VERSION__", crate::brand::COMPAT_VERSION)
         .replace("__GIT_SHA__", git_sha_short())
         .replace("__BUILD_DATE__", BUILD_DATE)
         .replace("__ICON_SVG__", brand.assets.icon_svg)

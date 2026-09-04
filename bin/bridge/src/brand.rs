@@ -62,8 +62,8 @@ pub struct Brand {
     pub app_menu_name: &'static str,
     pub sign_in_label: &'static str,
     pub sign_in_hint: &'static str,
-    // Why: the setup footer appends the platform, so this is a base without a
-    // trailing slash -- `<docs_url>/<platform>`.
+    // Why: linked verbatim by the setup footer and the main footer -- no path
+    // is appended, so a brand must point this at a page that actually exists.
     pub docs_url: &'static str,
     pub contact_email: &'static str,
     // Why: the setup splash is a two-panel screen whose left column is the
@@ -113,7 +113,7 @@ impl Brand {
         app_menu_name: "systemprompt-bridge",
         sign_in_label: "Sign in to your gateway",
         sign_in_hint: "Opens your browser to sign in on the gateway; this device is linked automatically.",
-        docs_url: "https://systemprompt.io/docs/bridge",
+        docs_url: "https://systemprompt.io/documentation",
         contact_email: "ed@systemprompt.io",
         pitch_head: "Govern every coding agent.",
         pitch_body: "One gateway. Every agent. Every tool call audited.",

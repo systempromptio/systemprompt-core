@@ -4,7 +4,7 @@ use systemprompt_bridge::integration::host_app::ProfileGenInputs;
 
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
-        gateway_base_url: "https://gateway.systemprompt.io".to_string(),
+        gateway_base_url: "https://gateway.example.com".to_string(),
         api_key: "sp-secret-key".to_string(),
         models: vec!["claude-opus-4-7".to_string()],
         organization_uuid: Some("org-abc".to_string()),
@@ -32,7 +32,7 @@ fn profile_entries_carry_required_policy_keys() {
     assert_eq!(value_of(&owned, "inferenceGatewayAuthScheme"), "bearer");
     assert_eq!(
         value_of(&owned, "inferenceGatewayBaseUrl"),
-        "https://gateway.systemprompt.io"
+        "https://gateway.example.com"
     );
     assert_eq!(value_of(&owned, "inferenceGatewayApiKey"), "sp-secret-key");
     assert_eq!(value_of(&owned, "inferenceModels"), "[\"claude-opus-4-7\"]");
