@@ -71,6 +71,12 @@ impl UserService {
         self.repository.list(limit, offset).await
     }
 
+    pub async fn list_including_anonymous(&self, limit: i64, offset: i64) -> Result<Vec<User>> {
+        self.repository
+            .list_including_anonymous(limit, offset)
+            .await
+    }
+
     pub async fn list_all(&self) -> Result<Vec<User>> {
         self.repository.list_all().await
     }
@@ -79,8 +85,18 @@ impl UserService {
         self.repository.search(query, limit).await
     }
 
+    pub async fn search_including_anonymous(&self, query: &str, limit: i64) -> Result<Vec<User>> {
+        self.repository
+            .search_including_anonymous(query, limit)
+            .await
+    }
+
     pub async fn count(&self) -> Result<i64> {
         self.repository.count().await
+    }
+
+    pub async fn count_including_anonymous(&self) -> Result<i64> {
+        self.repository.count_including_anonymous().await
     }
 
     pub async fn is_temporary_anonymous(&self, id: &UserId) -> Result<bool> {

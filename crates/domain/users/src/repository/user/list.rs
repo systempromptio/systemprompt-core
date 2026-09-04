@@ -58,8 +58,24 @@ impl UserRepository {
     }
 
     pub async fn list(&self, limit: i64, offset: i64) -> Result<Vec<User>> {
+        self.list_filtered(limit, offset, false).await
+    }
+
+    pub async fn list_including_anonymous(&self, limit: i64, offset: i64) -> Result<Vec<User>> {
+        self.list_filtered(limit, offset, true).await
+    }
+
+    // Why: anonymous visitors are stored as ordinary user rows, so every listing
+    // has to opt out of them explicitly or it presents traffic as people.
+    async fn list_filtered(
+        &self,
+        limit: i64,
+        offset: i64,
+        include_anonymous: bool,
+    ) -> Result<Vec<User>> {
         let safe_limit = limit.min(MAX_PAGE_SIZE);
         let deleted_status = UserStatus::Deleted.as_str();
+        let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
             User,
             r#"
@@ -67,12 +83,15 @@ impl UserRepository {
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
             FROM users
             WHERE status != $1
+              AND ($4 OR NOT ($5 = ANY(roles)))
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
             "#,
             deleted_status,
             safe_limit,
-            offset
+            offset,
+            include_anonymous,
+            anonymous_role
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -82,6 +101,7 @@ impl UserRepository {
 
     pub async fn list_all(&self) -> Result<Vec<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
+        let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
             User,
             r#"
@@ -89,9 +109,11 @@ impl UserRepository {
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
             FROM users
             WHERE status != $1
+              AND NOT ($2 = ANY(roles))
             ORDER BY created_at DESC
             "#,
-            deleted_status
+            deleted_status,
+            anonymous_role
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -100,9 +122,23 @@ impl UserRepository {
     }
 
     pub async fn search(&self, query: &str, limit: i64) -> Result<Vec<User>> {
+        self.search_filtered(query, limit, false).await
+    }
+
+    pub async fn search_including_anonymous(&self, query: &str, limit: i64) -> Result<Vec<User>> {
+        self.search_filtered(query, limit, true).await
+    }
+
+    async fn search_filtered(
+        &self,
+        query: &str,
+        limit: i64,
+        include_anonymous: bool,
+    ) -> Result<Vec<User>> {
         let safe_limit = limit.min(MAX_PAGE_SIZE);
         let pattern = format!("%{query}%");
         let deleted_status = UserStatus::Deleted.as_str();
+        let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
             User,
             r#"
@@ -110,6 +146,7 @@ impl UserRepository {
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
             FROM users
             WHERE status != $1
+              AND ($4 OR NOT ($5 = ANY(roles)))
               AND (name ILIKE $2 OR email ILIKE $2 OR full_name ILIKE $2)
             ORDER BY
                 CASE WHEN name ILIKE $2 THEN 0 ELSE 1 END,
@@ -118,7 +155,9 @@ impl UserRepository {
             "#,
             deleted_status,
             pattern,
-            safe_limit
+            safe_limit,
+            include_anonymous,
+            anonymous_role
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -127,50 +166,28 @@ impl UserRepository {
     }
 
     pub async fn count(&self) -> Result<i64> {
+        self.count_filtered(false).await
+    }
+
+    pub async fn count_including_anonymous(&self) -> Result<i64> {
+        self.count_filtered(true).await
+    }
+
+    async fn count_filtered(&self, include_anonymous: bool) -> Result<i64> {
         let deleted_status = UserStatus::Deleted.as_str();
+        let anonymous_role = UserRole::Anonymous.as_str();
         let result = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) as "count!" FROM users WHERE status != $1"#,
-            deleted_status
+            r#"SELECT COUNT(*) as "count!" FROM users
+               WHERE status != $1
+                 AND ($2 OR NOT ($3 = ANY(roles)))"#,
+            deleted_status,
+            include_anonymous,
+            anonymous_role
         )
         .fetch_one(&*self.pool)
         .await?;
 
         Ok(result)
-    }
-
-    pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
-        let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
-        let result = sqlx::query!(
-            r#"
-            UPDATE users
-            SET status = $1, updated_at = NOW()
-            WHERE id = ANY($2)
-            "#,
-            new_status,
-            &ids[..]
-        )
-        .execute(&*self.write_pool)
-        .await?;
-
-        Ok(result.rows_affected())
-    }
-
-    pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
-        let deleted_status = UserStatus::Deleted.as_str();
-        let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
-        let result = sqlx::query!(
-            r#"
-            UPDATE users
-            SET status = $1, updated_at = NOW()
-            WHERE id = ANY($2)
-            "#,
-            deleted_status,
-            &ids[..]
-        )
-        .execute(&*self.write_pool)
-        .await?;
-
-        Ok(result.rows_affected())
     }
 
     pub async fn list_by_filter(

@@ -67,6 +67,11 @@ pub struct ListArgs {
 
     #[arg(long, value_enum)]
     pub status: Option<StatusFilter>,
+
+    // Why: anonymous visitors are user rows too, so a directory listing hides them
+    // by default; this brings them back for traffic triage.
+    #[arg(long)]
+    pub include_anonymous: bool,
 }
 
 pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -83,6 +88,10 @@ pub(super) async fn execute_with_pool(
     let users = if let Some(role_filter) = args.role {
         let role: UserRole = role_filter.into();
         user_service.find_by_role(role).await?
+    } else if args.include_anonymous {
+        user_service
+            .list_including_anonymous(args.limit, args.offset)
+            .await?
     } else {
         user_service.list(args.limit, args.offset).await?
     };

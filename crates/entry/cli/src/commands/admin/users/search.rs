@@ -20,6 +20,11 @@ pub struct SearchArgs {
 
     #[arg(long, default_value = "20")]
     pub limit: i64,
+
+    // Why: matches `admin users list` — anonymous visitors stay out of results
+    // unless asked for by name.
+    #[arg(long)]
+    pub include_anonymous: bool,
 }
 
 pub(super) async fn execute(args: SearchArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -33,7 +38,13 @@ pub(super) async fn execute_with_pool(
 ) -> Result<CommandOutput> {
     let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
 
-    let users = user_service.search(&args.query, args.limit).await?;
+    let users = if args.include_anonymous {
+        user_service
+            .search_including_anonymous(&args.query, args.limit)
+            .await?
+    } else {
+        user_service.search(&args.query, args.limit).await?
+    };
     let total = users.len() as i64;
 
     let output = UserListOutput {
