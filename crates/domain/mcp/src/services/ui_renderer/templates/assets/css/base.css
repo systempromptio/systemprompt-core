@@ -10,7 +10,7 @@ body {
     line-height: var(--mcpui-leading-normal);
     color: var(--mcpui-ink);
     background: var(--mcpui-bg);
-    padding: var(--mcpui-space-5);
+    padding: var(--mcpui-space-3);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
 }
@@ -19,7 +19,7 @@ body {
     max-width: 100%;
     display: flex;
     flex-direction: column;
-    gap: var(--mcpui-space-4);
+    gap: var(--mcpui-space-3);
 }
 
 .mcp-app-title {

@@ -1,5 +1,14 @@
+/* `white-space: pre-wrap` is deliberately absent: the prose variant arrives as
+ * <p> and <li> elements, and pre-wrap made the newlines *between* those tags
+ * render as blank lines on top of the elements' own spacing. The mono variant
+ * below re-declares it, because a copy-paste payload does need its literal
+ * whitespace.
+ *
+ * The cap is a fixed length rather than 60vh so an artifact's height stops
+ * depending on the reader's window — the same tool result was a different size
+ * on every screen, and on a tall one it took the whole chat column. */
 .text-content {
-    padding: var(--mcpui-space-4);
+    padding: var(--mcpui-space-3);
     border: 1px solid var(--mcpui-border);
     border-radius: var(--mcpui-radius-card);
     background: var(--mcpui-surface-sunken);
@@ -8,11 +17,38 @@
     font-family: var(--mcpui-font-body);
     font-size: var(--mcpui-text-md);
     line-height: var(--mcpui-leading-normal);
-    white-space: pre-wrap;
     word-break: break-word;
-    max-height: 60vh;
+    max-height: 24rem;
     overflow-y: auto;
     scrollbar-width: thin;
+}
+
+/* Bullets carry their own marker column, so the list sits flush with the
+ * surrounding paragraphs rather than indenting away from them. */
+.text-list {
+    padding-left: 1.1em;
+    list-style: disc;
+}
+
+.text-list li + li {
+    margin-top: 0.25em;
+}
+
+.text-content p + .text-list,
+.text-list + p {
+    margin-top: 0.5em;
+}
+
+.text-content strong {
+    font-weight: 600;
+}
+
+.text-content code {
+    padding: 0.1em 0.3em;
+    border-radius: var(--mcpui-radius-sm);
+    background: var(--mcpui-surface);
+    font-family: var(--mcpui-font-mono);
+    font-size: 0.9em;
 }
 
 /* The copy-paste variant is code by intent: monospace, and never re-wrapped by
@@ -22,6 +58,13 @@
     font-size: var(--mcpui-text-sm);
     white-space: pre;
     overflow-x: auto;
+}
+
+/* The mono variant wraps its payload in <pre>, which brings its own font and
+ * margins; the container already supplies both. */
+.text-content-mono pre {
+    margin: 0;
+    font: inherit;
 }
 
 .text-content p + p {
@@ -37,7 +80,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--mcpui-space-2);
-    padding: var(--mcpui-space-2) var(--mcpui-space-4);
+    padding: var(--mcpui-space-1) var(--mcpui-space-3);
     border: 1px solid var(--mcpui-border-strong);
     border-radius: var(--mcpui-radius-inner);
     background: var(--mcpui-surface);

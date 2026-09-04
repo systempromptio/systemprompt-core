@@ -413,11 +413,62 @@ async fn text_renderer_escapes_html() {
 }
 
 #[tokio::test]
-async fn text_renderer_empty_lines_use_nbsp() {
+async fn text_renderer_drops_blank_lines() {
     let renderer = TextRenderer::new();
-    let artifact = make_artifact("text", None, None, vec![text_part("Before\n\nAfter")], None);
+    let artifact = make_artifact(
+        "text",
+        None,
+        None,
+        vec![text_part("Before\n\n\nAfter")],
+        None,
+    );
     let result = renderer.render(&artifact).await.unwrap();
-    assert!(result.html.contains("&nbsp;"));
+    assert!(result.html.contains("<p>Before</p>"));
+    assert!(result.html.contains("<p>After</p>"));
+    // A blank line is separation, not content: however many were typed, the gap
+    // comes from `p + p` rather than from empty paragraphs.
+    assert!(!result.html.contains("&nbsp;"));
+}
+
+#[tokio::test]
+async fn text_renderer_formats_bullets_and_emphasis() {
+    let renderer = TextRenderer::new();
+    let artifact = make_artifact(
+        "text",
+        None,
+        None,
+        vec![text_part("- **[23] Follow up** with `crm.lead`\n- Second item")],
+        None,
+    );
+    let result = renderer.render(&artifact).await.unwrap();
+    assert!(result.html.contains(r#"<ul class="text-list">"#));
+    assert!(result.html.contains("<strong>[23] Follow up</strong>"));
+    assert!(result.html.contains("<code>crm.lead</code>"));
+    // Counted over the rendered body rather than the whole document: the
+    // stylesheet is inlined into the same string and its comments name the very
+    // tags being counted.
+    let body = result
+        .html
+        .split(r#"id="text-content""#)
+        .nth(1)
+        .expect("the rendered body");
+    // One list, not one per item.
+    assert_eq!(body.matches("<ul").count(), 1);
+    assert_eq!(body.matches("<li>").count(), 2);
+}
+
+#[tokio::test]
+async fn text_renderer_leaves_unpaired_markers_alone() {
+    let renderer = TextRenderer::new();
+    let artifact = make_artifact(
+        "text",
+        None,
+        None,
+        vec![text_part("2 * 3 * 4 is a product, not **emphasis")],
+        None,
+    );
+    let result = renderer.render(&artifact).await.unwrap();
+    assert!(!result.html.contains("<strong>"));
 }
 
 #[tokio::test]

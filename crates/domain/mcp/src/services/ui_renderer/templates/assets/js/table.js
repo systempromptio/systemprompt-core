@@ -27,14 +27,47 @@ const TableApp = {
         return col.align || (this.NUMERIC.includes(col.type) ? 'right' : 'left');
     },
 
+    /* The table is laid out fixed, so every column takes an equal share of the
+     * frame unless it is told otherwise — which handed an id column the same
+     * width as a subject line, truncating the text while the digits sat in
+     * padding. These weights are relative, not absolute: a column's width is
+     * its share of the total, so the columns always add up to the frame and the
+     * table never needs to scroll sideways.
+     *
+     * Widths are emitted as plain percentages for a reason. A `calc()` mixing
+     * `rem` against `100%` resolves to nothing usable inside the wrapper's
+     * scroll container — the browser silently falls back to equal columns, so
+     * the rule appears to work while doing nothing.
+     *
+     * The numeric types are weighted so a formatted value never has to be cut:
+     * a truncated figure is worse than a truncated sentence, because
+     * "1,200,0…" reads as a different number rather than as an abbreviation. */
+    WEIGHT: { integer: 0.6, boolean: 0.8, percentage: 1.2, date: 1.6, currency: 1.6 },
+    TEXT_WEIGHT: 1.5,
+
+    /* The first free-text column carries a double share. In a table of records
+     * that column is the record's name — the one a reader scans, and the only
+     * one long enough to be worth the room. */
+    columnWidths() {
+        const weights = this.columns.map(col => this.WEIGHT[col.type] || this.TEXT_WEIGHT);
+        const firstText = this.columns.findIndex(col => !this.WEIGHT[col.type]);
+        if (firstText !== -1) weights[firstText] *= 2;
+
+        const total = weights.reduce((sum, weight) => sum + weight, 0);
+        if (!total) return this.columns.map(() => null);
+        return weights.map(weight => `${((weight / total) * 100).toFixed(2)}%`);
+    },
+
     renderHeader() {
         const thead = document.getElementById('table-head');
         const tr = document.createElement('tr');
+        const widths = this.columnWidths();
         this.columns.forEach((col, i) => {
             const th = document.createElement('th');
             th.textContent = col.header;
             th.dataset.index = i;
             th.style.textAlign = this.alignOf(col);
+            if (widths[i]) th.style.width = widths[i];
             th.setAttribute('scope', 'col');
             if (this.sortableColumns.includes(col.key)) {
                 th.classList.add('sortable');
@@ -112,16 +145,28 @@ const TableApp = {
                 const col = this.columns[i] || { type: 'string' };
                 const td = document.createElement('td');
                 td.style.textAlign = this.alignOf(col);
+                /* Every cell's content goes inside this span, links included.
+                 * The ellipsis is applied here rather than to the cell because
+                 * a `td` is not a block box and does not clip its own overflow
+                 * — and a link left outside the span was the one cell type that
+                 * could still push the table past its frame. The full value
+                 * stays reachable on hover. */
+                const span = document.createElement('span');
+                span.className = 'cell-text';
                 if (col.type === 'link' && cell) {
                     const a = document.createElement('a');
                     a.href = String(cell);
                     a.textContent = String(cell);
                     a.rel = 'noopener noreferrer';
                     a.target = '_blank';
-                    td.appendChild(a);
+                    span.appendChild(a);
+                    span.title = String(cell);
                 } else {
-                    td.textContent = this.formatCell(cell, col.type);
+                    const text = this.formatCell(cell, col.type);
+                    span.textContent = text;
+                    if (text) span.title = text;
                 }
+                td.appendChild(span);
                 tr.appendChild(td);
             });
             tbody.appendChild(tr);

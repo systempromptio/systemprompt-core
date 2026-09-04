@@ -9,8 +9,15 @@
     box-shadow: var(--mcpui-shadow-card);
 }
 
+/* Fixed layout is what makes the table fit its frame. Under the auto algorithm
+ * the widest cell in any column set the table's width, so one long subject line
+ * pushed the last columns past the scroll edge, where a reader who never
+ * dragged sideways simply did not know they existed. Fixed sizes every column
+ * from the header row instead, and the content truncates rather than the table
+ * growing. */
 .data-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
     font-size: var(--mcpui-text-sm);
@@ -18,9 +25,22 @@
 
 .data-table th,
 .data-table td {
-    padding: var(--mcpui-space-3) var(--mcpui-space-4);
+    padding: var(--mcpui-space-2) var(--mcpui-space-3);
     text-align: left;
     border-bottom: 1px solid var(--mcpui-border);
+}
+
+/* A long value used to wrap to five lines, which inflated every row in the
+ * table. It now truncates to one, so row height is constant and the table is
+ * scannable down a column; `table.js` puts the full value on the element's
+ * `title` so nothing is lost. The ellipsis sits on a block inside the cell
+ * rather than on the cell itself, because a `td` is not a block box and does
+ * not clip its own overflow. */
+.data-table td .cell-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .data-table tbody tr:last-child td {
@@ -38,7 +58,10 @@
     font-weight: 600;
     letter-spacing: var(--mcpui-tracking-wide);
     text-transform: uppercase;
-    white-space: nowrap;
+    /* Headers wrap rather than truncate. A header is read once and costs its
+     * second line once; a truncated one ("EXPECT…") leaves the column
+     * unidentified for every row beneath it. */
+    overflow-wrap: break-word;
     user-select: none;
 }
 
@@ -147,7 +170,7 @@
 /* A filter that matches nothing used to leave an empty bordered box with no
  * explanation, which reads as a failure rather than a result. */
 .data-table td.table-empty {
-    padding: var(--mcpui-space-6) var(--mcpui-space-4);
+    padding: var(--mcpui-space-4) var(--mcpui-space-3);
     text-align: center;
     color: var(--mcpui-ink-dim);
     border-bottom: none;
