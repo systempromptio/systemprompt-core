@@ -160,9 +160,11 @@ fn cf_to_json(value: &CFType) -> Option<serde_json::Value> {
         let mut out = serde_json::Map::new();
         let (keys, values) = dict.get_keys_and_values();
         for (k, v) in keys.into_iter().zip(values) {
-            // SAFETY: both refs come from `get_keys_and_values`, which returns
-            // borrowed Get-rule refs valid for the dictionary's lifetime.
+            // SAFETY: `k` comes from `get_keys_and_values`, which returns a
+            // borrowed Get-rule ref valid for the dictionary's lifetime.
             let key: CFType = unsafe { TCFType::wrap_under_get_rule(k.cast()) };
+            // SAFETY: `v` is the matching value ref from the same call, with
+            // the same borrowed Get-rule lifetime.
             let val: CFType = unsafe { TCFType::wrap_under_get_rule(v.cast()) };
             out.insert(key.downcast::<CFString>()?.to_string(), cf_to_json(&val)?);
         }

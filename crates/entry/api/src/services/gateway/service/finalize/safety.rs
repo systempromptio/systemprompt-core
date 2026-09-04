@@ -5,9 +5,25 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_ai::repository::AiSafetyFindingRepository;
-use systemprompt_ai::{Finding, InsertSafetyFinding, SafetyConfig, SafetyHistoryMode};
+use systemprompt_ai::{
+    Finding, InsertSafetyFinding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyConfig,
+    SafetyHistoryMode,
+};
 
-use super::super::blocks_at_phase;
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "re-exported by the feature-gated `test_api` module"
+    )
+)]
+pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
+    match phase {
+        PHASE_REQUEST => true,
+        PHASE_REQUEST_HISTORY => history == SafetyHistoryMode::Block,
+        _ => false,
+    }
+}
 use systemprompt_identifiers::AiRequestId;
 
 use super::super::super::protocol::canonical::CanonicalRequest;

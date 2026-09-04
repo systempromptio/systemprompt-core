@@ -58,7 +58,6 @@ impl AiSafetyFindingRepository {
     // Why: the CLI reaches this table through a bare `PgPool` rather than a
     // `DbPool`, and the rollup is a read, so the write/read pool split this
     // type otherwise honours has nothing to enforce here.
-    #[must_use]
     pub const fn from_pool(pool: Arc<PgPool>) -> Self {
         Self { write_pool: pool }
     }

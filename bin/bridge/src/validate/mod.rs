@@ -96,9 +96,7 @@ impl ValidationReport {
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod policy;
 
-// Why: this takes the two pieces it reads rather than `BridgeContext`, which
-// sits above `validate` in the module order and would make the reference
-// upward.
+// Why: `BridgeContext` sits above `validate`, so this takes what it reads.
 pub async fn run(http: &reqwest::Client, unpersisted_tofu_pubkey: &AtomicBool) -> ValidationReport {
     let mut report = Report::new();
     check_binary(&mut report);

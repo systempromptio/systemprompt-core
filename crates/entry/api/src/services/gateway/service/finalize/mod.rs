@@ -27,7 +27,7 @@ use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 
-mod safety;
+pub(super) mod safety;
 
 #[cfg(feature = "test-api")]
 pub use self::safety::dedupe_findings;

@@ -134,6 +134,11 @@ impl GovernedDispatch {
             session_id,
         } = evaluate_prompt(ctx, &prepared.request);
 
+        #[expect(
+            clippy::match_same_arms,
+            reason = "four distinct governance verdicts that happen to share two bodies; \
+                      merging them would delete the reasoning for why each lands where it does"
+        )]
         let denied = match &evaluation.decision {
             Decision::Allow { .. } => None,
             // Why: warn mode's entire purpose is that the call proceeds. The

@@ -249,7 +249,7 @@ fn format_inline(text: &str) -> String {
 // marker rather than a pair, and the text is returned untouched.
 fn wrap_delimited(text: &str, delimiter: &str, tag: &str) -> String {
     let parts: Vec<&str> = text.split(delimiter).collect();
-    if parts.len() < 3 || parts.len() % 2 == 0 {
+    if parts.len() < 3 || parts.len().is_multiple_of(2) {
         return text.to_owned();
     }
 

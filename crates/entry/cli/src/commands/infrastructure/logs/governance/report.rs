@@ -117,11 +117,7 @@ struct GroupAccumulator {
     example_reason: String,
 }
 
-async fn execute_with_pool_inner(
-    args: ReportArgs,
-    pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+async fn gather(args: &ReportArgs, pool: &Arc<sqlx::PgPool>) -> Result<GovernanceReportOutput> {
     let since = parse_since(Some(&args.since))?;
 
     let rows = list_governance_warnings(pool.as_ref(), since, args.limit.max(1) * 20).await?;
@@ -190,6 +186,16 @@ async fn execute_with_pool_inner(
         total_blocked_findings,
         safety_findings,
     };
+
+    Ok(output)
+}
+
+async fn execute_with_pool_inner(
+    args: ReportArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
+    let output = gather(&args, pool).await?;
 
     if args.format == ReportFormat::Csv {
         let csv = format_csv(&output);

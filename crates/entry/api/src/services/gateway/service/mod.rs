@@ -16,7 +16,7 @@ pub(super) use self::finalize::run_response_safety_scan;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
-    pub use super::blocks_at_phase;
+    pub use super::finalize::safety::blocks_at_phase;
     pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
     pub use super::resolve::{describe_route_match, enforce_route_requirements};
 }
@@ -27,7 +27,6 @@ use anyhow::{Result, anyhow};
 use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
-use systemprompt_ai::{PHASE_REQUEST, PHASE_REQUEST_HISTORY, SafetyHistoryMode};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
@@ -298,12 +297,4 @@ async fn enforce_request_guards(
         .into(),
     };
     Err(DispatchError::Recorded(inner))
-}
-
-pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
-    match phase {
-        PHASE_REQUEST => true,
-        PHASE_REQUEST_HISTORY => history == SafetyHistoryMode::Block,
-        _ => false,
-    }
 }

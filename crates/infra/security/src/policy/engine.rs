@@ -134,24 +134,28 @@ impl GovernanceEngine {
     }
 
     #[must_use]
+    fn master_switch_off(&self) -> Evaluation {
+        Evaluation {
+            decision: Decision::Allow {
+                matched_by: MatchedBy::DefaultIncluded,
+            },
+            chain: self
+                .entries
+                .iter()
+                .map(|entry| {
+                    chain_entry(
+                        &entry.config,
+                        ChainEntryResult::Disabled,
+                        "Governance disabled by master switch",
+                    )
+                })
+                .collect(),
+        }
+    }
+
     pub fn evaluate(&self, ctx: &PolicyContext<'_>) -> Evaluation {
         if !self.enabled {
-            return Evaluation {
-                decision: Decision::Allow {
-                    matched_by: MatchedBy::DefaultIncluded,
-                },
-                chain: self
-                    .entries
-                    .iter()
-                    .map(|entry| {
-                        chain_entry(
-                            &entry.config,
-                            ChainEntryResult::Disabled,
-                            "Governance disabled by master switch",
-                        )
-                    })
-                    .collect(),
-            };
+            return self.master_switch_off();
         }
 
         let mut chain: Vec<ChainEntryOutcome> = Vec::with_capacity(self.entries.len());
@@ -185,61 +189,15 @@ impl GovernanceEngine {
             let started = std::time::Instant::now();
             let decision = entry.instance.evaluate(ctx);
             let duration_ms = started.elapsed().as_secs_f64() * 1000.0;
-            match &decision {
-                Decision::Allow { matched_by } => chain.push(ChainEntryOutcome {
-                    policy_id: entry.instance.id(),
-                    result: ChainEntryResult::Pass,
-                    detail: allow_detail(matched_by),
-                    duration_ms,
-                }),
-                Decision::Deny { reason } if entry.config.mode.is_warn() => {
-                    tracing::warn!(
-                        policy = %entry.config.id,
-                        reason = %reason,
-                        "governance policy in warn mode would have denied this call; allowing it"
-                    );
-                    chain.push(ChainEntryOutcome {
-                        policy_id: entry.instance.id(),
-                        result: ChainEntryResult::Warn,
-                        detail: reason.to_string(),
-                        duration_ms,
-                    });
-                    if first_warn.is_none() {
-                        first_warn = Some(reason.clone());
-                    }
-                },
-                Decision::Deny { reason } => {
-                    chain.push(ChainEntryOutcome {
-                        policy_id: entry.instance.id(),
-                        result: ChainEntryResult::Fail,
-                        detail: reason.to_string(),
-                        duration_ms,
-                    });
-                    halted = Some(decision);
-                },
-                // Why: a warn verdict from a policy itself is passed through
-                // unchanged in either mode. Warn is already the weaker
-                // verdict, so enforce mode has nothing to escalate it to.
-                Decision::Warn { reason } => {
-                    chain.push(ChainEntryOutcome {
-                        policy_id: entry.instance.id(),
-                        result: ChainEntryResult::Warn,
-                        detail: reason.to_string(),
-                        duration_ms,
-                    });
-                    if first_warn.is_none() {
-                        first_warn = Some(reason.clone());
-                    }
-                },
-                Decision::Pending { reason } => {
-                    chain.push(ChainEntryOutcome {
-                        policy_id: entry.instance.id(),
-                        result: ChainEntryResult::Hold,
-                        detail: reason.to_string(),
-                        duration_ms,
-                    });
-                    halted = Some(decision);
-                },
+            let (outcome, warn, halt) = classify(entry, &decision, duration_ms);
+            chain.push(outcome);
+            if let Some(reason) = warn
+                && first_warn.is_none()
+            {
+                first_warn = Some(reason);
+            }
+            if halt {
+                halted = Some(decision);
             }
         }
 
@@ -252,6 +210,53 @@ impl GovernanceEngine {
             )
         });
         Evaluation { decision, chain }
+    }
+}
+
+// Why: returns the chain row, the reason to record if this is the first warn,
+// and whether the chain halts here — the three things the caller does with a
+// verdict, kept together so `evaluate` reads as the loop it is.
+fn classify(
+    entry: &ChainEntry,
+    decision: &Decision,
+    duration_ms: f64,
+) -> (ChainEntryOutcome, Option<DenyReason>, bool) {
+    let row = |result, detail| ChainEntryOutcome {
+        policy_id: entry.instance.id(),
+        result,
+        detail,
+        duration_ms,
+    };
+    match decision {
+        Decision::Allow { matched_by } => (
+            row(ChainEntryResult::Pass, allow_detail(matched_by)),
+            None,
+            false,
+        ),
+        Decision::Deny { reason } if entry.config.mode.is_warn() => {
+            tracing::warn!(
+                policy = %entry.config.id,
+                reason = %reason,
+                "governance policy in warn mode would have denied this call; allowing it"
+            );
+            (
+                row(ChainEntryResult::Warn, reason.to_string()),
+                Some(reason.clone()),
+                false,
+            )
+        },
+        Decision::Deny { reason } => (row(ChainEntryResult::Fail, reason.to_string()), None, true),
+        // Why: a warn verdict from a policy itself is passed through unchanged
+        // in either mode. Warn is already the weaker verdict, so enforce mode
+        // has nothing to escalate it to.
+        Decision::Warn { reason } => (
+            row(ChainEntryResult::Warn, reason.to_string()),
+            Some(reason.clone()),
+            false,
+        ),
+        Decision::Pending { reason } => {
+            (row(ChainEntryResult::Hold, reason.to_string()), None, true)
+        },
     }
 }
 
