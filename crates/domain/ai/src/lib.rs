@@ -65,7 +65,7 @@ pub use services::gateway::{
     IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
     NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
     OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
-    PHASE_RESPONSE, QuotaWindow, RouteSelector, RouteSelectorEngine, RouteSelectorError,
+    PHASE_RESPONSE, QuotaMode, QuotaWindow, RouteSelector, RouteSelectorEngine, RouteSelectorError,
     RouteSelectorRegistration, SafetyConfig, SafetyHistoryMode, SafetyMode, SafetyScanner,
     SafetyScannerRegistration, ScannerFactory, Severity, SystemPromptOverride,
     SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT,

@@ -938,8 +938,11 @@ A governance policy configured `mode: warn` in `services/governance/config.yaml`
 records the finding it would have denied on and lets the call through, writing a
 `governance_decisions` row with `decision = 'warn'`. The gateway safety scanners
 do the same under `safety.mode: warn` in `services/gateway/policies.yaml`,
-writing `ai_safety_findings` rows whose `blocked` column stays false. This
-command rolls both up over one window so a threshold or a block list can be set
+writing `ai_safety_findings` rows whose `blocked` column stays false. The quota
+windows do the same under `quota_mode: warn` in the same file, writing a
+`governance_decisions` warn row under policy `quota`, so the first table below
+prices an exhausted window beside a misfiring scanner. This command rolls all
+of it up over one window so a threshold, a block list or a ceiling can be set
 from traffic instead of from a guess.
 
 ```bash

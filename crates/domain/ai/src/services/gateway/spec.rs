@@ -110,9 +110,35 @@ pub struct SafetyConfig {
     pub history: SafetyHistoryMode,
 }
 
+/// Whether an exhausted quota window refuses the request or only records
+/// that it would have.
+///
+/// The quota windows are the third enforcement plane on an inference request,
+/// beside the governance chain and the safety scanners, and warn mode has to
+/// cover it too or "nothing blocks" is not true. Under `warn` every window is
+/// still reserved against and every ceiling still evaluated; a breach is
+/// written to `governance_decisions` as a `warn` under policy `quota`, and
+/// the request proceeds.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum QuotaMode {
+    #[default]
+    Enforce,
+    Warn,
+}
+
+impl QuotaMode {
+    #[must_use]
+    pub const fn is_warn(self) -> bool {
+        matches!(self, Self::Warn)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicySpec {
+    #[serde(default)]
+    pub quota_mode: QuotaMode,
     #[serde(default)]
     pub quota_windows: Vec<QuotaWindow>,
     #[serde(default)]

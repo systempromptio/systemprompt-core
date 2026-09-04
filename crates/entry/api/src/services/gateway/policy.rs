@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 
-pub use systemprompt_ai::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
+pub use systemprompt_ai::{GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig};
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
 
@@ -80,6 +80,12 @@ fn merge(rows: Vec<systemprompt_ai::GatewayPolicyRow>) -> GatewayPolicySpec {
             tracing::warn!(policy_id = %row.id, name = %row.name, "policy spec JSON malformed — skipped");
             continue;
         };
+        // Why: same rule as `safety.mode` below. A row that only says
+        // `quota_mode: warn` is a real declaration and must survive the merge,
+        // or the quota plane keeps refusing after an operator switched it off.
+        if !spec.quota_windows.is_empty() || spec.quota_mode.is_warn() {
+            merged.quota_mode = spec.quota_mode;
+        }
         if !spec.quota_windows.is_empty() {
             merged.quota_windows = spec.quota_windows;
         }

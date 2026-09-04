@@ -3,12 +3,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::borrow::Cow;
+
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{CallId, SessionId};
+use systemprompt_identifiers::{CallId, PolicyId, SessionId};
+use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
-    AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernanceEngine,
-    GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot, record_decision,
+    AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
+    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext,
+    PrincipalSnapshot, record_decision,
 };
+
+/// The `policy` column a quota breach is recorded under. The quota windows are
+/// not a chain policy, so nothing in the chain would name them; the label is
+/// fixed here so the warn report can group on it.
+pub const QUOTA_POLICY_LABEL: &str = "quota";
 
 use super::super::super::audit::GatewayRequestContext;
 use super::super::super::protocol::canonical::CanonicalRequest;
@@ -64,6 +73,29 @@ pub(super) async fn record_governance_decision(
             "no write pool for the gateway governance decision; row dropped"
         ),
     }
+}
+
+// Why: a quota breach under `quota_mode: warn` is a governance warning like
+// any other and belongs in the same table the report reads, with the same
+// shape a chain warning has — one `Warn` chain entry naming the policy — so a
+// quota row and a secret_scan row are directly comparable.
+pub(in crate::services::gateway::service) async fn record_quota_warning(db: &DbPool, ctx: &GatewayRequestContext, message: &str) {
+    let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
+    let call_id = CallId::new(ctx.ai_request_id.as_str());
+    let reason = DenyReason::PolicyViolation {
+        policy: QUOTA_POLICY_LABEL.to_owned(),
+        detail: Cow::Owned(message.to_owned()),
+    };
+    let evaluation = Evaluation {
+        decision: Decision::Warn { reason },
+        chain: vec![ChainEntryOutcome {
+            policy_id: PolicyId::new(QUOTA_POLICY_LABEL),
+            result: ChainEntryResult::Warn,
+            detail: message.to_owned(),
+            duration_ms: 0.0,
+        }],
+    };
+    record_governance_decision(db, ctx, evaluation, call_id, session_id).await;
 }
 
 pub(super) struct PromptEvaluation {

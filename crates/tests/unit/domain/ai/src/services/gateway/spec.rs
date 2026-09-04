@@ -1,9 +1,16 @@
-use systemprompt_ai::{GatewayPolicySpec, QuotaWindow, SafetyConfig, SafetyHistoryMode};
+use systemprompt_ai::{
+    GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode,
+};
 
 #[test]
 fn permissive_is_default() {
     let p = GatewayPolicySpec::permissive();
     assert!(p.quota_windows.is_empty());
+    assert_eq!(
+        p.quota_mode,
+        QuotaMode::Enforce,
+        "an omitted quota_mode enforces; warn is opt-in"
+    );
     assert!(p.safety.scanners.is_empty());
     assert!(p.safety.block_categories.is_empty());
 }
@@ -77,4 +84,23 @@ fn safety_history_modes_round_trip_as_lowercase() {
         let s: SafetyConfig = serde_yaml::from_str(&yaml).expect("de");
         assert_eq!(s.history, mode);
     }
+}
+
+// Why: the shipped YAML says `quota_mode: warn` beside `safety: {mode: warn}`.
+// If the spelling drifted from the serde rename, the file would fail
+// `deny_unknown_fields` at boot and the plane would silently keep refusing.
+#[test]
+fn quota_mode_warn_round_trips_through_the_spec_yaml() {
+    let yaml = "quota_mode: warn\nquota_windows:\n  - window_seconds: 3600\n    max_requests: 1\n";
+    let spec: GatewayPolicySpec = serde_yaml::from_str(yaml).expect("de");
+    assert!(spec.quota_mode.is_warn());
+    let back: GatewayPolicySpec =
+        serde_yaml::from_str(&serde_yaml::to_string(&spec).expect("ser")).expect("de again");
+    assert_eq!(back.quota_mode, QuotaMode::Warn);
+}
+
+#[test]
+fn an_unknown_quota_mode_is_a_parse_error_not_a_default() {
+    let err = serde_yaml::from_str::<GatewayPolicySpec>("quota_mode: observe\n");
+    assert!(err.is_err(), "an unrecognised mode must not fall back to enforce or warn");
 }
