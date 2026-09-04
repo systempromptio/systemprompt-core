@@ -70,9 +70,34 @@ pub struct HeuristicConfig {
     pub disable_builtin: bool,
 }
 
+/// Whether the safety scanners refuse a request or only record what they
+/// found.
+///
+/// `warn` keeps every scanner running and every finding persisted; it only
+/// removes the refusal. It exists so the block lists can be calibrated from
+/// real traffic — a category that never fires and a category that fires on
+/// every developer request look identical until the findings are recorded
+/// without blocking.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SafetyMode {
+    #[default]
+    Enforce,
+    Warn,
+}
+
+impl SafetyMode {
+    #[must_use]
+    pub const fn is_warn(self) -> bool {
+        matches!(self, Self::Warn)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SafetyConfig {
+    #[serde(default)]
+    pub mode: SafetyMode,
     #[serde(default)]
     pub scanners: Vec<String>,
     #[serde(default)]

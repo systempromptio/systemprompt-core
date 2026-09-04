@@ -26,10 +26,10 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::PolicyId;
 
 use super::audit::{ChainEntryOutcome, ChainEntryResult};
-use super::config::{GovernanceConfig, PolicyConfig};
+use super::config::{GovernanceConfig, PolicyConfig, PolicyMode};
 use super::registry::{PolicyFactory, PolicyRegistration};
 use super::types::{GovernancePolicy, PolicyContext};
-use crate::authz::types::{Decision, MatchedBy};
+use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
 /// The outcome of one traced chain run: the first-deny-wins [`Decision`] and
 /// the ordered per-entry trace destined for the audit row.
@@ -111,6 +111,7 @@ impl GovernanceEngine {
             let cfg = PolicyConfig {
                 id: r.id.to_owned(),
                 enabled: false,
+                mode: PolicyMode::Enforce,
                 params: serde_yaml::Value::Null,
             };
             let instance = (r.factory)(&cfg.params);
@@ -158,6 +159,11 @@ impl GovernanceEngine {
         // later policy cannot un-hold a call, and running it would charge the
         // rate limiter for a call that has not been authorised yet.
         let mut halted: Option<Decision> = None;
+        // Why: warn mode deliberately does not halt, so later policies still
+        // run and the report shows every finding on the call rather than only
+        // the first. The first warn is the one reported, matching first-deny
+        // -wins ordering.
+        let mut first_warn: Option<DenyReason> = None;
 
         for entry in &self.entries {
             if !entry.config.enabled {
@@ -186,6 +192,22 @@ impl GovernanceEngine {
                     detail: allow_detail(matched_by),
                     duration_ms,
                 }),
+                Decision::Deny { reason } if entry.config.mode.is_warn() => {
+                    tracing::warn!(
+                        policy = %entry.config.id,
+                        reason = %reason,
+                        "governance policy in warn mode would have denied this call; allowing it"
+                    );
+                    chain.push(ChainEntryOutcome {
+                        policy_id: entry.instance.id(),
+                        result: ChainEntryResult::Warn,
+                        detail: reason.to_string(),
+                        duration_ms,
+                    });
+                    if first_warn.is_none() {
+                        first_warn = Some(reason.clone());
+                    }
+                },
                 Decision::Deny { reason } => {
                     chain.push(ChainEntryOutcome {
                         policy_id: entry.instance.id(),
@@ -194,6 +216,20 @@ impl GovernanceEngine {
                         duration_ms,
                     });
                     halted = Some(decision);
+                },
+                // Why: a warn verdict from a policy itself is passed through
+                // unchanged in either mode. Warn is already the weaker
+                // verdict, so enforce mode has nothing to escalate it to.
+                Decision::Warn { reason } => {
+                    chain.push(ChainEntryOutcome {
+                        policy_id: entry.instance.id(),
+                        result: ChainEntryResult::Warn,
+                        detail: reason.to_string(),
+                        duration_ms,
+                    });
+                    if first_warn.is_none() {
+                        first_warn = Some(reason.clone());
+                    }
                 },
                 Decision::Pending { reason } => {
                     chain.push(ChainEntryOutcome {
@@ -207,12 +243,15 @@ impl GovernanceEngine {
             }
         }
 
-        Evaluation {
-            decision: halted.unwrap_or(Decision::Allow {
-                matched_by: MatchedBy::DefaultIncluded,
-            }),
-            chain,
-        }
+        let decision = halted.unwrap_or_else(|| {
+            first_warn.map_or(
+                Decision::Allow {
+                    matched_by: MatchedBy::DefaultIncluded,
+                },
+                |reason| Decision::Warn { reason },
+            )
+        });
+        Evaluation { decision, chain }
     }
 }
 

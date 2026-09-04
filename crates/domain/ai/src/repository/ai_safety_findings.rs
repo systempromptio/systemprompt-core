@@ -15,6 +15,23 @@ pub struct AiSafetyFindingRepository {
     write_pool: Arc<PgPool>,
 }
 
+/// One row of the safety-findings rollup: how often a category fired and how
+/// often it actually refused a call.
+///
+/// The two counts diverge under `safety.mode: warn`, which is what makes the
+/// row worth reading — a category with a high count and a zero blocked count
+/// is a block list entry waiting to be reconsidered.
+#[derive(Debug, Clone)]
+pub struct SafetyFindingRollupRow {
+    pub category: String,
+    pub scanner: String,
+    pub severity: String,
+    pub phase: String,
+    pub count: i64,
+    pub blocked_count: i64,
+    pub last_seen: chrono::DateTime<chrono::Utc>,
+}
+
 #[derive(Debug, Clone)]
 pub struct InsertSafetyFinding<'a> {
     pub ai_request_id: &'a AiRequestId,
@@ -23,6 +40,9 @@ pub struct InsertSafetyFinding<'a> {
     pub category: &'a str,
     pub scanner: &'a str,
     pub excerpt: Option<&'a str>,
+    /// True only when this finding refused the call. Always false under
+    /// `safety.mode: warn`.
+    pub blocked: bool,
 }
 
 impl AiSafetyFindingRepository {
@@ -33,6 +53,16 @@ impl AiSafetyFindingRepository {
         Ok(Self { write_pool })
     }
 
+    /// Builds a read-only view over an existing pool.
+    ///
+    /// The CLI reaches the table through a bare `PgPool` rather than a
+    /// `DbPool`, and the rollup is a read, so the write/read pool split this
+    /// type otherwise honours has nothing to enforce here.
+    #[must_use]
+    pub const fn from_pool(pool: Arc<PgPool>) -> Self {
+        Self { write_pool: pool }
+    }
+
     pub async fn insert(
         &self,
         params: InsertSafetyFinding<'_>,
@@ -41,9 +71,9 @@ impl AiSafetyFindingRepository {
         sqlx::query!(
             r#"
             INSERT INTO ai_safety_findings (
-                id, ai_request_id, phase, severity, category, scanner, excerpt, created_at
+                id, ai_request_id, phase, severity, category, scanner, excerpt, blocked, created_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
             "#,
             id.as_str(),
             params.ai_request_id.as_str(),
@@ -51,10 +81,37 @@ impl AiSafetyFindingRepository {
             params.severity,
             params.category,
             params.scanner,
-            params.excerpt
+            params.excerpt,
+            params.blocked
         )
         .execute(self.write_pool.as_ref())
         .await?;
         Ok(id)
+    }
+
+    pub async fn list_rollup(
+        &self,
+        since: Option<chrono::DateTime<chrono::Utc>>,
+        limit: i64,
+    ) -> Result<Vec<SafetyFindingRollupRow>, RepositoryError> {
+        let rows = sqlx::query_as!(
+            SafetyFindingRollupRow,
+            r#"
+            SELECT category AS "category!", scanner AS "scanner!", severity AS "severity!",
+                   phase AS "phase!", COUNT(*) AS "count!",
+                   COUNT(*) FILTER (WHERE blocked) AS "blocked_count!",
+                   MAX(created_at) AS "last_seen!"
+            FROM ai_safety_findings
+            WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+            GROUP BY category, scanner, severity, phase
+            ORDER BY COUNT(*) DESC, MAX(created_at) DESC
+            LIMIT $2
+            "#,
+            since,
+            limit
+        )
+        .fetch_all(self.write_pool.as_ref())
+        .await?;
+        Ok(rows)
     }
 }

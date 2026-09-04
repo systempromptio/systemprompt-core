@@ -1,4 +1,4 @@
-//! `governance_decisions` insert primitive.
+//! `governance_decisions` insert primitive and the warn-mode read side.
 //!
 //! Single canonical writer for the table. Both the extension's
 //! `POST /govern/authz` handler (for resolved decisions) and core's
@@ -113,4 +113,71 @@ pub async fn insert_governance_decision(
         .increment(1);
     }
     result.map(|_| ())
+}
+
+/// One row of the warn-mode rollup: a policy that fired in `mode: warn` for
+/// one tool and one user, with the most recent reason it gave.
+#[derive(Debug, Clone)]
+pub struct GovernanceWarningRow {
+    pub policy: String,
+    pub tool_name: String,
+    pub user_id: String,
+    pub count: i64,
+    pub first_seen: chrono::DateTime<chrono::Utc>,
+    pub last_seen: chrono::DateTime<chrono::Utc>,
+    pub example_reason: String,
+}
+
+/// Reads the warn-mode rollup, most frequent first.
+///
+/// Grouped by all three dimensions at once so a caller can re-aggregate to
+/// whichever one it wants without a second round trip; the combinations are
+/// bounded by the policy count times the tool count, not by traffic.
+pub async fn list_governance_warnings(
+    pool: &PgPool,
+    since: Option<chrono::DateTime<chrono::Utc>>,
+    limit: i64,
+) -> Result<Vec<GovernanceWarningRow>, sqlx::Error> {
+    sqlx::query_as!(
+        GovernanceWarningRow,
+        r#"
+        SELECT policy AS "policy!", tool_name AS "tool_name!", user_id AS "user_id!",
+               COUNT(*) AS "count!", MIN(created_at) AS "first_seen!",
+               MAX(created_at) AS "last_seen!",
+               (ARRAY_AGG(reason ORDER BY created_at DESC))[1] AS "example_reason!"
+        FROM governance_decisions
+        WHERE decision = 'warn' AND ($1::timestamptz IS NULL OR created_at >= $1)
+        GROUP BY policy, tool_name, user_id
+        ORDER BY COUNT(*) DESC, MAX(created_at) DESC
+        LIMIT $2
+        "#,
+        since,
+        limit
+    )
+    .fetch_all(pool)
+    .await
+}
+
+/// Trace ids carrying at least one decision of the given verdict.
+///
+/// Kept separate from the trace listing query so `trace list --decision` can
+/// filter an existing result set rather than reshape the trace query, which
+/// already joins four tables.
+pub async fn list_trace_ids_with_decision(
+    pool: &PgPool,
+    decision: &str,
+    since: Option<chrono::DateTime<chrono::Utc>>,
+) -> Result<Vec<String>, sqlx::Error> {
+    sqlx::query_scalar!(
+        r#"
+        SELECT DISTINCT trace_id AS "trace_id!"
+        FROM governance_decisions
+        WHERE decision = $1 AND trace_id IS NOT NULL
+          AND ($2::timestamptz IS NULL OR created_at >= $2)
+        "#,
+        decision,
+        since
+    )
+    .fetch_all(pool)
+    .await
 }

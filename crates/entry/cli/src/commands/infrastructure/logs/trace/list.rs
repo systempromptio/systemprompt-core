@@ -7,6 +7,7 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_logging::{CliService, TraceListFilter, TraceQueryService};
+use systemprompt_security::authz::list_trace_ids_with_decision;
 
 use super::{TraceListOutput, TraceListRow};
 use crate::CliConfig;
@@ -41,6 +42,12 @@ pub struct ListArgs {
     )]
     pub tool: Option<String>,
 
+    #[arg(
+        long,
+        help = "Only show traces carrying a governance decision of this verdict: allow, warn, deny, pending"
+    )]
+    pub decision: Option<String>,
+
     #[arg(long, help = "Only show traces with MCP tool calls")]
     pub has_mcp: bool,
 
@@ -61,7 +68,15 @@ async fn execute_with_pool_inner(
     let since_timestamp = parse_since(args.since.as_ref())?;
     let tool_pattern = args.tool.as_ref().map(|t| format!("%{}%", t));
 
-    let mut filter = TraceListFilter::new(args.limit)
+    // Why: the decision filter runs over the returned page, so the page has to
+    // be wider than the requested limit or a rare verdict returns nothing on a
+    // busy instance while plenty of matching traces exist.
+    let sql_limit = if args.decision.is_some() {
+        args.limit.saturating_mul(20)
+    } else {
+        args.limit
+    };
+    let mut filter = TraceListFilter::new(sql_limit)
         .with_has_mcp(args.has_mcp)
         .with_include_system(args.all);
 
@@ -78,11 +93,30 @@ async fn execute_with_pool_inner(
         filter = filter.with_tool(tool);
     }
 
+    // Why: filtered after the listing rather than inside it. The trace query
+    // already unions four tables to establish which traces exist; joining
+    // governance_decisions into it would make every listing pay for a filter
+    // almost no listing uses.
+    let decision_traces = match args.decision.as_deref() {
+        Some(decision) => Some(
+            list_trace_ids_with_decision(pool.as_ref(), decision, since_timestamp)
+                .await?
+                .into_iter()
+                .collect::<std::collections::HashSet<_>>(),
+        ),
+        None => None,
+    };
+
     let service = TraceQueryService::new(Arc::clone(pool));
     let items = service.list_traces(&filter).await?;
 
     let traces: Vec<TraceListRow> = items
         .into_iter()
+        .filter(|r| {
+            decision_traces
+                .as_ref()
+                .is_none_or(|ids| ids.contains(r.trace_id.as_str()))
+        })
         .map(|r| {
             let duration_ms = (r.last_timestamp - r.first_timestamp).num_milliseconds();
             TraceListRow {
@@ -95,6 +129,7 @@ async fn execute_with_pool_inner(
                 mcp_calls: r.mcp_calls,
             }
         })
+        .take(usize::try_from(args.limit.max(0)).unwrap_or(usize::MAX))
         .collect();
 
     let output = TraceListOutput {

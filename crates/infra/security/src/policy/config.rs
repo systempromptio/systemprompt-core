@@ -12,6 +12,15 @@
 //! that failed closed on a config typo would block every tool call.
 //! [`GovernanceConfig::parse`] is the strict form over a string.
 //!
+//! Each policy also carries a [`PolicyMode`]. `enforce` is the default and
+//! halts the chain on a deny; `warn` records the identical finding and lets
+//! the call through, so tunables can be calibrated against real traffic
+//! instead of guesses. A top-level `governance.mode` sets the default for
+//! every policy that does not name its own. An unrecognised mode is a parse
+//! error rather than a silent fallback: reading `mode: warnn` as `enforce`
+//! would block traffic an operator believed they had unblocked, and reading it
+//! as `warn` would disable enforcement nobody asked to disable.
+//!
 //! Note the fallback direction: defaults enable every policy, so a file that
 //! cannot be read yields *more* enforcement than it declared, never less.
 //! Governance cannot be disabled by deleting or breaking this file — only by
@@ -38,6 +47,66 @@ pub enum GovernanceConfigError {
     MissingPolicyId { index: usize },
     #[error("governance config exists but could not be read: {0}")]
     Unreadable(#[from] std::io::Error),
+    #[error("governance config has an unknown mode `{value}` at {location}; expected `enforce` or `warn`")]
+    InvalidMode { location: String, value: String },
+}
+
+/// Whether a policy halts the chain on a finding or only records it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum PolicyMode {
+    #[default]
+    Enforce,
+    Warn,
+}
+
+impl PolicyMode {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Enforce => "enforce",
+            Self::Warn => "warn",
+        }
+    }
+
+    #[must_use]
+    pub const fn is_warn(self) -> bool {
+        matches!(self, Self::Warn)
+    }
+
+    fn parse_str(value: &str) -> Option<Self> {
+        match value {
+            "enforce" => Some(Self::Enforce),
+            "warn" => Some(Self::Warn),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for PolicyMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+// Why: an absent key inherits, a present-but-unreadable key is an error. Both
+// are distinct from "present and valid", so the return is a three-way option
+// rather than a defaulted value.
+fn read_mode(node: Option<&YamlValue>, location: &str) -> Result<Option<PolicyMode>, GovernanceConfigError> {
+    let Some(raw) = node.and_then(|n| n.get("mode")) else {
+        return Ok(None);
+    };
+    let text = raw
+        .as_str()
+        .ok_or_else(|| GovernanceConfigError::InvalidMode {
+            location: location.to_owned(),
+            value: format!("{raw:?}"),
+        })?;
+    PolicyMode::parse_str(text)
+        .map(Some)
+        .ok_or_else(|| GovernanceConfigError::InvalidMode {
+            location: location.to_owned(),
+            value: text.to_owned(),
+        })
 }
 
 /// One entry of the configured chain: which policy, whether it runs, and the
@@ -46,6 +115,7 @@ pub enum GovernanceConfigError {
 pub struct PolicyConfig {
     pub id: String,
     pub enabled: bool,
+    pub mode: PolicyMode,
     pub params: YamlValue,
 }
 
@@ -53,6 +123,7 @@ pub struct PolicyConfig {
 #[derive(Debug, Clone)]
 pub struct GovernanceConfig {
     pub enabled: bool,
+    pub mode: PolicyMode,
     pub policies: Vec<PolicyConfig>,
 }
 
@@ -64,11 +135,13 @@ impl GovernanceConfig {
             .map(|id| PolicyConfig {
                 id: id.to_owned(),
                 enabled: true,
+                mode: PolicyMode::Enforce,
                 params: YamlValue::Null,
             })
             .collect();
         Self {
             enabled: true,
+            mode: PolicyMode::Enforce,
             policies,
         }
     }
@@ -80,6 +153,7 @@ impl GovernanceConfig {
             .and_then(|g| g.get("enabled"))
             .and_then(YamlValue::as_bool)
             .unwrap_or(true);
+        let default_mode = read_mode(governance, "governance")?.unwrap_or_default();
         let policies = governance
             .and_then(|g| g.get("policies"))
             .and_then(YamlValue::as_sequence)
@@ -96,14 +170,18 @@ impl GovernanceConfig {
                 .get("enabled")
                 .and_then(YamlValue::as_bool)
                 .unwrap_or(true);
+            let mode = read_mode(Some(entry), &format!("governance.policies[{index}] ({id})"))?
+                .unwrap_or(default_mode);
             out.push(PolicyConfig {
                 id,
                 enabled,
+                mode,
                 params: entry.clone(),
             });
         }
         Ok(Self {
             enabled,
+            mode: default_mode,
             policies: out,
         })
     }

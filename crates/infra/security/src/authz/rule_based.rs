@@ -145,6 +145,18 @@ impl AuthzDecisionHook for RuleBasedHook {
         let policy = AuthzSource::RuleBased.policy().to_owned();
         let authz_decision = match decision {
             Decision::Allow { .. } => AuthzDecision::Allow,
+            // Why: warn is an allow by construction. This plane has no warn
+            // verdict of its own, so the reason is logged here or it is lost —
+            // the rule resolver does not write the governance audit row.
+            Decision::Warn { reason } => {
+                tracing::warn!(
+                    entity = %req.entity,
+                    user_id = %req.user_id,
+                    %reason,
+                    "access rule evaluated to warn; allowing the request"
+                );
+                AuthzDecision::Allow
+            },
             Decision::Deny { reason } => AuthzDecision::Deny { reason, policy },
             // Why: the rule resolver answers "may this subject reach this
             // entity", which has no third answer — only the governance chain's

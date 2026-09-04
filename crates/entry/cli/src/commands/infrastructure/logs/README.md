@@ -51,6 +51,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `infra logs request show <id>` | Show AI request details | `Card` | No (DB only) |
 | `infra logs request stats` | Show aggregate AI statistics | `Card` | No (DB only) |
 | `infra logs tools list` | List MCP tool executions | `Table` | No (DB only) |
+| `infra logs governance report` | Roll up warn-mode governance decisions and gateway safety findings | `Table` | No (DB only) |
 | `infra logs audit <id>` | Reconstruct the full chain for a request, task, or trace | `Card` | No (DB only) |
 
 ---
@@ -384,6 +385,7 @@ sp infra logs trace list --status completed
 | `--since` | None | Time filter |
 | `--agent` | None | Filter by agent name |
 | `--status` | None | Filter by status (completed, failed, running) |
+| `--decision` | None | Only traces carrying a governance decision of this verdict: `allow`, `warn`, `deny`, `pending` |
 
 **Output Structure:**
 ```json
@@ -927,3 +929,38 @@ sp --json infra logs trace list | jq '.data.traces[] | select(.status == "failed
 <sub>CLI reference · Own how your organization uses AI.</sub>
 
 </div>
+
+### logs governance report
+
+Read back what warn mode caught.
+
+A governance policy configured `mode: warn` in `services/governance/config.yaml`
+records the finding it would have denied on and lets the call through, writing a
+`governance_decisions` row with `decision = 'warn'`. The gateway safety scanners
+do the same under `safety.mode: warn` in `services/gateway/policies.yaml`,
+writing `ai_safety_findings` rows whose `blocked` column stays false. This
+command rolls both up over one window so a threshold or a block list can be set
+from traffic instead of from a guess.
+
+```bash
+sp infra logs governance report
+sp infra logs governance report --since 7d --group-by tool
+sp infra logs governance report --group-by user --format csv > warnings.csv
+```
+
+**Flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--since` | `24h` | Window to report over |
+| `--group-by` | `policy` | Collapse warnings onto `policy`, `tool`, or `user` |
+| `--format` | `table` | `table`, or `csv` on stdout for a spreadsheet |
+| `--limit` | `50` | Maximum rows per section |
+
+Two tables are printed. The first is governance-chain warnings grouped as asked,
+each row carrying the most recent reason that policy gave. The second is gateway
+safety findings by category, with a `findings` count beside a `blocked` count —
+a category with many findings and zero blocks is one that warn mode is currently
+absorbing.
+
+**Artifact Type:** `Table`

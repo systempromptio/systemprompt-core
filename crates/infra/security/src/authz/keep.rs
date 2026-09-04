@@ -19,7 +19,7 @@ use super::error::AuthzResult;
 use super::parent_chain::{ParentChainIndex, ResolveBase};
 use super::repository::AccessControlRepository;
 use super::subject::{SubjectAttributes, SubjectDimension};
-use super::types::{Decision, EntityKind};
+use super::types::EntityKind;
 
 /// Inputs to [`allowed_ids`]: one subject, one entity kind, many candidates.
 #[derive(Debug, Clone, Copy)]
@@ -58,7 +58,7 @@ pub async fn allowed_ids(
                 dimensions: query.dimensions,
             },
         );
-        if matches!(decision, Decision::Allow { .. }) {
+        if decision.permits() {
             keep.insert(id.clone());
         }
     }

@@ -32,7 +32,7 @@ mod safety;
 #[cfg(feature = "test-api")]
 pub use self::safety::dedupe_findings;
 pub(in crate::services::gateway) use self::safety::{
-    run_request_safety_scan, run_response_safety_scan,
+    request_finding_blocks, run_request_safety_scan, run_response_safety_scan,
 };
 
 use super::super::audit::GatewayAudit;
@@ -153,9 +153,13 @@ async fn finalize_buffered(
         &safety,
     )
     .await;
+    // Why: warn mode still scans and still persists, so the report shows what
+    // the response block list would have caught. It only skips the refusal.
     let blocked = findings
         .iter()
-        .find(|f| safety.block_response_categories.contains(&f.category))
+        .find(|f| {
+            !safety.mode.is_warn() && safety.block_response_categories.contains(&f.category)
+        })
         .map(|f| (f.category.clone(), f.scanner));
     spawn_buffered_completion(canonical, body.clone(), audit, tap_ctx, true);
     match blocked {

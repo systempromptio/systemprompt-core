@@ -30,9 +30,11 @@ use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::{OutboundOutcome, PreparedBody};
-use super::finalize::{apply_system_prompt_override, run_request_safety_scan};
+use super::finalize::{
+    apply_system_prompt_override, request_finding_blocks, run_request_safety_scan,
+};
 use super::resolve::ResolvedUpstream;
-use super::{DispatchError, GovernanceDenied, SafetyBlocked, blocks_at_phase};
+use super::{DispatchError, GovernanceDenied, SafetyBlocked};
 
 pub(super) struct UpstreamRelay<'a> {
     pub raw_body: &'a Bytes,
@@ -133,6 +135,10 @@ impl GovernedDispatch {
 
         let denied = match &evaluation.decision {
             Decision::Allow { .. } => None,
+            // Why: warn mode's entire purpose is that the call proceeds. The
+            // reason is already on the audit row written just below, so
+            // nothing is lost by not refusing here.
+            Decision::Warn { .. } => None,
             Decision::Deny { reason } => Some(reason.to_string()),
             // Why: a held call needs somewhere to park and something to wake
             // it. The MCP enforcement point has both; an inference request on
@@ -191,10 +197,11 @@ impl ScannedDispatch {
             safety,
         )
         .await;
-        let Some(finding) = findings.iter().find(|f| {
-            safety.block_categories.contains(&f.category)
-                && blocks_at_phase(f.phase, safety.history)
-        }) else {
+        // Why: the same predicate that stamped the `blocked` column decides the
+        // refusal, so a finding can never be reported as blocking while the
+        // request went through, or the reverse. It is false throughout under
+        // `safety.mode: warn`.
+        let Some(finding) = findings.iter().find(|f| request_finding_blocks(f, safety)) else {
             return Ok(Self(prepared));
         };
         let msg = format!(

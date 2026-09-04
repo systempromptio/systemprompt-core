@@ -83,9 +83,14 @@ fn merge(rows: Vec<systemprompt_ai::GatewayPolicyRow>) -> GatewayPolicySpec {
         if !spec.quota_windows.is_empty() {
             merged.quota_windows = spec.quota_windows;
         }
+        // Why: `mode` counts as a safety declaration on its own. Without it a
+        // policy row that says only `safety: {mode: warn}` would be dropped
+        // here and the gateway would keep enforcing, which is the exact
+        // failure warn mode exists to avoid.
         if !spec.safety.scanners.is_empty()
             || !spec.safety.block_categories.is_empty()
             || !spec.safety.block_response_categories.is_empty()
+            || spec.safety.mode.is_warn()
         {
             merged.safety = spec.safety;
         }
