@@ -123,6 +123,47 @@ impl ApprovalRepository {
             .collect())
     }
 
+    // Why: the decided rows are the audit half of the queue — an approvals
+    // console that shows only what is still pending cannot answer "who let
+    // that through?". Expired rows come back too: nobody decided them, and
+    // that is itself the answer.
+    pub async fn list_decided(&self, limit: i64) -> Result<Vec<ApprovalRequest>, sqlx::Error> {
+        let rows = sqlx::query!(
+            "SELECT call_id, tool_name, server_name, arguments, args_digest, requested_by,
+                    session_id, trace_id, rule, status, approver_id, approver_username,
+                    decided_at, decision_note, expires_at, created_at
+             FROM approval_requests
+             WHERE status <> 'pending'
+             ORDER BY decided_at DESC
+             LIMIT $1",
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| ApprovalRequest {
+                call_id: r.call_id,
+                tool_name: r.tool_name,
+                server_name: r.server_name,
+                arguments: r.arguments,
+                args_digest: r.args_digest,
+                requested_by: r.requested_by,
+                session_id: r.session_id,
+                trace_id: r.trace_id,
+                rule: r.rule,
+                status: parse_status(&r.status),
+                approver_id: r.approver_id,
+                approver_username: r.approver_username,
+                decided_at: r.decided_at,
+                decision_note: r.decision_note,
+                expires_at: r.expires_at,
+                created_at: r.created_at,
+            })
+            .collect())
+    }
+
     pub async fn resolve(
         &self,
         call_id: &str,
