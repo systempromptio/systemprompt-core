@@ -9,11 +9,17 @@ use std::sync::Arc;
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::handlers::auth::finish_unit;
+use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, emit};
 use crate::i18n;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 pub(crate) fn on_purge_requested(app: &GuiApp, reply_to: ReplyId) {
+    // Why: a sign-in already in flight keeps its loopback listener accepting.
+    // Its continuation writes the credential back through `setup::login` and
+    // the auth cache, so a callback landing mid-purge silently restores the
+    // credential the purge just deleted.
+    app.state.cancel_scope(CancelScope::Login);
     app.append_log(i18n::t("purge-running"));
     let proxy = app.proxy.clone();
     let ctx = Arc::clone(&app.ctx);

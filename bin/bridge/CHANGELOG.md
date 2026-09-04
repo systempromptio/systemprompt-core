@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.36.1] - 2026-09-04
+
+### Fixed
+
+- Sign-in survives another process holding the browser-callback port. `LoopbackServer::bind` bound a single hardcoded `127.0.0.1:8767` with no fallback, so anything that claimed that port first made every sign-in fail at bind with a raw Winsock error (`os error 10048`). Docker Desktop's `com.docker.backend.exe` does claim it, and the result was an unrecoverable wedge: the token cache latched and asked the user to re-authenticate, and re-authenticating could not start. `bind` now walks `LOOPBACK_PORTS` — 8767 first, so the common case and any firewall rule naming it are unchanged — stepping over a candidate only on `AddrInUse` so a genuine bind fault is still reported against the port that had it. The callback URL already derived its port from the bound socket, so the redirect follows automatically. Exhausting the list reports which ports were tried and that another application is holding them.
+- A sign-in failure that never reached the log file. The bind error was mapped straight into `AuthError` and rendered as a GUI toast, so a wedged sign-in left no trace in `bridge.<date>.log` — the only artefact available when nobody is at the machine. `capture_device_link_code` now diagnoses it the way the neighbouring browser-launch failure already did.
+- "Remove everything from this computer" can no longer be undone by a sign-in that was already in flight. The login task's `CancelScope::Login` token was only ever fired by the user's explicit Cancel button — never by purge or sign-out — so a callback landing mid-purge ran its continuation and wrote the credential back through `setup::login` and the auth cache *after* the purge deleted it. Both handlers now cancel the scope before starting their work, which also drops the loopback listener immediately instead of leaving it bound for the remainder of its 300s deadline.
+
+### Changed
+
+- The session-provider test no longer asserts that a candidate loopback port is simply free. That made it depend on whatever else was running on the machine and it failed wherever Docker Desktop held 8767, for a reason unrelated to the provider. It compares the occupied candidate set before and after instead, which is what "the provider starts no listener" actually means.
+
 ## [0.36.0] - 2026-09-03
 
 ### Added

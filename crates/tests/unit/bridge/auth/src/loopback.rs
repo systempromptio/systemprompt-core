@@ -139,3 +139,80 @@ async fn binding_an_already_bound_port_reports_the_port_in_the_error() {
         other => panic!("expected Bind error, got {other:?}"),
     }
 }
+
+async fn occupy(port: u16) -> tokio::net::TcpListener {
+    tokio::net::TcpListener::bind(("127.0.0.1", port))
+        .await
+        .expect("test squatter binds the port")
+}
+
+async fn free_ports(count: usize) -> Vec<u16> {
+    let mut held = Vec::new();
+    for _ in 0..count {
+        held.push(occupy(0).await);
+    }
+    held.iter()
+        .map(|l| l.local_addr().expect("bound addr").port())
+        .collect()
+}
+
+// Why: the shipped port list is fixed, so any process that grabs 8767 first
+// makes every sign-in fail at bind with a Winsock error the user cannot act
+// on. Docker Desktop did exactly this in production.
+#[tokio::test]
+async fn a_taken_port_is_stepped_over_for_the_next_candidate() {
+    let ports = free_ports(2).await;
+    let squatter = occupy(ports[0]).await;
+
+    let server = LoopbackServer::bind_first_available(&ports)
+        .await
+        .expect("the second candidate is free");
+
+    assert!(
+        server
+            .callback_url()
+            .as_str()
+            .contains(&format!(":{}/", ports[1])),
+        "the callback url carries the port that actually bound, not the first \
+         candidate: {}",
+        server.callback_url()
+    );
+    drop(squatter);
+}
+
+#[tokio::test]
+async fn every_candidate_taken_names_the_ports_it_tried() {
+    let ports = free_ports(3).await;
+    let mut squatters = Vec::new();
+    for &port in &ports {
+        squatters.push(occupy(port).await);
+    }
+
+    let err = LoopbackServer::bind_first_available(&ports)
+        .await
+        .expect_err("no candidate is free");
+
+    match err {
+        LoopbackError::PortsExhausted { ports: listed } => {
+            for port in &ports {
+                assert!(
+                    listed.contains(&port.to_string()),
+                    "the message names every port tried so the user can find \
+                     the process holding them: {listed}"
+                );
+            }
+        },
+        other => panic!("exhausting the list is not a bare bind error: {other}"),
+    }
+    drop(squatters);
+}
+
+// Why: stepping over a taken port must not also step over a genuine fault.
+#[tokio::test]
+async fn the_shipped_list_starts_at_the_documented_port() {
+    assert_eq!(
+        systemprompt_bridge::auth::loopback::LOOPBACK_PORTS[0],
+        systemprompt_bridge::auth::loopback::LOOPBACK_PORT,
+        "the common case still binds the port the docs and firewall rules name"
+    );
+}

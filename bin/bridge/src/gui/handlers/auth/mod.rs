@@ -182,6 +182,9 @@ pub(crate) fn on_set_gateway_finished(
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
+    // Why: as for purge — an in-flight sign-in would write a fresh credential
+    // after the sign-out cleared it, and the sign-out would look undone.
+    app.state.cancel_scope(CancelScope::Login);
     app.append_log(i18n::t("logout-running"));
     let proxy = app.proxy.clone();
     app.ctx.spawn(async move {
