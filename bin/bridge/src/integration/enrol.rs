@@ -18,7 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::context::BridgeContext;
-use crate::integration::host_app::{HostApp, ProbeEnv};
+use crate::integration::host_app::{HostApp, ProbeEnv, ProfileRemoval};
 use crate::integration::profile_state::ProfileState;
 use crate::integration::reapply::ModelProtocolOverrides;
 use crate::integration::registry::{ResolvedHost, resolve_host};
@@ -46,6 +46,10 @@ pub enum Outcome {
     SyncOnly,
     /// The instance's last synced manifest does not enable this host.
     NotEnabled,
+    Removed,
+    NothingToRemove,
+    /// The platform handed the removal back to the user to finish.
+    ManualStep(String),
     Failed(String),
 }
 
@@ -223,10 +227,54 @@ pub fn render(reports: &[Report]) -> String {
                  administrator to enable '{}'",
                 r.display_name, r.host_id
             ),
+            Outcome::Removed => format!(
+                "  [ok      ] {} — bridge-owned settings removed", r.display_name
+            ),
+            Outcome::NothingToRemove => format!(
+                "  [ok      ] {} — nothing of ours left to remove", r.display_name
+            ),
+            Outcome::ManualStep(instruction) => format!(
+                "  [pending ] {} — finish by hand: {instruction}", r.display_name
+            ),
             Outcome::Failed(e) => format!("  [failed  ] {} — {e}", r.display_name),
         };
         out.push_str(&line);
         out.push('\n');
     }
     out
+}
+
+/// Removes the bridge-owned profile from every selected host.
+///
+/// Why this is here rather than in `uninstall`: `install --host` gives the CLI
+/// a way to enrol a client, and until now the only way to undo that was the
+/// GUI's Remove button — which a headless Linux box does not have. A feature
+/// that can only be applied is not a feature an operator can safely try.
+pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String> {
+    let targets = resolve(selection)?;
+    Ok(targets
+        .into_iter()
+        .map(|target| match target {
+            Target::SyncOnly(agent) => Report {
+                host_id: agent.id.to_owned(),
+                display_name: agent.display_name,
+                install_action_label: "governed through the gateway; nothing local to remove",
+                outcome: Outcome::SyncOnly,
+            },
+            Target::Local(host) => Report {
+                host_id: host.id().to_owned(),
+                display_name: host.display_name(),
+                install_action_label: host.install_action_label(),
+                outcome: match host.remove_profile() {
+                    Ok(ProfileRemoval::Removed { .. }) => Outcome::Removed,
+                    Ok(ProfileRemoval::NothingToRemove) => Outcome::NothingToRemove,
+                    Ok(ProfileRemoval::ManualStepRequired { instruction }) => {
+                        Outcome::ManualStep(instruction)
+                    },
+                    Err(e) if super::reapply::is_declined(&e) => Outcome::Declined,
+                    Err(e) => Outcome::Failed(e.to_string()),
+                },
+            },
+        })
+        .collect())
 }

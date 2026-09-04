@@ -122,6 +122,10 @@ Commands (plugin + MCP sync):
                                           Ids: claude-code, claude-desktop,
                                           codex-cli, hermes, opencode.
     [--hosts all]                         Enrol every host this build offers.
+                                          Undo one with
+                                          `uninstall --host <id>`, which touches
+                                          only that host and leaves the bridge
+                                          installed.
     [--print-mdm macos|windows|linux]     Print MDM snippet for target OS (default: current OS)
     [--emit-schedule-template macos|windows|linux]
                                           Write an OS scheduler template to CWD
