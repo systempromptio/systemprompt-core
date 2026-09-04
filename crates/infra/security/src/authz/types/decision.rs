@@ -163,7 +163,9 @@ impl Decision {
         }
     }
 
-    /// Whether the call may proceed. `Allow` and `Warn` both permit it.
+    // Why: the predicate every enforcement point should use. Matching on
+    // `Allow` alone turns warn mode back into enforcement silently, which is
+    // the one failure the `Warn` variant exists to prevent.
     #[must_use]
     pub const fn permits(&self) -> bool {
         matches!(self, Self::Allow { .. } | Self::Warn { .. })

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.46.0] - 2026-09-04
+
+### Changed
+
+- The gateway treats a `Decision::Warn` verdict as an allow and records it, so a governance policy in warn mode no longer refuses an inference request.
+- The safety stage honours `safety.mode: warn`: findings are scanned and persisted in both directions and the request and response block lists stop refusing. A gateway policy row declaring only `safety.mode` now merges, where before it was dropped for carrying no scanners or categories.
+
 ## [0.45.0] - 2026-09-03
 
 ### Fixed

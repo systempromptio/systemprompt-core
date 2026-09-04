@@ -157,7 +157,11 @@ async fn execute_with_pool_inner(
             example_reason: truncate(&acc.example_reason, 120),
         })
         .collect();
-    warnings.sort_by(|a, b| b.warnings.cmp(&a.warnings).then_with(|| a.group.cmp(&b.group)));
+    warnings.sort_by(|a, b| {
+        b.warnings
+            .cmp(&a.warnings)
+            .then_with(|| a.group.cmp(&b.group))
+    });
     warnings.truncate(usize::try_from(args.limit.max(0)).unwrap_or(usize::MAX));
 
     let findings_repo = AiSafetyFindingRepository::from_pool(Arc::clone(pool));

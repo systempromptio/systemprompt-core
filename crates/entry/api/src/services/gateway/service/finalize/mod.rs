@@ -157,9 +157,7 @@ async fn finalize_buffered(
     // the response block list would have caught. It only skips the refusal.
     let blocked = findings
         .iter()
-        .find(|f| {
-            !safety.mode.is_warn() && safety.block_response_categories.contains(&f.category)
-        })
+        .find(|f| !safety.mode.is_warn() && safety.block_response_categories.contains(&f.category))
         .map(|f| (f.category.clone(), f.scanner));
     spawn_buffered_completion(canonical, body.clone(), audit, tap_ctx, true);
     match blocked {

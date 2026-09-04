@@ -40,8 +40,10 @@ pub struct InsertSafetyFinding<'a> {
     pub category: &'a str,
     pub scanner: &'a str,
     pub excerpt: Option<&'a str>,
-    /// True only when this finding refused the call. Always false under
-    /// `safety.mode: warn`.
+    // Why: "matched a block category" and "refused the call" are the same fact
+    // only under `safety.mode: enforce`. Under warn they diverge, and the
+    // report needs the second one, so it is stamped at insert rather than
+    // re-derived later from a config that may have changed since.
     pub blocked: bool,
 }
 
@@ -53,11 +55,9 @@ impl AiSafetyFindingRepository {
         Ok(Self { write_pool })
     }
 
-    /// Builds a read-only view over an existing pool.
-    ///
-    /// The CLI reaches the table through a bare `PgPool` rather than a
-    /// `DbPool`, and the rollup is a read, so the write/read pool split this
-    /// type otherwise honours has nothing to enforce here.
+    // Why: the CLI reaches this table through a bare `PgPool` rather than a
+    // `DbPool`, and the rollup is a read, so the write/read pool split this
+    // type otherwise honours has nothing to enforce here.
     #[must_use]
     pub const fn from_pool(pool: Arc<PgPool>) -> Self {
         Self { write_pool: pool }

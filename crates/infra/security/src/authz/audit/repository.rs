@@ -128,11 +128,9 @@ pub struct GovernanceWarningRow {
     pub example_reason: String,
 }
 
-/// Reads the warn-mode rollup, most frequent first.
-///
-/// Grouped by all three dimensions at once so a caller can re-aggregate to
-/// whichever one it wants without a second round trip; the combinations are
-/// bounded by the policy count times the tool count, not by traffic.
+// Why: grouped by all three dimensions at once so a caller can re-aggregate to
+// whichever one it wants without a second round trip. The combinations are
+// bounded by the policy count times the tool count, not by traffic.
 pub async fn list_governance_warnings(
     pool: &PgPool,
     since: Option<chrono::DateTime<chrono::Utc>>,
@@ -158,11 +156,9 @@ pub async fn list_governance_warnings(
     .await
 }
 
-/// Trace ids carrying at least one decision of the given verdict.
-///
-/// Kept separate from the trace listing query so `trace list --decision` can
-/// filter an existing result set rather than reshape the trace query, which
-/// already joins four tables.
+// Why: kept separate from the trace listing query so `trace list --decision`
+// filters an existing result set rather than reshaping the trace query, which
+// already unions four tables for every listing.
 pub async fn list_trace_ids_with_decision(
     pool: &PgPool,
     decision: &str,

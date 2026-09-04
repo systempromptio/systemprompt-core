@@ -43,10 +43,9 @@ pub(in crate::services::gateway) async fn run_request_safety_scan(
     findings
 }
 
-/// Whether a request-phase finding refuses the call as configured.
-///
-/// The same predicate decides the `blocked` column and the refusal itself, so
-/// the report can never disagree with what the gateway actually did.
+// Why: one predicate decides both the `blocked` column and the refusal itself,
+// so the report can never disagree with what the gateway actually did. It is
+// false throughout under `safety.mode: warn`.
 pub(in crate::services::gateway) fn request_finding_blocks(
     finding: &Finding,
     safety: &SafetyConfig,

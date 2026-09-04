@@ -103,14 +103,15 @@ fn entry_result(
 
 #[test]
 fn mode_defaults_to_enforce_everywhere() {
-    let cfg =
-        GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n").unwrap();
+    let cfg = GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n").unwrap();
     assert_eq!(cfg.mode, PolicyMode::Enforce);
     assert_eq!(cfg.policies[0].mode, PolicyMode::Enforce);
-    assert!(GovernanceConfig::defaults()
-        .policies
-        .iter()
-        .all(|p| p.mode == PolicyMode::Enforce));
+    assert!(
+        GovernanceConfig::defaults()
+            .policies
+            .iter()
+            .all(|p| p.mode == PolicyMode::Enforce)
+    );
 }
 
 #[test]
@@ -146,8 +147,7 @@ fn an_unknown_mode_is_a_parse_error_rather_than_a_silent_default() {
 
 #[test]
 fn a_warn_mode_deny_permits_the_call_and_records_the_reason() {
-    let evaluation =
-        evaluate("governance:\n  mode: warn\n  policies:\n    - id: t_warnable\n");
+    let evaluation = evaluate("governance:\n  mode: warn\n  policies:\n    - id: t_warnable\n");
     let Decision::Warn { reason } = &evaluation.decision else {
         panic!("expected a warn verdict, got {:?}", evaluation.decision);
     };

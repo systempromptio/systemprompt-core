@@ -26,9 +26,9 @@ use crate::authz::{GovernanceDecisionRecord, insert_governance_decision};
 pub enum ChainEntryResult {
     Pass,
     Fail,
-    /// The policy found what it would normally refuse, but runs in
-    /// `mode: warn`, so the chain continued. Kept distinct from `Fail` so a
-    /// warn-mode installation cannot be misread as an enforcing one.
+    // Why: the policy found what it would normally refuse but runs in
+    // `mode: warn`, so the chain continued. Kept distinct from `Fail` so a
+    // warn-mode installation cannot be misread as an enforcing one.
     Warn,
     Disabled,
     Skip,

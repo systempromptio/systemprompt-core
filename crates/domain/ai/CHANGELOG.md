@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.46.0] - 2026-09-04
+
+### Added
+
+- `SafetyConfig` takes a `mode: enforce | warn`. Under `warn` every scanner still runs and every finding is still persisted; only the refusal is dropped, so a block list can be calibrated against real traffic instead of guesses.
+- `ai_safety_findings` gains a `blocked` column, stamped by the same predicate that decides the refusal, so a report can tell "matched a block category" from "actually refused the call".
+- `AiSafetyFindingRepository::list_rollup` reads those two counts back per category.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

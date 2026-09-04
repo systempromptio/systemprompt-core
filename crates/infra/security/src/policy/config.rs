@@ -47,7 +47,9 @@ pub enum GovernanceConfigError {
     MissingPolicyId { index: usize },
     #[error("governance config exists but could not be read: {0}")]
     Unreadable(#[from] std::io::Error),
-    #[error("governance config has an unknown mode `{value}` at {location}; expected `enforce` or `warn`")]
+    #[error(
+        "governance config has an unknown mode `{value}` at {location}; expected `enforce` or `warn`"
+    )]
     InvalidMode { location: String, value: String },
 }
 
@@ -91,7 +93,10 @@ impl std::fmt::Display for PolicyMode {
 // Why: an absent key inherits, a present-but-unreadable key is an error. Both
 // are distinct from "present and valid", so the return is a three-way option
 // rather than a defaulted value.
-fn read_mode(node: Option<&YamlValue>, location: &str) -> Result<Option<PolicyMode>, GovernanceConfigError> {
+fn read_mode(
+    node: Option<&YamlValue>,
+    location: &str,
+) -> Result<Option<PolicyMode>, GovernanceConfigError> {
     let Some(raw) = node.and_then(|n| n.get("mode")) else {
         return Ok(None);
     };
