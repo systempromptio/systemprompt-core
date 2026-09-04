@@ -100,17 +100,11 @@ pub(super) fn user_config_path() -> PathBuf {
     user_dir().join(CONFIG_FILE)
 }
 
-/// Where the provider block lands when the managed tier cannot be written.
-///
-/// Why this is Linux-only: macOS and Windows both have an elevation path the
-/// bridge can offer, so a refused managed write there is a decision the user
-/// made and must not be quietly downgraded. On Linux there is no prompt to
-/// offer — `write_managed_file` can only report "re-run as root" — and an
-/// unprivileged single-user install is the ordinary case, so the choice is
-/// between a user-tier provider block and no working client at all.
-/// The tier is weaker: a user-tier file is not governance, because the user
-/// can edit it. It is still the bridge's own provider block pointed at the
-/// loopback proxy, and `probe` reports which tier it found.
+// Why: this is Linux-only because macOS and Windows have an elevation path to
+// offer, so a refused managed write there is the user's decision and must not
+// be quietly downgraded. Linux has no prompt — the choice is a user-tier
+// provider block or no working client. The tier is weaker (the user can edit
+// it), so it is not governance; `probe` reports which tier it found.
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(super) fn fallback_config_path() -> Option<PathBuf> {
     let path = user_config_path();
@@ -121,7 +115,7 @@ pub(super) fn fallback_config_path() -> Option<PathBuf> {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) fn fallback_config_path() -> Option<PathBuf> {
+pub(super) const fn fallback_config_path() -> Option<PathBuf> {
     None
 }
 

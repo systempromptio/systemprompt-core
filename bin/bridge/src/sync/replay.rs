@@ -31,11 +31,8 @@ pub struct LastSyncState {
     pub enabled_hosts: Vec<String>,
 }
 
-/// The hosts the last synced manifest enabled, or `None` when no manifest has
-/// been applied on this machine yet.
-///
-/// `None` is not "nothing is enabled": a bridge installed a minute ago has no
-/// record at all, and a caller must not read that as a refusal.
+// Why: `None` is not "nothing is enabled" — a bridge installed a minute ago
+// has no record at all, and a caller must not read that as a refusal.
 #[must_use]
 pub fn last_synced_enabled_hosts() -> Option<Vec<String>> {
     let meta = crate::config::paths::bridge_metadata_dir()?;

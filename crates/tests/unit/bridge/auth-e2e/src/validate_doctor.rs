@@ -59,7 +59,7 @@ fn validate_run_reports_healthy_gateway() {
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
         let ctx = bridge();
-        let report = block_on(validate::run(&ctx));
+        let report = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
         assert!(!report.lines.is_empty(), "report must have lines");
 
         let rendered = report.rendered();
@@ -88,7 +88,7 @@ fn validate_run_reports_failing_gateway() {
 
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
         let ctx = bridge();
-        let report = block_on(validate::run(&ctx));
+        let report = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
 
         let health = report
             .lines
@@ -161,7 +161,7 @@ fn unpersisted_tofu_pubkey_is_reported_distinctly_from_never_pinned() {
     temp_env::with_vars(sandbox_vars(&home, &uri), || {
         let ctx = bridge();
 
-        let never = block_on(validate::run(&ctx));
+        let never = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
         let line = never
             .lines
             .iter()
@@ -177,7 +177,7 @@ fn unpersisted_tofu_pubkey_is_reported_distinctly_from_never_pinned() {
         ctx.unpersisted_tofu_pubkey
             .store(true, std::sync::atomic::Ordering::Relaxed);
 
-        let unpersisted = block_on(validate::run(&ctx));
+        let unpersisted = block_on(validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey));
         let line = unpersisted
             .lines
             .iter()

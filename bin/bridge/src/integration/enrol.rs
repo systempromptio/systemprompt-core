@@ -4,7 +4,7 @@
 //! and from [`super::reapply::reapply_stale_profiles`], which by design touches
 //! *only* hosts that already carry a profile. On a headless Linux box the sole
 //! setup path is `install`, and it installed no host profile at all — so
-//! `sync` wrote OpenCode's MCP connectors while the provider block and the
+//! `sync` wrote `OpenCode`'s MCP connectors while the provider block and the
 //! `auth.json` key were never written, and every request the client made to
 //! the loopback proxy came back `403 no loopback credential presented`. This
 //! module is the enrolment half: name a host, get its profile written, whether
@@ -27,9 +27,7 @@ use crate::integration::sync_only::SyncOnlyAgent;
 /// Which hosts the caller asked for.
 #[derive(Debug, Clone)]
 pub enum Selection {
-    /// Every locally installable host in the registry.
     All,
-    /// The ids the caller named, in the order they named them.
     Ids(Vec<String>),
 }
 
@@ -42,13 +40,10 @@ pub enum Outcome {
     // call returning.
     Pending,
     Declined,
-    /// Governed centrally; there is no local profile to write.
     SyncOnly,
-    /// The instance's last synced manifest does not enable this host.
     NotEnabled,
     Removed,
     NothingToRemove,
-    /// The platform handed the removal back to the user to finish.
     ManualStep(String),
     Failed(String),
 }
@@ -63,12 +58,17 @@ pub struct Report {
 
 impl Report {
     #[must_use]
-    pub fn is_failure(&self) -> bool {
+    pub const fn is_failure(&self) -> bool {
         matches!(self.outcome, Outcome::Failed(_))
     }
 }
 
 /// What one requested id turned out to be.
+#[expect(
+    missing_debug_implementations,
+    reason = "holds `&'static dyn HostApp`, and the trait is not Debug"
+)]
+#[derive(Clone, Copy)]
 pub enum Target {
     Local(&'static dyn HostApp),
     SyncOnly(&'static SyncOnlyAgent),
@@ -84,16 +84,18 @@ impl Target {
     }
 }
 
-/// Resolves the selection, rejecting the whole request if any id is bad.
-///
-/// Why fail the whole line rather than skip the bad id: `install --host
-/// claude-code,opencodee` that enrolled one host and shrugged at the typo
-/// would report success while leaving the client the operator actually cared
-/// about unconfigured.
+// Why: failing the whole line rather than skipping a bad id — `install --host
+// claude-code,opencodee` that enrolled one host and shrugged at the typo would
+// report success while leaving the client the operator cared about
+// unconfigured.
 pub fn resolve(selection: &Selection) -> Result<Vec<Target>, String> {
     let ids = match selection {
         Selection::All => {
-            return Ok(super::host_apps().iter().copied().map(Target::Local).collect());
+            return Ok(super::host_apps()
+                .iter()
+                .copied()
+                .map(Target::Local)
+                .collect());
         },
         Selection::Ids(ids) => ids,
     };
@@ -108,7 +110,10 @@ pub fn resolve(selection: &Selection) -> Result<Vec<Target>, String> {
                 ));
             },
             ResolvedHost::Unknown => {
-                return Err(format!("--host {id}: unknown host id; known ids: {}", known()));
+                return Err(format!(
+                    "--host {id}: unknown host id; known ids: {}",
+                    known()
+                ));
             },
         }
     }
@@ -122,20 +127,19 @@ fn known() -> String {
     ids.join(", ")
 }
 
-/// Writes and installs the profile for every selected host.
-///
-/// The returned reports are per host; the `Err` arm is reserved for a request
-/// that could not be understood at all.
+// Why: the reports are per host, so the `Err` arm is reserved for a request
+// that could not be understood at all. `enabled` is passed in rather than read
+// here because `sync` sits above `integration` in the module order; `None`
+// means no manifest has been applied yet, which is the normal state moments
+// after `install`, and only a record that exists and omits the host is evidence
+// the instance withholds it.
 pub async fn enrol_hosts(
     bridge: &BridgeContext,
     selection: &Selection,
     overrides: &ModelProtocolOverrides,
+    enabled: Option<Vec<String>>,
 ) -> Result<Vec<Report>, String> {
     let targets = resolve(selection)?;
-    // Why: absent record means no manifest has been applied yet, which is the
-    // normal state moments after `install`; only a record that exists and
-    // omits the host is evidence the instance withholds it.
-    let enabled = crate::sync::last_synced_enabled_hosts();
     let env = ProbeEnv::new(
         bridge.proxy.loopback(),
         std::sync::Arc::clone(&bridge.start_menu),
@@ -228,13 +232,16 @@ pub fn render(reports: &[Report]) -> String {
                 r.display_name, r.host_id
             ),
             Outcome::Removed => format!(
-                "  [ok      ] {} — bridge-owned settings removed", r.display_name
+                "  [ok      ] {} — bridge-owned settings removed",
+                r.display_name
             ),
             Outcome::NothingToRemove => format!(
-                "  [ok      ] {} — nothing of ours left to remove", r.display_name
+                "  [ok      ] {} — nothing of ours left to remove",
+                r.display_name
             ),
             Outcome::ManualStep(instruction) => format!(
-                "  [pending ] {} — finish by hand: {instruction}", r.display_name
+                "  [pending ] {} — finish by hand: {instruction}",
+                r.display_name
             ),
             Outcome::Failed(e) => format!("  [failed  ] {} — {e}", r.display_name),
         };
@@ -244,12 +251,10 @@ pub fn render(reports: &[Report]) -> String {
     out
 }
 
-/// Removes the bridge-owned profile from every selected host.
-///
-/// Why this is here rather than in `uninstall`: `install --host` gives the CLI
-/// a way to enrol a client, and until now the only way to undo that was the
-/// GUI's Remove button — which a headless Linux box does not have. A feature
-/// that can only be applied is not a feature an operator can safely try.
+// Why: this is here rather than in `uninstall` because the only way to undo an
+// `install --host` enrolment was the GUI's Remove button, which a headless
+// Linux box does not have. A feature that can only be applied is not one an
+// operator can safely try.
 pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String> {
     let targets = resolve(selection)?;
     Ok(targets

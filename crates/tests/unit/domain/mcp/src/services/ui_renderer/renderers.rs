@@ -437,7 +437,9 @@ async fn text_renderer_formats_bullets_and_emphasis() {
         "text",
         None,
         None,
-        vec![text_part("- **[23] Follow up** with `crm.lead`\n- Second item")],
+        vec![text_part(
+            "- **[23] Follow up** with `crm.lead`\n- Second item",
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();

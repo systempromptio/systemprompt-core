@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use super::MANAGED_SETTINGS_FILE;
+use crate::claude_policy::MANAGED_SETTINGS_FILE;
 
 pub(super) fn clear_direct(
     mcp_path: &Path,

@@ -99,17 +99,13 @@ pub(super) fn check_managed_policy(report: &mut Report) {
     check_workspace_bundle(report);
 }
 
-// Why: Claude Desktop applies these Claude Code policy files to Cowork
-// sessions, and either one shadows Cowork's own tools; the bridge never writes
-// them, so anything here was left by another installer or an older bridge.
-//
-// The question asked is exactly the one `managed_mcp::clear_policy` asks, so
-// the check and the remedy it names cannot disagree. Filenames alone used to
-// decide it, which failed a machine holding an empty `managed-settings.json`:
-// that file shadows nothing, so sync correctly leaves it, and the check
-// reported a failure whose named remedy would never clear it.
+// Why: this asks exactly the question `managed_mcp::clear_policy` asks, so the
+// check and the remedy it names cannot disagree. Filenames alone used to decide
+// it, which permanently failed a machine holding an empty
+// `managed-settings.json` — that file shadows nothing, sync correctly leaves
+// it, and the named remedy could never clear it.
 fn check_claude_code_policy_dir(report: &mut Report) {
-    use crate::install::managed_mcp::{MANAGED_MCP_FILE, MANAGED_SETTINGS_FILE};
+    use crate::claude_policy::{MANAGED_MCP_FILE, MANAGED_SETTINGS_FILE};
 
     let dir = crate::config::paths::claude_code_policy_dir();
     if !dir.exists() {
@@ -117,12 +113,12 @@ fn check_claude_code_policy_dir(report: &mut Report) {
         return;
     }
     let mut offenders: Vec<&str> = Vec::new();
-    // Exclusive mode is switched on by this file existing at all.
+    // Why: exclusive mode is switched on by this file existing at all.
     if dir.join(MANAGED_MCP_FILE).exists() {
         offenders.push(MANAGED_MCP_FILE);
     }
     let settings = dir.join(MANAGED_SETTINGS_FILE);
-    match crate::install::managed_mcp::stripped_settings(&settings) {
+    match crate::claude_policy::stripped_settings(&settings) {
         Ok(Some(_)) => offenders.push(MANAGED_SETTINGS_FILE),
         Ok(None) => {},
         Err(e) => report.warn(

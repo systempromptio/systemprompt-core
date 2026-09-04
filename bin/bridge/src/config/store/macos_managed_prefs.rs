@@ -119,8 +119,8 @@ fn copy_app_string(key: &str) -> Option<String> {
     // under the Copy rule, so ownership transfers to the wrapper.
     let value: CFType = unsafe { TCFType::wrap_under_create_rule(raw.cast()) };
     match cf_to_json(&value)? {
-        // A string stays a bare string: callers compare these to plain values
-        // like "true" or a URL, and quoting them would break every match.
+        // Why: a string stays bare because callers compare these to plain
+        // values like "true" or a URL, and quoting would break every match.
         serde_json::Value::String(s) => Some(s),
         other => Some(other.to_string()),
     }
@@ -141,7 +141,10 @@ fn cf_to_json(value: &CFType) -> Option<serde_json::Value> {
         if let Some(i) = n.to_i64() {
             return Some(serde_json::Value::from(i));
         }
-        return n.to_f64().and_then(serde_json::Number::from_f64).map(serde_json::Value::Number);
+        return n
+            .to_f64()
+            .and_then(serde_json::Number::from_f64)
+            .map(serde_json::Value::Number);
     }
     if let Some(array) = value.downcast::<CFArray<*const c_void>>() {
         let mut out = Vec::with_capacity(array.len().try_into().unwrap_or(0));
@@ -167,4 +170,3 @@ fn cf_to_json(value: &CFType) -> Option<serde_json::Value> {
     }
     None
 }
-

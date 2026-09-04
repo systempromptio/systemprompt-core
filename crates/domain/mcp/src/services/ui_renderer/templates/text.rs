@@ -233,8 +233,8 @@ fn format_prose(text: &str) -> String {
     out
 }
 
-// A `*` bullet needs the trailing space, which is what keeps `**bold**` at the
-// start of a line from being mistaken for one.
+// Why: a `*` bullet needs the trailing space, which is what keeps `**bold**` at
+// the start of a line from being mistaken for one.
 fn bullet_body(line: &str) -> Option<&str> {
     line.strip_prefix("- ").or_else(|| line.strip_prefix("* "))
 }
@@ -244,8 +244,8 @@ fn format_inline(text: &str) -> String {
     wrap_delimited(&bolded, "`", "code")
 }
 
-// Operates on already-escaped text, so it can only ever introduce the tag it is
-// asked for. An odd number of delimiters means the author wrote a literal
+// Why: this operates on already-escaped text, so it can only introduce the tag
+// it is asked for. An odd number of delimiters means the author wrote a literal
 // marker rather than a pair, and the text is returned untouched.
 fn wrap_delimited(text: &str, delimiter: &str, tag: &str) -> String {
     let parts: Vec<&str> = text.split(delimiter).collect();

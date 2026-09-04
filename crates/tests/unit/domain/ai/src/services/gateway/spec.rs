@@ -1,6 +1,4 @@
-use systemprompt_ai::{
-    GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode,
-};
+use systemprompt_ai::{GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode};
 
 #[test]
 fn permissive_is_default() {
@@ -102,5 +100,8 @@ fn quota_mode_warn_round_trips_through_the_spec_yaml() {
 #[test]
 fn an_unknown_quota_mode_is_a_parse_error_not_a_default() {
     let err = serde_yaml::from_str::<GatewayPolicySpec>("quota_mode: observe\n");
-    assert!(err.is_err(), "an unrecognised mode must not fall back to enforce or warn");
+    assert!(
+        err.is_err(),
+        "an unrecognised mode must not fall back to enforce or warn"
+    );
 }

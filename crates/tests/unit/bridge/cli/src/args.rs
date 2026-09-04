@@ -72,7 +72,14 @@ fn parse_multi_flag_splits_comma_separated_values() {
 
 #[test]
 fn parse_multi_flag_drops_blanks_and_duplicates() {
-    let a = args(&["bin", "sub", "--host", "opencode, ,opencode,", "--host", " opencode "]);
+    let a = args(&[
+        "bin",
+        "sub",
+        "--host",
+        "opencode, ,opencode,",
+        "--host",
+        " opencode ",
+    ]);
     assert_eq!(parse_multi_flag(&a, "--host"), vec!["opencode".to_owned()]);
 }
 

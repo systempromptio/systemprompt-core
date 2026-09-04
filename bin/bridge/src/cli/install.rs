@@ -10,8 +10,8 @@ use systemprompt_identifiers::ValidatedUrl;
 
 use crate::cli::args::{has_flag, parse_multi_flag, parse_opt_flag};
 use crate::context::BridgeContext;
-use crate::integration::enrol::{self, Selection};
 use crate::ids::PinnedPubKey;
+use crate::integration::enrol::{self, Selection};
 use crate::schedule::Os;
 use crate::stdio::diag;
 use crate::{install, stdio};
@@ -76,10 +76,9 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
             // lands MDM policy and the scheduled task and only *repairs*
             // profiles that already exist; --host is how a client that was
             // never set up gets one, which is the whole Linux install path.
-            match host_selection {
-                Some(selection) => enrol_selected(ctx, &selection),
-                None => ExitCode::SUCCESS,
-            }
+            host_selection.map_or(ExitCode::SUCCESS, |selection| {
+                enrol_selected(ctx, &selection)
+            })
         },
         Err(err) => {
             diag(&err.to_string());
@@ -107,7 +106,8 @@ fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, String> {
 
 fn enrol_selected(ctx: &BridgeContext, selection: &Selection) -> ExitCode {
     let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
-    match ctx.block_on(enrol::enrol_hosts(ctx, selection, &overrides)) {
+    let enabled = crate::sync::last_synced_enabled_hosts();
+    match ctx.block_on(enrol::enrol_hosts(ctx, selection, &overrides, enabled)) {
         Ok(reports) => {
             stdio::print_str(&enrol::render(&reports));
             if reports.iter().any(enrol::Report::is_failure) {

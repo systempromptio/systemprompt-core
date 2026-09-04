@@ -10,13 +10,12 @@ use systemprompt_identifiers::{CallId, PolicyId, SessionId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
-    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext,
-    PrincipalSnapshot, record_decision,
+    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
+    record_decision,
 };
 
-/// The `policy` column a quota breach is recorded under. The quota windows are
-/// not a chain policy, so nothing in the chain would name them; the label is
-/// fixed here so the warn report can group on it.
+// Why: the quota windows are not a chain policy, so nothing in the chain would
+// name them; the label is fixed here so the warn report can group on it.
 pub(in crate::services::gateway::service) const QUOTA_POLICY_LABEL: &str = "quota";
 
 use super::super::super::audit::GatewayRequestContext;
@@ -79,7 +78,11 @@ pub(super) async fn record_governance_decision(
 // any other and belongs in the same table the report reads, with the same
 // shape a chain warning has — one `Warn` chain entry naming the policy — so a
 // quota row and a secret_scan row are directly comparable.
-pub(in crate::services::gateway::service) async fn record_quota_warning(db: &DbPool, ctx: &GatewayRequestContext, message: &str) {
+pub(in crate::services::gateway::service) async fn record_quota_warning(
+    db: &DbPool,
+    ctx: &GatewayRequestContext,
+    message: &str,
+) {
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let reason = DenyReason::PolicyViolation {

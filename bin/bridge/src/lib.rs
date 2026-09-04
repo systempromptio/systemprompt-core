@@ -23,6 +23,7 @@ pub mod auth;
 pub mod basedirs;
 pub mod brand;
 pub mod buildinfo;
+pub mod claude_policy;
 pub mod cli;
 pub mod config;
 pub mod context;

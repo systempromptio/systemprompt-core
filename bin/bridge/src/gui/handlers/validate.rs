@@ -14,9 +14,9 @@ use crate::{i18n, validate};
 pub(crate) fn on_validate_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("validate-running"));
     let proxy = app.proxy.clone();
-    let ctx = app.ctx.clone();
+    let ctx = std::sync::Arc::clone(&app.ctx);
     app.ctx.spawn(async move {
-        let report = validate::run(&ctx).await;
+        let report = validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey).await;
         proxy.send_event(UiEvent::ValidateFinished { report, reply_to });
     });
 }

@@ -13,15 +13,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod render;
 mod write;
 
 use std::path::PathBuf;
 
-pub use render::stripped_settings;
-
-pub(crate) const MANAGED_MCP_FILE: &str = "managed-mcp.json";
-pub(crate) const MANAGED_SETTINGS_FILE: &str = "managed-settings.json";
+pub(crate) use crate::claude_policy::{MANAGED_MCP_FILE, MANAGED_SETTINGS_FILE, stripped_settings};
 
 pub(crate) fn policy_dir() -> PathBuf {
     crate::config::paths::claude_code_policy_dir()
