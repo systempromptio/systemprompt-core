@@ -17,7 +17,7 @@ use systemprompt_security::policy::{
 /// The `policy` column a quota breach is recorded under. The quota windows are
 /// not a chain policy, so nothing in the chain would name them; the label is
 /// fixed here so the warn report can group on it.
-pub const QUOTA_POLICY_LABEL: &str = "quota";
+pub(in crate::services::gateway::service) const QUOTA_POLICY_LABEL: &str = "quota";
 
 use super::super::super::audit::GatewayRequestContext;
 use super::super::super::protocol::canonical::CanonicalRequest;
