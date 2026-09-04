@@ -102,17 +102,34 @@ pub(super) fn check_managed_policy(report: &mut Report) {
 // Why: Claude Desktop applies these Claude Code policy files to Cowork
 // sessions, and either one shadows Cowork's own tools; the bridge never writes
 // them, so anything here was left by another installer or an older bridge.
+//
+// The question asked is exactly the one `managed_mcp::clear_policy` asks, so
+// the check and the remedy it names cannot disagree. Filenames alone used to
+// decide it, which failed a machine holding an empty `managed-settings.json`:
+// that file shadows nothing, so sync correctly leaves it, and the check
+// reported a failure whose named remedy would never clear it.
 fn check_claude_code_policy_dir(report: &mut Report) {
+    use crate::install::managed_mcp::{MANAGED_MCP_FILE, MANAGED_SETTINGS_FILE};
+
     let dir = crate::config::paths::claude_code_policy_dir();
-    let Ok(entries) = std::fs::read_dir(&dir) else {
+    if !dir.exists() {
         report.ok("claude code policy dir", "absent");
         return;
-    };
-    let offenders: Vec<String> = entries
-        .flatten()
-        .filter_map(|e| e.file_name().into_string().ok())
-        .filter(|n| n.starts_with("managed-mcp") || n.starts_with("managed-settings"))
-        .collect();
+    }
+    let mut offenders: Vec<&str> = Vec::new();
+    // Exclusive mode is switched on by this file existing at all.
+    if dir.join(MANAGED_MCP_FILE).exists() {
+        offenders.push(MANAGED_MCP_FILE);
+    }
+    let settings = dir.join(MANAGED_SETTINGS_FILE);
+    match crate::install::managed_mcp::stripped_settings(&settings) {
+        Ok(Some(_)) => offenders.push(MANAGED_SETTINGS_FILE),
+        Ok(None) => {},
+        Err(e) => report.warn(
+            "claude code policy dir",
+            &format!("{} unreadable: {e}", settings.display()),
+        ),
+    }
     if offenders.is_empty() {
         report.ok("claude code policy dir", "no MCP policy files");
     } else {

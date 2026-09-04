@@ -20,8 +20,8 @@ use std::path::PathBuf;
 
 pub use render::stripped_settings;
 
-const MANAGED_MCP_FILE: &str = "managed-mcp.json";
-const MANAGED_SETTINGS_FILE: &str = "managed-settings.json";
+pub(crate) const MANAGED_MCP_FILE: &str = "managed-mcp.json";
+pub(crate) const MANAGED_SETTINGS_FILE: &str = "managed-settings.json";
 
 pub(crate) fn policy_dir() -> PathBuf {
     crate::config::paths::claude_code_policy_dir()
