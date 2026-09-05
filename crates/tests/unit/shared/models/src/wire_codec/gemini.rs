@@ -782,8 +782,33 @@ fn gemini_implicit_thinking_budget_fits_under_model_output_cap() {
         }),
     );
     let cfg = &body["generationConfig"];
-    assert_eq!(cfg["thinkingConfig"]["thinkingBudget"], json!(96));
-    assert_eq!(cfg["maxOutputTokens"], json!(4096));
+    assert_eq!(
+        cfg["thinkingConfig"]["thinkingBudget"],
+        json!(128),
+        "a budget below the 128 floor is rejected upstream, so the floor wins"
+    );
+    assert_eq!(
+        cfg["maxOutputTokens"],
+        json!(4096),
+        "the floor comes out of the text budget rather than breaching the model cap"
+    );
+}
+
+#[test]
+fn gemini_implicit_thinking_budget_never_falls_below_the_floor() {
+    let mut req = base_request();
+    req.max_tokens = 8192;
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 8192,
+            max_thinking_budget: Some(24_576),
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert_eq!(cfg["thinkingConfig"]["thinkingBudget"], json!(128));
+    assert_eq!(cfg["maxOutputTokens"], json!(8192));
 }
 
 #[test]
