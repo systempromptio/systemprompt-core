@@ -110,6 +110,7 @@ pub struct OutboundCtx<'a> {
     pub route: &'a GatewayRoute,
     pub endpoint: &'a str,
     pub api_key: &'a str,
+    pub api_key_is_bearer: bool,
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     pub model_limits: Option<ModelLimits>,

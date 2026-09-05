@@ -28,7 +28,17 @@ use super::DispatchError;
 
 // Why: returns an owned value because a minted token is short-lived and cannot
 // borrow from the process-wide secret store the way a static key does.
-pub(super) async fn resolve(provider: &ProviderEntry) -> Result<String, DispatchError> {
+// Why: Google takes a static API key on `x-goog-api-key` but an OAuth token on
+// `Authorization: Bearer`, and rejects either in the other's header. The
+// adapter cannot tell them apart by looking, so the distinction is carried
+// rather than guessed from the token's shape.
+#[derive(Debug, Clone)]
+pub(super) struct Credential {
+    pub(super) value: String,
+    pub(super) is_bearer: bool,
+}
+
+pub(super) async fn resolve(provider: &ProviderEntry) -> Result<Credential, DispatchError> {
     let secrets = systemprompt_config::SecretsBootstrap::get()
         .map_err(|e| DispatchError::PreAudit(anyhow!("Secrets not available: {e}")))?;
 
@@ -42,14 +52,17 @@ pub(super) async fn resolve(provider: &ProviderEntry) -> Result<String, Dispatch
         })?;
 
     match google::ServiceAccountKey::parse(secret) {
-        Some(key) => google::access_token(provider.api_key_secret.as_str(), &key)
-            .await
-            .map_err(|e| {
-                DispatchError::PreAudit(anyhow!(
-                    "could not mint a Google access token from secret '{}': {e}",
-                    provider.api_key_secret.as_str()
-                ))
-            }),
-        None => Ok(secret.clone()),
+        Some(key) => {
+            let token = google::access_token(provider.api_key_secret.as_str(), &key)
+                .await
+                .map_err(|e| {
+                    DispatchError::PreAudit(anyhow!(
+                        "could not mint a Google access token from secret '{}': {e}",
+                        provider.api_key_secret.as_str()
+                    ))
+                })?;
+            Ok(Credential { value: token, is_bearer: true })
+        },
+        None => Ok(Credential { value: secret.clone(), is_bearer: false }),
     }
 }

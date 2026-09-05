@@ -21,6 +21,7 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route: Cow<'a, GatewayRoute>,
     pub(super) provider: &'a ProviderEntry,
     pub(super) api_key: String,
+    pub(super) api_key_is_bearer: bool,
     pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
     pub(super) route_match_descriptor: Option<String>,
 }
@@ -79,7 +80,7 @@ pub(super) async fn resolve_upstream<'a>(
 
     enforce_route_requirements(&route, provider, &request.model, ai_request_id)?;
 
-    let api_key = super::credentials::resolve(provider).await?;
+    let credential = super::credentials::resolve(provider).await?;
 
     let adapter = GatewayUpstreamRegistry::global()
         .get(provider.wire.as_tag())
@@ -93,7 +94,8 @@ pub(super) async fn resolve_upstream<'a>(
     Ok(ResolvedUpstream {
         route,
         provider,
-        api_key,
+        api_key: credential.value,
+        api_key_is_bearer: credential.is_bearer,
         adapter,
         route_match_descriptor,
     })
