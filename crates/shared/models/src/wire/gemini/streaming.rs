@@ -90,6 +90,23 @@ fn handle_chunk(
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
+    if let Some(message) = crate::wire::sse::upstream_error_message(value) {
+        events.push(Ok(CanonicalEvent::Error(message)));
+        return;
+    }
+    // Why: a blocked prompt arrives as a chunk carrying only promptFeedback,
+    // with no candidate and no finishReason, so the stream ends with nothing
+    // said. Gemini's own reason is the only explanation the caller can get.
+    if let Some(reason) = value
+        .get("promptFeedback")
+        .and_then(|f| f.get("blockReason"))
+        .and_then(Value::as_str)
+    {
+        events.push(Ok(CanonicalEvent::Error(format!(
+            "upstream blocked the prompt: {reason}"
+        ))));
+        return;
+    }
     let Ok(chunk) = serde_json::from_value::<GeminiResponse>(value.clone()) else {
         return;
     };

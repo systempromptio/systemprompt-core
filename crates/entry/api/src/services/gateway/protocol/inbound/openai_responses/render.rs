@@ -237,9 +237,13 @@ pub(super) fn reasoning_output_item(
 
 fn render_error_frame(msg: &str) -> Bytes {
     let escaped = msg.replace('\\', "\\\\").replace('"', "\\\"");
+    // Why: the Responses contract puts the outcome on `response.status`, and a
+    // client (Codex) reads that field to decide the turn failed; a bare
+    // top-level `error` left the response object absent and the turn unresolved.
     Bytes::from(format!(
         "event: response.failed\ndata: \
-         {{\"type\":\"response.failed\",\"error\":{{\"type\":\"api_error\",\"message\":\"\
-         {escaped}\"}}}}\n\n"
+         {{\"type\":\"response.failed\",\"response\":{{\"status\":\"failed\",\"error\":\
+         {{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}},\"error\":\
+         {{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}\n\n"
     ))
 }

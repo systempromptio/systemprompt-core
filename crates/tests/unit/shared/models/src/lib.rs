@@ -234,6 +234,9 @@ mod wire_streaming;
 mod wire_sse;
 
 #[cfg(test)]
+mod wire_stream_abort;
+
+#[cfg(test)]
 mod profile_validation;
 
 #[cfg(test)]

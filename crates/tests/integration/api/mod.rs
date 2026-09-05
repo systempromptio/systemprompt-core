@@ -305,6 +305,10 @@ mod gateway_upstream_error_map;
 mod gateway_empty_upstream_body;
 
 #[cfg(test)]
+#[path = "gateway_stream_abort.rs"]
+mod gateway_stream_abort;
+
+#[cfg(test)]
 #[path = "routes_content_blog.rs"]
 mod routes_content_blog;
 

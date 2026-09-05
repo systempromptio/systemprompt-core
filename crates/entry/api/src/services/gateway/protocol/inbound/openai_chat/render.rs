@@ -177,7 +177,11 @@ pub(super) fn render_chunk(
 
 fn render_error_frame(msg: &str) -> Bytes {
     let escaped = msg.replace('\\', "\\\\").replace('"', "\\\"");
+    // Why: an OpenAI-SDK client reads until the `[DONE]` sentinel, so an error
+    // frame without one leaves the turn open and the client waiting on a
+    // stream the gateway has already finished.
     Bytes::from(format!(
-        "data: {{\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}\n\n"
+        "data: {{\"error\":{{\"type\":\"upstream_error\",\"message\":\"{escaped}\"}}}}\n\n\
+         data: [DONE]\n\n"
     ))
 }

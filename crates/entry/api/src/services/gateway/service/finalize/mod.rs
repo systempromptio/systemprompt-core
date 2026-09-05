@@ -120,7 +120,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
             content_type,
             stream,
         } => streaming_response(
-            stream_tap::tap_raw(stream, audit, tap_ctx),
+            stream_tap::tap_raw(stream, Arc::clone(&inbound), audit, tap_ctx),
             content_type
                 .as_deref()
                 .unwrap_or_else(|| inbound.streaming_content_type()),

@@ -32,6 +32,11 @@ use super::protocol::outbound::anthropic::streaming::SseDecoder;
 
 pub use self::finalize::{FailCause, FinalizeDecision, classify};
 
+/// Rendered to the caller when the upstream stream ends with no terminal
+/// event, so the abort is a stated failure on every inbound wire rather than a
+/// silently closed connection.
+pub const STREAM_ABORT_MESSAGE: &str = "upstream stream ended without a terminal event";
+
 /// Shared by the streaming and buffered completion tasks so both debit quota
 /// and run the response-phase safety scan identically.
 #[derive(Debug)]
@@ -58,12 +63,20 @@ pub fn tap(
         audit,
         finalize_ctx: Some(finalize_ctx),
         message_stop_rendered: false,
+        ended: false,
     };
     Body::from_stream(tapped)
 }
 
+/// Taps the byte-passthrough lane, where the caller receives the upstream
+/// frames verbatim.
+///
+/// `inbound` is carried only to state an abort: the lane renders nothing of
+/// its own, so a stream that ends with no terminal event would otherwise close
+/// on the client with no frame explaining it.
 pub fn tap_raw(
     upstream: BoxStream<'static, Result<Bytes, String>>,
+    inbound: Arc<dyn InboundAdapter>,
     audit: Arc<GatewayAudit>,
     finalize_ctx: TapFinalizeCtx,
 ) -> Body {
@@ -71,8 +84,10 @@ pub fn tap_raw(
         inner: upstream,
         state: Arc::new(Mutex::new(TapState::default())),
         decoder: SseDecoder::default(),
+        inbound,
         audit,
         finalize_ctx: Some(finalize_ctx),
+        ended: false,
     })
 }
 
@@ -80,8 +95,10 @@ struct RawTappedStream {
     inner: BoxStream<'static, Result<Bytes, String>>,
     state: Arc<Mutex<TapState>>,
     decoder: SseDecoder,
+    inbound: Arc<dyn InboundAdapter>,
     audit: Arc<GatewayAudit>,
     finalize_ctx: Option<TapFinalizeCtx>,
+    ended: bool,
 }
 
 impl RawTappedStream {
@@ -101,13 +118,26 @@ impl Stream for RawTappedStream {
     type Item = Result<Bytes, std::io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.ended {
+            return Poll::Ready(None);
+        }
         match self.inner.as_mut().poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(None) => {
-                if let Some((summary, ctx)) = self.take_summary() {
-                    finalize(Arc::clone(&self.audit), summary, ctx, "eof");
+                self.ended = true;
+                let Some((summary, ctx)) = self.take_summary() else {
+                    return Poll::Ready(None);
+                };
+                let aborted = summary.error.is_none() && !summary.saw_stop;
+                finalize(Arc::clone(&self.audit), summary, ctx, "eof");
+                if !aborted {
+                    return Poll::Ready(None);
                 }
-                Poll::Ready(None)
+                let event = CanonicalEvent::Error(STREAM_ABORT_MESSAGE.to_owned());
+                match self.inbound.render_event(&event, "") {
+                    Some(bytes) => Poll::Ready(Some(Ok(bytes))),
+                    None => Poll::Ready(None),
+                }
             },
             Poll::Ready(Some(Err(e))) => {
                 if let Ok(mut s) = self.state.lock() {
@@ -155,16 +185,23 @@ struct TappedStream {
     // [DONE], responses' response.completed, anthropic's message_stop) would
     // close the stream twice -- the second one carrying the weaker reason.
     message_stop_rendered: bool,
+    // Why: the abort frame is emitted after the inner stream has already
+    // reported EOF, so the next poll must not reach it again.
+    ended: bool,
 }
 
 impl Stream for TappedStream {
     type Item = Result<Bytes, std::io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.ended {
+            return Poll::Ready(None);
+        }
         loop {
             match self.inner.as_mut().poll_next(cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
+                    self.ended = true;
                     return self.finalize_on_eof();
                 },
                 Poll::Ready(Some(Err(e))) => {
@@ -230,12 +267,24 @@ impl TappedStream {
         })
     }
 
+    // Why: an upstream that stops without a terminal event is audited as
+    // failed, but the client only saw the socket close -- indistinguishable
+    // from a hang. Each inbound wire has an error frame already; rendering one
+    // here is the only thing that reaches the caller.
     fn finalize_on_eof(&mut self) -> Poll<Option<Result<Bytes, std::io::Error>>> {
         let Some((summary, ctx)) = self.take_summary() else {
             return Poll::Ready(None);
         };
+        let aborted = summary.error.is_none() && !summary.saw_stop;
         finalize(Arc::clone(&self.audit), summary, ctx, "eof");
-        Poll::Ready(None)
+        if !aborted {
+            return Poll::Ready(None);
+        }
+        let event = CanonicalEvent::Error(STREAM_ABORT_MESSAGE.to_owned());
+        match self.inbound.render_event(&event, &self.request_model) {
+            Some(bytes) => Poll::Ready(Some(Ok(bytes))),
+            None => Poll::Ready(None),
+        }
     }
 }
 

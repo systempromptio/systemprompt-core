@@ -87,6 +87,17 @@ fn handle_chunk(
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
+    // Why: chat completions reports a mid-stream failure as an `{"error":
+    // ...}` chunk with no `choices`, which every branch below skips -- the
+    // stream then reached `[DONE]` (or simply ended) with the failure dropped.
+    if let Some(message) = crate::wire::sse::upstream_error_message(value) {
+        events.push(Ok(CanonicalEvent::Error(message)));
+        // Why: `[DONE]` still follows the error frame, and the sentinel
+        // synthesises a `stop` terminal -- which would report the failed turn
+        // as a clean finish to the client and to the audit.
+        state.stopped = true;
+        return;
+    }
     if !state.started {
         emit_message_start(state, value, events);
     }
