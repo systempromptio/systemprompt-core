@@ -14,7 +14,7 @@ use super::GatewayAudit;
 use super::payload::{slice_payload, truncate_for_tool_input};
 use crate::services::gateway::captures::{CapturedToolUse, CapturedUsage};
 use crate::services::gateway::pricing;
-use crate::services::gateway::protocol::canonical_response::CanonicalResponse;
+use crate::services::gateway::protocol::canonical_response::{CanonicalResponse, CanonicalUsage};
 
 impl GatewayAudit {
     pub(super) fn effective_model(&self) -> String {
@@ -29,6 +29,25 @@ impl GatewayAudit {
             .unwrap_or_else(|| self.ctx.model.clone())
     }
 
+    // Why: the one place both gateway paths -- buffered and streamed -- hand
+    // usage to billing, and the only one that knows the provider name. See
+    // `CanonicalUsage::normalise_reasoning` for the invariant being enforced.
+    fn normalise_usage(&self, usage: CapturedUsage, wire_total: u32) -> CapturedUsage {
+        let mut canonical = CanonicalUsage {
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            cache_read_tokens: usage.cache_read_tokens,
+            cache_creation_tokens: usage.cache_creation_tokens,
+            reasoning_tokens: usage.reasoning_tokens,
+            total_tokens: wire_total,
+        };
+        canonical.normalise_reasoning(&self.ctx.provider);
+        CapturedUsage {
+            output_tokens: canonical.output_tokens,
+            ..usage
+        }
+    }
+
     pub async fn complete(
         &self,
         usage: CapturedUsage,
@@ -38,6 +57,7 @@ impl GatewayAudit {
     ) -> Result<i64> {
         let latency_ms = self.elapsed_ms();
         let effective_model = self.effective_model();
+        let usage = self.normalise_usage(usage, response.usage.total_tokens);
         let services = systemprompt_loader::ServicesBootstrap::get().ok();
         let gateway =
             services.and_then(systemprompt_models::services::ServicesConfig::gateway_config);

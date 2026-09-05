@@ -26,6 +26,17 @@
 //! charged twice. It is also why `reasoning_tokens` is absent from the
 //! `total_tokens` sum in [`CanonicalUsageUpdate::apply_to`].
 //!
+//! Third-party `OpenAI`-compatible upstreams (Cerebras, Moonshot, Qwen) are not
+//! probed, so `CanonicalUsage::normalise_reasoning` enforces the rule at
+//! runtime rather than trusting it: a breakdown cannot exceed its parent, and a
+//! wire `total_tokens` that overshoots `input + output` by exactly the
+//! reasoning count is the same signal. Either one means the provider reported
+//! reasoning *additionally*, so the count is folded into `output_tokens` and
+//! warned about. The total-based half only fires on the buffered path — the
+//! streaming accumulator recomputes `total_tokens` itself in
+//! [`CanonicalUsageUpdate::apply_to`], discarding the wire's own figure, so a
+//! stream is covered by the `reasoning > output` half alone.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -49,6 +60,39 @@ pub struct CanonicalUsage {
     pub reasoning_tokens: u32,
 
     pub total_tokens: u32,
+}
+
+impl CanonicalUsage {
+    // Why: enforces the module head's one rule for providers we have never
+    // probed. Returns whether the count had to be folded in, so callers can
+    // assert on it; the warning is emitted here so no call site can forget it.
+    pub fn normalise_reasoning(&mut self, provider: &str) -> bool {
+        let stated_sum = self
+            .input_tokens
+            .saturating_add(self.output_tokens)
+            .saturating_add(self.reasoning_tokens);
+        let additive = self.reasoning_tokens > self.output_tokens
+            || (self.reasoning_tokens > 0 && self.total_tokens == stated_sum);
+        if !additive {
+            return false;
+        }
+        let folded = self.output_tokens.saturating_add(self.reasoning_tokens);
+        tracing::warn!(
+            provider,
+            reasoning_tokens = self.reasoning_tokens,
+            reported_output_tokens = self.output_tokens,
+            folded_output_tokens = folded,
+            "provider reports reasoning tokens in addition to output tokens; folding them in so \
+             the thinking share is billed"
+        );
+        self.output_tokens = folded;
+        self.total_tokens = self
+            .input_tokens
+            .saturating_add(self.output_tokens)
+            .saturating_add(self.cache_read_tokens)
+            .saturating_add(self.cache_creation_tokens);
+        true
+    }
 }
 
 /// A streaming usage report, carrying only the counts its frame actually

@@ -62,7 +62,9 @@ pub fn to_ai_response(
     start: Instant,
     response: &CanonicalResponse,
 ) -> AiResponse {
-    let usage = &response.usage;
+    let mut normalised = response.usage;
+    normalised.normalise_reasoning(provider);
+    let usage = &normalised;
     let cache_read = (usage.cache_read_tokens > 0).then_some(usage.cache_read_tokens);
     let cache_creation = (usage.cache_creation_tokens > 0).then_some(usage.cache_creation_tokens);
     AiResponse {
@@ -77,6 +79,7 @@ pub fn to_ai_response(
         cache_hit: usage.cache_read_tokens > 0,
         cache_read_tokens: cache_read,
         cache_creation_tokens: cache_creation,
+        reasoning_tokens: (usage.reasoning_tokens > 0).then_some(usage.reasoning_tokens),
         is_streaming: false,
         latency_ms: start.elapsed().as_millis() as u64,
         tool_calls: tool_calls(response),
