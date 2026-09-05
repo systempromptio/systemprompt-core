@@ -485,5 +485,9 @@ mod gateway_profile_usage_seeded;
 mod jwt_user_state_denial;
 
 #[cfg(test)]
+#[path = "gateway_limits_by_catalog_id.rs"]
+mod gateway_limits_by_catalog_id;
+
+#[cfg(test)]
 #[path = "gateway_dispatch_success.rs"]
 mod gateway_dispatch_success;
