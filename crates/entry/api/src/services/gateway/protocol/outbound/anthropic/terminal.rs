@@ -30,7 +30,7 @@ fn is_generic_stop(reason: &str) -> bool {
 // would renormalise whitespace and number formatting across the whole body.
 fn rewrite_stop_reason(raw: &[u8], old: &str) -> Option<Vec<u8>> {
     let key = b"\"stop_reason\"";
-    let mut from = 0_usize;
+    let mut from = 0usize;
     while let Some(found) = find(raw, key, from) {
         let mut i = found + key.len();
         while raw.get(i).is_some_and(u8::is_ascii_whitespace) {

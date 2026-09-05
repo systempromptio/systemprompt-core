@@ -25,7 +25,7 @@ pub const STREAM_ABORT_MESSAGE: &str = "upstream stream ended without a terminal
 
 // Why: an error the upstream already stated is relayed as itself; the abort
 // frame is only for a stream that stated nothing at all.
-pub(super) fn is_abort(summary: &Summary) -> bool {
+pub(super) const fn is_abort(summary: &Summary) -> bool {
     summary.error.is_none() && !summary.saw_stop
 }
 

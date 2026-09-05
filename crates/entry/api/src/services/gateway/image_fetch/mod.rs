@@ -108,7 +108,7 @@ pub async fn inline_url_images(
     request: &mut CanonicalRequest,
     policy: &ImageFetchPolicy,
 ) -> Result<usize, ImageFetchFailed> {
-    let mut count = 0_usize;
+    let mut count = 0usize;
     for message in &mut request.messages {
         for content in &mut message.content {
             let CanonicalContent::Image(ImageSource::Url { url, detail }) = content else {
@@ -135,10 +135,12 @@ pub async fn fetch(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, 
         message,
         caller_fault,
     };
-    match tokio::time::timeout(policy.timeout, fetch_inner(url, policy)).await {
-        Ok(result) => result.map_err(|(message, caller_fault)| fail(message, caller_fault)),
-        Err(_) => Err(fail(format!("fetch exceeded {:?}", policy.timeout), false)),
-    }
+    tokio::time::timeout(policy.timeout, fetch_inner(url, policy))
+        .await
+        .map_or_else(
+            |_| Err(fail(format!("fetch exceeded {:?}", policy.timeout), false)),
+            |result| result.map_err(|(message, caller_fault)| fail(message, caller_fault)),
+        )
 }
 
 type FetchError = (String, bool);

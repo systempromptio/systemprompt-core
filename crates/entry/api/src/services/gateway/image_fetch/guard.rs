@@ -66,8 +66,8 @@ async fn resolve(host: &str, port: u16) -> Result<Vec<IpAddr>, String> {
 // Why: one blocked answer is enough to refuse. A name that resolves to both a
 // public and an internal address is a rebinding attempt, not a fallback.
 fn reject_blocked(host: &str, addrs: &[IpAddr]) -> Result<(), String> {
-    match addrs.iter().find(|ip| is_blocked_ip(**ip)) {
-        Some(ip) => Err(format!("{host} resolves to blocked address {ip}")),
-        None => Ok(()),
-    }
+    addrs
+        .iter()
+        .find(|ip| is_blocked_ip(**ip))
+        .map_or(Ok(()), |ip| Err(format!("{host} resolves to blocked address {ip}")))
 }
