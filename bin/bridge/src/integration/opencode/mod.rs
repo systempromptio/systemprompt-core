@@ -12,6 +12,16 @@
 //! unattended sync must be able to rewrite without a prompt — stay in the
 //! user's global config and skills directory.
 //!
+//! `accepted_surfaces` names the surfaces whose models may be *offered* to
+//! `OpenCode`, which is not the wire `OpenCode` speaks. `OpenCode` speaks the
+//! OpenAI-compatible wire and the gateway serves it at `/v1/chat/completions`,
+//! but the gateway normalises any inbound wire to canonical and renders any
+//! provider wire outbound, so a gemini- or anthropic-native provider is just as
+//! servable over that one wire. Filtering by the provider's native family hid
+//! every working `claude-*` and `gemini-*` model from the picker while
+//! advertising only providers whose credentials were unresolvable. `Backend`
+//! stays out: it exists precisely to hide a provider from every picker.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -122,15 +132,8 @@ impl HostApp for OpenCodeHost {
         "https://opencode.ai/"
     }
 
-    // Why: this names the surfaces whose models may be OFFERED to the host, not
-    // the wire the host speaks. OpenCode speaks the OpenAI-compatible wire and
-    // the gateway serves it at `/v1/chat/completions`, but the gateway
-    // normalises any inbound wire to canonical and renders any provider wire
-    // outbound, so a gemini- or anthropic-native provider is just as servable
-    // over that one wire. Filtering by the provider's native family hid every
-    // working `claude-*` and `gemini-*` model from the picker while advertising
-    // only providers whose credentials were unresolvable. `Backend` stays out:
-    // it exists precisely to hide a provider from every picker.
+    // Why: surfaces named here are OFFERED to the host, not spoken by it. See
+    // the module head for why that is not the same filter.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
         &[
             systemprompt_models::services::ApiSurface::OpenAi,
