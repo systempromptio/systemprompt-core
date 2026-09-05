@@ -5,9 +5,11 @@
 //! both the full-context and standalone (`DatabaseContext`-only) entry points.
 //!
 //! `--apply` re-executes the drifted SQL; `--reconcile-only --apply` rewrites
-//! the stored checksum and runs nothing. The two report differently, because a
-//! bookkeeping-only run asserts the schema matches the file without checking.
-//! A reused migration slot is refused by the runner rather than repaired.
+//! the stored checksum and runs nothing — the only path that skips execution.
+//! The two report differently, because a bookkeeping-only run asserts the
+//! schema matches the file without checking. A reused migration slot is
+//! refused on every path, including the read-only report, so the dry run
+//! cannot say "nothing to repair" about a slot `--apply` would reject.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -110,6 +112,8 @@ async fn run_migrate_repair(
                 .status(ext.as_ref())
                 .await
                 .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
+            MigrationService::refuse_slot_collisions(&status)
+                .map_err(|e| anyhow!("Cannot repair migrations: {}", e))?;
             status.drift
         };
         for d in drift {

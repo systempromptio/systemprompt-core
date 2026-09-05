@@ -11,7 +11,7 @@ use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
     DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome,
     MigrationResult, MigrationService, MigrationStatus, OrphanedMigration, PendingMigration,
-    QueryResult, QuerySelector, ToDbValue, TombstonedSlot,
+    QueryResult, QuerySelector, SlotCollision, ToDbValue, TombstonedSlot,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
@@ -731,11 +731,11 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
 
 mod checksum_drift_db {
     use super::{Migration, MigrationService, StubExtension};
-    use crate::services::db_helper::pool;
+    use crate::services::db_helper::pool_or_skip;
     use systemprompt_database::{MigrationConfig, PostgresProvider};
 
-    async fn provider() -> Option<PostgresProvider> {
-        let db = pool().await?;
+    async fn provider_or_skip() -> Option<PostgresProvider> {
+        let db = pool_or_skip().await?;
         let pg = db.write_pool_arc().ok()?;
         Some(PostgresProvider::from_pool(pg))
     }
@@ -749,7 +749,7 @@ mod checksum_drift_db {
 
     #[tokio::test]
     async fn edited_applied_migration_is_refused_unless_drift_allowed() {
-        let Some(provider) = provider().await else {
+        let Some(provider) = provider_or_skip().await else {
             return;
         };
         let service = MigrationService::new(&provider);
@@ -887,6 +887,7 @@ fn test_extension_migration_status_with_drift_and_pending() {
             stored_checksum: "old".to_string(),
             current_checksum: "edited".to_string(),
         }],
+        ..Default::default()
     };
 
     assert_eq!(s.applied.len(), 1);
@@ -1450,7 +1451,7 @@ fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
 // Drift repair: slot collisions are refused, reconcile-only executes no SQL.
 // ---------------------------------------------------------------------------
 //
-// `AppliedRowsProvider` differs from `RecordingProvider` in returning a mutable
+// `HealingRowsProvider` differs from `AppliedRowsProvider` in returning a mutable
 // set of `extension_migrations` rows: any write heals the stored checksum, the
 // way the real UPDATE does, so `repair_drift`'s follow-up pass sees a
 // reconciled row instead of the stale one it just fixed.
@@ -1494,13 +1495,13 @@ impl AppliedRows {
 }
 
 #[derive(Debug)]
-struct AppliedRowsProvider {
+struct HealingRowsProvider {
     log: Arc<CallLog>,
     state: Arc<AppliedRows>,
 }
 
 #[async_trait]
-impl DatabaseProvider for AppliedRowsProvider {
+impl DatabaseProvider for HealingRowsProvider {
     async fn execute(
         &self,
         _query: &dyn QuerySelector,
@@ -1656,8 +1657,8 @@ fn drifted_provider(
     log: &Arc<CallLog>,
     stored_name: &str,
     file_name: &'static str,
-) -> AppliedRowsProvider {
-    AppliedRowsProvider {
+) -> HealingRowsProvider {
+    HealingRowsProvider {
         log: Arc::clone(log),
         state: Arc::new(AppliedRows {
             rows: Mutex::new(vec![(
@@ -1773,4 +1774,63 @@ async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
         !events.iter().any(|e| e == "begin"),
         "reconcile opens no migration transaction: {events:?}"
     );
+}
+
+fn status_with_collisions(collisions: Vec<SlotCollision>) -> ExtensionMigrationStatus {
+    ExtensionMigrationStatus {
+        extension_id: "knowledge_bank".to_string(),
+        slot_collisions: collisions,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn refuse_slot_collisions_accepts_a_status_without_collisions() {
+    let status = status_with_collisions(Vec::new());
+
+    MigrationService::refuse_slot_collisions(&status).expect("no collision, nothing to refuse");
+}
+
+#[test]
+fn refuse_slot_collisions_names_both_the_stored_and_the_current_migration() {
+    let status = status_with_collisions(vec![SlotCollision {
+        extension_id: "knowledge_bank".to_string(),
+        version: 34,
+        stored_name: "034_knowledge_bank".to_string(),
+        current_name: "034_project_activity".to_string(),
+    }]);
+
+    let err = MigrationService::refuse_slot_collisions(&status)
+        .expect_err("a reused slot must be refused");
+
+    let message = err.to_string();
+    assert!(message.contains("034_knowledge_bank"), "{message}");
+    assert!(message.contains("034_project_activity"), "{message}");
+    assert!(message.contains("34"), "{message}");
+    assert!(message.contains("knowledge_bank"), "{message}");
+}
+
+#[test]
+fn refuse_slot_collisions_reports_the_first_collision_when_several_exist() {
+    let status = status_with_collisions(vec![
+        SlotCollision {
+            extension_id: "knowledge_bank".to_string(),
+            version: 34,
+            stored_name: "034_knowledge_bank".to_string(),
+            current_name: "034_project_activity".to_string(),
+        },
+        SlotCollision {
+            extension_id: "knowledge_bank".to_string(),
+            version: 35,
+            stored_name: "035_files".to_string(),
+            current_name: "035_projects".to_string(),
+        },
+    ]);
+
+    let err = MigrationService::refuse_slot_collisions(&status)
+        .expect_err("a reused slot must be refused");
+
+    let message = err.to_string();
+    assert!(message.contains("034_knowledge_bank"), "{message}");
+    assert!(!message.contains("035_files"), "{message}");
 }

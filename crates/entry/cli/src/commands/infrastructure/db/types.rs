@@ -236,7 +236,7 @@ pub struct MigrateStatusOutput {
     pub total_drift: usize,
     // Why: recorded slots now filled by a differently-named migration file.
     pub total_collisions: usize,
-    /// Applied slots the extension no longer declares — a migration file was
-    /// deleted without leaving a `.tombstone`, so the number reads as free.
+    // Why: applied slots the extension no longer declares — a migration file
+    // was deleted without leaving a `.tombstone`, so the number reads as free.
     pub total_orphaned: usize,
 }
