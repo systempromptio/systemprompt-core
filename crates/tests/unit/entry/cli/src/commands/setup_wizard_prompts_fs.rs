@@ -54,10 +54,10 @@ fn non_interactive() -> CliConfig {
 
 #[test]
 fn an_environment_flag_wins_over_the_prompt() {
-    let mut args = args();
-    args.environment = Some("staging".to_owned());
+    let mut flagged = args();
+    flagged.environment = Some("staging".to_owned());
 
-    let name = get_environment_name(&args, &scripted(&[]), &interactive())
+    let name = get_environment_name(&flagged, &scripted(&[]), &interactive())
         .expect("the flag answers without asking");
 
     assert_eq!(name, "staging");
@@ -89,15 +89,15 @@ fn without_a_terminal_the_environment_defaults_without_asking() {
 
 #[test]
 fn an_admin_email_flag_is_validated_rather_than_trusted() {
-    let mut args = args();
-    args.admin_email = Some("  admin@example.test  ".to_owned());
+    let mut flagged = args();
+    flagged.admin_email = Some("  admin@example.test  ".to_owned());
 
-    let email = resolve_admin_email(&args, &scripted(&[]), &non_interactive())
+    let email = resolve_admin_email(&flagged, &scripted(&[]), &non_interactive())
         .expect("a well-formed address passes");
     assert_eq!(email.as_str(), "admin@example.test");
 
-    args.admin_email = Some("not-an-address".to_owned());
-    let err = resolve_admin_email(&args, &scripted(&[]), &non_interactive())
+    flagged.admin_email = Some("not-an-address".to_owned());
+    let err = resolve_admin_email(&flagged, &scripted(&[]), &non_interactive())
         .expect_err("a malformed --admin-email must be refused, not stored");
     assert!(
         format!("{err:#}").contains("not a valid email address"),
@@ -134,17 +134,17 @@ fn without_a_terminal_a_missing_admin_email_is_a_hard_stop() {
 
 #[test]
 fn the_migration_flags_win_over_the_prompt_in_both_directions() {
-    let mut args = args();
-    args.migrate = true;
+    let mut forced = args();
+    forced.migrate = true;
     assert!(
-        should_run_migrations(&args, &scripted(&[]), &interactive()).expect("--migrate"),
+        should_run_migrations(&forced, &scripted(&[]), &interactive()).expect("--migrate"),
         "--migrate must not ask"
     );
 
-    let mut args = args();
-    args.no_migrate = true;
+    let mut refused = args();
+    refused.no_migrate = true;
     assert!(
-        !should_run_migrations(&args, &scripted(&[]), &interactive()).expect("--no-migrate"),
+        !should_run_migrations(&refused, &scripted(&[]), &interactive()).expect("--no-migrate"),
         "--no-migrate must not ask"
     );
 }
