@@ -61,7 +61,7 @@ impl InWire {
         match self {
             Self::Anthropic => "\"stop_reason\":\"tool_use\"",
             Self::OpenAiChat => "\"finish_reason\":\"tool_calls\"",
-            Self::OpenAiResponses => "\"stop_reason\":\"tool_calls\"",
+            Self::OpenAiResponses => "\"status\":\"completed\"",
         }
     }
 
@@ -71,7 +71,7 @@ impl InWire {
         match self {
             Self::Anthropic => "\"stop_reason\":\"max_tokens\"",
             Self::OpenAiChat => "\"finish_reason\":\"length\"",
-            Self::OpenAiResponses => "\"stop_reason\":\"length\"",
+            Self::OpenAiResponses => "\"reason\":\"max_output_tokens\"",
         }
     }
 }

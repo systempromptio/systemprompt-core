@@ -17,7 +17,10 @@ use super::gateway_matrix::{
     run_cell,
 };
 
-const TERMINAL_MARKER: &str = "\"stop_reason\":\"tool_calls\"";
+// Why: the Responses object has no finish-reason scalar. A turn the client
+// may act on is `status: "completed"`; the tool call itself is proven present
+// by the paired `assert_tool_call_survived`.
+const TERMINAL_MARKER: &str = "\"status\":\"completed\"";
 
 #[tokio::test]
 async fn openai_responses_in_anthropic_out_buffered_keeps_the_tool_call_and_says_so()
