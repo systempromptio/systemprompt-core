@@ -1,12 +1,17 @@
 //! Marketplace membership attribute floor and parent cascade for authz
 //! enforcement sites.
 //!
-//! [`member_attribute_floor`] resolves the active marketplace from a
-//! [`ServicesConfig`] and, for entities included in it, exposes the
-//! declarative `access.attributes` bag. Core never interprets the bag — it is
-//! forwarded verbatim to the ABAC hook (via
+//! [`member_attribute_floor`] walks every enabled marketplace in a
+//! [`ServicesConfig`] and, for entities included in one, merges the declarative
+//! `access.attributes` bags into one floor. Core never interprets the bags —
+//! they are forwarded verbatim to the ABAC hook (via
 //! [`super::types::AuthzContext::with_marketplace_floor`]) as a
 //! defence-in-depth floor.
+//!
+//! Merging is in marketplace-id order and first key wins, so the floor is
+//! deterministic; a key two marketplaces both set is logged rather than
+//! silently resolved, because the two are asserting different things about the
+//! same entity.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,26 +23,33 @@ use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind, Se
 use super::types::EntityKind;
 
 #[must_use]
-pub fn member_attribute_floor<'a>(
-    services: &'a ServicesConfig,
+pub fn member_attribute_floor(
+    services: &ServicesConfig,
     kind: EntityKind,
     id: &str,
-) -> Option<&'a BTreeMap<String, serde_json::Value>> {
-    let config = active_marketplace(services)?;
-    if config.access.attributes.is_empty() {
-        return None;
+) -> Option<BTreeMap<String, serde_json::Value>> {
+    let mut floor: BTreeMap<String, serde_json::Value> = BTreeMap::new();
+    for config in services.enabled_marketplaces() {
+        if config.access.attributes.is_empty() || !is_member(services, config, kind, id) {
+            continue;
+        }
+        for (key, value) in &config.access.attributes {
+            if let Some(kept) = floor.get(key) {
+                if kept != value {
+                    tracing::warn!(
+                        marketplace = %config.id,
+                        attribute = %key,
+                        entity_id = id,
+                        "marketplace floor: attribute already set by an earlier marketplace; \
+                         keeping the first value in id order"
+                    );
+                }
+                continue;
+            }
+            floor.insert(key.clone(), value.clone());
+        }
     }
-    is_member(services, config, kind, id).then_some(&config.access.attributes)
-}
-
-pub(super) fn active_marketplace(services: &ServicesConfig) -> Option<&MarketplaceConfig> {
-    let mut enabled = services.marketplaces.values().filter(|m| m.enabled);
-    let first = enabled.next()?;
-    if enabled.next().is_none() {
-        return Some(first);
-    }
-    let id = services.settings.default_marketplace_id.as_ref()?;
-    services.marketplaces.get(id).filter(|m| m.enabled)
+    (!floor.is_empty()).then_some(floor)
 }
 
 enum MemberScope {

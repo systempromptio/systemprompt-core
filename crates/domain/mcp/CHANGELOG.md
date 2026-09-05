@@ -2,6 +2,10 @@
 
 ## [0.46.0] - 2026-09-04
 
+### Changed
+
+- The MCP RBAC middleware passes the merged marketplace attribute floor by reference, following `member_attribute_floor`'s move to an owned map.
+
 ### Fixed
 
 - Artifacts render dense enough to read in a chat column. A blank line became a full-height `<p>&nbsp;</p>` while `.text-content` also carried `white-space: pre-wrap`, so one blank line in the source cost roughly two on screen; separation now comes from `p + p`, which is one gap however many were typed. `format_prose` renders the three markdown constructs tools actually emit — `**bold**`, `` `code` `` and `- ` bullets — instead of showing them to a reader verbatim, and the result table no longer lets one long cell set the width of every column.

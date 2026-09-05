@@ -4,6 +4,9 @@
 
 ### Added
 
+- `ChainSources` is many-to-many: `marketplaces`, and a set of owning marketplaces per plugin and per member, replace the single active marketplace. `ParentChainIndex` loads every enabled marketplace in one bulk pair of queries and enumerates one chain per owner, so query count is still independent of catalogue size.
+- Marketplace `access.rules` are projected into `access_control_rules` alongside roles, one row per value in the extension subject-dimension band the rule names, honouring `access: deny`. Orphan deletion is scoped to the `(entity_id, rule_type)` pairs the config still declares, so retiring a band leaves rows another writer owns untouched, and a malformed slug is rejected before the transaction opens.
+- `member_attribute_floor` merges the `access.attributes` bags of every enabled marketplace that includes the entity, in marketplace-id order with first key wins, and warns on a conflicting key rather than resolving it silently. It now returns an owned map.
 - Governance policies take a `mode: enforce | warn`, with a top-level `governance.mode` supplying the default for every policy that does not name its own. An unrecognised value is a parse error rather than a silent fallback, because reading it either way changes what is enforced without saying so.
 - `Decision::Warn` carries the same `DenyReason` the enforcing form would have, so a warn row and a deny row are directly comparable. `Decision::permits` is the predicate every enforcement point should use; matching on `Allow` alone turns warn mode back into enforcement silently. `DecisionTag::Warn` and a migration extending the `governance_decisions` CHECK constraint go with it.
 - A policy in warn mode records a `ChainEntryResult::Warn` and does not halt the chain, so the audit row carries every finding on the call rather than only the first.

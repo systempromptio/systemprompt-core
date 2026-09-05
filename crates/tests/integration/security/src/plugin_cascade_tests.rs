@@ -21,6 +21,7 @@ struct Fixture {
     db: DbPool,
     pg: Arc<PgPool>,
     market: String,
+    market2: String,
     admin_plugin: String,
     user_plugin: String,
     admin_skill: String,
@@ -32,6 +33,7 @@ impl Fixture {
     fn rows(&self) -> Vec<(&'static str, &str)> {
         vec![
             ("marketplace", &self.market),
+            ("marketplace", &self.market2),
             ("plugin", &self.admin_plugin),
             ("plugin", &self.user_plugin),
             ("skill", &self.admin_skill),
@@ -41,17 +43,34 @@ impl Fixture {
     }
 
     fn sources(&self) -> ChainSources {
+        self.sources_in(&[&self.market])
+    }
+
+    fn sources_in(&self, markets: &[&str]) -> ChainSources {
         let owners = |ids: &[&str]| {
             ids.iter()
                 .map(|s| PluginId::new(*s))
                 .collect::<BTreeSet<_>>()
         };
+        let market_ids: BTreeSet<MarketplaceId> =
+            markets.iter().map(|m| MarketplaceId::new(*m)).collect();
         ChainSources {
-            marketplace: Some(MarketplaceSource {
-                id: MarketplaceId::new(&self.market),
-                fallback_default_included: Some(true),
-            }),
-            plugins: owners(&[&self.admin_plugin, &self.user_plugin]),
+            marketplaces: market_ids
+                .iter()
+                .map(|id| {
+                    (
+                        id.clone(),
+                        MarketplaceSource {
+                            id: id.clone(),
+                            fallback_default_included: Some(true),
+                        },
+                    )
+                })
+                .collect(),
+            plugins: [&self.admin_plugin, &self.user_plugin]
+                .into_iter()
+                .map(|p| (PluginId::new(p), market_ids.clone()))
+                .collect(),
             skill_owners: BTreeMap::from([
                 (
                     SkillId::new(&self.admin_skill),
@@ -77,6 +96,7 @@ async fn setup() -> Fixture {
         db,
         pg,
         market: format!("mp-cascade-{tag}"),
+        market2: format!("mp-cascade2-{tag}"),
         admin_plugin: format!("admin-plugin-{tag}"),
         user_plugin: format!("user-plugin-{tag}"),
         admin_skill: format!("admin_skill_{}", tag.simple()),
@@ -178,6 +198,45 @@ async fn a_ruleless_skill_in_an_admin_gated_plugin_is_hidden_from_a_user() {
     );
     assert!(admin.contains(&fixture.admin_skill));
     assert!(admin.contains(&fixture.user_skill));
+
+    cleanup(&fixture).await;
+}
+
+// Why: the union is the point of several enabled marketplaces. A skill reached
+// through a plugin that sits in two of them must be visible when either one
+// admits the subject, not only the first in id order.
+#[tokio::test]
+async fn a_skill_reachable_through_either_of_two_marketplaces_is_visible() {
+    let fixture = setup().await;
+    grant(&fixture, "marketplace", &fixture.market, "admin", false).await;
+    grant(&fixture, "marketplace", &fixture.market2, "contractor", false).await;
+
+    let repo = AccessControlRepository::new(&fixture.db).expect("repo");
+    let sources = fixture.sources_in(&[&fixture.market, &fixture.market2]);
+    let index = ParentChainIndex::load(&repo, std::sync::Arc::new(sources))
+        .await
+        .expect("load chain index");
+    let roles = vec!["contractor".to_owned()];
+    let ids = vec![fixture.user_skill.clone()];
+    let seen = allowed_ids(
+        &repo,
+        BulkKeepQuery {
+            user_id: &fixture_user_id(),
+            roles: &roles,
+            kind: EntityKind::Skill,
+            ids: &ids,
+            chains: &index,
+            attributes: &NO_SUBJECT_ATTRIBUTES,
+            dimensions: &[],
+        },
+    )
+    .await
+    .expect("allowed_ids");
+
+    assert!(
+        seen.contains(&fixture.user_skill),
+        "the second marketplace admits contractors, so the skill is visible: {seen:?}"
+    );
 
     cleanup(&fixture).await;
 }
