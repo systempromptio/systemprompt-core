@@ -226,3 +226,6 @@ pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     write_atomic(&settings_path, &format!("{rendered}\n"))?;
     Ok(true)
 }
+
+#[path = "settings_test_api.rs"]
+pub mod test_api;

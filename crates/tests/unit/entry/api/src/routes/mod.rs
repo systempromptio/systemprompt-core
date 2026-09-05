@@ -30,3 +30,6 @@ mod gateway_otel_handle;
 mod mcp_registry_handler;
 
 mod content_links_redirect;
+mod content_blog;
+mod wellknown_agent_cards;
+mod gateway_auth_mtls;

@@ -75,6 +75,7 @@ fn audit_output(status: &str) -> AuditOutput {
         output_tokens: 0,
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
+        reasoning_tokens: 0,
         cost_dollars: 0.0,
         latency_ms: 0,
         task_id: None,

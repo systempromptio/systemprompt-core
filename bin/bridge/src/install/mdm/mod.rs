@@ -7,7 +7,7 @@ pub(crate) mod egress;
 mod error;
 mod inference;
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub(crate) mod linux;
+pub mod linux;
 #[cfg(target_os = "macos")]
 pub(super) mod macos;
 #[cfg(target_os = "macos")]

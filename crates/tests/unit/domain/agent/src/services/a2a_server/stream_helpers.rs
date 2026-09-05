@@ -6,9 +6,10 @@
 //! returned only text must not manufacture artifacts, because an artifact is a
 //! durable, user-visible record of a result.
 
-use rmcp::model::{CallToolResult, ContentBlock};
+use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
 use systemprompt_agent::test_api::build_artifacts_from_results;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpServerId, TaskId};
+use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::{McpTool, ToolCall};
 
 fn call(name: &str) -> ToolCall {
@@ -27,20 +28,25 @@ fn text_only_result() -> CallToolResult {
     CallToolResult::success(vec![ContentBlock::text("plain text".to_owned())])
 }
 
-// The builder reads the execution identifiers out of `_meta`; structured
-// content without them is not a transformable artifact, so a fixture that
-// omits them tests the transformer's rejection rather than this gate.
+// The builder reads the execution identifiers from the result's OWN `_meta`
+// field, not from inside `structured_content` — a structured payload without
+// them is not a transformable artifact, so a fixture that omits them would
+// test the transformer's rejection rather than this gate.
 fn structured_result() -> CallToolResult {
     let mut result = CallToolResult::success(vec![ContentBlock::text("text".to_owned())]);
     result.structured_content = Some(serde_json::json!({
-        "rows": [],
-        "_meta": {
-            "io.systemprompt/execution": {
-                "artifact_id": "art-stream-1",
-                "mcp_execution_id": "exec-stream-1"
-            }
-        }
+        "x-artifact-type": "text",
+        "value": "hello"
     }));
+    let mut meta = serde_json::Map::new();
+    meta.insert(
+        EXECUTION_META_KEY.to_owned(),
+        serde_json::json!({
+            "artifact_id": "art-stream-1",
+            "mcp_execution_id": "exec-stream-1"
+        }),
+    );
+    result.meta = Some(MetaObject(meta));
     result
 }
 

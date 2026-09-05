@@ -7061,6 +7061,7 @@ dependencies = [
  "sha2 0.11.0",
  "sqlx",
  "systemprompt-ai",
+ "systemprompt-analytics",
  "systemprompt-api",
  "systemprompt-content",
  "systemprompt-database",

@@ -26,3 +26,5 @@ mod workspace_sink;
 mod progress_sink;
 #[cfg(test)]
 mod workspace_sink_errors;
+#[cfg(test)]
+mod apply_metadata_writes;

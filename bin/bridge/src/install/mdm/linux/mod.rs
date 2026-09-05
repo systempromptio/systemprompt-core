@@ -13,7 +13,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-mod settings;
+pub mod settings;
 
 use settings::{apply_managed_settings, key_helper_path, remove_managed_settings};
 

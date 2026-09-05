@@ -26,3 +26,5 @@ mod summary;
 mod user_alert;
 #[cfg(test)]
 mod managed_file_writes;
+#[cfg(test)]
+mod linux_managed_settings;

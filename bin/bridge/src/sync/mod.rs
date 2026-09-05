@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub(crate) mod apply;
+pub mod apply;
 mod error;
 mod manifest;
 mod provision;

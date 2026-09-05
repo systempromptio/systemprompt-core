@@ -284,3 +284,6 @@ fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<()
         source: e,
     })
 }
+
+#[path = "apply_test_api.rs"]
+pub mod test_api;
