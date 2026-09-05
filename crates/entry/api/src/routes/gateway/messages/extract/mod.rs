@@ -141,8 +141,8 @@ pub(super) async fn extract_request_context(
                     .to_owned()
             },
             |provider| {
-                route
-                    .effective_upstream_model_for(provider, &gateway_request.model)
+                provider
+                    .upstream_model_for(route.upstream_model.as_deref(), &gateway_request.model)
                     .to_owned()
             },
         );

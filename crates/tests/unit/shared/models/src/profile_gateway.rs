@@ -93,7 +93,7 @@ fn route_finds_matching_model() {
     );
 }
 
-/// Vertex MaaS publishes fully-qualified upstream names
+/// Vertex `MaaS` publishes fully-qualified upstream names
 /// (`qwen/qwen3-next-80b-a3b-instruct-maas`) for the short ids clients ask for
 /// (`qwen.qwen3-next-instruct`). One route matches the whole `qwen.*` glob and
 /// so cannot carry a different name per model, which is why the mapping lives
@@ -107,7 +107,7 @@ fn catalog_model_supplies_the_upstream_name() {
     let route = route("qwen.*");
 
     assert_eq!(
-        route.effective_upstream_model_for(&provider, "qwen.qwen3-next-instruct"),
+        provider.upstream_model_for(route.upstream_model.as_deref(), "qwen.qwen3-next-instruct"),
         "qwen/qwen3-next-80b-a3b-instruct-maas"
     );
 }
@@ -121,7 +121,7 @@ fn route_rewrite_outranks_the_catalog_mapping() {
     route.upstream_model = Some("operator-substitution".to_owned());
 
     assert_eq!(
-        route.effective_upstream_model_for(&provider, "qwen.qwen3-next-instruct"),
+        provider.upstream_model_for(route.upstream_model.as_deref(), "qwen.qwen3-next-instruct"),
         "operator-substitution",
         "an operator substituting a model must win over the catalog default"
     );
@@ -136,11 +136,11 @@ fn an_unmapped_model_passes_its_own_name_upstream() {
     );
 
     assert_eq!(
-        route("claude-*").effective_upstream_model_for(&provider, "claude-sonnet-4-20250514"),
+        provider.upstream_model_for(None, "claude-sonnet-4-20250514"),
         "claude-sonnet-4-20250514"
     );
     assert_eq!(
-        route("claude-*").effective_upstream_model_for(&provider, "not-in-the-catalog"),
+        provider.upstream_model_for(None, "not-in-the-catalog"),
         "not-in-the-catalog",
         "a model the provider does not list must not be rewritten into nothing"
     );

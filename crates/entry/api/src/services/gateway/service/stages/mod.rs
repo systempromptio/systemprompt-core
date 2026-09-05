@@ -62,8 +62,8 @@ impl PreparedDispatch {
         relay: UpstreamRelay<'_>,
     ) -> Result<Self, DispatchError> {
         let upstream_model = upstream
-            .route
-            .effective_upstream_model_for(upstream.provider, &request.model)
+            .provider
+            .upstream_model_for(upstream.route.upstream_model.as_deref(), &request.model)
             .to_owned();
         let override_descriptor = apply_system_prompt_override(
             config,

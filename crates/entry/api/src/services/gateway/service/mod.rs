@@ -8,6 +8,7 @@
     reason = "Arc::clone usage is intentional and ergonomic in this gateway dispatch path"
 )]
 
+mod credentials;
 mod finalize;
 mod resolve;
 mod stages;

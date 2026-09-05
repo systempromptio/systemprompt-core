@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, PoisonError, RwLock};
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_models::services::{ApiSurface, ServicesConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
@@ -193,6 +193,8 @@ impl ConfigLoader {
                 .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
         }
 
+        demote_providers_without_credentials(&mut merged);
+
         merged
             .validate()
             .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
@@ -254,4 +256,41 @@ fn cache_store(key: PathBuf, config: &ServicesConfig) {
         .write()
         .unwrap_or_else(PoisonError::into_inner)
         .insert(key, config.clone());
+}
+
+// Why: a provider whose `api_key_secret` does not resolve cannot dispatch, and
+// until now nothing downstream noticed. Its models stayed in `/v1/models` and
+// in every client's model picker, then failed on first use with a 502 naming a
+// secret the developer has never heard of. `Backend` is the existing
+// "servable but never advertised" surface, so demoting to it turns an
+// undispatchable model into an absent one, which is the honest answer.
+//
+// Deliberately not a boot failure: an instance serving Anthropic must still
+// start when an unrelated provider's credential is missing.
+//
+// An uninitialised secret store means "unknown", never "absent". Several entry
+// points load services with no secrets at all, and demoting there would empty
+// the catalog for reasons that have nothing to do with configuration — so the
+// unknown case leaves every surface alone. That also keeps the failure mode of
+// the surrounding config cache benign: the worst case is advertising a model
+// that cannot dispatch, which is exactly today's behaviour.
+fn demote_providers_without_credentials(config: &mut ServicesConfig) {
+    let Ok(secrets) = systemprompt_config::SecretsBootstrap::get() else {
+        return;
+    };
+
+    for provider in &mut config.providers.providers {
+        if !provider.surface.is_advertised() {
+            continue;
+        }
+        if secrets.get(provider.api_key_secret.as_str()).is_some() {
+            continue;
+        }
+        tracing::warn!(
+            provider = %provider.name.as_str(),
+            secret = %provider.api_key_secret.as_str(),
+            "provider has no credential in the secret store; its models will not be advertised"
+        );
+        provider.surface = ApiSurface::Backend;
+    }
 }
