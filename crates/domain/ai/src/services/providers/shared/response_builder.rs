@@ -15,6 +15,7 @@ pub struct TokenUsage {
     pub cache_hit: bool,
     pub cache_read_tokens: Option<u32>,
     pub cache_creation_tokens: Option<u32>,
+    pub reasoning_tokens: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -50,6 +51,7 @@ pub fn build_response(params: BuildResponseParams<'_>) -> AiResponse {
         cache_hit: usage.cache_hit,
         cache_read_tokens: usage.cache_read_tokens,
         cache_creation_tokens: usage.cache_creation_tokens,
+        reasoning_tokens: usage.reasoning_tokens,
         is_streaming: false,
         latency_ms: start.elapsed().as_millis() as u64,
         tool_calls: Vec::new(),

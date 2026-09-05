@@ -21,6 +21,9 @@ pub fn event_to_chunk(event: CanonicalEvent) -> Option<StreamChunk> {
     }
 }
 
+// Why: reasoning_tokens is a breakdown of output_tokens, so it is carried
+// alongside but deliberately left out of the `total` sum below -- that sum
+// becomes `tokens_used`, and adding it would bill every thinking turn twice.
 fn usage_chunk(usage: &CanonicalUsageUpdate) -> StreamChunk {
     let total = usage.input_tokens.unwrap_or(0)
         + usage.output_tokens.unwrap_or(0)
@@ -32,6 +35,7 @@ fn usage_chunk(usage: &CanonicalUsageUpdate) -> StreamChunk {
         tokens_used: (!usage.is_empty()).then_some(total),
         cache_read_tokens: usage.cache_read_tokens,
         cache_creation_tokens: usage.cache_creation_tokens,
+        reasoning_tokens: usage.reasoning_tokens,
         finish_reason: None,
     }
 }
@@ -43,6 +47,7 @@ fn finish_chunk(stop_reason: Option<CanonicalStopReason>) -> StreamChunk {
         tokens_used: None,
         cache_read_tokens: None,
         cache_creation_tokens: None,
+        reasoning_tokens: None,
         finish_reason: stop_reason.map(|s| stop_reason_str(s).to_owned()),
     }
 }

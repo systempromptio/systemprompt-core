@@ -1,0 +1,9 @@
+Slot 006 is spent, not free.
+
+006_acl_gateway_model.sql was deleted in 7b117a1ec, before the 0.11.2 release,
+and never reached a released database -- no deployment has a tracking row for
+it. The slot is recorded here so `ls` cannot make the gap look like a
+migration that was simply never written: re-using 006 would collide with the
+deleted file's identity for anyone who ran a pre-0.11.2 build.
+
+Numbering continues at the highest slot ever used, never at the first gap.

@@ -13,6 +13,7 @@ pub struct TokenInfo {
     pub tokens_used: Option<i32>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
+    pub reasoning_tokens: Option<i32>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -203,6 +204,14 @@ impl AiRequestRecordBuilder {
             (None, Some(o)) => Some(o),
             (None, None) => None,
         };
+        self
+    }
+
+    // Why: kept separate from `tokens` so `tokens_used` stays `input + output`.
+    // Reasoning is already inside output_tokens; folding it into the sum here
+    // would double-count every thinking turn.
+    pub const fn reasoning(mut self, reasoning_tokens: Option<i32>) -> Self {
+        self.tokens.reasoning_tokens = reasoning_tokens;
         self
     }
 

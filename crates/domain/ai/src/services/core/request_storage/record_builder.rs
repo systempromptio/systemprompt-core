@@ -48,6 +48,7 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
         params.response.input_tokens.map(|t| t as i32),
         params.response.output_tokens.map(|t| t as i32),
     )
+    .reasoning(params.response.reasoning_tokens.map(|t| t as i32))
     .cache(
         params.response.cache_hit,
         params.response.cache_read_tokens.map(|t| t as i32),

@@ -41,6 +41,7 @@ pub(super) struct StreamStorageWrapper {
     tokens_used: Option<u32>,
     cache_read_tokens: Option<u32>,
     cache_creation_tokens: Option<u32>,
+    reasoning_tokens: Option<u32>,
     finish_reason: Option<String>,
 }
 
@@ -62,6 +63,7 @@ impl StreamStorageWrapper {
             tokens_used: None,
             cache_read_tokens: None,
             cache_creation_tokens: None,
+            reasoning_tokens: None,
             finish_reason: None,
         }
     }
@@ -73,6 +75,7 @@ impl StreamStorageWrapper {
             tokens_used,
             cache_read_tokens,
             cache_creation_tokens,
+            reasoning_tokens,
             finish_reason,
         } = chunk
         {
@@ -93,6 +96,9 @@ impl StreamStorageWrapper {
             }
             if cache_creation_tokens.is_some() {
                 self.cache_creation_tokens = cache_creation_tokens;
+            }
+            if reasoning_tokens.is_some() {
+                self.reasoning_tokens = reasoning_tokens;
             }
             if finish_reason.is_some() {
                 self.finish_reason = finish_reason;
@@ -125,6 +131,7 @@ impl StreamStorageWrapper {
         response.cache_hit = self.cache_read_tokens.is_some_and(|t| t > 0);
         response.cache_read_tokens = self.cache_read_tokens;
         response.cache_creation_tokens = self.cache_creation_tokens;
+        response.reasoning_tokens = self.reasoning_tokens;
 
         response
     }
