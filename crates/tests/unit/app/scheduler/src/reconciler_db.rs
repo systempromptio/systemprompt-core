@@ -1,8 +1,9 @@
 //! DB-backed tests for [`ServiceReconciler`] and [`ServiceStateVerifier`].
 //!
 //! Both types require a live Postgres pool. Tests skip when `DATABASE_URL`
-//! is unset locally, and fail under `CI`. The `services` table may be empty on a freshly-migrated DB;
-//! tests seed rows they need and clean them up afterwards.
+//! is unset locally, and fail under `CI`. The `services` table may be empty on
+//! a freshly-migrated DB; tests seed rows they need and clean them up
+//! afterwards.
 
 use std::sync::Arc;
 

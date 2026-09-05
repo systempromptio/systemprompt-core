@@ -16,7 +16,9 @@ use systemprompt_identifiers::{
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-use crate::repository::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{
+    make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip,
+};
 
 fn message(role: MessageRole, ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {

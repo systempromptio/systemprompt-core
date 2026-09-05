@@ -86,11 +86,7 @@ fn access(
     }
 }
 
-fn rule(
-    rule_type: &str,
-    values: &[&str],
-    grant: MarketplaceRuleAccess,
-) -> MarketplaceAccessRule {
+fn rule(rule_type: &str, values: &[&str], grant: MarketplaceRuleAccess) -> MarketplaceAccessRule {
     MarketplaceAccessRule {
         rule_type: rule_type.to_owned(),
         values: values.iter().map(|v| (*v).to_owned()).collect(),
@@ -288,7 +284,11 @@ async fn deny_rule_writes_access_deny() {
     let f = setup().await;
     let service = AccessControlIngestionService::new(&f.db).expect("service");
     let mut block = access(&[], true, None);
-    block.rules = vec![rule("project", &["storefront"], MarketplaceRuleAccess::Deny)];
+    block.rules = vec![rule(
+        "project",
+        &["storefront"],
+        MarketplaceRuleAccess::Deny,
+    )];
 
     service
         .ingest_marketplace_access(&one(&f.id, block), IngestOptions::default())
@@ -315,7 +315,11 @@ async fn delete_orphans_only_touches_declared_bands() {
     };
 
     let mut block = access(&["engineer", "contractor"], true, None);
-    block.rules = vec![rule("project", &["storefront"], MarketplaceRuleAccess::Allow)];
+    block.rules = vec![rule(
+        "project",
+        &["storefront"],
+        MarketplaceRuleAccess::Allow,
+    )];
     service
         .ingest_marketplace_access(&one(&f.id, block), options)
         .await

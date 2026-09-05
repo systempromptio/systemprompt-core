@@ -213,7 +213,9 @@ fn to_db_value_for_vec_string() {
 
 #[tokio::test]
 async fn row_to_json_converts_each_scalar_type() {
-    let Some(db) = pool_or_skip().await else { return };
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let provider = db.read();
 
     let sql = "SELECT \
@@ -288,7 +290,9 @@ async fn row_to_json_converts_each_scalar_type() {
 
 #[tokio::test]
 async fn bind_params_round_trips_each_db_value_variant() {
-    let Some(db) = pool_or_skip().await else { return };
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let provider = db.read();
 
     let s = "bound".to_string();
@@ -340,7 +344,9 @@ async fn bind_params_round_trips_each_db_value_variant() {
 
 #[tokio::test]
 async fn bind_params_handles_null_variants() {
-    let Some(db) = pool_or_skip().await else { return };
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let provider = db.read();
 
     let null_string: Option<String> = None;

@@ -111,7 +111,9 @@ pub fn command_or_skip() -> Option<Command> {
 }
 
 pub fn run(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     let _ = cmd.assert();
 }
@@ -119,7 +121,9 @@ pub fn run(args: &[&str]) {
 pub fn run_with_formats(args: &[&str]) {
     run(args);
     for format in ["--json", "--yaml"] {
-        let Some(mut cmd) = command_or_skip() else { return };
+        let Some(mut cmd) = command_or_skip() else {
+            return;
+        };
         cmd.arg(format);
         cmd.args(args);
         let _ = cmd.assert();
@@ -225,7 +229,9 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
 // A pre-existing `testadmin` row keeps its original email through bootstrap;
 // session-token generation rejects dot-less domains, so repair it in place.
 fn normalize_admin_email() {
-    let Some(url) = database_url_or_skip() else { return };
+    let Some(url) = database_url_or_skip() else {
+        return;
+    };
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

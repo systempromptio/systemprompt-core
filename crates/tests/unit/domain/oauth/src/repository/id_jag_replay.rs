@@ -14,7 +14,9 @@ async fn repo_or_skip() -> Option<OAuthRepository> {
 
 #[tokio::test]
 async fn first_presentation_consumes_and_replay_is_rejected() {
-    let Some(repo) = repo_or_skip().await else { return };
+    let Some(repo) = repo_or_skip().await else {
+        return;
+    };
     let jti = format!("jag-{}", Uuid::new_v4().simple());
     let expires = Utc::now() + Duration::minutes(5);
 
@@ -33,7 +35,9 @@ async fn first_presentation_consumes_and_replay_is_rejected() {
 
 #[tokio::test]
 async fn distinct_jtis_do_not_interfere() {
-    let Some(repo) = repo_or_skip().await else { return };
+    let Some(repo) = repo_or_skip().await else {
+        return;
+    };
     let expires = Utc::now() + Duration::minutes(5);
     let a = format!("jag-{}", Uuid::new_v4().simple());
     let b = format!("jag-{}", Uuid::new_v4().simple());

@@ -32,7 +32,9 @@ async fn expire(pool: &DbPool, conversation: &GatewayConversationId, tool_use_id
 
 #[tokio::test]
 async fn upsert_then_find_returns_the_signature() {
-    let Some(pool) = pool_or_skip().await else { return };
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
@@ -46,7 +48,9 @@ async fn upsert_then_find_returns_the_signature() {
 
 #[tokio::test]
 async fn upsert_overwrites_an_existing_signature() {
-    let Some(pool) = pool_or_skip().await else { return };
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
@@ -61,7 +65,9 @@ async fn upsert_overwrites_an_existing_signature() {
 
 #[tokio::test]
 async fn find_is_scoped_to_the_conversation() {
-    let Some(pool) = pool_or_skip().await else { return };
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
     let other = conversation();
@@ -73,7 +79,9 @@ async fn find_is_scoped_to_the_conversation() {
 
 #[tokio::test]
 async fn expired_signature_is_not_found() {
-    let Some(pool) = pool_or_skip().await else { return };
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
@@ -85,7 +93,9 @@ async fn expired_signature_is_not_found() {
 
 #[tokio::test]
 async fn find_extends_the_expiry() {
-    let Some(pool) = pool_or_skip().await else { return };
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
@@ -112,7 +122,9 @@ async fn find_extends_the_expiry() {
 
 #[tokio::test]
 async fn cleanup_expired_removes_only_expired_rows() {
-    let Some(pool) = pool_or_skip().await else { return };
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 

@@ -9,7 +9,11 @@ mod egress;
 #[cfg(test)]
 mod elevation_script;
 #[cfg(test)]
+mod linux_managed_settings;
+#[cfg(test)]
 mod linux_settings;
+#[cfg(test)]
+mod managed_file_writes;
 #[cfg(test)]
 mod managed_settings;
 #[cfg(test)]
@@ -24,7 +28,3 @@ mod schedule;
 mod summary;
 #[cfg(test)]
 mod user_alert;
-#[cfg(test)]
-mod managed_file_writes;
-#[cfg(test)]
-mod linux_managed_settings;

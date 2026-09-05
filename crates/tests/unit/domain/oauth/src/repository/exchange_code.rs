@@ -27,7 +27,9 @@ async fn setup_or_skip() -> Option<Ctx> {
 
 #[tokio::test]
 async fn create_then_consume_once() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let hash = format!("xc-{}", Uuid::new_v4());
     ctx.repo
         .create_bridge_exchange_code(CreateExchangeCodeParams {
@@ -58,7 +60,9 @@ async fn create_then_consume_once() {
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     assert!(
         ctx.repo
             .consume_bridge_exchange_code(&format!("nope-{}", Uuid::new_v4()))
@@ -70,7 +74,9 @@ async fn consume_unknown_returns_none() {
 
 #[tokio::test]
 async fn expired_code_cannot_be_consumed() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let hash = format!("xc-{}", Uuid::new_v4());
     ctx.repo
         .create_bridge_exchange_code(CreateExchangeCodeParams {

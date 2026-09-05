@@ -5,19 +5,25 @@
 use systemprompt_cli_integration_tests::full_bootstrap::{command_or_skip, fixture_or_skip};
 
 fn run_ok(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     cmd.assert().success();
 }
 
 fn run_any(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     let _ = cmd.assert();
 }
 
 fn run_err(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     cmd.assert().failure();
 }
@@ -120,7 +126,10 @@ fn user_merge_flow() {
     run_ok(&[
         "admin", "users", "create", "--name", &dst_name, "--email", &dst_email,
     ]);
-    let (Some(src), Some(dst)) = (user_id_by_name_or_skip(&src_name), user_id_by_name_or_skip(&dst_name)) else {
+    let (Some(src), Some(dst)) = (
+        user_id_by_name_or_skip(&src_name),
+        user_id_by_name_or_skip(&dst_name),
+    ) else {
         return;
     };
     run_any(&[

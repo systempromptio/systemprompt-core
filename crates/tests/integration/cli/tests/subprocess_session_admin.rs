@@ -44,7 +44,8 @@ fn login_token_only_and_force_new() {
     let Some((home, _)) = isolated_project_or_skip() else {
         return;
     };
-    let Some(mut cmd) = session_cmd_or_skip(home.path(), &["admin", "session", "login", "--token-only"])
+    let Some(mut cmd) =
+        session_cmd_or_skip(home.path(), &["admin", "session", "login", "--token-only"])
     else {
         return;
     };
@@ -62,7 +63,7 @@ fn login_token_only_and_force_new() {
             "--duration-hours",
             "2",
         ],
-    // skip-ok: the systemprompt binary is not built in this checkout
+        // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -75,7 +76,9 @@ fn login_with_formats() {
         return;
     };
     for format in ["--json", "--yaml"] {
-        let Some(mut cmd) = session_cmd_or_skip(home.path(), &[format, "admin", "session", "login"]) else {
+        let Some(mut cmd) =
+            session_cmd_or_skip(home.path(), &[format, "admin", "session", "login"])
+        else {
             return;
         };
         cmd.assert().success();
@@ -124,7 +127,8 @@ fn logout_single_and_all() {
     };
     login.assert().success();
 
-    let Some(mut logout) = session_cmd_or_skip(home.path(), &["admin", "session", "logout", "-y"]) else {
+    let Some(mut logout) = session_cmd_or_skip(home.path(), &["admin", "session", "logout", "-y"])
+    else {
         return;
     };
     let _ = logout.assert();

@@ -54,7 +54,10 @@ fn every_outcome_renders_its_own_status_marker_and_names_the_host() {
             "Manual Host",
             Outcome::ManualStep("remove the profile in System Settings".to_owned()),
         ),
-        report("Broken Host", Outcome::Failed("permission denied".to_owned())),
+        report(
+            "Broken Host",
+            Outcome::Failed("permission denied".to_owned()),
+        ),
     ];
     let rendered = systemprompt_bridge::integration::enrol::render(&reports);
 
@@ -65,16 +68,18 @@ fn every_outcome_renders_its_own_status_marker_and_names_the_host() {
         "one heading plus one line per report"
     );
 
-    assert!(rendered.contains("[ok      ] Installed Host — profile installed (wrote ~/.config/opencode/opencode.json)"));
+    assert!(rendered.contains(
+        "[ok      ] Installed Host — profile installed (wrote ~/.config/opencode/opencode.json)"
+    ));
     assert!(rendered.contains("[pending ] Pending Host — handed to the OS"));
     assert!(rendered.contains("[declined] Declined Host — administrator approval refused"));
     assert!(rendered.contains("[ok      ] Sync Host — governed through the gateway"));
     assert!(rendered.contains("[skipped ] Disabled Host"));
     assert!(rendered.contains("[ok      ] Removed Host — bridge-owned settings removed"));
     assert!(rendered.contains("[ok      ] Clean Host — nothing of ours left to remove"));
-    assert!(
-        rendered.contains("[pending ] Manual Host — finish by hand: remove the profile in System Settings")
-    );
+    assert!(rendered.contains(
+        "[pending ] Manual Host — finish by hand: remove the profile in System Settings"
+    ));
     assert!(rendered.contains("[failed  ] Broken Host — permission denied"));
 }
 
@@ -101,7 +106,8 @@ fn a_failure_message_is_carried_through_verbatim_so_the_cause_is_visible() {
 
 #[test]
 fn removing_an_empty_selection_succeeds_with_nothing_to_report() {
-    let reports = remove_host_profiles(&Selection::Ids(Vec::new())).expect("empty selection is valid");
+    let reports =
+        remove_host_profiles(&Selection::Ids(Vec::new())).expect("empty selection is valid");
     assert!(reports.is_empty());
     assert_eq!(
         systemprompt_bridge::integration::enrol::render(&reports),

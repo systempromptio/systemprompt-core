@@ -4,7 +4,9 @@
 use std::path::Path;
 
 use predicates::prelude::*;
-use systemprompt_cli_integration_tests::full_bootstrap::{command_bare_or_skip, database_url_or_skip, fixture_or_skip};
+use systemprompt_cli_integration_tests::full_bootstrap::{
+    command_bare_or_skip, database_url_or_skip, fixture_or_skip,
+};
 
 struct DbParts {
     host: String,
@@ -61,7 +63,7 @@ fn setup_dry_run_previews_without_writing() {
             "sk-cov-test",
             "--no-migrate",
         ],
-    // skip-ok: the systemprompt binary is not built in this checkout
+        // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -154,7 +156,7 @@ fn setup_json_output_dry_run() {
             "gm-cov",
             "--no-migrate",
         ],
-    // skip-ok: the systemprompt binary is not built in this checkout
+        // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };

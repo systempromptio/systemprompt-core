@@ -54,7 +54,9 @@ fn logs_audit_missing_id() {
 
 #[test]
 fn logs_export_variants() {
-    let Some(fixture) = fixture_or_skip() else { return };
+    let Some(fixture) = fixture_or_skip() else {
+        return;
+    };
     let out = fixture.system_dir.join("logs_export.json");
     let out_str = out.to_string_lossy().into_owned();
     run(&["infra", "logs", "export", "--limit", "10"]);

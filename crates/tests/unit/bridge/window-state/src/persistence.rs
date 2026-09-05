@@ -9,10 +9,7 @@ fn sandbox<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     temp_env::with_vars(
         [
             ("HOME", Some(home.path().to_string_lossy().into_owned())),
-            (
-                "XDG_STATE_HOME",
-                Some(path.to_string_lossy().into_owned()),
-            ),
+            ("XDG_STATE_HOME", Some(path.to_string_lossy().into_owned())),
         ],
         || f(&path),
     )
@@ -88,11 +85,8 @@ fn a_geometry_written_without_the_maximized_flag_still_loads() {
     sandbox(|state| {
         save(geometry());
         let written = walk_for(state, "window-state.json").expect("geometry file was written");
-        std::fs::write(
-            &written,
-            br#"{"x":10,"y":20,"width":900,"height":700}"#,
-        )
-        .expect("rewrite without the flag");
+        std::fs::write(&written, br#"{"x":10,"y":20,"width":900,"height":700}"#)
+            .expect("rewrite without the flag");
 
         let loaded = load().expect("an older geometry still loads");
         assert_eq!(loaded.x, 10);

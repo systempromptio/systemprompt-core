@@ -71,7 +71,9 @@ async fn page_prerender_job_without_db_pool_is_configuration_error() {
 
 #[tokio::test]
 async fn content_prerender_job_without_app_paths_is_configuration_error() {
-    let Some(db) = maybe_db_or_skip().await else { return };
+    let Some(db) = maybe_db_or_skip().await else {
+        return;
+    };
     let ctx = JobContext::new(fixture_actor(), Arc::new(db), Arc::new(()), Arc::new(()));
     let err = ContentPrerenderJob
         .execute(&ctx)
@@ -85,7 +87,9 @@ async fn content_prerender_job_without_app_paths_is_configuration_error() {
 
 #[tokio::test]
 async fn page_prerender_job_without_app_paths_is_configuration_error() {
-    let Some(db) = maybe_db_or_skip().await else { return };
+    let Some(db) = maybe_db_or_skip().await else {
+        return;
+    };
     let ctx = JobContext::new(fixture_actor(), Arc::new(db), Arc::new(()), Arc::new(()));
     let err = PagePrerenderJob
         .execute(&ctx)
@@ -101,7 +105,9 @@ async fn page_prerender_job_without_app_paths_is_configuration_error() {
 async fn prerender_jobs_run_to_success_with_empty_sources() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else { return };
+    let Some(db) = maybe_db_or_skip().await else {
+        return;
+    };
 
     fs::write(
         boot.services_path.join("web/config.yaml"),

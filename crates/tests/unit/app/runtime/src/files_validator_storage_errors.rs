@@ -14,8 +14,7 @@ use crate::boot::{BootOptions, boot};
 fn broken_storage_root_reports_storage_errors_with_suggestion() {
     let Some(_fixture) = boot(&BootOptions {
         broken_storage: true,
-        ..BootOptions::default()
-    // skip-ok: no bootable profile on this machine
+        ..BootOptions::default() // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };
