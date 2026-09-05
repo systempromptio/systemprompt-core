@@ -60,11 +60,10 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
         false
     }
 
-    /// Frames that close a streamed turn after its last event.
-    ///
-    /// Chat Completions ends with a usage-only chunk and the `[DONE]`
-    /// sentinel, and both must follow the finish chunk -- the usage a client
-    /// asked for is only complete once the upstream stream has ended.
+    // Why: the frames that close a streamed turn after its last event. Chat
+    // Completions ends with a usage-only chunk and the `[DONE]` sentinel, and
+    // both must follow the finish chunk -- the usage a client asked for is
+    // only complete once the upstream stream has ended.
     fn render_stream_tail(
         &self,
         snapshot: &CanonicalResponse,

@@ -47,20 +47,14 @@ pub fn render_terminal_event_frame(
     ))
 }
 
-/// The frames that close the stream: the contract's usage-only chunk, then the
-/// `[DONE]` sentinel.
-///
-/// `include_usage` is the caller's own `stream_options.include_usage`. The
-/// contract is explicit that usage is reported in a trailing chunk whose
-/// `choices` array is empty, and only when it was asked for.
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
-pub fn render_stream_tail_frames(snapshot: &CanonicalResponse, include_usage: bool) -> Bytes {
+// Why: the frames that close the stream are the contract's usage-only chunk
+// and then the `[DONE]` sentinel. `include_usage` is the caller's own
+// `stream_options.include_usage`: the contract reports usage in a trailing
+// chunk whose `choices` array is empty, and only when it was asked for.
+pub(super) fn render_stream_tail_frames(
+    snapshot: &CanonicalResponse,
+    include_usage: bool,
+) -> Bytes {
     let mut frames: Vec<u8> = Vec::new();
     if include_usage {
         frames.extend_from_slice(&render_usage_chunk(snapshot));

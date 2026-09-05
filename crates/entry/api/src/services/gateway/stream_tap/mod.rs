@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod abort;
 mod accumulator;
 mod finalize;
 
@@ -32,10 +33,7 @@ use super::protocol::outbound::anthropic::streaming::SseDecoder;
 
 pub use self::finalize::{FailCause, FinalizeDecision, classify};
 
-/// Rendered to the caller when the upstream stream ends with no terminal
-/// event, so the abort is a stated failure on every inbound wire rather than a
-/// silently closed connection.
-pub const STREAM_ABORT_MESSAGE: &str = "upstream stream ended without a terminal event";
+pub use self::abort::STREAM_ABORT_MESSAGE;
 
 /// Shared by the streaming and buffered completion tasks so both debit quota
 /// and run the response-phase safety scan identically.
@@ -84,12 +82,10 @@ pub fn tap(
     Body::from_stream(tapped)
 }
 
-/// Taps the byte-passthrough lane, where the caller receives the upstream
-/// frames verbatim.
-///
-/// `inbound` is carried only to state an abort: the lane renders nothing of
-/// its own, so a stream that ends with no terminal event would otherwise close
-/// on the client with no frame explaining it.
+// Why: on the byte-passthrough lane the caller receives the upstream frames
+// verbatim, so `inbound` is carried for one purpose only -- stating an abort.
+// The lane renders nothing of its own, so a stream that ends with no terminal
+// event would otherwise close on the client with no frame explaining it.
 pub fn tap_raw(
     upstream: BoxStream<'static, Result<Bytes, String>>,
     inbound: Arc<dyn InboundAdapter>,
@@ -144,13 +140,12 @@ impl Stream for RawTappedStream {
                 let Some((summary, ctx)) = self.take_summary() else {
                     return Poll::Ready(None);
                 };
-                let aborted = summary.error.is_none() && !summary.saw_stop;
+                let aborted = abort::is_abort(&summary);
                 finalize(Arc::clone(&self.audit), summary, ctx, "eof");
                 if !aborted {
                     return Poll::Ready(None);
                 }
-                let event = CanonicalEvent::Error(STREAM_ABORT_MESSAGE.to_owned());
-                Poll::Ready(self.inbound.render_event(&event, "").map(Ok))
+                Poll::Ready(abort::abort_frame(&self.inbound, "").map(Ok))
             },
             Poll::Ready(Some(Err(e))) => {
                 if let Ok(mut s) = self.state.lock() {
@@ -283,31 +278,19 @@ impl TappedStream {
         })
     }
 
-    // Why: an upstream that stops without a terminal event is audited as
-    // failed, but the client only saw the socket close -- indistinguishable
-    // from a hang. Each inbound wire has an error frame already; rendering one
-    // here is the only thing that reaches the caller.
     fn finalize_on_eof(&mut self) -> Poll<Option<Result<Bytes, std::io::Error>>> {
         let Some((summary, ctx)) = self.take_summary() else {
             return Poll::Ready(None);
         };
-        let aborted = summary.error.is_none() && !summary.saw_stop;
+        let aborted = abort::is_abort(&summary);
         let tail = (!aborted)
-            .then(|| {
-                self.inbound
-                    .render_stream_tail(&summary.response, self.stream_usage)
-            })
+            .then(|| abort::tail_frames(&self.inbound, &summary.response, self.stream_usage))
             .flatten();
         finalize(Arc::clone(&self.audit), summary, ctx, "eof");
         if !aborted {
             return Poll::Ready(tail.map(Ok));
         }
-        let event = CanonicalEvent::Error(STREAM_ABORT_MESSAGE.to_owned());
-        Poll::Ready(
-            self.inbound
-                .render_event(&event, &self.request_model)
-                .map(Ok),
-        )
+        Poll::Ready(abort::abort_frame(&self.inbound, &self.request_model).map(Ok))
     }
 }
 
