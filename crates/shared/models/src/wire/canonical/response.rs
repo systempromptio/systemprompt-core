@@ -35,7 +35,9 @@
 //! warned about. The total-based half only fires on the buffered path — the
 //! streaming accumulator recomputes `total_tokens` itself in
 //! [`CanonicalUsageUpdate::apply_to`], discarding the wire's own figure, so a
-//! stream is covered by the `reasoning > output` half alone.
+//! stream is covered by the `reasoning > output` half alone -- a recomputed
+//! total is explicitly excluded, because it coincides with the additive shape
+//! whenever the cache counts happen to equal the reasoning count.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -71,8 +73,20 @@ impl CanonicalUsage {
             .input_tokens
             .saturating_add(self.output_tokens)
             .saturating_add(self.reasoning_tokens);
+        // Why: the second clause needs the wire's own total. The streaming
+        // accumulator recomputes it as the cache-inclusive sum, and that sum
+        // coincides with `stated_sum` whenever the cache counts happen to
+        // equal the reasoning count -- so a recomputed total is excluded
+        // rather than read as a signal.
+        let cache_inclusive = self
+            .input_tokens
+            .saturating_add(self.output_tokens)
+            .saturating_add(self.cache_read_tokens)
+            .saturating_add(self.cache_creation_tokens);
         let additive = self.reasoning_tokens > self.output_tokens
-            || (self.reasoning_tokens > 0 && self.total_tokens == stated_sum);
+            || (self.reasoning_tokens > 0
+                && self.total_tokens == stated_sum
+                && self.total_tokens != cache_inclusive);
         if !additive {
             return false;
         }

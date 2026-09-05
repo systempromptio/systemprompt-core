@@ -11,6 +11,7 @@ use systemprompt_models::wire::canonical::{
 };
 
 mod anthropic;
+mod canonical_usage;
 mod gemini;
 mod openai_chat;
 mod openai_responses;
