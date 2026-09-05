@@ -47,12 +47,97 @@ fn declared_bands(marketplaces: &HashMap<MarketplaceId, MarketplaceConfig>) -> D
     }
 }
 
-fn tally(report: &mut IngestReport, outcome: UpsertOutcome) {
+const fn tally(report: &mut IngestReport, outcome: UpsertOutcome) {
     match outcome {
         UpsertOutcome::Inserted => report.inserted += 1,
         UpsertOutcome::Updated => report.updated += 1,
         UpsertOutcome::Skipped => report.skipped += 1,
     }
+}
+
+type Tx<'a> = sqlx::Transaction<'a, sqlx::Postgres>;
+
+// Why: every rule type is checked before the transaction opens, so a malformed
+// slug cannot leave half a marketplace's grants written.
+fn validate_rule_types(
+    marketplaces: &HashMap<MarketplaceId, MarketplaceConfig>,
+) -> AuthzResult<()> {
+    for (id, cfg) in marketplaces {
+        for rule in &cfg.access.rules {
+            RuleType::extension(rule.rule_type.clone()).map_err(|source| {
+                AuthzError::Validation(format!(
+                    "marketplace '{}': access.rules rule_type '{}' is not a valid subject \
+                     dimension: {source}",
+                    id.as_str(),
+                    rule.rule_type
+                ))
+            })?;
+        }
+    }
+    Ok(())
+}
+
+async fn delete_declared_bands(tx: &mut Tx<'_>, bands: &DeclaredBands) -> AuthzResult<usize> {
+    let res = sqlx::query!(
+        r#"
+        DELETE FROM access_control_rules
+        WHERE entity_type = 'marketplace'
+          AND (entity_id, rule_type) IN (
+              SELECT * FROM UNNEST($1::text[], $2::text[])
+          )
+        "#,
+        &bands.entity_ids,
+        &bands.rule_types,
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(res.rows_affected() as usize)
+}
+
+async fn upsert_marketplace(
+    tx: &mut Tx<'_>,
+    entity_id: &str,
+    cfg: &MarketplaceConfig,
+    options: IngestOptions,
+    report: &mut IngestReport,
+) -> AuthzResult<()> {
+    upsert_marketplace_entity_row(tx, entity_id, cfg.access.default_included).await?;
+
+    for role in &cfg.access.roles {
+        let target = Target {
+            entity_kind: EntityKind::Marketplace,
+            entity_id,
+            rule_type: RuleType::ROLE,
+            rule_value: role.as_str(),
+            access: "allow",
+            justification: cfg.access.justification.as_deref(),
+        };
+        let outcome = upsert_target(tx, &target, options.override_existing).await?;
+        tally(report, outcome);
+    }
+
+    for rule in &cfg.access.rules {
+        let rule_type = RuleType::extension(rule.rule_type.clone())
+            .map_err(|source| AuthzError::Validation(source.to_string()))?;
+        let justification = rule
+            .justification
+            .as_deref()
+            .or(cfg.access.justification.as_deref());
+        for value in &rule.values {
+            let target = Target {
+                entity_kind: EntityKind::Marketplace,
+                entity_id,
+                rule_type: rule_type.clone(),
+                rule_value: value.as_str(),
+                access: rule.access.as_str(),
+                justification,
+            };
+            let outcome = upsert_target(tx, &target, options.override_existing).await?;
+            tally(report, outcome);
+        }
+    }
+
+    Ok(())
 }
 
 impl AccessControlIngestionService {
@@ -61,83 +146,21 @@ impl AccessControlIngestionService {
         marketplaces: &HashMap<MarketplaceId, MarketplaceConfig>,
         options: IngestOptions,
     ) -> AuthzResult<IngestReport> {
-        // Why: every rule type is validated before the transaction opens, so a
-        // malformed slug cannot leave half a marketplace's grants written.
-        for (id, cfg) in marketplaces {
-            for rule in &cfg.access.rules {
-                RuleType::extension(rule.rule_type.clone()).map_err(|_| {
-                    AuthzError::Validation(format!(
-                        "marketplace '{}': access.rules rule_type '{}' is not a valid subject \
-                         dimension",
-                        id.as_str(),
-                        rule.rule_type
-                    ))
-                })?;
-            }
-        }
+        validate_rule_types(marketplaces)?;
 
         let mut tx = self.write_pool.begin().await?;
         let mut report = IngestReport::default();
 
         let bands = declared_bands(marketplaces);
         if options.delete_orphans && !bands.entity_ids.is_empty() {
-            let res = sqlx::query!(
-                r#"
-                DELETE FROM access_control_rules
-                WHERE entity_type = 'marketplace'
-                  AND (entity_id, rule_type) IN (
-                      SELECT * FROM UNNEST($1::text[], $2::text[])
-                  )
-                "#,
-                &bands.entity_ids,
-                &bands.rule_types,
-            )
-            .execute(&mut *tx)
-            .await?;
-            report.deleted = res.rows_affected() as usize;
+            report.deleted = delete_declared_bands(&mut tx, &bands).await?;
         }
 
         for (id, cfg) in marketplaces {
             if !cfg.access.declares_rules() {
                 continue;
             }
-            let entity_id = id.as_str();
-            upsert_marketplace_entity_row(&mut tx, entity_id, cfg.access.default_included).await?;
-
-            for role in &cfg.access.roles {
-                let target = Target {
-                    entity_kind: EntityKind::Marketplace,
-                    entity_id,
-                    rule_type: RuleType::ROLE,
-                    rule_value: role.as_str(),
-                    access: "allow",
-                    justification: cfg.access.justification.as_deref(),
-                };
-                let outcome = upsert_target(&mut tx, &target, options.override_existing).await?;
-                tally(&mut report, outcome);
-            }
-
-            for rule in &cfg.access.rules {
-                let rule_type = RuleType::extension(rule.rule_type.clone())
-                    .map_err(|e| AuthzError::Validation(e.to_string()))?;
-                let justification = rule
-                    .justification
-                    .as_deref()
-                    .or(cfg.access.justification.as_deref());
-                for value in &rule.values {
-                    let target = Target {
-                        entity_kind: EntityKind::Marketplace,
-                        entity_id,
-                        rule_type: rule_type.clone(),
-                        rule_value: value.as_str(),
-                        access: rule.access.as_str(),
-                        justification,
-                    };
-                    let outcome =
-                        upsert_target(&mut tx, &target, options.override_existing).await?;
-                    tally(&mut report, outcome);
-                }
-            }
+            upsert_marketplace(&mut tx, id.as_str(), cfg, options, &mut report).await?;
         }
 
         tx.commit().await?;
