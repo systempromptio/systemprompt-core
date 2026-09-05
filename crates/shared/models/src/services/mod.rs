@@ -231,7 +231,8 @@ impl ServicesConfig {
         &self,
         marketplace: &MarketplaceConfig,
     ) -> Vec<&PluginConfig> {
-        self.plugins
+        let mut out: Vec<&PluginConfig> = self
+            .plugins
             .values()
             .filter(|p| p.enabled)
             .filter(|p| {
@@ -242,7 +243,9 @@ impl ServicesConfig {
                         .iter()
                         .any(|inc| inc == p.id.as_str())
             })
-            .collect()
+            .collect();
+        out.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+        out
     }
 
     #[must_use]
