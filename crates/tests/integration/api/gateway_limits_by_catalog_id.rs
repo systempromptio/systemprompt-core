@@ -6,8 +6,8 @@
 //! upstream name, so every provider whose ids differ from the upstream's --
 //! both Vertex entries -- got `None` limits: no output-token clamp, no
 //! thinking budget, no reasoning ceiling. Nothing failed loudly; the caller's
-//! whole `max_tokens` simply went upstream unclamped and Gemini 2.5 Pro could
-//! spend all of it thinking.
+//! whole `max_tokens` simply went upstream unclamped, and Gemini 2.5 Pro was
+//! left free to spend all of it thinking with no headroom for visible text.
 //!
 //! Each cell drives the real `GatewayService::dispatch` against a wiremock
 //! upstream and asserts on the body the *upstream received*, which is the only
@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use serde_json::{Value, json};
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_api::services::gateway::protocol::InboundAdapter;
+use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_api::services::gateway::service::GatewayService;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::services::ai::ModelLimits;
@@ -40,8 +40,15 @@ const CATALOG_ID: &str = "claude-catalog-id-model";
 const UPSTREAM_NAME: &str = "vendor-upstream-name";
 const CALLER_MAX_TOKENS: u32 = 4096;
 const MODEL_CAP: u32 = 64;
+const THINKING_BUDGET: u32 = 1024;
+const GEMINI_CAP: u32 = 8192;
 
-fn registry(endpoint: &str, wire: WireProtocol, surface: ApiSurface, limits: ModelLimits) -> ProviderRegistry {
+fn registry(
+    endpoint: &str,
+    wire: WireProtocol,
+    surface: ApiSurface,
+    limits: ModelLimits,
+) -> ProviderRegistry {
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new(PROVIDER),
@@ -175,8 +182,8 @@ const fn clamp_only() -> ModelLimits {
 const fn with_thinking_budget() -> ModelLimits {
     ModelLimits {
         context_window: 1_048_576,
-        max_output_tokens: 8192,
-        max_thinking_budget: Some(1024),
+        max_output_tokens: GEMINI_CAP,
+        max_thinking_budget: Some(THINKING_BUDGET),
     }
 }
 
@@ -242,15 +249,17 @@ async fn gemini_budgets_thinking_from_the_card_found_by_catalog_id() -> anyhow::
     .await?;
 
     let cfg = &body["generationConfig"];
-    assert_eq!(
-        cfg["thinkingConfig"]["thinkingBudget"].as_u64(),
-        Some(1024),
-        "no thinkingConfig means the card was never found: {body}"
+    // The card's budget buys headroom, never a thinkingConfig: sending one
+    // would switch thinking on for models Google ships with it off.
+    assert!(
+        cfg.get("thinkingConfig").is_none(),
+        "the implicit path must send no thinkingConfig: {body}"
     );
     assert_eq!(
         cfg["maxOutputTokens"].as_u64(),
-        Some(u64::from(CALLER_MAX_TOKENS) + 1024),
-        "thinking is budgeted on top of the caller's text budget: {body}"
+        Some(u64::from(CALLER_MAX_TOKENS + THINKING_BUDGET)),
+        "the ceiling is raised by the card's thinking budget; the caller's own \
+         number back means the card was never found: {body}"
     );
     Ok(())
 }
