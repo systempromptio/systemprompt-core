@@ -77,14 +77,16 @@ pub enum DbCommands {
         extension: Option<String>,
         #[arg(
             long,
-            help = "Apply the repair. Without this flag, the command is a dry-run that only lists \
-                    drift."
+            help = "Apply the repair: re-execute the SQL of each drifted migration and rewrite \
+                    its stored checksum. Without this flag, the command is a dry-run that only \
+                    lists drift."
         )]
         apply: bool,
         #[arg(
             long,
-            help = "Rewrite stored checksums to match the current migration files without \
-                    executing any SQL (for already-applied edited migrations)"
+            help = "Bookkeeping only: rewrite stored checksums to match the current migration \
+                    files without executing any SQL. Asserts the schema already matches the \
+                    edited files; nothing verifies that."
         )]
         reconcile_only: bool,
         #[arg(long, help = "Emit JSON instead of a text table")]

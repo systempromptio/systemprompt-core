@@ -18,7 +18,9 @@ use crate::cli_settings::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
-use super::types::{MigrateStatusOutput, MigrateStatusRow, MigrationDriftInfo};
+use super::types::{
+    MigrateStatusOutput, MigrateStatusRow, MigrationCollisionInfo, MigrationDriftInfo,
+};
 
 pub(super) async fn execute_migrate_status(
     ctx: &AppContext,
@@ -73,6 +75,7 @@ async fn collect_status(
 ) -> Result<MigrateStatusOutput> {
     let mut rows: Vec<MigrateStatusRow> = Vec::new();
     let mut drift_rows: Vec<MigrationDriftInfo> = Vec::new();
+    let mut collision_rows: Vec<MigrationCollisionInfo> = Vec::new();
     let mut total_applied = 0usize;
     let mut total_pending = 0usize;
     let mut total_orphaned = 0usize;
@@ -85,6 +88,8 @@ async fn collect_status(
 
         let drift_versions: std::collections::HashSet<u32> =
             status.drift.iter().map(|d| d.version).collect();
+        let collision_versions: std::collections::HashSet<u32> =
+            status.slot_collisions.iter().map(|c| c.version).collect();
         let orphan_versions: std::collections::HashSet<u32> =
             status.orphaned.iter().map(|o| o.version).collect();
         let tombstone_versions: std::collections::HashSet<u32> =
@@ -93,6 +98,8 @@ async fn collect_status(
         for a in &status.applied {
             let label = if tombstone_versions.contains(&a.version) {
                 "tombstone"
+            } else if collision_versions.contains(&a.version) {
+                "collision"
             } else if orphan_versions.contains(&a.version) {
                 "orphaned"
             } else if drift_versions.contains(&a.version) {
@@ -126,6 +133,14 @@ async fn collect_status(
                 applied_at: None,
             });
         }
+        for c in status.slot_collisions {
+            collision_rows.push(MigrationCollisionInfo {
+                extension_id: c.extension_id,
+                version: c.version,
+                stored_name: c.stored_name,
+                current_name: c.current_name,
+            });
+        }
         for d in status.drift {
             drift_rows.push(MigrationDriftInfo {
                 extension_id: d.extension_id,
@@ -148,20 +163,27 @@ async fn collect_status(
     });
 
     let total_drift = drift_rows.len();
+    let total_collisions = collision_rows.len();
     Ok(MigrateStatusOutput {
         rows,
         drift: drift_rows,
+        collisions: collision_rows,
         total_applied,
         total_pending,
         total_drift,
+        total_collisions,
         total_orphaned,
     })
 }
 
 fn render_status_text(output: &MigrateStatusOutput) {
     CliService::info(&format!(
-        "Applied: {} | Pending: {} | Drift: {} | Orphaned: {}",
-        output.total_applied, output.total_pending, output.total_drift, output.total_orphaned
+        "Applied: {} | Pending: {} | Drift: {} | Collisions: {} | Orphaned: {}",
+        output.total_applied,
+        output.total_pending,
+        output.total_drift,
+        output.total_collisions,
+        output.total_orphaned
     ));
     CliService::info("");
     CliService::info(&format!(
@@ -174,6 +196,22 @@ fn render_status_text(output: &MigrateStatusOutput) {
             "  {:<24} {:>7} {:<32} {:<10} {}",
             r.extension_id, r.version, r.name, r.status, applied_at
         ));
+    }
+
+    if !output.collisions.is_empty() {
+        CliService::info("");
+        CliService::warning(&format!(
+            "{} migration slot(s) were reused — the recorded row and the file on disk are \
+             different migrations. This is not drift and must not be repaired; renumber the new \
+             file above every used slot and leave a `NNN_<name>.tombstone` behind.",
+            output.total_collisions
+        ));
+        for c in &output.collisions {
+            CliService::info(&format!(
+                "  {} v{:03}: recorded='{}' file='{}'",
+                c.extension_id, c.version, c.stored_name, c.current_name
+            ));
+        }
     }
 
     if output.total_orphaned > 0 {

@@ -1444,3 +1444,333 @@ fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
     assert!(!untracked.tracked);
     assert_eq!(untracked.version, 34);
 }
+
+
+// ---------------------------------------------------------------------------
+// Drift repair: slot collisions are refused, reconcile-only executes no SQL.
+// ---------------------------------------------------------------------------
+//
+// `AppliedRowsProvider` differs from `RecordingProvider` in returning a mutable
+// set of `extension_migrations` rows: any write heals the stored checksum, the
+// way the real UPDATE does, so `repair_drift`'s follow-up pass sees a
+// reconciled row instead of the stale one it just fixed.
+
+#[derive(Debug)]
+struct AppliedRows {
+    rows: Mutex<Vec<(u32, String, String)>>,
+    healed_checksum: String,
+}
+
+impl AppliedRows {
+    fn heal(&self) {
+        for row in self.rows.lock().expect("lock").iter_mut() {
+            row.2 = self.healed_checksum.clone();
+        }
+    }
+
+    fn query_result(&self) -> QueryResult {
+        let rows = self
+            .rows
+            .lock()
+            .expect("lock")
+            .iter()
+            .map(|(version, name, checksum)| {
+                let mut row = JsonRow::new();
+                row.insert("extension_id".to_string(), serde_json::json!("repair_ext"));
+                row.insert("version".to_string(), serde_json::json!(version));
+                row.insert("name".to_string(), serde_json::json!(name));
+                row.insert("checksum".to_string(), serde_json::json!(checksum));
+                row.insert("applied_at".to_string(), serde_json::json!(null));
+                row
+            })
+            .collect::<Vec<_>>();
+        QueryResult {
+            columns: vec![],
+            row_count: rows.len(),
+            rows,
+            execution_time_ms: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct AppliedRowsProvider {
+    log: Arc<CallLog>,
+    state: Arc<AppliedRows>,
+}
+
+#[async_trait]
+impl DatabaseProvider for AppliedRowsProvider {
+    async fn execute(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.log.push("execute");
+        self.state.heal();
+        Ok(1)
+    }
+
+    async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
+        self.log.push(format!("execute_raw:{sql}"));
+        Ok(())
+    }
+
+    async fn fetch_all(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn fetch_scalar_value(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<DbValue> {
+        Ok(DbValue::NullString)
+    }
+
+    async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
+        self.log.push("begin");
+        Ok(Box::new(HealingTx {
+            log: Arc::clone(&self.log),
+            state: Arc::clone(&self.state),
+            statement_index: 0,
+        }))
+    }
+
+    async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
+        Ok(DatabaseInfo {
+            path: String::new(),
+            size: 0,
+            version: "test".into(),
+            tables: vec![],
+        })
+    }
+
+    async fn test_connection(&self) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn execute_batch(&self, _sql: &str) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn query_raw(&self, _query: &dyn QuerySelector) -> DatabaseResult<QueryResult> {
+        Ok(self.state.query_result())
+    }
+
+    async fn query_raw_with(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<QueryResult> {
+        Ok(self.state.query_result())
+    }
+}
+
+#[derive(Debug)]
+struct HealingTx {
+    log: Arc<CallLog>,
+    state: Arc<AppliedRows>,
+    statement_index: usize,
+}
+
+#[async_trait]
+impl DatabaseTransaction for HealingTx {
+    async fn execute(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.statement_index += 1;
+        self.log
+            .push(format!("tx_execute:{}", self.statement_index));
+        Ok(0)
+    }
+
+    async fn fetch_all(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn commit(self: Box<Self>) -> DatabaseResult<()> {
+        self.log.push("commit");
+        self.state.heal();
+        Ok(())
+    }
+
+    async fn rollback(self: Box<Self>) -> DatabaseResult<()> {
+        self.log.push("rollback");
+        Ok(())
+    }
+}
+
+const REPAIR_SQL: &str = "CREATE TABLE repaired (id TEXT);";
+
+fn repair_extension(name: &'static str) -> StubExtension {
+    StubExtension {
+        id: "repair_ext",
+        migrations: vec![Migration::new(34, name, REPAIR_SQL)],
+    }
+}
+
+fn drifted_provider(
+    log: &Arc<CallLog>,
+    stored_name: &str,
+    file_name: &'static str,
+) -> AppliedRowsProvider {
+    AppliedRowsProvider {
+        log: Arc::clone(log),
+        state: Arc::new(AppliedRows {
+            rows: Mutex::new(vec![(
+                34,
+                stored_name.to_string(),
+                "stale_checksum".to_string(),
+            )]),
+            healed_checksum: Migration::new(34, file_name, REPAIR_SQL).checksum(),
+        }),
+    }
+}
+
+#[tokio::test]
+async fn status_reports_a_renamed_slot_as_a_collision_not_as_drift() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let service = MigrationService::new(&provider);
+
+    let status = service
+        .status(&repair_extension("034_project_activity"))
+        .await
+        .expect("status succeeds");
+
+    assert!(
+        status.drift.is_empty(),
+        "a renamed slot is not drift: {:?}",
+        status.drift
+    );
+    assert_eq!(status.slot_collisions.len(), 1);
+    assert_eq!(status.slot_collisions[0].stored_name, "034_knowledge_bank");
+    assert_eq!(
+        status.slot_collisions[0].current_name,
+        "034_project_activity"
+    );
+}
+
+#[tokio::test]
+async fn repair_drift_refuses_a_reused_slot() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let service = MigrationService::new(&provider);
+
+    let err = service
+        .repair_drift(&repair_extension("034_project_activity"))
+        .await
+        .expect_err("a reused slot must be refused");
+
+    let message = err.to_string();
+    assert!(message.contains("034_knowledge_bank"), "{message}");
+    assert!(message.contains("034_project_activity"), "{message}");
+    assert!(message.contains("tombstone"), "{message}");
+    let events = log.snapshot();
+    assert!(
+        !events.iter().any(|e| e == "begin" || e == "execute"),
+        "nothing may be written for a refused repair: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn reconcile_drift_refuses_a_reused_slot() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let service = MigrationService::new(&provider);
+
+    service
+        .reconcile_drift(&repair_extension("034_project_activity"))
+        .await
+        .expect_err("a reused slot must be refused");
+    assert!(
+        !log.snapshot().iter().any(|e| e == "execute"),
+        "no checksum was rewritten"
+    );
+}
+
+#[tokio::test]
+async fn repair_drift_reapplies_when_the_name_matches() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let service = MigrationService::new(&provider);
+
+    let result = service
+        .repair_drift(&repair_extension("034_knowledge_bank"))
+        .await
+        .expect("genuine drift repairs");
+
+    assert_eq!(result.repaired.len(), 1);
+    assert_eq!(result.reapplied, 1, "the drifted SQL must actually run");
+    let events = log.snapshot();
+    assert!(
+        events.iter().any(|e| e == "begin") && events.iter().any(|e| e == "commit"),
+        "the re-apply runs in a transaction: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let service = MigrationService::new(&provider);
+
+    let result = service
+        .reconcile_drift(&repair_extension("034_knowledge_bank"))
+        .await
+        .expect("reconcile succeeds");
+
+    assert_eq!(result.repaired.len(), 1);
+    assert_eq!(
+        result.reapplied, 0,
+        "reconcile must execute no migration SQL"
+    );
+    let events = log.snapshot();
+    assert!(
+        !events.iter().any(|e| e == "begin"),
+        "reconcile opens no migration transaction: {events:?}"
+    );
+}

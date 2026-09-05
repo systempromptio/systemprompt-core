@@ -18,7 +18,7 @@ pub use repair::RepairResult;
 pub use stamp::FreshnessCheck;
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
-    OrphanedMigration, PendingMigration, TombstonedSlot,
+    OrphanedMigration, PendingMigration, SlotCollision, TombstonedSlot,
 };
 
 use crate::services::{DatabaseProvider, SqlExecutor};

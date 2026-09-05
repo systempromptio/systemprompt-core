@@ -20,7 +20,7 @@ pub use installation::{
 pub use migrations::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck, MarkAppliedOutcome,
     MigrationConfig, MigrationResult, MigrationService, MigrationStatus, OrphanedMigration,
-    PendingMigration, RepairResult, TombstonedSlot,
+    PendingMigration, RepairResult, SlotCollision, TombstonedSlot,
 };
 pub use validation::{
     ReplicaStatus, replica_status, validate_column_exists, validate_database_connection,

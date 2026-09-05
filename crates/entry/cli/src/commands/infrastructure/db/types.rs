@@ -201,7 +201,20 @@ pub struct MigrateRepairOutput {
     pub applied: bool,
     pub reconcile_only: bool,
     pub drift: Vec<MigrationDriftInfo>,
+    // Why: distinct from migrations_run — the count of drifted migrations
+    // whose SQL was actually re-executed, not of newly-applied ones.
+    pub reapplied: usize,
     pub migrations_run: usize,
+}
+
+/// A recorded migration row whose slot the tree now fills with a different
+/// migration — the number was reused, which repair must refuse to reconcile.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrationCollisionInfo {
+    pub extension_id: String,
+    pub version: u32,
+    pub stored_name: String,
+    pub current_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,9 +230,12 @@ pub struct MigrateMarkAppliedOutput {
 pub struct MigrateStatusOutput {
     pub rows: Vec<MigrateStatusRow>,
     pub drift: Vec<MigrationDriftInfo>,
+    pub collisions: Vec<MigrationCollisionInfo>,
     pub total_applied: usize,
     pub total_pending: usize,
     pub total_drift: usize,
+    // Why: recorded slots now filled by a differently-named migration file.
+    pub total_collisions: usize,
     /// Applied slots the extension no longer declares — a migration file was
     /// deleted without leaving a `.tombstone`, so the number reads as free.
     pub total_orphaned: usize,
