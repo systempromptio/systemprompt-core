@@ -82,16 +82,23 @@ impl OutWire {
     fn buffered_reply(self, scenario: Scenario) -> Value {
         match (self, scenario) {
             (Self::Anthropic, Scenario::ToolCall) => anthropic_tool_reply("tool_use"),
-            (Self::Anthropic, Scenario::GenericStop) => anthropic_tool_reply("end_turn"),
+            (Self::Anthropic, Scenario::GenericStop | Scenario::NullOptionalFields) => {
+                anthropic_tool_reply("end_turn")
+            },
             (Self::Anthropic, Scenario::Truncated) => anthropic_truncated_reply(),
-            (Self::Gemini, Scenario::ToolCall | Scenario::GenericStop) => gemini_tool_reply(),
+            (
+                Self::Gemini,
+                Scenario::ToolCall | Scenario::GenericStop | Scenario::NullOptionalFields,
+            ) => gemini_tool_reply(),
             (Self::Gemini, Scenario::Truncated) => gemini_truncated_reply(),
             (Self::OpenAiChat, Scenario::ToolCall) => openai_chat_tool_reply("tool_calls"),
             (Self::OpenAiChat, Scenario::GenericStop) => openai_chat_tool_reply("stop"),
+            (Self::OpenAiChat, Scenario::NullOptionalFields) => openai_chat_null_fields_reply(),
             (Self::OpenAiChat, Scenario::Truncated) => openai_chat_truncated_reply(),
-            (Self::OpenAiResponses, Scenario::ToolCall | Scenario::GenericStop) => {
-                openai_responses_tool_reply()
-            },
+            (
+                Self::OpenAiResponses,
+                Scenario::ToolCall | Scenario::GenericStop | Scenario::NullOptionalFields,
+            ) => openai_responses_tool_reply(),
             (Self::OpenAiResponses, Scenario::Truncated) => openai_responses_truncated_reply(),
         }
     }
@@ -99,16 +106,23 @@ impl OutWire {
     fn streaming_reply(self, scenario: Scenario) -> String {
         match (self, scenario) {
             (Self::Anthropic, Scenario::ToolCall) => anthropic_tool_sse("tool_use"),
-            (Self::Anthropic, Scenario::GenericStop) => anthropic_tool_sse("end_turn"),
-            (Self::Anthropic, Scenario::Truncated) => anthropic_tool_sse("max_tokens"),
-            (Self::Gemini, Scenario::ToolCall | Scenario::GenericStop) => gemini_tool_sse("STOP"),
+            (Self::Anthropic, Scenario::GenericStop | Scenario::NullOptionalFields) => {
+                anthropic_tool_sse("end_turn")
+            },
+            (Self::Anthropic, Scenario::Truncated) => anthropic_partial_tool_sse("max_tokens"),
+            (
+                Self::Gemini,
+                Scenario::ToolCall | Scenario::GenericStop | Scenario::NullOptionalFields,
+            ) => gemini_tool_sse("STOP"),
             (Self::Gemini, Scenario::Truncated) => gemini_tool_sse("MAX_TOKENS"),
             (Self::OpenAiChat, Scenario::ToolCall) => openai_chat_tool_sse("tool_calls"),
             (Self::OpenAiChat, Scenario::GenericStop) => openai_chat_tool_sse("stop"),
+            (Self::OpenAiChat, Scenario::NullOptionalFields) => openai_chat_null_fields_sse(),
             (Self::OpenAiChat, Scenario::Truncated) => openai_chat_tool_sse("length"),
-            (Self::OpenAiResponses, Scenario::ToolCall | Scenario::GenericStop) => {
-                openai_responses_tool_sse()
-            },
+            (
+                Self::OpenAiResponses,
+                Scenario::ToolCall | Scenario::GenericStop | Scenario::NullOptionalFields,
+            ) => openai_responses_tool_sse(),
             (Self::OpenAiResponses, Scenario::Truncated) => openai_responses_truncated_sse(),
         }
     }
@@ -127,6 +141,7 @@ pub(super) enum Scenario {
     ToolCall,
     GenericStop,
     Truncated,
+    NullOptionalFields,
 }
 
 /// The tool the whole matrix exercises. Named and shaped like `plain_tool()` in
@@ -293,6 +308,77 @@ fn openai_responses_tool_reply() -> Value {
     })
 }
 
+// Why: Vertex `MaaS` and several other OpenAI-compatible fronts serialize every
+// optional field rather than omitting it, so the assistant message arrives with
+// `content`, `refusal`, `function_call`, `annotations` and `audio` all set to
+// an explicit JSON `null` beside a fully-formed `tool_calls` array, under a
+// plain `finish_reason: "stop"`. A parser that reads those keys with
+// `as_str()`/`as_object()` and treats "present but null" as "malformed" drops
+// the whole choice; one that only checks `is_some()` mistakes null for content.
+fn openai_chat_null_fields_reply() -> Value {
+    json!({
+        "id": "chatcmpl_matrix_null",
+        "object": "chat.completion",
+        "created": 0,
+        "model": MODEL,
+        "system_fingerprint": Value::Null,
+        "service_tier": Value::Null,
+        "choices": [{
+            "index": 0,
+            "logprobs": Value::Null,
+            "message": {
+                "role": "assistant",
+                "content": Value::Null,
+                "refusal": Value::Null,
+                "annotations": Value::Null,
+                "audio": Value::Null,
+                "function_call": Value::Null,
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": TOOL_NAME, "arguments": "{\"q\":\"rust\"}"},
+                }],
+            },
+            "finish_reason": "stop"
+        }],
+        "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18,
+            "completion_tokens_details": Value::Null
+        }
+    })
+}
+
+// Why: the streaming half of the same dialect. Every chunk repeats the null
+// optionals, and the terminal chunk carries `finish_reason: "stop"` with a
+// null `logprobs` beside it.
+fn openai_chat_null_fields_sse() -> String {
+    [
+        "data: {\"id\":\"chatcmpl_null\",\"object\":\"chat.completion.chunk\",\"model\":\"claude-test-model\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":null,\"delta\":{\"role\":\"assistant\",\"content\":null,\"refusal\":null,\"function_call\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"\"}}]}}]}\n\n",
+        "data: {\"id\":\"chatcmpl_null\",\"object\":\"chat.completion.chunk\",\"model\":\"claude-test-model\",\"choices\":[{\"index\":0,\"logprobs\":null,\"finish_reason\":null,\"delta\":{\"content\":null,\"refusal\":null,\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"q\\\":\\\"rust\\\"}\"}}]}}]}\n\n",
+        "data: {\"id\":\"chatcmpl_null\",\"object\":\"chat.completion.chunk\",\"model\":\"claude-test-model\",\"choices\":[{\"index\":0,\"logprobs\":null,\"delta\":{\"content\":null},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18}}\n\n",
+        "data: [DONE]\n\n",
+    ]
+    .concat()
+}
+
+// Why: the shared `anthropic_tool_sse` streams the arguments whole, which is
+// the wrong shape for a truncation cell -- an upstream that ran out of budget
+// mid-call sends the opening of the JSON and then stops, with no
+// `content_block_stop`. Feeding complete arguments under `max_tokens` would
+// let a renderer that surfaces the call anyway still look correct.
+fn anthropic_partial_tool_sse(stop_reason: &str) -> String {
+    [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_m\",\"model\":\"claude-test-model\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"call_1\",\"name\":\"lookup\",\"input\":{}}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"q\\\":\\\"ru\"}}\n\n",
+        format!("event: message_delta\ndata: {{\"type\":\"message_delta\",\"delta\":{{\"stop_reason\":\"{stop_reason}\"}},\"usage\":{{\"output_tokens\":7}}}}\n\n").as_str(),
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    ]
+    .concat()
+}
+
 fn anthropic_tool_sse(stop_reason: &str) -> String {
     [
         "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_m\",\"model\":\"claude-test-model\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n",
@@ -444,6 +530,20 @@ pub(super) fn assert_declares_truncation(label: &str, rendered: &str, marker: &s
     assert!(
         rendered.contains(marker),
         "{label}: a turn cut off mid-tool-call must report the cutoff ({marker}); body: \
+         {rendered}"
+    );
+}
+
+/// Assertion 4: a truncated turn does not also claim a complete tool call.
+///
+/// The pair to [`assert_declares_truncation`]. Truncation and tool use are the
+/// two mutually exclusive readings of the same frame, and a renderer that
+/// emits both leaves the client to pick -- most pick tool use, which is the
+/// unparseable-arguments outcome the truncation reason exists to prevent.
+pub(super) fn assert_no_complete_tool_use(label: &str, rendered: &str, tool_use_marker: &str) {
+    assert!(
+        !rendered.contains(tool_use_marker),
+        "{label}: a truncated turn must not also declare tool use ({tool_use_marker}); body: \
          {rendered}"
     );
 }

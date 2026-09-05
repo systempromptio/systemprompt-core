@@ -281,6 +281,22 @@ mod gateway_matrix_openai_chat_in;
 mod gateway_matrix_openai_responses_in;
 
 #[cfg(test)]
+#[path = "gateway_matrix_inbound.rs"]
+mod gateway_matrix_inbound;
+
+#[cfg(test)]
+#[path = "gateway_matrix_anthropic_terminal.rs"]
+mod gateway_matrix_anthropic_terminal;
+
+#[cfg(test)]
+#[path = "gateway_matrix_openai_responses_terminal.rs"]
+mod gateway_matrix_openai_responses_terminal;
+
+#[cfg(test)]
+#[path = "gateway_matrix_null_fields.rs"]
+mod gateway_matrix_null_fields;
+
+#[cfg(test)]
 #[path = "gateway_upstream_error_map.rs"]
 mod gateway_upstream_error_map;
 
