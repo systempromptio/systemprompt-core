@@ -110,6 +110,7 @@ mod setup_docker_compose;
 mod setup_postgres;
 mod setup_secrets_prompts;
 mod setup_wizard_helpers;
+mod setup_wizard_prompts_fs;
 mod web_asset_classification;
 mod web_assets_refs;
 mod web_assets_sitemap;

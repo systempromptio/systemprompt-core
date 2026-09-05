@@ -55,3 +55,5 @@ mod reg_profile;
 mod enrol_report;
 #[cfg(test)]
 mod start_menu_cache;
+#[cfg(test)]
+mod enrol_hosts;
