@@ -30,7 +30,10 @@ impl CostAnalyticsRepository {
             SELECT
                 COUNT(*)::bigint as "requests!",
                 SUM(cost_microdollars)::bigint as "cost",
-                SUM(tokens_used)::bigint as "tokens"
+                SUM(tokens_used)::bigint as "tokens",
+                SUM(reasoning_tokens)::bigint as "reasoning_tokens",
+                SUM(cache_read_tokens)::bigint as "cache_read_tokens",
+                SUM(cache_creation_tokens)::bigint as "cache_creation_tokens"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
               AND NOT synthetic AND user_id = $3

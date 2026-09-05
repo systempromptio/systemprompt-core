@@ -2,8 +2,8 @@
 //!
 //! `join_within_drain_grace` bounds only the axum drain, and does so from the
 //! readiness broadcast rather than a timer — it has to return the server's own
-//! result untouched when the server finishes first. Child termination is the step
-//! after it, and it runs while the process is already on its way out: a
+//! result untouched when the server finishes first. Child termination is the
+//! step after it, and it runs while the process is already on its way out: a
 //! failure to even enumerate the children must not abort the shutdown.
 
 use systemprompt_api::services::server::readiness::init_readiness;

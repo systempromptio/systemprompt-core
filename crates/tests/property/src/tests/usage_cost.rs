@@ -32,8 +32,8 @@ prop_compose! {
         ModelPricing {
             input_per_million: input,
             output_per_million: output,
-            cache_read_per_million: cache_read,
-            cache_write_per_million: cache_write,
+            cache_read_per_million: Some(cache_read),
+            cache_write_per_million: Some(cache_write),
             per_image_cents: None,
         }
     }

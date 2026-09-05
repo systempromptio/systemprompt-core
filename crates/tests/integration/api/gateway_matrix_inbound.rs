@@ -57,10 +57,19 @@ impl InWire {
     }
 
     // Why: the marker a conforming client reads to decide it must run the tool.
-    pub(super) const fn tool_use_marker(self) -> &'static str {
+    // The Responses surface needs a per-lane marker and the other two do not:
+    // it has no finish-reason scalar, so the buffered lane is read from the
+    // response object's `status`, but the streaming lane emits an
+    // `output_item.done` frame whose *item* status is "completed" for a
+    // fully-formed call even when the turn was cut off. Only the terminal
+    // event name distinguishes the turn's outcome there, so a bare
+    // `"status":"completed"` matches a truncated stream and the
+    // no-tool-use half of the truncation assertion never fails.
+    pub(super) const fn tool_use_marker(self, stream: bool) -> &'static str {
         match self {
             Self::Anthropic => "\"stop_reason\":\"tool_use\"",
             Self::OpenAiChat => "\"finish_reason\":\"tool_calls\"",
+            Self::OpenAiResponses if stream => "event: response.completed",
             Self::OpenAiResponses => "\"status\":\"completed\"",
         }
     }
@@ -97,7 +106,7 @@ pub(super) async fn assert_declared_tool_use(
     )
     .await?;
     assert_tool_call_survived(&label, &rendered);
-    assert_declares_tool_use(&label, &rendered, inbound.tool_use_marker());
+    assert_declares_tool_use(&label, &rendered, inbound.tool_use_marker(stream));
     Ok(())
 }
 
@@ -118,7 +127,7 @@ pub(super) async fn assert_reported_truncation(
     )
     .await?;
     assert_declares_truncation(&label, &rendered, inbound.truncation_marker());
-    assert_no_complete_tool_use(&label, &rendered, inbound.tool_use_marker());
+    assert_no_complete_tool_use(&label, &rendered, inbound.tool_use_marker(stream));
     Ok(())
 }
 

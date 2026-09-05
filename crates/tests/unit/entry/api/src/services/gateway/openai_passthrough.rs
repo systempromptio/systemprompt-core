@@ -46,6 +46,10 @@ fn canonical() -> CanonicalRequest {
 }
 
 fn normalize(body: &Value, limits: Option<ModelLimits>) -> Value {
+    normalize_for("upstream-1", body, limits)
+}
+
+fn normalize_for(upstream_model: &str, body: &Value, limits: Option<ModelLimits>) -> Value {
     let raw = Bytes::from(serde_json::to_vec(body).expect("encode body"));
     let route = route();
     let request = canonical();
@@ -55,7 +59,7 @@ fn normalize(body: &Value, limits: Option<ModelLimits>) -> Value {
         api_key: "sk-test",
         api_key_is_bearer: false,
         request: &request,
-        upstream_model: "upstream-1",
+        upstream_model,
         model_limits: limits,
         forward_headers: &[],
         raw_body: Some(&raw),
@@ -231,4 +235,92 @@ fn a_body_that_is_not_a_json_object_declines_the_passthrough() {
         normalize_raw_body(&raw, &ctx).is_none(),
         "an unparseable body must not be forwarded through the passthrough lane"
     );
+}
+
+// Why: a reasoning model bills its thinking against the same completion
+// budget as visible output, so the caller's limit -- sized for the answer
+// alone -- starves the turn: it stops on `length` before the tool call is
+// emitted. The model card's cap is the budget these families need, and the
+// translated lane already gives it to them.
+#[test]
+fn a_reasoning_model_is_given_the_full_model_card_budget() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 16_384,
+        max_thinking_budget: Some(8_192),
+        ..Default::default()
+    };
+
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "max_tokens": 1_024}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_tokens"], 16_384);
+}
+
+// Why: the families that reason without carrying a catalog thinking budget
+// are recognised by name, so the passthrough lane must read the upstream
+// model it is actually sending to, not the one the caller named.
+#[test]
+fn a_reasoning_model_recognised_by_name_is_given_the_cap_too() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 32_768,
+        ..Default::default()
+    };
+
+    let out = normalize_for(
+        "gpt-5-mini",
+        &json!({"model": "m", "messages": [], "max_completion_tokens": 512}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_completion_tokens"], 32_768);
+}
+
+// Why: a non-reasoning model is never handed more budget than it asked for --
+// the cap clamps down and never up.
+#[test]
+fn a_limit_below_the_cap_is_left_alone_on_an_ordinary_model() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 16_384,
+        ..Default::default()
+    };
+
+    let out = normalize(
+        &json!({"model": "m", "messages": [], "max_tokens": 1_024}),
+        Some(limits),
+    );
+
+    assert_eq!(out["max_tokens"], 1_024);
+}
+
+// Why: applying the limit is the only edit -- every other field the caller
+// sent, modelled or not, must reach the upstream exactly as it arrived.
+#[test]
+fn applying_the_limit_changes_nothing_else_in_the_body() {
+    let limits = ModelLimits {
+        context_window: 100_000,
+        max_output_tokens: 1_000,
+        ..Default::default()
+    };
+    let body = json!({
+        "model": "m",
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": 999_999,
+        "reasoning_effort": "high",
+        "seed": 7,
+        "tools": [{"type": "function", "function": {"name": "t"}}],
+        "vendor_only_flag": true
+    });
+
+    let out = normalize(&body, Some(limits));
+    assert_eq!(out["max_tokens"], 1_000);
+
+    let mut expected = body;
+    expected["model"] = json!("upstream-1");
+    expected["max_tokens"] = json!(1_000);
+    assert_eq!(out, expected);
 }

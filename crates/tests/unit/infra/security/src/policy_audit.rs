@@ -107,7 +107,7 @@ fn act_chain_and_approver_are_omitted_when_empty() {
 // record_decision derives the flat columns from the blob: `policy` is the first
 // failing chain entry for a deny (and "default_allow" for an allow), so a
 // mis-derivation would mislabel which policy actually refused a call.
-async fn pool() -> Option<systemprompt_database::DbPool> {
+async fn pool_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
     systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
@@ -161,7 +161,7 @@ async fn fetch(pool: &systemprompt_database::DbPool, id: &str) -> Row {
 
 #[tokio::test]
 async fn allow_decision_records_default_allow_policy_and_empty_reason() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let audit = unique_audit();
@@ -187,7 +187,7 @@ async fn allow_decision_records_default_allow_policy_and_empty_reason() {
 
 #[tokio::test]
 async fn deny_decision_records_the_first_failing_policy() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let mut audit = unique_audit();
@@ -237,7 +237,7 @@ async fn deny_decision_records_the_first_failing_policy() {
 
 #[tokio::test]
 async fn deny_without_a_failing_chain_entry_records_unknown() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let mut audit = unique_audit();
@@ -269,7 +269,7 @@ async fn deny_without_a_failing_chain_entry_records_unknown() {
 
 #[tokio::test]
 async fn agentless_audit_records_a_user_actor() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let mut audit = unique_audit();
@@ -291,7 +291,7 @@ async fn agentless_audit_records_a_user_actor() {
 
 #[tokio::test]
 async fn an_approved_allow_names_the_policy_that_held_it() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     // Why this matters beyond tidiness: the demo's audit replay reads the flat
@@ -334,7 +334,7 @@ async fn an_approved_allow_names_the_policy_that_held_it() {
 
 #[tokio::test]
 async fn an_unapproved_allow_still_reports_default_allow() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     // The new label must not leak into ordinary allows.

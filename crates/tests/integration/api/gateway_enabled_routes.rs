@@ -40,10 +40,12 @@ providers:
         pricing:
           input_per_million: 3.0
           output_per_million: 15.0
+          cache_read_per_million: 0.0
       - id: claude-fixture-2
         pricing:
           input_per_million: 1.0
           output_per_million: 5.0
+          cache_read_per_million: 0.0
   - name: openai
     wire: openai_chat
     surface: openai
@@ -54,6 +56,7 @@ providers:
         pricing:
           input_per_million: 2.5
           output_per_million: 10.0
+          cache_read_per_million: 0.0
 gateway:
   enabled: true
   allow_unlisted_models: false

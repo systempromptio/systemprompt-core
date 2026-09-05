@@ -14,6 +14,9 @@ pub struct RequestStatsRow {
     pub total_tokens: Option<i64>,
     pub input_tokens: Option<i64>,
     pub output_tokens: Option<i64>,
+    pub reasoning_tokens: Option<i64>,
+    pub cache_read_tokens: Option<i64>,
+    pub cache_creation_tokens: Option<i64>,
     pub cost: Option<i64>,
     pub avg_latency: Option<f64>,
     pub cache_hits: i64,
@@ -58,6 +61,9 @@ pub struct CostSummaryRow {
     pub requests: i64,
     pub cost: Option<i64>,
     pub tokens: Option<i64>,
+    pub reasoning_tokens: Option<i64>,
+    pub cache_read_tokens: Option<i64>,
+    pub cache_creation_tokens: Option<i64>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]

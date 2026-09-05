@@ -59,9 +59,23 @@ pub(crate) fn output_token_ceiling(
     upstream_model: &str,
     limits: Option<ModelLimits>,
 ) -> u32 {
+    passthrough_output_tokens(request.max_tokens, upstream_model, limits)
+}
+
+// Why: the byte-passthrough lanes forward the caller's own body rather than
+// building one, so they need the identical budget arithmetic keyed on the raw
+// token field they read. Without it passthrough is a way around the model
+// card -- a caller limit above the cap reaches the upstream as a hard 400,
+// and a reasoning model spends the caller's whole budget on thought.
+#[must_use]
+pub fn passthrough_output_tokens(
+    requested: u32,
+    upstream_model: &str,
+    limits: Option<ModelLimits>,
+) -> u32 {
     let max_output_tokens = limits.map(|l| l.max_output_tokens);
     match max_output_tokens {
         Some(cap) if cap > 0 && is_reasoning_model(upstream_model, limits) => cap,
-        _ => super::clamp_output_tokens(request.max_tokens, max_output_tokens),
+        _ => super::clamp_output_tokens(requested, max_output_tokens),
     }
 }

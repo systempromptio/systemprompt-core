@@ -105,6 +105,9 @@ mod routing;
 mod marketplace;
 
 #[cfg(test)]
+mod gateway_cache_pricing_gate;
+
+#[cfg(test)]
 mod gateway_hash;
 
 #[cfg(test)]
@@ -228,6 +231,12 @@ mod validators_driven;
 mod wire_cache_convention;
 
 #[cfg(test)]
+mod wire_terminal_discipline;
+
+#[cfg(test)]
+mod wire_usage_omission;
+
+#[cfg(test)]
 mod wire_streaming;
 
 #[cfg(test)]
@@ -235,6 +244,9 @@ mod wire_sse;
 
 #[cfg(test)]
 mod wire_stream_abort;
+
+#[cfg(test)]
+mod wire_stream_usage_order;
 
 #[cfg(test)]
 mod profile_validation;

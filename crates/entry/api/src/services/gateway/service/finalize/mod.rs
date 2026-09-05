@@ -53,6 +53,7 @@ pub(super) struct FinalizeCtx {
     pub(super) policy: GatewayPolicySpec,
     pub(super) inbound: Arc<dyn InboundAdapter>,
     pub(super) request_model: String,
+    pub(super) stream_usage: bool,
 }
 
 #[cfg_attr(
@@ -95,6 +96,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         policy,
         inbound,
         request_model,
+        stream_usage,
     } = fctx;
     let tap_ctx = stream_tap::TapFinalizeCtx {
         db,
@@ -127,7 +129,14 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         ),
         OutboundOutcome::Streaming(stream) => {
             let content_type = inbound.streaming_content_type();
-            let body = stream_tap::tap(stream, Arc::clone(&inbound), request_model, audit, tap_ctx);
+            let body = stream_tap::tap(
+                stream,
+                Arc::clone(&inbound),
+                request_model,
+                stream_usage,
+                audit,
+                tap_ctx,
+            );
             streaming_response(body, content_type)
         },
     }

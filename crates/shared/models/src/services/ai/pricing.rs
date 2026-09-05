@@ -20,8 +20,8 @@ impl ModelPricing {
         let rate = |count: u32, per_million: f64| (f64::from(count) / 1_000_000.0) * per_million;
         let total = rate(usage.input_tokens, self.input_per_million)
             + rate(usage.output_tokens, self.output_per_million)
-            + rate(usage.cache_read_tokens, self.cache_read_per_million)
-            + rate(usage.cache_creation_tokens, self.cache_write_per_million);
+            + rate(usage.cache_read_tokens, self.cache_read_rate())
+            + rate(usage.cache_creation_tokens, self.cache_write_rate());
         (total * 1_000_000.0).round() as i64
     }
 }

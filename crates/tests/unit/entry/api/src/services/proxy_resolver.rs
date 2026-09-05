@@ -20,7 +20,10 @@ async fn live_pool() -> DbPool {
 }
 
 fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", &uuid::Uuid::new_v4().simple().to_string()[..12])
+    format!(
+        "{prefix}_{}",
+        &uuid::Uuid::new_v4().simple().to_string()[..12]
+    )
 }
 
 async fn seed_service(pool: &DbPool, name: &str, status: &str) {

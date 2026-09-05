@@ -1,10 +1,10 @@
 use systemprompt_api::services::gateway::pricing::resolve;
-use systemprompt_test_fixtures::usage;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
     ProviderRegistry, WireProtocol,
 };
+use systemprompt_test_fixtures::usage;
 
 fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
     GatewayRoute {
@@ -211,8 +211,8 @@ fn cost_microdollars_prices_cache_tokens_at_their_own_rates() {
     let p = ModelPricing {
         input_per_million: 5.0,
         output_per_million: 25.0,
-        cache_read_per_million: 0.5,
-        cache_write_per_million: 6.25,
+        cache_read_per_million: Some(0.5),
+        cache_write_per_million: Some(6.25),
         per_image_cents: None,
     };
     let tokens = usage()
@@ -334,7 +334,7 @@ fn a_cached_openai_turn_bills_the_cached_slice_once_at_the_cache_rate() {
 
     let p = ModelPricing {
         input_per_million: 10.0,
-        cache_read_per_million: 1.0,
+        cache_read_per_million: Some(1.0),
         ..ModelPricing::default()
     };
     // 200 uncached @ $10/M = 2000; 800 cached @ $1/M = 800.

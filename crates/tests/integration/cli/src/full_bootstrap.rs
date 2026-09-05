@@ -387,6 +387,7 @@ const PROVIDERS_CONFIG: &str = r#"providers:
         pricing:
           input_per_million: 3.0
           output_per_million: 15.0
+          cache_read_per_million: 0.0
   - name: openai
     wire: openai-chat
     surface: openai
@@ -397,6 +398,7 @@ const PROVIDERS_CONFIG: &str = r#"providers:
         pricing:
           input_per_million: 1.25
           output_per_million: 10.0
+          cache_read_per_million: 0.0
 "#;
 
 const GATEWAY_CONFIG: &str = r#"gateway:

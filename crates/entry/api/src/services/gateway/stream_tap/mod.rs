@@ -51,6 +51,7 @@ pub fn tap(
     upstream: BoxStream<'static, Result<CanonicalEvent, String>>,
     inbound: Arc<dyn InboundAdapter>,
     request_model: String,
+    stream_usage: bool,
     audit: Arc<GatewayAudit>,
     finalize_ctx: TapFinalizeCtx,
 ) -> Body {
@@ -60,6 +61,7 @@ pub fn tap(
         state: Arc::clone(&state),
         inbound,
         request_model,
+        stream_usage,
         audit,
         finalize_ctx: Some(finalize_ctx),
         message_stop_rendered: false,
@@ -176,6 +178,9 @@ struct TappedStream {
     state: Arc<Mutex<TapState>>,
     inbound: Arc<dyn InboundAdapter>,
     request_model: String,
+    // Why: the caller's own `stream_options.include_usage`; the trailing
+    // usage chunk is rendered only for a caller that asked for one.
+    stream_usage: bool,
     audit: Arc<GatewayAudit>,
     finalize_ctx: Option<TapFinalizeCtx>,
     // Why: providers signal the end of a message more than once (Anthropic's
@@ -276,9 +281,15 @@ impl TappedStream {
             return Poll::Ready(None);
         };
         let aborted = summary.error.is_none() && !summary.saw_stop;
+        let tail = (!aborted)
+            .then(|| {
+                self.inbound
+                    .render_stream_tail(&summary.response, self.stream_usage)
+            })
+            .flatten();
         finalize(Arc::clone(&self.audit), summary, ctx, "eof");
         if !aborted {
-            return Poll::Ready(None);
+            return Poll::Ready(tail.map(Ok));
         }
         let event = CanonicalEvent::Error(STREAM_ABORT_MESSAGE.to_owned());
         match self.inbound.render_event(&event, &self.request_model) {

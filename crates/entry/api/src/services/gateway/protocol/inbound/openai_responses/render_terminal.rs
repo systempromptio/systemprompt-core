@@ -43,7 +43,11 @@ pub fn render_terminal_event_frame(
 
 fn render_item_done(index: u32, snapshot: &CanonicalResponse) -> Option<Bytes> {
     let block = snapshot.content.get(index as usize)?;
-    let item = output_item_value(index, block, "completed")?;
+    // Why: an upstream that reports the cutoff before closing the block has
+    // already put the reason on the snapshot, and this item is the partial one
+    // it was cut in. Calling it completed here contradicts the
+    // `response.incomplete` frame that follows it.
+    let item = output_item_value(index, block, item_status(snapshot.stop_reason))?;
     let mut frames = String::new();
     if let CanonicalContent::ToolUse { id, input, .. } = block {
         let arguments = serde_json::to_string(input).unwrap_or_else(|_| "{}".into());
@@ -76,14 +80,12 @@ fn render_completed(
     snapshot: &CanonicalResponse,
 ) -> Bytes {
     let truncated = matches!(stop_reason, Some(CanonicalStopReason::MaxTokens));
-    // Why: an item whose arguments were cut mid-JSON is not a completed one,
-    // and `status` is what a client reads to decide the call is ready to run.
-    let item_status = if truncated { "incomplete" } else { "completed" };
+    let status = item_status(stop_reason);
     let output: Vec<Value> = snapshot
         .content
         .iter()
         .enumerate()
-        .filter_map(|(i, block)| output_item_value(i as u32, block, item_status))
+        .filter_map(|(i, block)| output_item_value(i as u32, block, status))
         .collect();
     let response = json!({
         "id": id,
@@ -108,6 +110,16 @@ fn render_completed(
     let mut frame = String::new();
     push_frame(&mut frame, event_name, &payload);
     Bytes::from(frame)
+}
+
+// Why: an item whose arguments were cut mid-JSON is not a completed one, and
+// `status` is what a client reads to decide the call is ready to run.
+const fn item_status(stop_reason: Option<CanonicalStopReason>) -> &'static str {
+    if matches!(stop_reason, Some(CanonicalStopReason::MaxTokens)) {
+        "incomplete"
+    } else {
+        "completed"
+    }
 }
 
 fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Option<Value> {

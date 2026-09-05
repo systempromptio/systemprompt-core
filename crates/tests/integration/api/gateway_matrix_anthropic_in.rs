@@ -18,9 +18,16 @@ use super::gateway_matrix::{
 
 const TERMINAL_MARKER: &str = "\"stop_reason\":\"tool_use\"";
 
+// Why: this cell is the only one in the file that proves no translation at
+// all. Anthropic in to Anthropic out is byte passthrough -- the upstream body
+// is relayed as it arrived, so what is asserted is that the relay left the tool
+// block and its terminal reason untouched, not that a canonical reason was
+// rendered into this dialect. The name says so, because a cell named for
+// translation here would suggest the render path has coverage it does not: the
+// Anthropic render is exercised by the other three outbound wires.
 #[tokio::test]
-async fn anthropic_in_anthropic_out_buffered_keeps_the_tool_call_and_says_so() -> anyhow::Result<()>
-{
+async fn anthropic_in_anthropic_out_buffered_relays_the_tool_call_and_its_reason_unchanged()
+-> anyhow::Result<()> {
     let rendered = run_cell(
         "anthropic-anthropic-buffered",
         OutWire::Anthropic,
@@ -34,9 +41,16 @@ async fn anthropic_in_anthropic_out_buffered_keeps_the_tool_call_and_says_so() -
     Ok(())
 }
 
+// Why: this cell is the only one in the file that proves no translation at
+// all. Anthropic in to Anthropic out is byte passthrough -- the upstream body
+// is relayed as it arrived, so what is asserted is that the relay left the tool
+// block and its terminal reason untouched, not that a canonical reason was
+// rendered into this dialect. The name says so, because a cell named for
+// translation here would suggest the render path has coverage it does not: the
+// Anthropic render is exercised by the other three outbound wires.
 #[tokio::test]
-async fn anthropic_in_anthropic_out_streaming_keeps_the_tool_call_and_says_so() -> anyhow::Result<()>
-{
+async fn anthropic_in_anthropic_out_streaming_relays_the_tool_call_and_its_reason_unchanged()
+-> anyhow::Result<()> {
     let rendered = run_cell(
         "anthropic-anthropic-streaming",
         OutWire::Anthropic,

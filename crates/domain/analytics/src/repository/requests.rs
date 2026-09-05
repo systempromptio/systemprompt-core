@@ -43,6 +43,9 @@ impl RequestAnalyticsRepository {
                     SUM(tokens_used)::bigint as "total_tokens",
                     SUM(input_tokens)::bigint as "input_tokens",
                     SUM(output_tokens)::bigint as "output_tokens",
+                    SUM(reasoning_tokens)::bigint as "reasoning_tokens",
+                    SUM(cache_read_tokens)::bigint as "cache_read_tokens",
+                    SUM(cache_creation_tokens)::bigint as "cache_creation_tokens",
                     SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
@@ -66,6 +69,9 @@ impl RequestAnalyticsRepository {
                     SUM(tokens_used)::bigint as "total_tokens",
                     SUM(input_tokens)::bigint as "input_tokens",
                     SUM(output_tokens)::bigint as "output_tokens",
+                    SUM(reasoning_tokens)::bigint as "reasoning_tokens",
+                    SUM(cache_read_tokens)::bigint as "cache_read_tokens",
+                    SUM(cache_creation_tokens)::bigint as "cache_creation_tokens",
                     SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"

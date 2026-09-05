@@ -2,13 +2,13 @@
 //! into `TapState` and extracting the audit `Summary`.
 
 use systemprompt_api::services::gateway::protocol::canonical::CanonicalContent;
-use systemprompt_test_fixtures as fixtures;
 use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
 use systemprompt_api::services::gateway::stream_tap::test_api::{
     TapState, accumulate_event, extract_summary, snapshot,
 };
+use systemprompt_test_fixtures as fixtures;
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {
     fixtures::usage().input(input).output(output).build()

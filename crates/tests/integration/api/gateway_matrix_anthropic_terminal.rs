@@ -172,3 +172,42 @@ async fn openai_responses_in_streaming_truncated_mid_tool_call_reports_the_cutof
     )
     .await
 }
+
+// Why: the Anthropic inbound renders MessageStop through `render_event`, which
+// the tap's repeat-stop guard did not cover -- it only gated the terminal
+// render. An Anthropic upstream ends a stream twice (`message_delta` with the
+// real reason, then a reason-less `message_stop` frame), so the client received
+// a second `message_delta` saying `end_turn` after the real `tool_use` one, and
+// an SDK that reads the last terminal frame dropped the call. Moved here from
+// `gateway_matrix_degenerate` when that file was narrowed to the two outbound
+// wires without a terminal file of their own; this cell is Anthropic-out.
+#[tokio::test]
+async fn anthropic_in_anthropic_out_streaming_ends_the_turn_exactly_once() -> anyhow::Result<()> {
+    use std::sync::Arc;
+
+    use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+
+    use super::gateway_matrix::{anthropic_request_body, assert_tool_call_survived, run_scenario};
+
+    let label = "single-stop-anthropic-streaming";
+    let rendered = run_scenario(
+        label,
+        OutWire::Anthropic,
+        Scenario::ToolCall,
+        Arc::new(AnthropicMessagesInbound),
+        anthropic_request_body(true),
+        true,
+    )
+    .await?;
+    assert_tool_call_survived(label, &rendered);
+    assert_eq!(
+        rendered.matches("event: message_stop").count(),
+        1,
+        "the turn must end exactly once; body: {rendered}"
+    );
+    assert!(
+        !rendered.contains("\"stop_reason\":\"end_turn\""),
+        "no weaker terminal reason may follow the tool_use one; body: {rendered}"
+    );
+    Ok(())
+}

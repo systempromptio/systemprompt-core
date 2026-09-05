@@ -42,6 +42,9 @@ pub(super) struct OpenAiChatStreamState {
     // OpenAI-contract client reads -- said "stop" on a turn that wanted a tool
     // run, and the tool call was silently dropped.
     pub(super) stopped: bool,
+    // Why: the finish reason the wire stated, held until the stream ends so
+    // the usage chunk that follows it lands before the canonical terminal.
+    pub(super) pending_finish: Option<String>,
 }
 
 pub(super) struct ToolCallProgress {

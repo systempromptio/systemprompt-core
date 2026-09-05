@@ -318,8 +318,9 @@ fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> Pro
 }
 
 /// Carries real rates because `GatewayConfig::validate` refuses to boot a route
-/// that can only bill zero — a fixture priced at zero would fail every
-/// validation test for a reason unrelated to what it is testing.
+/// that can only bill zero, and refuses one whose model declares no cache read
+/// rate — a fixture missing either would fail every validation test for a
+/// reason unrelated to what it is testing.
 fn model(id: &str) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
@@ -329,6 +330,7 @@ fn model(id: &str) -> ProviderModel {
         pricing: ModelPricing {
             input_per_million: 3.0,
             output_per_million: 15.0,
+            cache_read_per_million: Some(0.3),
             ..ModelPricing::default()
         },
         capabilities: Default::default(),
@@ -1027,6 +1029,7 @@ fn token_rates(input: f64, output: f64) -> ModelPricing {
     ModelPricing {
         input_per_million: input,
         output_per_million: output,
+        cache_read_per_million: Some(0.0),
         ..ModelPricing::default()
     }
 }

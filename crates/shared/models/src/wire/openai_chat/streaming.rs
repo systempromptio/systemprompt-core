@@ -20,6 +20,15 @@ use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
 };
 
+// Why: the codec has to act on the end of the upstream stream, not only on
+// its frames -- a turn whose `finish_reason` was seen but whose usage chunk
+// never arrived still has to state its terminal. `scan` cannot observe the
+// end, so the end is made a frame.
+enum Frame {
+    Chunk(Result<Bytes, String>),
+    Eof,
+}
+
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
     fallback_model: String,
@@ -39,16 +48,22 @@ where
         reasoning_block: None,
         saw_tool_call: false,
         stopped: false,
+        pending_finish: None,
     };
 
     let s = stream
-        .map(|chunk| chunk.map_err(|e| e.to_string()))
+        .map(|chunk| match chunk {
+            Ok(bytes) => Frame::Chunk(Ok(bytes)),
+            Err(e) => Frame::Chunk(Err(e.to_string())),
+        })
+        .chain(stream::once(futures_util::future::ready(Frame::Eof)))
         .scan(initial, |state, item| {
             let res = match item {
-                Ok(bytes) => Some(drain_buffer(state, &bytes)),
-                Err(e) => Some(vec![Err(e)]),
+                Frame::Chunk(Ok(bytes)) => drain_buffer(state, &bytes),
+                Frame::Chunk(Err(e)) => vec![Err(e)],
+                Frame::Eof => flush(state),
             };
-            futures_util::future::ready(res)
+            futures_util::future::ready(Some(res))
         })
         .flat_map(stream::iter);
     s.boxed()
@@ -68,9 +83,7 @@ fn drain_buffer(
                 continue;
             };
             if data.trim() == "[DONE]" {
-                if !state.stopped {
-                    emit_message_stop(state, "stop", &mut events);
-                }
+                flush_into(state, &mut events);
                 continue;
             }
             let Ok(value) = serde_json::from_str::<Value>(data) else {
@@ -80,6 +93,26 @@ fn drain_buffer(
         }
     }
     events
+}
+
+// Why: a stream that ended without `[DONE]` still stated a finish reason on
+// its last content chunk, and a turn that never stated one at all is a
+// truncation the gateway reports separately -- so the flush states only what
+// the wire actually said.
+fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, String>> {
+    let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
+    flush_into(state, &mut events);
+    events
+}
+
+fn flush_into(state: &mut OpenAiChatStreamState, events: &mut Vec<Result<CanonicalEvent, String>>) {
+    if state.stopped {
+        return;
+    }
+    let Some(finish) = state.pending_finish.take() else {
+        return;
+    };
+    emit_message_stop(state, &finish, events);
 }
 
 fn handle_chunk(
@@ -115,10 +148,17 @@ fn handle_chunk(
     process_reasoning_delta(state, delta, events);
     process_text_delta(state, delta, events);
     process_tool_calls(state, delta, events);
+    // Why: Chat Completions sends usage in a chunk of its own AFTER the one
+    // carrying `finish_reason`, so a terminal emitted on sight of the finish
+    // reason ends the canonical turn before its own counts arrive -- every
+    // inbound surface then renders the turn with zeroed usage and the real
+    // numbers, which the audit records, never reach the caller. The reason is
+    // held until the stream states its end.
     if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str)
         && !state.stopped
+        && state.pending_finish.is_none()
     {
-        emit_message_stop(state, finish, events);
+        state.pending_finish = Some(finish.to_owned());
     }
 }
 

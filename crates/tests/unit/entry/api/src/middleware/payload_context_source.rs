@@ -14,7 +14,8 @@ use systemprompt_models::execution::{ContextExtractionError, ContextIdSource};
 fn a_task_method_takes_its_context_from_the_task_id() {
     let body = br#"{"jsonrpc":"2.0","method":"tasks/get","params":{"id":"task-77"}}"#;
 
-    let source = PayloadSource::extract_context_source(body).expect("a task id is a context source");
+    let source =
+        PayloadSource::extract_context_source(body).expect("a task id is a context source");
 
     match source {
         ContextIdSource::FromTask { task_id } => assert_eq!(task_id.as_str(), "task-77"),

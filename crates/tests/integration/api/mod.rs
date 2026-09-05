@@ -495,6 +495,8 @@ mod jwt_user_state_denial;
 #[cfg(test)]
 #[path = "gateway_limits_by_catalog_id.rs"]
 mod gateway_limits_by_catalog_id;
+#[path = "gateway_limits_passthrough.rs"]
+mod gateway_limits_passthrough;
 
 #[cfg(test)]
 #[path = "gateway_dispatch_success.rs"]

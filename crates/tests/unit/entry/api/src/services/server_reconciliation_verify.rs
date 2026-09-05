@@ -14,15 +14,17 @@ use systemprompt_api::services::server::reconciliation_test_api::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::mcp::McpServerConfig;
-use systemprompt_models::mcp::McpServerType;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
+use systemprompt_models::mcp::{McpServerConfig, McpServerType};
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
 };
 
 fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", &uuid::Uuid::new_v4().simple().to_string()[..12])
+    format!(
+        "{prefix}_{}",
+        &uuid::Uuid::new_v4().simple().to_string()[..12]
+    )
 }
 
 fn required(name: &str) -> McpServerConfig {

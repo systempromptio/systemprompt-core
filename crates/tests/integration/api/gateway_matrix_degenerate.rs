@@ -1,4 +1,5 @@
-//! The two degenerate terminal signals, crossed with every outbound wire.
+//! The two degenerate terminal signals, on every inbound surface, for the two
+//! outbound wires that have no terminal file of their own.
 //!
 //! The matrix in `gateway_matrix_*_in` drives a well-behaved upstream: one that
 //! declares tool use when it emits a tool call. These cells drive the two
@@ -10,193 +11,313 @@
 //! correction for the first must not swallow a real `max_tokens` cutoff, or a
 //! client is handed a call whose arguments are incomplete JSON.
 //!
-//! Both run on the `OpenAI` Chat Completions inbound, whose `finish_reason` is
-//! a single scalar and so distinguishes the two outcomes unambiguously.
+//! Until this file was parameterised it hardcoded the Chat Completions
+//! inbound, so the degenerate grid was one inbound against four outbound wires
+//! -- a third of the happy path's coverage. The translation that computes the
+//! terminal reason is per-inbound, so a surface that was never crossed with a
+//! degenerate upstream was never proven at all. The grid is now closed across
+//! three files with no cell run twice: `gateway_matrix_anthropic_terminal` owns
+//! the Anthropic outbound wire, `gateway_matrix_openai_responses_terminal` owns
+//! the Responses wire, and this file owns Gemini and Chat Completions.
 
-use std::sync::Arc;
+use super::gateway_matrix::{OutWire, Scenario};
+use super::gateway_matrix_inbound::{InWire, assert_declared_tool_use, assert_reported_truncation};
 
-use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-
-use super::gateway_matrix::{
-    OutWire, Scenario, assert_declares_tool_use, assert_declares_truncation,
-    assert_tool_call_survived, openai_chat_request_body, run_scenario,
-};
-
-const TOOL_USE_MARKER: &str = "\"finish_reason\":\"tool_calls\"";
-const TRUNCATED_MARKER: &str = "\"finish_reason\":\"length\"";
-
-async fn generic_stop(label: &str, out: OutWire, stream: bool) -> anyhow::Result<()> {
-    let rendered = run_scenario(
-        label,
-        out,
+// Why: Gemini's `finishReason: STOP` on a functionCall candidate is the
+// literal input that shipped the outage, and it is the same lie on every
+// inbound surface -- only the vocabulary the caller reads it in differs.
+#[tokio::test]
+async fn anthropic_in_gemini_out_buffered_generic_stop_declares_tool_use() -> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "gemini-out-generic",
+        OutWire::Gemini,
+        InWire::Anthropic,
         Scenario::GenericStop,
-        Arc::new(OpenAiChatInbound),
-        openai_chat_request_body(stream),
-        stream,
-    )
-    .await?;
-    assert_tool_call_survived(label, &rendered);
-    assert_declares_tool_use(label, &rendered, TOOL_USE_MARKER);
-    Ok(())
-}
-
-async fn truncated(label: &str, out: OutWire, stream: bool) -> anyhow::Result<()> {
-    let rendered = run_scenario(
-        label,
-        out,
-        Scenario::Truncated,
-        Arc::new(OpenAiChatInbound),
-        openai_chat_request_body(stream),
-        stream,
-    )
-    .await?;
-    assert_declares_truncation(label, &rendered, TRUNCATED_MARKER);
-    Ok(())
-}
-
-#[tokio::test]
-async fn anthropic_out_buffered_generic_stop_still_declares_tool_use() -> anyhow::Result<()> {
-    generic_stop("degenerate-anthropic-buffered", OutWire::Anthropic, false).await
-}
-
-#[tokio::test]
-async fn anthropic_out_streaming_generic_stop_still_declares_tool_use() -> anyhow::Result<()> {
-    generic_stop("degenerate-anthropic-streaming", OutWire::Anthropic, true).await
-}
-
-#[tokio::test]
-async fn gemini_out_buffered_generic_stop_still_declares_tool_use() -> anyhow::Result<()> {
-    generic_stop("degenerate-gemini-buffered", OutWire::Gemini, false).await
-}
-
-#[tokio::test]
-async fn gemini_out_streaming_generic_stop_still_declares_tool_use() -> anyhow::Result<()> {
-    generic_stop("degenerate-gemini-streaming", OutWire::Gemini, true).await
-}
-
-#[tokio::test]
-async fn openai_chat_out_buffered_generic_stop_still_declares_tool_use() -> anyhow::Result<()> {
-    generic_stop(
-        "degenerate-openai_chat-buffered",
-        OutWire::OpenAiChat,
         false,
     )
     .await
 }
 
 #[tokio::test]
-async fn openai_chat_out_streaming_generic_stop_still_declares_tool_use() -> anyhow::Result<()> {
-    generic_stop(
-        "degenerate-openai_chat-streaming",
-        OutWire::OpenAiChat,
+async fn anthropic_in_gemini_out_streaming_generic_stop_declares_tool_use() -> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "gemini-out-generic",
+        OutWire::Gemini,
+        InWire::Anthropic,
+        Scenario::GenericStop,
         true,
     )
     .await
 }
 
 #[tokio::test]
-async fn openai_responses_out_buffered_generic_stop_still_declares_tool_use() -> anyhow::Result<()>
+async fn openai_chat_in_gemini_out_buffered_generic_stop_declares_tool_use() -> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "gemini-out-generic",
+        OutWire::Gemini,
+        InWire::OpenAiChat,
+        Scenario::GenericStop,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_chat_in_gemini_out_streaming_generic_stop_declares_tool_use() -> anyhow::Result<()>
 {
-    generic_stop(
-        "degenerate-openai_responses-buffered",
-        OutWire::OpenAiResponses,
+    assert_declared_tool_use(
+        "gemini-out-generic",
+        OutWire::Gemini,
+        InWire::OpenAiChat,
+        Scenario::GenericStop,
+        true,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_responses_in_gemini_out_buffered_generic_stop_declares_tool_use()
+-> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "gemini-out-generic",
+        OutWire::Gemini,
+        InWire::OpenAiResponses,
+        Scenario::GenericStop,
         false,
     )
     .await
 }
 
 #[tokio::test]
-async fn openai_responses_out_streaming_generic_stop_still_declares_tool_use() -> anyhow::Result<()>
+async fn openai_responses_in_gemini_out_streaming_generic_stop_declares_tool_use()
+-> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "gemini-out-generic",
+        OutWire::Gemini,
+        InWire::OpenAiResponses,
+        Scenario::GenericStop,
+        true,
+    )
+    .await
+}
+
+// Why: several OpenAI-compatible fronts (Vertex MaaS, Cerebras, proxies) send a
+// fully-formed `tool_calls` array under `finish_reason: "stop"`, so the Chat
+// Completions wire carries the same degenerate shape Gemini does.
+#[tokio::test]
+async fn anthropic_in_openai_chat_out_buffered_generic_stop_declares_tool_use() -> anyhow::Result<()>
 {
-    generic_stop(
-        "degenerate-openai_responses-streaming",
-        OutWire::OpenAiResponses,
-        true,
-    )
-    .await
-}
-
-#[tokio::test]
-async fn anthropic_out_buffered_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated("truncated-anthropic-buffered", OutWire::Anthropic, false).await
-}
-
-#[tokio::test]
-async fn anthropic_out_streaming_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated("truncated-anthropic-streaming", OutWire::Anthropic, true).await
-}
-
-#[tokio::test]
-async fn gemini_out_buffered_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated("truncated-gemini-buffered", OutWire::Gemini, false).await
-}
-
-#[tokio::test]
-async fn gemini_out_streaming_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated("truncated-gemini-streaming", OutWire::Gemini, true).await
-}
-
-#[tokio::test]
-async fn openai_chat_out_buffered_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated("truncated-openai_chat-buffered", OutWire::OpenAiChat, false).await
-}
-
-#[tokio::test]
-async fn openai_chat_out_streaming_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated("truncated-openai_chat-streaming", OutWire::OpenAiChat, true).await
-}
-
-#[tokio::test]
-async fn openai_responses_out_buffered_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated(
-        "truncated-openai_responses-buffered",
-        OutWire::OpenAiResponses,
+    assert_declared_tool_use(
+        "openai_chat-out-generic",
+        OutWire::OpenAiChat,
+        InWire::Anthropic,
+        Scenario::GenericStop,
         false,
     )
     .await
 }
 
 #[tokio::test]
-async fn openai_responses_out_streaming_truncated_call_reports_the_cutoff() -> anyhow::Result<()> {
-    truncated(
-        "truncated-openai_responses-streaming",
-        OutWire::OpenAiResponses,
+async fn anthropic_in_openai_chat_out_streaming_generic_stop_declares_tool_use()
+-> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "openai_chat-out-generic",
+        OutWire::OpenAiChat,
+        InWire::Anthropic,
+        Scenario::GenericStop,
         true,
     )
     .await
 }
 
-// Why: the Anthropic inbound renders MessageStop through `render_event`, which
-// the tap's repeat-stop guard did not cover -- it only gated the terminal
-// render. An Anthropic upstream ends a stream twice (`message_delta` with the
-// real reason, then a reason-less `message_stop` frame), so the client received
-// a second `message_delta` saying `end_turn` after the real `tool_use` one, and
-// an SDK that reads the last terminal frame dropped the call.
 #[tokio::test]
-async fn anthropic_in_anthropic_out_streaming_ends_the_turn_exactly_once() -> anyhow::Result<()> {
-    use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+async fn openai_chat_in_openai_chat_out_buffered_generic_stop_declares_tool_use()
+-> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "openai_chat-out-generic",
+        OutWire::OpenAiChat,
+        InWire::OpenAiChat,
+        Scenario::GenericStop,
+        false,
+    )
+    .await
+}
 
-    use super::gateway_matrix::anthropic_request_body;
-
-    let label = "single-stop-anthropic-streaming";
-    let rendered = run_scenario(
-        label,
-        OutWire::Anthropic,
-        Scenario::ToolCall,
-        Arc::new(AnthropicMessagesInbound),
-        anthropic_request_body(true),
+#[tokio::test]
+async fn openai_chat_in_openai_chat_out_streaming_generic_stop_declares_tool_use()
+-> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "openai_chat-out-generic",
+        OutWire::OpenAiChat,
+        InWire::OpenAiChat,
+        Scenario::GenericStop,
         true,
     )
-    .await?;
-    assert_tool_call_survived(label, &rendered);
-    assert_eq!(
-        rendered.matches("event: message_stop").count(),
-        1,
-        "the turn must end exactly once; body: {rendered}"
-    );
-    assert!(
-        !rendered.contains("\"stop_reason\":\"end_turn\""),
-        "no weaker terminal reason may follow the tool_use one; body: {rendered}"
-    );
-    Ok(())
+    .await
+}
+
+#[tokio::test]
+async fn openai_responses_in_openai_chat_out_buffered_generic_stop_declares_tool_use()
+-> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "openai_chat-out-generic",
+        OutWire::OpenAiChat,
+        InWire::OpenAiResponses,
+        Scenario::GenericStop,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_responses_in_openai_chat_out_streaming_generic_stop_declares_tool_use()
+-> anyhow::Result<()> {
+    assert_declared_tool_use(
+        "openai_chat-out-generic",
+        OutWire::OpenAiChat,
+        InWire::OpenAiResponses,
+        Scenario::GenericStop,
+        true,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn anthropic_in_gemini_out_buffered_truncated_reports_the_cutoff() -> anyhow::Result<()> {
+    assert_reported_truncation(
+        "gemini-out-truncated",
+        OutWire::Gemini,
+        InWire::Anthropic,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn anthropic_in_gemini_out_streaming_truncated_reports_the_cutoff() -> anyhow::Result<()> {
+    assert_reported_truncation(
+        "gemini-out-truncated",
+        OutWire::Gemini,
+        InWire::Anthropic,
+        true,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_chat_in_gemini_out_buffered_truncated_reports_the_cutoff() -> anyhow::Result<()> {
+    assert_reported_truncation(
+        "gemini-out-truncated",
+        OutWire::Gemini,
+        InWire::OpenAiChat,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_chat_in_gemini_out_streaming_truncated_reports_the_cutoff() -> anyhow::Result<()> {
+    assert_reported_truncation(
+        "gemini-out-truncated",
+        OutWire::Gemini,
+        InWire::OpenAiChat,
+        true,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_responses_in_gemini_out_buffered_truncated_reports_the_cutoff() -> anyhow::Result<()>
+{
+    assert_reported_truncation(
+        "gemini-out-truncated",
+        OutWire::Gemini,
+        InWire::OpenAiResponses,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_responses_in_gemini_out_streaming_truncated_reports_the_cutoff()
+-> anyhow::Result<()> {
+    assert_reported_truncation(
+        "gemini-out-truncated",
+        OutWire::Gemini,
+        InWire::OpenAiResponses,
+        true,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn anthropic_in_openai_chat_out_buffered_truncated_reports_the_cutoff() -> anyhow::Result<()>
+{
+    assert_reported_truncation(
+        "openai_chat-out-truncated",
+        OutWire::OpenAiChat,
+        InWire::Anthropic,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn anthropic_in_openai_chat_out_streaming_truncated_reports_the_cutoff() -> anyhow::Result<()>
+{
+    assert_reported_truncation(
+        "openai_chat-out-truncated",
+        OutWire::OpenAiChat,
+        InWire::Anthropic,
+        true,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_chat_in_openai_chat_out_buffered_truncated_reports_the_cutoff() -> anyhow::Result<()>
+{
+    assert_reported_truncation(
+        "openai_chat-out-truncated",
+        OutWire::OpenAiChat,
+        InWire::OpenAiChat,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_chat_in_openai_chat_out_streaming_truncated_reports_the_cutoff()
+-> anyhow::Result<()> {
+    assert_reported_truncation(
+        "openai_chat-out-truncated",
+        OutWire::OpenAiChat,
+        InWire::OpenAiChat,
+        true,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_responses_in_openai_chat_out_buffered_truncated_reports_the_cutoff()
+-> anyhow::Result<()> {
+    assert_reported_truncation(
+        "openai_chat-out-truncated",
+        OutWire::OpenAiChat,
+        InWire::OpenAiResponses,
+        false,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn openai_responses_in_openai_chat_out_streaming_truncated_reports_the_cutoff()
+-> anyhow::Result<()> {
+    assert_reported_truncation(
+        "openai_chat-out-truncated",
+        OutWire::OpenAiChat,
+        InWire::OpenAiResponses,
+        true,
+    )
+    .await
 }
