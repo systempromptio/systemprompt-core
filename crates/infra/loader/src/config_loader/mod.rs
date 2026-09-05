@@ -286,9 +286,12 @@ fn demote_providers_without_credentials(config: &mut ServicesConfig) {
         if secrets.get(provider.api_key_secret.as_str()).is_some() {
             continue;
         }
+        // Why: the secret's *name* is deliberately not logged. The logging
+        // layer redacts any field called `secret`, so it rendered as
+        // `[REDACTED]` and told the reader nothing. The provider name is the
+        // actionable half, and `cloud doctor` names the secret in full.
         tracing::warn!(
             provider = %provider.name.as_str(),
-            secret = %provider.api_key_secret.as_str(),
             "provider has no credential in the secret store; its models will not be advertised"
         );
         provider.surface = ApiSurface::Backend;
