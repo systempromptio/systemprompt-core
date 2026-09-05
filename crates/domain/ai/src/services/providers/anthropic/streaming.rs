@@ -60,7 +60,7 @@ impl AnthropicProvider {
 #[derive(Default)]
 struct SseState {
     buf: Vec<u8>,
-    message_id: String,
+    codec: anthropic::AnthropicStreamState,
 }
 
 impl SseState {
@@ -77,8 +77,7 @@ impl SseState {
                 let Ok(value) = serde_json::from_str::<Value>(data) else {
                     continue;
                 };
-                self.capture_message_id(&value);
-                for event in anthropic::events_from_sse(&value, &self.message_id) {
+                for event in self.codec.events_from_sse(&value) {
                     if let Some(chunk) = canonical_bridge::event_to_chunk(event) {
                         chunks.push(Ok(chunk));
                     }
@@ -86,16 +85,5 @@ impl SseState {
             }
         }
         chunks
-    }
-
-    fn capture_message_id(&mut self, value: &Value) {
-        if value.get("type").and_then(Value::as_str) == Some("message_start")
-            && let Some(id) = value
-                .get("message")
-                .and_then(|m| m.get("id"))
-                .and_then(Value::as_str)
-        {
-            id.clone_into(&mut self.message_id);
-        }
     }
 }

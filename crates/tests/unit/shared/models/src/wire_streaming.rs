@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use serde_json::{Value, json};
+use systemprompt_models::wire::anthropic::AnthropicStreamState;
 use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason, ContentBlockKind};
 use systemprompt_models::wire::{anthropic, gemini, openai_chat, openai_responses};
 
@@ -19,7 +20,8 @@ mod anthropic_events_from_sse {
     use super::*;
 
     fn event(value: Value) -> Option<CanonicalEvent> {
-        anthropic::events_from_sse(&value, "msg_1")
+        AnthropicStreamState::new("msg_1")
+            .events_from_sse(&value)
             .into_iter()
             .next()
     }
@@ -244,19 +246,16 @@ mod anthropic_events_from_sse {
     /// `message_start` placeholder — a few tokens instead of thousands.
     #[test]
     fn message_delta_with_stop_reason_still_emits_usage() {
-        let events = anthropic::events_from_sse(
-            &json!({
-                "type": "message_delta",
-                "delta": {"stop_reason": "end_turn"},
-                "usage": {
-                    "input_tokens": 12,
-                    "output_tokens": 340,
-                    "cache_read_input_tokens": 51_200,
-                    "cache_creation_input_tokens": 900
-                }
-            }),
-            "msg_1",
-        );
+        let events = AnthropicStreamState::new("msg_1").events_from_sse(&json!({
+            "type": "message_delta",
+            "delta": {"stop_reason": "end_turn"},
+            "usage": {
+                "input_tokens": 12,
+                "output_tokens": 340,
+                "cache_read_input_tokens": 51_200,
+                "cache_creation_input_tokens": 900
+            }
+        }));
         assert_eq!(events.len(), 2, "expected usage then stop: {events:?}");
         match &events[0] {
             CanonicalEvent::UsageDelta(usage) => {
@@ -279,14 +278,11 @@ mod anthropic_events_from_sse {
     /// the tap overwrite the input and cache totals `message_start` gave.
     #[test]
     fn message_delta_states_only_the_counts_it_carries() {
-        let events = anthropic::events_from_sse(
-            &json!({
-                "type": "message_delta",
-                "delta": {"stop_reason": "end_turn"},
-                "usage": {"output_tokens": 340}
-            }),
-            "msg_1",
-        );
+        let events = AnthropicStreamState::new("msg_1").events_from_sse(&json!({
+            "type": "message_delta",
+            "delta": {"stop_reason": "end_turn"},
+            "usage": {"output_tokens": 340}
+        }));
         match &events[0] {
             CanonicalEvent::UsageDelta(u) => {
                 assert_eq!(u.output_tokens, Some(340));
@@ -301,7 +297,8 @@ mod anthropic_events_from_sse {
     #[test]
     fn message_delta_without_stop_or_usage_emits_nothing() {
         assert!(
-            anthropic::events_from_sse(&json!({"type": "message_delta", "delta": {}}), "msg_1")
+            AnthropicStreamState::new("msg_1")
+                .events_from_sse(&json!({"type": "message_delta", "delta": {}}))
                 .is_empty()
         );
     }

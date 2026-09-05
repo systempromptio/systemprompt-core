@@ -3,6 +3,7 @@
 use serde_json::{Value, json};
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::anthropic::AnthropicStreamState;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ContentBlockKind,
     ImageSource, ResponseFormat, Role, SearchConfig,
@@ -274,7 +275,8 @@ fn anthropic_sse_parses_thinking_signature_delta() {
         "index": 1,
         "delta": { "type": "signature_delta", "signature": "abc123==" },
     });
-    match anthropic::events_from_sse(&frame, "msg_1")
+    match AnthropicStreamState::new("msg_1")
+        .events_from_sse(&frame)
         .into_iter()
         .next()
     {
@@ -307,7 +309,8 @@ fn anthropic_sse_tool_use_block_start_carries_signature() {
         "index": 3,
         "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup", "signature": "sig=="},
     });
-    match anthropic::events_from_sse(&frame, "msg_1")
+    match AnthropicStreamState::new("msg_1")
+        .events_from_sse(&frame)
         .into_iter()
         .next()
     {
@@ -557,4 +560,97 @@ fn anthropic_parse_reports_no_separate_reasoning_count() {
          count, so the thinking spend is already inside output_tokens"
     );
     assert_eq!(response.usage.output_tokens, 300);
+}
+
+// Why: this is the third instance of one bug class and the only one the
+// buffered twin could not catch. The stream opens a tool_use block, then the
+// terminal `message_delta` reports a generic `end_turn`; mapped straight
+// through it renders as a finished turn, and the client stops without ever
+// running the call. The buffered parse was corrected first, which is exactly
+// why the streaming half has to be pinned separately.
+#[test]
+fn anthropic_stream_reports_tool_use_even_though_the_terminal_frame_says_end_turn() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let mut codec = AnthropicStreamState::new("msg_1");
+    codec.events_from_sse(&json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup"},
+    }));
+    codec.events_from_sse(&json!({
+        "type": "content_block_delta",
+        "index": 0,
+        "delta": {"type": "input_json_delta", "partial_json": "{\"q\":\"rust\"}"},
+    }));
+    let events = codec.events_from_sse(&json!({
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn"},
+    }));
+
+    let stop = events.iter().find_map(|e| match e {
+        CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::ToolUse)),
+        "a stream that opened a tool_use block must not terminate as end_turn"
+    );
+}
+
+#[test]
+fn anthropic_stream_keeps_max_tokens_over_a_truncated_tool_use_block() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let mut codec = AnthropicStreamState::new("msg_1");
+    codec.events_from_sse(&json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup"},
+    }));
+    let events = codec.events_from_sse(&json!({
+        "type": "message_delta",
+        "delta": {"stop_reason": "max_tokens"},
+    }));
+
+    let stop = events.iter().find_map(|e| match e {
+        CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::MaxTokens)),
+        "a call cut mid-arguments must report the cutoff, not claim to be runnable"
+    );
+}
+
+// Why: the state must not leak the correction across turns. A tool-use turn
+// followed by a text-only one on the same decoder would otherwise report the
+// second as tool use, which is the same drop inverted -- the client would wait
+// for a call that was never made.
+#[test]
+fn anthropic_stream_tool_use_does_not_leak_into_a_later_message() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let mut codec = AnthropicStreamState::new("msg_1");
+    codec.events_from_sse(&json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "text", "text": ""},
+    }));
+    let events = codec.events_from_sse(&json!({
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn"},
+    }));
+
+    let stop = events.iter().find_map(|e| match e {
+        CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::EndTurn)),
+        "a text-only turn must not be reported as tool use"
+    );
 }
