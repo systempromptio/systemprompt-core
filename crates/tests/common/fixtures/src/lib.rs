@@ -4,6 +4,7 @@ pub mod app_context;
 pub mod bootstrap;
 pub mod credential;
 pub mod db;
+pub mod disposable_db;
 pub mod jwt;
 pub mod keys;
 pub mod messaging;
@@ -33,6 +34,7 @@ pub use credential::{
     seed_user_session, AuthedFixture,
 };
 pub use db::{closed_db_pool, fixture_database_url, fixture_database_url_opt, fixture_db_pool};
+pub use disposable_db::DisposableDb;
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};

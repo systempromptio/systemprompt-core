@@ -21,8 +21,8 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
-    install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
+    fixture_db_pool, install_test_signing_key,
 };
 
 #[derive(Debug, Parser)]
@@ -52,6 +52,13 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
         cli = cli.with_output_format(OutputFormat::Json);
     }
     CommandContext::with_app_context(cli, EnvOverrides::default(), Arc::clone(app))
+}
+
+async fn applied_migration_count(pool: &DbPool) -> i64 {
+    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM extension_migrations")
+        .fetch_one(pool.pool_arc().unwrap().as_ref())
+        .await
+        .expect("count applied migrations")
 }
 
 // Scoped by name: sibling suites write to the same `services` table, so a
@@ -118,11 +125,18 @@ async fn both_standalone_notices_can_fire_in_one_invocation() {
 
 #[tokio::test]
 async fn a_start_without_skip_migrate_runs_the_migration_phase_idempotently() {
-    let (pool, app) = app().await;
-    let applied_before = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM extension_migrations")
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
+    // The startup plan installs a schema, so it gets a database created for
+    // this run: an install onto whatever an earlier run left behind proves
+    // nothing about the phase under test.
+    ensure_test_bootstrap();
+    install_test_signing_key();
+    let disp = DisposableDb::installed("cov_cli_startmig")
         .await
-        .unwrap();
+        .expect("a freshly installed disposable database");
+    let pool = disp.pool().await.expect("pool on the disposable database");
+    let app = fixture_app_context(&pool, disp.url()).expect("fixture app context");
+
+    let applied_before = applied_migration_count(&pool).await;
 
     // Without --skip-migrate the plan includes the Database phase, which runs
     // `db migrate` — a no-op against an already-migrated database.
@@ -130,10 +144,9 @@ async fn a_start_without_skip_migrate_runs_the_migration_phase_idempotently() {
         .await
         .expect("the migration phase runs then the standalone notice fires");
 
-    let applied_after = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM extension_migrations")
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
-        .await
-        .unwrap();
+    let applied_after = applied_migration_count(&pool).await;
+    drop(pool);
+    disp.drop_now().await;
     assert_eq!(
         applied_after, applied_before,
         "the startup migration phase must be idempotent"
