@@ -341,6 +341,6 @@ fn render_stream_tail_emits_usage_then_done() {
 fn render_error_is_openai_envelope() {
     let bytes = OpenAiChatInbound.render_error(StatusCode::BAD_REQUEST, "bad \"input\"");
     let v: Value = serde_json::from_slice(&bytes).expect("json");
-    assert_eq!(v["error"]["type"], "api_error");
+    assert_eq!(v["error"]["type"], "invalid_request_error");
     assert_eq!(v["error"]["message"], "bad \"input\"");
 }

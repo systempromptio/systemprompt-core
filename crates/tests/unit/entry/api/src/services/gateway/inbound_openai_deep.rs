@@ -225,9 +225,16 @@ fn parse_tool_choice_function_object() {
 }
 
 #[test]
-fn parse_tool_choice_unknown_string_returns_none() {
-    let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":"xyz"}"#);
-    assert!(req.tool_choice.is_none());
+fn parse_tool_choice_unknown_string_is_rejected() {
+    let err = OpenAiResponsesInbound
+        .parse_request(&Bytes::from_static(
+            br#"{"model":"gpt-4o","tool_choice":"xyz"}"#,
+        ))
+        .expect_err("a value outside the grammar must not be silently dropped");
+    assert!(
+        matches!(err, InboundParseError::Unsupported { field, .. } if field == "tool_choice"),
+        "got: {err}"
+    );
 }
 
 #[test]

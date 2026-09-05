@@ -11,6 +11,12 @@ use serde_json::{Map, Value};
 use super::super::super::super::canonical::{
     CanonicalTool, CanonicalToolChoice, ReasoningEffort, ResponseFormat,
 };
+use super::super::super::InboundParseError;
+
+// Why: rejection detail for a `tool_choice` outside the Chat Completions
+// grammar.
+const TOOL_CHOICE_EXPECTED: &str =
+    "expected \"none\", \"auto\", \"required\", or an object with type function";
 
 pub(super) fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     if value
@@ -38,23 +44,34 @@ pub(super) fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     })
 }
 
-pub(super) fn parse_tool_choice(value: &Value) -> Option<CanonicalToolChoice> {
+// Why: Chat Completions accepts three strings or a `function` object; anything
+// else is a client bug that the upstream API rejects, so it must not reach
+// dispatch as a silently dropped field.
+pub(super) fn parse_tool_choice(value: &Value) -> Result<CanonicalToolChoice, InboundParseError> {
+    let unsupported = || InboundParseError::Unsupported {
+        field: "tool_choice",
+        detail: TOOL_CHOICE_EXPECTED.to_owned(),
+    };
     if let Some(s) = value.as_str() {
         return match s {
-            "auto" => Some(CanonicalToolChoice::Auto),
-            "none" => Some(CanonicalToolChoice::None),
-            "required" => Some(CanonicalToolChoice::Required),
-            _ => None,
+            "auto" => Ok(CanonicalToolChoice::Auto),
+            "none" => Ok(CanonicalToolChoice::None),
+            "required" => Ok(CanonicalToolChoice::Required),
+            _ => Err(unsupported()),
         };
     }
-    if value.get("type").and_then(Value::as_str)? == "function" {
-        return value
-            .get("function")
-            .and_then(|f| f.get("name"))
-            .and_then(Value::as_str)
-            .map(|n| CanonicalToolChoice::Tool(n.to_owned()));
+    if value.get("type").and_then(Value::as_str) != Some("function") {
+        return Err(unsupported());
     }
-    None
+    value
+        .get("function")
+        .and_then(|f| f.get("name"))
+        .and_then(Value::as_str)
+        .map(|n| CanonicalToolChoice::Tool(n.to_owned()))
+        .ok_or_else(|| InboundParseError::Unsupported {
+            field: "tool_choice",
+            detail: "expected a `function.name` for tool_choice type function".to_owned(),
+        })
 }
 
 pub(super) fn parse_reasoning_effort(s: &str) -> Option<ReasoningEffort> {

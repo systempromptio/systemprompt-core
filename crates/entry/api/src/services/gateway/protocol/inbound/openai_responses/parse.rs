@@ -15,6 +15,26 @@ use super::input::parse_input;
 
 const DEFAULT_MAX_OUTPUT_TOKENS: u32 = 4096;
 
+// Why: rejection detail for a `tool_choice` outside the Responses grammar.
+const TOOL_CHOICE_EXPECTED: &str =
+    "expected \"none\", \"auto\", \"required\", or an object with type function";
+
+// Why: the Responses surface also lets `tool_choice` name a hosted tool the
+// gateway does not proxy. Those forms are valid client input, so they are
+// accepted and left without a canonical constraint rather than rejected.
+const HOSTED_TOOL_TYPES: &[&str] = &[
+    "allowed_tools",
+    "code_interpreter",
+    "computer_use_preview",
+    "custom",
+    "file_search",
+    "image_generation",
+    "mcp",
+    "web_search",
+    "web_search_preview",
+    "web_search_preview_2025_03_11",
+];
+
 #[cfg_attr(
     not(feature = "test-api"),
     expect(
@@ -67,7 +87,11 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .map_or_else(Vec::new, |arr| {
             arr.iter().filter_map(parse_tool).collect::<Vec<_>>()
         });
-    let tool_choice = value.get("tool_choice").and_then(parse_tool_choice);
+    let tool_choice = value
+        .get("tool_choice")
+        .map(parse_tool_choice)
+        .transpose()?
+        .flatten();
     let stream = value
         .get("stream")
         .and_then(Value::as_bool)
@@ -122,23 +146,37 @@ fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     })
 }
 
-fn parse_tool_choice(value: &Value) -> Option<CanonicalToolChoice> {
+// Why: the Responses surface accepts three strings or a `function` object; a
+// value outside that grammar is rejected rather than dropped, so a client bug
+// cannot dispatch a request the upstream API would have refused.
+fn parse_tool_choice(value: &Value) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
+    let unsupported = || InboundParseError::Unsupported {
+        field: "tool_choice",
+        detail: TOOL_CHOICE_EXPECTED.to_owned(),
+    };
     if let Some(s) = value.as_str() {
         return match s {
-            "auto" => Some(CanonicalToolChoice::Auto),
-            "none" => Some(CanonicalToolChoice::None),
-            "required" => Some(CanonicalToolChoice::Required),
-            _ => None,
+            "auto" => Ok(Some(CanonicalToolChoice::Auto)),
+            "none" => Ok(Some(CanonicalToolChoice::None)),
+            "required" => Ok(Some(CanonicalToolChoice::Required)),
+            _ => Err(unsupported()),
         };
     }
-    let kind = value.get("type").and_then(Value::as_str)?;
-    if kind == "function" {
-        return value
-            .get("name")
-            .and_then(Value::as_str)
-            .map(|n| CanonicalToolChoice::Tool(n.to_owned()));
+    let kind = value.get("type").and_then(Value::as_str).ok_or_else(unsupported)?;
+    if HOSTED_TOOL_TYPES.contains(&kind) {
+        return Ok(None);
     }
-    None
+    if kind != "function" {
+        return Err(unsupported());
+    }
+    value
+        .get("name")
+        .and_then(Value::as_str)
+        .map(|n| Some(CanonicalToolChoice::Tool(n.to_owned())))
+        .ok_or_else(|| InboundParseError::Unsupported {
+            field: "tool_choice",
+            detail: "expected a `name` for tool_choice type function".to_owned(),
+        })
 }
 
 fn parse_reasoning(value: &Value) -> ThinkingConfig {

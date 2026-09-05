@@ -67,10 +67,11 @@ impl InboundAdapter for AnthropicMessagesInbound {
             .then(|| render::render_terminal_frames(snapshot, model))
     }
 
-    fn render_error(&self, _status: StatusCode, message: &str) -> Bytes {
+    fn render_error(&self, status: StatusCode, message: &str) -> Bytes {
+        let kind = super::error_type_for_status(status);
         let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
         let body = format!(
-            "{{\"type\":\"error\",\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}"
+            "{{\"type\":\"error\",\"error\":{{\"type\":\"{kind}\",\"message\":\"{escaped}\"}}}}"
         );
         Bytes::from(body)
     }

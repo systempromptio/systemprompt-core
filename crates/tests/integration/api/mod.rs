@@ -507,3 +507,7 @@ mod gateway_limits_passthrough;
 #[cfg(test)]
 #[path = "gateway_dispatch_success.rs"]
 mod gateway_dispatch_success;
+
+#[cfg(test)]
+#[path = "gateway_malformed_tool_choice.rs"]
+mod gateway_malformed_tool_choice;
