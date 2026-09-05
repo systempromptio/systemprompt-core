@@ -7,7 +7,7 @@ use std::path::Path;
 use predicates::prelude::*;
 use serde_json::json;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, command, fixture, fixture_mcp_server,
+    FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, command_or_skip, fixture_or_skip, fixture_mcp_server,
 };
 use systemprompt_cli_integration_tests::mcp_stub::stub_port;
 use wiremock::matchers::{method, path};

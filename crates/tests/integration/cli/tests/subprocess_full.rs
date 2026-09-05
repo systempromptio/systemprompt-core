@@ -12,7 +12,7 @@
 
 use predicates::str::contains;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    command, fixture_mcp_server, run, run_with_formats,
+    command_or_skip, fixture_mcp_server, run, run_with_formats,
 };
 
 fn stdout_has(args: &[&str], needle: &str) {
