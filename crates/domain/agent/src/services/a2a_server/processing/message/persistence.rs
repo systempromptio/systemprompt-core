@@ -14,6 +14,7 @@ use crate::services::a2a_server::streaming::{
     broadcast_artifact_created, broadcast_task_completed,
 };
 
+#[derive(Debug)]
 pub struct PersistCompletedTaskParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,

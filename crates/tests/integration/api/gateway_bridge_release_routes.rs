@@ -292,3 +292,88 @@ async fn a_download_for_an_unknown_platform_is_a_not_found() -> anyhow::Result<(
     assert_eq!(status.as_u16(), 404, "{body}");
     Ok(())
 }
+
+// Why: the bytes are streamed rather than buffered, and the filename the
+// updater writes comes from the content-disposition this route sets — not from
+// the URL it dialled. Nothing else exercises the streaming path, so a
+// regression here would ship a bridge that downloads to the wrong filename or
+// buffers tens of megabytes per updating client.
+#[tokio::test]
+async fn a_download_streams_the_asset_bytes_under_its_published_filename() -> anyhow::Result<()> {
+    let s = server().await;
+    s.reset().await;
+    let base = s.uri();
+    Mock::given(method("GET"))
+        .and(path("/repos/systempromptio/systemprompt-core/releases"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!([release(&base, "bridge-v9.9.9", false, false)])),
+        )
+        .mount(s)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/asset"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(b"tarball-bytes".to_vec()))
+        .mount(s)
+        .await;
+
+    let (app, token) = app().await?;
+    let response = app
+        .oneshot(get("/bridge/download/darwin-arm64", Some(&token)))
+        .await?;
+
+    assert_eq!(response.status().as_u16(), 200);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CONTENT_DISPOSITION)
+            .and_then(|v| v.to_str().ok()),
+        Some(format!("attachment; filename=\"{ASSET}\"").as_str()),
+        "the updater writes the file under the name this header carries"
+    );
+
+    let (_, body) = body_to_string(response).await?;
+    assert_eq!(
+        body, "tarball-bytes",
+        "the proxied bytes must reach the client unaltered"
+    );
+    Ok(())
+}
+
+// Why: the asset fetch is a second upstream call, made after the release has
+// already resolved. A failure there is the gateway's problem, not a missing
+// release — reporting 404 would tell the updater to stop looking for a build
+// that exists.
+#[tokio::test]
+async fn a_download_whose_asset_fetch_fails_upstream_is_a_bad_gateway() -> anyhow::Result<()> {
+    let s = server().await;
+    s.reset().await;
+    let base = s.uri();
+    Mock::given(method("GET"))
+        .and(path("/repos/systempromptio/systemprompt-core/releases"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!([release(&base, "bridge-v9.9.9", false, false)])),
+        )
+        .mount(s)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/asset"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount(s)
+        .await;
+
+    let (app, token) = app().await?;
+    let (status, body) = body_to_string(
+        app.oneshot(get("/bridge/download/darwin-arm64", Some(&token)))
+            .await?,
+    )
+    .await?;
+
+    assert_eq!(
+        status.as_u16(),
+        502,
+        "an asset the gateway could not fetch is not a missing release: {body}"
+    );
+    Ok(())
+}

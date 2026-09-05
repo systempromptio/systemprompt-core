@@ -71,7 +71,7 @@ pub async fn validate_subject_token(
     let declared_iss = peek_issuer(token)?;
 
     if declared_iss == global.jwt_issuer {
-        return validate_self_issued(token, global);
+        return validate_self_issued(token, &header, global);
     }
 
     let trusted = global
@@ -157,15 +157,13 @@ pub fn peek_issuer(token: &str) -> Result<String> {
     Ok(parsed.iss)
 }
 
-fn validate_self_issued(token: &str, global: &Config) -> Result<SubjectIdentity> {
-    use jsonwebtoken::decode_header;
+fn validate_self_issued(
+    token: &str,
+    header: &jsonwebtoken::Header,
+    global: &Config,
+) -> Result<SubjectIdentity> {
     use systemprompt_security::keys::authority;
 
-    let header = decode_header(token).map_err(|e| {
-        anyhow!(TokenError::InvalidGrant {
-            reason: format!("subject_token header decode failed: {e}"),
-        })
-    })?;
     if header.alg != Algorithm::RS256 {
         return Err(anyhow!(TokenError::InvalidGrant {
             reason: "subject_token must be RS256-signed".to_owned(),

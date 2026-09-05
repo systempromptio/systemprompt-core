@@ -52,54 +52,14 @@ pub async fn ensure_task_exists(
     .await
 }
 
+// Why: `ContextId` is UUID-validated on every construction path, so it can
+// never be empty. The emptiness branch that used to guard this, and the
+// session-lookup fallback behind it, were unreachable.
 async fn resolve_context_id(
     context_repo: &ContextRepository,
     request_context: &mut RequestContext,
 ) -> Result<ContextId, McpError> {
-    if request_context.context_id().as_str().is_empty() {
-        find_or_create_session_context(context_repo, request_context).await
-    } else {
-        validate_or_replace_context(context_repo, request_context).await
-    }
-}
-
-async fn find_or_create_session_context(
-    context_repo: &ContextRepository,
-    request_context: &mut RequestContext,
-) -> Result<ContextId, McpError> {
-    if let Ok(Some(existing)) = context_repo
-        .find_by_session_id(request_context.session_id())
-        .await
-    {
-        tracing::debug!(
-            context_id = %existing.context_id,
-            session_id = %request_context.session_id(),
-            "Reusing existing context for MCP session"
-        );
-        request_context.execution.context_id = existing.context_id.clone();
-        return Ok(existing.context_id);
-    }
-
-    let new_context_id = context_repo
-        .create_context(
-            request_context.user_id(),
-            Some(request_context.session_id()),
-            &format!("MCP Session: {}", request_context.session_id()),
-            ContextKind::User,
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to auto-create context for MCP session");
-            McpError::internal_error(format!("Failed to create context: {e}"), None)
-        })?;
-
-    request_context.execution.context_id = new_context_id.clone();
-    tracing::info!(
-        context_id = %new_context_id,
-        session_id = %request_context.session_id(),
-        "Auto-created context for MCP session"
-    );
-    Ok(new_context_id)
+    validate_or_replace_context(context_repo, request_context).await
 }
 
 async fn validate_or_replace_context(

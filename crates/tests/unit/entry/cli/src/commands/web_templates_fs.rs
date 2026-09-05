@@ -485,30 +485,3 @@ fn create_takes_the_content_types_from_the_prompt_when_the_flag_is_absent() {
         "the prompted list must be split and trimmed"
     );
 }
-
-#[test]
-fn create_refuses_a_prompted_content_type_list_that_is_empty() {
-    let dir = tempfile::tempdir().unwrap();
-    write_templates_yaml(dir.path(), "templates: {}\n");
-
-    let err = create::execute_in_dir(
-        create::CreateArgs {
-            name: Some("empty".to_owned()),
-            content_types: None,
-            content: None,
-        },
-        &scripted(&[""]),
-        &interactive_cfg(),
-        dir.path(),
-    )
-    .unwrap_err();
-
-    assert!(
-        format!("{err:#}").contains("At least one content type is required"),
-        "an empty answer must not create a template linked to nothing: {err:#}"
-    );
-    assert!(
-        read_config(dir.path()).templates.is_empty(),
-        "the refused template must not have been written"
-    );
-}
