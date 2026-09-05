@@ -5,9 +5,14 @@
 //! `access.roles` projects into the `role` band; each `access.rules` entry
 //! projects one row per value into the extension subject-dimension band it
 //! names, so a group or project grant is enforced by the same resolver as a
-//! role. Orphan deletion is scoped to the `(entity_id, rule_type)` pairs the
-//! config still declares, so dropping a band from the YAML retires exactly that
-//! band and leaves rows another writer owns untouched.
+//! role.
+//!
+//! Orphan deletion owns only the `(entity_id, rule_type)` pairs the config
+//! still declares. Within a declared band the rows are pruned to exactly what
+//! the config names; a band the config no longer mentions is left in place,
+//! because a delete scoped by entity alone would take rules another writer owns
+//! with it. Removing a whole band from the YAML therefore does not revoke it —
+//! that is a deliberate deletion, made with the CLI or by hand.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

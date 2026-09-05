@@ -302,8 +302,9 @@ async fn deny_rule_writes_access_deny() {
     cleanup(&f.pg, &f.id).await;
 }
 
-// Why: dropping a band from the YAML must retire exactly that band. A delete
-// scoped only by entity would take every rule another writer owns with it.
+// Why: orphan deletion owns only the bands the config still declares. A delete
+// scoped by entity alone would take every rule another writer owns with it, so
+// a band this config no longer mentions has to survive untouched.
 #[tokio::test]
 async fn delete_orphans_only_touches_declared_bands() {
     let f = setup().await;
@@ -313,25 +314,28 @@ async fn delete_orphans_only_touches_declared_bands() {
         ..IngestOptions::default()
     };
 
-    let mut block = access(&["engineer"], true, None);
+    let mut block = access(&["engineer", "contractor"], true, None);
     block.rules = vec![rule("project", &["storefront"], MarketplaceRuleAccess::Allow)];
     service
         .ingest_marketplace_access(&one(&f.id, block), options)
         .await
         .expect("first ingest");
 
-    let mut narrowed = access(&["engineer"], true, None);
-    narrowed.rules = vec![];
+    let narrowed = access(&["engineer"], true, None);
     service
         .ingest_marketplace_access(&one(&f.id, narrowed), options)
         .await
         .expect("second ingest");
 
-    assert_eq!(role_values(&f.pg, &f.id).await, vec!["engineer".to_owned()]);
+    assert_eq!(
+        role_values(&f.pg, &f.id).await,
+        vec!["engineer".to_owned()],
+        "the still-declared role band is pruned to what the config now names",
+    );
     assert_eq!(
         band_rows(&f.pg, &f.id, "project").await,
-        Vec::<(String, String)>::new(),
-        "an undeclared band is left in place rather than deleted by this writer",
+        vec![("storefront".to_owned(), "allow".to_owned())],
+        "a band the config no longer declares is left in place, not deleted by this writer",
     );
     cleanup(&f.pg, &f.id).await;
 }
