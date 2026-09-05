@@ -250,7 +250,18 @@ fn the_opencode_host_describes_itself_as_a_json_cli_tool_that_cannot_be_opened()
         "{}",
         OPENCODE_HOST.description()
     );
-    assert_eq!(OPENCODE_HOST.accepted_surfaces(), &[ApiSurface::OpenAi]);
+    // Every surface except Backend: the gateway translates any inbound wire to
+    // any provider wire, so filtering the catalogue by a provider's native
+    // family would hide servable models. Backend exists to hide a provider from
+    // every picker and must stay excluded.
+    assert_eq!(
+        OPENCODE_HOST.accepted_surfaces(),
+        &[ApiSurface::OpenAi, ApiSurface::Anthropic, ApiSurface::Gemini]
+    );
+    assert!(
+        !OPENCODE_HOST.accepted_surfaces().contains(&ApiSurface::Backend),
+        "Backend providers must never be advertised to a host"
+    );
     assert!(
         OPENCODE_HOST
             .install_action_label()

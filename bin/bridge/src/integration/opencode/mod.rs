@@ -4,7 +4,10 @@
 //! (`/etc/opencode`, `/Library/Application Support/opencode`,
 //! `%ProgramData%\opencode`) above every user and project file, so the
 //! bridge-owned `provider.systemprompt` block and default `model` are written
-//! there and no user config can route inference around the gateway. The API
+//! there rather than somewhere a personal config casually overrides. That is
+//! tier preference, not enforcement: the file is mode 0644, Linux falls back to
+//! the user tier when `/etc` is unwritable, and nothing stops a user adding
+//! another provider. Governance is enforced at the gateway. The API
 //! key lives in the user's `auth.json`, and MCP connectors and skills — which
 //! unattended sync must be able to rewrite without a prompt — stay in the
 //! user's global config and skills directory.
@@ -119,12 +122,21 @@ impl HostApp for OpenCodeHost {
         "https://opencode.ai/"
     }
 
-    // Why: the provider is registered on the OpenAI-compatible wire, which the
-    // gateway serves at `/v1/chat/completions`; declaring it is what makes model
-    // negotiation offer compatible models and the profile writer install the
-    // model half.
+    // Why: this names the surfaces whose models may be OFFERED to the host, not
+    // the wire the host speaks. OpenCode speaks the OpenAI-compatible wire and
+    // the gateway serves it at `/v1/chat/completions`, but the gateway
+    // normalises any inbound wire to canonical and renders any provider wire
+    // outbound, so a gemini- or anthropic-native provider is just as servable
+    // over that one wire. Filtering by the provider's native family hid every
+    // working `claude-*` and `gemini-*` model from the picker while advertising
+    // only providers whose credentials were unresolvable. `Backend` stays out:
+    // it exists precisely to hide a provider from every picker.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
-        &[systemprompt_models::services::ApiSurface::OpenAi]
+        &[
+            systemprompt_models::services::ApiSurface::OpenAi,
+            systemprompt_models::services::ApiSurface::Anthropic,
+            systemprompt_models::services::ApiSurface::Gemini,
+        ]
     }
 }
 
