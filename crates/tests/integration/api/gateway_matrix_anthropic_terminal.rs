@@ -17,19 +17,14 @@
 use super::gateway_matrix::{OutWire, Scenario};
 use super::gateway_matrix_inbound::{InWire, assert_declared_tool_use, assert_reported_truncation};
 
-// Why: same-wire Anthropic in to Anthropic out is byte passthrough -- the
-// upstream body is relayed unparsed, so `CanonicalStopReason::with_tool_use`,
-// which is what corrects a generic stop beside a tool call, is never reached.
-// The identical cell through the Chat Completions inbound passes, because that
-// one goes through canonical translation. The gap is real but its fix is a
-// wire-contract decision, not a test bug: correcting the reason here means
-// parsing and re-rendering the body, which is exactly what passthrough exists
-// to avoid. Anthropic itself never sends `end_turn` beside a `tool_use` block,
-// so the exposure is limited to non-Anthropic upstreams speaking the Anthropic
-// wire (Bedrock, Vertex, proxies), where it is a dropped tool call.
+// Why: same-wire Anthropic in to Anthropic out is byte passthrough, so the
+// canonical `with_tool_use` correction is never reached on this path. The lane
+// stays byte-faithful and rewrites only the one contradictory token -- see
+// `protocol/outbound/anthropic/terminal.rs`. Anthropic itself never sends
+// `end_turn` beside a `tool_use` block, so the exposure this closes is
+// non-Anthropic upstreams speaking the Anthropic wire (Bedrock, Vertex,
+// proxies), where it was a dropped tool call.
 #[tokio::test]
-#[ignore = "anthropic-to-anthropic passthrough skips the stop-reason correction: \
-            crates/entry/api/src/services/gateway/protocol/outbound/mod.rs"]
 async fn anthropic_in_buffered_generic_stop_declares_tool_use() -> anyhow::Result<()> {
     assert_declared_tool_use(
         "anthropic-out-generic",
@@ -41,19 +36,14 @@ async fn anthropic_in_buffered_generic_stop_declares_tool_use() -> anyhow::Resul
     .await
 }
 
-// Why: same-wire Anthropic in to Anthropic out is byte passthrough -- the
-// upstream body is relayed unparsed, so `CanonicalStopReason::with_tool_use`,
-// which is what corrects a generic stop beside a tool call, is never reached.
-// The identical cell through the Chat Completions inbound passes, because that
-// one goes through canonical translation. The gap is real but its fix is a
-// wire-contract decision, not a test bug: correcting the reason here means
-// parsing and re-rendering the body, which is exactly what passthrough exists
-// to avoid. Anthropic itself never sends `end_turn` beside a `tool_use` block,
-// so the exposure is limited to non-Anthropic upstreams speaking the Anthropic
-// wire (Bedrock, Vertex, proxies), where it is a dropped tool call.
+// Why: same-wire Anthropic in to Anthropic out is byte passthrough, so the
+// canonical `with_tool_use` correction is never reached on this path. The lane
+// stays byte-faithful and rewrites only the one contradictory token -- see
+// `protocol/outbound/anthropic/terminal.rs`. Anthropic itself never sends
+// `end_turn` beside a `tool_use` block, so the exposure this closes is
+// non-Anthropic upstreams speaking the Anthropic wire (Bedrock, Vertex,
+// proxies), where it was a dropped tool call.
 #[tokio::test]
-#[ignore = "anthropic-to-anthropic passthrough skips the stop-reason correction: \
-            crates/entry/api/src/services/gateway/protocol/outbound/mod.rs"]
 async fn anthropic_in_streaming_generic_stop_declares_tool_use() -> anyhow::Result<()> {
     assert_declared_tool_use(
         "anthropic-out-generic",

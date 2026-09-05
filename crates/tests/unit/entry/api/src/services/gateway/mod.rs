@@ -15,6 +15,7 @@ mod openai_passthrough;
 mod outbound;
 mod outbound_deep;
 mod outbound_passthrough;
+mod outbound_passthrough_terminal;
 mod outbound_retry;
 mod parse;
 mod pricing;

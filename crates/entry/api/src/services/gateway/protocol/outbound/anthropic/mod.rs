@@ -17,6 +17,7 @@ use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 mod request;
 mod response;
 pub(in crate::services::gateway) mod streaming;
+mod terminal;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
@@ -69,7 +70,7 @@ impl OutboundAdapter for AnthropicOutbound {
             if passthrough {
                 return Ok(OutboundOutcome::RawStreaming {
                     content_type,
-                    stream: streaming::raw_sse_stream(stream),
+                    stream: terminal::correct_stream(streaming::raw_sse_stream(stream)),
                 });
             }
             return Ok(OutboundOutcome::Streaming(
@@ -86,7 +87,7 @@ impl OutboundAdapter for AnthropicOutbound {
         let canonical = Box::new(response::parse_response(&value, ctx.request.model.as_str()));
         if passthrough {
             return Ok(OutboundOutcome::RawBuffered {
-                body: bytes,
+                body: terminal::correct_buffered(bytes),
                 content_type,
                 canonical,
             });
