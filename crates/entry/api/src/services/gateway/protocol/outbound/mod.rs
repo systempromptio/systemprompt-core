@@ -157,9 +157,9 @@ pub struct OutboundAdapterRegistration {
 
 inventory::collect!(OutboundAdapterRegistration);
 
-/// Status the gateway reports when an upstream answers 2xx with a body that
-/// carries no turn. It is an upstream failure, not a client error, so it maps
-/// the same way a genuine 502 from the provider would.
+// Why: an upstream that answers 2xx with a body carrying no turn has failed,
+// and the failure is the provider's rather than the caller's, so it is
+// reported the same way a genuine 502 from that provider would be.
 const DEFECTIVE_BODY_STATUS: u16 = 502;
 
 // Why: a buffered parser is total and will happily turn `{}` into a
@@ -185,6 +185,33 @@ pub(in crate::services::gateway) fn reject_defective_body(
         provider: provider.to_owned(),
         status: DEFECTIVE_BODY_STATUS,
         message: format!("{defect}: {excerpt}"),
+        body: body.clone(),
+        retry_after: None,
+        request_id: None,
+    })
+}
+
+// Why: a body that fails to deserialize used to default to an empty canonical
+// response, so the request billed nothing and was audited as completed with no
+// content. It is an upstream contract breach and reaches the client as one.
+pub(in crate::services::gateway) fn reject_unparsable_body(
+    provider: &str,
+    wire: &str,
+    error: &systemprompt_models::wire::error::WireParseError,
+    body: &bytes::Bytes,
+) -> anyhow::Error {
+    let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
+    tracing::error!(
+        provider = %provider,
+        wire = %wire,
+        error = %error,
+        body = %excerpt,
+        "upstream returned a success status with a body that does not parse"
+    );
+    anyhow::Error::new(UpstreamError::Status {
+        provider: provider.to_owned(),
+        status: DEFECTIVE_BODY_STATUS,
+        message: format!("{error}: {excerpt}"),
         body: body.clone(),
         retry_after: None,
         request_id: None,
