@@ -25,6 +25,7 @@
 
 mod request;
 mod response;
+mod stream_delta;
 mod streaming;
 
 pub use request::build_request_body;

@@ -281,30 +281,21 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
 }
 
 // Why: providers end a message more than once -- Anthropic's `message_delta`
-// carries the real reason and the `message_stop` frame that follows carries
-// none. Assigning on every stop let that second, reason-less frame default the
-// turn back to EndTurn, so a streamed `tool_use` turn was recorded, audited and
-// rendered as "stop" and the call was silently dropped. The first stated reason
-// is the turn's reason; a bare stop only fills in a reason nothing else gave.
-//
-// The tool-use correction is the same one each wire codec applies, repeated
-// here because an upstream that states a generic reason beside a fully
-// accumulated tool-use block must not reach the terminal render as "stop".
+// carries the real reason and the `message_stop` that follows carries none.
+// Assigning on every stop let that second frame default a streamed tool-use
+// turn back to EndTurn, so it was audited and rendered as "stop" and the call
+// was dropped. First stated reason wins; a bare stop only fills in what nothing
+// else gave, and the tool-use correction is repeated from the wire codecs.
 fn apply_stop_reason(state: &mut TapState, reason: Option<CanonicalStopReason>) {
     let has_tool_use = state
         .blocks
         .iter()
         .any(|b| matches!(b, BlockAccumulator::ToolUse { .. }));
-    match reason {
-        Some(reason) if state.final_stop_reason.is_none() => {
-            state.final_stop_reason = Some(reason.with_tool_use(has_tool_use));
-        },
-        Some(_) => {},
-        None => {
-            let reason = state
-                .final_stop_reason
-                .unwrap_or(CanonicalStopReason::EndTurn);
-            state.final_stop_reason = Some(reason.with_tool_use(has_tool_use));
-        },
+    if state.final_stop_reason.is_some() && reason.is_some() {
+        return;
     }
+    let reason = reason
+        .or(state.final_stop_reason)
+        .unwrap_or(CanonicalStopReason::EndTurn);
+    state.final_stop_reason = Some(reason.with_tool_use(has_tool_use));
 }

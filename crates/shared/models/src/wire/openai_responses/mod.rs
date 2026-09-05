@@ -23,14 +23,14 @@ use crate::wire::canonical::CanonicalStopReason;
 
 // Why: Responses has no finish-reason field: tool use is signalled by a
 // `function_call` output item, truncation by `incomplete_details.reason`.
+// Truncation is resolved first, because a call cut off mid-arguments carries
+// unparseable JSON -- declaring tool use there hands the client a call it
+// cannot run instead of telling it the turn was cut.
 fn derive_stop_reason(has_tool_use: bool, incomplete_reason: Option<&str>) -> CanonicalStopReason {
-    if has_tool_use {
-        return CanonicalStopReason::ToolUse;
-    }
     match incomplete_reason {
         Some("max_output_tokens") => CanonicalStopReason::MaxTokens,
-        Some(_) => CanonicalStopReason::Other,
-        None => CanonicalStopReason::EndTurn,
+        Some(_) => CanonicalStopReason::Other.with_tool_use(has_tool_use),
+        None => CanonicalStopReason::EndTurn.with_tool_use(has_tool_use),
     }
 }
 

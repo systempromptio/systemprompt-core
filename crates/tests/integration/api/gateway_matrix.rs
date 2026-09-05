@@ -79,23 +79,54 @@ impl OutWire {
         }
     }
 
-    fn buffered_reply(self) -> Value {
-        match self {
-            Self::Anthropic => anthropic_tool_reply(),
-            Self::Gemini => gemini_tool_reply(),
-            Self::OpenAiChat => openai_chat_tool_reply(),
-            Self::OpenAiResponses => openai_responses_tool_reply(),
+    fn buffered_reply(self, scenario: Scenario) -> Value {
+        match (self, scenario) {
+            (Self::Anthropic, Scenario::ToolCall) => anthropic_tool_reply("tool_use"),
+            (Self::Anthropic, Scenario::GenericStop) => anthropic_tool_reply("end_turn"),
+            (Self::Anthropic, Scenario::Truncated) => anthropic_truncated_reply(),
+            (Self::Gemini, Scenario::ToolCall | Scenario::GenericStop) => gemini_tool_reply(),
+            (Self::Gemini, Scenario::Truncated) => gemini_truncated_reply(),
+            (Self::OpenAiChat, Scenario::ToolCall) => openai_chat_tool_reply("tool_calls"),
+            (Self::OpenAiChat, Scenario::GenericStop) => openai_chat_tool_reply("stop"),
+            (Self::OpenAiChat, Scenario::Truncated) => openai_chat_truncated_reply(),
+            (Self::OpenAiResponses, Scenario::ToolCall | Scenario::GenericStop) => {
+                openai_responses_tool_reply()
+            },
+            (Self::OpenAiResponses, Scenario::Truncated) => openai_responses_truncated_reply(),
         }
     }
 
-    fn streaming_reply(self) -> String {
-        match self {
-            Self::Anthropic => anthropic_tool_sse(),
-            Self::Gemini => gemini_tool_sse(),
-            Self::OpenAiChat => openai_chat_tool_sse(),
-            Self::OpenAiResponses => openai_responses_tool_sse(),
+    fn streaming_reply(self, scenario: Scenario) -> String {
+        match (self, scenario) {
+            (Self::Anthropic, Scenario::ToolCall) => anthropic_tool_sse("tool_use"),
+            (Self::Anthropic, Scenario::GenericStop) => anthropic_tool_sse("end_turn"),
+            (Self::Anthropic, Scenario::Truncated) => anthropic_tool_sse("max_tokens"),
+            (Self::Gemini, Scenario::ToolCall | Scenario::GenericStop) => gemini_tool_sse("STOP"),
+            (Self::Gemini, Scenario::Truncated) => gemini_tool_sse("MAX_TOKENS"),
+            (Self::OpenAiChat, Scenario::ToolCall) => openai_chat_tool_sse("tool_calls"),
+            (Self::OpenAiChat, Scenario::GenericStop) => openai_chat_tool_sse("stop"),
+            (Self::OpenAiChat, Scenario::Truncated) => openai_chat_tool_sse("length"),
+            (Self::OpenAiResponses, Scenario::ToolCall | Scenario::GenericStop) => {
+                openai_responses_tool_sse()
+            },
+            (Self::OpenAiResponses, Scenario::Truncated) => openai_responses_truncated_sse(),
         }
     }
+}
+
+/// What the upstream says about a turn that produced a tool call.
+///
+/// The three are one failure class seen from three angles. `ToolCall` is the
+/// well-behaved upstream. `GenericStop` is the one that shipped the outage:
+/// a fully-formed call under a plain "stop"/"end_turn", which every client
+/// reads as a finished turn. `Truncated` is its mirror -- a call cut off
+/// mid-arguments, where declaring tool use hands the client unparseable JSON
+/// instead of telling it the budget ran out.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum Scenario {
+    ToolCall,
+    GenericStop,
+    Truncated,
 }
 
 /// The tool the whole matrix exercises. Named and shaped like `plain_tool()` in
@@ -164,7 +195,7 @@ fn body(value: &Value) -> Bytes {
     Bytes::from(serde_json::to_vec(value).expect("serialize caller body"))
 }
 
-fn anthropic_tool_reply() -> Value {
+fn anthropic_tool_reply(stop_reason: &str) -> Value {
     json!({
         "id": "msg_matrix",
         "type": "message",
@@ -176,9 +207,34 @@ fn anthropic_tool_reply() -> Value {
             "name": TOOL_NAME,
             "input": {"q": TOOL_ARG},
         }],
-        "stop_reason": "tool_use",
+        "stop_reason": stop_reason,
         "usage": {"input_tokens": 11, "output_tokens": 7}
     })
+}
+
+fn anthropic_truncated_reply() -> Value {
+    let mut reply = anthropic_tool_reply("max_tokens");
+    reply["content"][0]["input"] = json!({"q": "ru"});
+    reply
+}
+
+fn gemini_truncated_reply() -> Value {
+    let mut reply = gemini_tool_reply();
+    reply["candidates"][0]["finishReason"] = json!("MAX_TOKENS");
+    reply
+}
+
+fn openai_chat_truncated_reply() -> Value {
+    let mut reply = openai_chat_tool_reply("length");
+    reply["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] = json!("{\"q\":\"ru");
+    reply
+}
+
+fn openai_responses_truncated_reply() -> Value {
+    let mut reply = openai_responses_tool_reply();
+    reply["status"] = json!("incomplete");
+    reply["incomplete_details"] = json!({"reason": "max_output_tokens"});
+    reply
 }
 
 // Why: `finishReason: "STOP"` on a functionCall candidate is not a typo. It is
@@ -197,7 +253,7 @@ fn gemini_tool_reply() -> Value {
     })
 }
 
-fn openai_chat_tool_reply() -> Value {
+fn openai_chat_tool_reply(finish_reason: &str) -> Value {
     json!({
         "id": "chatcmpl_matrix",
         "object": "chat.completion",
@@ -213,7 +269,7 @@ fn openai_chat_tool_reply() -> Value {
                     "function": {"name": TOOL_NAME, "arguments": "{\"q\":\"rust\"}"},
                 }],
             },
-            "finish_reason": "tool_calls"
+            "finish_reason": finish_reason
         }],
         "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18}
     })
@@ -237,13 +293,13 @@ fn openai_responses_tool_reply() -> Value {
     })
 }
 
-fn anthropic_tool_sse() -> String {
+fn anthropic_tool_sse(stop_reason: &str) -> String {
     [
         "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_m\",\"model\":\"claude-test-model\",\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n",
         "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"call_1\",\"name\":\"lookup\",\"input\":{}}}\n\n",
         "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"q\\\":\\\"rust\\\"}\"}}\n\n",
         "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
-        "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":7}}\n\n",
+        format!("event: message_delta\ndata: {{\"type\":\"message_delta\",\"delta\":{{\"stop_reason\":\"{stop_reason}\"}},\"usage\":{{\"output_tokens\":7}}}}\n\n").as_str(),
         "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
     ]
     .concat()
@@ -252,20 +308,33 @@ fn anthropic_tool_sse() -> String {
 // Why: Gemini streams a functionCall whole, in one part, and then reports
 // `STOP` on the finishing chunk — the streaming half of the same lie the
 // buffered fixture above tells.
-fn gemini_tool_sse() -> String {
+fn gemini_tool_sse(finish_reason: &str) -> String {
     [
         "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":\"rust\"}}}]}}]}\n\n",
-        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":11,\"candidatesTokenCount\":7,\"totalTokenCount\":18}}\n\n",
+        format!("data: {{\"candidates\":[{{\"content\":{{\"role\":\"model\",\"parts\":[]}},\"finishReason\":\"{finish_reason}\"}}],\"usageMetadata\":{{\"promptTokenCount\":11,\"candidatesTokenCount\":7,\"totalTokenCount\":18}}}}\n\n").as_str(),
     ]
     .concat()
 }
 
-fn openai_chat_tool_sse() -> String {
+fn openai_chat_tool_sse(finish_reason: &str) -> String {
     [
         "data: {\"id\":\"chatcmpl_m\",\"object\":\"chat.completion.chunk\",\"model\":\"claude-test-model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"lookup\",\"arguments\":\"\"}}]}}]}\n\n",
         "data: {\"id\":\"chatcmpl_m\",\"object\":\"chat.completion.chunk\",\"model\":\"claude-test-model\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"q\\\":\\\"rust\\\"}\"}}]}}]}\n\n",
-        "data: {\"id\":\"chatcmpl_m\",\"object\":\"chat.completion.chunk\",\"model\":\"claude-test-model\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18}}\n\n",
+        format!("data: {{\"id\":\"chatcmpl_m\",\"object\":\"chat.completion.chunk\",\"model\":\"claude-test-model\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"{finish_reason}\"}}],\"usage\":{{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18}}}}\n\n").as_str(),
         "data: [DONE]\n\n",
+    ]
+    .concat()
+}
+
+// Why: the Responses dialect has no finish-reason field. Truncation arrives as
+// a `response.incomplete` terminal event whose `incomplete_details.reason` is
+// `max_output_tokens`, in place of `response.completed`.
+fn openai_responses_truncated_sse() -> String {
+    [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_m\",\"model\":\"claude-test-model\",\"output\":[]}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"id\":\"fc_call_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"\"}}\n\n",
+        "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\"delta\":\"{\\\"q\\\":\\\"rust\"}\n\n",
+        "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_m\",\"model\":\"claude-test-model\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"usage\":{\"input_tokens\":11,\"output_tokens\":7,\"total_tokens\":18},\"output\":[]}}\n\n",
     ]
     .concat()
 }
@@ -292,6 +361,18 @@ pub(super) async fn run_cell(
     raw: Bytes,
     stream: bool,
 ) -> anyhow::Result<String> {
+    run_scenario(label, out, Scenario::ToolCall, inbound, raw, stream).await
+}
+
+/// Runs one matrix cell with a chosen upstream [`Scenario`].
+pub(super) async fn run_scenario(
+    label: &str,
+    out: OutWire,
+    scenario: Scenario,
+    inbound: Arc<dyn InboundAdapter>,
+    raw: Bytes,
+    stream: bool,
+) -> anyhow::Result<String> {
     install_provider_api_key();
     let (pool, _ctx) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, &format!("gw-matrix-{label}@example.invalid")).await?;
@@ -300,9 +381,9 @@ pub(super) async fn run_cell(
     let template = if stream {
         ResponseTemplate::new(200)
             .insert_header("content-type", "text/event-stream")
-            .set_body_raw(out.streaming_reply(), "text/event-stream")
+            .set_body_raw(out.streaming_reply(scenario), "text/event-stream")
     } else {
-        ResponseTemplate::new(200).set_body_json(out.buffered_reply())
+        ResponseTemplate::new(200).set_body_json(out.buffered_reply(scenario))
     };
     Mock::given(method("POST"))
         .and(path(out.upstream_path(stream)))
@@ -350,5 +431,19 @@ pub(super) fn assert_declares_tool_use(label: &str, rendered: &str, marker: &str
     assert!(
         rendered.contains(marker),
         "{label}: the terminal reason must declare tool use ({marker}); body: {rendered}"
+    );
+}
+
+/// Assertion 3: a truncated turn says it was truncated.
+///
+/// The mirror of assertion 2. Correcting a generic stop to tool use must not
+/// also swallow a real cutoff: the call's arguments are incomplete JSON, so a
+/// client told "tool_calls" either fails to parse them or runs the tool with
+/// the wrong ones, while "length" tells it to ask for more budget.
+pub(super) fn assert_declares_truncation(label: &str, rendered: &str, marker: &str) {
+    assert!(
+        rendered.contains(marker),
+        "{label}: a turn cut off mid-tool-call must report the cutoff ({marker}); body: \
+         {rendered}"
     );
 }

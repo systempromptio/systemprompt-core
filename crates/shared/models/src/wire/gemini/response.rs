@@ -52,12 +52,11 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
 
     // Why: Gemini reports finishReason STOP even when the candidate it just
     // returned is a functionCall, so the wire's reason cannot tell "finished
-    // talking" from "wants a tool run". Left as EndTurn this renders as
-    // `finish_reason: "stop"` on the OpenAI surface; a client that follows that
-    // contract ends the turn and never executes the tool, so the call rides
-    // along in the payload and is silently dropped. The content is the only
-    // reliable signal, and MAX_TOKENS still wins: a call truncated mid-args is
-    // not a call the client can run.
+    // talking" from "wants a tool run". Left as EndTurn it renders as
+    // `finish_reason: "stop"`, the client ends the turn, and the call rides
+    // along in the payload unexecuted. The content is the only reliable
+    // signal; MAX_TOKENS still wins, since a call truncated mid-args is not
+    // one the client can run.
     let has_tool_use = content
         .iter()
         .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));

@@ -269,6 +269,10 @@ mod gateway_matrix;
 mod gateway_matrix_anthropic_in;
 
 #[cfg(test)]
+#[path = "gateway_matrix_degenerate.rs"]
+mod gateway_matrix_degenerate;
+
+#[cfg(test)]
 #[path = "gateway_matrix_openai_chat_in.rs"]
 mod gateway_matrix_openai_chat_in;
 

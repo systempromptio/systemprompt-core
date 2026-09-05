@@ -150,9 +150,10 @@ struct TappedStream {
     finalize_ctx: Option<TapFinalizeCtx>,
     // Why: providers signal the end of a message more than once (Anthropic's
     // message_delta + message_stop, OpenAI's finish_reason chunk + [DONE]);
-    // only the first may drive the adapter's terminal render or wires that
-    // emit a closing frame (chat's [DONE], responses' response.completed)
-    // would close the stream twice.
+    // only the first may be rendered at all, by either the terminal path or
+    // the plain-event fallback, or wires that emit a closing frame (chat's
+    // [DONE], responses' response.completed, anthropic's message_stop) would
+    // close the stream twice -- the second one carrying the weaker reason.
     message_stop_rendered: bool,
 }
 
@@ -181,6 +182,7 @@ impl Stream for TappedStream {
                         accumulate_event(&mut s, &event);
                         terminal.then(|| snapshot(&s))
                     });
+                    let terminal_suppressed = is_message_stop && self.message_stop_rendered;
                     if is_message_stop {
                         self.message_stop_rendered = true;
                     }
@@ -193,7 +195,17 @@ impl Stream for TappedStream {
                                 &self.request_model,
                             )
                         })
-                        .or_else(|| self.inbound.render_event(&event, &self.request_model));
+                        .or_else(|| {
+                            // Why: `terminal` already suppressed the second
+                            // terminal render, but the plain-event fallback was
+                            // not covered -- the Anthropic inbound renders
+                            // MessageStop through `render_event`, so a repeat
+                            // stop still reached the client as a second,
+                            // weaker `message_stop` frame after the real one.
+                            (!terminal_suppressed)
+                                .then(|| self.inbound.render_event(&event, &self.request_model))
+                                .flatten()
+                        });
                     if let Some(bytes) = rendered {
                         if let Ok(mut s) = self.state.lock() {
                             s.final_bytes.extend_from_slice(&bytes);

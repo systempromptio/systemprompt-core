@@ -146,18 +146,13 @@ impl CanonicalStopReason {
         }
     }
 
-    /// Corrects a terminal reason for a turn that produced a tool call.
-    ///
-    /// Providers routinely report a generic "stop" beside a fully-formed tool
-    /// call: Gemini sends `finishReason: STOP` on a `functionCall` candidate,
-    /// and several OpenAI-compatible upstreams send `finish_reason: "stop"`
-    /// beside a `tool_calls` array. Left alone that renders as `"stop"` /
-    /// `"end_turn"` downstream, every client treats the turn as complete, and
-    /// the call rides along in the payload and is silently never executed.
-    ///
-    /// Truncation still wins. A `max_tokens` cutoff mid-call leaves the
-    /// argument JSON unfinished, so declaring tool use there would hand the
-    /// client a call it cannot parse instead of telling it the turn was cut.
+    // Why: providers routinely report a generic "stop" beside a fully-formed
+    // tool call -- Gemini sends `finishReason: STOP` on a functionCall
+    // candidate, several OpenAI-compatible upstreams send `finish_reason:
+    // "stop"` beside a tool_calls array. Relayed verbatim, every client ends
+    // the turn and the call is silently never run. Truncation still wins: a
+    // call cut mid-arguments carries unparseable JSON, so declaring tool use
+    // there hands the client a call it cannot run.
     #[must_use]
     pub const fn with_tool_use(self, has_tool_use: bool) -> Self {
         match self {
