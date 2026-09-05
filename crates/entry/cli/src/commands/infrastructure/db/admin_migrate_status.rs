@@ -75,6 +75,7 @@ async fn collect_status(
     let mut drift_rows: Vec<MigrationDriftInfo> = Vec::new();
     let mut total_applied = 0usize;
     let mut total_pending = 0usize;
+    let mut total_orphaned = 0usize;
 
     for ext in extensions {
         let status = migration_service
@@ -84,9 +85,17 @@ async fn collect_status(
 
         let drift_versions: std::collections::HashSet<u32> =
             status.drift.iter().map(|d| d.version).collect();
+        let orphan_versions: std::collections::HashSet<u32> =
+            status.orphaned.iter().map(|o| o.version).collect();
+        let tombstone_versions: std::collections::HashSet<u32> =
+            status.tombstoned.iter().map(|t| t.version).collect();
 
         for a in &status.applied {
-            let label = if drift_versions.contains(&a.version) {
+            let label = if tombstone_versions.contains(&a.version) {
+                "tombstone"
+            } else if orphan_versions.contains(&a.version) {
+                "orphaned"
+            } else if drift_versions.contains(&a.version) {
                 "drift"
             } else {
                 "applied"
@@ -97,6 +106,15 @@ async fn collect_status(
                 name: a.name.clone(),
                 status: label.to_owned(),
                 applied_at: a.applied_at.clone(),
+            });
+        }
+        for t in status.tombstoned.iter().filter(|t| !t.tracked) {
+            rows.push(MigrateStatusRow {
+                extension_id: status.extension_id.clone(),
+                version: t.version,
+                name: t.name.clone(),
+                status: "tombstone".to_owned(),
+                applied_at: None,
             });
         }
         for p in &status.pending {
@@ -120,6 +138,7 @@ async fn collect_status(
 
         total_applied += status.applied.len();
         total_pending += status.pending.len();
+        total_orphaned += status.orphaned.len();
     }
 
     rows.sort_by(|a, b| {
@@ -135,13 +154,14 @@ async fn collect_status(
         total_applied,
         total_pending,
         total_drift,
+        total_orphaned,
     })
 }
 
 fn render_status_text(output: &MigrateStatusOutput) {
     CliService::info(&format!(
-        "Applied: {} | Pending: {} | Drift: {}",
-        output.total_applied, output.total_pending, output.total_drift
+        "Applied: {} | Pending: {} | Drift: {} | Orphaned: {}",
+        output.total_applied, output.total_pending, output.total_drift, output.total_orphaned
     ));
     CliService::info("");
     CliService::info(&format!(
@@ -153,6 +173,16 @@ fn render_status_text(output: &MigrateStatusOutput) {
         CliService::info(&format!(
             "  {:<24} {:>7} {:<32} {:<10} {}",
             r.extension_id, r.version, r.name, r.status, applied_at
+        ));
+    }
+
+    if output.total_orphaned > 0 {
+        CliService::info("");
+        CliService::warning(&format!(
+            "{} applied migration(s) are no longer declared by their extension. The files were \
+             deleted without leaving a tombstone, so those numbers look free but are spent. Add a \
+             `NNN_<name>.tombstone` beside the remaining migrations to record each one.",
+            output.total_orphaned
         ));
     }
 

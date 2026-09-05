@@ -102,6 +102,13 @@ impl MigrationService<'_> {
 
         let mut stamped = 0u32;
         for migration in &migrations {
+            // Why: a tombstone has no SQL, so stamping it would record a
+            // checksum of the empty string against a slot this database never
+            // used. The slot stays free of tracking rows here and spent in the
+            // tree, which is exactly the truth.
+            if migration.tombstone {
+                continue;
+            }
             let id = format!("{}_{:03}", ext_id, migration.version);
             let checksum = migration.checksum();
             if let Err(e) = tx

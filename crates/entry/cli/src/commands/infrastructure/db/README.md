@@ -269,7 +269,7 @@ sp infra db migrate --allow-checksum-drift
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--allow-checksum-drift` | `false` | Proceed even when applied migration checksums differ from disk |
+| `--allow-checksum-drift` | `false` | Proceed even when applied migration checksums differ from disk, or when an applied slot's recorded name differs from the file now occupying it |
 
 **Migration Process:**
 1. Loads all registered modules
@@ -350,13 +350,22 @@ sp --json infra db migrate-plan mcp
 
 ### db migrate-status
 
-Detailed, introspectable migration status: applied, pending, and drift.
+Detailed, introspectable migration status: applied, pending, drift, and spent slots.
 
 ```bash
 sp infra db migrate-status
 sp infra db migrate-status mcp
 sp --json infra db migrate-status
 ```
+
+**Row Statuses:**
+| Status | Meaning |
+|--------|---------|
+| `applied` | The migration ran and its checksum still matches the file |
+| `pending` | Declared on disk, not yet applied |
+| `drift` | Applied, but the file has been edited since |
+| `tombstone` | The slot is declared spent by a `NNN[-MMM]_<name>.tombstone` file; nothing to run |
+| `orphaned` | Applied, but no file claims the number any more — it was deleted without leaving a tombstone, so it reads as free while every established database has spent it. Add the tombstone to clear this. |
 
 **Optional Arguments/Flags:**
 | Argument/Flag | Description |

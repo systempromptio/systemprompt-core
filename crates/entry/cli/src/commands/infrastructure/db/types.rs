@@ -220,4 +220,7 @@ pub struct MigrateStatusOutput {
     pub total_applied: usize,
     pub total_pending: usize,
     pub total_drift: usize,
+    /// Applied slots the extension no longer declares — a migration file was
+    /// deleted without leaving a `.tombstone`, so the number reads as free.
+    pub total_orphaned: usize,
 }

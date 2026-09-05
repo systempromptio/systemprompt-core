@@ -18,7 +18,7 @@ pub use repair::RepairResult;
 pub use stamp::FreshnessCheck;
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
-    PendingMigration,
+    OrphanedMigration, PendingMigration, TombstonedSlot,
 };
 
 use crate::services::{DatabaseProvider, SqlExecutor};
@@ -123,22 +123,32 @@ impl<'a> MigrationService<'a> {
         self.ensure_migrations_table_exists().await?;
 
         let applied = self.get_applied_migrations(ext_id).await?;
-        let applied_versions: HashSet<u32> = applied.iter().map(|m| m.version).collect();
-        let applied_checksums: std::collections::HashMap<u32, &str> = applied
-            .iter()
-            .map(|m| (m.version, m.checksum.as_str()))
-            .collect();
+        let applied_rows: std::collections::HashMap<u32, &AppliedMigration> =
+            applied.iter().map(|m| (m.version, m)).collect();
+
+        warn_orphaned_versions(ext_id, &applied, &migrations);
 
         let mut migrations_run = 0;
         let mut migrations_skipped = 0;
 
         for migration in &migrations {
-            if applied_versions.contains(&migration.version) {
-                self.verify_checksum(
-                    ext_id,
-                    migration,
-                    applied_checksums.get(&migration.version).copied(),
-                )?;
+            let row = applied_rows.get(&migration.version).copied();
+
+            if migration.tombstone {
+                self.verify_slot_identity(ext_id, migration, row)?;
+                debug!(
+                    extension = %ext_id,
+                    version = migration.version,
+                    name = %migration.name,
+                    tracked = row.is_some(),
+                    "Migration slot is tombstoned, nothing to run"
+                );
+                continue;
+            }
+
+            if let Some(row) = row {
+                self.verify_slot_identity(ext_id, migration, Some(row))?;
+                self.verify_checksum(ext_id, migration, Some(row.checksum.as_str()))?;
                 migrations_skipped += 1;
                 debug!(
                     extension = %ext_id,
@@ -164,6 +174,39 @@ impl<'a> MigrationService<'a> {
         Ok(MigrationResult {
             migrations_run,
             migrations_skipped,
+        })
+    }
+
+    // Why: the recorded name is the only thing that distinguishes a migration
+    // edited in place from a slot whose file was deleted and its number reused.
+    // The checksum cannot tell them apart — it hashes the SQL alone.
+    fn verify_slot_identity(
+        &self,
+        ext_id: &str,
+        migration: &Migration,
+        stored: Option<&AppliedMigration>,
+    ) -> Result<(), LoaderError> {
+        let Some(stored) = stored else {
+            return Ok(());
+        };
+        if stored.name == migration.name {
+            return Ok(());
+        }
+        if self.config.allow_checksum_drift {
+            warn!(
+                extension = %ext_id,
+                version = migration.version,
+                stored_name = %stored.name,
+                current_name = %migration.name,
+                "Migration slot reuse tolerated by --allow-checksum-drift"
+            );
+            return Ok(());
+        }
+        Err(LoaderError::MigrationSlotReused {
+            extension: ext_id.to_owned(),
+            version: migration.version,
+            stored_name: stored.name.clone(),
+            current_name: migration.name.clone(),
         })
     }
 
@@ -271,4 +314,30 @@ impl<'a> MigrationService<'a> {
 
         Ok(())
     }
+}
+
+// Why: reported, never fatal. Databases predating tombstones carry rows for
+// every migration since deleted, and refusing to boot on those would strand
+// every established install. Adding the matching `.tombstone` file clears the
+// warning; `infra db migrate-status` lists the rows.
+pub(crate) fn orphaned_versions(applied: &[AppliedMigration], defined: &[Migration]) -> Vec<u32> {
+    let declared: HashSet<u32> = defined.iter().map(|m| m.version).collect();
+    applied
+        .iter()
+        .map(|m| m.version)
+        .filter(|version| !declared.contains(version))
+        .collect()
+}
+
+fn warn_orphaned_versions(ext_id: &str, applied: &[AppliedMigration], defined: &[Migration]) {
+    let orphaned = orphaned_versions(applied, defined);
+    if orphaned.is_empty() {
+        return;
+    }
+    warn!(
+        extension = %ext_id,
+        versions = ?orphaned,
+        "Applied migrations are no longer declared by the extension; their files were deleted \
+         without leaving a tombstone, so the numbers look free but are spent"
+    );
 }

@@ -26,6 +26,26 @@ pub struct PendingMigration {
     pub no_tx: bool,
 }
 
+/// An applied migration whose slot the extension no longer declares at all.
+///
+/// The file was deleted without leaving a `.tombstone`, so the number reads as
+/// free in the tree while every established database has spent it.
+#[derive(Debug, Clone)]
+pub struct OrphanedMigration {
+    pub extension_id: String,
+    pub version: u32,
+    pub name: String,
+}
+
+/// A slot declared spent by a `.tombstone` file.
+#[derive(Debug, Clone)]
+pub struct TombstonedSlot {
+    pub extension_id: String,
+    pub version: u32,
+    pub name: String,
+    pub tracked: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct ChecksumDrift {
     pub extension_id: String,
@@ -41,6 +61,8 @@ pub struct ExtensionMigrationStatus {
     pub applied: Vec<AppliedMigration>,
     pub pending: Vec<PendingMigration>,
     pub drift: Vec<ChecksumDrift>,
+    pub orphaned: Vec<OrphanedMigration>,
+    pub tombstoned: Vec<TombstonedSlot>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -81,14 +103,14 @@ impl MigrationService<'_> {
 
         Ok(defined
             .into_iter()
-            .filter(|m| !applied_versions.contains(&m.version))
+            .filter(|m| !m.tombstone && !applied_versions.contains(&m.version))
             .map(|m| PendingMigration {
                 extension_id: ext_id.to_owned(),
                 version: m.version,
                 name: m.name.clone(),
                 sql: m.sql,
                 checksum: m.checksum(),
-                no_tx: false,
+                no_tx: m.no_transaction,
             })
             .collect())
     }
@@ -111,8 +133,18 @@ impl MigrationService<'_> {
 
         let mut pending = Vec::new();
         let mut drift = Vec::new();
+        let mut tombstoned = Vec::new();
 
         for m in &defined {
+            if m.tombstone {
+                tombstoned.push(TombstonedSlot {
+                    extension_id: ext_id.to_owned(),
+                    version: m.version,
+                    name: m.name.clone(),
+                    tracked: applied_versions.contains(&m.version),
+                });
+                continue;
+            }
             let current_checksum = m.checksum();
             if applied_versions.contains(&m.version) {
                 if let Some(&stored_checksum) = applied_checksums.get(&m.version)
@@ -133,16 +165,30 @@ impl MigrationService<'_> {
                     name: m.name.clone(),
                     sql: m.sql,
                     checksum: current_checksum,
-                    no_tx: false,
+                    no_tx: m.no_transaction,
                 });
             }
         }
+
+        let orphaned = super::orphaned_versions(&applied, &defined)
+            .into_iter()
+            .map(|version| OrphanedMigration {
+                extension_id: ext_id.to_owned(),
+                version,
+                name: applied
+                    .iter()
+                    .find(|m| m.version == version)
+                    .map_or_else(String::new, |m| m.name.clone()),
+            })
+            .collect();
 
         Ok(ExtensionMigrationStatus {
             extension_id: ext_id.to_owned(),
             applied,
             pending,
             drift,
+            orphaned,
+            tombstoned,
         })
     }
 
@@ -160,7 +206,7 @@ impl MigrationService<'_> {
 
         let pending: Vec<_> = defined_migrations
             .iter()
-            .filter(|m| !applied_versions.contains(&m.version))
+            .filter(|m| !m.tombstone && !applied_versions.contains(&m.version))
             .cloned()
             .collect();
 

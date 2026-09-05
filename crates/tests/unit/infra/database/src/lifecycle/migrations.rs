@@ -1,7 +1,8 @@
 //! Unit tests for AppliedMigration, MigrationResult, MigrationStatus,
-//! PendingMigration, ChecksumDrift, and ExtensionMigrationStatus structs,
-//! plus the `MigrationService` runner (transactional wrapping,
-//! `no_transaction` opt-out, and `run_down_migrations` reversibility).
+//! PendingMigration, ChecksumDrift, OrphanedMigration, TombstonedSlot, and
+//! ExtensionMigrationStatus structs, plus the `MigrationService` runner
+//! (transactional wrapping, `no_transaction` opt-out, tombstoned slots, and
+//! `run_down_migrations` reversibility).
 
 use std::sync::{Arc, Mutex};
 
@@ -9,8 +10,8 @@ use async_trait::async_trait;
 use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
     DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome,
-    MigrationResult, MigrationService, MigrationStatus, PendingMigration, QueryResult,
-    QuerySelector, ToDbValue,
+    MigrationResult, MigrationService, MigrationStatus, OrphanedMigration, PendingMigration,
+    QueryResult, QuerySelector, ToDbValue, TombstonedSlot,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
@@ -1368,4 +1369,78 @@ async fn an_extension_with_no_migrations_short_circuits_before_touching_the_ledg
          table: {:?}",
         log.snapshot()
     );
+}
+
+#[test]
+fn tombstone_declares_a_spent_slot_with_no_sql() {
+    let migration = Migration::tombstone(34, "knowledge_bank");
+
+    assert_eq!(migration.version, 34);
+    assert_eq!(migration.name, "knowledge_bank");
+    assert!(migration.tombstone);
+    assert!(migration.sql.is_empty());
+    assert!(migration.down.is_none());
+    assert!(!migration.no_transaction);
+}
+
+#[test]
+fn a_real_migration_is_never_a_tombstone() {
+    assert!(!Migration::new(1, "a", "SELECT 1;").tombstone);
+    assert!(!Migration::with_down(1, "a", "SELECT 1;", "SELECT 2;").tombstone);
+    assert!(!Migration::new_no_transaction(1, "a", "SELECT 1;").tombstone);
+}
+
+#[tokio::test]
+async fn a_tombstoned_slot_is_neither_executed_nor_recorded() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "tombstone_ext",
+        migrations: vec![Migration::tombstone(1, "deleted_long_ago")],
+    };
+
+    let result = service
+        .run_pending_migrations(&extension)
+        .await
+        .expect("a tombstone must never fail the run");
+
+    assert_eq!(result.migrations_run, 0);
+    assert_eq!(result.migrations_skipped, 0);
+    assert!(
+        !log.snapshot().iter().any(|e| e == "begin"),
+        "a spent slot opens no transaction: {:?}",
+        log.snapshot()
+    );
+}
+
+#[test]
+fn orphaned_migration_names_the_slot_no_file_claims() {
+    let orphan = OrphanedMigration {
+        extension_id: "web".to_owned(),
+        version: 34,
+        name: "knowledge_bank".to_owned(),
+    };
+
+    assert_eq!(orphan.version, 34);
+    assert_eq!(orphan.name, "knowledge_bank");
+}
+
+#[test]
+fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
+    let tracked = TombstonedSlot {
+        extension_id: "web".to_owned(),
+        version: 34,
+        name: "knowledge_bank".to_owned(),
+        tracked: true,
+    };
+    let untracked = TombstonedSlot {
+        tracked: false,
+        ..tracked.clone()
+    };
+
+    assert!(tracked.tracked);
+    assert!(!untracked.tracked);
+    assert_eq!(untracked.version, 34);
 }
