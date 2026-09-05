@@ -108,6 +108,7 @@ mod setup_catalog;
 mod setup_ddl;
 mod setup_docker_compose;
 mod setup_postgres;
+mod setup_secrets_collect_fs;
 mod setup_secrets_prompts;
 mod setup_wizard_helpers;
 mod setup_wizard_prompts_fs;

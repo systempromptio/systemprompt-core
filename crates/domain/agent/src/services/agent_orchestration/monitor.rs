@@ -69,17 +69,12 @@ impl AgentMonitor {
 
         for (agent_id, status) in agents {
             match status {
-                crate::services::agent_orchestration::AgentStatus::Running { pid, port } => {
-                    if process::process_exists(pid) {
-                        let health_result = perform_tcp_health_check("127.0.0.1", port).await?;
-                        if health_result.healthy {
-                            report.healthy.push(agent_id);
-                        } else {
-                            report.unhealthy.push(agent_id);
-                        }
+                crate::services::agent_orchestration::AgentStatus::Running { port, .. } => {
+                    let health_result = perform_tcp_health_check("127.0.0.1", port).await?;
+                    if health_result.healthy {
+                        report.healthy.push(agent_id);
                     } else {
-                        self.db_service.mark_failed(&agent_id).await?;
-                        report.failed.push(agent_id);
+                        report.unhealthy.push(agent_id);
                     }
                 },
                 crate::services::agent_orchestration::AgentStatus::Failed { .. } => {
