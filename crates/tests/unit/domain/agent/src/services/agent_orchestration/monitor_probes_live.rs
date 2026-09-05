@@ -96,7 +96,7 @@ async fn check_a2a_agent_health_rejects_a_reachable_server_that_answers_with_an_
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/.well-known/agent-card.json"))
-        .respond_with(ResponseTemplate::new(500))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"name":"a","url":"b"})))
         .mount(&server)
         .await;
 
