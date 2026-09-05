@@ -20,7 +20,7 @@ use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use systemprompt_models::wire::gemini::{
-        build_request_body, parse_response, sse_to_canonical_events,
+        buffered_defect, build_request_body, parse_response, sse_to_canonical_events,
     };
 }
 
@@ -73,6 +73,14 @@ impl OutboundAdapter for GeminiOutbound {
             .map_err(|e| anyhow!("Failed to read Gemini response: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Gemini response not valid JSON: {e}"))?;
+        if let Some(defect) = gemini::buffered_defect(&value) {
+            return Err(super::reject_defective_body(
+                ctx.route.provider.as_str(),
+                "gemini",
+                &defect,
+                &bytes,
+            ));
+        }
         let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str());
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }

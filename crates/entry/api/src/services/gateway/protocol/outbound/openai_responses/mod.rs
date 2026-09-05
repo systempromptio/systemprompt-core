@@ -18,7 +18,7 @@ use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use systemprompt_models::wire::openai_responses::{
-        build_request_body, parse_response_object, sse_to_canonical_events,
+        buffered_defect, build_request_body, parse_response_object, sse_to_canonical_events,
     };
 }
 
@@ -66,6 +66,14 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
             .map_err(|e| anyhow!("Failed to read Responses body: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Responses body not valid JSON: {e}"))?;
+        if let Some(defect) = codec::buffered_defect(&value) {
+            return Err(super::reject_defective_body(
+                ctx.route.provider.as_str(),
+                "openai-responses",
+                &defect,
+                &bytes,
+            ));
+        }
         let canon = codec::parse_response_object(&value, &ctx.request.model);
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }

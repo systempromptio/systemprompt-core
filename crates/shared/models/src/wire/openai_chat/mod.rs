@@ -31,7 +31,7 @@ mod stream_delta;
 mod streaming;
 
 pub use request::build_request_body;
-pub use response::parse_response;
+pub use response::{buffered_defect, parse_response};
 pub use streaming::sse_to_canonical_events;
 
 use crate::services::ai::ModelLimits;

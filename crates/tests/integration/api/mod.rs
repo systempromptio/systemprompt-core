@@ -301,6 +301,10 @@ mod gateway_matrix_null_fields;
 mod gateway_upstream_error_map;
 
 #[cfg(test)]
+#[path = "gateway_empty_upstream_body.rs"]
+mod gateway_empty_upstream_body;
+
+#[cfg(test)]
 #[path = "routes_content_blog.rs"]
 mod routes_content_blog;
 

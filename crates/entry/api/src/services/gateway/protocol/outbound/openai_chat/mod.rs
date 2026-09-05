@@ -22,7 +22,7 @@ mod raw;
 pub mod test_api {
     pub use super::raw::normalize_raw_body;
     pub use systemprompt_models::wire::openai_chat::{
-        build_request_body, parse_response, sse_to_canonical_events,
+        buffered_defect, build_request_body, parse_response, sse_to_canonical_events,
     };
 }
 
@@ -78,6 +78,14 @@ impl OutboundAdapter for OpenAiChatOutbound {
             .map_err(|e| anyhow!("Failed to read OpenAI response: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("OpenAI response not valid JSON: {e}"))?;
+        if let Some(defect) = codec::buffered_defect(&value) {
+            return Err(super::reject_defective_body(
+                ctx.route.provider.as_str(),
+                "openai-chat",
+                &defect,
+                &bytes,
+            ));
+        }
         let canon = codec::parse_response(&value, &ctx.request.model);
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }

@@ -24,6 +24,7 @@ pub mod test_api {
     pub use super::request::build_request_body;
     pub use super::response::parse_response;
     pub use super::streaming::sse_to_canonical_events;
+    pub use systemprompt_models::wire::anthropic::buffered_defect;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -84,6 +85,14 @@ impl OutboundAdapter for AnthropicOutbound {
             .map_err(|e| anyhow!("Failed to read Anthropic response: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Anthropic response not valid JSON: {e}"))?;
+        if let Some(defect) = anthropic::buffered_defect(&value) {
+            return Err(super::reject_defective_body(
+                ctx.route.provider.as_str(),
+                "anthropic",
+                &defect,
+                &bytes,
+            ));
+        }
         let canonical = Box::new(response::parse_response(&value, ctx.request.model.as_str()));
         if passthrough {
             return Ok(OutboundOutcome::RawBuffered {

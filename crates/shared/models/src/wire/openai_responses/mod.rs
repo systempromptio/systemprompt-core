@@ -35,5 +35,5 @@ fn derive_stop_reason(has_tool_use: bool, incomplete_reason: Option<&str>) -> Ca
 }
 
 pub use request::build_request_body;
-pub use response::parse_response_object;
+pub use response::{buffered_defect, parse_response_object};
 pub use streaming::sse_to_canonical_events;

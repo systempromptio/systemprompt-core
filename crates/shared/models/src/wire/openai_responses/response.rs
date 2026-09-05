@@ -12,6 +12,7 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, GroundedSource,
     Grounding,
 };
+use crate::wire::defect::{BodyDefect, buffered_body_defect};
 
 #[derive(Debug, Default, Deserialize)]
 struct ResponseObject {
@@ -245,4 +246,12 @@ fn collect_output_item(
         },
         OutputItem::Unknown => {},
     }
+}
+
+// Why: runs before `parse_response`, which is total and would turn a body
+// carrying nothing into a well-formed empty turn. `None` means the body is
+// worth parsing.
+#[must_use]
+pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
+    buffered_body_defect(value, "output", "usage")
 }

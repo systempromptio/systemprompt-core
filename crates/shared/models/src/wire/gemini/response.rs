@@ -22,6 +22,7 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CodeExecutionOutput,
     GroundedSource, Grounding,
 };
+use crate::wire::defect::{BodyDefect, buffered_body_defect};
 
 const GEMINI_GROUNDING_RELEVANCE: f32 = 0.85;
 
@@ -178,4 +179,12 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
             _ => None,
         })
         .collect()
+}
+
+// Why: runs before `parse_response`, which is total and would turn a body
+// carrying nothing into a well-formed empty turn. `None` means the body is
+// worth parsing.
+#[must_use]
+pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
+    buffered_body_defect(value, "candidates", "usageMetadata")
 }

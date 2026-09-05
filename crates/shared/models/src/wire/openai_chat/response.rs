@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
+use crate::wire::defect::{BodyDefect, buffered_body_defect};
 
 #[derive(Debug, Default, Deserialize)]
 struct ChatCompletion {
@@ -212,4 +213,12 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
             signature: None,
         });
     }
+}
+
+// Why: runs before `parse_response`, which is total and would turn a body
+// carrying nothing into a well-formed empty turn. `None` means the body is
+// worth parsing.
+#[must_use]
+pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
+    buffered_body_defect(value, "choices", "usage")
 }

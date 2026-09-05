@@ -156,3 +156,37 @@ pub struct OutboundAdapterRegistration {
 }
 
 inventory::collect!(OutboundAdapterRegistration);
+
+/// Status the gateway reports when an upstream answers 2xx with a body that
+/// carries no turn. It is an upstream failure, not a client error, so it maps
+/// the same way a genuine 502 from the provider would.
+const DEFECTIVE_BODY_STATUS: u16 = 502;
+
+// Why: a buffered parser is total and will happily turn `{}` into a
+// well-formed canonical response with empty content and zero usage, which the
+// gateway then relays as a successful turn in which the model said nothing.
+// Rejecting here converts that into the upstream failure it always was, and
+// the raw body reaches both the log and the audit row so the cause is visible.
+pub(in crate::services::gateway) fn reject_defective_body(
+    provider: &str,
+    wire: &str,
+    defect: &systemprompt_models::wire::defect::BodyDefect,
+    body: &bytes::Bytes,
+) -> anyhow::Error {
+    let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
+    tracing::warn!(
+        provider = %provider,
+        wire = %wire,
+        defect = %defect,
+        body = %excerpt,
+        "upstream returned a success status with a body carrying no turn"
+    );
+    anyhow::Error::new(UpstreamError::Status {
+        provider: provider.to_owned(),
+        status: DEFECTIVE_BODY_STATUS,
+        message: format!("{defect}: {excerpt}"),
+        body: body.clone(),
+        retry_after: None,
+        request_id: None,
+    })
+}
