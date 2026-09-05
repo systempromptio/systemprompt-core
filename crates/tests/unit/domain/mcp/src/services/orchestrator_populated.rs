@@ -32,10 +32,7 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     }
 }
 
-async fn orchestrator_with_config_or_skip(
-    blocks: &[String],
-    internal: &[&str],
-) -> Option<McpOrchestrator> {
+async fn orchestrator_with_config_or_skip(blocks: &[String], internal: &[&str]) -> Option<McpOrchestrator> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let bootstrap = bootstrap_with_services(&config_with_servers(blocks));
@@ -169,8 +166,7 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
 async fn validate_internal_server_without_running_row_is_ok() {
     let port = free_port();
     let name = unique("valint");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -188,8 +184,7 @@ async fn validate_internal_running_server_probes_local_port() {
     let mock = MockServer::builder().listener(listener).start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valrun");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -229,8 +224,7 @@ async fn validate_internal_running_server_probes_local_port() {
 async fn start_services_named_with_missing_binary_fails_and_publishes_failure() {
     let port = free_port();
     let name = unique("startfail");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -264,8 +258,7 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
 async fn start_services_unknown_name_matches_nothing_and_succeeds() {
     let port = free_port();
     let name = unique("startnone");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -279,8 +272,7 @@ async fn start_services_unknown_name_matches_nothing_and_succeeds() {
 async fn reconcile_with_failing_internal_server_aggregates_the_failure() {
     let port = free_port();
     let name = unique("recfail");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -321,8 +313,7 @@ async fn reconcile_external_only_registry_starts_nothing() {
 async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
     let port = free_port();
     let name = unique("restart");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -368,8 +359,7 @@ async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
 async fn restart_services_publishes_restart_requested_event() {
     let port = free_port();
     let name = unique("restartreq");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -417,8 +407,7 @@ async fn restart_services_publishes_restart_requested_event() {
 async fn stop_services_named_internal_without_row_publishes_stopped() {
     let port = free_port();
     let name = unique("stopper");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };
@@ -513,8 +502,7 @@ async fn list_services_and_show_status_render_the_populated_registry() {
 async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let port = free_port();
     let name = unique("reckill");
-    let Some(o) =
-        orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
+    let Some(o) = orchestrator_with_config_or_skip(&[internal_server_block(&name, port)], &[&name]).await
     else {
         return;
     };

@@ -6,8 +6,7 @@ use systemprompt_security::policy::governed::GovernedInput;
 
 const BLOB: &str = "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM";
 
-const PEM: &str =
-    "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----";
+const PEM: &str = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----";
 
 fn parts(pairs: &[(&str, &str)]) -> GovernedInput {
     GovernedInput::prompt_parts(

@@ -102,8 +102,7 @@ async fn a_tool_reporting_an_error_surfaces_its_message() {
     )]);
     failing.is_error = Some(true);
 
-    let Some(executor) =
-        executor_or_skip(StubAiProvider::new().with_tool_result("broken", failing)).await
+    let Some(executor) = executor_or_skip(StubAiProvider::new().with_tool_result("broken", failing)).await
     else {
         return;
     };
@@ -127,8 +126,7 @@ async fn a_tool_error_without_text_content_falls_back_to_unknown() {
     let mut failing = CallToolResult::error(vec![]);
     failing.is_error = Some(true);
 
-    let Some(executor) =
-        executor_or_skip(StubAiProvider::new().with_tool_result("silent", failing)).await
+    let Some(executor) = executor_or_skip(StubAiProvider::new().with_tool_result("silent", failing)).await
     else {
         return;
     };
@@ -149,8 +147,7 @@ async fn a_tool_error_without_text_content_falls_back_to_unknown() {
 async fn a_successful_tool_without_structured_content_is_rejected() {
     let bare = CallToolResult::success(vec![ContentBlock::text("prose only".to_owned())]);
 
-    let Some(executor) =
-        executor_or_skip(StubAiProvider::new().with_tool_result("prose", bare)).await
+    let Some(executor) = executor_or_skip(StubAiProvider::new().with_tool_result("prose", bare)).await
     else {
         return;
     };

@@ -15,9 +15,7 @@ async fn get_db_or_skip() -> Option<DbPool> {
 
 #[tokio::test]
 async fn handler_new_succeeds() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = get_db_or_skip().await else { return };
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -27,9 +25,7 @@ async fn handler_new_succeeds() {
 
 #[tokio::test]
 async fn handler_with_timeouts_succeeds() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = get_db_or_skip().await else { return };
     let timeouts = SessionTimeouts {
         init: Some(std::time::Duration::from_secs(5)),
         keep_alive: Some(std::time::Duration::from_secs(30)),
@@ -46,9 +42,7 @@ async fn handler_with_timeouts_succeeds() {
 
 #[tokio::test]
 async fn create_then_close_session_lifecycle() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = get_db_or_skip().await else { return };
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -77,9 +71,7 @@ async fn create_then_close_session_lifecycle() {
 
 #[tokio::test]
 async fn close_unknown_session_is_idempotent() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = get_db_or_skip().await else { return };
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -92,9 +84,7 @@ async fn close_unknown_session_is_idempotent() {
 
 #[tokio::test]
 async fn has_session_returns_false_for_unknown() {
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = get_db_or_skip().await else { return };
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -108,9 +98,7 @@ async fn has_session_returns_false_for_unknown() {
 #[tokio::test]
 async fn mcp_state_exposes_db_pool() {
     use systemprompt_mcp::McpState;
-    let Some(db) = get_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = get_db_or_skip().await else { return };
     let state = McpState::new(db.clone());
     let _ = state.db_pool();
     let _ = format!("{state:?}");

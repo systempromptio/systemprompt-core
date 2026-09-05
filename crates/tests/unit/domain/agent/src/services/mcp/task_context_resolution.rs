@@ -11,7 +11,9 @@
 //! same validator, so no `ContextId` can hold an empty string.
 
 use systemprompt_agent::services::mcp::task_helper::ensure_task_exists;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
@@ -67,10 +69,7 @@ async fn a_call_that_already_carries_a_task_reuses_it_and_disclaims_ownership() 
         .await
         .expect("an inherited task is not an error");
 
-    assert_eq!(
-        result.task_id, parent_task,
-        "the parent task must be reused"
-    );
+    assert_eq!(result.task_id, parent_task, "the parent task must be reused");
     assert!(
         !result.is_owner,
         "an inherited task is not owned by this call, so it must not be closed by it"

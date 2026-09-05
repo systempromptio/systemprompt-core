@@ -101,9 +101,7 @@ async fn cleanup(db: &DbPool, tags: &[&str]) {
 async fn generate_sitemap_skips_disabled_sources_and_disabled_sitemaps() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     let tag = "smapextraskip";
     let off = format!("{tag}-off");
@@ -140,9 +138,7 @@ async fn generate_sitemap_skips_disabled_sources_and_disabled_sitemaps() {
 async fn generate_sitemap_excludes_unsupported_locales_from_alternates() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     let tag = "smapextradeloc";
     cleanup(&db, &[tag]).await;

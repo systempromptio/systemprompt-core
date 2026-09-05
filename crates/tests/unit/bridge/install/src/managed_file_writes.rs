@@ -119,13 +119,16 @@ fn a_removal_refused_for_permissions_reports_that_root_is_needed() {
     write_managed_file(&path, b"{}", PROMPT).expect("write while still writable");
     sealed(dir.path());
 
-    let err =
-        remove_managed_file(&path, PROMPT).expect_err("an unwritable directory refuses the unlink");
+    let err = remove_managed_file(&path, PROMPT)
+        .expect_err("an unwritable directory refuses the unlink");
 
     unseal(dir.path());
 
     assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
-    assert!(err.to_string().contains("re-run as root"), "got {err}");
+    assert!(
+        err.to_string().contains("re-run as root"),
+        "got {err}"
+    );
     drop(dir);
 }
 

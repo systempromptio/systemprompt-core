@@ -43,10 +43,7 @@ impl ScriptedTaskServer {
 impl Respond for ScriptedTaskServer {
     fn respond(&self, request: &Request) -> ResponseTemplate {
         let body: Value = serde_json::from_slice(&request.body).unwrap_or(Value::Null);
-        let rpc_method = body
-            .get("method")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
+        let rpc_method = body.get("method").and_then(Value::as_str).unwrap_or_default();
         if rpc_method.starts_with("notifications/") {
             return ResponseTemplate::new(202);
         }

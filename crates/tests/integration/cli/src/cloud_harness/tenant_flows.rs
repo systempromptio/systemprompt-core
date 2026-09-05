@@ -125,9 +125,7 @@ async fn tenant_create_external_rejects_empty_inputs() {
 
 #[tokio::test]
 async fn tenant_create_external_full_flow() {
-    let Some(url) = database_url_or_skip() else {
-        return;
-    };
+    let Some(url) = database_url_or_skip() else { return };
     let env = enter().await;
     let profiles = env.root().join(".systemprompt/profiles/ext-prof");
     if profiles.exists() {

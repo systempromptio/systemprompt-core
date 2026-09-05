@@ -16,26 +16,20 @@ use systemprompt_cli_integration_tests::full_bootstrap::{
 };
 
 fn stdout_has(args: &[&str], needle: &str) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     cmd.assert().success().stdout(contains(needle));
 }
 
 fn stderr_has(args: &[&str], needle: &str) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     cmd.assert().success().stderr(contains(needle));
 }
 
 fn drive_formats(args: &[&str]) {
     for fmt in ["--json", "--yaml"] {
-        let Some(mut cmd) = command_or_skip() else {
-            return;
-        };
+        let Some(mut cmd) = command_or_skip() else { return };
         cmd.arg(fmt);
         cmd.args(args);
         let _ = cmd.assert();
@@ -58,9 +52,7 @@ fn stderr_has_fmt(args: &[&str], needle: &str) {
 // either still proves the handler ran to completion and produced its own
 // output.
 fn stderr_has_any(args: &[&str], needles: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     let out = cmd.assert().success();
     let stderr = String::from_utf8_lossy(&out.get_output().stderr).into_owned();
@@ -72,9 +64,7 @@ fn stderr_has_any(args: &[&str], needles: &[&str]) {
 }
 
 fn fails_with(args: &[&str], needle: &str) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     cmd.assert().failure().stderr(contains(needle));
 }

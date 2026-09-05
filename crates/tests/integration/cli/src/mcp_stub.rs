@@ -15,9 +15,7 @@ use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::full_bootstrap::{
-    database_url_or_skip, fixture_mcp_server, fixture_or_skip, rewrite_services_config,
-};
+use crate::full_bootstrap::{database_url_or_skip, fixture_or_skip, fixture_mcp_server, rewrite_services_config};
 
 static STUB: OnceLock<Option<u16>> = OnceLock::new();
 static IDENTITY_HOLDER: OnceLock<Child> = OnceLock::new();

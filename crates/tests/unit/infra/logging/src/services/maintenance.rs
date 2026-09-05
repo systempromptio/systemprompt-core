@@ -34,9 +34,7 @@ fn seeded_entry(module: &str, message: &str) -> LogEntry {
 
 #[tokio::test]
 async fn maintenance_service_reads_counts_and_cleans() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let svc = LoggingMaintenanceService::new(&db).expect("maintenance service");
     let repo = systemprompt_logging::LoggingRepository::new(&db)
         .unwrap()
@@ -72,9 +70,7 @@ async fn maintenance_service_reads_counts_and_cleans() {
 
 #[tokio::test]
 async fn analytics_log_event_persists_row() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = AnalyticsRepository::new(&db).expect("analytics repo");
 
     let tag = uuid::Uuid::new_v4().simple().to_string();

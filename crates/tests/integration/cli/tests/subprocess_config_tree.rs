@@ -2,22 +2,16 @@
 //! profile and AI policy files: provider, catalog, gateway, runtime, server,
 //! security, paths, governance, and secret.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{
-    command_or_skip, fixture_or_skip, run, run_with_formats,
-};
+use systemprompt_cli_integration_tests::full_bootstrap::{command_or_skip, fixture_or_skip, run, run_with_formats};
 
 fn run_ok(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     cmd.assert().success();
 }
 
 fn run_err(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     cmd.assert().failure();
 }

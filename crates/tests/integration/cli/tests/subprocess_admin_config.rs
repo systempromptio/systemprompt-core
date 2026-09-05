@@ -204,9 +204,7 @@ fn rate_limits_reset_scoped_variants() {
 
 #[test]
 fn rate_limits_export_import_roundtrip() {
-    let Some(fixture) = fixture_or_skip() else {
-        return;
-    };
+    let Some(fixture) = fixture_or_skip() else { return };
     let path = fixture.system_dir.join("rate_limits_export.yaml");
     let path_str = path.to_string_lossy().into_owned();
     run(&[

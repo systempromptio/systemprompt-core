@@ -49,17 +49,13 @@ fn make_entry(module: &str, msg: &str, actor: &(UserId, SessionId, TraceId)) -> 
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     drop(LoggingRepository::new(&db).expect("repo new"));
 }
 
 #[tokio::test]
 async fn log_with_database_persists_then_fetch_by_id() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -81,9 +77,7 @@ async fn log_with_database_persists_then_fetch_by_id() {
 
 #[tokio::test]
 async fn log_terminal_only_does_not_persist() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -97,9 +91,7 @@ async fn log_terminal_only_does_not_persist() {
 
 #[tokio::test]
 async fn log_rejects_invalid_entry() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -113,9 +105,7 @@ async fn log_rejects_invalid_entry() {
 
 #[tokio::test]
 async fn get_recent_logs_returns_inserted_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -139,9 +129,7 @@ async fn get_recent_logs_returns_inserted_rows() {
 
 #[tokio::test]
 async fn get_logs_paginated_with_filter() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -173,9 +161,7 @@ async fn get_logs_paginated_with_filter() {
 
 #[tokio::test]
 async fn get_logs_by_module_patterns() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -197,9 +183,7 @@ async fn get_logs_by_module_patterns() {
 
 #[tokio::test]
 async fn update_log_entry_updates_message() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -221,9 +205,7 @@ async fn update_log_entry_updates_message() {
 
 #[tokio::test]
 async fn cleanup_old_logs_removes_old_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let repo = LoggingRepository::new(&db)
         .unwrap()
         .with_terminal(false)
@@ -246,18 +228,14 @@ async fn cleanup_old_logs_removes_old_rows() {
 
 #[tokio::test]
 async fn database_log_service_construction() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let svc = DatabaseLogService::new(&db).expect("ctor");
     let _r = svc.repository();
 }
 
 #[tokio::test]
 async fn analytics_repository_constructs() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let Some(db) = pool_or_skip().await else { return };
     let _repo = AnalyticsRepository::new(&db).expect("repo");
 }
 

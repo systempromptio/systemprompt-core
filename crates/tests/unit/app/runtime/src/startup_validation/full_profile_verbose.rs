@@ -169,7 +169,8 @@ fn malformed_ancillary_configs_degrade_to_warnings_not_errors() {
 fn restrictive_rate_limits_surface_as_domain_warnings() {
     let Some(fixture) = boot(&BootOptions {
         stream_per_second: 5,
-        ..BootOptions::default() // skip-ok: no bootable profile on this machine
+        ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };

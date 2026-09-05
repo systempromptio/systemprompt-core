@@ -88,7 +88,10 @@ fn xml_metacharacters_are_escaped_in_both_keys_and_values() {
 
 #[test]
 fn as_str_answers_only_for_the_string_variant() {
-    assert_eq!(PolicyDocumentValue::Str("v".to_owned()).as_str(), Some("v"));
+    assert_eq!(
+        PolicyDocumentValue::Str("v".to_owned()).as_str(),
+        Some("v")
+    );
     assert_eq!(PolicyDocumentValue::Bool(true).as_str(), None);
     assert_eq!(PolicyDocumentValue::StrList(vec![]).as_str(), None);
     assert_eq!(PolicyDocumentValue::Dicts(vec![]).as_str(), None);
@@ -125,18 +128,12 @@ fn a_json_array_of_objects_becomes_a_dict_array_and_a_bare_object_becomes_a_one_
         panic!("expected a dict array");
     };
     assert_eq!(dicts.len(), 1);
-    assert_eq!(
-        dicts[0].get("k"),
-        Some(&PolicyDocumentValue::Str("v".to_owned()))
-    );
+    assert_eq!(dicts[0].get("k"), Some(&PolicyDocumentValue::Str("v".to_owned())));
 }
 
 #[test]
 fn json_nulls_and_numbers_have_no_policy_representation() {
-    assert_eq!(
-        PolicyDocumentValue::from_json(&serde_json::json!(null)),
-        None
-    );
+    assert_eq!(PolicyDocumentValue::from_json(&serde_json::json!(null)), None);
     assert_eq!(PolicyDocumentValue::from_json(&serde_json::json!(7)), None);
 }
 
@@ -218,9 +215,5 @@ fn on_a_host_with_no_managed_policy_backend_every_read_is_empty_and_every_write_
             .expect("delete"),
         0
     );
-    assert!(
-        !store
-            .delete_policy_key(PolicyHive::Machine)
-            .expect("delete")
-    );
+    assert!(!store.delete_policy_key(PolicyHive::Machine).expect("delete"));
 }

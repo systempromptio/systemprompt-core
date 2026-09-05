@@ -24,10 +24,6 @@ mod hermes_merge;
 #[cfg(test)]
 mod codex_install;
 #[cfg(test)]
-mod enrol_hosts;
-#[cfg(test)]
-mod enrol_report;
-#[cfg(test)]
 mod host_app_contract;
 #[cfg(all(test, target_os = "linux"))]
 mod keystore_linux;
@@ -56,4 +52,8 @@ mod reapply_decision;
 #[cfg(test)]
 mod reg_profile;
 #[cfg(test)]
+mod enrol_report;
+#[cfg(test)]
 mod start_menu_cache;
+#[cfg(test)]
+mod enrol_hosts;

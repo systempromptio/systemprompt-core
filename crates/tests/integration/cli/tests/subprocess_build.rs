@@ -18,18 +18,14 @@ fn project_root_dir() -> tempfile::TempDir {
 
 #[test]
 fn build_without_subcommand_fails() {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.arg("build");
     cmd.assert().failure();
 }
 
 #[test]
 fn build_core_outside_project_root_fails() {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     let dir = empty_dir();
     cmd.current_dir(dir.path());
     cmd.args(["build", "core"]);
@@ -40,9 +36,7 @@ fn build_core_outside_project_root_fails() {
 
 #[test]
 fn build_core_release_offline_outside_project_root_fails() {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     let dir = empty_dir();
     cmd.current_dir(dir.path());
     cmd.args(["build", "core", "--release", "--offline"]);
@@ -51,9 +45,7 @@ fn build_core_release_offline_outside_project_root_fails() {
 
 #[test]
 fn build_mcp_outside_project_root_fails() {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     let dir = empty_dir();
     cmd.current_dir(dir.path());
     cmd.args(["build", "mcp"]);
@@ -64,9 +56,7 @@ fn build_mcp_outside_project_root_fails() {
 
 #[test]
 fn build_mcp_with_no_extensions_reports_empty() {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     let dir = project_root_dir();
     cmd.current_dir(dir.path());
     cmd.args(["build", "mcp"]);
@@ -75,9 +65,7 @@ fn build_mcp_with_no_extensions_reports_empty() {
 
 #[test]
 fn build_mcp_with_no_extensions_json() {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     let dir = project_root_dir();
     cmd.current_dir(dir.path());
     cmd.args(["--json", "build", "mcp", "--release"]);
@@ -88,9 +76,7 @@ fn build_mcp_with_no_extensions_json() {
 
 #[test]
 fn build_core_rejects_unknown_flag() {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(["build", "core", "--no-such-flag"]);
     cmd.assert().failure();
 }

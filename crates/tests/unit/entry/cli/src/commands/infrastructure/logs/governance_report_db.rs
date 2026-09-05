@@ -71,9 +71,8 @@ async fn seed_decision(
     tool: &str,
     reason: &str,
 ) {
-    let repo = GovernanceDecisionRepository::from_pool(
-        pool.write_pool_arc().expect("a write pool handle"),
-    );
+    let repo =
+        GovernanceDecisionRepository::from_pool(pool.write_pool_arc().expect("a write pool handle"));
     let id = Uuid::new_v4().to_string();
     let actor = Actor::user(user.clone());
     let evaluated = serde_json::json!([]);

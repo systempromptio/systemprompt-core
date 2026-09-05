@@ -326,11 +326,7 @@ fn from_services_records_which_plugin_selects_each_skill() {
     assert!(!sources.skill_owners.contains_key("never"));
     assert!(sources.is_marketplace_member(EntityKind::McpServer, "odoo"));
     assert_eq!(
-        sources
-            .marketplaces
-            .keys()
-            .cloned()
-            .collect::<BTreeSet<_>>(),
+        sources.marketplaces.keys().cloned().collect::<BTreeSet<_>>(),
         market_set(&["market"])
     );
     assert_eq!(
@@ -346,10 +342,7 @@ fn two_market_index(
 ) -> ParentChainIndex {
     index_with(
         vec![
-            (
-                "alpha",
-                market_parent_named("alpha", alpha_rules, Some(false)),
-            ),
+            ("alpha", market_parent_named("alpha", alpha_rules, Some(false))),
             ("beta", market_parent_named("beta", beta_rules, Some(false))),
         ],
         vec![(
@@ -372,10 +365,7 @@ fn plugin_in_two_marketplaces_is_allowed_when_either_admits() {
         vec![rule("user", Access::Allow)],
     );
 
-    assert_eq!(
-        index.chains_for(EntityKind::Plugin, "shared-plugin").len(),
-        2
-    );
+    assert_eq!(index.chains_for(EntityKind::Plugin, "shared-plugin").len(), 2);
     assert!(matches!(
         decide(&index, EntityKind::Plugin, "shared-plugin", &["user"]),
         Decision::Allow { .. }
@@ -396,11 +386,7 @@ fn plugin_in_two_marketplaces_denied_by_both_reports_first_deny_in_id_order() {
 
     let chains = index.chains_for(EntityKind::Plugin, "shared-plugin");
     let ids: Vec<&str> = chains.iter().map(|c| c[0].entity.id_str()).collect();
-    assert_eq!(
-        ids,
-        ["alpha", "beta"],
-        "chains are ordered by marketplace id"
-    );
+    assert_eq!(ids, ["alpha", "beta"], "chains are ordered by marketplace id");
     assert!(matches!(
         decide(&index, EntityKind::Plugin, "shared-plugin", &["user"]),
         Decision::Deny { .. }
@@ -463,10 +449,7 @@ fn skill_owned_by_plugins_in_different_marketplaces_gets_one_chain_per_pair() {
             ("beta", market_parent_named("beta", vec![], Some(true))),
         ],
         vec![
-            (
-                "shared-plugin",
-                plugin_parent("shared-plugin", vec![], None),
-            ),
+            ("shared-plugin", plugin_parent("shared-plugin", vec![], None)),
             ("solo-plugin", plugin_parent("solo-plugin", vec![], None)),
         ],
         sources,

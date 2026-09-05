@@ -133,7 +133,10 @@ fn a_settings_file_that_is_not_valid_json_is_reported_and_names_the_path() {
             rendered.contains("settings.json"),
             "the error must name the file, got {rendered}"
         );
-        assert!(rendered.contains("not valid JSON"), "got {rendered}");
+        assert!(
+            rendered.contains("not valid JSON"),
+            "got {rendered}"
+        );
     });
 }
 

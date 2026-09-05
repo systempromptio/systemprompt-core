@@ -175,9 +175,7 @@ fn ensure_app_paths() -> AppPaths {
 #[tokio::test]
 async fn generate_sitemap_with_empty_sources_writes_sitemap_xml() {
     let paths = ensure_app_paths();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     generate_sitemap(content_repo(&db), &paths).await.unwrap();
     assert!(paths.web().dist().join("sitemap.xml").exists());
 }
@@ -185,9 +183,7 @@ async fn generate_sitemap_with_empty_sources_writes_sitemap_xml() {
 #[tokio::test]
 async fn generate_feed_with_empty_sources_runs() {
     let paths = ensure_app_paths();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let _ = generate_feed(content_repo(&db), &paths).await;
 }
 
@@ -195,9 +191,7 @@ async fn generate_feed_with_empty_sources_runs() {
 async fn default_rss_feed_provider_full_config_constructs() {
     use systemprompt_provider_contracts::RssFeedProvider;
     let paths = ensure_app_paths();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let p = DefaultRssFeedProvider::new(content_repo(&db), &paths)
         .await
         .unwrap();
@@ -218,9 +212,7 @@ async fn prerender_content_with_empty_templates_dir_runs_engine() {
     let paths = ensure_app_paths();
     let templates_dir = paths.web().root().join("templates");
     fs::create_dir_all(&templates_dir).expect("mkdir templates");
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let _ = prerender_content(db.clone(), content_repo(&db), &paths).await;
 }
 
@@ -229,9 +221,7 @@ async fn prerender_pages_with_empty_templates_dir_runs_engine() {
     let paths = ensure_app_paths();
     let templates_dir = paths.web().root().join("templates");
     fs::create_dir_all(&templates_dir).expect("mkdir templates");
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let _ = prerender_pages(db.clone(), content_repo(&db), &paths).await;
 }
 
@@ -269,9 +259,7 @@ async fn generate_sitemap_with_source_writes_xml() {
     let boot = install_content_with_source();
     let dist = boot.app_paths.web().dist().to_path_buf();
     fs::create_dir_all(&dist).expect("mkdir dist");
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     generate_sitemap(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
@@ -282,9 +270,7 @@ async fn generate_sitemap_with_source_writes_xml() {
 async fn rss_provider_with_source_emits_feed_specs() {
     use systemprompt_provider_contracts::RssFeedProvider;
     let boot = install_content_with_source();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
@@ -296,9 +282,7 @@ async fn generate_feed_with_source_runs_pipeline() {
     let boot = install_content_with_source();
     let dist = boot.app_paths.web().dist().to_path_buf();
     fs::create_dir_all(&dist).expect("mkdir dist");
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let _ = generate_feed(content_repo(&db), &boot.app_paths).await;
 }
 
@@ -306,9 +290,7 @@ async fn generate_feed_with_source_runs_pipeline() {
 async fn rss_provider_fetch_items_for_unknown_source_errors() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
@@ -324,9 +306,7 @@ async fn rss_provider_fetch_items_for_unknown_source_errors() {
 async fn rss_provider_feed_metadata_returns_branding() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();
@@ -341,9 +321,7 @@ async fn rss_provider_feed_metadata_returns_branding() {
 async fn rss_provider_fetch_items_for_blog_source_runs_repo() {
     use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
     let boot = install_content_with_source();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let Some(db) = maybe_db_or_skip().await else { return };
     let p = DefaultRssFeedProvider::new(content_repo(&db), &boot.app_paths)
         .await
         .unwrap();

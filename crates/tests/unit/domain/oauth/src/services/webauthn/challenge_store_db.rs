@@ -126,9 +126,7 @@ async fn setup_or_skip() -> Option<Ctx> {
 
 #[tokio::test]
 async fn registration_challenge_started_on_replica_a_is_consumable_on_replica_b() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let (_, challenge_id) = ctx
         .replica_a
         .start_registration("cross-replica", &ctx.email, None)
@@ -148,9 +146,7 @@ async fn registration_challenge_started_on_replica_a_is_consumable_on_replica_b(
 
 #[tokio::test]
 async fn challenge_consumes_exactly_once() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let challenge = format!("once-{}", Uuid::new_v4().simple());
     let state = serde_json::json!({"k": "v"});
     ctx.repo
@@ -188,9 +184,7 @@ async fn challenge_consumes_exactly_once() {
 
 #[tokio::test]
 async fn challenge_kind_mismatch_does_not_consume() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let challenge = format!("kind-{}", Uuid::new_v4().simple());
     ctx.repo
         .store_webauthn_challenge(StoreChallengeParams {
@@ -220,9 +214,7 @@ async fn challenge_kind_mismatch_does_not_consume() {
 
 #[tokio::test]
 async fn expired_challenge_is_not_consumable_and_is_purged_by_cleanup() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let challenge = format!("ttl0-{}", Uuid::new_v4().simple());
     ctx.repo
         .store_webauthn_challenge(StoreChallengeParams {
@@ -257,9 +249,7 @@ async fn expired_challenge_is_not_consumable_and_is_purged_by_cleanup() {
 
 #[tokio::test]
 async fn verified_token_stored_on_replica_a_is_consumed_on_replica_b() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let token = format!("vtok-{}", Uuid::new_v4().simple());
     ctx.replica_a
         .store_verified_authentication(token.clone(), ctx.user_id.clone())
@@ -283,9 +273,7 @@ async fn verified_token_stored_on_replica_a_is_consumed_on_replica_b() {
 
 #[tokio::test]
 async fn registration_state_expired_when_challenge_unknown() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let missing = ctx
         .repo
         .consume_webauthn_challenge("never-stored", WebAuthnChallengeKind::Registration)
@@ -310,9 +298,7 @@ async fn store_link_token(repo: &OAuthRepository, user_id: &UserId) -> String {
 
 #[tokio::test]
 async fn link_started_on_replica_a_finishes_on_replica_b() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     // The link ceremony needs a UUID user id: it becomes the passkey's
     // user handle.
     let pool = fixture_db_pool(&fixture_database_url().expect("url"))

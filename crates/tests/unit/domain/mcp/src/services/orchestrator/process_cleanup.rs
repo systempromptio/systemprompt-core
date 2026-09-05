@@ -149,9 +149,7 @@ fn marker_helper() {
 
 #[tokio::test]
 async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
-    let Some(fx) = fixture_or_skip().await else {
-        return;
-    };
+    let Some(fx) = fixture_or_skip().await else { return };
     let name = unique("stalebin");
     let current = write_binary(fx.bootstrap, &name);
 
@@ -180,9 +178,7 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
 
 #[tokio::test]
 async fn unchanged_binary_leaves_the_service_registered() {
-    let Some(fx) = fixture_or_skip().await else {
-        return;
-    };
+    let Some(fx) = fixture_or_skip().await else { return };
     let name = unique("freshbin");
     let current = write_binary(fx.bootstrap, &name);
     seed_row(
@@ -202,9 +198,7 @@ async fn unchanged_binary_leaves_the_service_registered() {
 
 #[tokio::test]
 async fn service_without_a_recorded_mtime_is_never_stale() {
-    let Some(fx) = fixture_or_skip().await else {
-        return;
-    };
+    let Some(fx) = fixture_or_skip().await else { return };
     let name = unique("nomtime");
     write_binary(fx.bootstrap, &name);
     seed_row(&fx.repo, &running_row(&name, None, std::process::id())).await;
@@ -220,9 +214,7 @@ async fn service_without_a_recorded_mtime_is_never_stale() {
 
 #[tokio::test]
 async fn unresolvable_binary_is_never_stale() {
-    let Some(fx) = fixture_or_skip().await else {
-        return;
-    };
+    let Some(fx) = fixture_or_skip().await else { return };
     let name = unique("gonebin");
     seed_row(&fx.repo, &running_row(&name, Some(1), std::process::id())).await;
 
@@ -240,9 +232,7 @@ async fn unresolvable_binary_is_never_stale() {
 
 #[tokio::test]
 async fn stopped_service_is_never_stale() {
-    let Some(fx) = fixture_or_skip().await else {
-        return;
-    };
+    let Some(fx) = fixture_or_skip().await else { return };
     let name = unique("stopped");
     let current = write_binary(fx.bootstrap, &name);
     seed_row(
@@ -268,9 +258,7 @@ async fn stopped_service_is_never_stale() {
 
 #[tokio::test]
 async fn empty_registry_and_unbound_ports_hold_no_orphans() {
-    let Some(fx) = fixture_or_skip().await else {
-        return;
-    };
+    let Some(fx) = fixture_or_skip().await else { return };
 
     let none = detect_and_handle_orphaned_processes(&[], &fx.database)
         .await
@@ -291,9 +279,7 @@ async fn empty_registry_and_unbound_ports_hold_no_orphans() {
 
 #[tokio::test]
 async fn port_holder_is_an_orphan_only_while_unregistered_and_is_never_signalled() {
-    let Some(fx) = fixture_or_skip().await else {
-        return;
-    };
+    let Some(fx) = fixture_or_skip().await else { return };
     let Some(self_name) = get_process_name_by_pid(std::process::id()) else {
         return;
     };

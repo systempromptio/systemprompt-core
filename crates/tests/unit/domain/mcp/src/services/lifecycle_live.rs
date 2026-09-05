@@ -21,8 +21,7 @@ use wiremock::MockServer;
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};
 
-async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)>
-{
+async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {

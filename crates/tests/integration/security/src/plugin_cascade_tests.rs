@@ -209,14 +209,7 @@ async fn a_ruleless_skill_in_an_admin_gated_plugin_is_hidden_from_a_user() {
 async fn a_skill_reachable_through_either_of_two_marketplaces_is_visible() {
     let fixture = setup().await;
     grant(&fixture, "marketplace", &fixture.market, "admin", false).await;
-    grant(
-        &fixture,
-        "marketplace",
-        &fixture.market2,
-        "contractor",
-        false,
-    )
-    .await;
+    grant(&fixture, "marketplace", &fixture.market2, "contractor", false).await;
 
     let repo = AccessControlRepository::new(&fixture.db).expect("repo");
     let sources = fixture.sources_in(&[&fixture.market, &fixture.market2]);

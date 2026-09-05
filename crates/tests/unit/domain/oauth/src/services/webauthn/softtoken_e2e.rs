@@ -151,9 +151,7 @@ fn unique_email(tag: &str) -> String {
 
 #[tokio::test]
 async fn registration_then_authentication_roundtrip_succeeds() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("rt");
     let mut auth = authenticator();
     let user_id = register_user(&ctx, &mut auth, "rt-user", &email).await;
@@ -182,9 +180,7 @@ async fn registration_then_authentication_roundtrip_succeeds() {
 
 #[tokio::test]
 async fn registered_credential_is_persisted_and_excluded_on_reregistration() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("dup");
     let mut auth = authenticator();
     let user_id = register_user(&ctx, &mut auth, "dup-user", &email).await;
@@ -208,9 +204,7 @@ async fn registered_credential_is_persisted_and_excluded_on_reregistration() {
 
 #[tokio::test]
 async fn finish_registration_unknown_challenge_is_state_expired() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("uc");
     let mut auth = authenticator();
     let (ccr, _challenge_id) = ctx
@@ -233,9 +227,7 @@ async fn finish_registration_unknown_challenge_is_state_expired() {
 
 #[tokio::test]
 async fn finish_registration_with_mismatched_challenge_fails_verification() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("mm");
     let mut auth = authenticator();
     let (ccr_a, _challenge_a) = ctx
@@ -262,9 +254,7 @@ async fn finish_registration_with_mismatched_challenge_fails_verification() {
 
 #[tokio::test]
 async fn finish_authentication_unknown_challenge_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("ua");
     let mut auth = authenticator();
     register_user(&ctx, &mut auth, "ua-user", &email).await;
@@ -285,9 +275,7 @@ async fn finish_authentication_unknown_challenge_errors() {
 
 #[tokio::test]
 async fn finish_authentication_with_mismatched_assertion_fails_verification() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("ma");
     let mut auth = authenticator();
     register_user(&ctx, &mut auth, "ma-user", &email).await;
@@ -337,9 +325,7 @@ async fn store_link_token(
 
 #[tokio::test]
 async fn link_flow_registers_credential_and_consumes_token() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("link");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -378,9 +364,7 @@ async fn link_flow_registers_credential_and_consumes_token() {
 
 #[tokio::test]
 async fn link_flow_excludes_existing_credentials_on_second_link() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("link2");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let first_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -409,9 +393,7 @@ async fn link_flow_excludes_existing_credentials_on_second_link() {
 
 #[tokio::test]
 async fn start_link_rejects_unknown_expired_and_used_tokens() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("badtok");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
 
@@ -452,9 +434,7 @@ async fn start_link_rejects_unknown_expired_and_used_tokens() {
 
 #[tokio::test]
 async fn start_link_rejects_non_uuid_user_id() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("nonuuid");
     let user_id = UserId::new(format!("not-a-uuid-{}", Uuid::new_v4().simple()));
     seed_user_row(&ctx.pool, &user_id, &email)
@@ -473,9 +453,7 @@ async fn start_link_rejects_non_uuid_user_id() {
 
 #[tokio::test]
 async fn finish_link_rejects_missing_session_and_invalid_token() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("linkerr");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -505,9 +483,7 @@ async fn finish_link_rejects_missing_session_and_invalid_token() {
 
 #[tokio::test]
 async fn finish_link_rejects_token_swapped_between_sessions() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let email = unique_email("swap");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let token_a = store_link_token(&ctx.repo, &user_id, 600).await;

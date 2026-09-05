@@ -13,7 +13,8 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
+use std::sync::OnceLock;
 
 use clap::Parser;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};

@@ -478,10 +478,7 @@ fn create_takes_the_content_types_from_the_prompt_when_the_flag_is_absent() {
     )
     .unwrap();
 
-    let entry = read_config(dir.path())
-        .templates
-        .remove("prompted")
-        .unwrap();
+    let entry = read_config(dir.path()).templates.remove("prompted").unwrap();
     assert_eq!(
         entry.content_types,
         vec!["post".to_owned(), "page".to_owned()],

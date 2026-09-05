@@ -69,5 +69,7 @@ fn reject_blocked(host: &str, addrs: &[IpAddr]) -> Result<(), String> {
     addrs
         .iter()
         .find(|ip| is_blocked_ip(**ip))
-        .map_or(Ok(()), |ip| Err(format!("{host} resolves to blocked address {ip}")))
+        .map_or(Ok(()), |ip| {
+            Err(format!("{host} resolves to blocked address {ip}"))
+        })
 }

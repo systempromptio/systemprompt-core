@@ -57,8 +57,7 @@ fn a_pasted_command_yields_the_value_after_its_code_flag() {
 
 #[test]
 fn the_code_flag_wins_over_a_gateway_url_in_the_same_pasted_command() {
-    let pasted =
-        "systemprompt-bridge login --gateway https://gw.invalid/cb?code=WRONG --code RIGHT";
+    let pasted = "systemprompt-bridge login --gateway https://gw.invalid/cb?code=WRONG --code RIGHT";
     assert_eq!(
         extract_code(pasted).expect("the flag is read first"),
         "RIGHT",
@@ -174,10 +173,9 @@ fn with_no_override_the_gateway_comes_from_the_written_config() {
 
 #[test]
 fn an_explicit_gateway_override_wins_over_the_config() {
-    let resolved = with_config(
-        Some("gateway_url = \"https://configured.invalid\"\n"),
-        || resolve_gateway(Some("https://override.invalid:8443")),
-    )
+    let resolved = with_config(Some("gateway_url = \"https://configured.invalid\"\n"), || {
+        resolve_gateway(Some("https://override.invalid:8443"))
+    })
     .expect("the override resolves");
     assert!(
         resolved.as_str().contains("override.invalid"),
@@ -202,10 +200,9 @@ fn a_gateway_override_that_is_not_a_url_is_refused_and_the_error_names_the_flag(
 
 #[test]
 fn an_empty_gateway_override_is_refused_rather_than_falling_back_to_the_config() {
-    let err = with_config(
-        Some("gateway_url = \"https://configured.invalid\"\n"),
-        || resolve_gateway(Some("   ")),
-    )
+    let err = with_config(Some("gateway_url = \"https://configured.invalid\"\n"), || {
+        resolve_gateway(Some("   "))
+    })
     .expect_err("an empty override is refused, not ignored");
     assert!(err.starts_with("--gateway: "), "got {err}");
 }

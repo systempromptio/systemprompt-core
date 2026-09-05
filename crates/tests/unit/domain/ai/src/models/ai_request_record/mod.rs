@@ -296,7 +296,9 @@ mod ai_request_record_builder_tests {
         )
         .provider("anthropic")
         .model("claude-3")
-        .usage(Some(usage().cache_read(500).cache_creation(100).build()))
+        .usage(Some(
+            usage().cache_read(500).cache_creation(100).build(),
+        ))
         .build();
 
         assert!(record.cache.hit);

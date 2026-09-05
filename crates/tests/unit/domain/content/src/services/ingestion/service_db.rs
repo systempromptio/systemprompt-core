@@ -55,9 +55,7 @@ fn write_md(dir: &std::path::Path, slug: &str, title: &str, body: &str) {
 
 #[tokio::test]
 async fn ingest_creates_updates_skips_and_detects_unchanged() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let slug = format!("life-{}", Uuid::new_v4().simple());
     write_md(ctx.dir.path(), &slug, "First", "Original body");
 
@@ -99,9 +97,7 @@ async fn ingest_creates_updates_skips_and_detects_unchanged() {
 
 #[tokio::test]
 async fn dry_run_reports_would_create_then_would_update() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let slug = format!("dry-{}", Uuid::new_v4().simple());
     write_md(ctx.dir.path(), &slug, "Dry", "Body one");
 
@@ -128,9 +124,7 @@ async fn dry_run_reports_would_create_then_would_update() {
 
 #[tokio::test]
 async fn invalid_published_date_is_reported_as_a_per_file_error() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let slug = format!("baddate-{}", Uuid::new_v4().simple());
     // Passes the YYYY-MM-DD format gate but is not a real calendar date, so it
     // survives scanning and fails in content construction.
@@ -155,9 +149,7 @@ async fn invalid_published_date_is_reported_as_a_per_file_error() {
 
 #[tokio::test]
 async fn links_frontmatter_is_persisted_on_the_content_row() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     let slug = format!("links-{}", Uuid::new_v4().simple());
     let md = format!(
         "---\ntitle: \"Linked\"\nslug: \"{slug}\"\nauthor: \"A\"\npublished_at: \"2024-01-15\"\nkind: \"article\"\ndescription: \"d\"\nlinks:\n  - title: \"Home\"\n    url: \"https://example.com\"\n---\n\nbody\n"
@@ -183,9 +175,7 @@ async fn links_frontmatter_is_persisted_on_the_content_row() {
 
 #[tokio::test]
 async fn scanner_skips_non_markdown_and_nested_dirs_and_warns() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let Some(ctx) = setup_or_skip().await else { return };
     // A non-markdown file and an extensionless file are ignored.
     std::fs::write(ctx.dir.path().join("notes.txt"), "ignore me").expect("write txt");
     std::fs::write(ctx.dir.path().join("LICENSE"), "ignore me").expect("write noext");

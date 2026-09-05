@@ -30,10 +30,7 @@ async fn live_setup_or_skip(oauth_required: bool) -> Option<(Live, MockServer)> 
     live_setup_scoped_or_skip(oauth_required, "").await
 }
 
-async fn live_setup_scoped_or_skip(
-    oauth_required: bool,
-    scopes: &str,
-) -> Option<(Live, MockServer)> {
+async fn live_setup_scoped_or_skip(oauth_required: bool, scopes: &str) -> Option<(Live, MockServer)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
 

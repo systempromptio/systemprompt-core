@@ -147,9 +147,7 @@ fn the_clients_correlation_id_is_carried_into_the_synthesised_reply() {
 
     let resolved = resolve_agent_message(&task, &user, "the answer");
 
-    let metadata = resolved
-        .metadata
-        .expect("correlation metadata must survive");
+    let metadata = resolved.metadata.expect("correlation metadata must survive");
     assert_eq!(
         metadata.get("clientMessageId"),
         Some(&serde_json::json!("cm-42")),

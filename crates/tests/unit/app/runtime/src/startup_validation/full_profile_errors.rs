@@ -16,7 +16,8 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
                client_id: null\n";
     let Some(_fixture) = boot(&BootOptions {
         mcp_servers_yaml: mcp.to_owned(),
-        ..BootOptions::default() // skip-ok: no bootable profile on this machine
+        ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };

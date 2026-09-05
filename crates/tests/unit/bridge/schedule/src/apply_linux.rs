@@ -60,10 +60,7 @@ fn applying_the_linux_schedule_writes_the_timer_service_and_proxy_units() {
         assert_eq!(applied.path, units_dir(home).join(format!("{unit}.timer")));
 
         let service = units_dir(home).join(format!("{unit}.service"));
-        assert!(
-            service.is_file(),
-            "the service unit is written beside the timer"
-        );
+        assert!(service.is_file(), "the service unit is written beside the timer");
         assert!(applied.path.is_file());
 
         let written = std::fs::read_to_string(&applied.path).expect("read the timer");
@@ -162,7 +159,10 @@ fn this_platform_has_no_desktop_shell_so_gui_autostart_is_refused_rather_than_ha
         let cache = ScheduleStatusCache::default();
         let err = apply_gui_autostart(&cache, &binary())
             .expect_err("there is no GUI on this platform to autostart");
-        assert!(err.to_string().to_lowercase().contains("os"), "got {err}");
+        assert!(
+            err.to_string().to_lowercase().contains("os"),
+            "got {err}"
+        );
 
         assert_eq!(
             gui_autostart_status(&ScheduleStatusCache::default()),

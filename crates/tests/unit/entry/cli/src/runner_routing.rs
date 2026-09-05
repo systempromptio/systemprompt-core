@@ -209,11 +209,7 @@ async fn an_unreachable_host_reports_a_failing_exit_code_through_the_terminal_si
         "127.0.0.1:1",
         "token-that-is-never-checked",
         context.as_str(),
-        &[
-            "infra".to_owned(),
-            "services".to_owned(),
-            "status".to_owned(),
-        ],
+        &["infra".to_owned(), "services".to_owned(), "status".to_owned()],
         1,
     )
     .await

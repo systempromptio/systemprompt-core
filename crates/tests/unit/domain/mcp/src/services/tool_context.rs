@@ -38,9 +38,7 @@ fn full_ctx() -> ToolContext {
 
 #[tokio::test]
 async fn list_tools_missing_context_id_returns_config_error() {
-    let Some(p) = provider_or_skip().await else {
-        return;
-    };
+    let Some(p) = provider_or_skip().await else { return };
     let ctx = base_ctx().with_header("x-agent-name", "my-agent");
     let result = p.list_tools("some-agent", &ctx).await;
     let err = result.unwrap_err();
@@ -53,9 +51,7 @@ async fn list_tools_missing_context_id_returns_config_error() {
 
 #[tokio::test]
 async fn list_tools_missing_agent_name_header_returns_config_error() {
-    let Some(p) = provider_or_skip().await else {
-        return;
-    };
+    let Some(p) = provider_or_skip().await else { return };
     let ctx_id = ContextId::generate();
     let ctx = base_ctx().with_header("x-context-id", ctx_id.as_str());
     let result = p.list_tools("some-agent", &ctx).await;
@@ -69,9 +65,7 @@ async fn list_tools_missing_agent_name_header_returns_config_error() {
 
 #[tokio::test]
 async fn list_tools_invalid_context_id_returns_error() {
-    let Some(p) = provider_or_skip().await else {
-        return;
-    };
+    let Some(p) = provider_or_skip().await else { return };
     let ctx = base_ctx()
         .with_header("x-context-id", "not-a-uuid")
         .with_header("x-agent-name", "my-agent");
@@ -86,9 +80,7 @@ async fn list_tools_invalid_context_id_returns_error() {
 
 #[tokio::test]
 async fn list_tools_empty_context_id_returns_error() {
-    let Some(p) = provider_or_skip().await else {
-        return;
-    };
+    let Some(p) = provider_or_skip().await else { return };
     let ctx = base_ctx()
         .with_header("x-context-id", "")
         .with_header("x-agent-name", "my-agent");
@@ -98,9 +90,7 @@ async fn list_tools_empty_context_id_returns_error() {
 
 #[tokio::test]
 async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
-    let Some(p) = provider_or_skip().await else {
-        return;
-    };
+    let Some(p) = provider_or_skip().await else { return };
     let ctx = full_ctx();
     let request = ToolCallRequest {
         tool_call_id: "call-1".to_owned(),
@@ -115,9 +105,7 @@ async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
 
 #[tokio::test]
 async fn tool_context_with_session_and_trace_ids_propagated() {
-    let Some(p) = provider_or_skip().await else {
-        return;
-    };
+    let Some(p) = provider_or_skip().await else { return };
     let ctx_id = ContextId::generate();
     let ctx = ToolContext::new(Actor::user(fixture_user_id()), "tok")
         .with_session_id(SessionId::new("my-session"))
@@ -130,9 +118,7 @@ async fn tool_context_with_session_and_trace_ids_propagated() {
 
 #[tokio::test]
 async fn tool_context_with_ai_tool_call_id_and_task_id() {
-    let Some(p) = provider_or_skip().await else {
-        return;
-    };
+    let Some(p) = provider_or_skip().await else { return };
     let ctx_id = ContextId::generate();
     let tool_call_id = AiToolCallId::new("call-abc");
     let ctx = ToolContext::new(Actor::user(fixture_user_id()), "tok")

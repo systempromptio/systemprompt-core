@@ -71,9 +71,7 @@ fn scope_to_union_passes_everything_through_when_unbounded() {
 #[test]
 fn scope_to_union_keeps_only_named_ids() {
     let items = vec!["alpha".to_owned(), "beta".to_owned(), "gamma".to_owned()];
-    let include = ["alpha".to_owned(), "gamma".to_owned()]
-        .into_iter()
-        .collect();
+    let include = ["alpha".to_owned(), "gamma".to_owned()].into_iter().collect();
     let scoped = scope_to_union(items, Some(&include), |s| s.as_str());
     assert_eq!(scoped, vec!["alpha".to_owned(), "gamma".to_owned()]);
 }

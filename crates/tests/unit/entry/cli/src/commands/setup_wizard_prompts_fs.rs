@@ -107,12 +107,8 @@ fn an_admin_email_flag_is_validated_rather_than_trusted() {
 
 #[test]
 fn a_prompted_admin_email_is_accepted_and_an_empty_one_is_refused() {
-    let email = resolve_admin_email(
-        &args(),
-        &scripted(&["  owner@example.test "]),
-        &interactive(),
-    )
-    .expect("a prompted address is accepted");
+    let email = resolve_admin_email(&args(), &scripted(&["  owner@example.test "]), &interactive())
+        .expect("a prompted address is accepted");
     assert_eq!(email.as_str(), "owner@example.test");
 
     let err = resolve_admin_email(&args(), &scripted(&["   "]), &interactive())
