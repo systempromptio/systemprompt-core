@@ -77,9 +77,15 @@ impl PreparedDispatch {
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
+        // Why: the catalog matches on the model's id and aliases, never on its
+        // upstream name, so the lookup must use what the caller asked for.
+        // Looking up the upstream name found nothing for every provider whose
+        // ids differ from the upstream's (both Vertex entries), which silently
+        // dropped the output cap and thinking budget and let Gemini 2.5 Pro
+        // spend the caller's whole max_tokens thinking.
         let model_limits = upstream
             .provider
-            .find_model(&upstream_model)
+            .find_model(&request.model)
             .map(|m| m.limits);
         let raw_body = match &override_descriptor {
             Some(_) => None,
