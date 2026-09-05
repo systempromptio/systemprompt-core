@@ -700,3 +700,72 @@ async fn openai_chat_stream_reports_reasoning_tokens_in_the_usage_delta() {
     assert_eq!(update.reasoning_tokens, Some(33));
     assert_eq!(update.output_tokens, Some(40));
 }
+
+/// The exact response shape Vertex MaaS returns on an ordinary completion:
+/// `tool_calls` and `prompt_tokens_details` present but explicitly `null`.
+/// `#[serde(default)]` covers an absent field, not a null, so this failed the
+/// whole `ChatCompletion` -- and `parse_response` defaulted on error, turning a
+/// good answer into HTTP 200 with no content and no tokens. Nine models
+/// returned blanks for it. Every assertion here is content that was lost.
+#[test]
+fn parse_response_survives_explicit_nulls() {
+    let value: Value = json!({
+        "id": "f272a569",
+        "object": "chat.completion",
+        "model": "qwen/qwen3-next-80b-a3b-instruct-maas",
+        "choices": [{
+            "index": 0,
+            "finish_reason": "stop",
+            "logprobs": null,
+            "matched_stop": 151645,
+            "message": {
+                "role": "assistant",
+                "content": "ok",
+                "reasoning_content": null,
+                "tool_calls": null
+            }
+        }],
+        "usage": {
+            "prompt_tokens": 13,
+            "completion_tokens": 2,
+            "total_tokens": 15,
+            "prompt_tokens_details": null,
+            "extra_properties": { "google": { "traffic_type": "ON_DEMAND" } }
+        }
+    });
+
+    let canon = openai_chat::parse_response(&value, "fallback");
+
+    let text: String = canon
+        .content
+        .iter()
+        .filter_map(|c| match c {
+            CanonicalContent::Text(text) => Some(text.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(text, "ok", "content must survive a null sibling field");
+    assert_eq!(canon.usage.input_tokens, 13);
+    assert_eq!(canon.usage.output_tokens, 2);
+    assert_eq!(canon.usage.total_tokens, 15);
+}
+
+/// An unknown-but-populated `usage` member must not cost us the usage either:
+/// Vertex adds `extra_properties`, and a strict struct would reject the object.
+#[test]
+fn parse_response_ignores_unknown_usage_members() {
+    let value: Value = json!({
+        "choices": [{"finish_reason": "stop", "message": {"content": "hi"}}],
+        "usage": {
+            "prompt_tokens": 7,
+            "completion_tokens": 1,
+            "total_tokens": 8,
+            "extra_properties": { "google": { "traffic_type": "ON_DEMAND" } }
+        }
+    });
+
+    let canon = openai_chat::parse_response(&value, "fallback");
+
+    assert_eq!(canon.usage.input_tokens, 7);
+    assert_eq!(canon.usage.output_tokens, 1);
+}
