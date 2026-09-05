@@ -13,6 +13,10 @@
 //! any admitting marketplace admits it; a rule on the entry or its plugin is
 //! evaluated first and closes the cascade, so a deny there still wins.
 //!
+//! The marketplaces themselves are roots with no parent chain: their own rules
+//! and `default_included` decide whether the subject may see the marketplace
+//! listed at all.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -68,7 +72,7 @@ pub async fn keep_sets(
         }
     };
 
-    let (plugins, skills, agents, hooks, mcp_servers) = tokio::try_join!(
+    let (plugins, skills, agents, hooks, mcp_servers, marketplaces) = tokio::try_join!(
         allowed(EntityKind::Plugin, ids_of(&candidate.plugins, |p| &p.id)),
         allowed(EntityKind::Skill, ids_of(&candidate.skills, |s| &s.id)),
         allowed(EntityKind::Agent, ids_of(&candidate.agents, |a| &a.id)),
@@ -76,6 +80,10 @@ pub async fn keep_sets(
         allowed(
             EntityKind::McpServer,
             ids_of(&candidate.managed_mcp_servers, |m| &m.id),
+        ),
+        allowed(
+            EntityKind::Marketplace,
+            ids_of(&candidate.marketplaces, |m| &m.id),
         ),
     )?;
 
@@ -85,6 +93,7 @@ pub async fn keep_sets(
         agents: typed_keep(&candidate.agents, &agents, |a| &a.id),
         hooks: typed_keep(&candidate.hooks, &hooks, |h| &h.id),
         mcp_servers: typed_keep(&candidate.managed_mcp_servers, &mcp_servers, |m| &m.id),
+        marketplaces: typed_keep(&candidate.marketplaces, &marketplaces, |m| &m.id),
     })
 }
 

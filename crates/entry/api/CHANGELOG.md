@@ -4,6 +4,7 @@
 
 ### Changed
 
+- `GET /v1/bridge/manifest` carries `marketplaces`: which enabled marketplace each surviving plugin came from, so a bridge can mirror one host marketplace per gateway marketplace instead of collapsing every plugin into a single `org-provisioned` one.
 - The gateway treats a `Decision::Warn` verdict as an allow and records it, so a governance policy in warn mode no longer refuses an inference request.
 - The safety stage honours `safety.mode: warn`: findings are scanned and persisted in both directions and the request and response block lists stop refusing. A gateway policy row declaring only `safety.mode` now merges, where before it was dropped for carrying no scanners or categories.
 - The quota stage honours `quota_mode: warn`: an exhausted window no longer answers 429. The breach is logged and written to `governance_decisions` as a `warn` under policy `quota`, carrying the same message the refusal would have, so `infra logs governance report` prices it beside the chain's warnings. A policy row declaring only `quota_mode` merges by the same rule as `safety.mode`.

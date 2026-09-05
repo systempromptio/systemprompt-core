@@ -4,6 +4,7 @@
 
 ### Added
 
+- `SignedManifest.marketplaces` lists each enabled marketplace the manifest was assembled from as a `ManifestMarketplace` — its id, display name, and the ids of the manifest plugins it carries after the per-user filter. The field is `default` and skipped when empty, so a manifest from a gateway without it deserialises unchanged and every fixture built before it canonicalises to the same bytes; a bridge treats the empty case as one marketplace holding every plugin.
 - `MarketplaceAccess.rules` carries attribute-dimension grants beside `roles`. Each `MarketplaceAccessRule` names an extension subject-dimension slug, the values it grants or refuses, and an optional justification, so a marketplace can be scoped to an AD group or a project without inventing a role for it. `rule_type` may not be `role` or `user` — roles keep their own list — and the slug predicate mirrors `RuleType::extension` so ingestion cannot reject what validation accepted.
 - `ServicesConfig::enabled_marketplaces` returns every enabled marketplace, ordered by id. The bridge manifest is the union of these, so the enabled set, not a single selection, is what assembly reads.
 

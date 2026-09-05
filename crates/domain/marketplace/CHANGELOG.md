@@ -4,6 +4,7 @@
 
 ### Added
 
+- `MarketplaceCandidate.marketplaces` seeds one `ManifestMarketplace` per enabled marketplace from the same plugin selection `MarketplaceMembership` reads. `EntryKeepSets.marketplaces` and `keep_sets` resolve each marketplace's own rules as a root of the cascade, so `retain_entries` drops a marketplace denied at its own level even when a plugin it carries survives through another owner. `into_manifest_parts` narrows each listed marketplace to the plugins that survived filtering and drops one left with none, so a client never mirrors an empty host marketplace.
 - `MarketplaceMembership` records which enabled marketplaces own each plugin, agent, and MCP server, and rides on `MarketplaceCandidate` in place of the single `marketplace_id`/`access` pair. `keep_sets` turns it into one authz parent chain per owning marketplace, so an entry several marketplaces carry is admitted when any one of them admits the subject and a deny on the entry or its plugin still closes the cascade first.
 - `enabled_marketplaces`, `union_include`, and `scope_to_union` scope the catalogue against every enabled marketplace at once. A marketplace with an empty `include:` still means "all", and one such marketplace makes the whole union unbounded.
 

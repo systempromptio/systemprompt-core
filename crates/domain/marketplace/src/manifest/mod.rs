@@ -25,9 +25,11 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature, SkillId};
-use systemprompt_models::bridge::manifest::{SignedManifest, SignedManifestEnvelope};
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature, PluginId, SkillId};
+use systemprompt_models::bridge::manifest::{
+    ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
+};
+use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
@@ -83,6 +85,7 @@ impl ManifestService {
         let (skills, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
 
         let enabled = services.enabled_marketplaces();
+        let marketplaces = listed_marketplaces(services, &enabled)?;
         let (agents, managed_mcp_servers, artifacts) =
             scope_all(&enabled, agents, managed_mcp_servers, artifacts, trace);
         let membership =
@@ -102,6 +105,7 @@ impl ManifestService {
             hooks,
             managed_mcp_servers,
             artifacts,
+            marketplaces,
             ..MarketplaceCandidate::default()
         }
         .with_artifact_owners(owners)
@@ -139,4 +143,32 @@ impl ManifestService {
             signature: ManifestSignature::new(signature),
         })
     }
+}
+
+// Why: seeded from the same plugin selection `MarketplaceMembership` reads, so
+// the listed plugin ids and the authz membership cannot disagree; the
+// intersection with the plugins that survive filtering happens at
+// `into_manifest_parts`, once the final plugin list is known.
+fn listed_marketplaces(
+    services: &ServicesConfig,
+    enabled: &[&MarketplaceConfig],
+) -> Result<Vec<ManifestMarketplace>, MarketplaceError> {
+    enabled
+        .iter()
+        .map(|marketplace| {
+            let plugin_ids = services
+                .marketplace_plugin_configs(marketplace)
+                .iter()
+                .map(|p| {
+                    PluginId::try_new(p.id.as_str())
+                        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(ManifestMarketplace {
+                id: marketplace.id.clone(),
+                name: marketplace.name.clone(),
+                plugin_ids,
+            })
+        })
+        .collect()
 }
