@@ -7,9 +7,9 @@
 //! nothing is listening on: the per-server loops run, and every connection
 //! attempt lands on the unreachable arm rather than the happy path.
 //!
-//! `plugins mcp tools` is not driven here — it resolves a CLI session, and the
-//! fixture profile's name is rejected by `ProfileName` before the command's own
-//! body runs.
+//! `plugins mcp tools` resolves a CLI session first, so it reaches its own body
+//! only since the bootstrap fixture started naming its tempdir something
+//! `ProfileName` accepts.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -190,6 +190,32 @@ async fn validating_a_server_that_is_not_configured_names_it() {
     assert!(
         message(&err).contains("ghost-server"),
         "the refusal should name the server that is not configured, got: {}",
+        message(&err)
+    );
+}
+
+#[tokio::test]
+async fn listing_tools_refuses_when_no_server_is_running() {
+    let err = run(&["tools", "--timeout", "1"])
+        .await
+        .expect_err("tools cannot be listed when nothing is running");
+
+    assert!(
+        message(&err).to_lowercase().contains("running"),
+        "the refusal should say no server is running, got: {}",
+        message(&err)
+    );
+}
+
+#[tokio::test]
+async fn listing_tools_for_a_named_server_that_is_not_running_names_it() {
+    let err = run(&["tools", "--server", ENABLED, "--timeout", "1"])
+        .await
+        .expect_err("a configured but stopped server has no tools to list");
+
+    assert!(
+        message(&err).contains(ENABLED),
+        "the refusal should name the server asked for, got: {}",
         message(&err)
     );
 }
