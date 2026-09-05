@@ -24,6 +24,11 @@ fn spawn_owned_listener(port: u16, service_name: &str) -> Option<u32> {
     let output = Command::new("sh")
         .arg("-c")
         .arg(format!("python3 -c '{python}' >/dev/null 2>&1 & echo $!"))
+        .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
+        .env(
+            systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+            service_name,
+        )
         .output()
         .ok()?;
     let pid: u32 = String::from_utf8_lossy(&output.stdout).trim().parse().ok()?;

@@ -25,3 +25,5 @@ mod login_helpers;
 mod context_probe;
 #[cfg(test)]
 mod proxy_command_roles;
+#[cfg(test)]
+mod update_command;
