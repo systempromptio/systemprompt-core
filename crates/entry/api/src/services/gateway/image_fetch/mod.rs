@@ -9,7 +9,7 @@
 //! the codec sees an image it can render.
 //!
 //! It is deliberately not a general-purpose fetcher. The URL comes from
-//! whoever sent the inference request, so every fetch is guarded by [`guard`],
+//! whoever sent the inference request, so every fetch is guarded by `guard`,
 //! bounded by a timeout, capped while the body streams, and accepted only if
 //! the server declares a MIME type Gemini takes.
 //!

@@ -32,7 +32,7 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
         code
     } else if let Some(t) = pasted_pat {
         let token = crate::ids::PatToken::new(t.clone());
-        return finish_login(ctx, token, gateway, args);
+        return finish_login(ctx, &token, gateway.as_deref(), args);
     } else {
         match sso_code(ctx, gateway.as_deref(), has_flag(args, "--no-browser")) {
             Ok(c) => c,
@@ -51,16 +51,16 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
         },
     };
 
-    finish_login(ctx, token, gateway, args)
+    finish_login(ctx, &token, gateway.as_deref(), args)
 }
 
 fn finish_login(
     ctx: &BridgeContext,
-    token: crate::ids::PatToken,
-    gateway: Option<String>,
+    token: &crate::ids::PatToken,
+    gateway: Option<&str>,
     args: &[String],
 ) -> ExitCode {
-    match setup::login(token.as_str(), gateway.as_deref()) {
+    match setup::login(token.as_str(), gateway) {
         Ok(paths) => {
             let bin = crate::brand::brand().binary_name;
             stdio::print_line(&format!("Stored PAT for {bin} helper."));
