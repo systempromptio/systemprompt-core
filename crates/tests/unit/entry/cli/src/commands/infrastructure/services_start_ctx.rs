@@ -146,6 +146,7 @@ async fn a_start_without_skip_migrate_runs_the_migration_phase_idempotently() {
 
     let applied_after = applied_migration_count(&pool).await;
     drop(pool);
+    drop(app);
     disp.drop_now().await;
     assert_eq!(
         applied_after, applied_before,

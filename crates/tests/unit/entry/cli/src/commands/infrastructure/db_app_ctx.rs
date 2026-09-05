@@ -160,6 +160,7 @@ async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
 
     let after = applied_migration_count(&pool).await;
     drop(pool);
+    drop(app);
     disp.drop_now().await;
     assert_eq!(
         after, before,

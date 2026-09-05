@@ -81,12 +81,19 @@ impl DisposableDb {
         fixture_db_pool(&self.url).await
     }
 
+    // Why: a drop that fails silently leaks a database per run, and the leak
+    // is invisible until the server is out of them. The failure is reported
+    // rather than asserted: a test that has already made its point should not
+    // be turned red by its own cleanup.
     pub async fn drop_now(self) {
-        let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+        if let Err(e) = sqlx::query(sqlx::AssertSqlSafe(format!(
             "DROP DATABASE IF EXISTS \"{}\" WITH (FORCE)",
             self.name
         )))
         .execute(&self.admin)
-        .await;
+        .await
+        {
+            eprintln!("LEAKED disposable database {}: {e}", self.name);
+        }
     }
 }
