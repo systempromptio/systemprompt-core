@@ -1,36 +1,79 @@
-use systemprompt_identifiers::MarketplaceId;
-use systemprompt_marketplace::{active_marketplace, scope_to_marketplace};
+use systemprompt_marketplace::{
+    enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include,
+};
+use systemprompt_models::services::MarketplaceMemberKind;
 
-use crate::helpers::{config_with, marketplace};
+use crate::helpers::{config_with, include as include_ref, marketplace};
 
 #[test]
-fn active_marketplace_none_when_empty() {
+fn enabled_marketplaces_is_empty_without_any() {
     let config = config_with(vec![]);
-    assert!(active_marketplace(&config).is_none());
+    assert!(enabled_marketplaces(&config).is_empty());
 }
 
 #[test]
-fn active_marketplace_some_when_single() {
-    let config = config_with(vec![marketplace("solo")]);
-    let active = active_marketplace(&config).expect("single marketplace is active");
-    assert_eq!(active.id.as_str(), "solo");
+fn enabled_marketplaces_lists_every_enabled_one_sorted_by_id() {
+    let config = config_with(vec![marketplace("beta"), marketplace("alpha")]);
+    let ids: Vec<&str> = enabled_marketplaces(&config)
+        .iter()
+        .map(|m| m.id.as_str())
+        .collect();
+    assert_eq!(ids, vec!["alpha", "beta"]);
 }
 
 #[test]
-fn active_marketplace_none_when_ambiguous_without_default() {
-    let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
+fn enabled_marketplaces_skips_disabled_ones() {
+    let mut disabled = marketplace("beta");
+    disabled.enabled = false;
+    let config = config_with(vec![marketplace("alpha"), disabled]);
+    let ids: Vec<&str> = enabled_marketplaces(&config)
+        .iter()
+        .map(|m| m.id.as_str())
+        .collect();
+    assert_eq!(ids, vec!["alpha"]);
+}
+
+#[test]
+fn union_include_is_none_without_marketplaces() {
+    assert!(union_include(&[], MarketplaceMemberKind::Plugins).is_none());
+}
+
+#[test]
+fn union_include_merges_every_marketplaces_list() {
+    let mut alpha = marketplace("alpha");
+    alpha.plugins = include_ref(&["one"]);
+    let mut beta = marketplace("beta");
+    beta.plugins = include_ref(&["two"]);
+    let union = union_include(&[&alpha, &beta], MarketplaceMemberKind::Plugins)
+        .expect("both marketplaces name a list");
+    assert!(union.contains("one") && union.contains("two"));
+    assert_eq!(union.len(), 2);
+}
+
+#[test]
+fn union_include_is_none_when_any_marketplace_means_all() {
+    let mut alpha = marketplace("alpha");
+    alpha.plugins = include_ref(&["one"]);
+    let beta = marketplace("beta");
     assert!(
-        active_marketplace(&config).is_none(),
-        "fail closed without a default selector",
+        union_include(&[&alpha, &beta], MarketplaceMemberKind::Plugins).is_none(),
+        "an empty include means all, so the union is unbounded",
     );
 }
 
 #[test]
-fn active_marketplace_selects_default_when_many() {
-    let mut config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
-    config.settings.default_marketplace_id = Some(MarketplaceId::new("beta"));
-    let active = active_marketplace(&config).expect("default selects the active marketplace");
-    assert_eq!(active.id.as_str(), "beta");
+fn scope_to_union_passes_everything_through_when_unbounded() {
+    let items = vec!["alpha".to_owned(), "beta".to_owned()];
+    let scoped = scope_to_union(items.clone(), None, |s| s.as_str());
+    assert_eq!(scoped, items);
+}
+
+#[test]
+fn scope_to_union_keeps_only_named_ids() {
+    let items = vec!["alpha".to_owned(), "beta".to_owned(), "gamma".to_owned()];
+    let include = ["alpha".to_owned(), "gamma".to_owned()].into_iter().collect();
+    let scoped = scope_to_union(items, Some(&include), |s| s.as_str());
+    assert_eq!(scoped, vec!["alpha".to_owned(), "gamma".to_owned()]);
 }
 
 #[test]

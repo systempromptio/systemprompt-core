@@ -16,7 +16,9 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{MarketplaceId, UserId};
-use systemprompt_marketplace::{KeepSetsSubject, MarketplaceCandidate, keep_sets};
+use systemprompt_marketplace::{
+    KeepSetsSubject, MarketplaceCandidate, MarketplaceMembership, keep_sets,
+};
 use systemprompt_models::bridge::ids::{PluginId, SkillId};
 use systemprompt_models::bridge::manifest::{PluginEntry, SkillEntry};
 use systemprompt_security::authz::{AccessControlRepository, NO_SUBJECT_ATTRIBUTES};
@@ -27,6 +29,7 @@ struct Fixture {
     db: DbPool,
     pg: Arc<PgPool>,
     market: String,
+    market2: String,
     plugin: String,
     owned_skill: String,
     orphan_skill: String,
@@ -43,6 +46,7 @@ async fn setup() -> Fixture {
         db,
         pg,
         market: format!("mp-keep-{tag}"),
+        market2: format!("mp-keep2-{tag}"),
         plugin: format!("keep-plugin-{tag}"),
         owned_skill: format!("owned_skill_{tag}"),
         orphan_skill: format!("orphan_skill_{tag}"),
@@ -54,6 +58,7 @@ async fn setup() -> Fixture {
 fn rows(f: &Fixture) -> Vec<(&'static str, &str)> {
     vec![
         ("marketplace", &f.market),
+        ("marketplace", &f.market2),
         ("plugin", &f.plugin),
         ("skill", &f.owned_skill),
         ("skill", &f.orphan_skill),
@@ -128,9 +133,13 @@ fn plugin(id: &str) -> PluginEntry {
     }
 }
 
-/// A candidate whose `owned_skill` is shipped by `plugin` and whose
-/// `orphan_skill` has no recorded owner.
+// Why: `orphan_skill` deliberately has no recorded owner, so it exercises the
+// fallback where an unowned entry inherits every enabled marketplace instead.
 fn candidate(f: &Fixture, record_owner: bool) -> MarketplaceCandidate {
+    candidate_in(f, record_owner, &[&f.market])
+}
+
+fn candidate_in(f: &Fixture, record_owner: bool, markets: &[&str]) -> MarketplaceCandidate {
     let mut skill_owners = BTreeMap::new();
     if record_owner {
         skill_owners.insert(
@@ -138,11 +147,23 @@ fn candidate(f: &Fixture, record_owner: bool) -> MarketplaceCandidate {
             BTreeSet::from([PluginId::try_new(&f.plugin).expect("valid plugin id")]),
         );
     }
+    let ids: BTreeSet<MarketplaceId> = markets.iter().map(|m| MarketplaceId::new(*m)).collect();
+    let mut membership = MarketplaceMembership::default();
+    for id in &ids {
+        membership.access.insert(
+            id.clone(),
+            systemprompt_models::services::MarketplaceAccess::default(),
+        );
+    }
+    membership.plugins.insert(
+        systemprompt_identifiers::PluginId::new(&f.plugin),
+        ids.clone(),
+    );
     MarketplaceCandidate {
         plugins: vec![plugin(&f.plugin)],
         skills: vec![skill(&f.owned_skill), skill(&f.orphan_skill)],
         skill_owners,
-        marketplace_id: Some(MarketplaceId::new(&f.market)),
+        membership,
         ..MarketplaceCandidate::default()
     }
 }
@@ -266,6 +287,39 @@ async fn the_plugin_itself_is_kept_when_its_rule_names_the_role() {
     assert!(
         sets.plugins.iter().any(|p| p.as_str() == f.plugin),
         "the plugin its own rule names should be kept"
+    );
+    cleanup(&f).await;
+}
+
+// Why: this is the multi-marketplace invariant. The plugin sits in two
+// marketplaces and only the second grants the role, so the union has to admit
+// it — a first-chain-wins resolver would report the deny from `market`.
+#[tokio::test]
+async fn a_plugin_granted_by_a_second_marketplace_is_kept() {
+    let f = setup().await;
+    grant_role(&f, "marketplace", &f.market, "engineer").await;
+    grant_role(&f, "marketplace", &f.market2, "contractor").await;
+
+    let candidate = candidate_in(&f, true, &[&f.market, &f.market2]);
+    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let user = UserId::new("keep-sets-test-user");
+    let roles = vec!["contractor".to_owned()];
+    let sets = keep_sets(
+        &repo,
+        &candidate,
+        KeepSetsSubject {
+            user_id: &user,
+            roles: &roles,
+            attributes: &NO_SUBJECT_ATTRIBUTES,
+            dimensions: &[],
+        },
+    )
+    .await
+    .expect("keep_sets");
+
+    assert!(
+        sets.plugins.iter().any(|p| p.as_str() == f.plugin),
+        "the second marketplace's grant must admit the plugin"
     );
     cleanup(&f).await;
 }

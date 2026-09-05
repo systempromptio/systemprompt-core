@@ -8,7 +8,10 @@ use std::collections::BTreeSet;
 use systemprompt_models::bridge::ids::{LibraryArtifactId, SkillId};
 use systemprompt_models::bridge::manifest::{ArtifactEntry, SkillEntry};
 
+use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind};
+
 use crate::candidate::MarketplaceCandidate;
+use crate::scope::union_include;
 use crate::trace::{TraceEvent, TraceKind, TraceSink, TraceStage};
 
 pub(super) type ScopedSections = (
@@ -18,38 +21,36 @@ pub(super) type ScopedSections = (
 );
 
 pub(super) fn scope_all(
-    active: Option<&systemprompt_models::services::MarketplaceConfig>,
+    marketplaces: &[&MarketplaceConfig],
     agents: Vec<systemprompt_models::bridge::manifest::AgentEntry>,
     managed_mcp_servers: Vec<systemprompt_models::bridge::manifest::ManagedMcpServer>,
     artifacts: Vec<ArtifactEntry>,
     trace: &mut dyn TraceSink,
 ) -> ScopedSections {
-    match active {
-        Some(mp) => (
-            scope_traced(
-                agents,
-                &mp.agents.include,
-                |a| a.id.as_str(),
-                TraceKind::Agent,
-                trace,
-            ),
-            scope_traced(
-                managed_mcp_servers,
-                &mp.mcp_servers.include,
-                |m| m.name.as_str(),
-                TraceKind::McpServer,
-                trace,
-            ),
-            scope_traced(
-                artifacts,
-                &mp.artifacts.include,
-                |a| a.id.as_str(),
-                TraceKind::Artifact,
-                trace,
-            ),
+    let include = |kind| union_include(marketplaces, kind);
+    (
+        scope_traced(
+            agents,
+            include(MarketplaceMemberKind::Agents).as_ref(),
+            |a| a.id.as_str(),
+            TraceKind::Agent,
+            trace,
         ),
-        None => (agents, managed_mcp_servers, artifacts),
-    }
+        scope_traced(
+            managed_mcp_servers,
+            include(MarketplaceMemberKind::McpServers).as_ref(),
+            |m| m.name.as_str(),
+            TraceKind::McpServer,
+            trace,
+        ),
+        scope_traced(
+            artifacts,
+            include(MarketplaceMemberKind::Artifacts).as_ref(),
+            |a| a.id.as_str(),
+            TraceKind::Artifact,
+            trace,
+        ),
+    )
 }
 
 pub(super) fn prune_traced(filtered: &mut MarketplaceCandidate, trace: &mut dyn TraceSink) {
@@ -73,7 +74,7 @@ pub(super) fn prune_traced(filtered: &mut MarketplaceCandidate, trace: &mut dyn 
 
 fn scope_traced<T, F>(
     items: Vec<T>,
-    include: &[String],
+    include: Option<&BTreeSet<String>>,
     id_of: F,
     kind: TraceKind,
     trace: &mut dyn TraceSink,
@@ -81,18 +82,18 @@ fn scope_traced<T, F>(
 where
     F: Fn(&T) -> &str,
 {
-    if include.is_empty() {
+    let Some(include) = include else {
         return items;
-    }
+    };
     let (kept, dropped): (Vec<T>, Vec<T>) = items
         .into_iter()
-        .partition(|item| include.iter().any(|inc| inc == id_of(item)));
+        .partition(|item| include.contains(id_of(item)));
     for item in &dropped {
         trace.record(TraceEvent {
             kind,
             id: id_of(item).to_owned(),
             stage: TraceStage::MarketplaceScope,
-            reason: "not in the active marketplace's include list".to_owned(),
+            reason: "not in any enabled marketplace's include list".to_owned(),
         });
     }
     kept

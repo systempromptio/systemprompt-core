@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.46.0] - 2026-09-05
+
+### Added
+
+- `MarketplaceMembership` records which enabled marketplaces own each plugin, agent, and MCP server, and rides on `MarketplaceCandidate` in place of the single `marketplace_id`/`access` pair. `keep_sets` turns it into one authz parent chain per owning marketplace, so an entry several marketplaces carry is admitted when any one of them admits the subject and a deny on the entry or its plugin still closes the cascade first.
+- `enabled_marketplaces`, `union_include`, and `scope_to_union` scope the catalogue against every enabled marketplace at once. A marketplace with an empty `include:` still means "all", and one such marketplace makes the whole union unbounded.
+
+### Changed
+
+- Manifest assembly unions every enabled marketplace instead of resolving one active marketplace. Two enabled marketplaces without a default selector now assemble rather than failing closed with `NoDefault`; with exactly one enabled, or none, behaviour is unchanged.
+- `MarketplaceService` drops `active`, `active_entry`, and `resolve_active` for `enabled`, and `resolve_default` now names only the marketplace the rendered catalogue JSON describes.
+
 ## [0.42.0] - 2026-08-31
 
 ### Added

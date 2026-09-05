@@ -59,7 +59,7 @@ pub(super) fn plugin_inclusion_diagnostics(
     for a in agents {
         if !selected_agents.contains(a.id.as_str()) {
             diagnostics.push(format!(
-                "agent '{}' is in the marketplace scope but no enabled plugin includes it; it \
+                "agent '{}' is in an enabled marketplace's scope but no enabled plugin includes it; it \
                  will not be installed by any plugin bundle",
                 a.id.as_str()
             ));

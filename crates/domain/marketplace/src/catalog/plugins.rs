@@ -1,8 +1,8 @@
 //! Projects plugin specs into the bundles the gateway serves and the
 //! `PluginEntry` records the signed manifest carries.
 //!
-//! [`plugin_bundles`] is the single source: it selects the enabled,
-//! active-marketplace-scoped plugins, assembles each into its installable
+//! [`plugin_bundles`] is the single source: it selects the enabled plugins any
+//! enabled marketplace includes, assembles each into its installable
 //! bundle via [`build_plugin_bundle`] (the owner of the bundle contract), and
 //! drops fail-closed any spec whose references resolve to no content. Both the
 //! manifest path ([`load_plugins`], which hashes each bundle into a
@@ -25,12 +25,14 @@ use std::sync::{Arc, OnceLock, RwLock};
 use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest, SkillId};
 use systemprompt_models::bridge::manifest::{ArtifactEntry, PluginEntry, PluginFile};
-use systemprompt_models::services::{ComponentSource, PluginConfig, ServicesConfig};
+use systemprompt_models::services::{
+    ComponentSource, MarketplaceMemberKind, PluginConfig, ServicesConfig,
+};
 
 use crate::bundle::{BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content};
 use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::error::MarketplaceError;
-use crate::scope::scope_to_marketplace;
+use crate::scope::{enabled_marketplaces, scope_to_union, union_include};
 
 pub fn plugin_bundles(
     services: &ServicesConfig,
@@ -194,11 +196,9 @@ pub(crate) fn selected_configs(
     services: &ServicesConfig,
 ) -> Result<Vec<&PluginConfig>, MarketplaceError> {
     let enabled: Vec<&PluginConfig> = services.plugins.values().filter(|p| p.enabled).collect();
-    let active = crate::MarketplaceService::new(services).resolve_active()?;
-    let mut scoped = match active {
-        Some(mp) => scope_to_marketplace(enabled, &mp.plugins.include, |c| c.id.as_str()),
-        None => enabled,
-    };
+    let marketplaces = enabled_marketplaces(services);
+    let include = union_include(&marketplaces, MarketplaceMemberKind::Plugins);
+    let mut scoped = scope_to_union(enabled, include.as_ref(), |c| c.id.as_str());
     scoped.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
     Ok(scoped)
 }

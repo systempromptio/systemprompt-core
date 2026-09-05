@@ -1,23 +1,28 @@
 //! # systemprompt-marketplace
 //!
-//! The marketplace bounded context: resolving which marketplace is active,
+//! The marketplace bounded context: resolving which marketplaces are enabled,
 //! loading the on-disk catalogue, scoping and per-user filtering it, and
-//! assembling the canonical signed bridge manifest.
+//! assembling the canonical signed bridge manifest. The manifest is the union
+//! of every enabled marketplace; who may see each entry is decided by the
+//! authz cascade, one parent chain per owning marketplace.
 //!
 //! ## Public surface
 //!
 //! - [`MarketplaceService`]: read-only resolution over a borrowed
-//!   `ServicesConfig` (lookup, default fallback, active marketplace,
+//!   `ServicesConfig` (lookup, the enabled set, the rendering default,
 //!   referential-integrity check).
 //! - [`catalog`]: on-disk loaders projecting the services tree into the signed
 //!   `*Entry` records the manifest carries. [`CatalogContent`] owns the
-//!   resolved catalogue; [`plugin_bundles`] is the single source of the active,
+//!   resolved catalogue; [`plugin_bundles`] is the single source of the scoped,
 //!   content-gated plugin bundles shared by the manifest and serving paths.
 //! - [`bundle`]: the build-from-spec plugin-bundle assembler
 //!   ([`build_plugin_bundle`]) — the single owner of the `.claude-plugin`
 //!   bundle contract, consumed by both the manifest and byte-serving paths.
-//! - [`scope_to_marketplace`] / [`active_marketplace`]: marketplace scoping of
-//!   the catalogue lists.
+//! - [`scope_to_union`] / [`union_include`] / [`enabled_marketplaces`]:
+//!   marketplace scoping of the catalogue lists across every enabled
+//!   marketplace.
+//! - [`MarketplaceMembership`]: which enabled marketplaces own each entry,
+//!   carried on the candidate and turned into authz parent chains.
 //! - [`ManifestService`]: assemble a scoped, filtered [`MarketplaceCandidate`]
 //!   and seal the manifest into its signed envelope.
 //! - [`MarketplaceFilter`] / [`MarketplaceCandidate`] / [`AllowAllFilter`]: the
@@ -51,6 +56,7 @@ mod error;
 mod filter;
 mod keep;
 mod manifest;
+mod membership;
 mod registry;
 mod scope;
 mod service;
@@ -66,8 +72,9 @@ pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use filter::{AllowAllFilter, MarketplaceFilter};
 pub use keep::{KeepSetsSubject, keep_sets};
 pub use manifest::ManifestService;
+pub use membership::MarketplaceMembership;
 pub use registry::{MarketplaceFilterRegistration, discover_filters};
-pub use scope::{active_marketplace, scope_to_marketplace};
+pub use scope::{enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include};
 pub use service::MarketplaceService;
 pub use trace::{ManifestTrace, NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};
 pub use view::{render_marketplace_json, render_marketplace_list};

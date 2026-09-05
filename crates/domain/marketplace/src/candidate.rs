@@ -11,12 +11,13 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use systemprompt_identifiers::{AgentId, HookId, MarketplaceId, McpServerId};
+use systemprompt_identifiers::{AgentId, HookId, McpServerId};
 use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, SkillId};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
 };
-use systemprompt_models::services::MarketplaceAccess;
+
+use crate::membership::MarketplaceMembership;
 
 /// Per-kind allow-lists for [`MarketplaceCandidate::retain_entries`].
 #[derive(Debug, Clone, Default)]
@@ -41,8 +42,7 @@ pub struct MarketplaceCandidate {
     pub artifacts: Vec<ArtifactEntry>,
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
-    pub marketplace_id: Option<MarketplaceId>,
-    pub access: Option<MarketplaceAccess>,
+    pub membership: MarketplaceMembership,
     pub diagnostics: Vec<String>,
 }
 
@@ -63,8 +63,7 @@ pub struct ManifestEntries {
 pub struct FilterContext {
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
-    pub marketplace_id: Option<MarketplaceId>,
-    pub access: Option<MarketplaceAccess>,
+    pub membership: MarketplaceMembership,
 }
 
 impl MarketplaceCandidate {
@@ -81,8 +80,7 @@ impl MarketplaceCandidate {
             artifacts,
             skill_owners,
             artifact_owners,
-            marketplace_id,
-            access,
+            membership,
             diagnostics,
         } = self;
         // Why: ownership is stamped onto the entries here, at the one point
@@ -120,8 +118,7 @@ impl MarketplaceCandidate {
             FilterContext {
                 skill_owners,
                 artifact_owners,
-                marketplace_id,
-                access,
+                membership,
             },
         )
     }
@@ -142,18 +139,13 @@ impl MarketplaceCandidate {
     }
 
     #[must_use]
-    pub fn with_marketplace(
-        mut self,
-        id: MarketplaceId,
-        access: Option<MarketplaceAccess>,
-    ) -> Self {
-        self.marketplace_id = Some(id);
-        self.access = access;
+    pub fn with_membership(mut self, membership: MarketplaceMembership) -> Self {
+        self.membership = membership;
         self
     }
 
     // Why: filters shrink entry lists, not the manifest's assembly context —
-    // marketplace scope, access, ownership, and diagnostics stay untouched.
+    // marketplace membership, ownership, and diagnostics stay untouched.
     pub fn retain_entries(&mut self, keep: &EntryKeepSets) {
         self.plugins.retain(|p| keep.plugins.contains(&p.id));
         self.skills.retain(|s| keep.skills.contains(&s.id));

@@ -4,6 +4,7 @@ use std::sync::Once;
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
 use systemprompt_config::SecretsBootstrap;
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_marketplace::{AllowAllFilter, ManifestService};
 use systemprompt_models::bridge::ids::LibraryArtifactId;
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
@@ -40,7 +41,7 @@ fn ensure_bootstrap() {
 }
 
 #[tokio::test]
-async fn assemble_candidate_scopes_to_active_marketplace() {
+async fn assemble_candidate_records_marketplace_membership() {
     let dir = tempfile::tempdir().expect("temp services root");
     let mut mp = marketplace("market");
     mp.access = access(true, &["eng"]);
@@ -57,19 +58,39 @@ async fn assemble_candidate_scopes_to_active_marketplace() {
     .expect("assemble candidate over empty services root");
 
     assert_eq!(
-        candidate.marketplace_id.as_ref().map(|id| id.as_str()),
-        Some("market"),
-        "scoped candidate carries the active marketplace id",
+        candidate.membership.all_ids(),
+        BTreeSet::from([MarketplaceId::new("market")]),
     );
-    let access_block = candidate
-        .access
-        .as_ref()
-        .expect("scoped candidate carries the marketplace access block");
+    let access_block = &candidate.membership.access[&MarketplaceId::new("market")];
     assert!(access_block.default_included);
     assert_eq!(access_block.roles, vec!["eng".to_owned()]);
     assert!(
         candidate.is_empty(),
         "empty services root yields no catalogue entries",
+    );
+}
+
+#[tokio::test]
+async fn assembly_unions_two_enabled_marketplaces() {
+    let dir = tempfile::tempdir().expect("temp services root");
+    let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
+
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &AllowAllFilter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("two enabled marketplaces union rather than fail closed");
+
+    assert_eq!(
+        candidate.membership.all_ids(),
+        BTreeSet::from([
+            MarketplaceId::new("alpha"),
+            MarketplaceId::new("beta"),
+        ]),
     );
 }
 
@@ -86,10 +107,9 @@ async fn assemble_candidate_unscoped_without_marketplace() {
         &fixture_user_id(),
     )
     .await
-    .expect("assemble candidate without active marketplace");
+    .expect("assemble candidate without any marketplace");
 
-    assert!(candidate.marketplace_id.is_none());
-    assert!(candidate.access.is_none());
+    assert!(candidate.membership.is_empty());
 }
 
 // The artifact fixtures below declare `mcp__x__y`, and catalogue assembly now
@@ -528,24 +548,7 @@ async fn disabled_skill_skip_is_traced() {
 }
 
 #[tokio::test]
-async fn assembly_fails_closed_when_active_marketplace_is_unresolvable() {
-    let dir = tempfile::tempdir().expect("temp services root");
-    let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
-
-    let err = ManifestService::assemble_candidate(
-        &config,
-        dir.path(),
-        "https://api.example.com",
-        &AllowAllFilter,
-        &fixture_user_id(),
-    )
-    .await
-    .expect_err("two enabled marketplaces without a default must not fall open unscoped");
-    assert!(err.to_string().to_lowercase().contains("default"), "{err}");
-}
-
-#[tokio::test]
-async fn disabled_marketplaces_do_not_block_resolution() {
+async fn disabled_marketplaces_are_not_members() {
     let dir = tempfile::tempdir().expect("temp services root");
     let mut off = marketplace("off-market");
     off.enabled = false;
@@ -557,10 +560,10 @@ async fn disabled_marketplaces_do_not_block_resolution() {
         &fixture_user_id(),
     )
     .await
-    .expect("a single enabled marketplace resolves without a default selector");
+    .expect("a disabled marketplace is simply absent");
     assert_eq!(
-        candidate.marketplace_id.as_ref().map(|id| id.as_str()),
-        Some("on-market"),
+        candidate.membership.all_ids(),
+        BTreeSet::from([MarketplaceId::new("on-market")]),
     );
 }
 

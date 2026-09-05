@@ -9,13 +9,17 @@
 //! dimensions) and pass the result to
 //! [`MarketplaceCandidate::retain_entries`].
 //!
+//! An entry owned by several enabled marketplaces gets one chain per owner, so
+//! any admitting marketplace admits it; a rule on the entry or its plugin is
+//! evaluated first and closes the cascade, so a deny there still wins.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::hash::Hash;
 
-use systemprompt_identifiers::{PluginId, SkillId, UserId};
+use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId, UserId};
 use systemprompt_security::authz::{
     AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
     ParentChainIndex, SubjectAttributes, SubjectDimension, allowed_ids,
@@ -84,37 +88,88 @@ pub async fn keep_sets(
     })
 }
 
-// Why: skills stay marketplace members as well as plugin children, so a skill
-// whose owners went unrecorded keeps the marketplace cascade instead of
+// Why: skills and artifacts inherit through the plugins that ship them, so an
+// entry no plugin claims falls back to every enabled marketplace rather than
 // silently losing all inheritance.
 fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
-    let member_ids = |ids: Vec<String>| ids.into_iter().collect::<BTreeSet<String>>();
-    let marketplace_members: BTreeMap<EntityKind, BTreeSet<String>> = [
-        (EntityKind::Skill, ids_of(&candidate.skills, |s| &s.id)),
-        (EntityKind::Agent, ids_of(&candidate.agents, |a| &a.id)),
-        (EntityKind::Hook, ids_of(&candidate.hooks, |h| &h.id)),
+    let membership = &candidate.membership;
+    let all = membership.all_ids();
+
+    let marketplaces = membership
+        .access
+        .iter()
+        .map(|(id, access)| {
+            (
+                id.clone(),
+                MarketplaceSource {
+                    id: id.clone(),
+                    fallback_default_included: Some(access.default_included),
+                },
+            )
+        })
+        .collect();
+
+    let plugins: BTreeMap<PluginId, BTreeSet<MarketplaceId>> = candidate
+        .plugins
+        .iter()
+        .map(|p| {
+            let id = PluginId::new(p.id.as_str());
+            let owners = membership
+                .plugins
+                .get(&id)
+                .cloned()
+                .unwrap_or_else(|| all.clone());
+            (id, owners)
+        })
+        .collect();
+
+    let band = |ids: Vec<String>| -> BTreeMap<String, BTreeSet<MarketplaceId>> {
+        ids.into_iter().map(|id| (id, all.clone())).collect()
+    };
+    let named = |owners: &BTreeMap<String, BTreeSet<MarketplaceId>>,
+                 ids: Vec<String>|
+     -> BTreeMap<String, BTreeSet<MarketplaceId>> {
+        ids.into_iter()
+            .map(|id| {
+                let set = owners.get(&id).cloned().unwrap_or_else(|| all.clone());
+                (id, set)
+            })
+            .collect()
+    };
+
+    let agent_owners: BTreeMap<String, BTreeSet<MarketplaceId>> = membership
+        .agents
+        .iter()
+        .map(|(id, set)| (id.as_str().to_owned(), set.clone()))
+        .collect();
+    let mcp_owners: BTreeMap<String, BTreeSet<MarketplaceId>> = membership
+        .mcp_servers
+        .iter()
+        .map(|(id, set)| (id.as_str().to_owned(), set.clone()))
+        .collect();
+
+    let marketplace_members = BTreeMap::from([
+        (
+            EntityKind::Skill,
+            band(ids_of(&candidate.skills, |s| &s.id)),
+        ),
+        (
+            EntityKind::Agent,
+            named(&agent_owners, ids_of(&candidate.agents, |a| &a.id)),
+        ),
+        (EntityKind::Hook, band(ids_of(&candidate.hooks, |h| &h.id))),
         (
             EntityKind::McpServer,
-            ids_of(&candidate.managed_mcp_servers, |m| &m.id),
+            named(
+                &mcp_owners,
+                ids_of(&candidate.managed_mcp_servers, |m| &m.id),
+            ),
         ),
-    ]
-    .into_iter()
-    .map(|(kind, ids)| (kind, member_ids(ids)))
-    .collect();
+    ]);
 
     ChainSources {
-        marketplace: candidate
-            .marketplace_id
-            .clone()
-            .map(|id| MarketplaceSource {
-                id,
-                fallback_default_included: candidate.access.as_ref().map(|a| a.default_included),
-            }),
-        plugins: candidate
-            .plugins
-            .iter()
-            .map(|p| PluginId::new(p.id.as_str()))
-            .collect(),
+        marketplaces,
+        plugins,
         skill_owners: candidate
             .skill_owners
             .iter()

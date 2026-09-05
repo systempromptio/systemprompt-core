@@ -62,22 +62,42 @@ fn get_miss_returns_not_found() {
 }
 
 #[test]
-fn active_none_when_ambiguous_without_default() {
-    let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
-    let service = MarketplaceService::new(&config);
-    assert!(service.active().is_none());
+fn enabled_is_empty_without_any_marketplace() {
+    let config = config_with(vec![]);
+    assert!(MarketplaceService::new(&config).enabled().is_empty());
 }
 
 #[test]
-fn active_selects_default_when_many() {
+fn enabled_lists_every_enabled_marketplace_sorted() {
+    let config = config_with(vec![marketplace("beta"), marketplace("alpha")]);
+    let service = MarketplaceService::new(&config);
+    let ids: Vec<&str> = service
+        .enabled()
+        .iter()
+        .map(|(id, _)| id.as_str())
+        .collect();
+    assert_eq!(ids, vec!["alpha", "beta"]);
+}
+
+#[test]
+fn resolve_default_selects_the_named_marketplace_when_many() {
     let mut config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
     config.settings.default_marketplace_id = Some(MarketplaceId::new("beta"));
     let service = MarketplaceService::new(&config);
 
-    let active = service
-        .active()
-        .expect("default names the active marketplace");
-    assert_eq!(active.id.as_str(), "beta");
+    let (_, default) = service
+        .resolve_default()
+        .expect("default names the rendering marketplace");
+    assert_eq!(default.id.as_str(), "beta");
+}
+
+#[test]
+fn resolve_default_fails_when_many_and_none_is_named() {
+    let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
+    assert!(
+        MarketplaceService::new(&config).resolve_default().is_err(),
+        "the rendered marketplace.json still needs one named marketplace",
+    );
 }
 
 #[test]

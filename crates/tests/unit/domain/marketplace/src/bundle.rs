@@ -295,7 +295,7 @@ fn plugin_bundles_skips_content_less_plugin() {
 }
 
 #[test]
-fn plugin_bundles_scopes_to_active_marketplace() {
+fn plugin_bundles_scopes_to_the_marketplace_include_list() {
     let skills = vec![
         skill_entry("a_skill", "a", "ab"),
         skill_entry("b_skill", "b", "bb"),
@@ -336,7 +336,50 @@ fn plugin_bundles_scopes_to_active_marketplace() {
     assert_eq!(
         ids,
         vec!["plugin-a"],
-        "a plugin outside the active marketplace must be absent from the served map"
+        "a plugin no enabled marketplace includes must be absent from the served map"
+    );
+}
+
+#[test]
+fn plugin_bundles_unions_enabled_marketplaces() {
+    let skills = vec![
+        skill_entry("a_skill", "a", "ab"),
+        skill_entry("b_skill", "b", "bb"),
+        skill_entry("c_skill", "c", "cb"),
+    ];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        artifacts: &[],
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let mut alpha = marketplace("alpha");
+    alpha.plugins = include(&["plugin-a"]);
+    let mut beta = marketplace("beta");
+    beta.plugins = include(&["plugin-b"]);
+    let mut services = config_with(vec![alpha, beta]);
+    for (key, id, skill) in [
+        ("a", "plugin-a", "a_skill"),
+        ("b", "plugin-b", "b_skill"),
+        ("c", "plugin-c", "c_skill"),
+    ] {
+        services.plugins.insert(
+            key.to_owned(),
+            plugin_config(id, explicit(&[skill]), PluginComponentRef::default()),
+        );
+    }
+
+    let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
+    let ids: Vec<&str> = bundles
+        .keys()
+        .map(systemprompt_models::bridge::ids::PluginId::as_str)
+        .collect();
+    assert_eq!(
+        ids,
+        vec!["plugin-a", "plugin-b"],
+        "the union of both include lists ships; a plugin in neither does not"
     );
 }
 

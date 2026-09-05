@@ -2,10 +2,10 @@
 //!
 //! [`router`] serves the default `marketplace.json`, lists and renders
 //! individual marketplaces (JSON and raw `config.yaml`), and streams plugin
-//! files. Plugin files are served from `plugin_bundles` — the same active,
+//! files. Plugin files are served from `plugin_bundles` — the same scoped,
 //! content-gated map the signed manifest is hashed from — so the byte stream
 //! and the manifest cannot drift: a plugin the manifest excludes (content-less
-//! or outside the active marketplace) is absent from the map and yields a 404,
+//! or in no enabled marketplace) is absent from the map and yields a 404,
 //! and an internal `config.yaml` is never part of the generated bundle to leak.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
