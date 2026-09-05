@@ -225,3 +225,24 @@ fn an_unparseable_jwks_uri_contributes_no_allowlist_host() {
         "a malformed jwks_uri must not widen the allowlist"
     );
 }
+
+// Why: the outer `validate_subject_token` only demands a `kid` on the
+// trusted-issuer branch, so a self-issued token without one reaches the
+// self-issued verifier still carrying no key hint. It must be refused there
+// rather than falling through to a key lookup with nothing to look up.
+#[tokio::test]
+async fn rejects_a_self_issued_token_with_no_kid() {
+    install_test_signing_key();
+    let config = config();
+    let token = unsigned_jwt(
+        r#"{"alg":"RS256"}"#,
+        &format!(r#"{{"iss":"{}"}}"#, config.jwt_issuer),
+    );
+
+    let message = err(validate_subject_token(&token, ACCESS_TOKEN_TYPE, &config).await);
+
+    assert!(
+        message.contains("missing `kid` header"),
+        "a self-issued token with no kid names no signing key; got: {message}"
+    );
+}

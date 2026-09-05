@@ -427,3 +427,88 @@ fn create_prompt_name_validates_input() {
     let types = create::prompt_content_types(&prompter as &dyn Prompter).unwrap();
     assert_eq!(types, vec!["a".to_owned(), "b".to_owned(), "c".to_owned()]);
 }
+
+fn interactive_cfg() -> CliConfig {
+    CliConfig::new()
+        .with_interactive(true)
+        .with_assume_terminal(true)
+}
+
+fn scripted(answers: &[&str]) -> ScriptedPrompter {
+    ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
+}
+
+#[test]
+fn create_reports_a_config_that_does_not_parse_separately_from_one_that_is_missing() {
+    let dir = tempfile::tempdir().unwrap();
+    write_templates_yaml(dir.path(), "templates: [this is not a map]\n");
+
+    let err = create::execute_in_dir(
+        create::CreateArgs {
+            name: Some("guide".to_owned()),
+            content_types: Some("post".to_owned()),
+            content: None,
+        },
+        &no_answers(),
+        &cfg(),
+        dir.path(),
+    )
+    .unwrap_err();
+
+    assert!(
+        format!("{err:#}").contains("Failed to parse templates config"),
+        "a malformed config must be reported as unparseable, not unreadable: {err:#}"
+    );
+}
+
+#[test]
+fn create_takes_the_content_types_from_the_prompt_when_the_flag_is_absent() {
+    let dir = tempfile::tempdir().unwrap();
+    write_templates_yaml(dir.path(), "templates: {}\n");
+
+    create::execute_in_dir(
+        create::CreateArgs {
+            name: Some("prompted".to_owned()),
+            content_types: None,
+            content: None,
+        },
+        &scripted(&["post, page"]),
+        &interactive_cfg(),
+        dir.path(),
+    )
+    .unwrap();
+
+    let entry = read_config(dir.path()).templates.remove("prompted").unwrap();
+    assert_eq!(
+        entry.content_types,
+        vec!["post".to_owned(), "page".to_owned()],
+        "the prompted list must be split and trimmed"
+    );
+}
+
+#[test]
+fn create_refuses_a_prompted_content_type_list_that_is_empty() {
+    let dir = tempfile::tempdir().unwrap();
+    write_templates_yaml(dir.path(), "templates: {}\n");
+
+    let err = create::execute_in_dir(
+        create::CreateArgs {
+            name: Some("empty".to_owned()),
+            content_types: None,
+            content: None,
+        },
+        &scripted(&[""]),
+        &interactive_cfg(),
+        dir.path(),
+    )
+    .unwrap_err();
+
+    assert!(
+        format!("{err:#}").contains("At least one content type is required"),
+        "an empty answer must not create a template linked to nothing: {err:#}"
+    );
+    assert!(
+        read_config(dir.path()).templates.is_empty(),
+        "the refused template must not have been written"
+    );
+}

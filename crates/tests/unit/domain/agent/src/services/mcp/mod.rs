@@ -11,6 +11,7 @@
 mod artifact_transformer;
 mod metadata_builder;
 mod task_completion;
+mod task_completion_webhook;
 mod task_context_resolution;
 mod tool_result_handler;
 mod transformer_full;
