@@ -112,7 +112,7 @@ pub struct MarketplaceAccess {
 
 impl MarketplaceAccess {
     #[must_use]
-    pub fn declares_rules(&self) -> bool {
+    pub const fn declares_rules(&self) -> bool {
         !self.roles.is_empty() || !self.rules.is_empty()
     }
 
