@@ -50,8 +50,8 @@ pub use hooks::{
     HookMatcher, HookType,
 };
 pub use marketplace::{
-    MarketplaceAccess, MarketplaceConfig, MarketplaceConfigFile, MarketplaceMemberKind,
-    MarketplaceVisibility,
+    MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceConfigFile,
+    MarketplaceMemberKind, MarketplaceRuleAccess, MarketplaceVisibility,
 };
 pub use mcp::McpServerSummary;
 pub use plugin::{
@@ -180,7 +180,7 @@ impl ServicesConfig {
             self.validate_marketplace_bindings(id.as_str(), marketplace)?;
         }
 
-        self.validate_default_marketplace_selector()?;
+        self.validate_marketplace_selector()?;
 
         for (name, app) in &self.slack_apps {
             app.validate(name)?;
@@ -213,6 +213,17 @@ impl ServicesConfig {
     #[must_use]
     pub fn gateway_config(&self) -> Option<&GatewayConfig> {
         self.gateway.as_ref().and_then(GatewayState::resolved)
+    }
+
+    // Why: the manifest is the union of every enabled marketplace — an entity
+    // reachable through any one of them is offered, and the parent chain
+    // decides who may see it. Ordered by id so every derived list is stable.
+    #[must_use]
+    pub fn enabled_marketplaces(&self) -> Vec<&MarketplaceConfig> {
+        let mut out: Vec<&MarketplaceConfig> =
+            self.marketplaces.values().filter(|m| m.enabled).collect();
+        out.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
+        out
     }
 
     #[must_use]

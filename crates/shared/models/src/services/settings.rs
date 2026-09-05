@@ -27,6 +27,10 @@ pub struct Settings {
     pub config_path: Option<String>,
     #[serde(default = "default_true")]
     pub marketplace_public: bool,
+    // Why: this selects only which single marketplace the public
+    // `/marketplace.json` and the CLI's generated marketplace.json render. The
+    // bridge manifest unions every enabled marketplace regardless, so leaving
+    // it unset with several enabled is a supported configuration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_marketplace_id: Option<MarketplaceId>,
 }

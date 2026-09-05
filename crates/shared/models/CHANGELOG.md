@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.46.0] - 2026-09-05
+
+### Added
+
+- `MarketplaceAccess.rules` carries attribute-dimension grants beside `roles`. Each `MarketplaceAccessRule` names an extension subject-dimension slug, the values it grants or refuses, and an optional justification, so a marketplace can be scoped to an AD group or a project without inventing a role for it. `rule_type` may not be `role` or `user` — roles keep their own list — and the slug predicate mirrors `RuleType::extension` so ingestion cannot reject what validation accepted.
+- `ServicesConfig::enabled_marketplaces` returns every enabled marketplace, ordered by id. The bridge manifest is the union of these, so the enabled set, not a single selection, is what assembly reads.
+
+### Changed
+
+- Several enabled marketplaces no longer require `settings.default_marketplace_id`. The manifest unions them and the authz cascade decides who sees what, so the selector now governs only which single marketplace the public `/marketplace.json` and the CLI's generated file render. Naming a marketplace that does not exist, or one that is disabled, is still an error.
+
 ## [0.44.0] - 2026-09-02
 
 ### Fixed
