@@ -21,3 +21,5 @@ mod proxy_command;
 mod doctor_marketplace;
 #[cfg(test)]
 mod login_helpers;
+#[cfg(test)]
+mod context_probe;
