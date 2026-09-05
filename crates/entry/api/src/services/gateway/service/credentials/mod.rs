@@ -61,8 +61,14 @@ pub(super) async fn resolve(provider: &ProviderEntry) -> Result<Credential, Disp
                         provider.api_key_secret.as_str()
                     ))
                 })?;
-            Ok(Credential { value: token, is_bearer: true })
+            Ok(Credential {
+                value: token,
+                is_bearer: true,
+            })
         },
-        None => Ok(Credential { value: secret.clone(), is_bearer: false }),
+        None => Ok(Credential {
+            value: secret.clone(),
+            is_bearer: false,
+        }),
     }
 }

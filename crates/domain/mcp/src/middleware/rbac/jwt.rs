@@ -8,10 +8,7 @@ use systemprompt_models::auth::{JwtClaims, Permission};
 
 use crate::services::auth::validate_jwt_token;
 
-pub fn validate_and_extract_claims(
-    server_name: &str,
-    token: &str,
-) -> Result<JwtClaims, McpError> {
+pub fn validate_and_extract_claims(server_name: &str, token: &str) -> Result<JwtClaims, McpError> {
     let config = systemprompt_models::Config::get().map_err(|e| {
         tracing::error!(server = %server_name, error = %e, "Failed to get config");
         McpError::invalid_request(format!("Failed to get config: {e}"), None)

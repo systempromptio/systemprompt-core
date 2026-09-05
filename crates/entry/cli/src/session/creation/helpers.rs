@@ -75,8 +75,9 @@ pub async fn get_or_create_admin(
     // Why: this path provisions a user and assigns it `admin`, so an
     // unvalidated string would become an admin identity. Validate before any
     // lookup or write, not after.
-    let email = Email::try_new(email)
-        .map_err(|e| anyhow::anyhow!("refusing to provision an admin for an invalid address: {e}"))?;
+    let email = Email::try_new(email).map_err(|e| {
+        anyhow::anyhow!("refusing to provision an admin for an invalid address: {e}")
+    })?;
     let email = email.as_str();
 
     let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
@@ -220,9 +221,7 @@ pub async fn resolve_local_admin(
 }
 
 #[doc(hidden)]
-pub async fn resolve_credentialed_user_email(
-    session_email_hint: Option<&str>,
-) -> Result<Email> {
+pub async fn resolve_credentialed_user_email(session_email_hint: Option<&str>) -> Result<Email> {
     if let Some(email) = session_email_hint {
         return Email::try_new(email).context("session email hint is not a valid email address");
     }

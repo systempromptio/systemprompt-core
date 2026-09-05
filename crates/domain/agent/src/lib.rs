@@ -32,11 +32,11 @@
 /// without altering that behaviour.
 #[doc(hidden)]
 pub mod test_api {
-    pub use crate::services::a2a_server::processing::message::persistence::{
-        PersistCompletedTaskParams, broadcast_completion, persist_completed_task,
-    };
     pub use crate::services::a2a_server::processing::message::message_handler::{
         new_submitted_task, resolve_agent_message, resolve_task_id,
+    };
+    pub use crate::services::a2a_server::processing::message::persistence::{
+        PersistCompletedTaskParams, broadcast_completion, persist_completed_task,
     };
     pub use crate::services::a2a_server::processing::message::stream_processor::helpers::build_artifacts_from_results;
 }

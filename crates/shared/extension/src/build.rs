@@ -154,8 +154,8 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
                 } else {
                     ups.push(path);
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 

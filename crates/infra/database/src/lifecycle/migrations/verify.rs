@@ -1,12 +1,12 @@
 //! Pre-execution verification of an already-applied migration slot.
 //!
 //! Two distinct failures wear the same shape — a stored row that disagrees
-//! with the file now occupying its slot. [`MigrationService::verify_slot_identity`]
-//! catches a *reused* slot, where the row describes a different migration
-//! entirely; reconciling that would stamp one migration's checksum onto
-//! another's row and silence its drift detector for good.
-//! [`MigrationService::verify_checksum`] catches ordinary drift, where the
-//! same migration has been edited since it ran.
+//! with the file now occupying its slot.
+//! [`MigrationService::verify_slot_identity`] catches a *reused* slot, where
+//! the row describes a different migration entirely; reconciling that would
+//! stamp one migration's checksum onto another's row and silence its drift
+//! detector for good. [`MigrationService::verify_checksum`] catches ordinary
+//! drift, where the same migration has been edited since it ran.
 //!
 //! `--allow-checksum-drift` downgrades either to a warning, which is why both
 //! log the values they compared before returning.
