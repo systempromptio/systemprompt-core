@@ -484,7 +484,7 @@ fn openai_responses_parse_breaks_reasoning_out_of_output_tokens() {
             "output_tokens_details": {"reasoning_tokens": 448}
         }
     });
-    let response = openai_responses::parse_response(&value, "fallback");
+    let response = openai_responses::parse_response_object(&value, "fallback");
     assert_eq!(response.usage.reasoning_tokens, 448);
     assert_eq!(
         response.usage.output_tokens, 512,
