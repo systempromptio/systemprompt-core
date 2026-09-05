@@ -24,6 +24,21 @@ struct ChatCompletion {
     choices: Vec<ChatChoice>,
 }
 
+// Why: `#[serde(default)]` covers an ABSENT field, not an explicit `null`, and
+// OpenAI-compatible providers send both. Vertex MaaS returns
+// `"tool_calls": null` and `"prompt_tokens_details": null` on every ordinary
+// completion, which failed the whole response and -- because the caller
+// defaults on error -- surfaced as a successful 200 carrying no content and no
+// tokens. Deserialize through `Option` and fall back to the default so a null
+// and an omission mean the same thing.
+fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
+}
+
 #[derive(Debug, Default, Deserialize)]
 struct ChatUsage {
     #[serde(default)]
@@ -32,9 +47,9 @@ struct ChatUsage {
     completion_tokens: u32,
     #[serde(default)]
     total_tokens: u32,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     prompt_tokens_details: ChatPromptTokensDetails,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     completion_tokens_details: ChatCompletionTokensDetails,
 }
 
@@ -85,7 +100,7 @@ struct ChatMessage {
     // arrival and cannot be replayed on the next turn.
     #[serde(default, alias = "reasoning")]
     reasoning_content: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_as_default")]
     tool_calls: Vec<ChatToolCall>,
 }
 
