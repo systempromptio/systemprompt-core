@@ -13,7 +13,8 @@ use serde_json::Value;
 use systemprompt_identifiers::MessageId;
 
 use super::stream_delta::{
-    OpenAiChatStreamState, process_reasoning_delta, process_text_delta, process_tool_calls,
+    OpenAiChatStreamState, close_reasoning, process_reasoning_delta, process_text_delta,
+    process_tool_calls,
 };
 use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
@@ -32,7 +33,7 @@ where
         model: fallback_model,
         message_id: MessageId::new(""),
         started: false,
-        text_block_open: false,
+        text_block: None,
         next_index: 0,
         tool_calls: Vec::new(),
         reasoning_block: None,
@@ -141,12 +142,9 @@ fn emit_message_stop(
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
     state.stopped = true;
-    if let Some(index) = state.reasoning_block.take() {
+    close_reasoning(state, events);
+    if let Some(index) = state.text_block.take() {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
-    }
-    if state.text_block_open {
-        events.push(Ok(CanonicalEvent::ContentBlockStop { index: 0 }));
-        state.text_block_open = false;
     }
     for tc in state.tool_calls.drain(..) {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: tc.index }));

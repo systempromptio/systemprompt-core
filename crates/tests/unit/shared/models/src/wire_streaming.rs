@@ -556,6 +556,137 @@ mod openai_chat_streaming {
         ));
     }
 
+    fn block_start_kinds(events: &[CanonicalEvent]) -> Vec<(u32, &'static str)> {
+        events
+            .iter()
+            .filter_map(|e| match e {
+                CanonicalEvent::ContentBlockStart { index, block } => Some((
+                    *index,
+                    match block {
+                        ContentBlockKind::Text => "text",
+                        ContentBlockKind::Thinking { .. } => "thinking",
+                        _ => "other",
+                    },
+                )),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn position(events: &[CanonicalEvent], pred: impl Fn(&CanonicalEvent) -> bool) -> usize {
+        events.iter().position(pred).expect("event present")
+    }
+
+    #[tokio::test]
+    async fn reasoning_opens_before_text_and_closes_when_text_starts() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"qwen\",\"choices\":[{\"delta\":{\"reasoning_content\":\"pon\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"der\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"content\":\"answer\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert_eq!(
+            block_start_kinds(&events),
+            vec![(0, "thinking"), (1, "text")]
+        );
+        let thinking_stop = position(&events, |e| {
+            matches!(e, CanonicalEvent::ContentBlockStop { index: 0 })
+        });
+        let text_start = position(&events, |e| {
+            matches!(
+                e,
+                CanonicalEvent::ContentBlockStart {
+                    index: 1,
+                    block: ContentBlockKind::Text
+                }
+            )
+        });
+        assert!(
+            thinking_stop < text_start,
+            "thinking must close before text"
+        );
+        let thinking: String = events
+            .iter()
+            .filter_map(|e| match e {
+                CanonicalEvent::ThinkingDelta { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(thinking, "ponder");
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::TextDelta { index: 1, text } if text == "answer")
+        ));
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, .. }
+                    if *stop_reason == Some(CanonicalStopReason::EndTurn))
+        ));
+    }
+
+    #[tokio::test]
+    async fn explicit_null_reasoning_content_does_not_open_a_block() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"qwen\",\"choices\":[{\"delta\":{\"reasoning_content\":\"why\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"reasoning_content\":null,\"content\":\"hi\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"reasoning_content\":null,\"content\":\" there\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert_eq!(
+            block_start_kinds(&events),
+            vec![(0, "thinking"), (1, "text")]
+        );
+        let text: String = events
+            .iter()
+            .filter_map(|e| match e {
+                CanonicalEvent::TextDelta { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(text, "hi there");
+    }
+
+    #[tokio::test]
+    async fn alternate_reasoning_field_name_is_accepted() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"deepseek\",\"choices\":[{\"delta\":{\"reasoning\":\"hmm\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert_eq!(block_start_kinds(&events), vec![(0, "thinking")]);
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, CanonicalEvent::ThinkingDelta { text, .. } if text == "hmm"))
+        );
+    }
+
+    #[tokio::test]
+    async fn reasoning_before_tool_call_keeps_tool_use_terminal_reason() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"kimi\",\"choices\":[{\"delta\":{\"reasoning_content\":\"plan\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"t1\",\"function\":{\"name\":\"go\",\"arguments\":\"{}\"}}]}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        let thinking_stop = position(&events, |e| {
+            matches!(e, CanonicalEvent::ContentBlockStop { index: 0 })
+        });
+        let tool_start = position(&events, |e| {
+            matches!(
+                e,
+                CanonicalEvent::ContentBlockStart {
+                    block: ContentBlockKind::ToolUse { .. },
+                    ..
+                }
+            )
+        });
+        assert!(
+            thinking_stop < tool_start,
+            "thinking must close before tool use"
+        );
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, .. }
+                    if *stop_reason == Some(CanonicalStopReason::ToolUse))
+        ));
+    }
+
     #[tokio::test]
     async fn empty_text_delta_does_not_open_block() {
         let sse = "data: {\"id\":\"c1\",\"model\":\"gpt\",\"choices\":[{\"delta\":{\"content\":\"\"}}]}\n\n"

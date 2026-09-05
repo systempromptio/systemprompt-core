@@ -4,6 +4,11 @@
 //! A chunk's `delta` carries reasoning, answer text and tool-call fragments on
 //! three independent tracks; each opens its own canonical content block the
 //! first time it appears and keeps that index for the rest of the turn.
+//! Indices are handed out in arrival order, so a reasoning block that comes
+//! first takes index 0 and the answer text follows it -- and reasoning is
+//! closed the moment answer text or a tool call begins, because a thinking
+//! block left open while text streams renders as one interleaved block on the
+//! inbound Anthropic surface.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,7 +25,7 @@ pub(super) struct OpenAiChatStreamState {
     pub(super) model: String,
     pub(super) message_id: MessageId,
     pub(super) started: bool,
-    pub(super) text_block_open: bool,
+    pub(super) text_block: Option<u32>,
     pub(super) next_index: u32,
     pub(super) tool_calls: Vec<ToolCallProgress>,
     pub(super) reasoning_block: Option<u32>,
@@ -55,20 +60,36 @@ pub(super) fn process_text_delta(
     if text.is_empty() {
         return;
     }
-    if !state.text_block_open {
+    close_reasoning(state, events);
+    let index = if let Some(index) = state.text_block {
+        index
+    } else {
+        let index = state.next_index;
+        state.next_index += 1;
+        state.text_block = Some(index);
         events.push(Ok(CanonicalEvent::ContentBlockStart {
-            index: 0,
+            index,
             block: ContentBlockKind::Text,
         }));
-        state.text_block_open = true;
-        if state.next_index == 0 {
-            state.next_index = 1;
-        }
-    }
+        index
+    };
     events.push(Ok(CanonicalEvent::TextDelta {
-        index: 0,
+        index,
         text: text.to_owned(),
     }));
+}
+
+// Why: the reasoning track ends where the answer begins. Held open across the
+// text deltas, the inbound Anthropic renderer keeps writing thinking_delta
+// frames into a block the model has already left, and the client shows the
+// answer as part of the model's private reasoning.
+pub(super) fn close_reasoning(
+    state: &mut OpenAiChatStreamState,
+    events: &mut Vec<Result<CanonicalEvent, String>>,
+) {
+    if let Some(index) = state.reasoning_block.take() {
+        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
+    }
 }
 
 // Why: the chat contract has no reasoning field, but every OpenAI-compatible
@@ -93,12 +114,6 @@ pub(super) fn process_reasoning_delta(
     let index = if let Some(index) = state.reasoning_block {
         index
     } else {
-        // Why: this codec pins the text block at index 0 unconditionally, so a
-        // reasoning block that arrives first must not take that slot or the
-        // two collide on one index.
-        if state.next_index == 0 {
-            state.next_index = 1;
-        }
         let index = state.next_index;
         state.next_index += 1;
         state.reasoning_block = Some(index);
@@ -126,6 +141,7 @@ pub(super) fn process_tool_calls(
         return;
     };
     state.saw_tool_call = true;
+    close_reasoning(state, events);
     for tc in tool_calls {
         let provider_index = tc.get("index").and_then(Value::as_i64).unwrap_or(-1);
         let existing = state

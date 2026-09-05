@@ -608,7 +608,7 @@ async fn openai_chat_stream_carries_reasoning_content_deltas() {
         .collect();
     assert_eq!(
         thinking,
-        vec![(1, "first I ".to_owned()), (1, "counted".to_owned())],
+        vec![(0, "first I ".to_owned()), (0, "counted".to_owned())],
         "streamed reasoning must arrive as thinking deltas on their own block"
     );
 
@@ -618,12 +618,12 @@ async fn openai_chat_stream_carries_reasoning_content_deltas() {
     });
     assert_eq!(
         text_index,
-        Some(0),
-        "the answer text keeps block 0; reasoning must not collide with it"
+        Some(1),
+        "blocks are numbered in arrival order; reasoning came first, so text follows it"
     );
     let stops = events
         .iter()
-        .filter(|e| matches!(e, Ok(CanonicalEvent::ContentBlockStop { index: 1 })))
+        .filter(|e| matches!(e, Ok(CanonicalEvent::ContentBlockStop { index: 0 })))
         .count();
     assert_eq!(
         stops, 1,
