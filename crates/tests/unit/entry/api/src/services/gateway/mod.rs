@@ -1,7 +1,6 @@
 mod audit_payload;
 mod canonical_request;
 mod canonical_response;
-mod captures;
 mod image_fetch;
 mod inbound_anthropic;
 mod inbound_anthropic_deep;
@@ -16,6 +15,7 @@ mod openai_passthrough;
 mod outbound;
 mod outbound_deep;
 mod outbound_passthrough;
+mod outbound_retry;
 mod parse;
 mod pricing;
 mod registry;

@@ -14,6 +14,7 @@ pub mod anthropic;
 pub mod gemini;
 pub mod openai_chat;
 pub mod openai_responses;
+pub mod retry;
 
 use std::sync::Arc;
 
@@ -80,21 +81,16 @@ pub(in crate::services::gateway) fn http_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(reqwest::Client::new)
 }
 
+// Why: every adapter's one upstream call, so the bounded retry for transient
+// capacity failures lives here rather than four times over. Retrying is safe
+// at this point precisely because it is the only point: no byte of a response
+// has been relayed, and neither the buffered nor the streaming lane has begun.
 pub(in crate::services::gateway) async fn send_checked(
     provider: &str,
     req: reqwest::RequestBuilder,
 ) -> Result<reqwest::Response> {
-    let response = req.send().await.map_err(|e| {
-        anyhow::Error::new(UpstreamError::Transport {
-            provider: provider.to_owned(),
-            source: e,
-        })
-    })?;
-    if !response.status().is_success() {
-        return Err(anyhow::Error::new(
-            UpstreamError::from_response(provider, response).await,
-        ));
-    }
+    let policy = retry::current_policy();
+    let (response, _retries) = retry::send_with_retry(provider, req, &policy).await?;
     Ok(response)
 }
 
