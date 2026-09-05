@@ -1,7 +1,7 @@
 //! Anthropic Messages wire-codec tests.
 
 use serde_json::{Value, json};
-use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_models::services::ai::{ModelLimits, ModelPricing};
 use systemprompt_models::wire::anthropic;
 use systemprompt_models::wire::anthropic::AnthropicStreamState;
 use systemprompt_models::wire::canonical::{
@@ -541,25 +541,138 @@ fn anthropic_parse_keeps_max_tokens_over_a_truncated_tool_use_block() {
     );
 }
 
+// Why: the fixture is a real `claude-opus-5` adaptive-thinking reply that
+// went through the gateway on 2026-09-06 and was audited with
+// `reasoning_tokens = 0`. Anthropic's `output_tokens` already includes the
+// thinking share, so the count is copied across and the cost must not move.
 #[test]
-fn anthropic_parse_reports_no_separate_reasoning_count() {
+fn anthropic_parse_reads_adaptive_thinking_tokens_as_a_breakdown_of_output() {
     let value: Value = json!({
         "id": "msg_1",
-        "model": "claude-sonnet-5",
+        "model": "claude-opus-5",
         "content": [
             {"type": "thinking", "thinking": "let me work through it", "signature": "sig"},
             {"type": "text", "text": "42"}
         ],
         "stop_reason": "end_turn",
+        "usage": {
+            "input_tokens": 100,
+            "output_tokens": 4302,
+            "output_tokens_details": {"thinking_tokens": 3776}
+        }
+    });
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.usage.reasoning_tokens, 3776);
+    assert_eq!(
+        response.usage.output_tokens, 4302,
+        "thinking tokens are already inside output_tokens and must not be added again"
+    );
+    assert_eq!(response.usage.total_tokens, 4402);
+
+    let mut without_details = value.clone();
+    without_details["usage"]
+        .as_object_mut()
+        .expect("usage is an object")
+        .remove("output_tokens_details");
+    let plain = anthropic::parse_response(&without_details, "fallback").expect("fixture parses");
+    let pricing = opus_pricing();
+    assert_eq!(
+        pricing.cost_microdollars(&response.usage),
+        pricing.cost_microdollars(&plain.usage),
+        "the thinking breakdown is informational; cost is computed on output_tokens"
+    );
+    assert_eq!(pricing.cost_microdollars(&response.usage), 108_050);
+}
+
+#[test]
+fn anthropic_parse_reports_zero_reasoning_when_no_details_are_stated() {
+    let value: Value = json!({
+        "id": "msg_1",
+        "model": "claude-sonnet-5",
+        "content": [{"type": "text", "text": "42"}],
+        "stop_reason": "end_turn",
         "usage": {"input_tokens": 10, "output_tokens": 300}
     });
     let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
-    assert_eq!(
-        response.usage.reasoning_tokens, 0,
-        "Anthropic bills extended thinking as ordinary output tokens and reports no separate \
-         count, so the thinking spend is already inside output_tokens"
-    );
+    assert_eq!(response.usage.reasoning_tokens, 0);
     assert_eq!(response.usage.output_tokens, 300);
+}
+
+// Why: the stream reports the thinking share only on the trailing
+// `message_delta`, after `message_start` established the input side, so the
+// accumulated usage must carry the breakdown without disturbing the counts an
+// earlier frame set.
+#[test]
+fn anthropic_stream_accumulates_adaptive_thinking_tokens_from_the_terminal_frame() {
+    use systemprompt_models::wire::canonical::CanonicalUsage;
+
+    let mut codec = AnthropicStreamState::default();
+    let mut usage = CanonicalUsage::default();
+    let frames = [
+        json!({"type": "message_start", "message": {"id": "msg_1", "model": "claude-opus-5",
+            "usage": {"input_tokens": 100, "output_tokens": 1}}}),
+        json!({"type": "content_block_start", "index": 0,
+            "content_block": {"type": "thinking", "thinking": ""}}),
+        json!({"type": "content_block_delta", "index": 0,
+            "delta": {"type": "thinking_delta", "thinking": "hmm"}}),
+        json!({"type": "content_block_stop", "index": 0}),
+        json!({"type": "message_delta", "delta": {"stop_reason": "end_turn"},
+            "usage": {"output_tokens": 4302, "output_tokens_details": {"thinking_tokens": 3776}}}),
+        json!({"type": "message_stop"}),
+    ];
+    for frame in &frames {
+        for event in codec.events_from_sse(frame) {
+            match event {
+                CanonicalEvent::MessageStart { usage: start, .. } => usage = start,
+                CanonicalEvent::UsageDelta(update) => update.apply_to(&mut usage),
+                _ => {},
+            }
+        }
+    }
+    assert_eq!(usage.input_tokens, 100);
+    assert_eq!(usage.output_tokens, 4302);
+    assert_eq!(usage.reasoning_tokens, 3776);
+    assert_eq!(usage.total_tokens, 4402);
+    assert_eq!(opus_pricing().cost_microdollars(&usage), 108_050);
+}
+
+#[test]
+fn anthropic_stream_leaves_reasoning_at_zero_when_no_details_are_stated() {
+    use systemprompt_models::wire::canonical::CanonicalUsage;
+
+    let mut codec = AnthropicStreamState::default();
+    let mut usage = CanonicalUsage::default();
+    let frames = [
+        json!({"type": "message_start", "message": {"id": "msg_1", "model": "claude-sonnet-5",
+            "usage": {"input_tokens": 10, "output_tokens": 1}}}),
+        json!({"type": "message_delta", "delta": {"stop_reason": "end_turn"},
+            "usage": {"output_tokens": 300}}),
+    ];
+    for frame in &frames {
+        for event in codec.events_from_sse(frame) {
+            match event {
+                CanonicalEvent::MessageStart { usage: start, .. } => usage = start,
+                CanonicalEvent::UsageDelta(update) => {
+                    assert_eq!(update.reasoning_tokens, None);
+                    update.apply_to(&mut usage);
+                },
+                _ => {},
+            }
+        }
+    }
+    assert_eq!(usage.reasoning_tokens, 0);
+    assert_eq!(usage.output_tokens, 300);
+}
+
+// Why: the live `claude-opus-5` rates ($5 / $25 per million) reproduce the
+// audited 0.10805 USD for the fixture above.
+fn opus_pricing() -> ModelPricing {
+    ModelPricing {
+        input_per_million: 5.0,
+        output_per_million: 25.0,
+        cache_read_per_million: Some(0.0),
+        ..ModelPricing::default()
+    }
 }
 
 // Why: this is the third instance of one bug class and the only one the
