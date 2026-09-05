@@ -8,7 +8,7 @@ use bytes::{Bytes, BytesMut};
 use systemprompt_identifiers::AiToolCallId;
 use systemprompt_models::wire::inspect::{SurfaceBudget, sse_string_leaves};
 
-use super::super::captures::{CapturedToolUse, CapturedUsage};
+use super::super::captures::CapturedToolUse;
 use super::super::protocol::canonical::CanonicalContent;
 use super::super::protocol::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
@@ -61,7 +61,7 @@ enum BlockAccumulator {
 )]
 #[derive(Debug)]
 pub struct Summary {
-    pub usage: CapturedUsage,
+    pub usage: CanonicalUsage,
     pub tool_calls: Vec<CapturedToolUse>,
     pub response: CanonicalResponse,
     pub final_bytes: Bytes,
@@ -80,13 +80,6 @@ pub struct Summary {
 )]
 pub fn extract_summary(state: &mut TapState) -> Summary {
     let mut response = build_response(state);
-    let usage = CapturedUsage {
-        input_tokens: state.usage.input_tokens,
-        output_tokens: state.usage.output_tokens,
-        cache_read_tokens: state.usage.cache_read_tokens,
-        cache_creation_tokens: state.usage.cache_creation_tokens,
-        reasoning_tokens: state.usage.reasoning_tokens,
-    };
     let tool_calls = response
         .content
         .iter()
@@ -116,7 +109,7 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
         Some(state.served_model.clone())
     };
     Summary {
-        usage,
+        usage: state.usage,
         tool_calls,
         response,
         final_bytes,

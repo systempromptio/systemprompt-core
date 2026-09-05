@@ -4,11 +4,11 @@
 use serde_json::json;
 use systemprompt_ai::repository::{AiRequestPayloadRepository, UpsertPayloadParams};
 
-use super::{pool, seed_request, user};
+use super::{pool_or_skip, seed_request, user};
 
 #[tokio::test]
 async fn upsert_request_then_response_coexist() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let uid = user();
@@ -65,7 +65,7 @@ async fn upsert_request_then_response_coexist() {
 
 #[tokio::test]
 async fn upsert_request_twice_updates_in_place() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let uid = user();
@@ -118,7 +118,7 @@ async fn upsert_request_twice_updates_in_place() {
 
 #[tokio::test]
 async fn upsert_prepared_sha256_does_not_clobber_request_payload() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let uid = user();

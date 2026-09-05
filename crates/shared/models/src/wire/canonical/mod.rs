@@ -10,12 +10,14 @@
 
 mod request;
 mod response;
+mod usage;
 
 pub use request::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
     ImageDetail, ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 pub use response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
-    CodeExecutionOutput, ContentBlockKind, GroundedSource, Grounding,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CodeExecutionOutput, ContentBlockKind,
+    GroundedSource, Grounding,
 };
+pub use usage::{CanonicalUsage, CanonicalUsageUpdate};

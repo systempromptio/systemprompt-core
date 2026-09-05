@@ -2,11 +2,11 @@
 
 use systemprompt_ai::repository::{AiSafetyFindingRepository, InsertSafetyFinding};
 
-use super::{pool, seed_request, user};
+use super::{pool_or_skip, seed_request, user};
 
 #[tokio::test]
 async fn insert_returns_generated_id() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let uid = user();
@@ -30,7 +30,7 @@ async fn insert_returns_generated_id() {
 
 #[tokio::test]
 async fn insert_allows_null_excerpt() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let uid = user();
@@ -54,7 +54,7 @@ async fn insert_allows_null_excerpt() {
 
 #[tokio::test]
 async fn the_rollup_separates_findings_from_the_ones_that_blocked() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let uid = user();

@@ -72,6 +72,8 @@ mod profile_gateway;
 
 #[cfg(test)]
 mod provider_catalog_parity;
+#[cfg(test)]
+mod provider_model_lookup;
 
 #[cfg(test)]
 mod provider_protocol_filter;
@@ -221,6 +223,9 @@ mod schema_sanitizer;
 
 #[cfg(test)]
 mod validators_driven;
+
+#[cfg(test)]
+mod wire_cache_convention;
 
 #[cfg(test)]
 mod wire_streaming;

@@ -21,7 +21,6 @@ pub mod openai_images;
 pub mod provider_factory;
 pub mod provider_trait;
 pub mod resilient_provider;
-pub mod shared;
 
 pub use anthropic::AnthropicProvider;
 pub use canonical_bridge::CodeExecutionResponse;

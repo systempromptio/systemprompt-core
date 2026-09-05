@@ -2,6 +2,7 @@
 //! into `TapState` and extracting the audit `Summary`.
 
 use systemprompt_api::services::gateway::protocol::canonical::CanonicalContent;
+use systemprompt_test_fixtures as fixtures;
 use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
@@ -10,14 +11,7 @@ use systemprompt_api::services::gateway::stream_tap::test_api::{
 };
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {
-    CanonicalUsage {
-        input_tokens: input,
-        output_tokens: output,
-        cache_read_tokens: 0,
-        cache_creation_tokens: 0,
-        reasoning_tokens: 0,
-        total_tokens: input + output,
-    }
+    fixtures::usage().input(input).output(output).build()
 }
 
 fn start(state: &mut TapState, id: &str, model: &str) {
@@ -271,6 +265,7 @@ fn usage_delta_replaces_the_message_start_snapshot_wholesale() {
             cache_read_tokens: Some(7),
             cache_creation_tokens: Some(3),
             reasoning_tokens: None,
+            total_tokens: None,
         }),
     );
 
@@ -281,7 +276,7 @@ fn usage_delta_replaces_the_message_start_snapshot_wholesale() {
     assert_eq!(response.usage.output_tokens, 42);
     assert_eq!(response.usage.cache_read_tokens, 7);
     assert_eq!(response.usage.cache_creation_tokens, 3);
-    // Recomputed here; no producer sets total_tokens on a delta.
+    // No stated wire total on this frame, so the cache-inclusive sum stands.
     assert_eq!(response.usage.total_tokens, 52);
 }
 
@@ -304,6 +299,7 @@ fn message_start_alone_does_not_count_as_reported_usage() {
             cache_read_tokens: Some(0),
             cache_creation_tokens: Some(0),
             reasoning_tokens: None,
+            total_tokens: None,
         }),
     );
     assert!(extract_summary(&mut state).saw_usage_delta);
@@ -547,5 +543,27 @@ fn a_max_tokens_stop_survives_beside_a_truncated_tool_call() {
         snapshot(&state).stop_reason,
         Some(CanonicalStopReason::MaxTokens),
         "truncation must survive the tool-use correction"
+    );
+}
+
+#[test]
+fn a_stated_wire_total_survives_the_accumulator() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-10", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(20),
+            output_tokens: Some(106),
+            reasoning_tokens: Some(100),
+            total_tokens: Some(126),
+            ..CanonicalUsageUpdate::default()
+        }),
+    );
+    assert_eq!(
+        snapshot(&state).usage.total_tokens,
+        126,
+        "the wire's own total is the signal normalise_reasoning reads; \
+         recomputing it here discards it"
     );
 }

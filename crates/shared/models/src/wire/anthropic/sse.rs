@@ -200,6 +200,9 @@ fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
         // Why: see `AnthropicUsage::into_canonical` -- Anthropic bills
         // thinking as ordinary output tokens and reports no separate count.
         reasoning_tokens: None,
+        // Why: Anthropic states no total on the wire, so the accumulator's
+        // cache-inclusive sum stands.
+        total_tokens: None,
     }
 }
 

@@ -15,6 +15,10 @@
 //! If no candidate resolves, emit a WARN and return zero pricing — a real
 //! configuration gap, not noise to silence.
 //!
+//! The arithmetic itself is not here: `ModelPricing::cost_microdollars` in the
+//! shared models crate is the one cost function, shared with the internal
+//! agent path so both bill a `CanonicalUsage` identically.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -71,28 +75,4 @@ fn registry_pricing(
         .iter()
         .find_map(|entry| entry.find_model(model))
         .map(|m| m.pricing)
-}
-
-#[must_use]
-pub fn cost_microdollars(pricing: ModelPricing, tokens: CostTokens) -> i64 {
-    let rate = |count: u32, per_million: f64| (f64::from(count) / 1_000_000.0) * per_million;
-    let total = rate(tokens.input, pricing.input_per_million)
-        + rate(tokens.output, pricing.output_per_million)
-        + rate(tokens.cache_read, pricing.cache_read_per_million)
-        + rate(tokens.cache_creation, pricing.cache_write_per_million);
-    (total * 1_000_000.0).round() as i64
-}
-
-/// The four billable token counts of one request, kept as a struct so a caller
-/// cannot silently transpose two same-typed arguments.
-///
-/// Reasoning tokens are deliberately absent: every wire adapter normalises
-/// them *into* `output`, so they are already billed here at the output rate.
-/// Adding a fifth field would double-charge every thinking turn.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CostTokens {
-    pub input: u32,
-    pub output: u32,
-    pub cache_read: u32,
-    pub cache_creation: u32,
 }

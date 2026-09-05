@@ -10,6 +10,7 @@ use crate::models::RequestStatus;
 use crate::models::ai::{AiMessage, AiRequest, AiResponse, GenerateResponseParams};
 use crate::models::tools::McpTool;
 use crate::services::providers::{GenerationParams, ModelPricing, ToolGenerationParams};
+use systemprompt_models::wire::canonical::CanonicalUsage;
 
 use super::super::request_storage::StoreParams;
 use super::service::AiService;
@@ -126,21 +127,30 @@ impl AiService {
     }
 
     pub(super) fn estimate_cost(&self, response: &AiResponse) -> i64 {
-        let input = f64::from(response.input_tokens.unwrap_or(0));
-        let output = f64::from(response.output_tokens.unwrap_or(0));
-
+        // Why: an unknown provider is a configuration gap, not a billable
+        // rate. Inventing one silently priced every such turn at a fabricated
+        // $1/$1 per million; zero plus a warning is the gateway's behaviour
+        // and now the only one.
         let pricing = self.providers.get(&response.provider).map_or_else(
-            || ModelPricing {
-                input_per_million: 1.0,
-                output_per_million: 1.0,
-                ..ModelPricing::default()
+            || {
+                tracing::warn!(
+                    provider = %response.provider,
+                    model = %response.model,
+                    "no provider pricing registered; cost_microdollars will be 0"
+                );
+                ModelPricing::default()
             },
             |p| p.get_pricing(&response.model),
         );
 
-        let input_cost = (input / 1_000_000.0) * pricing.input_per_million;
-        let output_cost = (output / 1_000_000.0) * pricing.output_per_million;
-
-        ((input_cost + output_cost) * 1_000_000.0).round() as i64
+        let usage = CanonicalUsage {
+            input_tokens: response.input_tokens.unwrap_or(0),
+            output_tokens: response.output_tokens.unwrap_or(0),
+            cache_read_tokens: response.cache_read_tokens.unwrap_or(0),
+            cache_creation_tokens: response.cache_creation_tokens.unwrap_or(0),
+            reasoning_tokens: response.reasoning_tokens.unwrap_or(0),
+            total_tokens: response.tokens_used.unwrap_or(0),
+        };
+        pricing.cost_microdollars(&usage)
     }
 }

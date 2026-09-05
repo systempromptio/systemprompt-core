@@ -199,9 +199,9 @@ impl AiRequestRepository {
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-                $25, $26, $27, $29, $30,
+                $25, $26, $27, $28, $29,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                CASE WHEN $28 THEN CURRENT_TIMESTAMP ELSE NULL END
+                CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
             ON CONFLICT (id) DO NOTHING
             "#,
@@ -232,9 +232,9 @@ impl AiRequestRepository {
             actor_kind,
             actor_id,
             record.requested_model.as_deref(),
-            use_completed_at,
             record.instance_id.as_ref().map(InstanceId::as_str),
-            record.tokens.reasoning_tokens
+            record.tokens.reasoning_tokens,
+            use_completed_at
         )
         .execute(self.write_pool())
         .await?;

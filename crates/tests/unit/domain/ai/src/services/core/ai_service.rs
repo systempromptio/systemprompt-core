@@ -8,7 +8,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_models::ai::PlanningResult;
 
-use super::{pool, seeded_context, service};
+use super::{pool_or_skip, seeded_context, service};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -44,7 +44,7 @@ async fn count_requests(pool: &DbPool, user_id: &UserId) -> i64 {
 
 #[tokio::test]
 async fn generate_returns_content_and_persists_audit_row() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -66,7 +66,7 @@ async fn generate_returns_content_and_persists_audit_row() {
 
 #[tokio::test]
 async fn generate_error_path_persists_failed_row_and_errs() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_error(
@@ -86,7 +86,7 @@ async fn generate_error_path_persists_failed_row_and_errs() {
 
 #[tokio::test]
 async fn generate_with_tools_single_text_turn() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -102,7 +102,7 @@ async fn generate_with_tools_single_text_turn() {
 
 #[tokio::test]
 async fn generate_single_turn_returns_tool_calls() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_success(mock_http::anthropic_tool_use_body(
@@ -125,7 +125,7 @@ async fn generate_single_turn_returns_tool_calls() {
 
 #[tokio::test]
 async fn generate_plan_direct_response_when_no_tool_calls() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -144,7 +144,7 @@ async fn generate_plan_direct_response_when_no_tool_calls() {
 
 #[tokio::test]
 async fn generate_plan_tool_calls_when_present() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_success(mock_http::anthropic_tool_use_body(
@@ -169,7 +169,7 @@ async fn generate_plan_tool_calls_when_present() {
 
 #[tokio::test]
 async fn generate_response_synthesizes_final_text() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_success(mock_http::anthropic_response_body(
@@ -193,7 +193,7 @@ async fn generate_response_synthesizes_final_text() {
 
 #[tokio::test]
 async fn generate_response_falls_back_to_defaults_when_unset() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -217,7 +217,7 @@ async fn generate_response_falls_back_to_defaults_when_unset() {
 
 #[tokio::test]
 async fn generate_stream_yields_text_chunks() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
@@ -242,7 +242,7 @@ async fn generate_stream_yields_text_chunks() {
 
 #[tokio::test]
 async fn generate_with_tools_stream_yields_chunks() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
@@ -332,7 +332,7 @@ const ANTHROPIC_SSE_WITH_USAGE: &str = "data: {\"type\":\"message_start\",\"mess
 
 #[tokio::test]
 async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE_WITH_USAGE).await;
@@ -355,9 +355,9 @@ async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
     assert!(audit.is_streaming);
     assert_eq!(audit.input_tokens, Some(3));
     assert_eq!(audit.output_tokens, Some(5));
-    // Anthropic reports no separate thinking count, so the column is selected
-    // to prove the streamed INSERT carries it, and is legitimately NULL here.
-    assert_eq!(audit.reasoning_tokens, None);
+    // Anthropic reports no separate thinking count; it is recorded as 0, the
+    // same value the gateway writes, so both halves of the product agree.
+    assert_eq!(audit.reasoning_tokens, Some(0));
     assert!(
         audit.cost_microdollars > 0,
         "priced model must accrue cost, got {}",
@@ -371,7 +371,7 @@ async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
 
 #[tokio::test]
 async fn tool_stream_drained_to_end_persists_completed_audit() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
@@ -395,7 +395,7 @@ async fn tool_stream_drained_to_end_persists_completed_audit() {
 
 #[tokio::test]
 async fn stream_connect_failure_surfaces_provider_error() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_error(
@@ -417,7 +417,7 @@ async fn stream_connect_failure_surfaces_provider_error() {
 
 #[tokio::test]
 async fn health_check_reports_provider_and_tools() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_success(json!({})).await;
@@ -429,7 +429,7 @@ async fn health_check_reports_provider_and_tools() {
 
 #[tokio::test]
 async fn default_getters_reflect_config() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_success(json!({})).await;
@@ -442,7 +442,7 @@ async fn default_getters_reflect_config() {
 
 #[tokio::test]
 async fn unknown_provider_in_request_errors() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_success(json!({})).await;
@@ -463,7 +463,7 @@ async fn unknown_provider_in_request_errors() {
 
 #[tokio::test]
 async fn openai_protocol_drives_generate() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -480,7 +480,7 @@ async fn openai_protocol_drives_generate() {
 
 #[tokio::test]
 async fn build_fails_when_default_provider_not_enabled() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     // default_provider points at a provider with no enabled policy entry.
@@ -502,7 +502,7 @@ async fn build_fails_when_default_provider_not_enabled() {
 
 #[tokio::test]
 async fn google_search_errs_when_no_provider_supports_it() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_success(json!({})).await;
@@ -524,7 +524,7 @@ async fn google_search_errs_when_no_provider_supports_it() {
 
 #[tokio::test]
 async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
