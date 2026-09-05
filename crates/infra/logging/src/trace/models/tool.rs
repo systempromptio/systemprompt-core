@@ -60,6 +60,7 @@ pub struct AuditLookupResult {
     pub output_tokens: Option<i32>,
     pub cache_read_tokens: Option<i32>,
     pub cache_creation_tokens: Option<i32>,
+    pub reasoning_tokens: Option<i32>,
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
     pub status: String,

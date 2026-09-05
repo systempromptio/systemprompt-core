@@ -104,7 +104,8 @@ impl AiRequestRepository {
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
-                      cache_read_tokens, cache_creation_tokens, is_streaming, status,
+                      cache_read_tokens, cache_creation_tokens, reasoning_tokens,
+                      is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
             status.as_str(),
