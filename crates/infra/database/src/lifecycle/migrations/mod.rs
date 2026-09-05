@@ -136,7 +136,12 @@ impl<'a> MigrationService<'a> {
             let row = applied_rows.get(&migration.version).copied();
 
             if migration.tombstone {
-                self.verify_slot_identity(ext_id, migration, row)?;
+                // Why: a tombstone's name labels the retirement ("retired_chain"),
+                // it is not the name of the migration that once held the slot, so
+                // comparing it to a tracked row is meaningless — and it failed on
+                // exactly the population tombstones exist for. Every established
+                // database carries the real names in a retired range, so slot
+                // identity was checked against a label and refused the boot.
                 debug!(
                     extension = %ext_id,
                     version = migration.version,
