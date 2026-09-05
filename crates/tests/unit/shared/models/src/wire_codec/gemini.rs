@@ -746,7 +746,7 @@ async fn gemini_stream_reports_thoughts_tokens_in_the_usage_delta() {
 }
 
 #[test]
-fn gemini_budgets_thinking_on_top_of_caller_max_tokens() {
+fn gemini_raises_the_ceiling_for_default_thinking_without_sending_a_budget() {
     let req = base_request();
     let body = gemini::build_request_body(
         &req,
@@ -757,10 +757,9 @@ fn gemini_budgets_thinking_on_top_of_caller_max_tokens() {
         }),
     );
     let cfg = &body["generationConfig"];
-    assert_eq!(
-        cfg["thinkingConfig"]["thinkingBudget"],
-        json!(24_576),
-        "an implicit thinking budget must be bounded by the model card"
+    assert!(
+        cfg.get("thinkingConfig").is_none_or(Value::is_null),
+        "a thinkingBudget would switch thinking on for models Google ships with it off"
     );
     assert_eq!(
         cfg["maxOutputTokens"],
@@ -770,7 +769,7 @@ fn gemini_budgets_thinking_on_top_of_caller_max_tokens() {
 }
 
 #[test]
-fn gemini_implicit_thinking_budget_fits_under_model_output_cap() {
+fn gemini_default_thinking_headroom_stays_under_the_model_output_cap() {
     let mut req = base_request();
     req.max_tokens = 4000;
     let body = gemini::build_request_body(
@@ -782,33 +781,8 @@ fn gemini_implicit_thinking_budget_fits_under_model_output_cap() {
         }),
     );
     let cfg = &body["generationConfig"];
-    assert_eq!(
-        cfg["thinkingConfig"]["thinkingBudget"],
-        json!(128),
-        "a budget below the 128 floor is rejected upstream, so the floor wins"
-    );
-    assert_eq!(
-        cfg["maxOutputTokens"],
-        json!(4096),
-        "the floor comes out of the text budget rather than breaching the model cap"
-    );
-}
-
-#[test]
-fn gemini_implicit_thinking_budget_never_falls_below_the_floor() {
-    let mut req = base_request();
-    req.max_tokens = 8192;
-    let body = gemini::build_request_body(
-        &req,
-        Some(ModelLimits {
-            max_output_tokens: 8192,
-            max_thinking_budget: Some(24_576),
-            ..Default::default()
-        }),
-    );
-    let cfg = &body["generationConfig"];
-    assert_eq!(cfg["thinkingConfig"]["thinkingBudget"], json!(128));
-    assert_eq!(cfg["maxOutputTokens"], json!(8192));
+    assert!(cfg.get("thinkingConfig").is_none_or(Value::is_null));
+    assert_eq!(cfg["maxOutputTokens"], json!(4096));
 }
 
 #[test]
@@ -843,5 +817,9 @@ fn gemini_model_without_thinking_budget_emits_no_thinking_config() {
     );
     let cfg = &body["generationConfig"];
     assert!(cfg.get("thinkingConfig").is_none_or(Value::is_null));
-    assert_eq!(cfg["maxOutputTokens"], json!(32));
+    assert_eq!(
+        cfg["maxOutputTokens"],
+        json!(32),
+        "no catalog thinking budget means the caller's number is forwarded as-is"
+    );
 }
