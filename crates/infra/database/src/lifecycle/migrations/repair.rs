@@ -104,7 +104,7 @@ impl MigrationService<'_> {
     // tell an edited migration from a reused slot. Reconciling a collision
     // stamps one migration's checksum onto a row describing another, which
     // silences that row's drift detector permanently. Refuse instead.
-    fn refuse_slot_collisions(status: &ExtensionMigrationStatus) -> Result<(), LoaderError> {
+    pub fn refuse_slot_collisions(status: &ExtensionMigrationStatus) -> Result<(), LoaderError> {
         let Some(collision) = status.slot_collisions.first() else {
             return Ok(());
         };
