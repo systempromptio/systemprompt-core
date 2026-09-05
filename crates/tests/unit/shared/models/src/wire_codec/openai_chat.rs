@@ -769,3 +769,56 @@ fn parse_response_ignores_unknown_usage_members() {
     assert_eq!(canon.usage.input_tokens, 7);
     assert_eq!(canon.usage.output_tokens, 1);
 }
+
+#[test]
+fn openai_chat_treats_a_catalog_thinking_budget_as_a_reasoning_model() {
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "qwen.qwen3-next-thinking",
+        Some(ModelLimits {
+            max_output_tokens: 32_768,
+            max_thinking_budget: Some(8192),
+            ..Default::default()
+        }),
+    );
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32_768),
+        "a model card carrying a thinking budget must get the model cap, whatever its name"
+    );
+}
+
+#[test]
+fn openai_chat_keeps_caller_budget_for_unnamed_model_without_thinking_budget() {
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "qwen.qwen3-next-instruct",
+        Some(ModelLimits {
+            max_output_tokens: 32_768,
+            ..Default::default()
+        }),
+    );
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32),
+        "no catalog thinking budget and no reasoning prefix means the caller's number stands"
+    );
+}
+
+#[test]
+fn openai_chat_zero_thinking_budget_is_not_a_reasoning_model() {
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "qwen.qwen3-next-instruct",
+        Some(ModelLimits {
+            max_output_tokens: 32_768,
+            max_thinking_budget: Some(0),
+            ..Default::default()
+        }),
+    );
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32),
+        "a zero budget means the model does not spend completion tokens on thought"
+    );
+}
