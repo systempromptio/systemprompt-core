@@ -1,7 +1,8 @@
 //! Extension migration runner backed by the `extension_migrations`
 //! bookkeeping table. [`MigrationService`] applies, reverts, and inspects
 //! per-extension migration history; reverts live in [`down`], status/plan
-//! queries in [`status`], fresh-install baseline stamping in [`stamp`].
+//! queries in [`status`], fresh-install baseline stamping in [`stamp`] (whose
+//! rows the installer commits with the structural DDL they describe).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +17,7 @@ mod verify;
 
 pub use mark_applied::MarkAppliedOutcome;
 pub use repair::RepairResult;
-pub use stamp::FreshnessCheck;
+pub use stamp::{BaselineStamp, FreshnessCheck};
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
     OrphanedMigration, PendingMigration, SlotCollision, TombstonedSlot,
@@ -29,7 +30,7 @@ use systemprompt_extension::{Extension, LoaderError, Migration};
 use systemprompt_identifiers::ToDbValue;
 use tracing::{debug, info, warn};
 
-const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations (id, extension_id, version, \
+pub(crate) const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations (id, extension_id, version, \
                                     name, checksum) VALUES ($1, $2, $3, $4, $5)";
 
 #[derive(Debug, Default, Clone, Copy)]

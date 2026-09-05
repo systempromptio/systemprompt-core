@@ -10,7 +10,9 @@ use std::env;
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row, query};
-use systemprompt_database::{Database, MigrationConfig, MigrationService, install_extension_schemas};
+use systemprompt_database::{
+    Database, MigrationConfig, MigrationService, install_extension_schemas,
+};
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition,
 };
@@ -208,7 +210,7 @@ async fn reusing_a_spent_slot_is_refused_and_its_sql_never_runs() {
             assert_eq!(version, 7);
             assert_eq!(stored_name, "original");
             assert_eq!(current_name, "refilled");
-        }
+        },
         other => panic!("expected MigrationSlotReused, got {other:?}"),
     }
 

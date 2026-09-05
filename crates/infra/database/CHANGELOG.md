@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- A fresh install's baseline stamp commits in the same transaction as the structural DDL it describes. It had been written in a transaction of its own, after every extension's structural DDL had already run, so an install that failed part-way left earlier extensions holding their tables with no baseline. That state is not fresh, so the next install called them established and executed migration SQL written against a schema shape the declarative baseline has already moved past — `ai` migration 003 against a current `ai_quota_buckets`, for one, which fails on a column that no longer exists and fails identically on every retry.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

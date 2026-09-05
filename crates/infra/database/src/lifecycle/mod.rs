@@ -18,9 +18,9 @@ pub use installation::{
     install_extension_schemas_with_config,
 };
 pub use migrations::{
-    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck, MarkAppliedOutcome,
-    MigrationConfig, MigrationResult, MigrationService, MigrationStatus, OrphanedMigration,
-    PendingMigration, RepairResult, SlotCollision, TombstonedSlot,
+    AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,
+    MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService, MigrationStatus,
+    OrphanedMigration, PendingMigration, RepairResult, SlotCollision, TombstonedSlot,
 };
 pub use validation::{
     ReplicaStatus, replica_status, validate_column_exists, validate_database_connection,

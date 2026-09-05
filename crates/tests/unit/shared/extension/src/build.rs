@@ -252,7 +252,7 @@ fn emit_migrations_panics_on_non_numeric_prefix() {
 }
 
 #[test]
-#[should_panic(expected = "share version")]
+#[should_panic(expected = "claim version")]
 fn emit_migrations_panics_on_duplicate_version() {
     let _lock = env_lock();
     let _guard = EnvGuard::capture();
