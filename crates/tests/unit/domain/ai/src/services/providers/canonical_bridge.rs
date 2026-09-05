@@ -160,6 +160,7 @@ fn to_ai_response_maps_tokens_and_cache() {
         output_tokens: 5,
         cache_read_tokens: 4,
         cache_creation_tokens: 0,
+        reasoning_tokens: 0,
         total_tokens: 15,
     };
     let response = response_with(usage);
@@ -352,6 +353,7 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
         output_tokens: Some(8),
         cache_read_tokens: Some(3),
         cache_creation_tokens: None,
+        reasoning_tokens: None,
     };
     match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
         Some(StreamChunk::Usage {

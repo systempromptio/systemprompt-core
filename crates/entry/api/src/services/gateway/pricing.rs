@@ -85,6 +85,10 @@ pub fn cost_microdollars(pricing: ModelPricing, tokens: CostTokens) -> i64 {
 
 /// The four billable token counts of one request, kept as a struct so a caller
 /// cannot silently transpose two same-typed arguments.
+///
+/// Reasoning tokens are deliberately absent: every wire adapter normalises
+/// them *into* `output`, so they are already billed here at the output rate.
+/// Adding a fifth field would double-charge every thinking turn.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CostTokens {
     pub input: u32,

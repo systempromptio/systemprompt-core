@@ -103,6 +103,13 @@ pub(super) fn handle_completed(
                 .and_then(Value::as_u64)
                 .map(|v| v as u32),
             cache_creation_tokens: None,
+            // Why: already inside `output_tokens` on this contract, so it is
+            // reported as a breakdown and never added to the total.
+            reasoning_tokens: usage
+                .get("output_tokens_details")
+                .and_then(|d| d.get("reasoning_tokens"))
+                .and_then(Value::as_u64)
+                .map(|v| v as u32),
         })));
     }
     let incomplete_reason = incomplete

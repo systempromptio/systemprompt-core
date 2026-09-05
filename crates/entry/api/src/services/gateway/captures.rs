@@ -16,6 +16,10 @@ pub struct CapturedUsage {
     pub output_tokens: u32,
     pub cache_read_tokens: u32,
     pub cache_creation_tokens: u32,
+
+    // Why: the thinking share of output_tokens, recorded for reporting only.
+    // It is inside output_tokens, so cost must never add it again.
+    pub reasoning_tokens: u32,
 }
 
 #[derive(Debug, Clone)]

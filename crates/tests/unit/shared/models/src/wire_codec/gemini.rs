@@ -626,3 +626,121 @@ async fn gemini_stream_reports_tool_use_even_though_gemini_says_stop() {
          client drops the call"
     );
 }
+
+// Why: the tool-use correction must not swallow truncation. Gemini reports
+// MAX_TOKENS on a candidate whose functionCall was cut short; declaring tool
+// use there hands the client a call whose arguments are incomplete.
+#[test]
+fn gemini_parse_keeps_max_tokens_over_a_truncated_function_call() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "MAX_TOKENS",
+            "content": {
+                "role": "model",
+                "parts": [{ "functionCall": { "name": "lookup", "args": { "q": "ru" } } }]
+            }
+        }]
+    });
+
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash");
+
+    assert_eq!(
+        parsed.stop_reason,
+        Some(systemprompt_models::wire::canonical::CanonicalStopReason::MaxTokens),
+        "a truncated turn must say so rather than claim a runnable tool call"
+    );
+}
+
+#[tokio::test]
+async fn gemini_stream_keeps_max_tokens_over_a_truncated_function_call() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let sse = concat!(
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":\
+         {\"name\":\"lookup\",\"args\":{\"q\":\"ru\"}}}]}}]}\n\n",
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\
+         \"MAX_TOKENS\"}]}\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = gemini::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+
+    let stop = events.into_iter().find_map(|e| match e {
+        Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::MaxTokens)),
+        "truncation must survive the tool-use correction on the streaming path too"
+    );
+}
+
+#[test]
+fn gemini_parse_counts_thoughts_tokens_inside_output_tokens() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": "ok"}]},
+            "finishReason": "MAX_TOKENS"
+        }],
+        "usageMetadata": {
+            "promptTokenCount": 27,
+            "candidatesTokenCount": 6,
+            "thoughtsTokenCount": 194,
+            "totalTokenCount": 227
+        }
+    });
+    let response = gemini::parse_response(&value, "fallback");
+    assert_eq!(response.usage.reasoning_tokens, 194);
+    assert_eq!(
+        response.usage.output_tokens, 200,
+        "thoughtsTokenCount sits beside candidatesTokenCount on the wire, so it must be \
+         folded into output_tokens or the thinking spend is never billed"
+    );
+    assert_eq!(response.usage.total_tokens, 227);
+}
+
+#[test]
+fn gemini_parse_defaults_thoughts_to_zero_when_absent() {
+    let value: Value = json!({
+        "candidates": [{"content": {"role": "model", "parts": [{"text": "ok"}]}}],
+        "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4, "totalTokenCount": 7}
+    });
+    let response = gemini::parse_response(&value, "fallback");
+    assert_eq!(response.usage.reasoning_tokens, 0);
+    assert_eq!(response.usage.output_tokens, 4);
+}
+
+#[tokio::test]
+async fn gemini_stream_reports_thoughts_tokens_in_the_usage_delta() {
+    use futures::StreamExt;
+
+    let frame = json!({
+        "candidates": [{"content": {"role": "model", "parts": [{"text": "hi"}]}}],
+        "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 5,
+            "thoughtsTokenCount": 64,
+            "totalTokenCount": 79
+        }
+    });
+    let sse = format!("data: {frame}\n\n");
+    let upstream =
+        futures::stream::once(async move { Ok::<_, std::io::Error>(bytes::Bytes::from(sse)) });
+    let events: Vec<_> = gemini::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+    let update = events
+        .into_iter()
+        .find_map(|e| match e {
+            Ok(CanonicalEvent::UsageDelta(u)) => Some(u),
+            _ => None,
+        })
+        .expect("usage delta emitted");
+    assert_eq!(update.reasoning_tokens, Some(64));
+    assert_eq!(update.output_tokens, Some(69));
+}

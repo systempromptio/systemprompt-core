@@ -270,3 +270,70 @@ fn is_billable_rejects_zeroed_token_rates_but_accepts_image_pricing() {
         .is_billable()
     );
 }
+
+#[test]
+fn a_reasoning_only_gemini_turn_is_billed_for_its_thinking() {
+    // The live defect this pins: max_tokens 200 on gemini-2.5-flash, the whole
+    // budget spent thinking, six tokens of visible answer. Before the wire
+    // folded thoughtsTokenCount into output_tokens the turn billed for six.
+    let value = serde_json::json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": "ok"}]},
+            "finishReason": "MAX_TOKENS"
+        }],
+        "usageMetadata": {
+            "promptTokenCount": 27,
+            "candidatesTokenCount": 6,
+            "thoughtsTokenCount": 194,
+            "totalTokenCount": 227
+        }
+    });
+    let usage = systemprompt_models::wire::gemini::parse_response(&value, "gemini-2.5-flash").usage;
+    let p = ModelPricing {
+        input_per_million: 1.0,
+        output_per_million: 10.0,
+        ..ModelPricing::default()
+    };
+    let tokens = CostTokens {
+        input: usage.input_tokens,
+        output: usage.output_tokens,
+        cache_read: usage.cache_read_tokens,
+        cache_creation: usage.cache_creation_tokens,
+    };
+    // 27 input @ $1/M = 27 microdollars; 200 output (6 visible + 194 thinking)
+    // @ $10/M = 2000 microdollars.
+    assert_eq!(cost_microdollars(p, tokens), 2_027);
+    assert_eq!(usage.reasoning_tokens, 194);
+}
+
+#[test]
+fn reasoning_tokens_are_never_added_to_cost_a_second_time() {
+    // OpenAI already counts reasoning inside completion_tokens, so the same
+    // pricing arithmetic must charge 106 output tokens, not 206.
+    let value = serde_json::json!({
+        "id": "resp_r",
+        "model": "o4-mini",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": "42"}}],
+        "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 106,
+            "completion_tokens_details": {"reasoning_tokens": 100}
+        }
+    });
+    let usage = systemprompt_models::wire::openai_chat::parse_response(&value, "o4-mini").usage;
+    let p = ModelPricing {
+        output_per_million: 1_000_000.0,
+        ..ModelPricing::default()
+    };
+    assert_eq!(usage.reasoning_tokens, 100);
+    assert_eq!(
+        cost_microdollars(
+            p,
+            CostTokens {
+                output: usage.output_tokens,
+                ..CostTokens::default()
+            }
+        ),
+        106_000_000
+    );
+}

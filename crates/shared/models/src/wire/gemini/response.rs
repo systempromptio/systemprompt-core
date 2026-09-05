@@ -42,7 +42,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     let usage = usage(parsed.usage_metadata);
     let candidate = parsed.candidates.into_iter().next();
     let raw_finish_reason = candidate.as_ref().and_then(|c| c.finish_reason.clone());
-    let mut stop_reason = raw_finish_reason.as_deref().map(stop_reason);
+    let stop_reason = raw_finish_reason.as_deref().map(stop_reason);
     let grounding = candidate.as_ref().and_then(grounding_from_candidate);
     let parts = candidate.and_then(|c| c.content).map(|c| c.parts);
     let (content, code_execution) = parts.map_or_else(
@@ -56,13 +56,12 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     // `finish_reason: "stop"` on the OpenAI surface; a client that follows that
     // contract ends the turn and never executes the tool, so the call rides
     // along in the payload and is silently dropped. The content is the only
-    // reliable signal.
-    if content
+    // reliable signal, and MAX_TOKENS still wins: a call truncated mid-args is
+    // not a call the client can run.
+    let has_tool_use = content
         .iter()
-        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }))
-    {
-        stop_reason = Some(CanonicalStopReason::ToolUse);
-    }
+        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
+    let stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
 
     CanonicalResponse {
         id,
@@ -77,16 +76,21 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     }
 }
 
+// Why: Gemini reports thoughtsTokenCount separately from candidatesTokenCount,
+// so a turn that spent its whole budget thinking arrives with candidates: 0 and
+// looks free. CanonicalUsage requires output_tokens to include reasoning, so
+// the two are summed here and thoughts kept on their own for reporting.
 fn usage(meta: Option<GeminiUsageMetadata>) -> CanonicalUsage {
     meta.map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
         input_tokens: u.prompt,
-        output_tokens: u.candidates,
+        output_tokens: u.candidates + u.thoughts,
         cache_read_tokens: u.cached,
         cache_creation_tokens: 0,
+        reasoning_tokens: u.thoughts,
         total_tokens: if u.total > 0 {
             u.total
         } else {
-            u.prompt + u.candidates
+            u.prompt + u.candidates + u.thoughts
         },
     })
 }

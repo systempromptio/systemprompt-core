@@ -5,6 +5,27 @@
 //! [`CanonicalEvent`]s. Stop reasons are normalised here, with per-dialect
 //! string mappings.
 //!
+//! # Reasoning tokens
+//!
+//! `CanonicalUsage::reasoning_tokens` is a **breakdown of** `output_tokens`,
+//! never an addition to it. Providers disagree on the wire, so every adapter
+//! normalises to that one rule before the count reaches billing:
+//!
+//! * OpenAI (chat and responses) already folds
+//!   `*_tokens_details.reasoning_tokens` into `completion_tokens` /
+//!   `output_tokens`, so the adapter copies it across untouched.
+//! * Gemini reports `thoughtsTokenCount` *beside* `candidatesTokenCount` (and
+//!   inside `totalTokenCount`), so its adapter adds it into `output_tokens` on
+//!   the way in.
+//! * Anthropic bills extended thinking as ordinary output tokens and reports no
+//!   separate count, so it stays 0 there.
+//!
+//! Holding that invariant here is what makes reasoning billable: cost is
+//! computed from `output_tokens`, so a reasoning-only turn is charged at the
+//! output rate with no per-provider arithmetic downstream, and no count is
+//! charged twice. It is also why `reasoning_tokens` is absent from the
+//! `total_tokens` sum in [`CanonicalUsageUpdate::apply_to`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +43,11 @@ pub struct CanonicalUsage {
     pub output_tokens: u32,
     pub cache_read_tokens: u32,
     pub cache_creation_tokens: u32,
+
+    // Why: a breakdown of output_tokens, not an addition -- see the module
+    // head for the per-provider normalisation and why billing depends on it.
+    pub reasoning_tokens: u32,
+
     pub total_tokens: u32,
 }
 
@@ -44,6 +70,7 @@ pub struct CanonicalUsageUpdate {
     pub output_tokens: Option<u32>,
     pub cache_read_tokens: Option<u32>,
     pub cache_creation_tokens: Option<u32>,
+    pub reasoning_tokens: Option<u32>,
 }
 
 impl CanonicalUsageUpdate {
@@ -53,6 +80,7 @@ impl CanonicalUsageUpdate {
             && self.output_tokens.is_none()
             && self.cache_read_tokens.is_none()
             && self.cache_creation_tokens.is_none()
+            && self.reasoning_tokens.is_none()
     }
 
     pub const fn apply_to(&self, usage: &mut CanonicalUsage) {
@@ -68,6 +96,12 @@ impl CanonicalUsageUpdate {
         if let Some(v) = self.cache_creation_tokens {
             usage.cache_creation_tokens = v;
         }
+        if let Some(v) = self.reasoning_tokens {
+            usage.reasoning_tokens = v;
+        }
+        // Why: reasoning_tokens is a subset of output_tokens, so it is
+        // deliberately absent from this sum -- adding it would double-count
+        // every thinking turn in `total_tokens` and in the cost derived from it.
         usage.total_tokens = usage.input_tokens
             + usage.output_tokens
             + usage.cache_read_tokens
@@ -109,6 +143,26 @@ impl CanonicalStopReason {
             "stop_sequence" => Self::StopSequence,
             "tool_use" => Self::ToolUse,
             _ => Self::Other,
+        }
+    }
+
+    /// Corrects a terminal reason for a turn that produced a tool call.
+    ///
+    /// Providers routinely report a generic "stop" beside a fully-formed tool
+    /// call: Gemini sends `finishReason: STOP` on a `functionCall` candidate,
+    /// and several OpenAI-compatible upstreams send `finish_reason: "stop"`
+    /// beside a `tool_calls` array. Left alone that renders as `"stop"` /
+    /// `"end_turn"` downstream, every client treats the turn as complete, and
+    /// the call rides along in the payload and is silently never executed.
+    ///
+    /// Truncation still wins. A `max_tokens` cutoff mid-call leaves the
+    /// argument JSON unfinished, so declaring tool use there would hand the
+    /// client a call it cannot parse instead of telling it the turn was cut.
+    #[must_use]
+    pub const fn with_tool_use(self, has_tool_use: bool) -> Self {
+        match self {
+            Self::EndTurn | Self::Other if has_tool_use => Self::ToolUse,
+            other => other,
         }
     }
 

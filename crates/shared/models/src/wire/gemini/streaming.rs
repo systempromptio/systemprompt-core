@@ -99,7 +99,8 @@ fn handle_chunk(
     if let Some(usage) = chunk.usage_metadata {
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
             input_tokens: Some(usage.prompt),
-            output_tokens: Some(usage.candidates),
+            output_tokens: Some(usage.candidates + usage.thoughts),
+            reasoning_tokens: Some(usage.thoughts),
             ..CanonicalUsageUpdate::default()
         })));
     }
@@ -117,11 +118,8 @@ fn handle_chunk(
         // `finish_reason: "stop"` on the OpenAI surface, and a client that
         // follows that contract treats the turn as complete and never runs the
         // tool -- the call is present in the payload and silently ignored.
-        let reason = if state.emitted_tool_use {
-            CanonicalStopReason::ToolUse
-        } else {
-            stop_reason(finish)
-        };
+        // MAX_TOKENS is not overridden: a call cut mid-turn is not runnable.
+        let reason = stop_reason(finish).with_tool_use(state.emitted_tool_use);
         emit_stop(state, reason, events);
     }
 }

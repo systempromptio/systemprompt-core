@@ -483,3 +483,78 @@ fn non_credential_identity_headers_keep_their_value() {
         assert_eq!(anthropic::recordable_header_value(name, "value"), "value");
     }
 }
+
+// Why: this codec also fronts Anthropic-compatible upstreams, which do not all
+// honour `stop_reason: "tool_use"`. An `end_turn` beside a tool_use block is
+// relayed as a finished turn and the call is silently never run.
+#[test]
+fn anthropic_parse_reports_tool_use_even_though_the_upstream_says_end_turn() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "msg_1",
+        "model": "claude-x",
+        "stop_reason": "end_turn",
+        "content": [{
+            "type": "tool_use",
+            "id": "toolu_1",
+            "name": "lookup",
+            "input": {"q": "rust"}
+        }]
+    });
+    let response = anthropic::parse_response(&value, "fallback");
+    assert_eq!(
+        response.stop_reason,
+        Some(CanonicalStopReason::ToolUse),
+        "a turn carrying a tool_use block is a tool-use turn whatever the upstream calls it"
+    );
+    assert_eq!(
+        response.raw_finish_reason.as_deref(),
+        Some("end_turn"),
+        "the wire's own reason must still be preserved verbatim for auditing"
+    );
+}
+
+#[test]
+fn anthropic_parse_keeps_max_tokens_over_a_truncated_tool_use_block() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "msg_2",
+        "model": "claude-x",
+        "stop_reason": "max_tokens",
+        "content": [{
+            "type": "tool_use",
+            "id": "toolu_1",
+            "name": "lookup",
+            "input": {"q": "ru"}
+        }]
+    });
+    let response = anthropic::parse_response(&value, "fallback");
+    assert_eq!(
+        response.stop_reason,
+        Some(CanonicalStopReason::MaxTokens),
+        "a truncated tool call must report the cutoff rather than claim to be runnable"
+    );
+}
+
+#[test]
+fn anthropic_parse_reports_no_separate_reasoning_count() {
+    let value: Value = json!({
+        "id": "msg_1",
+        "model": "claude-sonnet-5",
+        "content": [
+            {"type": "thinking", "thinking": "let me work through it", "signature": "sig"},
+            {"type": "text", "text": "42"}
+        ],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 10, "output_tokens": 300}
+    });
+    let response = anthropic::parse_response(&value, "fallback");
+    assert_eq!(
+        response.usage.reasoning_tokens, 0,
+        "Anthropic bills extended thinking as ordinary output tokens and reports no separate \
+         count, so the thinking spend is already inside output_tokens"
+    );
+    assert_eq!(response.usage.output_tokens, 300);
+}

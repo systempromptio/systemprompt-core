@@ -260,4 +260,8 @@ pub(crate) struct GeminiUsageMetadata {
     pub(crate) total: u32,
     #[serde(default, rename = "cachedContentTokenCount")]
     pub(crate) cached: u32,
+    // Why: thinking tokens, reported beside candidatesTokenCount rather than
+    // inside it, and counted in totalTokenCount. Absent without a budget.
+    #[serde(default, rename = "thoughtsTokenCount")]
+    pub(crate) thoughts: u32,
 }

@@ -414,3 +414,113 @@ fn openai_responses_parse_captures_reasoning_id_and_encrypted_content() {
         other => panic!("expected Thinking, got {other:?}"),
     }
 }
+
+// Why: tool use used to be resolved before truncation, so a function_call cut
+// off at max_output_tokens was reported as a runnable tool call. Its arguments
+// are incomplete JSON, so the client either fails to parse them or -- worse --
+// runs the tool with the wrong ones.
+#[test]
+fn openai_responses_truncated_function_call_reports_max_tokens() {
+    let value: Value = json!({
+        "id": "resp_4",
+        "model": "gpt-5.4",
+        "output": [{
+            "type": "function_call",
+            "call_id": "call_1",
+            "name": "lookup",
+            "arguments": "{\"q\":\"ru"
+        }],
+        "incomplete_details": {"reason": "max_output_tokens"},
+    });
+    let response = openai_responses::parse_response_object(&value, "fallback");
+    assert_eq!(
+        response.stop_reason,
+        Some(CanonicalStopReason::MaxTokens),
+        "a call truncated mid-arguments must report the cutoff, not tool use"
+    );
+}
+
+#[tokio::test]
+async fn openai_responses_stream_truncated_function_call_reports_max_tokens() {
+    use futures::StreamExt;
+
+    let sse = concat!(
+        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_5\",\"model\":\"m\"}}\
+         \n\n",
+        "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\
+         \"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\"}}\n\n",
+        "data: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\
+         \"delta\":\"{\\\"q\\\":\\\"ru\"}\n\n",
+        "data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"resp_5\",\
+         \"incomplete_details\":{\"reason\":\"max_output_tokens\"}}}\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = openai_responses::sse_to_canonical_events(upstream, "m".to_owned())
+        .collect()
+        .await;
+    let stop = events.into_iter().find_map(|e| match e {
+        Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::MaxTokens)),
+        "truncation must beat tool use on the streaming path too"
+    );
+}
+
+#[test]
+fn openai_responses_parse_breaks_reasoning_out_of_output_tokens() {
+    let value: Value = json!({
+        "id": "resp_1",
+        "model": "o4-mini",
+        "output": [{"type": "message", "content": [{"type": "output_text", "text": "42"}]}],
+        "usage": {
+            "input_tokens": 20,
+            "output_tokens": 512,
+            "total_tokens": 532,
+            "output_tokens_details": {"reasoning_tokens": 448}
+        }
+    });
+    let response = openai_responses::parse_response(&value, "fallback");
+    assert_eq!(response.usage.reasoning_tokens, 448);
+    assert_eq!(
+        response.usage.output_tokens, 512,
+        "reasoning is already inside output_tokens on the responses contract"
+    );
+}
+
+#[tokio::test]
+async fn openai_responses_stream_reports_reasoning_tokens_in_the_usage_delta() {
+    use futures::StreamExt;
+
+    let frame = json!({
+        "type": "response.completed",
+        "response": {
+            "id": "resp_42",
+            "model": "o4-mini",
+            "usage": {
+                "input_tokens": 20,
+                "output_tokens": 512,
+                "output_tokens_details": {"reasoning_tokens": 448}
+            }
+        }
+    });
+    let sse = format!("data: {frame}\n\n");
+    let upstream =
+        futures::stream::once(async move { Ok::<_, std::io::Error>(bytes::Bytes::from(sse)) });
+    let events: Vec<_> = openai_responses::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+    let update = events
+        .into_iter()
+        .find_map(|e| match e {
+            Ok(CanonicalEvent::UsageDelta(u)) => Some(u),
+            _ => None,
+        })
+        .expect("usage delta emitted");
+    assert_eq!(update.reasoning_tokens, Some(448));
+    assert_eq!(update.output_tokens, Some(512));
+}

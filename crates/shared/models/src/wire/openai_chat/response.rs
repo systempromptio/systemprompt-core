@@ -34,12 +34,23 @@ struct ChatUsage {
     total_tokens: u32,
     #[serde(default)]
     prompt_tokens_details: ChatPromptTokensDetails,
+    #[serde(default)]
+    completion_tokens_details: ChatCompletionTokensDetails,
 }
 
 #[derive(Debug, Default, Deserialize)]
 struct ChatPromptTokensDetails {
     #[serde(default)]
     cached_tokens: u32,
+}
+
+// Why: emitted by OpenAI's reasoning models and by the OpenAI-compatible
+// providers that copy the contract (DeepSeek, Qwen, Moonshot). The count is a
+// breakdown of completion_tokens, not an addition to it.
+#[derive(Debug, Default, Deserialize)]
+struct ChatCompletionTokensDetails {
+    #[serde(default)]
+    reasoning_tokens: u32,
 }
 
 impl ChatUsage {
@@ -49,6 +60,7 @@ impl ChatUsage {
             output_tokens: self.completion_tokens,
             cache_read_tokens: self.prompt_tokens_details.cached_tokens,
             cache_creation_tokens: 0,
+            reasoning_tokens: self.completion_tokens_details.reasoning_tokens,
             total_tokens: self.total_tokens,
         }
     }
@@ -116,6 +128,15 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         if let Some(msg) = choice.message {
             collect_message_content(msg, &mut content);
         }
+        // Why: the contract says a turn carrying tool_calls finishes with
+        // "tool_calls", but several OpenAI-compatible upstreams send a plain
+        // "stop" beside a fully-formed tool_calls array. Relayed as "stop" the
+        // client ends the turn and never runs the call, and the drop is
+        // silent -- it looks exactly like the model declining to use tools.
+        let has_tool_use = content
+            .iter()
+            .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
+        stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
     }
 
     CanonicalResponse {

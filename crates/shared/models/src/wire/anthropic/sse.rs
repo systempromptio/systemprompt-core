@@ -147,6 +147,9 @@ fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
         output_tokens: field("output_tokens"),
         cache_read_tokens: field("cache_read_input_tokens"),
         cache_creation_tokens: field("cache_creation_input_tokens"),
+        // Why: see `AnthropicUsage::into_canonical` -- Anthropic bills
+        // thinking as ordinary output tokens and reports no separate count.
+        reasoning_tokens: None,
     }
 }
 
@@ -164,6 +167,7 @@ fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {
         output_tokens: output,
         cache_read_tokens: cache_read,
         cache_creation_tokens: cache_creation,
+        reasoning_tokens: 0,
         total_tokens: input + output + cache_read + cache_creation,
     }
 }

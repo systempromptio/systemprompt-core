@@ -92,6 +92,9 @@ pub(super) fn usage_object(usage: &CanonicalUsage) -> Value {
         "completion_tokens": usage.output_tokens,
         "total_tokens": usage.input_tokens + usage.output_tokens,
         "prompt_tokens_details": { "cached_tokens": usage.cache_read_tokens },
+        // Why: a breakdown of completion_tokens, per the OpenAI contract --
+        // adding it to the totals above would double-count every thinking turn.
+        "completion_tokens_details": { "reasoning_tokens": usage.reasoning_tokens },
     })
 }
 

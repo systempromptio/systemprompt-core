@@ -197,6 +197,7 @@ fn sample_response() -> CanonicalResponse {
             output_tokens: 5,
             cache_read_tokens: 3,
             cache_creation_tokens: 0,
+            reasoning_tokens: 0,
             total_tokens: 18,
         },
         ..Default::default()

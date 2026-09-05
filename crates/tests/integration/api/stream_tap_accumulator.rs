@@ -18,6 +18,7 @@ fn usage(input: u32, output: u32) -> CanonicalUsage {
         output_tokens: output,
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
+        reasoning_tokens: 0,
         total_tokens: 0,
     }
 }

@@ -43,12 +43,22 @@ struct ResponseUsage {
     total_tokens: u32,
     #[serde(default)]
     input_tokens_details: ResponseInputTokensDetails,
+    #[serde(default)]
+    output_tokens_details: ResponseOutputTokensDetails,
 }
 
 #[derive(Debug, Default, Deserialize)]
 struct ResponseInputTokensDetails {
     #[serde(default)]
     cached_tokens: u32,
+}
+
+// Why: reasoning tokens are already counted inside output_tokens on this
+// contract; this field only breaks them out.
+#[derive(Debug, Default, Deserialize)]
+struct ResponseOutputTokensDetails {
+    #[serde(default)]
+    reasoning_tokens: u32,
 }
 
 impl ResponseUsage {
@@ -58,6 +68,7 @@ impl ResponseUsage {
             output_tokens: self.output_tokens,
             cache_read_tokens: self.input_tokens_details.cached_tokens,
             cache_creation_tokens: 0,
+            reasoning_tokens: self.output_tokens_details.reasoning_tokens,
             total_tokens: self.total_tokens,
         }
     }

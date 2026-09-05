@@ -32,6 +32,8 @@ where
         text_block_open: false,
         next_index: 0,
         tool_calls: Vec::new(),
+        reasoning_block: None,
+        saw_tool_call: false,
         stopped: false,
     };
 
@@ -95,6 +97,7 @@ fn handle_chunk(
         return;
     };
     let delta = choice.get("delta").unwrap_or(&Value::Null);
+    process_reasoning_delta(state, delta, events);
     process_text_delta(state, delta, events);
     process_tool_calls(state, delta, events);
     if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str)
@@ -156,6 +159,52 @@ fn process_text_delta(
     }));
 }
 
+// Why: the chat contract has no reasoning field, but every OpenAI-compatible
+// provider that emits thinking (DeepSeek, Qwen, Moonshot) streams it here.
+// The buffered parse already reads it; without the streaming half a thinking
+// model's trace -- the whole point of those models -- is dropped mid-stream.
+fn process_reasoning_delta(
+    state: &mut OpenAiChatStreamState,
+    delta: &Value,
+    events: &mut Vec<Result<CanonicalEvent, String>>,
+) {
+    let Some(text) = delta
+        .get("reasoning_content")
+        .or_else(|| delta.get("reasoning"))
+        .and_then(Value::as_str)
+    else {
+        return;
+    };
+    if text.is_empty() {
+        return;
+    }
+    let index = if let Some(index) = state.reasoning_block {
+        index
+    } else {
+        // Why: this codec pins the text block at index 0 unconditionally, so a
+        // reasoning block that arrives first must not take that slot or the
+        // two collide on one index.
+        if state.next_index == 0 {
+            state.next_index = 1;
+        }
+        let index = state.next_index;
+        state.next_index += 1;
+        state.reasoning_block = Some(index);
+        events.push(Ok(CanonicalEvent::ContentBlockStart {
+            index,
+            block: ContentBlockKind::Thinking {
+                id: None,
+                signature: None,
+            },
+        }));
+        index
+    };
+    events.push(Ok(CanonicalEvent::ThinkingDelta {
+        index,
+        text: text.to_owned(),
+    }));
+}
+
 fn process_tool_calls(
     state: &mut OpenAiChatStreamState,
     delta: &Value,
@@ -164,6 +213,7 @@ fn process_tool_calls(
     let Some(tool_calls) = delta.get("tool_calls").and_then(Value::as_array) else {
         return;
     };
+    state.saw_tool_call = true;
     for tc in tool_calls {
         let provider_index = tc.get("index").and_then(Value::as_i64).unwrap_or(-1);
         let existing = state
@@ -227,6 +277,9 @@ fn emit_message_stop(
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
     state.stopped = true;
+    if let Some(index) = state.reasoning_block.take() {
+        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
+    }
     if state.text_block_open {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: 0 }));
         state.text_block_open = false;
@@ -236,7 +289,9 @@ fn emit_message_stop(
     }
     events.push(Ok(CanonicalEvent::MessageStop {
         id: state.message_id.as_str().to_owned(),
-        stop_reason: Some(CanonicalStopReason::from_openai(finish)),
+        stop_reason: Some(
+            CanonicalStopReason::from_openai(finish).with_tool_use(state.saw_tool_call),
+        ),
     }));
 }
 
@@ -251,6 +306,13 @@ fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
             .and_then(Value::as_u64)
             .map(|v| v as u32),
         cache_creation_tokens: None,
+        // Why: already inside `completion_tokens` on this contract, so it is
+        // reported as a breakdown and never added to the total.
+        reasoning_tokens: usage
+            .get("completion_tokens_details")
+            .and_then(|d| d.get("reasoning_tokens"))
+            .and_then(Value::as_u64)
+            .map(|v| v as u32),
     }
 }
 
@@ -262,6 +324,13 @@ struct OpenAiChatStreamState {
     text_block_open: bool,
     next_index: u32,
     tool_calls: Vec<ToolCallProgress>,
+    reasoning_block: Option<u32>,
+    // Why: the contract says a turn carrying tool_calls finishes with
+    // "tool_calls", but several OpenAI-compatible upstreams send a plain
+    // "stop" -- and a stream that ends on [DONE] alone states no reason at
+    // all. Either renders as `finish_reason: "stop"` beside a complete
+    // tool_calls array, and the client ends the turn without running it.
+    saw_tool_call: bool,
     // Why: a chunk carrying `finish_reason` and the `[DONE]` sentinel both end
     // the turn, and providers send both. Emitting MessageStop twice let the
     // sentinel's unconditional EndTurn land after a real `tool_calls` finish,

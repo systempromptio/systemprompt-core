@@ -53,6 +53,13 @@ impl AnthropicUsage {
             output_tokens: self.output_tokens,
             cache_read_tokens: self.cache_read_input_tokens,
             cache_creation_tokens: self.cache_creation_input_tokens,
+            // Why: deliberately 0, not overlooked. Anthropic bills extended
+            // thinking as ordinary output tokens and its usage object reports
+            // no separate count, so the thinking spend is already inside
+            // `output_tokens` and there is nothing to break out. If a future
+            // API version adds one, read it here -- do not add it to
+            // `output_tokens`, which would double-bill.
+            reasoning_tokens: 0,
             total_tokens: self.input_tokens
                 + self.output_tokens
                 + self.cache_read_input_tokens
@@ -137,7 +144,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     let resp = AnthropicResponse::deserialize(value).unwrap_or_default();
     let id = resp.id.unwrap_or_default();
     let model = resp.model.unwrap_or_else(|| fallback_model.to_owned());
-    let stop_reason = resp
+    let wire_stop_reason = resp
         .stop_reason
         .as_deref()
         .map(CanonicalStopReason::from_anthropic);
@@ -181,6 +188,15 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         sources,
         queries: Vec::new(),
     });
+
+    // Why: Anthropic itself reports `tool_use` correctly, but this codec also
+    // fronts Anthropic-compatible upstreams that send a plain `end_turn`
+    // beside a tool_use block. Relayed as end_turn the client finishes the
+    // turn and the call is silently never run.
+    let has_tool_use = content
+        .iter()
+        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
+    let stop_reason = wire_stop_reason.map(|r| r.with_tool_use(has_tool_use));
 
     CanonicalResponse {
         id,
