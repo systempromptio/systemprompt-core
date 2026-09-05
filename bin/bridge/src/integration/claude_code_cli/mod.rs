@@ -1,11 +1,21 @@
 //! Standalone Claude Code CLI sync emitter.
 //!
 //! The `claude` CLI does not read the Cowork org-plugins root, so this mirrors
-//! every org plugin into `~/.claude` as a standard directory-source marketplace
-//! (`marketplace.json` + one plugin dir per manifest plugin + cache bundles +
-//! `known_marketplaces` + `installed_plugins`) and force-enables each plugin in
-//! `settings.json`, preserving every foreign key. Result: each plugin appears
-//! in `claude plugin list` and its skills load as `/<plugin-id>:<skill>`.
+//! every org plugin into `~/.claude` as standard directory-source marketplaces
+//! — one per marketplace the gateway manifest lists, each holding
+//! `marketplace.json` + one plugin dir per member plugin + cache bundles +
+//! `known_marketplaces` + `installed_plugins` — and force-enables each plugin
+//! in `settings.json` as `<plugin>@<marketplace-id>`, preserving every foreign
+//! key. A plugin two marketplaces carry is mirrored under each. Result: each
+//! plugin appears in `claude plugin list` and its skills load as
+//! `/<plugin-id>:<skill>`.
+//!
+//! The marketplaces this emitter owns are recorded in a sidecar
+//! ([`sidecar`]) so a later sync prunes only those and a marketplace the user
+//! registered themselves is never touched. A manifest from a gateway older
+//! than the `marketplaces` field lists none, and is mirrored as the single
+//! [`LEGACY_MARKETPLACE`] holding every plugin — the layout every bridge wrote
+//! before — so behaviour on such a gateway is unchanged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +23,9 @@
 mod bundle;
 pub mod json_io;
 pub mod marketplace;
+pub mod sidecar;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -25,10 +37,32 @@ use marketplace::{
 };
 
 use crate::config::paths;
+use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 
-pub const MARKETPLACE: &str = "org-provisioned";
+// Why: the one marketplace every bridge wrote before the manifest named its
+// marketplaces. It is still the shape an older gateway is mirrored as, and the
+// key a first sync against a newer gateway purges.
+pub const LEGACY_MARKETPLACE: &str = "org-provisioned";
+const LEGACY_DESCRIPTION: &str =
+    "Skills, agents, and MCP servers provisioned by your organization.";
 const VERSION_DIR: &str = "current";
+
+/// A Claude Code marketplace this emitter mirrors: the gateway marketplace's
+/// id and name, and the manifest plugins it carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostMarketplace {
+    pub id: String,
+    pub name: String,
+    pub plugin_ids: Vec<String>,
+}
+
+/// The plugins mirrored under one marketplace, as written to `settings.json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mirrored {
+    pub id: String,
+    pub plugin_ids: Vec<String>,
+}
 
 pub(crate) struct ClaudeCodeCliSync;
 
@@ -47,22 +81,53 @@ impl HostSync for ClaudeCodeCliSync {
     }
 }
 
-fn plugin_key(plugin_id: &str) -> String {
-    format!("{plugin_id}@{MARKETPLACE}")
+#[must_use]
+pub fn host_marketplaces(manifest: &SignedManifest) -> Vec<HostMarketplace> {
+    if manifest.plugins.is_empty() {
+        return Vec::new();
+    }
+    if manifest.marketplaces.is_empty() {
+        return vec![HostMarketplace {
+            id: LEGACY_MARKETPLACE.to_owned(),
+            name: LEGACY_DESCRIPTION.to_owned(),
+            plugin_ids: manifest
+                .plugins
+                .iter()
+                .map(|p| p.id.as_str().to_owned())
+                .collect(),
+        }];
+    }
+    manifest
+        .marketplaces
+        .iter()
+        .map(|m| HostMarketplace {
+            id: m.id.as_str().to_owned(),
+            name: m.name.clone(),
+            plugin_ids: m.plugin_ids.iter().map(|p| p.as_str().to_owned()).collect(),
+        })
+        .collect()
 }
 
-pub(crate) fn marketplace_dir(plugins: &Path) -> PathBuf {
-    plugins.join("marketplaces").join(MARKETPLACE)
+pub(crate) fn plugin_key(plugin_id: &str, marketplace: &str) -> String {
+    format!("{plugin_id}@{marketplace}")
 }
 
-fn source_plugin_dir(plugins: &Path, plugin_id: &str) -> PathBuf {
-    marketplace_dir(plugins).join("plugins").join(plugin_id)
+pub(crate) fn marketplace_dir(plugins: &Path, marketplace: &str) -> PathBuf {
+    plugins.join("marketplaces").join(marketplace)
 }
 
-fn cache_install_dir(plugins: &Path, plugin_id: &str) -> PathBuf {
-    plugins
-        .join("cache")
-        .join(MARKETPLACE)
+fn source_plugin_dir(plugins: &Path, marketplace: &str, plugin_id: &str) -> PathBuf {
+    marketplace_dir(plugins, marketplace)
+        .join("plugins")
+        .join(plugin_id)
+}
+
+fn cache_dir(plugins: &Path, marketplace: &str) -> PathBuf {
+    plugins.join("cache").join(marketplace)
+}
+
+fn cache_install_dir(plugins: &Path, marketplace: &str, plugin_id: &str) -> PathBuf {
+    cache_dir(plugins, marketplace)
         .join(plugin_id)
         .join(VERSION_DIR)
 }
@@ -114,7 +179,8 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     }
 
     let manifest = ctx.manifest;
-    if manifest.plugins.is_empty() {
+    let marketplaces = host_marketplaces(manifest);
+    if marketplaces.is_empty() {
         return clear_install();
     }
 
@@ -124,10 +190,52 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     // CLI actually loads.
     crate::install::managed_mcp::clear_policy();
 
-    let mut ids = Vec::with_capacity(manifest.plugins.len());
-    let mut entries = Vec::with_capacity(manifest.plugins.len());
-    for plugin in &manifest.plugins {
-        let id = plugin.id.as_str();
+    let mut mirrored = Vec::with_capacity(marketplaces.len());
+    for marketplace in &marketplaces {
+        mirrored.push(mirror_marketplace(ctx, &plugins, marketplace)?);
+    }
+
+    let current: Vec<String> = mirrored.iter().map(|m| m.id.clone()).collect();
+    let stale: Vec<String> = sidecar::previously_owned(&plugins)
+        .into_iter()
+        .filter(|id| !current.contains(id))
+        .collect();
+    for id in &stale {
+        purge_marketplace(&plugins, id)?;
+    }
+    set_enabled(&mirrored, &stale)?;
+    sidecar::write(&plugins, &current)?;
+
+    tracing::info!(
+        target: "bridge::claude-code-cli",
+        marketplaces = ?current,
+        plugins = mirrored.iter().map(|m| m.plugin_ids.len()).sum::<usize>(),
+        "installed and enabled org plugins for the standalone Claude Code CLI"
+    );
+    Ok(())
+}
+
+fn mirror_marketplace(
+    ctx: &HostSyncCtx<'_>,
+    plugins: &Path,
+    marketplace: &HostMarketplace,
+) -> Result<Mirrored, ApplyError> {
+    let manifest = ctx.manifest;
+    let versions: BTreeMap<&str, &str> = manifest
+        .plugins
+        .iter()
+        .map(|p| (p.id.as_str(), p.version.as_str()))
+        .collect();
+
+    let mut ids: Vec<&str> = Vec::with_capacity(marketplace.plugin_ids.len());
+    let mut entries = Vec::with_capacity(marketplace.plugin_ids.len());
+    for id in &marketplace.plugin_ids {
+        // Why: the gateway never lists a plugin the manifest lacks; if one ever
+        // arrives there is nothing on disk to mirror, so it is skipped rather
+        // than failing the whole host.
+        let Some(version) = versions.get(id.as_str()) else {
+            continue;
+        };
         let src = ctx.org_plugins_root.join(id);
         let mcp_servers = ctx
             .plugin_mcp_servers
@@ -136,32 +244,44 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         mirror_plugin(
             ctx.loopback,
             &src,
-            &source_plugin_dir(&plugins, id),
+            &source_plugin_dir(plugins, &marketplace.id, id),
             mcp_servers,
         )?;
         mirror_plugin(
             ctx.loopback,
             &src,
-            &cache_install_dir(&plugins, id),
+            &cache_install_dir(plugins, &marketplace.id, id),
             mcp_servers,
         )?;
-        entries.push(marketplace::entry_for(&src, id, &plugin.version));
+        entries.push(marketplace::entry_for(&src, id, version));
         ids.push(id);
     }
 
-    remove_stale_children(&marketplace_dir(&plugins).join("plugins"), &ids)?;
-    remove_stale_children(&plugins.join("cache").join(MARKETPLACE), &ids)?;
+    remove_stale_children(
+        &marketplace_dir(plugins, &marketplace.id).join("plugins"),
+        &ids,
+    )?;
+    remove_stale_children(&cache_dir(plugins, &marketplace.id), &ids)?;
 
-    write_marketplace_json(&plugins, manifest.manifest_version.as_str(), &entries)?;
-    upsert_known_marketplace(&plugins, &manifest.issued_at)?;
-    upsert_installed_plugins(&plugins, manifest, &ids)?;
-    set_enabled(&ids)?;
-    tracing::info!(
-        target: "bridge::claude-code-cli",
-        marketplace = MARKETPLACE,
-        plugins = ids.len(),
-        "installed and enabled org plugins for the standalone Claude Code CLI"
-    );
+    write_marketplace_json(
+        plugins,
+        marketplace,
+        manifest.manifest_version.as_str(),
+        &entries,
+    )?;
+    upsert_known_marketplace(plugins, &marketplace.id, &manifest.issued_at)?;
+    upsert_installed_plugins(plugins, manifest, &marketplace.id, &ids)?;
+    Ok(Mirrored {
+        id: marketplace.id.clone(),
+        plugin_ids: ids.into_iter().map(str::to_owned).collect(),
+    })
+}
+
+fn purge_marketplace(plugins: &Path, marketplace: &str) -> Result<(), ApplyError> {
+    remove_dir(&cache_dir(plugins, marketplace))?;
+    remove_dir(&marketplace_dir(plugins, marketplace))?;
+    strip_installed_plugins(plugins, marketplace)?;
+    strip_known_marketplace(plugins, marketplace)?;
     Ok(())
 }
 
@@ -177,12 +297,12 @@ pub(crate) fn clear_install() -> Result<(), ApplyError> {
     if !paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return Ok(());
     }
-    remove_dir(&plugins.join("cache").join(MARKETPLACE))?;
-    remove_dir(&marketplace_dir(&plugins))?;
-    strip_installed_plugins(&plugins)?;
-    strip_known_marketplace(&plugins)?;
-    set_enabled(&[])?;
-    Ok(())
+    let owned = sidecar::previously_owned(&plugins);
+    for id in &owned {
+        purge_marketplace(&plugins, id)?;
+    }
+    set_enabled(&[], &owned)?;
+    sidecar::remove(&plugins)
 }
 
 crate::register_host_sync!(ClaudeCodeCliSync);

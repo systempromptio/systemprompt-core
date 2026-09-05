@@ -13,9 +13,9 @@ use base64::Engine;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
 pub use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer, PluginEntry,
-    PluginFile, SignedManifest, SignedManifestEnvelope, SkillEntry, UserInfo,
-    bridge_version_is_supported,
+    AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
+    ManifestMarketplace, PluginEntry, PluginFile, SignedManifest, SignedManifestEnvelope,
+    SkillEntry, UserInfo, bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::services::PluginComponentRef;
@@ -134,6 +134,7 @@ pub struct SignedManifestBuilder {
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
     allow_claude_ai_connectors: bool,
+    marketplaces: Vec<ManifestMarketplace>,
 }
 
 impl SignedManifestBuilder {
@@ -161,6 +162,7 @@ impl SignedManifestBuilder {
             host_model_protocols: std::collections::BTreeMap::new(),
             artifacts: Vec::new(),
             allow_claude_ai_connectors: false,
+            marketplaces: Vec::new(),
         }
     }
 
@@ -240,6 +242,12 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
+    pub fn with_marketplaces(mut self, marketplaces: Vec<ManifestMarketplace>) -> Self {
+        self.marketplaces = marketplaces;
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> SignedManifest {
         SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -261,6 +269,7 @@ impl SignedManifestBuilder {
             artifacts: self.artifacts,
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
             diagnostics: Vec::new(),
+            marketplaces: self.marketplaces,
         }
     }
 }
