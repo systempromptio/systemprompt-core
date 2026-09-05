@@ -10,8 +10,7 @@ use serde_json::{Value, json};
 use super::wire::{
     GeminiContent, GeminiEmpty, GeminiFunctionCall, GeminiFunctionCallingConfig,
     GeminiFunctionDeclaration, GeminiFunctionResponse, GeminiGenerationConfig, GeminiInlineData,
-    GeminiPart, GeminiRequest, GeminiSystemInstruction, GeminiThinkingConfig, GeminiTool,
-    GeminiToolConfig,
+    GeminiPart, GeminiRequest, GeminiSystemInstruction, GeminiTool, GeminiToolConfig,
 };
 use crate::schema::SchemaSanitizer;
 use crate::services::WireProtocol;
@@ -53,14 +52,12 @@ fn generation_config(
         Some(ResponseFormat::JsonObject) => (Some("application/json".to_owned()), None),
         None => (None, None),
     };
+    let (thinking_config, max_output_tokens) = super::thinking::thinking_config(request, limits);
     GeminiGenerationConfig {
         temperature: request.temperature,
         top_p: request.top_p,
         top_k: request.top_k,
-        max_output_tokens: Some(crate::wire::clamp_output_tokens(
-            request.max_tokens,
-            limits.map(|l| l.max_output_tokens),
-        )),
+        max_output_tokens: Some(max_output_tokens),
         stop_sequences: if request.stop_sequences.is_empty() {
             None
         } else {
@@ -68,26 +65,8 @@ fn generation_config(
         },
         response_mime_type,
         response_schema,
-        thinking_config: thinking_config(request, limits.and_then(|l| l.max_thinking_budget)),
+        thinking_config,
     }
-}
-
-fn thinking_config(
-    request: &CanonicalRequest,
-    max_thinking_budget: Option<u32>,
-) -> Option<GeminiThinkingConfig> {
-    let thinking = request.thinking?;
-    if !thinking.enabled {
-        return None;
-    }
-    let thinking_budget = match (thinking.budget_tokens, max_thinking_budget) {
-        (Some(requested), Some(cap)) => Some(requested.min(cap)),
-        (requested, _) => requested,
-    };
-    Some(GeminiThinkingConfig {
-        thinking_budget,
-        include_thoughts: Some(true),
-    })
 }
 
 fn tools(request: &CanonicalRequest) -> Option<Vec<GeminiTool>> {

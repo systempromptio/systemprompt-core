@@ -744,3 +744,79 @@ async fn gemini_stream_reports_thoughts_tokens_in_the_usage_delta() {
     assert_eq!(update.reasoning_tokens, Some(64));
     assert_eq!(update.output_tokens, Some(69));
 }
+
+#[test]
+fn gemini_budgets_thinking_on_top_of_caller_max_tokens() {
+    let req = base_request();
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 65_536,
+            max_thinking_budget: Some(24_576),
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert_eq!(
+        cfg["thinkingConfig"]["thinkingBudget"],
+        json!(24_576),
+        "an implicit thinking budget must be bounded by the model card"
+    );
+    assert_eq!(
+        cfg["maxOutputTokens"],
+        json!(24_576 + 32),
+        "maxOutputTokens must leave the caller's max_tokens for visible text"
+    );
+}
+
+#[test]
+fn gemini_implicit_thinking_budget_fits_under_model_output_cap() {
+    let mut req = base_request();
+    req.max_tokens = 4000;
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 4096,
+            max_thinking_budget: Some(24_576),
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert_eq!(cfg["thinkingConfig"]["thinkingBudget"], json!(96));
+    assert_eq!(cfg["maxOutputTokens"], json!(4096));
+}
+
+#[test]
+fn gemini_explicit_client_thinking_leaves_max_output_tokens_untouched() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: Some(1024),
+    });
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 65_536,
+            max_thinking_budget: Some(24_576),
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert_eq!(cfg["thinkingConfig"]["thinkingBudget"], json!(1024));
+    assert_eq!(cfg["maxOutputTokens"], json!(32));
+}
+
+#[test]
+fn gemini_model_without_thinking_budget_emits_no_thinking_config() {
+    let req = base_request();
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 8192,
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert!(cfg.get("thinkingConfig").is_none_or(Value::is_null));
+    assert_eq!(cfg["maxOutputTokens"], json!(32));
+}
