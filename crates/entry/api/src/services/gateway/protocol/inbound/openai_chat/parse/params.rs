@@ -47,7 +47,16 @@ pub(super) fn parse_tool(value: &Value) -> Option<CanonicalTool> {
 // Why: Chat Completions accepts three strings or a `function` object; anything
 // else is a client bug that the upstream API rejects, so it must not reach
 // dispatch as a silently dropped field.
-pub(super) fn parse_tool_choice(value: &Value) -> Result<CanonicalToolChoice, InboundParseError> {
+pub(super) fn parse_tool_choice(
+    request: &Value,
+) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
+    request
+        .get("tool_choice")
+        .map(parse_present_tool_choice)
+        .transpose()
+}
+
+fn parse_present_tool_choice(value: &Value) -> Result<CanonicalToolChoice, InboundParseError> {
     let unsupported = || InboundParseError::Unsupported {
         field: "tool_choice",
         detail: TOOL_CHOICE_EXPECTED.to_owned(),

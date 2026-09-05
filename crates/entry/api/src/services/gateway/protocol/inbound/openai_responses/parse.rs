@@ -87,11 +87,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .map_or_else(Vec::new, |arr| {
             arr.iter().filter_map(parse_tool).collect::<Vec<_>>()
         });
-    let tool_choice = value
-        .get("tool_choice")
-        .map(parse_tool_choice)
-        .transpose()?
-        .flatten();
+    let tool_choice = parse_tool_choice(value)?;
     let stream = value
         .get("stream")
         .and_then(Value::as_bool)
@@ -149,7 +145,17 @@ fn parse_tool(value: &Value) -> Option<CanonicalTool> {
 // Why: the Responses surface accepts three strings or a `function` object; a
 // value outside that grammar is rejected rather than dropped, so a client bug
 // cannot dispatch a request the upstream API would have refused.
-fn parse_tool_choice(value: &Value) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
+fn parse_tool_choice(request: &Value) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
+    Ok(request
+        .get("tool_choice")
+        .map(parse_present_tool_choice)
+        .transpose()?
+        .flatten())
+}
+
+fn parse_present_tool_choice(
+    value: &Value,
+) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
     let unsupported = || InboundParseError::Unsupported {
         field: "tool_choice",
         detail: TOOL_CHOICE_EXPECTED.to_owned(),
@@ -162,7 +168,10 @@ fn parse_tool_choice(value: &Value) -> Result<Option<CanonicalToolChoice>, Inbou
             _ => Err(unsupported()),
         };
     }
-    let kind = value.get("type").and_then(Value::as_str).ok_or_else(unsupported)?;
+    let kind = value
+        .get("type")
+        .and_then(Value::as_str)
+        .ok_or_else(unsupported)?;
     if HOSTED_TOOL_TYPES.contains(&kind) {
         return Ok(None);
     }
