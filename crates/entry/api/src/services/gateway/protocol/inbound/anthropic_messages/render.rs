@@ -34,9 +34,14 @@ pub fn render_response_value(response: &CanonicalResponse) -> Value {
         "content": content,
         "stop_reason": response.stop_reason.map(CanonicalStopReason::anthropic_str),
         "stop_sequence": Value::Null,
+        // Why: the streaming render emits all four counts, so a buffered reply
+        // that omitted the cache pair reported less usage than the identical
+        // streamed one to the same client.
         "usage": {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
+            "cache_read_input_tokens": response.usage.cache_read_tokens,
+            "cache_creation_input_tokens": response.usage.cache_creation_tokens,
         },
     })
 }

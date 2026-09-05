@@ -284,7 +284,9 @@ fn openai_responses_parse_extracts_text_tool_and_usage() {
         c,
         CanonicalContent::ToolUse { name, .. } if name == "lookup"
     )));
-    assert_eq!(response.usage.input_tokens, 10);
+    // cached_tokens is a subset of input_tokens on the wire; the canonical
+    // input is exclusive of it, so 10 - 3.
+    assert_eq!(response.usage.input_tokens, 7);
     assert_eq!(response.usage.output_tokens, 4);
     assert_eq!(response.usage.total_tokens, 14);
     assert_eq!(response.usage.cache_read_tokens, 3);

@@ -1,5 +1,16 @@
 //! Parses a buffered Gemini reply into a [`CanonicalResponse`].
 //!
+//! # Usage counts
+//!
+//! Gemini reports `thoughtsTokenCount` beside `candidatesTokenCount`, so a
+//! turn that spent its whole budget thinking arrives with `candidates: 0` and
+//! looks free; `CanonicalUsage` requires `output_tokens` to include reasoning,
+//! so the two are summed and thoughts kept on their own for reporting.
+//! `cachedContentTokenCount` is a *subset* of `promptTokenCount`, while
+//! `CanonicalUsage::input_tokens` is exclusive of cache reads, so it is
+//! subtracted -- left in, the cached slice bills at the input rate as well as
+//! the cache-read rate. The wire total already counts it once and is kept.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -75,13 +86,11 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     }
 }
 
-// Why: Gemini reports thoughtsTokenCount separately from candidatesTokenCount,
-// so a turn that spent its whole budget thinking arrives with candidates: 0 and
-// looks free. CanonicalUsage requires output_tokens to include reasoning, so
-// the two are summed here and thoughts kept on their own for reporting.
+// Why: thoughts are summed into output and cached is subtracted from prompt;
+// the module head explains both conventions and why billing depends on them.
 fn usage(meta: Option<GeminiUsageMetadata>) -> CanonicalUsage {
     meta.map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
-        input_tokens: u.prompt,
+        input_tokens: u.prompt.saturating_sub(u.cached),
         output_tokens: u.candidates + u.thoughts,
         cache_read_tokens: u.cached,
         cache_creation_tokens: 0,

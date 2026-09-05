@@ -97,10 +97,17 @@ fn handle_chunk(
         emit_start(state, &chunk, events);
     }
     if let Some(usage) = chunk.usage_metadata {
+        // Why: cachedContentTokenCount is a subset of promptTokenCount, and
+        // `CanonicalUsage::input_tokens` is exclusive of cache reads. The cached
+        // count must also be carried: omitted, a streamed reply reports zero
+        // cache where the buffered parse of the same reply reports it, so the
+        // two paths bill differently.
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
-            input_tokens: Some(usage.prompt),
+            input_tokens: Some(usage.prompt.saturating_sub(usage.cached)),
             output_tokens: Some(usage.candidates + usage.thoughts),
+            cache_read_tokens: Some(usage.cached),
             reasoning_tokens: Some(usage.thoughts),
+            total_tokens: (usage.total > 0).then_some(usage.total),
             ..CanonicalUsageUpdate::default()
         })));
     }

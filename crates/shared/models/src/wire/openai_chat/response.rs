@@ -1,6 +1,11 @@
 //! `OpenAI` Chat Completions buffered-response parsing into the canonical
 //! model.
 //!
+//! `usage_from_value` in this wire's `streaming` module is the streamed
+//! counterpart of `ChatUsage::into_canonical` and owes the same cache-read
+//! subtraction; the two must agree for a buffered and a streamed reply to
+//! price identically.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -69,11 +74,18 @@ struct ChatCompletionTokensDetails {
 }
 
 impl ChatUsage {
+    // Why: this wire reports `cached_tokens` as a subset of `prompt_tokens`,
+    // whereas `CanonicalUsage::input_tokens` is exclusive of cache reads (the
+    // Anthropic convention). Passing the prompt count through unchanged bills
+    // the cached slice twice, at the input rate and again at the cache-read
+    // rate. `saturating_sub` because an upstream may report a cached count
+    // larger than the prompt count on a malformed frame.
     const fn into_canonical(self) -> CanonicalUsage {
+        let cached = self.prompt_tokens_details.cached_tokens;
         CanonicalUsage {
-            input_tokens: self.prompt_tokens,
+            input_tokens: self.prompt_tokens.saturating_sub(cached),
             output_tokens: self.completion_tokens,
-            cache_read_tokens: self.prompt_tokens_details.cached_tokens,
+            cache_read_tokens: cached,
             cache_creation_tokens: 0,
             reasoning_tokens: self.completion_tokens_details.reasoning_tokens,
             total_tokens: self.total_tokens,

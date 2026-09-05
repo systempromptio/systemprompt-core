@@ -94,15 +94,22 @@ pub(super) fn handle_completed(
         .map_or_else(|| state.response_id.clone(), str::to_owned);
     if let Some(usage) = response.get("usage") {
         let pull = |key: &str| usage.get(key).and_then(Value::as_u64).map(|v| v as u32);
+        let cached = usage
+            .get("input_tokens_details")
+            .and_then(|d| d.get("cached_tokens"))
+            .and_then(Value::as_u64)
+            .map(|v| v as u32);
+        // Why: `cached_tokens` is a subset of `input_tokens` here, but
+        // `CanonicalUsage::input_tokens` is exclusive of cache reads, so the
+        // streamed frame must subtract exactly as the buffered parse does or
+        // the same reply prices differently on the two paths.
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
-            input_tokens: pull("input_tokens"),
+            input_tokens: pull("input_tokens")
+                .map(|input| input.saturating_sub(cached.unwrap_or(0))),
             output_tokens: pull("output_tokens"),
-            cache_read_tokens: usage
-                .get("input_tokens_details")
-                .and_then(|d| d.get("cached_tokens"))
-                .and_then(Value::as_u64)
-                .map(|v| v as u32),
+            cache_read_tokens: cached,
             cache_creation_tokens: None,
+            total_tokens: pull("total_tokens"),
             // Why: already inside `output_tokens` on this contract, so it is
             // reported as a breakdown and never added to the total.
             reasoning_tokens: usage

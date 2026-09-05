@@ -62,11 +62,16 @@ struct ResponseOutputTokensDetails {
 }
 
 impl ResponseUsage {
+    // Why: `cached_tokens` is a subset of `input_tokens` on this wire, while
+    // `CanonicalUsage::input_tokens` is exclusive of cache reads. Without the
+    // subtraction the cached slice is charged at the input rate and again at
+    // the cache-read rate.
     const fn into_canonical(self) -> CanonicalUsage {
+        let cached = self.input_tokens_details.cached_tokens;
         CanonicalUsage {
-            input_tokens: self.input_tokens,
+            input_tokens: self.input_tokens.saturating_sub(cached),
             output_tokens: self.output_tokens,
-            cache_read_tokens: self.input_tokens_details.cached_tokens,
+            cache_read_tokens: cached,
             cache_creation_tokens: 0,
             reasoning_tokens: self.output_tokens_details.reasoning_tokens,
             total_tokens: self.total_tokens,

@@ -322,7 +322,9 @@ fn openai_chat_parse_maps_cached_and_total_tokens() {
         }
     });
     let response = openai_chat::parse_response(&value, "fallback");
-    assert_eq!(response.usage.input_tokens, 12);
+    // cached_tokens is a subset of prompt_tokens on the wire; input_tokens is
+    // exclusive of it, so 12 - 5.
+    assert_eq!(response.usage.input_tokens, 7);
     assert_eq!(response.usage.output_tokens, 6);
     assert_eq!(response.usage.total_tokens, 18);
     assert_eq!(response.usage.cache_read_tokens, 5);
