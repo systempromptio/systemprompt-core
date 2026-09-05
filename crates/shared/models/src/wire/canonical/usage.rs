@@ -12,8 +12,10 @@
 //! * Gemini reports `thoughtsTokenCount` *beside* `candidatesTokenCount` (and
 //!   inside `totalTokenCount`), so its adapter adds it into `output_tokens` on
 //!   the way in.
-//! * Anthropic bills extended thinking as ordinary output tokens and reports no
-//!   separate count, so it stays 0 there.
+//! * Anthropic bills thinking as ordinary output tokens and, for adaptive
+//!   thinking on Claude 5 models, reports the share as
+//!   `usage.output_tokens_details.thinking_tokens`; the adapter copies it
+//!   across untouched. Models that report no details yield 0.
 //!
 //! Holding that invariant here is what makes reasoning billable: cost is
 //! computed from `output_tokens`, so a reasoning-only turn is charged at the

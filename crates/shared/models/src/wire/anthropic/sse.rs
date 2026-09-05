@@ -197,9 +197,10 @@ fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
         output_tokens: field("output_tokens"),
         cache_read_tokens: field("cache_read_input_tokens"),
         cache_creation_tokens: field("cache_creation_input_tokens"),
-        // Why: see `AnthropicUsage::into_canonical` -- Anthropic bills
-        // thinking as ordinary output tokens and reports no separate count.
-        reasoning_tokens: None,
+        // Why: a breakdown of `output_tokens`, which already includes it --
+        // see the `parse` module. Absent on models without adaptive thinking,
+        // so the accumulator keeps whatever an earlier frame established.
+        reasoning_tokens: thinking_tokens(u),
         // Why: Anthropic states no total on the wire, so the accumulator's
         // cache-inclusive sum stands.
         total_tokens: None,
@@ -220,9 +221,17 @@ fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {
         output_tokens: output,
         cache_read_tokens: cache_read,
         cache_creation_tokens: cache_creation,
-        reasoning_tokens: 0,
+        reasoning_tokens: thinking_tokens(u).unwrap_or(0),
         total_tokens: input + output + cache_read + cache_creation,
     }
+}
+
+fn thinking_tokens(usage: &Value) -> Option<u32> {
+    usage
+        .get("output_tokens_details")
+        .and_then(|d| d.get("thinking_tokens"))
+        .and_then(Value::as_u64)
+        .map(|v| v as u32)
 }
 
 fn str_field(value: &Value, field: &str, default: &str) -> String {

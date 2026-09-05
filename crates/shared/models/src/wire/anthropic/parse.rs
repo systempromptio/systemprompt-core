@@ -46,6 +46,18 @@ struct AnthropicUsage {
     cache_read_input_tokens: u32,
     #[serde(default)]
     cache_creation_input_tokens: u32,
+    #[serde(default)]
+    output_tokens_details: AnthropicOutputTokensDetails,
+}
+
+// Why: Claude 5 adaptive thinking reports its spend here. It is a breakdown
+// of `output_tokens`, which already includes it, so it is copied across as
+// `reasoning_tokens` and never added to `output_tokens` -- that would
+// double-bill. A model that reports no details yields 0, as before.
+#[derive(Debug, Default, Deserialize)]
+struct AnthropicOutputTokensDetails {
+    #[serde(default)]
+    thinking_tokens: u32,
 }
 
 impl AnthropicUsage {
@@ -55,13 +67,7 @@ impl AnthropicUsage {
             output_tokens: self.output_tokens,
             cache_read_tokens: self.cache_read_input_tokens,
             cache_creation_tokens: self.cache_creation_input_tokens,
-            // Why: deliberately 0, not overlooked. Anthropic bills extended
-            // thinking as ordinary output tokens and its usage object reports
-            // no separate count, so the thinking spend is already inside
-            // `output_tokens` and there is nothing to break out. If a future
-            // API version adds one, read it here -- do not add it to
-            // `output_tokens`, which would double-bill.
-            reasoning_tokens: 0,
+            reasoning_tokens: self.output_tokens_details.thinking_tokens,
             total_tokens: self.input_tokens
                 + self.output_tokens
                 + self.cache_read_input_tokens
