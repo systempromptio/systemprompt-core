@@ -26,7 +26,9 @@ use systemprompt_security::policy::ChainEntryResult;
 
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
-use self::outbound::{CtxParts, audit_upstream_failure, outbound_ctx, strip_caller_identity};
+use self::outbound::{
+    CtxParts, audit_upstream_failure, outbound_ctx, resolve_url_images, strip_caller_identity,
+};
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::inbound::InboundAdapter;
@@ -85,6 +87,7 @@ impl PreparedDispatch {
                 .then_some(relay.raw_body),
         };
         strip_caller_identity(&mut request);
+        resolve_url_images(upstream.provider.wire, &mut request, audit).await?;
 
         let ctx = outbound_ctx(
             upstream,

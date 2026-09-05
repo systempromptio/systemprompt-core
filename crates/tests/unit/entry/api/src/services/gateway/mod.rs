@@ -2,6 +2,7 @@ mod audit_payload;
 mod canonical_request;
 mod canonical_response;
 mod captures;
+mod image_fetch;
 mod inbound_anthropic;
 mod inbound_anthropic_deep;
 mod inbound_anthropic_render;

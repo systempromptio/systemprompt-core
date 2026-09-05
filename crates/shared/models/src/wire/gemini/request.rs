@@ -247,9 +247,11 @@ fn image_part(src: &ImageSource) -> GeminiPart {
         },
         // Why: Gemini's generateContent has no URL image part -- inlineData
         // (base64) or a Files API handle are the only shapes it accepts. The
-        // URL is kept as text so the model at least sees what was referenced,
-        // but it is not an image any more, and a caller debugging "the model
-        // ignored my picture" has no other way to learn that.
+        // gateway resolves URL images to inline data before the codec runs
+        // (`gateway::image_fetch`), so this arm is the defence-in-depth path
+        // for a caller that renders a body without going through it: the URL is
+        // kept as text so the model at least sees what was referenced, and the
+        // warning is the only signal that it is no longer an image.
         ImageSource::Url { url, .. } => {
             tracing::warn!(
                 url = %url,

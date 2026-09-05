@@ -118,20 +118,7 @@ pub fn validate_outbound_url_with_trust(
     let blocked = match host {
         url::Host::Domain(_) => false,
         url::Host::Ipv4(ip) => is_blocked_v4(ip),
-        url::Host::Ipv6(ip) => {
-            // Why: RFC 4291 §2.5.5.2: an ::ffff:0:0/96 address embeds a real IPv4
-            // address; treat it as that IPv4 address for SSRF purposes so a
-            // hand-crafted v4-mapped URL cannot bypass the v4 block list.
-            ip.to_ipv4_mapped().map_or_else(
-                || {
-                    let segments = ip.segments();
-                    let is_unique_local = (segments[0] & 0xfe00) == 0xfc00;
-                    let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
-                    ip.is_loopback() || ip.is_unspecified() || is_unique_local || is_link_local
-                },
-                is_blocked_v4,
-            )
-        },
+        url::Host::Ipv6(ip) => is_blocked_v6(ip),
     };
     if blocked {
         return Err(OutboundUrlError::BlockedHost(
@@ -139,6 +126,33 @@ pub fn validate_outbound_url_with_trust(
         ));
     }
     Ok(parsed)
+}
+
+// Why: a caller that resolves a hostname itself — a server-side fetch of a
+// user-supplied URL, where the DNS answer is the attacker's real payload —
+// needs the same block list `validate_outbound_url` applies to address
+// literals, so it is exposed rather than duplicated.
+#[must_use]
+pub fn is_blocked_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(v4) => is_blocked_v4(v4),
+        std::net::IpAddr::V6(v6) => is_blocked_v6(v6),
+    }
+}
+
+// Why: RFC 4291 §2.5.5.2: an ::ffff:0:0/96 address embeds a real IPv4 address;
+// treat it as that IPv4 address for SSRF purposes so a hand-crafted v4-mapped
+// address cannot bypass the v4 block list.
+fn is_blocked_v6(ip: std::net::Ipv6Addr) -> bool {
+    ip.to_ipv4_mapped().map_or_else(
+        || {
+            let segments = ip.segments();
+            let is_unique_local = (segments[0] & 0xfe00) == 0xfc00;
+            let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
+            ip.is_loopback() || ip.is_unspecified() || is_unique_local || is_link_local
+        },
+        is_blocked_v4,
+    )
 }
 
 // Why: RFC 6598 carrier-grade NAT range `100.64.0.0/10` — operator-routable but

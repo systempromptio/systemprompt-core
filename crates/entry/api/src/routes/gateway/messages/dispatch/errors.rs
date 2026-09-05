@@ -8,6 +8,7 @@ use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::Response;
 
+use crate::services::gateway::image_fetch::ImageFetchFailed;
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{
     DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
@@ -105,6 +106,21 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
     }
     if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
         return Ok(build_policy_denial(&denied.message));
+    }
+    // Why: the image is part of the prompt. Degrading to text and answering
+    // anyway is the defect this path exists to remove, so the request fails and
+    // says which URL failed and whether the caller can fix it.
+    if let Some(image) = inner.downcast_ref::<ImageFetchFailed>() {
+        let status = if image.caller_fault {
+            StatusCode::BAD_REQUEST
+        } else {
+            StatusCode::BAD_GATEWAY
+        };
+        return Ok(build_error_response(
+            status,
+            error_type_for(status),
+            &image.to_string(),
+        ));
     }
     // Why: Claude Code recovers from several provider rejections by matching on
     // the provider's own error wording and retrying without the rejected

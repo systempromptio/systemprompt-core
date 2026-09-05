@@ -1,15 +1,18 @@
-//! Outbound-context assembly, caller-identity stripping, and upstream-failure
-//! auditing for the dispatch stages.
+//! Outbound-context assembly, caller-identity stripping, URL-image resolution,
+//! and upstream-failure auditing for the dispatch stages.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use bytes::Bytes;
 use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_models::services::providers::WireProtocol;
 
 use super::super::super::audit::GatewayAudit;
+use super::super::super::image_fetch::{ImageFetchPolicy, inline_url_images};
 use super::super::super::protocol::canonical::CanonicalRequest;
 use super::super::super::protocol::outbound::OutboundCtx;
+use super::super::DispatchError;
 use super::super::resolve::ResolvedUpstream;
 
 #[derive(Clone, Copy)]
@@ -69,5 +72,36 @@ pub(super) async fn audit_upstream_failure(
     );
     if let Err(audit_err) = audit.fail(&error.to_string()).await {
         tracing::warn!(error = %audit_err, "upstream audit fail failed");
+    }
+}
+
+// Why: Gemini's generateContent has no URL image part, so a URL that reaches
+// the codec is downgraded to text and the model never sees the picture.
+// Anthropic and OpenAI both accept a URL natively, so nothing is fetched for
+// them and no other wire pays the latency.
+pub(super) async fn resolve_url_images(
+    wire: WireProtocol,
+    request: &mut CanonicalRequest,
+    audit: &GatewayAudit,
+) -> Result<(), DispatchError> {
+    if wire != WireProtocol::Gemini {
+        return Ok(());
+    }
+    match inline_url_images(request, &ImageFetchPolicy::default()).await {
+        Ok(0) => Ok(()),
+        Ok(count) => {
+            tracing::debug!(
+                ai_request_id = %audit.ctx.ai_request_id,
+                images = count,
+                "inlined image URLs for a wire that cannot carry them"
+            );
+            Ok(())
+        },
+        Err(failure) => {
+            if let Err(e) = audit.fail(&failure.to_string()).await {
+                tracing::warn!(error = %e, "image-fetch audit fail failed");
+            }
+            Err(DispatchError::Recorded(failure.into()))
+        },
     }
 }
