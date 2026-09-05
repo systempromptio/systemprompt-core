@@ -81,7 +81,10 @@ impl OutboundAdapter for GeminiOutbound {
                 &bytes,
             ));
         }
-        let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str());
+        let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str())
+            .map_err(|e| {
+            super::reject_unparsable_body(ctx.route.provider.as_str(), "gemini", &e, &bytes)
+        })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

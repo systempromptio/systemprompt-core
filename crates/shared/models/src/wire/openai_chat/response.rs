@@ -17,6 +17,7 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
 use crate::wire::defect::{BodyDefect, buffered_body_defect};
+use crate::wire::error::WireParseError;
 
 #[derive(Debug, Default, Deserialize)]
 struct ChatCompletion {
@@ -133,8 +134,11 @@ struct ChatFunction {
     arguments: String,
 }
 
-pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let resp = ChatCompletion::deserialize(value).unwrap_or_default();
+pub fn parse_response(
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let resp = ChatCompletion::deserialize(value).map_err(WireParseError::OpenAiChat)?;
     let id = resp
         .id
         .unwrap_or_else(|| format!("msg_{}", Uuid::new_v4().simple()));
@@ -167,7 +171,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
     }
 
-    CanonicalResponse {
+    Ok(CanonicalResponse {
         id,
         model,
         content,
@@ -177,7 +181,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         code_execution: None,
         raw_finish_reason,
         ..Default::default()
-    }
+    })
 }
 
 fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>) {

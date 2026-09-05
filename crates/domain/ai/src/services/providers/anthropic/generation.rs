@@ -44,7 +44,7 @@ pub(super) async fn generate(
 
     let body = anthropic::build_request_body(&canonical, params.model, None);
     let value: Value = post_body(provider, &body).await?.json().await?;
-    let parsed = anthropic::parse_response(&value, params.model);
+    let parsed = anthropic::parse_response(&value, params.model)?;
     Ok(canonical_bridge::to_ai_response(
         "anthropic",
         params.model,
@@ -72,7 +72,7 @@ pub(super) async fn generate_with_tools(
 
     let body = anthropic::build_request_body(&canonical, params.base.model, None);
     let value: Value = post_body(provider, &body).await?.json().await?;
-    let parsed = anthropic::parse_response(&value, params.base.model);
+    let parsed = anthropic::parse_response(&value, params.base.model)?;
     let tool_calls = canonical_bridge::tool_calls(&parsed);
     let ai_response = canonical_bridge::to_ai_response(
         "anthropic",
@@ -107,7 +107,7 @@ pub(super) async fn generate_with_schema(
 
     let body = anthropic::build_request_body(&canonical, params.base.model, None);
     let value: Value = post_body(provider, &body).await?.json().await?;
-    let parsed = anthropic::parse_response(&value, params.base.model);
+    let parsed = anthropic::parse_response(&value, params.base.model)?;
 
     let mut ai_response = canonical_bridge::to_ai_response(
         "anthropic",

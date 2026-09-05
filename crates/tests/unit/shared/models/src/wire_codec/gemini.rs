@@ -277,7 +277,7 @@ fn gemini_parse_surfaces_grounding_sources_and_queries() {
         }],
         "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4, "totalTokenCount": 7}
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     let grounding = response.grounding.expect("grounding present");
     assert_eq!(grounding.sources.len(), 1);
     assert_eq!(grounding.sources[0].uri, "https://example.com");
@@ -299,7 +299,7 @@ fn gemini_parse_surfaces_cache_read_tokens() {
             "cachedContentTokenCount": 6
         }
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.cache_read_tokens, 6);
     assert_eq!(response.usage.total_tokens, 15);
 }
@@ -315,7 +315,7 @@ fn gemini_parse_surfaces_code_execution_output() {
             "finishReason": "STOP"
         }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     let exec = response.code_execution.expect("code execution present");
     assert_eq!(exec.code, "print(1)");
     assert_eq!(exec.result.as_deref(), Some("1"));
@@ -332,7 +332,7 @@ fn gemini_parse_captures_function_call_thought_signature() {
             "finishReason": "STOP"
         }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     match response.content.first() {
         Some(CanonicalContent::ToolUse { signature, .. }) => {
             assert_eq!(signature.as_deref(), Some("sig=="));
@@ -351,7 +351,7 @@ fn gemini_parse_leaves_signature_none_when_absent() {
             "finishReason": "STOP"
         }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     match response.content.first() {
         Some(CanonicalContent::ToolUse { signature, .. }) => assert!(signature.is_none()),
         other => panic!("expected ToolUse, got {other:?}"),
@@ -512,7 +512,7 @@ fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
             { "text": "the answer" }
         ]}, "finishReason": "STOP" }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     match response.content.first() {
         Some(CanonicalContent::Thinking {
             text, signature, ..
@@ -551,7 +551,7 @@ fn gemini_parse_reports_tool_use_when_the_candidate_is_a_function_call() {
         }]
     });
 
-    let parsed = gemini::parse_response(&value, "gemini-2.5-flash");
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash").expect("fixture parses");
 
     assert_eq!(
         parsed.stop_reason,
@@ -574,7 +574,7 @@ fn gemini_parse_keeps_end_turn_for_a_plain_text_candidate() {
         }]
     });
 
-    let parsed = gemini::parse_response(&value, "gemini-2.5-flash");
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash").expect("fixture parses");
 
     assert_eq!(
         parsed.stop_reason,
@@ -642,7 +642,7 @@ fn gemini_parse_keeps_max_tokens_over_a_truncated_function_call() {
         }]
     });
 
-    let parsed = gemini::parse_response(&value, "gemini-2.5-flash");
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash").expect("fixture parses");
 
     assert_eq!(
         parsed.stop_reason,
@@ -694,7 +694,7 @@ fn gemini_parse_counts_thoughts_tokens_inside_output_tokens() {
             "totalTokenCount": 227
         }
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.reasoning_tokens, 194);
     assert_eq!(
         response.usage.output_tokens, 200,
@@ -710,7 +710,7 @@ fn gemini_parse_defaults_thoughts_to_zero_when_absent() {
         "candidates": [{"content": {"role": "model", "parts": [{"text": "ok"}]}}],
         "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4, "totalTokenCount": 7}
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.reasoning_tokens, 0);
     assert_eq!(response.usage.output_tokens, 4);
 }

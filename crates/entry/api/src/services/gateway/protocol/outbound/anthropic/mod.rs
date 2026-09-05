@@ -93,7 +93,11 @@ impl OutboundAdapter for AnthropicOutbound {
                 &bytes,
             ));
         }
-        let canonical = Box::new(response::parse_response(&value, ctx.request.model.as_str()));
+        let canonical = Box::new(
+            response::parse_response(&value, ctx.request.model.as_str()).map_err(|e| {
+                super::reject_unparsable_body(ctx.route.provider.as_str(), "anthropic", &e, &bytes)
+            })?,
+        );
         if passthrough {
             return Ok(OutboundOutcome::RawBuffered {
                 body: terminal::correct_buffered(bytes),

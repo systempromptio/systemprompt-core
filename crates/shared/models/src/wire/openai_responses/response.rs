@@ -13,6 +13,7 @@ use crate::wire::canonical::{
     Grounding,
 };
 use crate::wire::defect::{BodyDefect, buffered_body_defect};
+use crate::wire::error::WireParseError;
 
 #[derive(Debug, Default, Deserialize)]
 struct ResponseObject {
@@ -136,8 +137,11 @@ struct SummaryPart {
     text: Option<String>,
 }
 
-pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let resp = ResponseObject::deserialize(value).unwrap_or_default();
+pub fn parse_response_object(
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let resp = ResponseObject::deserialize(value).map_err(WireParseError::OpenAiResponses)?;
     let id = resp
         .id
         .unwrap_or_else(|| format!("resp_{}", Uuid::new_v4().simple()));
@@ -160,7 +164,7 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
     let incomplete_reason = resp.incomplete_details.and_then(|d| d.reason);
     let stop_reason = Some(buffered_stop_reason(&content, incomplete_reason.as_deref()));
 
-    CanonicalResponse {
+    Ok(CanonicalResponse {
         id,
         model,
         content,
@@ -170,7 +174,7 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
         code_execution: None,
         raw_finish_reason: incomplete_reason,
         ..Default::default()
-    }
+    })
 }
 
 fn buffered_stop_reason(

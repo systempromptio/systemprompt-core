@@ -75,6 +75,6 @@ pub async fn generate_with_web_search(
         return Err(crate::error::AiError::from_error_response("openai", response).await);
     }
     let value: Value = response.json().await?;
-    let parsed = openai_responses::parse_response_object(&value, params.model);
+    let parsed = openai_responses::parse_response_object(&value, params.model)?;
     Ok(canonical_bridge::to_search_grounded(start, &parsed))
 }

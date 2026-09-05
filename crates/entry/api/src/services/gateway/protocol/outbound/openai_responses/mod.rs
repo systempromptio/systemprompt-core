@@ -74,7 +74,14 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
                 &bytes,
             ));
         }
-        let canon = codec::parse_response_object(&value, &ctx.request.model);
+        let canon = codec::parse_response_object(&value, &ctx.request.model).map_err(|e| {
+            super::reject_unparsable_body(
+                ctx.route.provider.as_str(),
+                "openai-responses",
+                &e,
+                &bytes,
+            )
+        })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

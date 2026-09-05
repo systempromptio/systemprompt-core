@@ -16,6 +16,7 @@ use crate::wire::canonical::{
     Grounding, ImageSource,
 };
 use crate::wire::defect::{BodyDefect, buffered_body_defect};
+use crate::wire::error::WireParseError;
 
 #[derive(Debug, Default, Deserialize)]
 struct AnthropicResponse {
@@ -140,9 +141,11 @@ enum AnthropicImageSource {
     Unknown,
 }
 
-#[must_use]
-pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let resp = AnthropicResponse::deserialize(value).unwrap_or_default();
+pub fn parse_response(
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let resp = AnthropicResponse::deserialize(value).map_err(WireParseError::Anthropic)?;
     let id = resp.id.unwrap_or_default();
     let model = resp.model.unwrap_or_else(|| fallback_model.to_owned());
     let wire_stop_reason = resp
@@ -199,7 +202,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
     let stop_reason = wire_stop_reason.map(|r| r.with_tool_use(has_tool_use));
 
-    CanonicalResponse {
+    Ok(CanonicalResponse {
         id,
         model,
         content,
@@ -209,7 +212,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         code_execution: None,
         raw_finish_reason: resp.stop_reason,
         ..Default::default()
-    }
+    })
 }
 
 fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {

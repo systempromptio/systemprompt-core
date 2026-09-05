@@ -321,7 +321,7 @@ fn openai_chat_parse_maps_cached_and_total_tokens() {
             "prompt_tokens_details": {"cached_tokens": 5}
         }
     });
-    let response = openai_chat::parse_response(&value, "fallback");
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
     // cached_tokens is a subset of prompt_tokens on the wire; input_tokens is
     // exclusive of it, so 12 - 5.
     assert_eq!(response.usage.input_tokens, 7);
@@ -345,7 +345,7 @@ fn openai_chat_round_trips_thinking_through_reasoning_content() {
             "finish_reason": "stop"
         }]
     });
-    let response = openai_chat::parse_response(&value, "fallback");
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
     let thinking = response.content.iter().find_map(|c| match c {
         CanonicalContent::Thinking { text, .. } => Some(text.clone()),
         _ => None,
@@ -427,7 +427,7 @@ fn openai_chat_buffered_tool_calls_finish_reason_maps_to_tool_use() {
             "finish_reason": "tool_calls"
         }]
     });
-    let response = openai_chat::parse_response(&value, "fallback");
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.stop_reason, Some(CanonicalStopReason::ToolUse));
     assert_eq!(response.raw_finish_reason.as_deref(), Some("tool_calls"));
     match response.content.first() {
@@ -464,7 +464,7 @@ fn openai_chat_buffered_reports_tool_use_even_though_the_upstream_says_stop() {
             "finish_reason": "stop"
         }]
     });
-    let response = openai_chat::parse_response(&value, "fallback");
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(
         response.stop_reason,
         Some(CanonicalStopReason::ToolUse),
@@ -501,7 +501,7 @@ fn openai_chat_buffered_keeps_length_over_a_truncated_tool_call() {
             "finish_reason": "length"
         }]
     });
-    let response = openai_chat::parse_response(&value, "fallback");
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(
         response.stop_reason,
         Some(CanonicalStopReason::MaxTokens),
@@ -650,7 +650,7 @@ fn openai_chat_parse_breaks_reasoning_out_of_completion_tokens() {
             "completion_tokens_details": {"reasoning_tokens": 100}
         }
     });
-    let response = openai_chat::parse_response(&value, "fallback");
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.reasoning_tokens, 100);
     assert_eq!(
         response.usage.output_tokens, 106,
@@ -670,6 +670,7 @@ fn openai_chat_parse_defaults_reasoning_to_zero_when_absent() {
     });
     assert_eq!(
         openai_chat::parse_response(&value, "fallback")
+            .expect("fixture parses")
             .usage
             .reasoning_tokens,
         0
@@ -736,7 +737,7 @@ fn parse_response_survives_explicit_nulls() {
         }
     });
 
-    let canon = openai_chat::parse_response(&value, "fallback");
+    let canon = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
 
     let text: String = canon
         .content
@@ -766,7 +767,7 @@ fn parse_response_ignores_unknown_usage_members() {
         }
     });
 
-    let canon = openai_chat::parse_response(&value, "fallback");
+    let canon = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
 
     assert_eq!(canon.usage.input_tokens, 7);
     assert_eq!(canon.usage.output_tokens, 1);

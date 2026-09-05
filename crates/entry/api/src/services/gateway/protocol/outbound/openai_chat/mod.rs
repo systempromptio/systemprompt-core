@@ -86,7 +86,9 @@ impl OutboundAdapter for OpenAiChatOutbound {
                 &bytes,
             ));
         }
-        let canon = codec::parse_response(&value, &ctx.request.model);
+        let canon = codec::parse_response(&value, &ctx.request.model).map_err(|e| {
+            super::reject_unparsable_body(ctx.route.provider.as_str(), "openai-chat", &e, &bytes)
+        })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

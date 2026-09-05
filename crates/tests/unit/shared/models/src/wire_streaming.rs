@@ -335,7 +335,7 @@ mod anthropic_parse_response {
 
     #[test]
     fn empty_object_uses_fallback_model() {
-        let resp = anthropic::parse_response(&json!({}), "fallback-model");
+        let resp = anthropic::parse_response(&json!({}), "fallback-model").expect("fixture parses");
         assert_eq!(resp.model, "fallback-model");
         assert!(resp.content.is_empty());
         assert!(resp.stop_reason.is_none());
@@ -352,7 +352,8 @@ mod anthropic_parse_response {
                 "usage": {"input_tokens": 3, "output_tokens": 4}
             }),
             "fallback",
-        );
+        )
+        .expect("fixture parses");
         assert_eq!(resp.id, "msg_x");
         assert_eq!(resp.model, "claude-3");
         assert_eq!(resp.stop_reason, Some(CanonicalStopReason::EndTurn));
@@ -373,7 +374,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         match resp.content.first() {
             Some(CanonicalContent::ToolUse {
                 id, name, input, ..
@@ -393,7 +395,8 @@ mod anthropic_parse_response {
                 "content": [{"type": "thinking", "thinking": "hmm", "signature": "s"}]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         assert!(matches!(
             resp.content.first(),
             Some(CanonicalContent::Thinking { text, signature, .. })
@@ -414,7 +417,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         let grounding = resp.grounding.expect("grounding");
         assert_eq!(grounding.sources.len(), 1);
         assert_eq!(grounding.sources[0].uri, "https://a.com");
@@ -431,7 +435,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         let grounding = resp.grounding.expect("grounding");
         assert_eq!(grounding.sources[0].uri, "https://c.com");
         assert_eq!(grounding.sources[0].snippet.as_deref(), Some("x"));
@@ -447,7 +452,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         match resp.content.first() {
             Some(CanonicalContent::Image(
                 systemprompt_models::wire::canonical::ImageSource::Base64 {
@@ -466,7 +472,8 @@ mod anthropic_parse_response {
         let resp = anthropic::parse_response(
             &json!({"content": [{"type": "future_thing", "x": 1}]}),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         assert!(resp.content.is_empty());
     }
 }

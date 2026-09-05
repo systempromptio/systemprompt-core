@@ -23,6 +23,7 @@ pub const BUFFERED_BODY_LIMIT_BYTES: usize = 8 * 1024 * 1024;
 
 pub mod canonical;
 pub mod defect;
+pub mod error;
 
 pub mod anthropic;
 pub mod gemini;

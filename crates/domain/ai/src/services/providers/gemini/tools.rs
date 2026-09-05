@@ -58,7 +58,7 @@ pub(super) async fn generate_with_tools(
         .await?
         .json()
         .await?;
-    let parsed = gemini::parse_response(&value, params.model);
+    let parsed = gemini::parse_response(&value, params.model)?;
     let (content, tool_calls) = resolve_response(provider, &parsed).await;
 
     let mut response =
@@ -124,7 +124,7 @@ pub(super) async fn generate_with_tool_results(
         .await?
         .json()
         .await?;
-    let parsed = gemini::parse_response(&value, params.model);
+    let parsed = gemini::parse_response(&value, params.model)?;
     Ok(canonical_bridge::to_ai_response(
         "gemini",
         params.model,

@@ -23,6 +23,7 @@ use crate::wire::canonical::{
     GroundedSource, Grounding,
 };
 use crate::wire::defect::{BodyDefect, buffered_body_defect};
+use crate::wire::error::WireParseError;
 
 const GEMINI_GROUNDING_RELEVANCE: f32 = 0.85;
 
@@ -35,14 +36,12 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     }
 }
 
-#[must_use]
-pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let parsed: GeminiResponse = serde_json::from_value(value.clone()).unwrap_or(GeminiResponse {
-        candidates: Vec::new(),
-        usage_metadata: None,
-        response_id: None,
-        model_version: None,
-    });
+pub fn parse_response(
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let parsed: GeminiResponse =
+        serde_json::from_value(value.clone()).map_err(WireParseError::Gemini)?;
 
     let id = parsed
         .response_id
@@ -74,7 +73,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
     let stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
 
-    CanonicalResponse {
+    Ok(CanonicalResponse {
         id,
         model,
         content,
@@ -84,7 +83,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         code_execution,
         raw_finish_reason,
         ..Default::default()
-    }
+    })
 }
 
 // Why: thoughts are summed into output and cached is subtracted from prompt;

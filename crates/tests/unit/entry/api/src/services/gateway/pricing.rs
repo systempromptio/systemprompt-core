@@ -270,8 +270,9 @@ fn a_reasoning_only_gemini_turn_is_billed_for_its_thinking() {
             "totalTokenCount": 227
         }
     });
-    let parsed =
-        systemprompt_models::wire::gemini::parse_response(&value, "gemini-2.5-flash").usage;
+    let parsed = systemprompt_models::wire::gemini::parse_response(&value, "gemini-2.5-flash")
+        .expect("fixture parses")
+        .usage;
     let p = ModelPricing {
         input_per_million: 1.0,
         output_per_million: 10.0,
@@ -297,7 +298,9 @@ fn reasoning_tokens_are_never_added_to_cost_a_second_time() {
             "completion_tokens_details": {"reasoning_tokens": 100}
         }
     });
-    let parsed = systemprompt_models::wire::openai_chat::parse_response(&value, "o4-mini").usage;
+    let parsed = systemprompt_models::wire::openai_chat::parse_response(&value, "o4-mini")
+        .expect("fixture parses")
+        .usage;
     let p = ModelPricing {
         output_per_million: 1_000_000.0,
         ..ModelPricing::default()
@@ -324,8 +327,9 @@ fn a_cached_openai_turn_bills_the_cached_slice_once_at_the_cache_rate() {
             "prompt_tokens_details": {"cached_tokens": 800}
         }
     });
-    let parsed =
-        systemprompt_models::wire::openai_chat::parse_response(&value, "gpt-4.1-mini").usage;
+    let parsed = systemprompt_models::wire::openai_chat::parse_response(&value, "gpt-4.1-mini")
+        .expect("fixture parses")
+        .usage;
     assert_eq!(
         parsed.input_tokens + parsed.cache_read_tokens,
         1_000,

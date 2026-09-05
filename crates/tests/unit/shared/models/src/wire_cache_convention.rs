@@ -51,7 +51,11 @@ async fn openai_chat_buffered_excludes_the_cached_slice_from_input() {
         },
         "choices": [{"finish_reason": "stop", "message": {"content": "hi"}}]
     });
-    assert_exclusive(&openai_chat::parse_response(&value, "fallback").usage);
+    assert_exclusive(
+        &openai_chat::parse_response(&value, "fallback")
+            .expect("fixture parses")
+            .usage,
+    );
 }
 
 #[tokio::test]
@@ -71,6 +75,7 @@ async fn openai_chat_buffered_and_streamed_agree_on_the_cached_slice() {
         }),
         "fallback",
     )
+    .expect("fixture parses")
     .usage;
     assert_exclusive(&buffered);
 
@@ -105,6 +110,7 @@ async fn openai_responses_buffered_and_streamed_agree_on_the_cached_slice() {
         &json!({"id": "resp_1", "model": "o4-mini", "usage": usage, "output": []}),
         "fallback",
     )
+    .expect("fixture parses")
     .usage;
     assert_exclusive(&buffered);
 
@@ -145,6 +151,7 @@ async fn gemini_buffered_and_streamed_agree_on_the_cached_slice() {
         }),
         "fallback",
     )
+    .expect("fixture parses")
     .usage;
     assert_exclusive(&buffered);
 
@@ -181,7 +188,9 @@ async fn anthropic_reports_the_two_counts_disjoint_and_is_left_alone() {
             "cache_creation_input_tokens": 0
         }
     });
-    let buffered = anthropic::parse_response(&value, "fallback").usage;
+    let buffered = anthropic::parse_response(&value, "fallback")
+        .expect("fixture parses")
+        .usage;
     assert_exclusive(&buffered);
     assert_eq!(buffered.total_tokens, PROMPT + OUTPUT);
 }
@@ -198,7 +207,9 @@ fn a_cached_count_larger_than_the_prompt_count_saturates_to_zero_input() {
         },
         "choices": []
     });
-    let usage = openai_chat::parse_response(&value, "fallback").usage;
+    let usage = openai_chat::parse_response(&value, "fallback")
+        .expect("fixture parses")
+        .usage;
     assert_eq!(usage.input_tokens, 0);
     assert_eq!(usage.cache_read_tokens, 999);
 }

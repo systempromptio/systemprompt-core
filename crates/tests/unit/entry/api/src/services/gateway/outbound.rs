@@ -581,3 +581,59 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         );
     }
 }
+
+/// A 200 whose body breaks the wire's shape must not reach the client as an
+/// empty, unbilled turn: the adapter raises the upstream failure the audit row
+/// records, and keeps the raw body so the cause survives into it.
+#[tokio::test]
+async fn anthropic_outbound_buffered_rejects_a_body_that_does_not_parse() {
+    let server = MockServer::start().await;
+    let body = json!({
+        "id": "msg_1",
+        "model": "claude-3",
+        "content": {"type": "text", "text": "hi"},
+        "usage": {"input_tokens": 3, "output_tokens": 4}
+    });
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(body))
+        .mount(&server)
+        .await;
+    let adapter = AnthropicOutbound;
+    let route_a = route("anthropic");
+    let req = buffered_request();
+    let ctx = OutboundCtx {
+        route: &route_a,
+        endpoint: &server.uri(),
+        api_key: "k",
+        api_key_is_bearer: false,
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        forward_headers: &[],
+        raw_body: None,
+    };
+
+    let err = send_via(&adapter, ctx)
+        .await
+        .err()
+        .expect("unparsable body must fail");
+    let upstream = err
+        .downcast_ref::<UpstreamError>()
+        .expect("failure is an upstream error");
+    match upstream {
+        UpstreamError::Status {
+            provider,
+            status,
+            message,
+            body,
+            ..
+        } => {
+            assert_eq!(provider, "anthropic");
+            assert_eq!(*status, 502);
+            assert!(message.contains("Malformed Anthropic response body"));
+            assert!(!body.is_empty(), "raw body must reach the audit row");
+        },
+        other => panic!("expected an upstream status failure, got {other:?}"),
+    }
+}

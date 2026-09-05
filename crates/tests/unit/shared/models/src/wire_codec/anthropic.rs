@@ -261,7 +261,7 @@ fn anthropic_parse_derives_total_and_keeps_cache_tokens() {
             "cache_creation_input_tokens": 1
         }
     });
-    let response = anthropic::parse_response(&value, "fallback");
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.input_tokens, 10);
     assert_eq!(response.usage.cache_read_tokens, 4);
     assert_eq!(response.usage.cache_creation_tokens, 1);
@@ -293,7 +293,7 @@ fn anthropic_tool_use_signature_round_trips() {
     let block = anthropic::content_to_anthropic_block(&tool_use(Some("sig==")));
     assert_eq!(block["signature"], "sig==");
     let response = json!({ "content": [block] });
-    let parsed = anthropic::parse_response(&response, "fallback");
+    let parsed = anthropic::parse_response(&response, "fallback").expect("fixture parses");
     match parsed.content.first() {
         Some(CanonicalContent::ToolUse { signature, .. }) => {
             assert_eq!(signature.as_deref(), Some("sig=="));
@@ -505,7 +505,7 @@ fn anthropic_parse_reports_tool_use_even_though_the_upstream_says_end_turn() {
             "input": {"q": "rust"}
         }]
     });
-    let response = anthropic::parse_response(&value, "fallback");
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(
         response.stop_reason,
         Some(CanonicalStopReason::ToolUse),
@@ -533,7 +533,7 @@ fn anthropic_parse_keeps_max_tokens_over_a_truncated_tool_use_block() {
             "input": {"q": "ru"}
         }]
     });
-    let response = anthropic::parse_response(&value, "fallback");
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(
         response.stop_reason,
         Some(CanonicalStopReason::MaxTokens),
@@ -553,7 +553,7 @@ fn anthropic_parse_reports_no_separate_reasoning_count() {
         "stop_reason": "end_turn",
         "usage": {"input_tokens": 10, "output_tokens": 300}
     });
-    let response = anthropic::parse_response(&value, "fallback");
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(
         response.usage.reasoning_tokens, 0,
         "Anthropic bills extended thinking as ordinary output tokens and reports no separate \

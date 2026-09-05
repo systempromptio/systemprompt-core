@@ -273,7 +273,8 @@ fn openai_responses_parse_extracts_text_tool_and_usage() {
             "input_tokens_details": {"cached_tokens": 3}
         }
     });
-    let response = openai_responses::parse_response_object(&value, "fallback");
+    let response =
+        openai_responses::parse_response_object(&value, "fallback").expect("fixture parses");
     assert!(
         response
             .content
@@ -300,7 +301,8 @@ fn openai_responses_parse_text_only_is_end_turn() {
         "model": "gpt-5.4",
         "output": [{"type": "message", "content": [{"type": "output_text", "text": "done"}]}],
     });
-    let response = openai_responses::parse_response_object(&value, "fallback");
+    let response =
+        openai_responses::parse_response_object(&value, "fallback").expect("fixture parses");
     assert_eq!(response.stop_reason, Some(CanonicalStopReason::EndTurn));
 }
 
@@ -312,7 +314,8 @@ fn openai_responses_parse_incomplete_is_max_tokens() {
         "output": [{"type": "message", "content": [{"type": "output_text", "text": "tru"}]}],
         "incomplete_details": {"reason": "max_output_tokens"},
     });
-    let response = openai_responses::parse_response_object(&value, "fallback");
+    let response =
+        openai_responses::parse_response_object(&value, "fallback").expect("fixture parses");
     assert_eq!(response.stop_reason, Some(CanonicalStopReason::MaxTokens));
 }
 
@@ -401,7 +404,8 @@ fn openai_responses_parse_captures_reasoning_id_and_encrypted_content() {
             "encrypted_content": "opaque=="
         }]
     });
-    let response = openai_responses::parse_response_object(&value, "fallback");
+    let response =
+        openai_responses::parse_response_object(&value, "fallback").expect("fixture parses");
     match response.content.first() {
         Some(CanonicalContent::Thinking {
             text,
@@ -434,7 +438,8 @@ fn openai_responses_truncated_function_call_reports_max_tokens() {
         }],
         "incomplete_details": {"reason": "max_output_tokens"},
     });
-    let response = openai_responses::parse_response_object(&value, "fallback");
+    let response =
+        openai_responses::parse_response_object(&value, "fallback").expect("fixture parses");
     assert_eq!(
         response.stop_reason,
         Some(CanonicalStopReason::MaxTokens),
@@ -486,7 +491,8 @@ fn openai_responses_parse_breaks_reasoning_out_of_output_tokens() {
             "output_tokens_details": {"reasoning_tokens": 448}
         }
     });
-    let response = openai_responses::parse_response_object(&value, "fallback");
+    let response =
+        openai_responses::parse_response_object(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.reasoning_tokens, 448);
     assert_eq!(
         response.usage.output_tokens, 512,
