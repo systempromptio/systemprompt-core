@@ -89,7 +89,7 @@ impl RetryPolicy {
 // verdict on the request itself, and a 500 may already have had an effect
 // upstream, so replaying either would be wrong rather than merely wasteful.
 #[must_use]
-pub fn is_retryable(status: u16) -> bool {
+pub const fn is_retryable(status: u16) -> bool {
     status == 429 || status == 503
 }
 
@@ -102,7 +102,7 @@ pub fn backoff_delay(attempt: u32, policy: &RetryPolicy) -> Duration {
         return Duration::ZERO;
     }
     let shift = attempt.saturating_sub(1).min(u32::BITS - 1);
-    let raw = base.saturating_mul(1_u64.checked_shl(shift).unwrap_or(u64::MAX));
+    let raw = base.saturating_mul(1u64.checked_shl(shift).unwrap_or(u64::MAX));
     let capped = raw.min(policy.max_delay.as_millis().min(u128::from(u64::MAX)) as u64);
     Duration::from_millis(apply_jitter(capped, policy.jitter_ratio))
 }
@@ -193,7 +193,14 @@ pub fn current_policy() -> RetryPolicy {
 // a request that exhausts its budget still retried, and an error path that
 // forgot to report those would make the worst outages look retry-free.
 fn record_retry() {
-    let _ = OBSERVED.try_with(|c| c.set(c.get().saturating_add(1)));
+    // Why: an absent scope means nobody asked for the count, which is the
+    // production default rather than a failure — so it is traced, not raised.
+    if OBSERVED
+        .try_with(|c| c.set(c.get().saturating_add(1)))
+        .is_err()
+    {
+        tracing::trace!("upstream retry outside an observing scope; not counted");
+    }
 }
 
 // Why: returns the first successful response paired with the retry count, zero
