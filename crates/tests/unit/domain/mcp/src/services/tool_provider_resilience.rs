@@ -129,7 +129,8 @@ async fn call_tool_maps_inner_error_then_circuit_open() {
         "breaker_open_cooldown_ms": 60_000
     }));
     let Some((provider, server)) =
-        provider_for_endpoint_or_skip("res_agent_circuit", "http://127.0.0.1:1/mcp", &resilience).await
+        provider_for_endpoint_or_skip("res_agent_circuit", "http://127.0.0.1:1/mcp", &resilience)
+            .await
     else {
         return;
     };

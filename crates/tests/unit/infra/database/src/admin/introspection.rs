@@ -39,7 +39,9 @@ async fn drop_fixture_table(pool: &sqlx::PgPool, table: &str) {
 
 #[tokio::test]
 async fn describe_table_reports_columns_pk_nullability_and_row_count() {
-    let Some(pg) = write_pool_or_skip().await else { return };
+    let Some(pg) = write_pool_or_skip().await else {
+        return;
+    };
     let table = unique_table();
     create_fixture_table(&pg, &table).await;
     let insert = format!("INSERT INTO \"{table}\" (id, note) VALUES (1, NULL), (2, 'b')");
@@ -80,7 +82,9 @@ async fn describe_table_reports_columns_pk_nullability_and_row_count() {
 
 #[tokio::test]
 async fn describe_table_missing_table_is_not_found() {
-    let Some(pg) = write_pool_or_skip().await else { return };
+    let Some(pg) = write_pool_or_skip().await else {
+        return;
+    };
     let service = DatabaseAdminService::new(pg);
     let ident = SafeIdentifier::parse("no_such_table_zzz").expect("valid identifier");
 
@@ -91,7 +95,9 @@ async fn describe_table_missing_table_is_not_found() {
 
 #[tokio::test]
 async fn list_table_indexes_reports_pk_and_unique_index() {
-    let Some(pg) = write_pool_or_skip().await else { return };
+    let Some(pg) = write_pool_or_skip().await else {
+        return;
+    };
     let table = unique_table();
     create_fixture_table(&pg, &table).await;
     let idx = format!("{table}_label_key");
@@ -122,7 +128,9 @@ async fn list_table_indexes_reports_pk_and_unique_index() {
 
 #[tokio::test]
 async fn count_rows_counts_seeded_rows() {
-    let Some(pg) = write_pool_or_skip().await else { return };
+    let Some(pg) = write_pool_or_skip().await else {
+        return;
+    };
     let table = unique_table();
     create_fixture_table(&pg, &table).await;
     let insert = format!("INSERT INTO \"{table}\" (id) SELECT generate_series(1, 7)");

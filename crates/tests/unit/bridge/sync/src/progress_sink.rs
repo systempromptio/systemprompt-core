@@ -74,7 +74,10 @@ fn clearing_the_sink_stops_delivery_without_losing_what_was_already_reported() {
     sink.clear();
     sink.report(&SyncProgress::new("downloading", "commons", 1, 2));
 
-    assert_eq!(*seen.lock().expect("lock"), vec!["fetching:manifest".to_owned()]);
+    assert_eq!(
+        *seen.lock().expect("lock"),
+        vec!["fetching:manifest".to_owned()]
+    );
 }
 
 #[test]

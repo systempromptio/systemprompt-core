@@ -7,6 +7,8 @@ mod compare;
 #[cfg(test)]
 mod download;
 #[cfg(test)]
+mod download_verified;
+#[cfg(test)]
 mod errors;
 #[cfg(test)]
 mod install_paths;
@@ -14,5 +16,3 @@ mod install_paths;
 mod status;
 #[cfg(test)]
 mod ui_state;
-#[cfg(test)]
-mod download_verified;

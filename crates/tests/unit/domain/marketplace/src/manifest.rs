@@ -87,10 +87,7 @@ async fn assembly_unions_two_enabled_marketplaces() {
 
     assert_eq!(
         candidate.membership.all_ids(),
-        BTreeSet::from([
-            MarketplaceId::new("alpha"),
-            MarketplaceId::new("beta"),
-        ]),
+        BTreeSet::from([MarketplaceId::new("alpha"), MarketplaceId::new("beta"),]),
     );
 }
 

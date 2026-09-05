@@ -256,10 +256,16 @@ fn the_opencode_host_describes_itself_as_a_json_cli_tool_that_cannot_be_opened()
     // every picker and must stay excluded.
     assert_eq!(
         OPENCODE_HOST.accepted_surfaces(),
-        &[ApiSurface::OpenAi, ApiSurface::Anthropic, ApiSurface::Gemini]
+        &[
+            ApiSurface::OpenAi,
+            ApiSurface::Anthropic,
+            ApiSurface::Gemini
+        ]
     );
     assert!(
-        !OPENCODE_HOST.accepted_surfaces().contains(&ApiSurface::Backend),
+        !OPENCODE_HOST
+            .accepted_surfaces()
+            .contains(&ApiSurface::Backend),
         "Backend providers must never be advertised to a host"
     );
     assert!(

@@ -59,7 +59,9 @@ async fn setup_or_skip() -> Option<Ctx> {
 
 #[tokio::test]
 async fn store_then_validate_valid() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -87,7 +89,9 @@ async fn store_then_validate_valid() {
 
 #[tokio::test]
 async fn validate_not_found() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let result = ctx
         .repo
         .validate_setup_token(&format!("missing-{}", Uuid::new_v4()))
@@ -98,7 +102,9 @@ async fn validate_not_found() {
 
 #[tokio::test]
 async fn validate_expired() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -119,7 +125,9 @@ async fn validate_expired() {
 
 #[tokio::test]
 async fn consume_then_already_used() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -165,7 +173,9 @@ async fn consume_then_already_used() {
 
 #[tokio::test]
 async fn revoke_user_setup_tokens_marks_used() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -193,7 +203,9 @@ async fn revoke_user_setup_tokens_marks_used() {
 
 #[tokio::test]
 async fn cleanup_expired_setup_tokens_runs() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     // Just exercise the path; rows older than 24h are rare in a fresh DB.
     ctx.repo
         .cleanup_expired_setup_tokens()

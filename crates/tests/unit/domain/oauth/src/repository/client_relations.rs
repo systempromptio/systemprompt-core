@@ -77,7 +77,9 @@ fn params_no_contacts(client_id: &ClientId, owner: &UserId) -> CreateClientParam
 
 #[tokio::test]
 async fn single_load_returns_all_relation_cardinalities() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let client_id = new_client_id();
     ctx.repo
         .create(params_full(&client_id, &ctx.owner))
@@ -103,7 +105,9 @@ async fn single_load_returns_all_relation_cardinalities() {
 
 #[tokio::test]
 async fn single_load_absent_contacts_is_none() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let client_id = new_client_id();
     ctx.repo
         .create(params_no_contacts(&client_id, &ctx.owner))
@@ -127,7 +131,9 @@ async fn single_load_absent_contacts_is_none() {
 
 #[tokio::test]
 async fn batch_load_distributes_relations_per_client() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let with_contacts = new_client_id();
     let without_contacts = new_client_id();
     ctx.repo
@@ -163,7 +169,9 @@ async fn batch_load_distributes_relations_per_client() {
 
 #[tokio::test]
 async fn batch_load_via_pagination_matches_single_load() {
-    let Some(ctx) = setup_or_skip().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let client_id = new_client_id();
     ctx.repo
         .create(params_full(&client_id, &ctx.owner))

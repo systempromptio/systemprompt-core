@@ -38,7 +38,10 @@ fn spawn_agent_looking_listener(port: u16) -> Option<u32> {
         ))
         .output()
         .ok()?;
-    let pid: u32 = String::from_utf8_lossy(&output.stdout).trim().parse().ok()?;
+    let pid: u32 = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .parse()
+        .ok()?;
 
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {

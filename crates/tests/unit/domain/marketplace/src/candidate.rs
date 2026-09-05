@@ -358,9 +358,10 @@ fn retain_entries_prunes_artifacts_of_dropped_plugins() {
 #[test]
 fn retain_entries_leaves_assembly_context_untouched() {
     let mut membership = MarketplaceMembership::default();
-    membership
-        .access
-        .insert(MarketplaceId::new("test-market"), MarketplaceAccess::default());
+    membership.access.insert(
+        MarketplaceId::new("test-market"),
+        MarketplaceAccess::default(),
+    );
     let mut c = candidate(vec![plugin("p1")], vec![], vec![], vec![], vec![], vec![])
         .with_membership(membership);
     c.diagnostics.push("assembly warning".to_owned());

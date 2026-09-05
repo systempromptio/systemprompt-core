@@ -52,11 +52,13 @@ async fn a_completed_task_broadcasts_its_identifiers_and_bearer_to_the_configure
     assert_eq!(body["event_type"], "task_completed");
     assert_eq!(body["entity_id"], task_id.as_str());
     assert_eq!(
-        body["context_id"], ctx.as_str(),
+        body["context_id"],
+        ctx.as_str(),
         "the broadcast must carry the task's own context"
     );
     assert_eq!(
-        body["user_id"], user.as_str(),
+        body["user_id"],
+        user.as_str(),
         "the broadcast must carry the task's owner"
     );
     assert_eq!(

@@ -10,9 +10,9 @@ mod thought_signatures_db;
 use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
-use systemprompt_test_fixtures::usage;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    usage,
 };
 
 // Acquire a migrated test pool, or `None` when DATABASE_URL is unset so the

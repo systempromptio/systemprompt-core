@@ -11,8 +11,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 
 use super::{
-    ai_config, noop_session_provider, pool_or_skip, registry_with_endpoint, seeded_context,
-    service,
+    ai_config, noop_session_provider, pool_or_skip, registry_with_endpoint, seeded_context, service,
 };
 use crate::services::providers::mock_http;
 

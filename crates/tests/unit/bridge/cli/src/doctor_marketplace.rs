@@ -54,22 +54,19 @@ fn with_the_cli_present_but_no_manifest_yet_the_check_warns_and_points_at_sync()
         check_marketplace,
     );
     assert_eq!(check.status, Status::Warn, "{}", check.detail);
-    assert!(check.detail.contains("marketplace.json"), "{}", check.detail);
+    assert!(
+        check.detail.contains("marketplace.json"),
+        "{}",
+        check.detail
+    );
     assert!(check.detail.contains("sync"), "{}", check.detail);
 }
 
 #[test]
 fn a_manifest_that_is_not_valid_json_is_a_failure_rather_than_a_warning() {
-    let check = with_home(
-        |home| write_manifest(home, "{not json"),
-        check_marketplace,
-    );
+    let check = with_home(|home| write_manifest(home, "{not json"), check_marketplace);
     assert_eq!(check.status, Status::Fail, "{}", check.detail);
-    assert!(
-        check.detail.contains("not valid JSON"),
-        "{}",
-        check.detail
-    );
+    assert!(check.detail.contains("not valid JSON"), "{}", check.detail);
 }
 
 #[test]
@@ -79,7 +76,11 @@ fn a_manifest_listing_no_plugins_warns_rather_than_reporting_a_healthy_marketpla
         check_marketplace,
     );
     assert_eq!(check.status, Status::Warn, "{}", check.detail);
-    assert!(check.detail.contains("lists no plugins"), "{}", check.detail);
+    assert!(
+        check.detail.contains("lists no plugins"),
+        "{}",
+        check.detail
+    );
 }
 
 #[test]
@@ -89,7 +90,11 @@ fn a_manifest_with_no_plugins_key_at_all_is_treated_the_same_as_an_empty_one() {
         check_marketplace,
     );
     assert_eq!(check.status, Status::Warn, "{}", check.detail);
-    assert!(check.detail.contains("lists no plugins"), "{}", check.detail);
+    assert!(
+        check.detail.contains("lists no plugins"),
+        "{}",
+        check.detail
+    );
 }
 
 #[test]
@@ -114,5 +119,9 @@ fn a_plugins_key_that_is_not_an_array_is_treated_as_no_plugins_rather_than_crash
         check_marketplace,
     );
     assert_eq!(check.status, Status::Warn, "{}", check.detail);
-    assert!(check.detail.contains("lists no plugins"), "{}", check.detail);
+    assert!(
+        check.detail.contains("lists no plugins"),
+        "{}",
+        check.detail
+    );
 }

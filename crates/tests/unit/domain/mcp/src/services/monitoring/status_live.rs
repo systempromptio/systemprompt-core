@@ -78,7 +78,9 @@ async fn a_slow_but_reachable_endpoint_is_still_reported_running_and_marked_degr
         .await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(serde_json::json!({"method": "tools/list"})))
+        .and(body_partial_json(
+            serde_json::json!({"method": "tools/list"}),
+        ))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")

@@ -14,7 +14,8 @@ use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
-async fn make_dependencies_or_skip() -> Option<(LifecycleOrchestrator, DatabaseService, RegistryService)> {
+async fn make_dependencies_or_skip()
+-> Option<(LifecycleOrchestrator, DatabaseService, RegistryService)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {

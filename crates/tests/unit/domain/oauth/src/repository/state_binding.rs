@@ -41,7 +41,9 @@ fn builder_overrides_fields() {
 
 #[tokio::test]
 async fn store_then_consume_once() {
-    let Some(repo) = repo_or_skip().await else { return };
+    let Some(repo) = repo_or_skip().await else {
+        return;
+    };
     let token = format!("state-{}", Uuid::new_v4());
     let client_id = ClientId::new("cid-x");
     repo.store_state_binding(
@@ -74,7 +76,9 @@ async fn store_then_consume_once() {
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
-    let Some(repo) = repo_or_skip().await else { return };
+    let Some(repo) = repo_or_skip().await else {
+        return;
+    };
     assert!(
         repo.consume_state_binding(&format!("nope-{}", Uuid::new_v4()))
             .await
@@ -85,7 +89,9 @@ async fn consume_unknown_returns_none() {
 
 #[tokio::test]
 async fn expired_binding_cannot_be_consumed() {
-    let Some(repo) = repo_or_skip().await else { return };
+    let Some(repo) = repo_or_skip().await else {
+        return;
+    };
     let token = format!("state-{}", Uuid::new_v4());
     repo.store_state_binding(
         StateBindingParams::builder(&token)
@@ -104,7 +110,9 @@ async fn expired_binding_cannot_be_consumed() {
 
 #[tokio::test]
 async fn cleanup_expired_state_bindings_removes_past() {
-    let Some(repo) = repo_or_skip().await else { return };
+    let Some(repo) = repo_or_skip().await else {
+        return;
+    };
     let token = format!("state-{}", Uuid::new_v4());
     repo.store_state_binding(
         StateBindingParams::builder(&token)

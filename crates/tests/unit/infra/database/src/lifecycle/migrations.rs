@@ -1451,10 +1451,10 @@ fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
 // Drift repair: slot collisions are refused, reconcile-only executes no SQL.
 // ---------------------------------------------------------------------------
 //
-// `HealingRowsProvider` differs from `AppliedRowsProvider` in returning a mutable
-// set of `extension_migrations` rows: any write heals the stored checksum, the
-// way the real UPDATE does, so `repair_drift`'s follow-up pass sees a
-// reconciled row instead of the stale one it just fixed.
+// `HealingRowsProvider` differs from `AppliedRowsProvider` in returning a
+// mutable set of `extension_migrations` rows: any write heals the stored
+// checksum, the way the real UPDATE does, so `repair_drift`'s follow-up pass
+// sees a reconciled row instead of the stale one it just fixed.
 
 #[derive(Debug)]
 struct AppliedRows {

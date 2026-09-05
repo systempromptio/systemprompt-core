@@ -118,7 +118,10 @@ fn progress_is_reported_as_bytes_arrive_and_ends_at_the_full_body() {
             .await
             .expect("download");
 
-            assert!(calls.load(Ordering::SeqCst) > 0, "progress must be reported");
+            assert!(
+                calls.load(Ordering::SeqCst) > 0,
+                "progress must be reported"
+            );
             assert_eq!(
                 last.load(Ordering::SeqCst),
                 BODY.len() as u64,
@@ -237,7 +240,11 @@ fn an_empty_artifact_body_still_verifies_against_the_digest_of_no_bytes() {
     sandbox(|| {
         rt.block_on(async {
             let server = MockServer::start().await;
-            serve(&server, ResponseTemplate::new(200).set_body_bytes(Vec::new())).await;
+            serve(
+                &server,
+                ResponseTemplate::new(200).set_body_bytes(Vec::new()),
+            )
+            .await;
 
             let staged = download_verified(
                 &client(&server),
