@@ -38,10 +38,15 @@ pub(crate) struct SkillTarget {
     pub policy: SkillDirPolicy,
 }
 
+// Why: `marketplaces` records which gateway marketplaces the synced skills
+// came from. Skills land in one flat directory, so the host never sees the
+// grouping; the sidecar is where an operator (or a test) can still read it.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct ManagedState {
     version: String,
     ids: Vec<String>,
+    #[serde(default)]
+    marketplaces: Vec<String>,
 }
 
 impl SkillTarget {
@@ -121,6 +126,11 @@ impl SkillTarget {
             &ManagedState {
                 version,
                 ids: new_ids,
+                marketplaces: manifest
+                    .marketplaces
+                    .iter()
+                    .map(|m| m.id.as_str().to_owned())
+                    .collect(),
             },
         )
     }
