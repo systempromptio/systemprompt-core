@@ -39,7 +39,7 @@ pub fn plugin_bundles(
     content: &BundleContent<'_>,
 ) -> Result<BTreeMap<PluginId, PluginBundle>, MarketplaceError> {
     let mut out = BTreeMap::new();
-    for config in selected_configs(services)? {
+    for config in selected_configs(services) {
         let bundle = match build_plugin_bundle(config, content) {
             Ok(bundle) => bundle,
             Err(e) => {
@@ -153,7 +153,7 @@ pub fn artifact_owners(
     artifacts: &[ArtifactEntry],
 ) -> Result<BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>, MarketplaceError> {
     let mut out: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = BTreeMap::new();
-    for config in selected_configs(services)? {
+    for config in selected_configs(services) {
         let selected: Vec<LibraryArtifactId> = match config.artifacts.source {
             ComponentSource::Explicit => config
                 .artifacts
@@ -192,15 +192,13 @@ pub fn selects_artifact(config: &PluginConfig, artifact_id: &LibraryArtifactId) 
     }
 }
 
-pub(crate) fn selected_configs(
-    services: &ServicesConfig,
-) -> Result<Vec<&PluginConfig>, MarketplaceError> {
+pub(crate) fn selected_configs(services: &ServicesConfig) -> Vec<&PluginConfig> {
     let enabled: Vec<&PluginConfig> = services.plugins.values().filter(|p| p.enabled).collect();
     let marketplaces = enabled_marketplaces(services);
     let include = union_include(&marketplaces, MarketplaceMemberKind::Plugins);
     let mut scoped = scope_to_union(enabled, include.as_ref(), |c| c.id.as_str());
     scoped.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
-    Ok(scoped)
+    scoped
 }
 
 pub fn skill_owners(
@@ -208,7 +206,7 @@ pub fn skill_owners(
     content: &BundleContent<'_>,
 ) -> Result<BTreeMap<SkillId, BTreeSet<PluginId>>, MarketplaceError> {
     let mut out: BTreeMap<SkillId, BTreeSet<PluginId>> = BTreeMap::new();
-    for config in selected_configs(services)? {
+    for config in selected_configs(services) {
         let agent_ids = crate::bundle::resolve_agents(config, content.agents);
         let owner = PluginId::try_new(config.id.as_str())
             .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;

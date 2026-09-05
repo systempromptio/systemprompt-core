@@ -9,19 +9,18 @@ use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::ServicesConfig;
 
 use crate::candidate::MarketplaceCandidate;
-use crate::error::MarketplaceError;
 use crate::trace::{TraceEvent, TraceKind, TraceSink, TraceStage};
 
 pub(super) fn plugin_inclusion_diagnostics(
     services: &ServicesConfig,
     skills: &[SkillEntry],
     agents: &[systemprompt_models::bridge::manifest::AgentEntry],
-) -> Result<Vec<String>, MarketplaceError> {
+) -> Vec<String> {
     use systemprompt_models::services::ComponentSource;
 
     let mut diagnostics = Vec::new();
     let mut selected_agents: BTreeSet<&str> = BTreeSet::new();
-    for config in crate::catalog::selected_configs(services)? {
+    for config in crate::catalog::selected_configs(services) {
         if config.skills.source == ComponentSource::Explicit {
             for raw in &config.skills.include {
                 if !skills.iter().any(|s| s.id.as_str() == raw.as_str()) {
@@ -66,7 +65,7 @@ pub(super) fn plugin_inclusion_diagnostics(
         }
     }
 
-    Ok(diagnostics)
+    diagnostics
 }
 
 pub(super) struct CandidateSnapshot {

@@ -123,49 +123,7 @@ fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
         })
         .collect();
 
-    let band = |ids: Vec<String>| -> BTreeMap<String, BTreeSet<MarketplaceId>> {
-        ids.into_iter().map(|id| (id, all.clone())).collect()
-    };
-    let named = |owners: &BTreeMap<String, BTreeSet<MarketplaceId>>,
-                 ids: Vec<String>|
-     -> BTreeMap<String, BTreeSet<MarketplaceId>> {
-        ids.into_iter()
-            .map(|id| {
-                let set = owners.get(&id).cloned().unwrap_or_else(|| all.clone());
-                (id, set)
-            })
-            .collect()
-    };
-
-    let agent_owners: BTreeMap<String, BTreeSet<MarketplaceId>> = membership
-        .agents
-        .iter()
-        .map(|(id, set)| (id.as_str().to_owned(), set.clone()))
-        .collect();
-    let mcp_owners: BTreeMap<String, BTreeSet<MarketplaceId>> = membership
-        .mcp_servers
-        .iter()
-        .map(|(id, set)| (id.as_str().to_owned(), set.clone()))
-        .collect();
-
-    let marketplace_members = BTreeMap::from([
-        (
-            EntityKind::Skill,
-            band(ids_of(&candidate.skills, |s| &s.id)),
-        ),
-        (
-            EntityKind::Agent,
-            named(&agent_owners, ids_of(&candidate.agents, |a| &a.id)),
-        ),
-        (EntityKind::Hook, band(ids_of(&candidate.hooks, |h| &h.id))),
-        (
-            EntityKind::McpServer,
-            named(
-                &mcp_owners,
-                ids_of(&candidate.managed_mcp_servers, |m| &m.id),
-            ),
-        ),
-    ]);
+    let marketplace_members = member_bands(candidate, membership, &all);
 
     ChainSources {
         marketplaces,
@@ -182,6 +140,60 @@ fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
             .collect(),
         marketplace_members,
     }
+}
+
+// Why: the per-kind owner bands are the bulk of the chain sources; splitting
+// them out keeps `chain_sources` readable. Agents and MCP servers carry their
+// own membership, everything else falls back to every enabled marketplace.
+fn member_bands(
+    candidate: &MarketplaceCandidate,
+    membership: &crate::membership::MarketplaceMembership,
+    all: &BTreeSet<MarketplaceId>,
+) -> BTreeMap<EntityKind, BTreeMap<String, BTreeSet<MarketplaceId>>> {
+    let band = |ids: Vec<String>| -> BTreeMap<String, BTreeSet<MarketplaceId>> {
+        ids.into_iter().map(|id| (id, all.clone())).collect()
+    };
+    let named = |owners: &BTreeMap<String, BTreeSet<MarketplaceId>>,
+                 ids: Vec<String>|
+     -> BTreeMap<String, BTreeSet<MarketplaceId>> {
+        ids.into_iter()
+            .map(|id| {
+                let set = owners.get(&id).cloned().unwrap_or_else(|| all.clone());
+                (id, set)
+            })
+            .collect()
+    };
+
+    let agent_owners = owner_map(&membership.agents);
+    let mcp_owners = owner_map(&membership.mcp_servers);
+
+    BTreeMap::from([
+        (
+            EntityKind::Skill,
+            band(ids_of(&candidate.skills, |s| &s.id)),
+        ),
+        (
+            EntityKind::Agent,
+            named(&agent_owners, ids_of(&candidate.agents, |a| &a.id)),
+        ),
+        (EntityKind::Hook, band(ids_of(&candidate.hooks, |h| &h.id))),
+        (
+            EntityKind::McpServer,
+            named(
+                &mcp_owners,
+                ids_of(&candidate.managed_mcp_servers, |m| &m.id),
+            ),
+        ),
+    ])
+}
+
+fn owner_map<Id: AsRef<str>>(
+    owners: &BTreeMap<Id, BTreeSet<MarketplaceId>>,
+) -> BTreeMap<String, BTreeSet<MarketplaceId>> {
+    owners
+        .iter()
+        .map(|(id, set)| (id.as_ref().to_owned(), set.clone()))
+        .collect()
 }
 
 fn ids_of<T, Id: AsRef<str>>(items: &[T], id_of: impl Fn(&T) -> &Id) -> Vec<String> {

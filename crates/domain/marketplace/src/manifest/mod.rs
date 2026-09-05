@@ -88,7 +88,7 @@ impl ManifestService {
         let membership =
             MarketplaceMembership::from_services(services, &agents, &managed_mcp_servers);
 
-        let mut diagnostics = plugin_inclusion_diagnostics(services, &skills, &agents)?;
+        let mut diagnostics = plugin_inclusion_diagnostics(services, &skills, &agents);
         let skills = gate_skills_by_plugin(skills, &selected_skills, trace);
 
         let owners = artifact_owners(services, &artifacts)?;
