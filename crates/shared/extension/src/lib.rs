@@ -50,7 +50,6 @@
 mod asset;
 #[expect(
     clippy::panic,
-    clippy::manual_assert,
     clippy::print_stdout,
     reason = "build-script support code: a panic is the correct way to abort a build, and \
               println! is how a build script emits cargo directives"

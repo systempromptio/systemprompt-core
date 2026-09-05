@@ -25,7 +25,7 @@
 //!   the number so it can never be refilled, and its body is prose, never SQL.
 //!
 //! Tombstones are what make `ls` the truth: a number is free only if no file
-//! claims it. Because [`reject_duplicate_versions`] treats a tombstoned range
+//! claims it. Because `reject_duplicate_versions` treats a tombstoned range
 //! exactly like an occupied one, refilling a spent slot fails the **build**,
 //! long before a deployment discovers it as a checksum mismatch naming a
 //! migration nobody recognises.
@@ -119,14 +119,13 @@ impl DiscoveredMigration {
             self.version,
             self.name
         );
-        (self.version..=self.end_version)
-            .map(|version| {
-                format!(
-                    "    ::systemprompt_extension::Migration::tombstone({}, {:?}),\n",
-                    version, self.name
-                )
-            })
-            .collect()
+        (self.version..=self.end_version).fold(String::new(), |mut out, version| {
+            let name = &self.name;
+            out.push_str(&format!(
+                "    ::systemprompt_extension::Migration::tombstone({version}, {name:?}),\n"
+            ));
+            out
+        })
     }
 }
 
