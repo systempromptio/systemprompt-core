@@ -3,7 +3,7 @@
 //! Every reasoning-capable provider hands the client an opaque signed blob and
 //! requires it back verbatim on the next turn: Gemini's `thoughtSignature`,
 //! Anthropic's `signature` on a `thinking` block and `data` on a
-//! `redacted_thinking` block, and OpenAI's `encrypted_content` on a
+//! `redacted_thinking` block, and `OpenAI`'s `encrypted_content` on a
 //! `reasoning` item. All four are dense random-looking base64, so the
 //! high-entropy backstop reads them as credentials — and under an enforcing
 //! `secret_scan` stage that denies every multi-turn thinking continuation.
