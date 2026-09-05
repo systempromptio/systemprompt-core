@@ -158,19 +158,13 @@ async fn openai_responses_in_streaming_truncated_mid_tool_call_reports_the_cutof
     .await
 }
 
-// Why: `stop_reason` is not a field of the Responses API. A Codex-style client
-// reads `status` and `incomplete_details`, so the truncation assertions above
-// prove the reason reached the body without proving the client can see it.
-// The buffered renderer hardcodes `"status": "completed"` and never emits
-// `incomplete_details`, so a truncated turn is handed to the client as a
-// finished one carrying a `stop_reason` key the Responses contract does not
-// define. The streaming terminal renderer gets this right -- it switches the
-// event to `response.incomplete` and fills `incomplete_details.reason` from
-// the same canonical reason -- so the two lanes of one surface disagree, and
-// only the buffered one is wrong.
+// Why: a Codex-style client reads `status` and `incomplete_details`, not the
+// `stop_reason` the truncation assertions above look for, so those cells prove
+// the reason reached the body without proving the client can see it. The
+// buffered lane must reach the same pair as the streaming terminal frame:
+// `status: "incomplete"` with an `incomplete_details.reason` of
+// `max_output_tokens`.
 #[tokio::test]
-#[ignore = "buffered Responses render always says status=completed: \
-            crates/entry/api/src/services/gateway/protocol/inbound/openai_responses/render.rs"]
 async fn openai_responses_in_buffered_truncation_marks_the_response_incomplete()
 -> anyhow::Result<()> {
     let label = "responses-out-truncated-status-buffered";

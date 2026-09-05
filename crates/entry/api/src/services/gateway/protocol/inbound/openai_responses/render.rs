@@ -69,11 +69,15 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
         );
     }
 
+    // Why: the Responses object has no finish-reason scalar. A truncated turn
+    // is `status: "incomplete"` plus `incomplete_details.reason`, exactly as
+    // the streaming terminal frame renders it; anything else is `completed`.
+    let truncated = matches!(response.stop_reason, Some(CanonicalStopReason::MaxTokens));
     json!({
         "id": response.id,
         "object": "response",
         "created_at": current_unix_ts(),
-        "status": "completed",
+        "status": if truncated { "incomplete" } else { "completed" },
         "model": response.model,
         "output": output,
         "usage": {
@@ -81,6 +85,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
             "output_tokens": response.usage.output_tokens,
             "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
         },
+        "incomplete_details": truncated.then(|| json!({ "reason": "max_output_tokens" })),
         "stop_reason": response.stop_reason.map(CanonicalStopReason::openai_str),
     })
 }
