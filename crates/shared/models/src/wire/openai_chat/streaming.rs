@@ -32,6 +32,7 @@ where
         text_block_open: false,
         next_index: 0,
         tool_calls: Vec::new(),
+        stopped: false,
     };
 
     let s = stream
@@ -61,14 +62,9 @@ fn drain_buffer(
                 continue;
             };
             if data.trim() == "[DONE]" {
-                if state.text_block_open {
-                    events.push(Ok(CanonicalEvent::ContentBlockStop { index: 0 }));
-                    state.text_block_open = false;
+                if !state.stopped {
+                    emit_message_stop(state, "stop", &mut events);
                 }
-                events.push(Ok(CanonicalEvent::MessageStop {
-                    id: state.message_id.as_str().to_owned(),
-                    stop_reason: Some(CanonicalStopReason::EndTurn),
-                }));
                 continue;
             }
             let Ok(value) = serde_json::from_str::<Value>(data) else {
@@ -101,7 +97,9 @@ fn handle_chunk(
     let delta = choice.get("delta").unwrap_or(&Value::Null);
     process_text_delta(state, delta, events);
     process_tool_calls(state, delta, events);
-    if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str) {
+    if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str)
+        && !state.stopped
+    {
         emit_message_stop(state, finish, events);
     }
 }
@@ -228,6 +226,7 @@ fn emit_message_stop(
     finish: &str,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
+    state.stopped = true;
     if state.text_block_open {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: 0 }));
         state.text_block_open = false;
@@ -263,6 +262,13 @@ struct OpenAiChatStreamState {
     text_block_open: bool,
     next_index: u32,
     tool_calls: Vec<ToolCallProgress>,
+    // Why: a chunk carrying `finish_reason` and the `[DONE]` sentinel both end
+    // the turn, and providers send both. Emitting MessageStop twice let the
+    // sentinel's unconditional EndTurn land after a real `tool_calls` finish,
+    // so the accumulated stop reason -- and the terminal frame every
+    // OpenAI-contract client reads -- said "stop" on a turn that wanted a tool
+    // run, and the tool call was silently dropped.
+    stopped: bool,
 }
 
 struct ToolCallProgress {

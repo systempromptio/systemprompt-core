@@ -66,6 +66,13 @@ struct ChatChoice {
 struct ChatMessage {
     #[serde(default)]
     content: Option<String>,
+    // Why: the OpenAI chat contract has no reasoning field, but every
+    // OpenAI-compatible provider that emits thinking (DeepSeek, Qwen,
+    // Moonshot) puts it here; `alias` accepts the shorter spelling some of
+    // them use. Without it a thinking model's reasoning is discarded on
+    // arrival and cannot be replayed on the next turn.
+    #[serde(default, alias = "reasoning")]
+    reasoning_content: Option<String>,
     #[serde(default)]
     tool_calls: Vec<ChatToolCall>,
 }
@@ -125,6 +132,16 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
 }
 
 fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>) {
+    if let Some(reasoning) = msg.reasoning_content
+        && !reasoning.is_empty()
+    {
+        content.push(CanonicalContent::Thinking {
+            text: reasoning,
+            signature: None,
+            id: None,
+            encrypted_content: None,
+        });
+    }
     if let Some(text) = msg.content
         && !text.is_empty()
     {

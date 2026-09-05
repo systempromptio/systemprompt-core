@@ -530,12 +530,13 @@ fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
 
 // Gemini reports finishReason STOP even when the candidate it returned is a
 // functionCall, so the wire's own reason cannot distinguish "finished talking"
-// from "wants a tool run". Left as EndTurn it renders as `finish_reason: "stop"`
-// on the OpenAI surface, and a client that follows that contract ends the turn
-// without executing the tool -- the call rides along in the payload and is
-// silently dropped. Measured against a live gateway: an OpenAI-compatible
-// client got a tool_calls payload with finish_reason "stop" and ran nothing,
-// while the same request against an Anthropic-backed model got "tool_calls".
+// from "wants a tool run". Left as EndTurn it renders as `finish_reason:
+// "stop"` on the OpenAI surface, and a client that follows that contract ends
+// the turn without executing the tool -- the call rides along in the payload
+// and is silently dropped. Measured against a live gateway: an
+// OpenAI-compatible client got a tool_calls payload with finish_reason "stop"
+// and ran nothing, while the same request against an Anthropic-backed model got
+// "tool_calls".
 #[test]
 fn gemini_parse_reports_tool_use_when_the_candidate_is_a_function_call() {
     let value: Value = json!({
@@ -579,5 +580,49 @@ fn gemini_parse_keeps_end_turn_for_a_plain_text_candidate() {
         parsed.stop_reason,
         Some(systemprompt_models::wire::canonical::CanonicalStopReason::EndTurn),
         "a text-only turn must not be reported as tool use"
+    );
+}
+
+// Why: the buffered path has a test for this; the streaming path had five
+// tests and none about tool calls at all. Gemini reports `STOP` on the
+// finishing chunk of a turn whose only part was a functionCall, so the wire's
+// own reason is the wrong one and the stream state is the only signal.
+#[tokio::test]
+async fn gemini_stream_reports_tool_use_even_though_gemini_says_stop() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let sse = concat!(
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":\
+         {\"name\":\"lookup\",\"args\":{\"q\":\"rust\"}}}]}}]}\n\n",
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\
+         \"STOP\"}]}\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = gemini::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+
+    let arguments = events.iter().find_map(|e| match e {
+        Ok(CanonicalEvent::ToolUseDelta { partial_json, .. }) => Some(partial_json.clone()),
+        _ => None,
+    });
+    assert_eq!(
+        arguments.as_deref(),
+        Some("{\"q\":\"rust\"}"),
+        "the streamed call must carry its arguments"
+    );
+
+    let stop = events.into_iter().find_map(|e| match e {
+        Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::ToolUse)),
+        "STOP on a functionCall turn renders as finish_reason \"stop\" downstream, and the \
+         client drops the call"
     );
 }

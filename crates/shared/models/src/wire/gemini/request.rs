@@ -245,7 +245,19 @@ fn image_part(src: &ImageSource) -> GeminiPart {
                 data: data.clone(),
             },
         },
-        ImageSource::Url { url, .. } => plain_text_part(url.clone()),
+        // Why: Gemini's generateContent has no URL image part -- inlineData
+        // (base64) or a Files API handle are the only shapes it accepts. The
+        // URL is kept as text so the model at least sees what was referenced,
+        // but it is not an image any more, and a caller debugging "the model
+        // ignored my picture" has no other way to learn that.
+        ImageSource::Url { url, .. } => {
+            tracing::warn!(
+                url = %url,
+                "Gemini accepts only inline base64 image data; the image URL was \
+                 downgraded to a plain text part and will not be seen as an image"
+            );
+            plain_text_part(url.clone())
+        },
     }
 }
 

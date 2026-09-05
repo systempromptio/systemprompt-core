@@ -261,6 +261,22 @@ mod static_files_serving;
 mod gateway_pipeline;
 
 #[cfg(test)]
+#[path = "gateway_matrix.rs"]
+mod gateway_matrix;
+
+#[cfg(test)]
+#[path = "gateway_matrix_anthropic_in.rs"]
+mod gateway_matrix_anthropic_in;
+
+#[cfg(test)]
+#[path = "gateway_matrix_openai_chat_in.rs"]
+mod gateway_matrix_openai_chat_in;
+
+#[cfg(test)]
+#[path = "gateway_matrix_openai_responses_in.rs"]
+mod gateway_matrix_openai_responses_in;
+
+#[cfg(test)]
 #[path = "gateway_upstream_error_map.rs"]
 mod gateway_upstream_error_map;
 

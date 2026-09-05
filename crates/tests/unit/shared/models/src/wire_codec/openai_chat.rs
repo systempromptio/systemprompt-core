@@ -327,3 +327,112 @@ fn openai_chat_parse_maps_cached_and_total_tokens() {
     assert_eq!(response.usage.total_tokens, 18);
     assert_eq!(response.usage.cache_read_tokens, 5);
 }
+
+#[test]
+fn openai_chat_round_trips_thinking_through_reasoning_content() {
+    let value: Value = json!({
+        "id": "resp_think",
+        "model": "qwen3-next-thinking",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "42",
+                "reasoning_content": "first I counted"
+            },
+            "finish_reason": "stop"
+        }]
+    });
+    let response = openai_chat::parse_response(&value, "fallback");
+    let thinking = response.content.iter().find_map(|c| match c {
+        CanonicalContent::Thinking { text, .. } => Some(text.clone()),
+        _ => None,
+    });
+    assert_eq!(
+        thinking.as_deref(),
+        Some("first I counted"),
+        "reasoning_content must arrive as Thinking, not be discarded"
+    );
+
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::Assistant,
+        content: response.content.clone(),
+    }];
+    let body = openai_chat::build_request_body(&req, "upstream", None);
+    let assistant = &body["messages"][0];
+    assert_eq!(
+        assistant["reasoning_content"], "first I counted",
+        "the replayed turn must carry the reasoning it was given"
+    );
+    assert_eq!(assistant["content"], "42");
+}
+
+#[tokio::test]
+async fn openai_chat_stream_does_not_overwrite_tool_calls_with_the_done_sentinel() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
+
+    let sse = concat!(
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\
+         \"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\
+         \"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]}}]}\n\n",
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\
+         \"finish_reason\":\"tool_calls\"}]}\n\n",
+        "data: [DONE]\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = openai_chat::sse_to_canonical_events(upstream, "m".to_owned())
+        .collect()
+        .await;
+    let stops: Vec<_> = events
+        .into_iter()
+        .filter_map(|e| match e {
+            Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        stops,
+        vec![Some(CanonicalStopReason::ToolUse)],
+        "the [DONE] sentinel must not append a second, weaker stop reason"
+    );
+}
+
+// Why: the buffered parse had no finish_reason coverage at all, so nothing
+// pinned `tool_calls -> ToolUse` -- the mapping every OpenAI-compatible
+// upstream depends on to have its tool call executed.
+#[test]
+fn openai_chat_buffered_tool_calls_finish_reason_maps_to_tool_use() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "chatcmpl_1",
+        "model": "gpt-x",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": Value::Null,
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup", "arguments": "{\"q\":\"rust\"}"}
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }]
+    });
+    let response = openai_chat::parse_response(&value, "fallback");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::ToolUse));
+    assert_eq!(response.raw_finish_reason.as_deref(), Some("tool_calls"));
+    match response.content.first() {
+        Some(CanonicalContent::ToolUse { name, input, .. }) => {
+            assert_eq!(name, "lookup");
+            assert_eq!(input["q"], "rust");
+        },
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
+}
