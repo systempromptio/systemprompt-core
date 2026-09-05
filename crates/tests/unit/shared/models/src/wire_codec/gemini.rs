@@ -527,3 +527,57 @@ fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
         Some(CanonicalContent::Text(t)) if t == "the answer"
     ));
 }
+
+// Gemini reports finishReason STOP even when the candidate it returned is a
+// functionCall, so the wire's own reason cannot distinguish "finished talking"
+// from "wants a tool run". Left as EndTurn it renders as `finish_reason: "stop"`
+// on the OpenAI surface, and a client that follows that contract ends the turn
+// without executing the tool -- the call rides along in the payload and is
+// silently dropped. Measured against a live gateway: an OpenAI-compatible
+// client got a tool_calls payload with finish_reason "stop" and ran nothing,
+// while the same request against an Anthropic-backed model got "tool_calls".
+#[test]
+fn gemini_parse_reports_tool_use_when_the_candidate_is_a_function_call() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "STOP",
+            "content": {
+                "role": "model",
+                "parts": [{
+                    "functionCall": { "name": "systemprompt", "args": { "command": "core skills list" } }
+                }]
+            }
+        }]
+    });
+
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash");
+
+    assert_eq!(
+        parsed.stop_reason,
+        Some(systemprompt_models::wire::canonical::CanonicalStopReason::ToolUse),
+        "a functionCall candidate is a tool-use turn whatever Gemini calls it"
+    );
+    assert_eq!(
+        parsed.raw_finish_reason.as_deref(),
+        Some("STOP"),
+        "the wire's own reason must still be preserved verbatim for auditing"
+    );
+}
+
+#[test]
+fn gemini_parse_keeps_end_turn_for_a_plain_text_candidate() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "STOP",
+            "content": { "role": "model", "parts": [{ "text": "pong" }] }
+        }]
+    });
+
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash");
+
+    assert_eq!(
+        parsed.stop_reason,
+        Some(systemprompt_models::wire::canonical::CanonicalStopReason::EndTurn),
+        "a text-only turn must not be reported as tool use"
+    );
+}

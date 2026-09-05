@@ -42,13 +42,27 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     let usage = usage(parsed.usage_metadata);
     let candidate = parsed.candidates.into_iter().next();
     let raw_finish_reason = candidate.as_ref().and_then(|c| c.finish_reason.clone());
-    let stop_reason = raw_finish_reason.as_deref().map(stop_reason);
+    let mut stop_reason = raw_finish_reason.as_deref().map(stop_reason);
     let grounding = candidate.as_ref().and_then(grounding_from_candidate);
     let parts = candidate.and_then(|c| c.content).map(|c| c.parts);
     let (content, code_execution) = parts.map_or_else(
         || (Vec::new(), None),
         |parts| (parts_to_content(&parts), code_execution(&parts)),
     );
+
+    // Why: Gemini reports finishReason STOP even when the candidate it just
+    // returned is a functionCall, so the wire's reason cannot tell "finished
+    // talking" from "wants a tool run". Left as EndTurn this renders as
+    // `finish_reason: "stop"` on the OpenAI surface; a client that follows that
+    // contract ends the turn and never executes the tool, so the call rides
+    // along in the payload and is silently dropped. The content is the only
+    // reliable signal.
+    if content
+        .iter()
+        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }))
+    {
+        stop_reason = Some(CanonicalStopReason::ToolUse);
+    }
 
     CanonicalResponse {
         id,

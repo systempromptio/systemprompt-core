@@ -750,6 +750,65 @@ mod openai_responses_streaming {
 mod gemini_streaming {
     use super::*;
 
+    // Gemini reports finishReason STOP even on a turn whose candidate is a
+    // functionCall, so the wire's own reason cannot tell "finished talking"
+    // from "wants a tool run". Left as EndTurn it renders as
+    // `finish_reason: "stop"` on the OpenAI surface, and a client following
+    // that contract ends the turn without running the tool -- the call is in
+    // the payload and silently ignored. Measured against a live gateway: an
+    // OpenAI-compatible client received tool_calls alongside "stop" and ran
+    // nothing, while the same request on an Anthropic-backed model got
+    // "tool_calls" and ran it.
+    #[tokio::test]
+    async fn a_function_call_turn_stops_with_tool_use_not_end_turn() {
+        let sse = concat!(
+            "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":",
+            "[{\"functionCall\":{\"name\":\"systemprompt\",",
+            "\"args\":{\"command\":\"core skills list\"}}}]},",
+            "\"finishReason\":\"STOP\"}]}\n\n",
+        );
+        let events = run(sse.to_owned()).await;
+
+        let stop = events
+            .iter()
+            .rev()
+            .find_map(|e| match e {
+                CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+                _ => None,
+            })
+            .expect("the stream must end with a MessageStop");
+
+        assert_eq!(
+            stop,
+            Some(CanonicalStopReason::ToolUse),
+            "a stream that emitted a functionCall must stop with ToolUse"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_text_only_turn_still_stops_with_end_turn() {
+        let sse = concat!(
+            "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":",
+            "[{\"text\":\"pong\"}]},\"finishReason\":\"STOP\"}]}\n\n",
+        );
+        let events = run(sse.to_owned()).await;
+
+        let stop = events
+            .iter()
+            .rev()
+            .find_map(|e| match e {
+                CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+                _ => None,
+            })
+            .expect("the stream must end with a MessageStop");
+
+        assert_eq!(
+            stop,
+            Some(CanonicalStopReason::EndTurn),
+            "a text-only turn must not be reported as tool use"
+        );
+    }
+
     #[tokio::test]
     async fn thought_parts_stream_as_thinking_block_with_signature() {
         let sse = concat!(

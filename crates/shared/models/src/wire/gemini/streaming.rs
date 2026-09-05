@@ -28,6 +28,10 @@ struct StreamState {
     text_block: Option<u32>,
     thinking_block: Option<u32>,
     next_index: u32,
+    // Why: Gemini reports finishReason STOP even on a turn whose candidate is a
+    // functionCall, so the wire's own reason cannot distinguish "finished
+    // talking" from "wants a tool run". Tracking it here is the only signal.
+    emitted_tool_use: bool,
 }
 
 pub fn sse_to_canonical_events<S, E>(
@@ -40,6 +44,7 @@ where
 {
     let initial = StreamState {
         buf: Vec::new(),
+        emitted_tool_use: false,
         model: fallback_model,
         message_id: format!("msg_{}", Uuid::new_v4().simple()),
         started: false,
@@ -107,7 +112,17 @@ fn handle_chunk(
         }
     }
     if let Some(finish) = candidate.finish_reason.as_deref() {
-        emit_stop(state, stop_reason(finish), events);
+        // Why: a turn that emitted a functionCall is a tool-use turn whatever
+        // Gemini calls it. Reporting EndTurn here renders as
+        // `finish_reason: "stop"` on the OpenAI surface, and a client that
+        // follows that contract treats the turn as complete and never runs the
+        // tool -- the call is present in the payload and silently ignored.
+        let reason = if state.emitted_tool_use {
+            CanonicalStopReason::ToolUse
+        } else {
+            stop_reason(finish)
+        };
+        emit_stop(state, reason, events);
     }
 }
 
@@ -172,6 +187,7 @@ fn emit_part(
             thought_signature,
         } => {
             close_thinking(state, events);
+            state.emitted_tool_use = true;
             emit_tool_use(
                 state,
                 &function_call.name,
