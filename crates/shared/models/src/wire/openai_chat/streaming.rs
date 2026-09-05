@@ -83,7 +83,10 @@ fn drain_buffer(
                 continue;
             };
             if data.trim() == "[DONE]" {
-                flush_into(state, &mut events);
+                // Why: the sentinel is itself a statement that the turn ended,
+                // so a wire that sent no finish reason at all still stops here
+                // -- some OpenAI-compatible proxies never send one.
+                flush_into(state, &mut events, Some("stop"));
                 continue;
             }
             let Ok(value) = serde_json::from_str::<Value>(data) else {
@@ -101,15 +104,26 @@ fn drain_buffer(
 // the wire actually said.
 fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, String>> {
     let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
-    flush_into(state, &mut events);
+    flush_into(state, &mut events, None);
     events
 }
 
-fn flush_into(state: &mut OpenAiChatStreamState, events: &mut Vec<Result<CanonicalEvent, String>>) {
+fn flush_into(
+    state: &mut OpenAiChatStreamState,
+    events: &mut Vec<Result<CanonicalEvent, String>>,
+    default_reason: Option<&str>,
+) {
     if state.stopped {
         return;
     }
-    let Some(finish) = state.pending_finish.take() else {
+    // Why: at a bare end of stream `default_reason` is None -- a turn that
+    // stated no reason and never reached the sentinel was cut off, and
+    // inventing a terminal here would hide the truncation the gateway reports.
+    let Some(finish) = state
+        .pending_finish
+        .take()
+        .or_else(|| default_reason.map(str::to_owned))
+    else {
         return;
     };
     emit_message_stop(state, &finish, events);

@@ -302,7 +302,7 @@ fn render_stream_start_text_and_tool_deltas() {
 }
 
 #[test]
-fn render_terminal_emits_final_chunk_usage_and_done() {
+fn render_terminal_emits_the_finish_chunk_alone() {
     let snapshot = sample_response();
     let bytes = OpenAiChatInbound
         .render_terminal_event(
@@ -315,9 +315,24 @@ fn render_terminal_emits_final_chunk_usage_and_done() {
         )
         .expect("terminal frame");
     let s = std::str::from_utf8(&bytes).expect("utf8");
-    assert!(s.ends_with("data: [DONE]\n\n"));
+    // The counts do not exist yet: this wire sends usage in a chunk of its own
+    // after the finish chunk, so anything stated here is a zero.
+    assert!(!s.contains("usage"), "{s}");
+    assert!(!s.contains("[DONE]"), "{s}");
     let v = chunk_json(&bytes);
     assert_eq!(v["choices"][0]["finish_reason"], "stop");
+}
+
+#[test]
+fn render_stream_tail_emits_usage_then_done() {
+    let snapshot = sample_response();
+    let bytes = OpenAiChatInbound
+        .render_stream_tail(&snapshot, true)
+        .expect("tail frames");
+    let s = std::str::from_utf8(&bytes).expect("utf8");
+    assert!(s.ends_with("data: [DONE]\n\n"), "{s}");
+    let v = chunk_json(&bytes);
+    assert_eq!(v["choices"].as_array().expect("choices").len(), 0);
     assert_eq!(v["usage"]["prompt_tokens"], 10);
     assert_eq!(v["usage"]["completion_tokens"], 5);
 }

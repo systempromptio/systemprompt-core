@@ -39,7 +39,12 @@ pub fn render_terminal_event_frame(
     // that asked for usage reads it and reports the turn as free. The counts
     // and the sentinel are rendered by `render_stream_tail_frames`, once the
     // stream has actually ended.
-    Some(render_chunk(&snapshot.model, &json!({}), Some(reason), None))
+    Some(render_chunk(
+        &snapshot.model,
+        &json!({}),
+        Some(reason),
+        None,
+    ))
 }
 
 /// The frames that close the stream: the contract's usage-only chunk, then the

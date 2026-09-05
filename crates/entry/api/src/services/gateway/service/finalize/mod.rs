@@ -131,9 +131,11 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
             let content_type = inbound.streaming_content_type();
             let body = stream_tap::tap(
                 stream,
-                Arc::clone(&inbound),
-                request_model,
-                stream_usage,
+                stream_tap::TapRender {
+                    inbound: Arc::clone(&inbound),
+                    request_model,
+                    stream_usage,
+                },
                 audit,
                 tap_ctx,
             );

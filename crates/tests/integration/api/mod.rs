@@ -309,6 +309,10 @@ mod gateway_empty_upstream_body;
 mod gateway_stream_abort;
 
 #[cfg(test)]
+#[path = "gateway_stream_usage.rs"]
+mod gateway_stream_usage;
+
+#[cfg(test)]
 #[path = "routes_content_blog.rs"]
 mod routes_content_blog;
 

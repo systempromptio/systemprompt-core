@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
-use systemprompt_test_fixtures as fixtures;
 use futures::stream;
 use systemprompt_api::services::gateway::policy::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
 use systemprompt_api::services::gateway::protocol::canonical_response::{
@@ -14,13 +13,24 @@ use systemprompt_api::services::gateway::protocol::canonical_response::{
 };
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::stream_tap::{TapFinalizeCtx, tap};
+use systemprompt_api::services::gateway::stream_tap::{TapFinalizeCtx, TapRender, tap};
 use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
+use systemprompt_test_fixtures as fixtures;
 
 use crate::support::{minimal_request, seed_user, setup_db};
 use systemprompt_security::policy::types::AccessScope;
+
+// Why: every cell taps the Anthropic surface with the same model, and the
+// render options are one struct so the tap's own signature stays readable.
+fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
+    TapRender {
+        inbound,
+        request_model: "claude-test".to_owned(),
+        stream_usage: false,
+    }
+}
 
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
@@ -169,8 +179,7 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
     };
     let body = tap(
         upstream,
-        inbound,
-        "claude-test".to_owned(),
+        render(inbound),
         Arc::clone(&audit),
         tap_ctx(&db, &ai_request_id, policy),
     );
@@ -247,8 +256,7 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
     };
     let body = tap(
         upstream,
-        inbound,
-        "claude-test".to_owned(),
+        render(inbound),
         Arc::clone(&audit),
         tap_ctx(&db, &ai_request_id, policy),
     );
@@ -289,8 +297,7 @@ async fn tap_dropped_before_polling_fails_audit_as_empty_stream() {
     let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let body = tap(
         upstream,
-        inbound,
-        "claude-test".to_owned(),
+        render(inbound),
         Arc::clone(&audit),
         tap_ctx(&db, &ai_request_id, GatewayPolicySpec::permissive()),
     );
@@ -338,8 +345,7 @@ async fn tap_completion_runs_response_safety_scan() {
     };
     let body = tap(
         upstream,
-        inbound,
-        "claude-test".to_owned(),
+        render(inbound),
         Arc::clone(&audit),
         tap_ctx(&db, &ai_request_id, policy),
     );

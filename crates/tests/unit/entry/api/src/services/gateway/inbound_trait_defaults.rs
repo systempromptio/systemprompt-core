@@ -6,12 +6,15 @@
 //! terminal SSE frame is specially rendered, and what content type a stream is
 //! served as, so a wrong default is a silent wire change.
 
+use bytes::Bytes;
+use http::StatusCode;
+use systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest;
 use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
 
 fn snapshot() -> CanonicalResponse {
     CanonicalResponse {
@@ -41,6 +44,35 @@ fn an_adapter_that_declares_no_passthrough_wire_reports_none() {
     );
 }
 
+// Why: all three shipped adapters now render their own terminal, because all
+// three state the turn's usage on it. The default is what any adapter added
+// later inherits, so it is exercised through a minimal one rather than left
+// unproven.
+#[derive(Debug)]
+struct BareInbound;
+
+impl InboundAdapter for BareInbound {
+    fn wire_name(&self) -> &'static str {
+        "test.bare"
+    }
+
+    fn parse_request(&self, _raw: &Bytes) -> Result<CanonicalRequest, InboundParseError> {
+        Err(InboundParseError::MissingField("model"))
+    }
+
+    fn render_response(&self, _response: &CanonicalResponse) -> Bytes {
+        Bytes::new()
+    }
+
+    fn render_event(&self, _event: &CanonicalEvent, _model: &str) -> Option<Bytes> {
+        None
+    }
+
+    fn render_error(&self, _status: StatusCode, _message: &str) -> Bytes {
+        Bytes::new()
+    }
+}
+
 #[test]
 fn an_adapter_with_no_terminal_frame_falls_back_to_the_per_event_render() {
     let event = CanonicalEvent::MessageStop {
@@ -48,11 +80,19 @@ fn an_adapter_with_no_terminal_frame_falls_back_to_the_per_event_render() {
         stop_reason: Some(CanonicalStopReason::EndTurn),
     };
 
-    let terminal = AnthropicMessagesInbound.render_terminal_event(&event, &snapshot(), "m");
-
     assert!(
-        terminal.is_none(),
+        BareInbound
+            .render_terminal_event(&event, &snapshot(), "m")
+            .is_none(),
         "returning None is what routes the caller back to render_event"
+    );
+    assert!(
+        BareInbound.render_stream_tail(&snapshot(), true).is_none(),
+        "a wire that states no closing frames must not invent one"
+    );
+    assert!(
+        !BareInbound.wants_stream_usage(&Bytes::from_static(b"{}")),
+        "asking for streamed usage is a Chat Completions concept"
     );
 }
 

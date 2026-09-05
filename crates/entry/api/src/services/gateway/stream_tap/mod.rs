@@ -47,14 +47,28 @@ pub struct TapFinalizeCtx {
     pub ai_request_id: AiRequestId,
 }
 
+/// How the tapped stream is rendered back to the caller.
+///
+/// `stream_usage` is the caller's own `stream_options.include_usage`; it
+/// decides whether the closing frames carry a usage chunk.
+#[derive(Debug)]
+pub struct TapRender {
+    pub inbound: Arc<dyn InboundAdapter>,
+    pub request_model: String,
+    pub stream_usage: bool,
+}
+
 pub fn tap(
     upstream: BoxStream<'static, Result<CanonicalEvent, String>>,
-    inbound: Arc<dyn InboundAdapter>,
-    request_model: String,
-    stream_usage: bool,
+    render: TapRender,
     audit: Arc<GatewayAudit>,
     finalize_ctx: TapFinalizeCtx,
 ) -> Body {
+    let TapRender {
+        inbound,
+        request_model,
+        stream_usage,
+    } = render;
     let state = Arc::new(Mutex::new(TapState::default()));
     let tapped = TappedStream {
         inner: upstream,
@@ -136,10 +150,7 @@ impl Stream for RawTappedStream {
                     return Poll::Ready(None);
                 }
                 let event = CanonicalEvent::Error(STREAM_ABORT_MESSAGE.to_owned());
-                match self.inbound.render_event(&event, "") {
-                    Some(bytes) => Poll::Ready(Some(Ok(bytes))),
-                    None => Poll::Ready(None),
-                }
+                Poll::Ready(self.inbound.render_event(&event, "").map(Ok))
             },
             Poll::Ready(Some(Err(e))) => {
                 if let Ok(mut s) = self.state.lock() {
@@ -292,10 +303,11 @@ impl TappedStream {
             return Poll::Ready(tail.map(Ok));
         }
         let event = CanonicalEvent::Error(STREAM_ABORT_MESSAGE.to_owned());
-        match self.inbound.render_event(&event, &self.request_model) {
-            Some(bytes) => Poll::Ready(Some(Ok(bytes))),
-            None => Poll::Ready(None),
-        }
+        Poll::Ready(
+            self.inbound
+                .render_event(&event, &self.request_model)
+                .map(Ok),
+        )
     }
 }
 

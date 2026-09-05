@@ -65,7 +65,11 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
     /// Chat Completions ends with a usage-only chunk and the `[DONE]`
     /// sentinel, and both must follow the finish chunk -- the usage a client
     /// asked for is only complete once the upstream stream has ended.
-    fn render_stream_tail(&self, snapshot: &CanonicalResponse, include_usage: bool) -> Option<Bytes> {
+    fn render_stream_tail(
+        &self,
+        snapshot: &CanonicalResponse,
+        include_usage: bool,
+    ) -> Option<Bytes> {
         let _ = (snapshot, include_usage);
         None
     }

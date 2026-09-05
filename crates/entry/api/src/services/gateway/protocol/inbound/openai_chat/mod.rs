@@ -73,7 +73,11 @@ impl InboundAdapter for OpenAiChatInbound {
         })
     }
 
-    fn render_stream_tail(&self, snapshot: &CanonicalResponse, include_usage: bool) -> Option<Bytes> {
+    fn render_stream_tail(
+        &self,
+        snapshot: &CanonicalResponse,
+        include_usage: bool,
+    ) -> Option<Bytes> {
         Some(render_terminal::render_stream_tail_frames(
             snapshot,
             include_usage,

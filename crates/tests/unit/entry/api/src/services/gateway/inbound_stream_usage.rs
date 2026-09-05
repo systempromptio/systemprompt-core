@@ -48,7 +48,10 @@ fn chat_finish_chunk_states_no_usage() {
         .render_terminal_event(&event, &snapshot(), "test-model")
         .expect("the finish chunk is rendered from the snapshot");
     let rendered = text(&frame);
-    assert!(rendered.contains("\"finish_reason\":\"stop\""), "{rendered}");
+    assert!(
+        rendered.contains("\"finish_reason\":\"stop\""),
+        "{rendered}"
+    );
     assert!(
         !rendered.contains("usage"),
         "a zeroed usage object is worse than none; {rendered}"
@@ -70,7 +73,10 @@ fn chat_tail_states_the_real_counts_then_the_sentinel() {
     assert!(rendered.contains("\"completion_tokens\":18"), "{rendered}");
     let usage_at = rendered.find("usage").expect("usage chunk");
     let done_at = rendered.find("[DONE]").expect("sentinel");
-    assert!(usage_at < done_at, "usage precedes the sentinel; {rendered}");
+    assert!(
+        usage_at < done_at,
+        "usage precedes the sentinel; {rendered}"
+    );
 }
 
 #[test]
@@ -84,7 +90,8 @@ fn chat_tail_without_include_usage_is_the_sentinel_alone() {
 
 #[test]
 fn chat_reads_include_usage_off_the_caller_body() {
-    let asked = Bytes::from_static(b"{\"stream\":true,\"stream_options\":{\"include_usage\":true}}");
+    let asked =
+        Bytes::from_static(b"{\"stream\":true,\"stream_options\":{\"include_usage\":true}}");
     let silent = Bytes::from_static(b"{\"stream\":true}");
     assert!(OpenAiChatInbound.wants_stream_usage(&asked));
     assert!(!OpenAiChatInbound.wants_stream_usage(&silent));
@@ -118,6 +125,9 @@ fn anthropic_terminal_delta_states_the_real_output_count() {
     let rendered = text(&frame);
     assert!(rendered.contains("\"output_tokens\":18"), "{rendered}");
     assert!(rendered.contains("\"input_tokens\":11"), "{rendered}");
-    assert!(rendered.contains("\"stop_reason\":\"end_turn\""), "{rendered}");
+    assert!(
+        rendered.contains("\"stop_reason\":\"end_turn\""),
+        "{rendered}"
+    );
     assert!(rendered.contains("event: message_stop"), "{rendered}");
 }
