@@ -24,14 +24,28 @@ fn with_home<R>(prepare: impl FnOnce(&Path), f: impl FnOnce() -> R) -> R {
 }
 
 fn write_manifest(home: &Path, body: &str) {
+    write_manifest_for(home, "org-provisioned", body);
+}
+
+fn write_manifest_for(home: &Path, marketplace: &str, body: &str) {
     let dir = home
         .join(".claude")
         .join("plugins")
         .join("marketplaces")
-        .join("org-provisioned")
+        .join(marketplace)
         .join(".claude-plugin");
     std::fs::create_dir_all(&dir).expect("marketplace dir");
     std::fs::write(dir.join("marketplace.json"), body).expect("manifest");
+}
+
+fn write_sidecar(home: &Path, marketplaces: &[&str]) {
+    let plugins = home.join(".claude").join("plugins");
+    std::fs::create_dir_all(&plugins).expect("plugins dir");
+    std::fs::write(
+        plugins.join(".systemprompt-marketplaces.json"),
+        serde_json::json!({ "marketplaces": marketplaces }).to_string(),
+    )
+    .expect("sidecar");
 }
 
 #[test]
@@ -121,6 +135,61 @@ fn a_plugins_key_that_is_not_an_array_is_treated_as_no_plugins_rather_than_crash
     assert_eq!(check.status, Status::Warn, "{}", check.detail);
     assert!(
         check.detail.contains("lists no plugins"),
+        "{}",
+        check.detail
+    );
+}
+
+#[test]
+fn with_a_sidecar_every_owned_marketplace_is_checked_and_the_legacy_one_is_not() {
+    let check = with_home(
+        |home| {
+            write_sidecar(home, &["core", "commerce"]);
+            write_manifest_for(home, "core", r#"{"plugins": [{"name": "a"}]}"#);
+            write_manifest_for(
+                home,
+                "commerce",
+                r#"{"plugins": [{"name": "b"}, {"name": "c"}]}"#,
+            );
+            write_manifest_for(home, "org-provisioned", "{not json");
+        },
+        check_marketplace,
+    );
+    assert_eq!(check.status, Status::Ok, "{}", check.detail);
+    assert!(
+        check.detail.contains("core: 1 plugin(s)"),
+        "{}",
+        check.detail
+    );
+    assert!(
+        check.detail.contains("commerce: 2 plugin(s)"),
+        "{}",
+        check.detail
+    );
+    assert!(
+        !check.detail.contains("org-provisioned"),
+        "a marketplace the sidecar does not list is not the bridge's to report: {}",
+        check.detail
+    );
+}
+
+#[test]
+fn one_broken_marketplace_among_healthy_siblings_sets_the_worst_status_and_keeps_every_detail() {
+    let check = with_home(
+        |home| {
+            write_sidecar(home, &["core", "commerce"]);
+            write_manifest_for(home, "core", r#"{"plugins": [{"name": "a"}]}"#);
+        },
+        check_marketplace,
+    );
+    assert_eq!(check.status, Status::Warn, "{}", check.detail);
+    assert!(
+        check.detail.contains("core: 1 plugin(s)"),
+        "{}",
+        check.detail
+    );
+    assert!(
+        check.detail.contains("commerce") && check.detail.contains("not present"),
         "{}",
         check.detail
     );

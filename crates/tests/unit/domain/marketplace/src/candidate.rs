@@ -296,6 +296,7 @@ fn keep(
         agents: agents.iter().map(|s| AgentId::new(*s)).collect(),
         hooks: hooks.iter().map(|s| HookId::new(*s)).collect(),
         mcp_servers: mcp_servers.iter().map(|s| McpServerId::new(*s)).collect(),
+        marketplaces: std::collections::HashSet::new(),
     }
 }
 

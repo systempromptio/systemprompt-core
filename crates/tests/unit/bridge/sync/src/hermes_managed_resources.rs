@@ -58,6 +58,7 @@ fn manifest_with(
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),
+        marketplaces: Vec::new(),
     }
 }
 

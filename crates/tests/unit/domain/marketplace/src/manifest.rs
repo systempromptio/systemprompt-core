@@ -4,8 +4,11 @@ use std::sync::Once;
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_identifiers::MarketplaceId;
-use systemprompt_marketplace::{AllowAllFilter, ManifestService};
+use systemprompt_identifiers::{MarketplaceId, UserId};
+use systemprompt_marketplace::{
+    AllowAllFilter, EntryKeepSets, ManifestService, MarketplaceCandidate, MarketplaceFilter,
+    MarketplaceFilterError,
+};
 use systemprompt_models::bridge::ids::LibraryArtifactId;
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
@@ -67,6 +70,161 @@ async fn assemble_candidate_records_marketplace_membership() {
     assert!(
         candidate.is_empty(),
         "empty services root yields no catalogue entries",
+    );
+}
+
+// Keeps everything in the candidate except what `prune` removes, so a test can
+// stand in for the authz filter at exactly one level of the cascade.
+#[derive(Debug)]
+struct PruneFilter(fn(&mut EntryKeepSets));
+
+#[async_trait::async_trait]
+impl MarketplaceFilter for PruneFilter {
+    async fn filter(
+        &self,
+        _user_id: &UserId,
+        mut candidate: MarketplaceCandidate,
+    ) -> Result<MarketplaceCandidate, MarketplaceFilterError> {
+        let mut keep = keep_everything(&candidate);
+        (self.0)(&mut keep);
+        candidate.retain_entries(&keep);
+        Ok(candidate)
+    }
+}
+
+fn keep_everything(candidate: &MarketplaceCandidate) -> EntryKeepSets {
+    EntryKeepSets {
+        plugins: candidate.plugins.iter().map(|p| p.id.clone()).collect(),
+        skills: candidate.skills.iter().map(|s| s.id.clone()).collect(),
+        agents: candidate.agents.iter().map(|a| a.id.clone()).collect(),
+        hooks: candidate.hooks.iter().map(|h| h.id.clone()).collect(),
+        mcp_servers: candidate
+            .managed_mcp_servers
+            .iter()
+            .map(|m| m.id.clone())
+            .collect(),
+        marketplaces: candidate
+            .marketplaces
+            .iter()
+            .map(|m| m.id.clone())
+            .collect(),
+    }
+}
+
+// Two marketplaces over two plugins: `alpha` carries only `plugin-a`, `beta`
+// carries both. Each plugin ships one on-disk skill so it resolves to content.
+fn two_marketplace_config(dir: &std::path::Path) -> systemprompt_models::services::ServicesConfig {
+    write_skill_on_disk(dir, "skill_a");
+    write_skill_on_disk(dir, "skill_b");
+    let mut alpha = marketplace("alpha");
+    alpha.plugins = include(&["plugin-a"]);
+    let mut beta = marketplace("beta");
+    beta.plugins = include(&["plugin-a", "plugin-b"]);
+    let mut config = config_with(vec![alpha, beta]);
+    for plugin in [
+        plugin_shipping_artifacts("plugin-a", "skill_a", &[]),
+        plugin_shipping_artifacts("plugin-b", "skill_b", &[]),
+    ] {
+        config.plugins.insert(plugin.id.as_str().to_owned(), plugin);
+    }
+    config
+}
+
+async fn listed_marketplaces(
+    dir: &std::path::Path,
+    filter: &dyn MarketplaceFilter,
+) -> Vec<(String, Vec<String>)> {
+    let config = two_marketplace_config(dir);
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir,
+        "https://api.example.com",
+        filter,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+    let (entries, _context) = candidate.into_manifest_parts();
+    entries
+        .marketplaces
+        .iter()
+        .map(|m| {
+            (
+                m.id.as_str().to_owned(),
+                m.plugin_ids.iter().map(|p| p.as_str().to_owned()).collect(),
+            )
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn manifest_lists_each_enabled_marketplace_with_its_surviving_plugin_ids() {
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+
+    let listed = listed_marketplaces(dir.path(), &AllowAllFilter).await;
+
+    assert_eq!(
+        listed,
+        vec![
+            ("alpha".to_owned(), vec!["plugin-a".to_owned()]),
+            (
+                "beta".to_owned(),
+                vec!["plugin-a".to_owned(), "plugin-b".to_owned()]
+            ),
+        ],
+        "each marketplace names exactly the plugins its include selects",
+    );
+}
+
+#[tokio::test]
+async fn a_marketplace_whose_every_plugin_is_filtered_out_is_not_listed() {
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    let drop_plugin_a = PruneFilter(|keep| {
+        keep.plugins.retain(|p| p.as_str() != "plugin-a");
+    });
+
+    let listed = listed_marketplaces(dir.path(), &drop_plugin_a).await;
+
+    assert_eq!(
+        listed,
+        vec![("beta".to_owned(), vec!["plugin-b".to_owned()])],
+        "alpha carried only the filtered plugin, so it is not listed; beta narrows to plugin-b",
+    );
+}
+
+#[tokio::test]
+async fn a_marketplace_denied_at_its_own_level_is_not_listed_even_if_a_plugin_survives() {
+    let _guard = warn_subscriber_guard();
+    let dir = tempfile::tempdir().expect("temp services root");
+    let deny_beta = PruneFilter(|keep| {
+        keep.marketplaces.retain(|m| m.as_str() != "beta");
+    });
+
+    let config = two_marketplace_config(dir.path());
+    let candidate = ManifestService::assemble_candidate(
+        &config,
+        dir.path(),
+        "https://api.example.com",
+        &deny_beta,
+        &fixture_user_id(),
+    )
+    .await
+    .expect("assemble candidate");
+    let (entries, _context) = candidate.into_manifest_parts();
+
+    let plugins: Vec<&str> = entries.plugins.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(
+        plugins,
+        vec!["plugin-a", "plugin-b"],
+        "the plugins themselves survive"
+    );
+    let listed: Vec<&str> = entries.marketplaces.iter().map(|m| m.id.as_str()).collect();
+    assert_eq!(
+        listed,
+        vec!["alpha"],
+        "the denied marketplace is not mirrored"
     );
 }
 
@@ -378,6 +536,7 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),
+        marketplaces: Vec::new(),
     }
 }
 
