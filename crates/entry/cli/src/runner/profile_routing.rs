@@ -78,7 +78,7 @@ async fn enforce_routing_policy(
     Ok(())
 }
 
-const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {
+pub(super) const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {
     matches!(
         command,
         Some(args::Commands::Cloud(_) | args::Commands::Admin(admin::AdminCommands::Session(_)))
@@ -156,7 +156,7 @@ async fn try_remote_routing(
     Ok(())
 }
 
-fn confirm_remote_job_run(
+pub(super) fn confirm_remote_job_run(
     cli: &args::Cli,
     cli_config: &CliConfig,
     profile_name: &str,
@@ -193,7 +193,7 @@ fn confirm_remote_job_run(
 // Why: a read may proceed locally (a number with stated provenance beats an
 // error the caller cannot act on); a mutation refuses, since writing tenant
 // state to the wrong database is the failure this check exists to prevent.
-fn allow_local_execution(
+pub(super) fn allow_local_execution(
     profile: &systemprompt_models::Profile,
     class: RoutingClass,
     reason: &str,
@@ -226,7 +226,7 @@ fn allow_local_execution(
 
 // Why: a tenant-store failure is not fixed by signing in (`resolve_tenant` runs
 // before the session is consulted), so the two cases get different advice.
-fn remediation_for(reason: &str) -> &'static str {
+pub(super) fn remediation_for(reason: &str) -> &'static str {
     if reason.contains("load tenants") || reason.contains("tenant") {
         "Run 'systemprompt cloud tenant list' to sync the tenant store, and check you are in the \
          project directory this profile belongs to."

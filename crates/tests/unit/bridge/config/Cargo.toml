@@ -15,5 +15,6 @@ systemprompt-bridge = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]
+serde_json = { workspace = true }
 toml = "1.1"
 tempfile = "3"

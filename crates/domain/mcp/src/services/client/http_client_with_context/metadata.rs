@@ -13,7 +13,7 @@ use std::collections::HashMap;
 // rmcp sets the `MCP-Protocol-Version` header but never the `_meta` fields,
 // so without this every call fails at the transport. Below 2026-07-28 nothing
 // is stamped. The SEP-2243 headers need no help: rmcp adds them itself.
-pub(super) fn stamp_request_metadata(
+pub fn stamp_request_metadata(
     message: &mut ClientJsonRpcMessage,
     custom_headers: &HashMap<HeaderName, HeaderValue>,
     client_capabilities: &ClientCapabilities,

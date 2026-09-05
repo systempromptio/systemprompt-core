@@ -51,3 +51,7 @@ mod reapply;
 mod reapply_decision;
 #[cfg(test)]
 mod reg_profile;
+#[cfg(test)]
+mod enrol_report;
+#[cfg(test)]
+mod start_menu_cache;

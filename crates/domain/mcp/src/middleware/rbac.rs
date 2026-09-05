@@ -23,7 +23,7 @@ use systemprompt_security::authz::{
 use super::{extract_bearer_token, extract_request_context};
 
 #[path = "rbac/jwt.rs"]
-mod jwt;
+pub(crate) mod jwt;
 #[path = "rbac/proxy.rs"]
 mod proxy;
 

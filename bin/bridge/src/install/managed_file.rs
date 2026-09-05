@@ -15,7 +15,7 @@ use std::io;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ManagedWrite {
+pub enum ManagedWrite {
     Written,
     Unchanged,
 }
@@ -148,3 +148,6 @@ fn root_required(path: &Path) -> io::Error {
         ),
     )
 }
+
+#[path = "managed_file_test_api.rs"]
+pub mod test_api;

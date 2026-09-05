@@ -14,3 +14,5 @@ mod install_paths;
 mod status;
 #[cfg(test)]
 mod ui_state;
+#[cfg(test)]
+mod download_verified;

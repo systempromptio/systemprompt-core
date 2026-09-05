@@ -212,7 +212,8 @@ pub async fn resolve_local_admin(
     Ok(user)
 }
 
-pub(super) async fn resolve_credentialed_user_email(
+#[doc(hidden)]
+pub async fn resolve_credentialed_user_email(
     session_email_hint: Option<&str>,
 ) -> Result<Email> {
     if let Some(email) = session_email_hint {
@@ -232,7 +233,8 @@ pub(super) async fn resolve_credentialed_user_email(
     Ok(creds.user_email.clone())
 }
 
-pub(super) async fn resolve_admin_with_fallback(
+#[doc(hidden)]
+pub async fn resolve_admin_with_fallback(
     db_pool: &DbPool,
     user_email: &str,
     session_email_hint: Option<&str>,

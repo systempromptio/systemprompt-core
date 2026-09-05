@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod helpers;
+pub(crate) mod helpers;
 mod processing;
 
 use base64::Engine;

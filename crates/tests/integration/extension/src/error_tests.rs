@@ -203,6 +203,12 @@ fn test_loader_error_variant_matching() {
             extension: "i".to_string(),
             message: "migration failed".to_string(),
         },
+        LoaderError::MigrationSlotReused {
+            extension: "j".to_string(),
+            version: 34,
+            stored_name: "knowledge_bank".to_string(),
+            current_name: "skill_invocation_view".to_string(),
+        },
     ];
 
     for err in errors {
@@ -285,6 +291,21 @@ fn test_loader_error_variant_matching() {
             },
             LoaderError::MigrationNotReversible { extension, .. } => {
                 assert!(!extension.is_empty());
+            },
+            LoaderError::MigrationSlotReused {
+                extension,
+                stored_name,
+                current_name,
+                ..
+            } => {
+                assert!(!extension.is_empty());
+                // Both names carry the whole point of the error: a slot is
+                // reused, so the message has to say which migration already
+                // holds it and which one is trying to. One name alone leaves
+                // the reader hunting for a file that no longer exists.
+                assert!(!stored_name.is_empty());
+                assert!(!current_name.is_empty());
+                assert_ne!(stored_name, current_name);
             },
         }
     }

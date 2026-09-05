@@ -7252,6 +7252,7 @@ dependencies = [
 name = "systemprompt-bridge-config-tests"
 version = "0.0.11"
 dependencies = [
+ "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "tempfile",
@@ -7467,6 +7468,8 @@ version = "0.0.11"
 dependencies = [
  "serde_json",
  "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
 ]
 
 [[package]]
@@ -7518,8 +7521,13 @@ version = "0.0.11"
 dependencies = [
  "reqwest",
  "serde_json",
+ "sha2 0.11.0",
  "systemprompt-bridge",
+ "systemprompt-identifiers",
+ "temp-env",
  "tempfile",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]
@@ -7546,7 +7554,10 @@ dependencies = [
 name = "systemprompt-bridge-window-state-tests"
 version = "0.0.11"
 dependencies = [
+ "serde_json",
  "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
 ]
 
 [[package]]
@@ -7656,6 +7667,7 @@ dependencies = [
  "sha2 0.11.0",
  "sqlx",
  "systemprompt-agent",
+ "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-cli",
  "systemprompt-cloud",
@@ -7665,6 +7677,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-mcp",
  "systemprompt-models",

@@ -43,15 +43,7 @@ impl AgentMonitor {
         let status = self.db_service.get_status(agent_name).await?;
 
         match status {
-            crate::services::agent_orchestration::AgentStatus::Running { pid, port } => {
-                if !process::process_exists(pid) {
-                    return Ok(HealthCheckResult {
-                        healthy: false,
-                        message: format!("Process {} no longer exists", pid),
-                        response_time_ms: 0,
-                    });
-                }
-
+            crate::services::agent_orchestration::AgentStatus::Running { port, .. } => {
                 match perform_tcp_health_check("127.0.0.1", port).await {
                     Ok(result) => Ok(result),
                     Err(e) => Ok(HealthCheckResult {

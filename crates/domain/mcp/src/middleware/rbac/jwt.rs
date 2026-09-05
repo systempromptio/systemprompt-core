@@ -8,7 +8,7 @@ use systemprompt_models::auth::{JwtClaims, Permission};
 
 use crate::services::auth::validate_jwt_token;
 
-pub(super) fn validate_and_extract_claims(
+pub fn validate_and_extract_claims(
     server_name: &str,
     token: &str,
 ) -> Result<JwtClaims, McpError> {
@@ -22,7 +22,7 @@ pub(super) fn validate_and_extract_claims(
     })
 }
 
-pub(super) fn validate_audience(
+pub fn validate_audience(
     server_name: &str,
     claims: &JwtClaims,
     oauth_config: &crate::OAuthRequirement,
@@ -46,7 +46,7 @@ pub(super) fn validate_audience(
     ))
 }
 
-pub(super) fn validate_scopes_for_permissions(
+pub fn validate_scopes_for_permissions(
     server_name: &str,
     user_permissions: &[Permission],
     oauth_config: &crate::OAuthRequirement,

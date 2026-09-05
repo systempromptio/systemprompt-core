@@ -10,8 +10,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod message_handler;
-mod persistence;
-mod stream_processor;
+pub(crate) mod persistence;
+pub(crate) mod stream_processor;
 
 pub use stream_processor::StreamProcessor;
 

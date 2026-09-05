@@ -17,3 +17,7 @@ mod doctor_cowork;
 mod doctor_filesystem;
 #[cfg(test)]
 mod proxy_command;
+#[cfg(test)]
+mod doctor_marketplace;
+#[cfg(test)]
+mod login_helpers;

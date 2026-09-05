@@ -29,35 +29,37 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let pasted_pat = args.get(2).filter(|t| !t.is_empty() && !t.starts_with('-'));
 
     let code = if let Some(code) = parse_opt_flag(args, "--code") {
-        Some(code)
-    } else if pasted_pat.is_none() {
+        code
+    } else if let Some(t) = pasted_pat {
+        let token = crate::ids::PatToken::new(t.clone());
+        return finish_login(ctx, token, gateway, args);
+    } else {
         match sso_code(ctx, gateway.as_deref(), has_flag(args, "--no-browser")) {
-            Ok(c) => Some(c),
+            Ok(c) => c,
             Err(e) => {
                 diag(&format!("login: single sign-on failed: {e}"));
                 return ExitCode::from(1);
             },
         }
-    } else {
-        None
     };
 
-    let token = if let Some(code) = code {
-        match redeem_code(ctx, &code, gateway.as_deref(), device_name) {
-            Ok(pat) => pat,
-            Err(e) => {
-                diag(&format!("login: could not redeem the exchange code: {e}"));
-                return ExitCode::from(1);
-            },
-        }
-    } else {
-        let Some(t) = pasted_pat else {
-            diag(&usage());
-            return ExitCode::from(64);
-        };
-        crate::ids::PatToken::new(t.clone())
+    let token = match redeem_code(ctx, &code, gateway.as_deref(), device_name) {
+        Ok(pat) => pat,
+        Err(e) => {
+            diag(&format!("login: could not redeem the exchange code: {e}"));
+            return ExitCode::from(1);
+        },
     };
 
+    finish_login(ctx, token, gateway, args)
+}
+
+fn finish_login(
+    ctx: &BridgeContext,
+    token: crate::ids::PatToken,
+    gateway: Option<String>,
+    args: &[String],
+) -> ExitCode {
     match setup::login(token.as_str(), gateway.as_deref()) {
         Ok(paths) => {
             let bin = crate::brand::brand().binary_name;
@@ -73,26 +75,6 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
             ExitCode::from(1)
         },
     }
-}
-
-fn usage() -> String {
-    format!(
-        "usage: {bin} login [--gateway <url>] [--no-browser] [--device-name <name>]\n   \
-         or: {bin} login <sp-live-...> [--gateway <url>] [--no-reapply]\n   \
-         or: {bin} login --code <exchange-code> [--gateway <url>] [--device-name <name>]\n\
-         \n\
-         With no token or code, signs in through the gateway's device-link page:\n\
-         you authenticate with your organisation's identity provider and the\n\
-         resulting token is bound to that identity. Use --no-browser on a machine\n\
-         with no browser (SSH, headless) to open the URL elsewhere and paste back\n\
-         the code it displays.\n\
-         \n\
-         --code takes a one-shot code an administrator issued with:\n  \
-         systemprompt admin bridge issue-code --user-id <uuid>\n\
-         That path asserts your identity rather than proving it, so prefer SSO\n\
-         wherever a browser is reachable.",
-        bin = crate::brand::brand().binary_name
-    )
 }
 
 fn sso_code(
@@ -284,3 +266,6 @@ fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
         stdio::print_str(&crate::integration::reapply::render(&reports));
     }
 }
+
+#[path = "login_test_api.rs"]
+pub mod test_api;

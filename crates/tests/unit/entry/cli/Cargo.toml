@@ -38,6 +38,8 @@ chrono = { workspace = true }
 
 [dev-dependencies]
 systemprompt-agent = { workspace = true }
+systemprompt-ai = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-files = { workspace = true }

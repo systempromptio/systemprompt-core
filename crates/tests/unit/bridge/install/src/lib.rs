@@ -24,3 +24,5 @@ mod schedule;
 mod summary;
 #[cfg(test)]
 mod user_alert;
+#[cfg(test)]
+mod managed_file_writes;

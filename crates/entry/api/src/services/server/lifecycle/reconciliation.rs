@@ -248,24 +248,8 @@ async fn cleanup_stale_service_entries(
 }
 
 #[cfg(feature = "test-api")]
-pub mod test_api {
-    use anyhow::Result;
-    use systemprompt_runtime::AppContext;
-
-    #[must_use]
-    pub fn service_row_is_stale(
-        status: &str,
-        pid: Option<i32>,
-        name_key: &str,
-        name: &str,
-    ) -> bool {
-        super::service_row_is_stale(status, pid, name_key, name)
-    }
-
-    pub async fn cleanup_stale_service_entries(ctx: &AppContext) -> Result<u64> {
-        super::cleanup_stale_service_entries(ctx, None).await
-    }
-}
+#[path = "reconciliation_test_api.rs"]
+pub mod test_api;
 
 // Why: A `running` row is stale unless its recorded PID is alive *and* still
 // names our child — a recycled PID that now belongs to an unrelated process

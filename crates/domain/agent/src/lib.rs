@@ -24,6 +24,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+/// Internal seams exposed for the out-of-tree test workspace.
+///
+/// Not part of the semver-stable surface. These items are crate-private
+/// because callers must enter through the message-processing pipeline, which
+/// sequences them against the task lifecycle; the wrappers here delegate
+/// without altering that behaviour.
+#[doc(hidden)]
+pub mod test_api {
+    pub use crate::services::a2a_server::processing::message::persistence::{
+        PersistCompletedTaskParams, broadcast_completion, persist_completed_task,
+    };
+    pub use crate::services::a2a_server::processing::message::stream_processor::helpers::build_artifacts_from_results;
+}
+
 pub(crate) mod error;
 pub(crate) mod extension;
 pub mod models;

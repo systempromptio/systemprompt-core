@@ -16,6 +16,7 @@ fn captured_usage_is_copy_and_clone() {
         output_tokens: 20,
         cache_read_tokens: 5,
         cache_creation_tokens: 0,
+        reasoning_tokens: 0,
     };
     let copy = u;
     let cloned = u;
@@ -45,6 +46,7 @@ fn captured_usage_debug_renders_fields() {
         output_tokens: 2,
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
+        reasoning_tokens: 0,
     };
     let s = format!("{u:?}");
     assert!(s.contains("CapturedUsage"));

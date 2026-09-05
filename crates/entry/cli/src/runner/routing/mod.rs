@@ -18,7 +18,9 @@ use systemprompt_logging::CliService;
 
 use crate::paths::ResolvedPaths;
 
-pub(super) enum ExecutionTarget {
+#[doc(hidden)]
+#[derive(Debug)]
+pub enum ExecutionTarget {
     Local,
     Remote {
         hostname: String,
@@ -78,7 +80,7 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
     })
 }
 
-fn resolve_tenant(
+pub(super) fn resolve_tenant(
     profile: &systemprompt_models::Profile,
     tenant: &systemprompt_identifiers::TenantId,
 ) -> Result<StoredTenant> {
@@ -97,7 +99,7 @@ fn resolve_tenant(
         .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant))
 }
 
-fn load_session_for_key(
+pub(super) fn load_session_for_key(
     profile: &systemprompt_models::Profile,
     session_key: &SessionKey,
     issuer: &str,

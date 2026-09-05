@@ -15,7 +15,7 @@ use crate::services::a2a_server::processing::message::StreamEvent;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{AiMessage, AiProvider, RequestContext};
 
-pub(super) fn build_artifacts_from_results(
+pub fn build_artifacts_from_results(
     tool_results: &[systemprompt_models::CallToolResult],
     tool_calls: &[systemprompt_models::ToolCall],
     tools: &[systemprompt_models::McpTool],

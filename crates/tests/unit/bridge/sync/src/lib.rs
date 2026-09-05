@@ -22,3 +22,7 @@ mod summary_line;
 mod summary_serde;
 #[cfg(test)]
 mod workspace_sink;
+#[cfg(test)]
+mod progress_sink;
+#[cfg(test)]
+mod workspace_sink_errors;

@@ -14,6 +14,9 @@ mod profile_routing;
 mod routing;
 mod structured_output;
 
+#[doc(hidden)]
+pub mod test_api;
+
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use systemprompt_logging::set_startup_mode;

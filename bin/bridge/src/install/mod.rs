@@ -12,7 +12,7 @@ pub(crate) mod elevate;
 pub(crate) mod elevated_job;
 pub mod elevation_script;
 mod error;
-pub(crate) mod managed_file;
+pub mod managed_file;
 pub mod managed_mcp;
 pub mod mdm;
 pub mod reg_values;

@@ -34,3 +34,5 @@ pub use runner::run;
 // outside `runner` could name them and the only coverage they got was
 // incidental, through `run`.
 pub use runner::args;
+#[doc(hidden)]
+pub use runner::test_api;

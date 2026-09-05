@@ -8,3 +8,5 @@ mod redaction;
 mod round_trip;
 #[cfg(test)]
 mod writer;
+#[cfg(test)]
+mod policy_store;

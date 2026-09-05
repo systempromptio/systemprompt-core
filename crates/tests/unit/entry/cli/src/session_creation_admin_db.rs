@@ -10,13 +10,14 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::session::creation::helpers::{
-    generate_admin_token, get_or_create_admin, resolve_local_admin,
+    generate_admin_token, get_or_create_admin, resolve_admin_with_fallback,
+    resolve_credentialed_user_email, resolve_local_admin,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, install_test_signing_key,
-    seed_user_row_with_roles,
+    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
+    install_test_signing_key, seed_user_row_with_roles,
 };
 use uuid::Uuid;
 
@@ -398,4 +399,95 @@ mod cli_context {
             "two operators on the same profile name must not share a CLI context"
         );
     }
+}
+
+// The two resolvers below sit in front of `get_or_create_admin` and decide
+// which address it is asked for: the hint if there is one, cloud credentials
+// otherwise, with a fallback that retries under the credentialed address when a
+// hinted lookup fails.
+
+#[tokio::test]
+async fn a_session_hint_that_is_not_an_address_is_refused_before_any_lookup() {
+    let err = resolve_credentialed_user_email(Some("not an email at all"))
+        .await
+        .expect_err("a malformed hint must not reach the database");
+
+    assert!(
+        format!("{err:#}").contains("not a valid email address"),
+        "the refusal must name the hint as the problem, got: {err:#}"
+    );
+}
+
+#[tokio::test]
+async fn a_well_formed_session_hint_is_used_verbatim() {
+    let email = resolve_credentialed_user_email(Some("hinted@sessadmin.invalid"))
+        .await
+        .expect("a valid hint needs no cloud credentials at all");
+
+    assert_eq!(email.as_str(), "hinted@sessadmin.invalid");
+}
+
+#[tokio::test]
+async fn a_lookup_with_no_hint_and_no_credentials_says_to_authenticate() {
+    let Err(err) = resolve_credentialed_user_email(None).await else {
+        return;
+    };
+
+    assert!(
+        format!("{err:#}").contains("cloud auth login"),
+        "without credentials the operator must be told how to get them, got: {err:#}"
+    );
+}
+
+#[tokio::test]
+async fn an_address_with_no_user_behind_it_is_provisioned_as_an_admin() {
+    let pool = pool().await;
+    let email = format!("{}@sessadmin.invalid", unique("fallback"));
+
+    let user = resolve_admin_with_fallback(&pool, &email, None, "local")
+        .await
+        .expect("an address with no user is provisioned rather than refused");
+
+    assert_eq!(user.email, email);
+    assert!(
+        user.is_admin(),
+        "a provisioned session user must hold the admin role, got {:?}",
+        user.roles
+    );
+}
+
+// Why: the fallback arm fires only when the *lookup* fails, which no address
+// can cause — `get_or_create_admin` provisions whatever it is given. A closed
+// pool is the failure it is actually written for.
+#[tokio::test]
+async fn a_hinted_lookup_that_fails_falls_back_and_still_reports_the_original_failure() {
+    let pool = closed_db_pool().await;
+
+    let err = resolve_admin_with_fallback(
+        &pool,
+        "hinted@sessadmin.invalid",
+        Some("hinted@sessadmin.invalid"),
+        "local",
+    )
+    .await
+    .expect_err("a closed pool cannot resolve or provision anyone");
+
+    assert!(
+        format!("{err:#}").contains("Failed to query user by email"),
+        "the original lookup failure must survive the fallback, got: {err:#}"
+    );
+}
+
+#[tokio::test]
+async fn a_hintless_lookup_that_fails_is_reported_without_a_fallback() {
+    let pool = closed_db_pool().await;
+
+    let err = resolve_admin_with_fallback(&pool, "plain@sessadmin.invalid", None, "local")
+        .await
+        .expect_err("a closed pool cannot resolve anyone");
+
+    assert!(
+        format!("{err:#}").contains("Failed to query user by email"),
+        "the lookup failure must be reported as-is, got: {err:#}"
+    );
 }
