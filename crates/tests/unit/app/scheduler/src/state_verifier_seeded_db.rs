@@ -12,19 +12,6 @@ use systemprompt_models::ServiceType;
 use systemprompt_scheduler::{
     DesiredStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-macro_rules! pool_or_skip {
-    () => {{
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(pool) = fixture_db_pool(&url).await else {
-            return;
-        };
-        pool
-    }};
-}
 
 fn unique_name(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -80,7 +67,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn running_status_nonexistent_pid_becomes_crashed() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_seed_running_crashed");
 
@@ -124,7 +111,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn running_status_null_pid_becomes_crashed() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_seed_running_nopid");
 
@@ -163,7 +150,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn starting_status_nonexistent_pid_becomes_stopped() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_seed_starting_stopped");
 
@@ -207,7 +194,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn starting_status_null_pid_becomes_stopped() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_seed_starting_nopid");
 
@@ -246,7 +233,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn disabled_config_with_stopped_db_row_maps_to_cleanup_db() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_seed_disabled_stopped");
 
@@ -285,7 +272,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn disabled_config_with_crashed_db_row_maps_to_cleanup_db() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_seed_disabled_crashed");
 
@@ -329,7 +316,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn orphan_db_row_not_in_config_is_included() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_seed_orphan");
 
@@ -364,7 +351,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn multiple_db_rows_mixed_states() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
 
         let name_a = unique_name("sv_multi_a");
@@ -433,7 +420,7 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_cleanup_db_for_disabled_stopped_row() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("rec_seed_cleanup");
 
@@ -463,7 +450,7 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_start_for_enabled_crashed_row() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("rec_seed_restart");
 
@@ -501,7 +488,7 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_cleanup_db_removes_row_from_db() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("rec_seed_deleted");
 
@@ -540,7 +527,7 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_mixed_configs_seeded_runs_multiple_branches() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
 
         let name_start = unique_name("rec_mix_start");
@@ -583,7 +570,7 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_result_tracks_start_for_new_enabled_service() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let name = unique_name("rec_newstart");
 
         let reconciler = ServiceReconciler::new(
@@ -610,7 +597,7 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_none_action_for_absent_disabled_service() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let name = unique_name("rec_none");
 
         let reconciler = ServiceReconciler::new(
@@ -645,7 +632,7 @@ mod verifier_query_methods_seeded {
 
     #[tokio::test]
     async fn get_crashed_services_returns_seeded_crashed_state() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_crashed_filter");
 
@@ -677,7 +664,7 @@ mod verifier_query_methods_seeded {
 
     #[tokio::test]
     async fn get_services_needing_action_includes_crashed_enabled_service() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_action_filter");
 
@@ -737,7 +724,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn running_row_with_live_pid_and_responsive_port_is_running() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_live_running");
 
@@ -779,7 +766,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn disabled_running_row_with_live_pid_needs_stop() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_live_disabled_running");
 
@@ -820,7 +807,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn running_row_with_live_pid_and_unresponsive_port_is_starting() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_live_starting");
 
@@ -864,7 +851,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn starting_row_with_live_pid_stays_starting() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let pg = pool.write_pool_arc().expect("write pool");
         let name = unique_name("sv_live_starting_row");
 
@@ -900,7 +887,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn no_row_with_occupied_port_is_orphaned() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let name = unique_name("sv_live_orphaned");
 
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");

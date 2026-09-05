@@ -13,7 +13,7 @@ use systemprompt_agent::services::a2a_server::handlers::request::handle_agent_re
 use systemprompt_models::RequestContext;
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn rpc_request(context: Option<RequestContext>, body: &str) -> Request {
     let mut request = Request::builder()
@@ -39,7 +39,7 @@ async fn body_json(response: axum::response::Response) -> (StatusCode, Value) {
 
 #[tokio::test]
 async fn missing_request_context_returns_internal_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
@@ -54,7 +54,7 @@ async fn missing_request_context_returns_internal_error() {
 
 #[tokio::test]
 async fn invalid_json_body_returns_parse_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -75,7 +75,7 @@ async fn invalid_json_body_returns_parse_error() {
 
 #[tokio::test]
 async fn non_jsonrpc_payload_returns_invalid_request() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -99,7 +99,7 @@ async fn non_jsonrpc_payload_returns_invalid_request() {
 
 #[tokio::test]
 async fn oauth_required_without_bearer_token_is_unauthorized() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -132,7 +132,7 @@ async fn oauth_required_without_bearer_token_is_unauthorized() {
 
 #[tokio::test]
 async fn get_task_dispatch_returns_task_result() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -161,7 +161,7 @@ async fn get_task_dispatch_returns_task_result() {
 
 #[tokio::test]
 async fn get_task_for_unknown_id_returns_jsonrpc_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

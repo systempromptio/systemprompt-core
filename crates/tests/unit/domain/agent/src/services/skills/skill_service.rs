@@ -351,7 +351,7 @@ async fn load_skill_without_a_task_id_still_returns_instructions() {
 
 #[tokio::test]
 async fn load_skill_with_a_task_but_no_repository_still_returns_instructions() {
-    let Some(pool) = crate::repository::try_pool().await else {
+    let Some(pool) = crate::repository::try_pool_or_skip().await else {
         return;
     };
     let repos = crate::repository::repos(&pool);
@@ -381,7 +381,7 @@ async fn load_skill_with_a_task_but_no_repository_still_returns_instructions() {
 
 #[tokio::test]
 async fn load_skill_records_an_execution_step_when_tracking_is_wired() {
-    let Some(pool) = crate::repository::try_pool().await else {
+    let Some(pool) = crate::repository::try_pool_or_skip().await else {
         return;
     };
     let repos = crate::repository::repos(&pool);

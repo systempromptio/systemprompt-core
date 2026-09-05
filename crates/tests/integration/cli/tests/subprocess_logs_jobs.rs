@@ -5,7 +5,7 @@
 //! filters that match nothing still execute the full query/render path.
 //! Tests accept success or failure exit codes.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{fixture, run, run_with_formats};
+use systemprompt_cli_integration_tests::full_bootstrap::{fixture_or_skip, run, run_with_formats};
 
 #[test]
 fn logs_view_variants() {
@@ -54,7 +54,7 @@ fn logs_audit_missing_id() {
 
 #[test]
 fn logs_export_variants() {
-    let Some(fixture) = fixture() else { return };
+    let Some(fixture) = fixture_or_skip() else { return };
     let out = fixture.system_dir.join("logs_export.json");
     let out_str = out.to_string_lossy().into_owned();
     run(&["infra", "logs", "export", "--limit", "10"]);

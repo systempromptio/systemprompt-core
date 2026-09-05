@@ -17,6 +17,7 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
     let Some(_fixture) = boot(&BootOptions {
         mcp_servers_yaml: mcp.to_owned(),
         ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };
@@ -62,6 +63,7 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
 
 #[test]
 fn skill_missing_content_file_errors_in_verbose_mode() {
+    // skip-ok: no bootable profile on this machine
     let Some(_fixture) = boot(&BootOptions::default()) else {
         return;
     };
@@ -96,6 +98,7 @@ fn skill_missing_content_file_errors_in_verbose_mode() {
 
 #[test]
 fn quiet_mode_validate_reports_the_same_extension_failures() {
+    // skip-ok: no bootable profile on this machine
     let Some(_fixture) = boot(&BootOptions::default()) else {
         return;
     };

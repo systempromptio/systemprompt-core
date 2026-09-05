@@ -16,7 +16,7 @@ use systemprompt_identifiers::{
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-use crate::repository::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn message(role: MessageRole, ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {
@@ -62,7 +62,7 @@ fn artifact(ctx: &ContextId, task_id: &TaskId) -> Artifact {
 // task that will never change.
 #[tokio::test]
 async fn a_completed_turn_persists_the_task_and_both_messages() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     ensure_test_bootstrap();
@@ -108,7 +108,7 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
 // user two copies of every artifact in every streamed turn.
 #[tokio::test]
 async fn artifacts_already_published_are_not_published_a_second_time() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     ensure_test_bootstrap();
@@ -148,7 +148,7 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
 // failure would report success while the task row still says in-flight.
 #[tokio::test]
 async fn a_task_that_does_not_exist_fails_loudly_rather_than_reporting_success() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     ensure_test_bootstrap();

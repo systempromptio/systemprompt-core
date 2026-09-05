@@ -4,14 +4,14 @@ use systemprompt_content::repository::SearchRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 
-async fn try_db() -> Option<DbPool> {
+async fn try_db_or_skip() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
     systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
 async fn search_repository_new_succeeds() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     assert!(SearchRepository::new(&db).is_ok());
@@ -19,7 +19,7 @@ async fn search_repository_new_succeeds() {
 
 #[tokio::test]
 async fn search_by_unknown_category_returns_empty() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = SearchRepository::new(&db).expect("repo");
@@ -30,7 +30,7 @@ async fn search_by_unknown_category_returns_empty() {
 
 #[tokio::test]
 async fn search_by_unknown_keyword_returns_empty_or_unrelated() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = SearchRepository::new(&db).expect("repo");

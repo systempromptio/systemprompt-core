@@ -1,6 +1,7 @@
 //! Tests for `JobExecutionService`: parameter parsing, selection resolution,
 //! on-demand execution, and run recording against the fixture DB. DB-backed
-//! tests early-return when `DATABASE_URL` is unset.
+//! tests skip when `DATABASE_URL` is
+//! unset locally, and fail under `CI`.
 
 use std::collections::HashMap;
 

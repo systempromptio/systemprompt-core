@@ -12,7 +12,7 @@ struct Ctx {
     owner: systemprompt_identifiers::UserId,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -50,7 +50,7 @@ fn create_params(
 
 #[tokio::test]
 async fn create_with_empty_relation_lists_persists_bare_client() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     let params = CreateClientParams {
         redirect_uris: vec![],
@@ -69,7 +69,7 @@ async fn create_with_empty_relation_lists_persists_bare_client() {
 
 #[tokio::test]
 async fn create_without_contacts_omits_contact_rows() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     let params = CreateClientParams {
         contacts: None,
@@ -82,7 +82,7 @@ async fn create_without_contacts_omits_contact_rows() {
 
 #[tokio::test]
 async fn create_then_get_by_client_id_loads_relations() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     let created = ctx
         .repo
@@ -107,7 +107,7 @@ async fn create_then_get_by_client_id_loads_relations() {
 
 #[tokio::test]
 async fn get_missing_client_returns_none() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let missing = ClientId::new(format!("missing-{}", Uuid::new_v4().simple()));
     assert!(
         ctx.repo
@@ -120,7 +120,7 @@ async fn get_missing_client_returns_none() {
 
 #[tokio::test]
 async fn deactivate_hides_from_active_get_but_visible_to_any() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     ctx.repo
         .create(create_params(&client_id, &ctx.owner))
@@ -157,7 +157,7 @@ async fn deactivate_hides_from_active_get_but_visible_to_any() {
 
 #[tokio::test]
 async fn update_replaces_relations() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     ctx.repo
         .create(create_params(&client_id, &ctx.owner))
@@ -196,7 +196,7 @@ async fn update_replaces_relations() {
 
 #[tokio::test]
 async fn update_missing_returns_none() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("missing-{}", Uuid::new_v4().simple()));
     let params = UpdateClientParams {
         client_id,
@@ -215,7 +215,7 @@ async fn update_missing_returns_none() {
 
 #[tokio::test]
 async fn update_secret_changes_hash() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     ctx.repo
         .create(create_params(&client_id, &ctx.owner))
@@ -242,7 +242,7 @@ async fn update_secret_changes_hash() {
 
 #[tokio::test]
 async fn delete_removes_row() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     ctx.repo
         .create(create_params(&client_id, &ctx.owner))
@@ -265,7 +265,7 @@ async fn delete_removes_row() {
 
 #[tokio::test]
 async fn list_and_count_include_created_client() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     ctx.repo
         .create(create_params(&client_id, &ctx.owner))
@@ -282,7 +282,7 @@ async fn list_and_count_include_created_client() {
 
 #[tokio::test]
 async fn find_by_redirect_uri_and_scope() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     let uri = format!("https://ru-{}.invalid/cb", Uuid::new_v4().simple());
     let mut params = create_params(&client_id, &ctx.owner);
@@ -324,7 +324,7 @@ async fn find_by_redirect_uri_and_scope() {
 
 #[tokio::test]
 async fn update_last_used_marks_timestamp() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
     ctx.repo
         .create(create_params(&client_id, &ctx.owner))

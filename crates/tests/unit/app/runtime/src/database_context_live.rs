@@ -5,13 +5,13 @@
 
 use systemprompt_runtime::DatabaseContext;
 
-fn db_url() -> Option<String> {
+fn db_url_or_skip() -> Option<String> {
     std::env::var("DATABASE_URL").ok().filter(|u| !u.is_empty())
 }
 
 #[tokio::test]
 async fn from_url_connects_successfully() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let ctx = DatabaseContext::from_url(&url)
         .await
         .expect("DatabaseContext::from_url should succeed");
@@ -22,7 +22,7 @@ async fn from_url_connects_successfully() {
 
 #[tokio::test]
 async fn from_url_pool_arc_clones_correctly() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let arc_pool = ctx.db_pool_arc();
@@ -36,7 +36,7 @@ async fn from_url_pool_arc_clones_correctly() {
 
 #[tokio::test]
 async fn from_url_db_pool_ref_and_arc_same_pointer() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let pool_ref = ctx.db_pool();
@@ -46,7 +46,7 @@ async fn from_url_db_pool_ref_and_arc_same_pointer() {
 
 #[tokio::test]
 async fn from_urls_without_write_url_connects() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let ctx = DatabaseContext::from_urls(&url, None)
         .await
         .expect("from_urls without write url");
@@ -55,7 +55,7 @@ async fn from_urls_without_write_url_connects() {
 
 #[tokio::test]
 async fn from_urls_with_write_url_same_as_read_connects() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let ctx = DatabaseContext::from_urls(&url, Some(url.as_str()))
         .await
         .expect("from_urls with write url == read url");
@@ -64,7 +64,7 @@ async fn from_urls_with_write_url_same_as_read_connects() {
 
 #[tokio::test]
 async fn database_context_clone_shares_pool() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let cloned = ctx.clone();
@@ -73,7 +73,7 @@ async fn database_context_clone_shares_pool() {
 
 #[tokio::test]
 async fn database_context_debug_output() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let dbg = format!("{ctx:?}");
@@ -82,7 +82,7 @@ async fn database_context_debug_output() {
 
 #[tokio::test]
 async fn from_pool_wraps_the_given_pool_without_reconnecting() {
-    let Some(url) = db_url() else { return };
+    let Some(url) = db_url_or_skip() else { return };
     let seed = DatabaseContext::from_url(&url).await.expect("connect");
     let pool = seed.db_pool_arc();
 

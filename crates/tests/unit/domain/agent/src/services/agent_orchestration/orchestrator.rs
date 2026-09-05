@@ -16,7 +16,7 @@ use systemprompt_models::AppPaths;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::make_agent_state;
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 const DEAD_PID: u32 = 4_000_000_000;
 
@@ -47,7 +47,7 @@ async fn make_orchestrator(pool: &systemprompt_database::DbPool) -> AgentOrchest
 
 #[tokio::test]
 async fn new_runs_startup_reconciliation() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -58,7 +58,7 @@ async fn new_runs_startup_reconciliation() {
 
 #[tokio::test]
 async fn get_status_reflects_registered_dead_pid() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -78,7 +78,7 @@ async fn get_status_reflects_registered_dead_pid() {
 
 #[tokio::test]
 async fn list_agents_includes_registered() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -104,7 +104,7 @@ async fn list_agents_includes_registered() {
 
 #[tokio::test]
 async fn cleanup_crashed_agents_reaps_dead_pid() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -127,7 +127,7 @@ async fn cleanup_crashed_agents_reaps_dead_pid() {
 
 #[tokio::test]
 async fn delete_agent_removes_service_row() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -153,7 +153,7 @@ async fn delete_agent_removes_service_row() {
 
 #[tokio::test]
 async fn disable_agent_for_dead_pid_removes_row() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -173,7 +173,7 @@ async fn disable_agent_for_dead_pid_removes_row() {
 
 #[tokio::test]
 async fn update_running_then_stopped_transitions() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;

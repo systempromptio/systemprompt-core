@@ -47,6 +47,7 @@ async fn build_assembles_full_context_with_pool_and_write_url() {
         pool_settings: true,
         write_url: true,
         ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };
@@ -91,6 +92,7 @@ async fn build_fails_when_system_admin_is_missing() {
     let Some(_fixture) = boot(&BootOptions {
         admin_username: admin.clone(),
         ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };
@@ -112,6 +114,7 @@ async fn build_fails_when_system_admin_is_inactive() {
     let Some(fixture) = boot(&BootOptions {
         admin_username: admin.clone(),
         ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };
@@ -136,6 +139,7 @@ async fn build_fails_when_system_admin_lacks_admin_role() {
     let Some(fixture) = boot(&BootOptions {
         admin_username: admin.clone(),
         ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };

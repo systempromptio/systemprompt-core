@@ -6,7 +6,7 @@
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use super::db_helper::pool;
+use super::db_helper::pool_or_skip;
 use systemprompt_database::{
     DbPool, PgDbPool, with_transaction, with_transaction_raw, with_transaction_retry,
 };
@@ -42,7 +42,7 @@ async fn row_count(pool: &sqlx::PgPool, table: &str) -> i64 {
 
 #[tokio::test]
 async fn with_transaction_commits_inserted_rows() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -68,7 +68,7 @@ async fn with_transaction_commits_inserted_rows() {
 
 #[tokio::test]
 async fn with_transaction_rolls_back_on_closure_error() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -102,7 +102,7 @@ async fn with_transaction_rolls_back_on_closure_error() {
 
 #[tokio::test]
 async fn with_transaction_raw_commits_against_pgpool() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -128,7 +128,7 @@ async fn with_transaction_raw_commits_against_pgpool() {
 
 #[tokio::test]
 async fn with_transaction_retry_commits_on_first_success() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;
@@ -158,7 +158,7 @@ async fn with_transaction_retry_commits_on_first_success() {
 
 #[tokio::test]
 async fn with_transaction_retry_does_not_retry_permanent_error() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let pool = pg(&db);
     let table = unique_table();
     create_table(&pool, &table).await;

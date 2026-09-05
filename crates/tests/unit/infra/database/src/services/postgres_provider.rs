@@ -3,15 +3,15 @@
 //! fetch helpers. Each test uses a uniquely-named temp table.
 
 
-use super::db_helper::pool;
+use super::db_helper::pool_or_skip;
 use systemprompt_database::{
     DatabaseProvider, DatabaseProviderExt, DatabaseResult, DbValue, FromDatabaseRow,
     PostgresProvider, RepositoryError,
 };
 use systemprompt_test_fixtures::fixture_database_url;
 
-async fn provider() -> Option<PostgresProvider> {
-    let db = pool().await?;
+async fn provider_or_skip() -> Option<PostgresProvider> {
+    let db = pool_or_skip().await?;
     let pg = db.write_pool_arc().ok()?;
     Some(PostgresProvider::from_pool(pg))
 }
@@ -33,7 +33,7 @@ async fn drop_table(provider: &PostgresProvider, table: &str) {
 
 #[tokio::test]
 async fn execute_binds_params_and_reports_rows_affected() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
     let table = unique_table();
@@ -58,7 +58,7 @@ async fn execute_binds_params_and_reports_rows_affected() {
 
 #[tokio::test]
 async fn fetch_one_all_and_optional_round_trip_rows() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
     let table = unique_table();
@@ -100,7 +100,7 @@ async fn fetch_one_all_and_optional_round_trip_rows() {
 
 #[tokio::test]
 async fn fetch_scalar_value_maps_json_types_to_db_values() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
 
@@ -143,7 +143,7 @@ async fn fetch_scalar_value_maps_json_types_to_db_values() {
 
 #[tokio::test]
 async fn query_raw_and_query_raw_with_report_columns_and_counts() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
 
@@ -172,7 +172,7 @@ async fn query_raw_and_query_raw_with_report_columns_and_counts() {
 
 #[tokio::test]
 async fn execute_batch_runs_each_statement() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
     let table = unique_table();
@@ -194,7 +194,7 @@ async fn execute_batch_runs_each_statement() {
 
 #[tokio::test]
 async fn test_connection_succeeds_and_pool_accessors_expose_postgres() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
     provider.test_connection().await.expect("connection probe");
@@ -204,7 +204,7 @@ async fn test_connection_succeeds_and_pool_accessors_expose_postgres() {
 
 #[tokio::test]
 async fn transaction_commit_persists_and_rollback_discards() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
     let table = unique_table();
@@ -242,7 +242,7 @@ async fn transaction_commit_persists_and_rollback_discards() {
 
 #[tokio::test]
 async fn transaction_fetch_variants_see_uncommitted_rows() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
     let table = unique_table();
@@ -296,7 +296,7 @@ impl FromDatabaseRow for NamedRow {
 
 #[tokio::test]
 async fn typed_fetch_helpers_decode_rows() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
     let table = unique_table();

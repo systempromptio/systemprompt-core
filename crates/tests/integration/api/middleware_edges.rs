@@ -119,7 +119,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
     Ok(router)
 }
 
-async fn try_boot() -> Option<axum::Router> {
+async fn try_boot_or_skip() -> Option<axum::Router> {
     boot_server().await.ok()
 }
 
@@ -132,7 +132,9 @@ fn gate() {
 #[tokio::test]
 async fn health_endpoint_is_reachable_without_auth() {
     gate();
-    let Some(app) = try_boot().await else { return };
+    let Some(app) = try_boot_or_skip().await else {
+        return;
+    };
     let req = Request::builder()
         .uri("/health")
         .body(Body::empty())

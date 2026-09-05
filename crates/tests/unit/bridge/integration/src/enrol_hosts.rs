@@ -113,6 +113,7 @@ fn an_enabled_list_naming_a_host_lets_that_one_through_while_skipping_the_rest()
                 Some(Vec::new()),
             ))
             .expect("baseline");
+        // skip-ok: no enrolled bridge host on this machine
         let Some(first) = all.first().map(|r| r.host_id.clone()) else {
             return;
         };
@@ -159,6 +160,7 @@ fn with_no_gateway_reachable_an_enabled_host_reports_a_failure_that_names_a_caus
                 Some(Vec::new()),
             ))
             .expect("baseline");
+        // skip-ok: no enrolled bridge host on this machine
         let Some(first) = all.first().map(|r| r.host_id.clone()) else {
             return;
         };

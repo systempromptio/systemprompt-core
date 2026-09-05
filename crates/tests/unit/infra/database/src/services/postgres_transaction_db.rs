@@ -7,14 +7,14 @@
 
 use systemprompt_database::{DatabaseProvider, PostgresProvider};
 
-use crate::services::db_helper::pool;
+use crate::services::db_helper::pool_or_skip;
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
-async fn provider() -> Option<(PostgresProvider, sqlx::PgPool)> {
-    let db = pool().await?;
+async fn provider_or_skip() -> Option<(PostgresProvider, sqlx::PgPool)> {
+    let db = pool_or_skip().await?;
     let pg = db.write_pool_arc().ok()?;
     Some((PostgresProvider::from_pool(pg.clone()), (*pg).clone()))
 }
@@ -29,7 +29,7 @@ async fn user_exists(pg: &sqlx::PgPool, id: &str) -> bool {
 
 #[tokio::test]
 async fn a_committed_transaction_persists_every_statement_it_ran() {
-    let Some((provider, pg)) = provider().await else {
+    let Some((provider, pg)) = provider_or_skip().await else {
         return;
     };
     let id = unique("pgtx_commit");
@@ -63,7 +63,7 @@ async fn a_committed_transaction_persists_every_statement_it_ran() {
 
 #[tokio::test]
 async fn a_rolled_back_transaction_persists_nothing() {
-    let Some((provider, pg)) = provider().await else {
+    let Some((provider, pg)) = provider_or_skip().await else {
         return;
     };
     let id = unique("pgtx_rollback");
@@ -85,7 +85,7 @@ async fn a_rolled_back_transaction_persists_nothing() {
 
 #[tokio::test]
 async fn the_three_fetch_shapes_read_the_transactions_own_uncommitted_write() {
-    let Some((provider, pg)) = provider().await else {
+    let Some((provider, pg)) = provider_or_skip().await else {
         return;
     };
     let id = unique("pgtx_fetch");
@@ -142,7 +142,7 @@ async fn the_three_fetch_shapes_read_the_transactions_own_uncommitted_write() {
 
 #[tokio::test]
 async fn fetch_one_on_an_empty_result_is_an_error_not_an_empty_row() {
-    let Some((provider, _pg)) = provider().await else {
+    let Some((provider, _pg)) = provider_or_skip().await else {
         return;
     };
 
@@ -161,7 +161,7 @@ async fn fetch_one_on_an_empty_result_is_an_error_not_an_empty_row() {
 
 #[tokio::test]
 async fn a_transaction_that_is_dropped_without_a_decision_does_not_commit() {
-    let Some((provider, pg)) = provider().await else {
+    let Some((provider, pg)) = provider_or_skip().await else {
         return;
     };
     let id = unique("pgtx_dropped");
@@ -186,7 +186,7 @@ async fn a_transaction_that_is_dropped_without_a_decision_does_not_commit() {
 
 #[tokio::test]
 async fn the_database_handle_reports_its_pools_and_liveness() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
 
@@ -218,7 +218,7 @@ async fn the_database_handle_reports_its_pools_and_liveness() {
 
 #[tokio::test]
 async fn the_database_handle_runs_a_batch_and_opens_a_plain_transaction() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let table = unique("batch_tbl");

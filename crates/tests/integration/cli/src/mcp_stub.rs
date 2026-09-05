@@ -15,15 +15,15 @@ use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::full_bootstrap::{database_url, fixture, fixture_mcp_server, rewrite_services_config};
+use crate::full_bootstrap::{database_url_or_skip, fixture_or_skip, fixture_mcp_server, rewrite_services_config};
 
 static STUB: OnceLock<Option<u16>> = OnceLock::new();
 static IDENTITY_HOLDER: OnceLock<Child> = OnceLock::new();
 
 pub fn stub_port() -> Option<u16> {
     *STUB.get_or_init(|| {
-        let fixture = fixture()?;
-        let url = database_url()?;
+        let fixture = fixture_or_skip()?;
+        let url = database_url_or_skip()?;
         let port = start_stub_server();
         rewrite_services_config(fixture, port);
         register_running_service(&url, port);

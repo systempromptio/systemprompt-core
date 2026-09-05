@@ -1,4 +1,4 @@
-use super::db_helper::pool;
+use super::db_helper::pool_or_skip;
 use systemprompt_database::SqlExecutor;
 
 fn unique_table() -> String {
@@ -163,7 +163,7 @@ fn statement_without_trailing_newline_is_still_emitted() {
 
 #[tokio::test]
 async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let table = unique_table();
 
     assert!(
@@ -206,7 +206,7 @@ async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
 
 #[tokio::test]
 async fn execute_query_returns_rows_and_columns() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
 
     let result = SqlExecutor::execute_query(&db, "SELECT 1 AS one, 'x' AS letter")
         .await
@@ -226,7 +226,7 @@ async fn execute_query_returns_rows_and_columns() {
 
 #[tokio::test]
 async fn execute_statements_parsed_runs_each_statement() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let table = unique_table();
 
     let provider = db.write();
@@ -253,7 +253,7 @@ async fn execute_statements_parsed_runs_each_statement() {
 #[tokio::test]
 async fn execute_file_reads_and_runs_sql() {
     use std::io::Write;
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let table = unique_table();
 
     let mut file = tempfile::NamedTempFile::new().expect("tempfile");
@@ -276,7 +276,7 @@ async fn execute_file_reads_and_runs_sql() {
 
 #[tokio::test]
 async fn execute_file_missing_path_is_internal_error() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let err = SqlExecutor::execute_file(&db, "/nonexistent/path/to/file.sql")
         .await
         .expect_err("missing file must error");
@@ -289,7 +289,7 @@ async fn execute_file_missing_path_is_internal_error() {
 
 #[tokio::test]
 async fn execute_query_invalid_sql_is_internal_error() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else { return };
     let err = SqlExecutor::execute_query(&db, "SELECT * FROM definitely_not_a_table_xyz")
         .await
         .expect_err("bad query must error");

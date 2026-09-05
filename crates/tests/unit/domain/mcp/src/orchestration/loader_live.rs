@@ -26,11 +26,11 @@ struct Live {
     server_name: String,
 }
 
-async fn live_setup(oauth_required: bool) -> Option<(Live, MockServer)> {
-    live_setup_scoped(oauth_required, "").await
+async fn live_setup_or_skip(oauth_required: bool) -> Option<(Live, MockServer)> {
+    live_setup_scoped_or_skip(oauth_required, "").await
 }
 
-async fn live_setup_scoped(oauth_required: bool, scopes: &str) -> Option<(Live, MockServer)> {
+async fn live_setup_scoped_or_skip(oauth_required: bool, scopes: &str) -> Option<(Live, MockServer)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
 
@@ -97,7 +97,7 @@ fn profile_paths(bootstrap: &TestBootstrap) -> systemprompt_models::profile::Pat
 
 #[tokio::test]
 async fn load_tools_for_running_server_returns_tools() {
-    let Some((live, _mock)) = live_setup(false).await else {
+    let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
     let config = live
@@ -131,7 +131,7 @@ async fn load_tools_for_running_server_returns_tools() {
 
 #[tokio::test]
 async fn unregistered_server_exhausts_db_retry() {
-    let Some((live, _mock)) = live_setup(false).await else {
+    let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
 
@@ -145,7 +145,7 @@ async fn unregistered_server_exhausts_db_retry() {
 
 #[tokio::test]
 async fn scoped_server_is_skipped_for_anonymous_caller() {
-    let Some((live, _mock)) = live_setup_scoped(true, "admin").await else {
+    let Some((live, _mock)) = live_setup_scoped_or_skip(true, "admin").await else {
         return;
     };
 
@@ -162,7 +162,7 @@ async fn scoped_server_is_skipped_for_anonymous_caller() {
 
 #[tokio::test]
 async fn invalid_jwt_fails_permission_extraction() {
-    let Some((live, _mock)) = live_setup(false).await else {
+    let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
 
@@ -177,7 +177,7 @@ async fn invalid_jwt_fails_permission_extraction() {
 
 #[tokio::test]
 async fn create_mcp_extensions_reports_status_and_unknown_servers() {
-    let Some((live, _mock)) = live_setup(false).await else {
+    let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
     let config = live
@@ -246,7 +246,7 @@ async fn create_mcp_extensions_empty_input_short_circuits() {
 
 #[tokio::test]
 async fn stopped_service_row_is_reported_not_running() {
-    let Some((live, _mock)) = live_setup(false).await else {
+    let Some((live, _mock)) = live_setup_or_skip(false).await else {
         return;
     };
     let config = live
@@ -279,7 +279,7 @@ async fn stopped_service_row_is_reported_not_running() {
 
 #[tokio::test]
 async fn scoped_server_metadata_advertises_first_scope_without_tools() {
-    let Some((live, _mock)) = live_setup_scoped(true, "admin, user").await else {
+    let Some((live, _mock)) = live_setup_scoped_or_skip(true, "admin, user").await else {
         return;
     };
 

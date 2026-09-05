@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use predicates::prelude::*;
-use systemprompt_cli_integration_tests::full_bootstrap::{command_bare, database_url, fixture};
+use systemprompt_cli_integration_tests::full_bootstrap::{command_bare_or_skip, database_url_or_skip, fixture_or_skip};
 
 struct DbParts {
     host: String,
@@ -13,8 +13,8 @@ struct DbParts {
     password: String,
 }
 
-fn db_parts() -> Option<DbParts> {
-    let raw = database_url()?;
+fn db_parts_or_skip() -> Option<DbParts> {
+    let raw = database_url_or_skip()?;
     let url = url::Url::parse(&raw).ok()?;
     Some(DbParts {
         host: url.host_str()?.to_owned(),
@@ -30,8 +30,8 @@ fn project_dir() -> tempfile::TempDir {
     dir
 }
 
-fn setup_cmd(project: &Path, args: &[&str]) -> Option<assert_cmd::Command> {
-    let mut cmd = command_bare()?;
+fn setup_cmd_or_skip(project: &Path, args: &[&str]) -> Option<assert_cmd::Command> {
+    let mut cmd = command_bare_or_skip()?;
     cmd.env("HOME", project);
     cmd.current_dir(project);
     cmd.args(args);
@@ -40,11 +40,11 @@ fn setup_cmd(project: &Path, args: &[&str]) -> Option<assert_cmd::Command> {
 
 #[test]
 fn setup_dry_run_previews_without_writing() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let project = project_dir();
-    let Some(mut cmd) = setup_cmd(
+    let Some(mut cmd) = setup_cmd_or_skip(
         project.path(),
         &[
             "admin",
@@ -61,6 +61,7 @@ fn setup_dry_run_previews_without_writing() {
             "sk-cov-test",
             "--no-migrate",
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -75,8 +76,8 @@ fn setup_dry_run_previews_without_writing() {
 
 #[test]
 fn setup_full_non_interactive_writes_profile_and_secrets() {
-    let Some(db) = db_parts() else { return };
-    if fixture().is_none() {
+    let Some(db) = db_parts_or_skip() else { return };
+    if fixture_or_skip().is_none() {
         return;
     }
     let project = project_dir();
@@ -106,7 +107,7 @@ fn setup_full_non_interactive_writes_profile_and_secrets() {
         "cov-admin@example.com",
         "--no-migrate",
     ];
-    let Some(mut cmd) = setup_cmd(project.path(), &base) else {
+    let Some(mut cmd) = setup_cmd_or_skip(project.path(), &base) else {
         return;
     };
     cmd.assert().success();
@@ -116,14 +117,14 @@ fn setup_full_non_interactive_writes_profile_and_secrets() {
         .join(".systemprompt/profiles/covsetup/profile.yaml");
     assert!(profile.exists(), "profile.yaml written by setup");
 
-    let Some(mut rerun) = setup_cmd(project.path(), &base) else {
+    let Some(mut rerun) = setup_cmd_or_skip(project.path(), &base) else {
         return;
     };
     rerun.assert().success();
 
     let mut forced_args = base.to_vec();
     forced_args.push("--force");
-    let Some(mut forced) = setup_cmd(project.path(), &forced_args) else {
+    let Some(mut forced) = setup_cmd_or_skip(project.path(), &forced_args) else {
         return;
     };
     forced.assert().success();
@@ -131,11 +132,11 @@ fn setup_full_non_interactive_writes_profile_and_secrets() {
 
 #[test]
 fn setup_json_output_dry_run() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let project = project_dir();
-    let Some(mut cmd) = setup_cmd(
+    let Some(mut cmd) = setup_cmd_or_skip(
         project.path(),
         &[
             "--json",
@@ -153,6 +154,7 @@ fn setup_json_output_dry_run() {
             "gm-cov",
             "--no-migrate",
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };

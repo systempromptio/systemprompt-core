@@ -18,7 +18,7 @@ use systemprompt_agent::services::a2a_server::processing::persistence_service::{
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 
 use super::a2a_server::a2a_helpers::request_context;
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn b64(data: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(data)
@@ -85,7 +85,7 @@ fn artifact(ctx: &ContextId, task_id: &TaskId, description: Option<String>) -> A
 
 #[tokio::test]
 async fn history_decodes_parts_and_serializes_artifacts() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -184,7 +184,7 @@ async fn history_decodes_parts_and_serializes_artifacts() {
 
 #[tokio::test]
 async fn history_for_unknown_context_is_empty() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let history = ContextService::new(

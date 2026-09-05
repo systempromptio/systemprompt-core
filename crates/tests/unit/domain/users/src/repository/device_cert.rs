@@ -13,7 +13,7 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup(prefix: &str) -> Option<Ctx> {
+async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -36,7 +36,7 @@ fn fp() -> String {
 
 #[tokio::test]
 async fn enroll_then_find_active_and_list() {
-    let Some(ctx) = setup("dc1").await else {
+    let Some(ctx) = setup_or_skip("dc1").await else {
         return;
     };
     let id = DeviceCertId::generate();
@@ -78,7 +78,7 @@ async fn enroll_then_find_active_and_list() {
 
 #[tokio::test]
 async fn revoke_hides_from_active_lookup() {
-    let Some(ctx) = setup("dc2").await else {
+    let Some(ctx) = setup_or_skip("dc2").await else {
         return;
     };
     let id = DeviceCertId::generate();
@@ -132,7 +132,7 @@ async fn revoke_hides_from_active_lookup() {
 
 #[tokio::test]
 async fn revoke_unknown_cert_returns_false() {
-    let Some(ctx) = setup("dc3").await else {
+    let Some(ctx) = setup_or_skip("dc3").await else {
         return;
     };
     let unknown = DeviceCertId::generate();
@@ -148,7 +148,7 @@ async fn revoke_unknown_cert_returns_false() {
 
 #[tokio::test]
 async fn find_active_unknown_fingerprint_returns_none() {
-    let Some(ctx) = setup("dc4").await else {
+    let Some(ctx) = setup_or_skip("dc4").await else {
         return;
     };
     let found = ctx

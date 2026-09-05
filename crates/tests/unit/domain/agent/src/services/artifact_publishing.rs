@@ -16,7 +16,7 @@ use systemprompt_models::execution::CallSource;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 async fn publishing_service(pool: &systemprompt_database::DbPool) -> ArtifactPublishingService {
     ensure_test_bootstrap();
@@ -64,7 +64,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
 
 #[tokio::test]
 async fn publish_from_a2a_persists_artifact() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = publishing_service(&pool).await;
@@ -91,7 +91,7 @@ async fn publish_from_a2a_persists_artifact() {
 
 #[tokio::test]
 async fn publish_from_a2a_nulls_unknown_execution_id() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = publishing_service(&pool).await;
@@ -119,7 +119,7 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
 
 #[tokio::test]
 async fn publish_from_mcp_agentic_skips_messages() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = publishing_service(&pool).await;
@@ -152,7 +152,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
 
 #[tokio::test]
 async fn publish_from_mcp_direct_creates_messages() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = publishing_service(&pool).await;
@@ -185,7 +185,7 @@ async fn publish_from_mcp_direct_creates_messages() {
 
 #[tokio::test]
 async fn debug_format() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = publishing_service(&pool).await;

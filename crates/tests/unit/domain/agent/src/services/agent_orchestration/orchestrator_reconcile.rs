@@ -18,7 +18,7 @@ use systemprompt_traits::{Phase, StartupEvent, startup_channel};
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state};
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 const DEAD_PID: u32 = 4_000_000_000;
 
@@ -67,7 +67,7 @@ async fn make_orchestrator(
 
 #[tokio::test]
 async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -116,7 +116,7 @@ async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
 
 #[tokio::test]
 async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -140,7 +140,7 @@ async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name(
 
 #[tokio::test]
 async fn disable_all_leaves_every_registry_agent_failed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -169,7 +169,7 @@ async fn disable_all_leaves_every_registry_agent_failed() {
 
 #[tokio::test]
 async fn health_check_reports_a_dead_pid_as_not_running() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -201,7 +201,7 @@ async fn health_check_reports_a_dead_pid_as_not_running() {
 
 #[tokio::test]
 async fn enable_agent_for_an_unregistered_name_is_rejected() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;

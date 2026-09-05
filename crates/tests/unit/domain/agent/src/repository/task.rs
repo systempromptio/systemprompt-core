@@ -1,4 +1,4 @@
-use super::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool};
+use super::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::task::{
@@ -72,7 +72,7 @@ fn make_message(
 
 #[tokio::test]
 async fn create_and_get_task_roundtrip() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -94,7 +94,7 @@ async fn create_and_get_task_roundtrip() {
 
 #[tokio::test]
 async fn get_task_unknown_returns_none() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -104,7 +104,7 @@ async fn get_task_unknown_returns_none() {
 
 #[tokio::test]
 async fn list_tasks_by_context_and_by_user() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -137,7 +137,7 @@ async fn list_tasks_by_context_and_by_user() {
 
 #[tokio::test]
 async fn get_task_context_info() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -165,7 +165,7 @@ async fn get_task_context_info() {
 
 #[tokio::test]
 async fn validate_task_ownership() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -192,7 +192,7 @@ async fn validate_task_ownership() {
 
 #[tokio::test]
 async fn update_task_state_valid_transition() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -220,7 +220,7 @@ async fn update_task_state_valid_transition() {
 
 #[tokio::test]
 async fn update_task_state_idempotent_same_state() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -239,7 +239,7 @@ async fn update_task_state_idempotent_same_state() {
 
 #[tokio::test]
 async fn update_task_state_invalid_transition_errors() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -268,7 +268,7 @@ async fn update_task_state_invalid_transition_errors() {
 
 #[tokio::test]
 async fn update_task_state_unknown_task_not_found() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -286,7 +286,7 @@ async fn update_task_state_unknown_task_not_found() {
 
 #[tokio::test]
 async fn apply_notification_status_parses_state() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -316,7 +316,7 @@ async fn apply_notification_status_parses_state() {
 
 #[tokio::test]
 async fn update_task_failed_with_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -342,7 +342,7 @@ async fn update_task_failed_with_error() {
 
 #[tokio::test]
 async fn update_task_failed_unknown_is_not_found() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -360,7 +360,7 @@ async fn update_task_failed_unknown_is_not_found() {
 
 #[tokio::test]
 async fn track_agent_in_context_is_idempotent() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -381,7 +381,7 @@ async fn track_agent_in_context_is_idempotent() {
 
 #[tokio::test]
 async fn update_task_and_save_messages_persists_history() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -445,7 +445,7 @@ async fn update_task_and_save_messages_persists_history() {
 
 #[tokio::test]
 async fn message_exists_false_for_unknown() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -459,7 +459,7 @@ async fn message_exists_false_for_unknown() {
 
 #[tokio::test]
 async fn next_sequence_number_starts_at_zero() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -476,7 +476,7 @@ async fn next_sequence_number_starts_at_zero() {
 
 #[tokio::test]
 async fn create_task_returns_id_string() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

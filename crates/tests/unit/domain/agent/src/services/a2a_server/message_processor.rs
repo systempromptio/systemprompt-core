@@ -15,7 +15,7 @@ use systemprompt_agent::services::a2a_server::processing::message::{
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn user_message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {
@@ -34,7 +34,7 @@ fn user_message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
 
 #[tokio::test]
 async fn new_constructs_against_pool() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -46,7 +46,7 @@ async fn new_constructs_against_pool() {
 
 #[tokio::test]
 async fn process_message_stream_emits_text_and_complete() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -94,7 +94,7 @@ async fn process_message_stream_emits_text_and_complete() {
 
 #[tokio::test]
 async fn persist_completed_task_updates_existing_row() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -137,7 +137,7 @@ async fn persist_completed_task_updates_existing_row() {
 
 #[tokio::test]
 async fn process_message_stream_provider_failure_emits_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();

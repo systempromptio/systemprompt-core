@@ -22,6 +22,7 @@ fn validated_config() -> Option<(crate::boot::BootFixture, Config)> {
 
 #[test]
 fn verbose_validate_reports_only_fixture_extension_failures() {
+    // skip-ok: no bootable profile on this machine
     let Some((_fixture, config)) = validated_config() else {
         return;
     };
@@ -95,6 +96,7 @@ fn verbose_validate_reports_only_fixture_extension_failures() {
 
 #[test]
 fn malformed_extension_config_reports_load_failure() {
+    // skip-ok: no bootable profile on this machine
     let Some((_fixture, config)) = validated_config() else {
         return;
     };
@@ -130,6 +132,7 @@ fn malformed_extension_config_reports_load_failure() {
 
 #[test]
 fn malformed_ancillary_configs_degrade_to_warnings_not_errors() {
+    // skip-ok: no bootable profile on this machine
     let Some((_fixture, config)) = validated_config() else {
         return;
     };
@@ -167,6 +170,7 @@ fn restrictive_rate_limits_surface_as_domain_warnings() {
     let Some(fixture) = boot(&BootOptions {
         stream_per_second: 5,
         ..BootOptions::default()
+    // skip-ok: no bootable profile on this machine
     }) else {
         return;
     };

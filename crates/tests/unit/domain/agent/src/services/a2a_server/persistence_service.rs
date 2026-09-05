@@ -12,7 +12,7 @@ use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::ArtifactMetadata;
 
 use super::a2a_helpers::request_context;
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn message(ctx: &ContextId, task_id: &TaskId, role: MessageRole, text: &str) -> Message {
     Message {
@@ -79,7 +79,7 @@ fn build_initial_task_is_submitted_with_agent_metadata() {
 
 #[tokio::test]
 async fn create_task_and_update_state_round_trip() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -112,7 +112,7 @@ async fn create_task_and_update_state_round_trip() {
 
 #[tokio::test]
 async fn persist_completed_task_saves_messages_and_publishes_artifacts() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -150,7 +150,7 @@ async fn persist_completed_task_saves_messages_and_publishes_artifacts() {
 
 #[tokio::test]
 async fn persist_completed_task_skips_publishing_when_already_published() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();

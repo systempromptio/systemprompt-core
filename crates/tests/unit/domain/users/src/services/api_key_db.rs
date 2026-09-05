@@ -17,7 +17,7 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup(prefix: &str) -> Option<Ctx> {
+async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -35,7 +35,7 @@ async fn setup(prefix: &str) -> Option<Ctx> {
 
 #[tokio::test]
 async fn issue_then_verify_round_trip_touches_usage() {
-    let Some(ctx) = setup("issue").await else {
+    let Some(ctx) = setup_or_skip("issue").await else {
         return;
     };
     let minted = ctx
@@ -71,7 +71,7 @@ async fn issue_then_verify_round_trip_touches_usage() {
 
 #[tokio::test]
 async fn issue_rejects_blank_name() {
-    let Some(ctx) = setup("blank").await else {
+    let Some(ctx) = setup_or_skip("blank").await else {
         return;
     };
     let result = ctx
@@ -87,7 +87,7 @@ async fn issue_rejects_blank_name() {
 
 #[tokio::test]
 async fn verify_rejects_malformed_and_mismatched_secrets() {
-    let Some(ctx) = setup("reject").await else {
+    let Some(ctx) = setup_or_skip("reject").await else {
         return;
     };
     let minted = ctx
@@ -128,7 +128,7 @@ async fn verify_rejects_malformed_and_mismatched_secrets() {
 
 #[tokio::test]
 async fn expired_key_fails_verification() {
-    let Some(ctx) = setup("expired").await else {
+    let Some(ctx) = setup_or_skip("expired").await else {
         return;
     };
     let minted = ctx
@@ -152,7 +152,7 @@ async fn expired_key_fails_verification() {
 
 #[tokio::test]
 async fn revoke_disables_key_and_is_idempotent() {
-    let Some(ctx) = setup("revoke").await else {
+    let Some(ctx) = setup_or_skip("revoke").await else {
         return;
     };
     let minted = ctx

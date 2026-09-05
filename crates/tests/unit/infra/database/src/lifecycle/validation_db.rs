@@ -6,17 +6,17 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 
-use crate::services::db_helper::pool;
+use crate::services::db_helper::pool_or_skip;
 
-async fn provider() -> Option<PostgresProvider> {
-    let db = pool().await?;
+async fn provider_or_skip() -> Option<PostgresProvider> {
+    let db = pool_or_skip().await?;
     let pg = db.write_pool_arc().ok()?;
     Some(PostgresProvider::from_pool(pg))
 }
 
 #[tokio::test]
 async fn a_live_pool_passes_the_connection_check() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
 
@@ -27,7 +27,7 @@ async fn a_live_pool_passes_the_connection_check() {
 
 #[tokio::test]
 async fn a_writable_primary_passes_the_standby_check() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
 
@@ -38,7 +38,7 @@ async fn a_writable_primary_passes_the_standby_check() {
 
 #[tokio::test]
 async fn table_presence_distinguishes_a_migrated_table_from_an_absent_one() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
 
@@ -59,7 +59,7 @@ async fn table_presence_distinguishes_a_migrated_table_from_an_absent_one() {
 
 #[tokio::test]
 async fn column_presence_is_checked_within_the_named_table_only() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
 
@@ -89,7 +89,7 @@ async fn column_presence_is_checked_within_the_named_table_only() {
 
 #[tokio::test]
 async fn probing_a_column_on_an_absent_table_reports_absent() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
 
@@ -103,7 +103,7 @@ async fn probing_a_column_on_an_absent_table_reports_absent() {
 
 #[tokio::test]
 async fn replica_status_reports_a_primary_with_no_lag() {
-    let Some(provider) = provider().await else {
+    let Some(provider) = provider_or_skip().await else {
         return;
     };
 

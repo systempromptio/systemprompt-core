@@ -305,8 +305,7 @@ fn the_fleet_summary_is_folded_from_the_very_verdicts_the_rows_carry() {
 // directions. A field added to `HostEntryPayload` without reaching the fixtures
 // fails here, and so does a fixture key no payload produces.
 fn fixture_paths() -> Vec<std::path::PathBuf> {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../../bin/bridge/web/dev/fixtures");
+    let dir = systemprompt_test_fixtures::repo_path("bin/bridge/web/dev/fixtures");
     let mut paths: Vec<_> = std::fs::read_dir(&dir)
         .unwrap_or_else(|e| panic!("read fixtures dir {}: {e}", dir.display()))
         .filter_map(|e| e.ok().map(|e| e.path()))

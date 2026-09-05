@@ -11,7 +11,7 @@ use systemprompt_agent::repository::content::artifact::{
 use systemprompt_identifiers::ArtifactId;
 use systemprompt_traits::RepositoryError;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn data_part(value: serde_json::Value) -> Part {
     let serde_json::Value::Object(map) = value else {
@@ -22,7 +22,7 @@ fn data_part(value: serde_json::Value) -> Part {
 
 #[tokio::test]
 async fn persist_and_read_back_all_part_kinds_in_sequence_order() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -89,7 +89,7 @@ async fn persist_and_read_back_all_part_kinds_in_sequence_order() {
 
 #[tokio::test]
 async fn get_parts_rejects_non_object_data_content() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -128,7 +128,7 @@ async fn get_parts_rejects_non_object_data_content() {
 
 #[tokio::test]
 async fn get_parts_empty_for_unknown_artifact() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

@@ -12,7 +12,7 @@ struct Ctx {
     owner: systemprompt_identifiers::UserId,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -53,7 +53,7 @@ async fn make_client(ctx: &Ctx) -> ClientId {
 
 #[tokio::test]
 async fn cleanup_inactive_deletes_deactivated() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = make_client(&ctx).await;
     ctx.repo.deactivate(&client_id).await.expect("deactivate");
 
@@ -70,7 +70,7 @@ async fn cleanup_inactive_deletes_deactivated() {
 
 #[tokio::test]
 async fn list_inactive_includes_deactivated() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = make_client(&ctx).await;
     ctx.repo.deactivate(&client_id).await.expect("deactivate");
 
@@ -80,7 +80,7 @@ async fn list_inactive_includes_deactivated() {
 
 #[tokio::test]
 async fn delete_unused_removes_never_used() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = make_client(&ctx).await;
 
     // never_used_before = -3600 means cutoff is one hour in the future, so a
@@ -98,7 +98,7 @@ async fn delete_unused_removes_never_used() {
 
 #[tokio::test]
 async fn list_unused_includes_never_used() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = make_client(&ctx).await;
     let unused = ctx.repo.list_unused(-3600).await.expect("list_unused");
     assert!(unused.iter().any(|c| c.client_id == client_id));
@@ -107,7 +107,7 @@ async fn list_unused_includes_never_used() {
 
 #[tokio::test]
 async fn list_old_includes_recent_with_future_cutoff() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = make_client(&ctx).await;
     let future = chrono::Utc::now().timestamp() + 3600;
     let old = ctx.repo.list_old(future).await.expect("list_old");
@@ -116,7 +116,7 @@ async fn list_old_includes_recent_with_future_cutoff() {
 
 #[tokio::test]
 async fn list_stale_includes_recently_used() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = make_client(&ctx).await;
     ctx.repo
         .update_last_used(&client_id, chrono::Utc::now().timestamp())
@@ -130,7 +130,7 @@ async fn list_stale_includes_recently_used() {
 
 #[tokio::test]
 async fn delete_stale_removes_recently_used() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let client_id = make_client(&ctx).await;
     ctx.repo
         .update_last_used(&client_id, chrono::Utc::now().timestamp())
@@ -143,7 +143,7 @@ async fn delete_stale_removes_recently_used() {
 
 #[tokio::test]
 async fn list_old_rejects_invalid_timestamp() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let err = ctx.repo.list_old(i64::MAX).await;
     assert!(err.is_err());
 }

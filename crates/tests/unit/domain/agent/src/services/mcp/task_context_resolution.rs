@@ -17,7 +17,7 @@ use systemprompt_identifiers::{
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-use crate::repository::{repos, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_user_and_session, try_pool_or_skip};
 
 fn context_for(user: &UserId, session: &SessionId, context_id: ContextId) -> RequestContext {
     let mut rc = RequestContext::new(
@@ -54,7 +54,7 @@ async fn owned_context(
 // the nested caller would go on to close a task it does not own.
 #[tokio::test]
 async fn a_call_that_already_carries_a_task_reuses_it_and_disclaims_ownership() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     ensure_test_bootstrap();
@@ -80,7 +80,7 @@ async fn a_call_that_already_carries_a_task_reuses_it_and_disclaims_ownership() 
 // scatter one conversation across contexts for no reason.
 #[tokio::test]
 async fn a_context_the_caller_owns_is_kept() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     ensure_test_bootstrap();
@@ -108,7 +108,7 @@ async fn a_context_the_caller_owns_is_kept() {
 // substitute a fresh one rather than failing open OR failing the call.
 #[tokio::test]
 async fn a_context_belonging_to_another_user_is_replaced_not_used() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     ensure_test_bootstrap();
@@ -139,7 +139,7 @@ async fn a_context_belonging_to_another_user_is_replaced_not_used() {
 // call instead would make every expired context a hard error for the user.
 #[tokio::test]
 async fn a_context_that_does_not_exist_is_replaced_rather_than_failing_the_call() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     ensure_test_bootstrap();

@@ -11,12 +11,12 @@ use systemprompt_agent::services::a2a_server::Server;
 use tower::ServiceExt;
 
 use super::a2a_helpers::{StubAiProvider, make_agent_state};
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 const AGENT_PORT: u16 = 9312;
 
-async fn server_for_registered_agent(port: u16) -> Option<Server> {
-    let pool = try_pool().await?;
+async fn server_for_registered_agent_or_skip(port: u16) -> Option<Server> {
+    let pool = try_pool_or_skip().await?;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let agent_state = make_agent_state(&pool);
 
@@ -41,7 +41,7 @@ async fn body_bytes(response: axum::response::Response) -> Vec<u8> {
 #[tokio::test]
 async fn server_new_loads_the_registered_agent_and_reports_its_port() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent(AGENT_PORT).await else {
+    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT).await else {
         return;
     };
 
@@ -59,7 +59,7 @@ async fn server_new_loads_the_registered_agent_and_reports_its_port() {
 #[tokio::test]
 async fn the_router_serves_the_well_known_agent_card_without_authentication() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent(AGENT_PORT + 1).await else {
+    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 1).await else {
         return;
     };
 
@@ -88,7 +88,7 @@ async fn the_router_serves_the_well_known_agent_card_without_authentication() {
 #[tokio::test]
 async fn the_router_serves_the_card_on_both_advertised_paths() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent(AGENT_PORT + 2).await else {
+    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 2).await else {
         return;
     };
     let router = server.create_router();
@@ -115,7 +115,7 @@ async fn the_router_serves_the_card_on_both_advertised_paths() {
 #[tokio::test]
 async fn the_router_rejects_an_unrouted_path() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent(AGENT_PORT + 3).await else {
+    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 3).await else {
         return;
     };
 
@@ -137,7 +137,7 @@ async fn the_router_rejects_an_unrouted_path() {
 #[tokio::test]
 async fn the_post_route_runs_the_oauth_middleware_before_the_handler() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent(AGENT_PORT + 4).await else {
+    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 4).await else {
         return;
     };
 
@@ -182,7 +182,7 @@ async fn the_post_route_runs_the_oauth_middleware_before_the_handler() {
 #[tokio::test]
 async fn the_router_answers_cors_preflight() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent(AGENT_PORT + 5).await else {
+    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 5).await else {
         return;
     };
 

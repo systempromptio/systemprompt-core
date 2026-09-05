@@ -60,7 +60,7 @@ fn install_config(boot: &TestBootstrap, source_id: &str) {
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).expect("mkdir templates");
 }
 
-async fn maybe_db() -> Option<DbPool> {
+async fn maybe_db_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -133,7 +133,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
 async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db().await else { return };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     let source_id = SourceId::new("extpipesrc");
     let repo = ContentRepository::new(&db).expect("content repository");
@@ -194,7 +194,7 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
 async fn prerender_pages_renders_fixture_page_with_provider_data() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db().await else { return };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     install_config(boot, "extpipepages");
     let tmpl_dir = boot.app_paths.web().root().join("templates");
@@ -237,7 +237,7 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
 async fn prerender_empty_source_retries_then_renders_nothing() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db().await else { return };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     let source_id = SourceId::new("extpipeempty");
     let repo = ContentRepository::new(&db).expect("content repository");
@@ -258,7 +258,7 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
 async fn generate_sitemap_chunks_into_index_when_over_url_limit() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db().await else { return };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     let pool = db.pool_arc().expect("pg pool");
     sqlx::query("DELETE FROM markdown_content WHERE source_id = 'extpipebulk'")

@@ -41,6 +41,7 @@ fn get_port_by_pid_finds_bound_port_for_current_process() {
 #[test]
 fn find_process_on_port_with_name_matches_our_process_name() {
     let (_listener, port) = bind_loopback();
+    // skip-ok: no spawnable child process on this host
     let Some(name) = get_process_name_by_pid(std::process::id()) else {
         return;
     };

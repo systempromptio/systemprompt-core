@@ -12,7 +12,7 @@ use systemprompt_agent::services::message::{MessageService, PersistMessageInTxPa
 use systemprompt_database::DatabaseProvider;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn rich_message(ctx: &ContextId, tid: &TaskId, message_id: &MessageId) -> Message {
     let serde_json::Value::Object(data) = json!({"k": "v"}) else {
@@ -76,7 +76,7 @@ async fn persist_in_tx(
 
 #[tokio::test]
 async fn persist_in_tx_round_trips_all_part_kinds_and_metadata() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -143,7 +143,7 @@ async fn persist_in_tx_round_trips_all_part_kinds_and_metadata() {
 
 #[tokio::test]
 async fn repersisting_same_message_id_replaces_instead_of_duplicating() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -207,7 +207,7 @@ async fn repersisting_same_message_id_replaces_instead_of_duplicating() {
 
 #[tokio::test]
 async fn sequence_numbers_in_tx_increase_per_task() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

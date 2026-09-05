@@ -52,6 +52,7 @@ async fn call() -> Option<Reply> {
 
 #[tokio::test]
 async fn the_response_is_always_json() {
+    // skip-ok: the API harness could not bind a port here
     let Some(reply) = call().await else {
         return;
     };
@@ -70,6 +71,7 @@ async fn the_response_is_always_json() {
 
 #[tokio::test]
 async fn a_failure_names_the_registry_and_is_never_an_empty_list() {
+    // skip-ok: the API harness could not bind a port here
     let Some(reply) = call().await else {
         return;
     };

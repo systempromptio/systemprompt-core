@@ -11,7 +11,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::execution::context::RequestContext;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn text_msg(role: MessageRole, ctx: &ContextId, tid: &TaskId, text: &str) -> Message {
     Message {
@@ -41,7 +41,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
 
 #[tokio::test]
 async fn persist_messages_empty_returns_empty() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = MessageService::new(
@@ -70,7 +70,7 @@ async fn persist_messages_empty_returns_empty() {
 
 #[tokio::test]
 async fn persist_messages_assigns_increasing_sequence_numbers() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = MessageService::new(
@@ -107,7 +107,7 @@ async fn persist_messages_assigns_increasing_sequence_numbers() {
 
 #[tokio::test]
 async fn create_tool_execution_message_persists_synthetic_user_message() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = MessageService::new(
@@ -147,7 +147,7 @@ async fn create_tool_execution_message_persists_synthetic_user_message() {
 
 #[tokio::test]
 async fn persist_messages_then_next_sequence_continues() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = MessageService::new(

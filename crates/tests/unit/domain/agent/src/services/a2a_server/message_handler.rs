@@ -11,7 +11,7 @@ use systemprompt_agent::services::a2a_server::processing::message::MessageProces
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn user_message(ctx: &ContextId, task_id: Option<TaskId>, text: &str) -> Message {
     Message {
@@ -30,7 +30,7 @@ fn user_message(ctx: &ContextId, task_id: Option<TaskId>, text: &str) -> Message
 
 #[tokio::test]
 async fn handle_message_with_runtime_completes_task_end_to_end() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -70,7 +70,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_reuses_inbound_task_id() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -97,7 +97,7 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_surfaces_model_stream_failure() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -130,7 +130,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_rejects_unowned_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();

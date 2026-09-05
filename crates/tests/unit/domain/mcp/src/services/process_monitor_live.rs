@@ -57,6 +57,7 @@ fn is_process_running_accepts_this_process_and_rejects_a_dead_pid() {
 
 #[test]
 fn is_process_running_rejects_a_zombie_that_still_answers_signal_zero() {
+    // skip-ok: no spawnable child process on this host
     let Some(mut child) = exited_but_unreaped_child() else {
         return;
     };
@@ -92,6 +93,7 @@ fn get_process_info_reports_none_for_a_pid_that_does_not_exist() {
 
 #[test]
 fn get_process_info_reports_the_parent_of_a_spawned_child_as_this_process() {
+    // skip-ok: no spawnable child process on this host
     let Ok(mut child) = Command::new("sleep").arg("30").spawn() else {
         return;
     };

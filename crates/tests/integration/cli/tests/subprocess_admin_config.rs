@@ -5,7 +5,7 @@
 //! Rate-limit mutations operate on the fixture's tempdir profile, so no
 //! shared state is touched. Tests accept success or failure exit codes.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{fixture, run, run_with_formats};
+use systemprompt_cli_integration_tests::full_bootstrap::{fixture_or_skip, run, run_with_formats};
 
 #[test]
 fn rate_limits_show_and_docs() {
@@ -204,7 +204,7 @@ fn rate_limits_reset_scoped_variants() {
 
 #[test]
 fn rate_limits_export_import_roundtrip() {
-    let Some(fixture) = fixture() else { return };
+    let Some(fixture) = fixture_or_skip() else { return };
     let path = fixture.system_dir.join("rate_limits_export.yaml");
     let path_str = path.to_string_lossy().into_owned();
     run(&[

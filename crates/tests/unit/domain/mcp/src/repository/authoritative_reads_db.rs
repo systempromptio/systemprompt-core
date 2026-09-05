@@ -9,7 +9,7 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn split_pool() -> Option<DbPool> {
+async fn split_pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     let live = fixture_db_pool(&url).await.ok()?;
     let write = live.write_pool_arc().ok()?;
@@ -20,7 +20,7 @@ async fn split_pool() -> Option<DbPool> {
 
 #[tokio::test]
 async fn session_lookups_read_the_primary() {
-    let Some(db) = split_pool().await else {
+    let Some(db) = split_pool_or_skip().await else {
         return;
     };
     let repo = McpSessionRepository::new(&db).expect("repo");

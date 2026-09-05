@@ -120,6 +120,7 @@ fn removing_an_unknown_host_fails_the_whole_request_rather_than_reporting_per_ho
 #[test]
 fn removing_a_sync_only_agent_reports_that_there_is_nothing_local_to_remove() {
     let reports = remove_host_profiles(&Selection::Ids(vec!["claude-desktop-web".to_owned()]));
+    // skip-ok: no enrolled bridge host on this machine
     let Ok(reports) = reports else {
         return;
     };

@@ -14,7 +14,7 @@ use std::time::Duration;
 use systemprompt_database::{Database, DbPool, PoolConfig};
 use systemprompt_test_fixtures::fixture_database_url;
 
-pub async fn pool() -> Option<DbPool> {
+pub async fn pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     let cfg = PoolConfig {
         max_connections: 4,

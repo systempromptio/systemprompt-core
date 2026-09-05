@@ -2,23 +2,23 @@
 //! profile and AI policy files: provider, catalog, gateway, runtime, server,
 //! security, paths, governance, and secret.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{command, fixture, run, run_with_formats};
+use systemprompt_cli_integration_tests::full_bootstrap::{command_or_skip, fixture_or_skip, run, run_with_formats};
 
 fn run_ok(args: &[&str]) {
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     cmd.assert().success();
 }
 
 fn run_err(args: &[&str]) {
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args(args);
     cmd.assert().failure();
 }
 
 #[test]
 fn provider_list_with_formats() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "provider", "list"]);
@@ -27,7 +27,7 @@ fn provider_list_with_formats() {
 
 #[test]
 fn provider_enable_disable_and_set_default() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "provider", "enable", "openai"]);
@@ -41,7 +41,7 @@ fn provider_enable_disable_and_set_default() {
 
 #[test]
 fn catalog_provider_add_list_remove() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "catalog", "provider", "list"]);
@@ -128,7 +128,7 @@ fn catalog_provider_add_list_remove() {
 
 #[test]
 fn catalog_model_add_remove() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&[
@@ -172,7 +172,7 @@ fn catalog_model_add_remove() {
 
 #[test]
 fn gateway_enable_routes_default_provider() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "gateway", "route", "list"]);
@@ -233,7 +233,7 @@ fn gateway_enable_routes_default_provider() {
 
 #[test]
 fn runtime_show_and_set() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "runtime", "show"]);
@@ -266,7 +266,7 @@ fn runtime_show_and_set() {
 
 #[test]
 fn server_show_set_and_cors() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "server", "show"]);
@@ -320,7 +320,7 @@ fn server_show_set_and_cors() {
 
 #[test]
 fn security_show_set_and_trusted_issuers() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "security", "show"]);
@@ -373,7 +373,7 @@ fn security_show_set_and_trusted_issuers() {
 
 #[test]
 fn paths_show_and_validate() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "paths", "show"]);
@@ -383,7 +383,7 @@ fn paths_show_and_validate() {
 
 #[test]
 fn governance_show_and_set() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "governance", "show"]);
@@ -405,7 +405,7 @@ fn governance_show_and_set() {
 
 #[test]
 fn secret_set_provider_and_custom() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run(&["admin", "config", "secret", "set", "anthropic", "sk-test-1"]);
@@ -414,7 +414,7 @@ fn secret_set_provider_and_custom() {
 
 #[test]
 fn config_show_list_validate_with_formats() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&["admin", "config", "show"]);

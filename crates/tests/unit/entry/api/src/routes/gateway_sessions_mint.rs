@@ -26,7 +26,7 @@ struct Harness {
     user_id: UserId,
 }
 
-async fn harness() -> Option<Harness> {
+async fn harness_or_skip() -> Option<Harness> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -65,7 +65,7 @@ async fn mint_key(pool: &DbPool, user_id: &UserId) -> String {
 
 #[tokio::test]
 async fn valid_api_key_mints_a_session() {
-    let Some(h) = harness().await else {
+    let Some(h) = harness_or_skip().await else {
         return;
     };
     let secret = mint_key(&h.pool, &h.user_id).await;
@@ -86,7 +86,7 @@ async fn valid_api_key_mints_a_session() {
 
 #[tokio::test]
 async fn api_key_via_bearer_header_also_mints() {
-    let Some(h) = harness().await else {
+    let Some(h) = harness_or_skip().await else {
         return;
     };
     let secret = mint_key(&h.pool, &h.user_id).await;
@@ -103,7 +103,7 @@ async fn api_key_via_bearer_header_also_mints() {
 
 #[tokio::test]
 async fn missing_credential_is_unauthorized() {
-    let Some(h) = harness().await else {
+    let Some(h) = harness_or_skip().await else {
         return;
     };
     let err = create_session(h.ctx, request_with(&[]))
@@ -117,7 +117,7 @@ async fn missing_credential_is_unauthorized() {
 
 #[tokio::test]
 async fn jwt_shaped_credential_is_refused_rather_than_minting() {
-    let Some(h) = harness().await else {
+    let Some(h) = harness_or_skip().await else {
         return;
     };
     // A JWT caller already holds a session; minting another would double-count
@@ -140,7 +140,7 @@ async fn jwt_shaped_credential_is_refused_rather_than_minting() {
 
 #[tokio::test]
 async fn unknown_api_key_is_unauthorized() {
-    let Some(h) = harness().await else {
+    let Some(h) = harness_or_skip().await else {
         return;
     };
     let bogus = format!("{API_KEY_PREFIX}{}", Uuid::new_v4().simple());
@@ -160,7 +160,7 @@ async fn unknown_api_key_is_unauthorized() {
 
 #[tokio::test]
 async fn revoked_api_key_no_longer_mints() {
-    let Some(h) = harness().await else {
+    let Some(h) = harness_or_skip().await else {
         return;
     };
     let service = ApiKeyService::new(Arc::new(

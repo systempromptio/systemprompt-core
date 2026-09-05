@@ -17,7 +17,7 @@ mod db_backed {
 
     const SECRET: &str = "client-credentials-secret-32-chars!!";
 
-    async fn seeded_client() -> Option<(OAuthRepository, ClientId)> {
+    async fn seeded_client_or_skip() -> Option<(OAuthRepository, ClientId)> {
         let url = fixture_database_url().ok()?;
         ensure_test_bootstrap();
         let pool = fixture_db_pool(&url).await.expect("pool");
@@ -51,7 +51,7 @@ mod db_backed {
 
     #[tokio::test]
     async fn correct_secret_authenticates_registered_client() {
-        let Some((repo, client_id)) = seeded_client().await else {
+        let Some((repo, client_id)) = seeded_client_or_skip().await else {
             return;
         };
         validate_client_credentials(&repo, &client_id, Some(SECRET))
@@ -61,7 +61,7 @@ mod db_backed {
 
     #[tokio::test]
     async fn wrong_secret_is_rejected() {
-        let Some((repo, client_id)) = seeded_client().await else {
+        let Some((repo, client_id)) = seeded_client_or_skip().await else {
             return;
         };
         let err = validate_client_credentials(&repo, &client_id, Some("wrong-secret"))
@@ -72,7 +72,7 @@ mod db_backed {
 
     #[tokio::test]
     async fn missing_secret_is_rejected() {
-        let Some((repo, client_id)) = seeded_client().await else {
+        let Some((repo, client_id)) = seeded_client_or_skip().await else {
             return;
         };
         let err = validate_client_credentials(&repo, &client_id, None)
@@ -83,7 +83,7 @@ mod db_backed {
 
     #[tokio::test]
     async fn unknown_client_is_rejected() {
-        let Some((repo, _client_id)) = seeded_client().await else {
+        let Some((repo, _client_id)) = seeded_client_or_skip().await else {
             return;
         };
         let missing = ClientId::new(format!("client_{}", Uuid::new_v4().simple()));

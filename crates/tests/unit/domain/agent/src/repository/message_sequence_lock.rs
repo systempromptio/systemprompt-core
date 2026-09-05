@@ -9,7 +9,7 @@ use systemprompt_agent::services::message::{MessageService, PersistMessageInTxPa
 use systemprompt_database::DatabaseProvider;
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn text_message(ctx: &ContextId, tid: &TaskId, text: &str) -> Message {
     Message {
@@ -61,7 +61,7 @@ async fn append_in_tx(
 
 #[tokio::test]
 async fn concurrent_appends_take_distinct_sequence_numbers() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

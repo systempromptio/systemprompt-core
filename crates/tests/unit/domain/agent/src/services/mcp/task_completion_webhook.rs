@@ -8,7 +8,7 @@ use systemprompt_agent::services::mcp::task_helper::complete_task;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 const BROADCAST_PATH: &str = "/api/v1/webhook/broadcast";
 
@@ -26,7 +26,7 @@ async fn a_completed_task_broadcasts_its_identifiers_and_bearer_to_the_configure
         .await;
     systemprompt_test_fixtures::init_isolated_bootstrap(&mock.uri(), "{}\n");
 
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -83,7 +83,7 @@ async fn a_rejected_broadcast_is_swallowed_so_completion_still_succeeds() {
         .await;
     systemprompt_test_fixtures::init_isolated_bootstrap(&mock.uri(), "{}\n");
 
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);

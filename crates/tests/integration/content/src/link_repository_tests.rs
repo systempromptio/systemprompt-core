@@ -7,7 +7,7 @@ use systemprompt_content::repository::link::LinkRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LinkId;
 
-async fn try_db() -> Option<DbPool> {
+async fn try_db_or_skip() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
     systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
@@ -31,7 +31,7 @@ fn sample_params(short_code: String) -> CreateLinkParams {
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     assert!(LinkRepository::new(&db).is_ok());
@@ -39,7 +39,7 @@ async fn repository_new_succeeds() {
 
 #[tokio::test]
 async fn create_then_get_link_by_short_code() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = LinkRepository::new(&db).expect("repo");
@@ -63,7 +63,7 @@ async fn create_then_get_link_by_short_code() {
 
 #[tokio::test]
 async fn get_link_by_short_code_returns_none_for_unknown() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = LinkRepository::new(&db).expect("repo");
@@ -76,7 +76,7 @@ async fn get_link_by_short_code_returns_none_for_unknown() {
 
 #[tokio::test]
 async fn get_link_by_id_returns_none_for_unknown_id() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = LinkRepository::new(&db).expect("repo");
@@ -87,7 +87,7 @@ async fn get_link_by_id_returns_none_for_unknown_id() {
 
 #[tokio::test]
 async fn delete_link_returns_true_for_existing_false_for_missing() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = LinkRepository::new(&db).expect("repo");
@@ -106,7 +106,7 @@ async fn delete_link_returns_true_for_existing_false_for_missing() {
 
 #[tokio::test]
 async fn list_links_by_campaign_filters_by_campaign_id() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = LinkRepository::new(&db).expect("repo");
@@ -133,7 +133,7 @@ async fn list_links_by_source_content_filters_correctly() {
     use systemprompt_content::repository::ContentRepository;
     use systemprompt_identifiers::{LocaleCode, SourceId};
 
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let content_repo = ContentRepository::new(&db).expect("content repo");
@@ -178,7 +178,7 @@ async fn list_links_by_source_content_filters_correctly() {
 
 #[tokio::test]
 async fn find_link_by_source_and_target_matches_active_link() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = LinkRepository::new(&db).expect("repo");

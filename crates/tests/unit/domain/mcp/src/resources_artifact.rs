@@ -4,7 +4,7 @@ use systemprompt_mcp::read_artifact_resource;
 use systemprompt_mcp::repository::{CreateMcpArtifact, McpArtifactRepository};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn repo() -> Option<McpArtifactRepository> {
+async fn repo_or_skip() -> Option<McpArtifactRepository> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     McpArtifactRepository::new(&db).ok()
@@ -35,7 +35,7 @@ fn stored(
 
 #[tokio::test]
 async fn read_artifact_rejects_non_artifact_uri() {
-    let Some(repo) = repo().await else { return };
+    let Some(repo) = repo_or_skip().await else { return };
     let request = ReadResourceRequestParams::new("ui://srv/artifact-viewer");
     let err = read_artifact_resource(&request, "srv", &repo)
         .await
@@ -45,7 +45,7 @@ async fn read_artifact_rejects_non_artifact_uri() {
 
 #[tokio::test]
 async fn read_artifact_rejects_server_mismatch() {
-    let Some(repo) = repo().await else { return };
+    let Some(repo) = repo_or_skip().await else { return };
     let request = ReadResourceRequestParams::new("ui://other/artifact/abc");
     let err = read_artifact_resource(&request, "srv", &repo)
         .await
@@ -56,7 +56,7 @@ async fn read_artifact_rejects_server_mismatch() {
 
 #[tokio::test]
 async fn read_artifact_unknown_id_is_invalid_params() {
-    let Some(repo) = repo().await else { return };
+    let Some(repo) = repo_or_skip().await else { return };
     let id = fresh_id();
     let request = ReadResourceRequestParams::new(format!("ui://srv/artifact/{id}"));
     let err = read_artifact_resource(&request, "srv", &repo)
@@ -67,7 +67,7 @@ async fn read_artifact_unknown_id_is_invalid_params() {
 
 #[tokio::test]
 async fn read_artifact_without_payload_key_is_internal_error() {
-    let Some(repo) = repo().await else { return };
+    let Some(repo) = repo_or_skip().await else { return };
     let id = fresh_id();
     repo.save(&stored(&id, serde_json::json!({"other": 1}), None))
         .await
@@ -82,7 +82,7 @@ async fn read_artifact_without_payload_key_is_internal_error() {
 
 #[tokio::test]
 async fn read_artifact_renders_stored_payload_with_ui_meta() {
-    let Some(repo) = repo().await else { return };
+    let Some(repo) = repo_or_skip().await else { return };
     let id = fresh_id();
     let payload = serde_json::json!({
         "artifact": {
@@ -113,7 +113,7 @@ async fn read_artifact_renders_stored_payload_with_ui_meta() {
 
 #[tokio::test]
 async fn read_artifact_without_context_id_still_renders() {
-    let Some(repo) = repo().await else { return };
+    let Some(repo) = repo_or_skip().await else { return };
     let id = fresh_id();
     let payload = serde_json::json!({
         "artifact": {

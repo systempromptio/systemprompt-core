@@ -4,7 +4,7 @@ use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, UserId};
 use systemprompt_mcp::repository::{CreateMcpArtifact, McpArtifactRepository};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -32,13 +32,13 @@ fn full_artifact(id: &ArtifactId, server: &str) -> CreateMcpArtifact {
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     drop(McpArtifactRepository::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
 async fn find_by_id_random_returns_none() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(format!("art-{}", uuid::Uuid::new_v4().simple()));
     let r = repo.find_by_id(&id).await.unwrap();
@@ -47,7 +47,7 @@ async fn find_by_id_random_returns_none() {
 
 #[tokio::test]
 async fn list_by_server_returns_vec() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let r = repo
         .list_by_server(&format!("none-{}", uuid::Uuid::new_v4().simple()), 10)
@@ -58,7 +58,7 @@ async fn list_by_server_returns_vec() {
 
 #[tokio::test]
 async fn delete_random_returns_false() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(format!("art-{}", uuid::Uuid::new_v4().simple()));
     let ok = repo.delete(&id).await.unwrap();
@@ -71,7 +71,7 @@ async fn cleanup_expired_reaps_a_past_due_artifact() {
     use systemprompt_identifiers::McpExecutionId;
     use systemprompt_mcp::repository::CreateMcpArtifact;
 
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(format!("art-{}", uuid::Uuid::new_v4().simple()));
     repo.save(&CreateMcpArtifact {
@@ -102,7 +102,7 @@ async fn cleanup_expired_reaps_a_past_due_artifact() {
 
 #[tokio::test]
 async fn save_then_find_round_trips_all_fields() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let server = unique("srv");
@@ -131,7 +131,7 @@ async fn save_then_find_round_trips_all_fields() {
 
 #[tokio::test]
 async fn save_on_conflict_updates_mutable_fields() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let server = unique("srv");
@@ -151,7 +151,7 @@ async fn save_on_conflict_updates_mutable_fields() {
 
 #[tokio::test]
 async fn list_by_server_returns_saved_rows() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let server = unique("srv");
     let id_a = ArtifactId::new(unique("art"));
@@ -172,7 +172,7 @@ async fn list_by_server_returns_saved_rows() {
 
 #[tokio::test]
 async fn delete_returns_true_for_existing_artifact() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     repo.save(&full_artifact(&id, &unique("srv")))
@@ -190,7 +190,7 @@ async fn delete_returns_true_for_existing_artifact() {
 async fn find_by_id_hides_expired_artifact() {
     use chrono::{Duration, Utc};
 
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpArtifactRepository::new(&db).unwrap();
     let id = ArtifactId::new(unique("art"));
     let mut create = full_artifact(&id, &unique("srv"));

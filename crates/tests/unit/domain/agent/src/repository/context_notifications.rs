@@ -6,11 +6,11 @@ use serde_json::json;
 use systemprompt_agent::repository::context::ContextNotificationRepository;
 use systemprompt_identifiers::{AgentId, ContextId};
 
-use super::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 #[tokio::test]
 async fn insert_persists_row_and_mark_broadcasted_flips_flag() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -53,7 +53,7 @@ async fn insert_persists_row_and_mark_broadcasted_flips_flag() {
 
 #[tokio::test]
 async fn insert_rejects_unknown_notification_type() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repo = ContextNotificationRepository::new(&pool).expect("repository");
@@ -75,7 +75,7 @@ async fn insert_rejects_unknown_notification_type() {
 
 #[tokio::test]
 async fn mark_broadcasted_on_unknown_id_is_a_no_op() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repo = ContextNotificationRepository::new(&pool).expect("repository");

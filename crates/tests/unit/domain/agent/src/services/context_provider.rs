@@ -7,11 +7,11 @@ use systemprompt_agent::services::ContextProviderService;
 use systemprompt_identifiers::ContextId;
 use systemprompt_traits::{ContextProvider, ContextProviderError};
 
-use crate::repository::{seed_user_and_session, try_pool};
+use crate::repository::{seed_user_and_session, try_pool_or_skip};
 
 #[tokio::test]
 async fn context_lifecycle_roundtrip() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user, session) = seed_user_and_session(&pool).await;
@@ -61,7 +61,7 @@ async fn context_lifecycle_roundtrip() {
 
 #[tokio::test]
 async fn unknown_context_lookups_map_to_not_found() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user, _session) = seed_user_and_session(&pool).await;

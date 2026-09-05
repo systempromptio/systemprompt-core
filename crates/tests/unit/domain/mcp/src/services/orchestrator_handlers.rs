@@ -14,7 +14,7 @@ use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
-async fn make_dependencies() -> Option<(LifecycleOrchestrator, DatabaseService, RegistryService)> {
+async fn make_dependencies_or_skip() -> Option<(LifecycleOrchestrator, DatabaseService, RegistryService)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {
@@ -69,7 +69,7 @@ fn health_check_handler_new_and_with_restart_sender() {
 
 #[tokio::test]
 async fn database_sync_handler_construction() {
-    let Some((_lifecycle, database, _registry)) = make_dependencies().await else {
+    let Some((_lifecycle, database, _registry)) = make_dependencies_or_skip().await else {
         return;
     };
     let h = DatabaseSyncHandler::new(database);

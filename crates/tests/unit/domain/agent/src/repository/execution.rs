@@ -1,10 +1,10 @@
-use super::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 use systemprompt_identifiers::{McpExecutionId, TaskId};
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus, StepType};
 
 #[tokio::test]
 async fn create_and_get_tool_execution_step() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -33,7 +33,7 @@ async fn create_and_get_tool_execution_step() {
 
 #[tokio::test]
 async fn get_unknown_step_returns_none() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -43,7 +43,7 @@ async fn get_unknown_step_returns_none() {
 
 #[tokio::test]
 async fn create_instant_steps() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -75,7 +75,7 @@ async fn create_instant_steps() {
 
 #[tokio::test]
 async fn list_by_task_ordered() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -99,7 +99,7 @@ async fn list_by_task_ordered() {
 
 #[tokio::test]
 async fn complete_step_sets_completed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -129,7 +129,7 @@ async fn complete_step_sets_completed() {
 
 #[tokio::test]
 async fn complete_step_without_result() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -158,7 +158,7 @@ async fn complete_step_without_result() {
 
 #[tokio::test]
 async fn fail_step_records_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -188,7 +188,7 @@ async fn fail_step_records_error() {
 
 #[tokio::test]
 async fn fail_in_progress_steps_for_task() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -219,7 +219,7 @@ async fn fail_in_progress_steps_for_task() {
 
 #[tokio::test]
 async fn complete_planning_step_returns_step() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -252,7 +252,7 @@ async fn complete_planning_step_returns_step() {
 
 #[tokio::test]
 async fn mcp_execution_id_exists_false_for_unknown() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -266,7 +266,7 @@ async fn mcp_execution_id_exists_false_for_unknown() {
 
 #[tokio::test]
 async fn list_by_task_empty_for_unknown() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -280,7 +280,7 @@ async fn list_by_task_empty_for_unknown() {
 
 #[tokio::test]
 async fn get_step_with_corrupt_status_errors() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -310,7 +310,7 @@ async fn get_step_with_corrupt_status_errors() {
 
 #[tokio::test]
 async fn get_step_with_corrupt_content_errors() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

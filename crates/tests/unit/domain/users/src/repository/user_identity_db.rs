@@ -13,7 +13,7 @@ struct Ctx {
     pool: systemprompt_database::DbPool,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -51,7 +51,7 @@ fn tag() -> String {
 
 #[tokio::test]
 async fn create_stores_the_canonical_lowercased_email() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let t = tag();
@@ -73,7 +73,7 @@ async fn create_stores_the_canonical_lowercased_email() {
 
 #[tokio::test]
 async fn find_by_email_is_case_insensitive() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let t = tag();
@@ -101,7 +101,7 @@ async fn find_by_email_is_case_insensitive() {
 
 #[tokio::test]
 async fn merge_users_moves_audit_rows_and_removes_the_source() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let t = tag();
@@ -212,7 +212,7 @@ async fn merge_users_moves_audit_rows_and_removes_the_source() {
 
 #[tokio::test]
 async fn promote_anonymous_refuses_a_non_anonymous_source() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let t = tag();
@@ -261,7 +261,7 @@ async fn promote_anonymous_refuses_a_non_anonymous_source() {
 
 #[tokio::test]
 async fn promote_anonymous_refuses_a_self_merge() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let t = tag();
@@ -301,7 +301,7 @@ fn claims(email: Option<&str>, email_verified: bool) -> FederatedIdentityClaims 
 
 #[tokio::test]
 async fn verified_federated_email_links_to_the_existing_local_account() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let t = tag();
@@ -353,7 +353,7 @@ async fn verified_federated_email_links_to_the_existing_local_account() {
 
 #[tokio::test]
 async fn unverified_federated_email_creates_a_separate_synthetic_account() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let t = tag();

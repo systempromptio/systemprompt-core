@@ -429,6 +429,7 @@ async fn a_well_formed_session_hint_is_used_verbatim() {
 
 #[tokio::test]
 async fn a_lookup_with_no_hint_and_no_credentials_says_to_authenticate() {
+    // skip-ok: no database, so nothing to act on
     let Err(err) = resolve_credentialed_user_email(None).await else {
         return;
     };

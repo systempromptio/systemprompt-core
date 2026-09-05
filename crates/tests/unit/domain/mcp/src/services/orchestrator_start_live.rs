@@ -58,7 +58,7 @@ impl LiveServer {
     }
 }
 
-async fn live_server(prefix: &str) -> Option<LiveServer> {
+async fn live_server_or_skip(prefix: &str) -> Option<LiveServer> {
     let name = unique(prefix);
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
@@ -98,7 +98,7 @@ async fn live_server(prefix: &str) -> Option<LiveServer> {
 
 #[tokio::test]
 async fn start_services_registers_a_listening_server_and_publishes_started() {
-    let Some(live) = live_server("startlive").await else {
+    let Some(live) = live_server_or_skip("startlive").await else {
         return;
     };
     let mut rx = live.orchestrator.subscribe_events();
@@ -136,7 +136,7 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
 
 #[tokio::test]
 async fn reconcile_starts_a_listening_server_and_reports_completion() {
-    let Some(live) = live_server("reclive").await else {
+    let Some(live) = live_server_or_skip("reclive").await else {
         return;
     };
     let mut rx = live.orchestrator.subscribe_events();
@@ -184,7 +184,7 @@ async fn reconcile_starts_a_listening_server_and_reports_completion() {
 
 #[tokio::test]
 async fn a_second_reconcile_kills_the_previous_process_and_starts_a_fresh_one() {
-    let Some(live) = live_server("recidem").await else {
+    let Some(live) = live_server_or_skip("recidem").await else {
         return;
     };
 
@@ -220,7 +220,7 @@ async fn a_second_reconcile_kills_the_previous_process_and_starts_a_fresh_one() 
 
 #[tokio::test]
 async fn stop_services_terminates_a_running_server_and_publishes_stopped() {
-    let Some(live) = live_server("stoplive").await else {
+    let Some(live) = live_server_or_skip("stoplive").await else {
         return;
     };
 

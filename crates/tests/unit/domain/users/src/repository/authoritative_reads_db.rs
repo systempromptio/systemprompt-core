@@ -9,7 +9,7 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fi
 use systemprompt_users::{BannedIpRepository, UserRepository};
 use uuid::Uuid;
 
-async fn split_pool() -> Option<DbPool> {
+async fn split_pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let live = fixture_db_pool(&url).await.ok()?;
@@ -21,7 +21,7 @@ async fn split_pool() -> Option<DbPool> {
 
 #[tokio::test]
 async fn auth_lookups_read_the_primary_but_listings_do_not() {
-    let Some(db) = split_pool().await else {
+    let Some(db) = split_pool_or_skip().await else {
         return;
     };
     let users = UserRepository::new(&db).expect("user repo");

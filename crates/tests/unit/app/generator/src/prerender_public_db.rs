@@ -173,7 +173,7 @@ fn install_config(boot: &TestBootstrap) {
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).ok();
 }
 
-async fn maybe_db() -> Option<DbPool> {
+async fn maybe_db_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -206,7 +206,7 @@ async fn clean_source(repo: &ContentRepository, source_id: &SourceId) {
 async fn prerender_excludes_non_public_rows() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db().await else { return };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     let repo = ContentRepository::new(&db).expect("content repository");
     let source_id = SourceId::new(TEST_SOURCE_ID);
@@ -265,7 +265,7 @@ async fn prerender_excludes_non_public_rows() {
 async fn prerender_removes_now_private_slug() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db().await else { return };
+    let Some(db) = maybe_db_or_skip().await else { return };
 
     let repo = ContentRepository::new(&db).expect("content repository");
     let source_id = SourceId::new(TEST_SOURCE_ID);

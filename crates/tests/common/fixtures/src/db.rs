@@ -4,6 +4,10 @@
 //! the URL exposed via `DATABASE_URL`. The caller is responsible for ensuring
 //! the database itself exists and has been migrated (the
 //! `systemprompt-test-migrate` binary handles the latter).
+//!
+//! [`fixture_database_url`] is the tier's prerequisite gate: under `CI` a
+//! missing `DATABASE_URL` panics rather than returning an error, so a run with
+//! no Postgres cannot report the same green as a run that exercised one.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,8 +17,38 @@ use systemprompt_database::{Database, DbPool, PoolConfig};
 
 pub fn fixture_database_url() -> Result<String> {
     dotenvy::dotenv().ok();
-    std::env::var("DATABASE_URL")
-        .map_err(|_| anyhow::anyhow!("DATABASE_URL must be set for DB-backed integration tests"))
+    let url = std::env::var("DATABASE_URL")
+        .ok()
+        .filter(|u| !u.trim().is_empty());
+    match url {
+        Some(url) => Ok(url),
+        None => {
+            crate::skip::skip_or_panic("DATABASE_URL", "DB-backed tests need a live Postgres");
+            Err(anyhow::anyhow!(
+                "DATABASE_URL must be set for DB-backed integration tests"
+            ))
+        },
+    }
+}
+
+pub fn fixture_database_url_opt() -> Option<String> {
+    fixture_database_url().ok()
+}
+
+// Why: the only sanctioned way for a DB-backed test to give up. The `return`
+// is unreachable under CI -- `fixture_database_url` panics first -- so the
+// early exit is a developer-machine convenience, not a hole in the tier.
+#[macro_export]
+macro_rules! db_pool_or_skip {
+    () => {{
+        let Some(url) = $crate::db::fixture_database_url_opt() else {
+            return; // skip-ok: fixture_database_url panics under CI
+        };
+        let pool = $crate::db::fixture_db_pool(&url)
+            .await
+            .expect("DATABASE_URL is set, so connecting to it must succeed");
+        (pool, url)
+    }};
 }
 
 // Connection ceiling for a single test's pool.

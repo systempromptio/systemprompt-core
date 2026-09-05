@@ -15,7 +15,7 @@ use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
 
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 struct StubJwtProvider {
     claims: Option<AgentJwtClaims>,
@@ -61,7 +61,7 @@ fn state_with_provider(
 
 #[tokio::test]
 async fn validate_agent_token_success_maps_session_user() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let state = state_with_provider(&pool, Some(claims(vec!["a2a"])));
@@ -76,7 +76,7 @@ async fn validate_agent_token_success_maps_session_user() {
 
 #[tokio::test]
 async fn validate_agent_token_wrong_audience_errors() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let state = state_with_provider(&pool, Some(claims(vec!["web"])));
@@ -88,7 +88,7 @@ async fn validate_agent_token_wrong_audience_errors() {
 
 #[tokio::test]
 async fn validate_agent_token_invalid_token_errors() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let state = state_with_provider(&pool, None);
@@ -100,7 +100,7 @@ async fn validate_agent_token_invalid_token_errors() {
 
 #[tokio::test]
 async fn validate_agent_token_no_provider_errors() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let state = AgentOAuthState::new(

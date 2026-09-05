@@ -9,14 +9,14 @@ use wiremock::MockServer;
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
 async fn can_route_traffic_true_for_running_service_with_live_mcp_endpoint() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();
@@ -59,7 +59,7 @@ async fn can_route_traffic_true_for_running_service_with_live_mcp_endpoint() {
 
 #[tokio::test]
 async fn can_route_traffic_responsive_non_mcp_port_marks_service_error() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let mock = MockServer::start().await;
     let port = mock.address().port();
 
@@ -104,7 +104,7 @@ async fn can_route_traffic_responsive_non_mcp_port_marks_service_error() {
 
 #[tokio::test]
 async fn list_routable_services_includes_service_with_responsive_port() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();

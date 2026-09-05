@@ -7306,6 +7306,7 @@ name = "systemprompt-bridge-i18n-tests"
 version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
+ "systemprompt-test-fixtures",
 ]
 
 [[package]]
@@ -7549,6 +7550,7 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-bridge",
  "systemprompt-models",
+ "systemprompt-test-fixtures",
 ]
 
 [[package]]

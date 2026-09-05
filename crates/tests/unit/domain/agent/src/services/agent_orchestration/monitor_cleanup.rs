@@ -18,7 +18,7 @@ use systemprompt_models::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())
@@ -59,7 +59,7 @@ fn dead_port() -> u16 {
 // production.
 #[tokio::test]
 async fn cleanup_reclaims_an_unresponsive_agent_and_records_the_crash() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let name = unique_name("mon_cleanup");

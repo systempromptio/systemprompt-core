@@ -10,14 +10,14 @@ use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
 use systemprompt_identifiers::{SkillId, TaskId};
 use systemprompt_models::{PlannedTool, StepStatus};
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
-async fn setup() -> Option<(
+async fn setup_or_skip() -> Option<(
     ExecutionTrackingService,
     TaskId,
     systemprompt_agent::repository::A2ARepositories,
 )> {
-    let pool = try_pool().await?;
+    let pool = try_pool_or_skip().await?;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -27,7 +27,7 @@ async fn setup() -> Option<(
 
 #[tokio::test]
 async fn track_understanding_and_completion_persist_steps() {
-    let Some((svc, task_id, r)) = setup().await else {
+    let Some((svc, task_id, r)) = setup_or_skip().await else {
         return;
     };
 
@@ -57,7 +57,7 @@ async fn track_understanding_and_completion_persist_steps() {
 
 #[tokio::test]
 async fn track_skill_usage_records_skill_step() {
-    let Some((svc, task_id, r)) = setup().await else {
+    let Some((svc, task_id, r)) = setup_or_skip().await else {
         return;
     };
 
@@ -80,7 +80,7 @@ async fn track_skill_usage_records_skill_step() {
 
 #[tokio::test]
 async fn tool_execution_lifecycle_complete_and_fail() {
-    let Some((svc, task_id, r)) = setup().await else {
+    let Some((svc, task_id, r)) = setup_or_skip().await else {
         return;
     };
 
@@ -122,7 +122,7 @@ async fn tool_execution_lifecycle_complete_and_fail() {
 
 #[tokio::test]
 async fn planning_lifecycle_completes_with_reasoning_and_tools() {
-    let Some((svc, task_id, r)) = setup().await else {
+    let Some((svc, task_id, r)) = setup_or_skip().await else {
         return;
     };
 
@@ -151,7 +151,7 @@ async fn planning_lifecycle_completes_with_reasoning_and_tools() {
 
 #[tokio::test]
 async fn fail_step_and_fail_in_progress_mark_open_steps() {
-    let Some((svc, task_id, r)) = setup().await else {
+    let Some((svc, task_id, r)) = setup_or_skip().await else {
         return;
     };
 

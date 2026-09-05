@@ -111,6 +111,7 @@ fn terminate_gracefully_is_a_no_op_for_a_process_that_is_already_gone() {
 #[tokio::test]
 async fn terminate_gracefully_verified_signals_a_child_carrying_the_service_marker() {
     let service = unique_service("mcpsig");
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_orphan(&service) else {
         return;
     };
@@ -128,6 +129,7 @@ async fn terminate_gracefully_verified_signals_a_child_carrying_the_service_mark
 #[tokio::test]
 async fn terminate_gracefully_verified_leaves_a_pid_naming_another_service_alone() {
     let service = unique_service("mcpmine");
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_orphan(&service) else {
         return;
     };

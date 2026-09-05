@@ -10,8 +10,8 @@
 //!
 //! The built-in bootstrap jobs (`database_cleanup`,
 //! `cleanup_inactive_sessions`) touch shared tables, so these tests join the
-//! serialized `scheduler-jobs-db` nextest group. Tests early-return when
-//! `DATABASE_URL` is unset.
+//! serialized `scheduler-jobs-db` nextest group. Tests skip when `DATABASE_URL`
+//! is unset locally, and fail under `CI`.
 
 use std::sync::Arc;
 
@@ -19,19 +19,7 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::{
     JobRunRecord, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
 };
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
-
-macro_rules! pool_or_skip {
-    () => {{
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(pool) = fixture_db_pool(&url).await else {
-            return;
-        };
-        (pool, url)
-    }};
-}
+use systemprompt_test_fixtures::fixture_app_context;
 
 fn config_with_bootstrap(bootstrap: Vec<String>, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
@@ -47,7 +35,7 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_returns_registered_job_count() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         // No bootstrap jobs: nothing dispatched, but the registered-job count
@@ -70,7 +58,7 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_dispatches_and_records_success() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         // `cleanup_inactive_sessions` is an inventory-registered cleanup job
@@ -118,7 +106,7 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_unknown_name_fails_loud() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         let config = config_with_bootstrap(vec!["totally_unregistered_job_xyz".to_owned()], true);
@@ -139,7 +127,7 @@ mod bootstrap_dispatch_db {
 
     #[tokio::test]
     async fn run_bootstrap_jobs_with_distributed_lock_records_run() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         // Same as the success case but with distributed_lock enabled, driving
@@ -176,7 +164,7 @@ mod dispatch_outcome_arms {
 
     #[tokio::test]
     async fn panicking_job_records_failed_status_with_panic_message() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         let repo = SchedulerRepository::new(&pool).expect("repo");
@@ -212,7 +200,7 @@ mod dispatch_outcome_arms {
 
     #[tokio::test]
     async fn failing_job_records_failed_status_with_its_message() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         let repo = SchedulerRepository::new(&pool).expect("repo");
@@ -247,7 +235,7 @@ mod dispatch_outcome_arms {
 
     #[tokio::test]
     async fn dispatch_without_scheduled_jobs_row_reports_missing_row() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         let pg = pool.write_pool_arc().expect("write pool");
@@ -286,7 +274,7 @@ mod distributed_lock_arms {
 
     #[tokio::test]
     async fn peer_held_advisory_lock_skips_the_dispatch() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         let job_name = "cleanup_empty_contexts";
@@ -344,7 +332,7 @@ mod distributed_lock_arms {
 
     #[tokio::test]
     async fn fresh_last_run_deduplicates_the_tick() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         let job_name = "cleanup_empty_contexts";
@@ -400,7 +388,7 @@ mod closed_pool_resilience {
 
     #[tokio::test]
     async fn bootstrap_survives_a_dead_database_without_lock() {
-        let (real_pool, url) = pool_or_skip!();
+        let (real_pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&real_pool, &url).expect("fixture AppContext");
         let closed = closed_db_pool().await;
 
@@ -419,7 +407,7 @@ mod closed_pool_resilience {
 
     #[tokio::test]
     async fn bootstrap_survives_a_dead_database_with_lock() {
-        let (real_pool, url) = pool_or_skip!();
+        let (real_pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&real_pool, &url).expect("fixture AppContext");
         let closed = closed_db_pool().await;
 
@@ -443,7 +431,7 @@ mod bootstrap_owner_arms {
 
     #[tokio::test]
     async fn bootstrap_job_with_unresolved_owner_is_skipped() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
 
         let job_name = "cleanup_empty_contexts";
@@ -489,7 +477,7 @@ mod bootstrap_owner_arms {
 
     #[tokio::test]
     async fn bootstrap_job_with_active_explicit_owner_runs_as_that_owner() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let app_ctx = fixture_app_context(&pool, &url).expect("fixture AppContext");
         let pg = pool.write_pool_arc().expect("write pool");
 

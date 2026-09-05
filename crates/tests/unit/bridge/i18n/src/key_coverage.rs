@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 use systemprompt_bridge::i18n::t;
+use systemprompt_test_fixtures::repo_path;
 
-fn bridge_src() -> Option<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(5)?
-        .join("bin/bridge/src");
-    dir.is_dir().then_some(dir)
+// Why: a fixed ancestor depth points at a different directory the moment a
+// crate moves, and every walk over the wrong directory finds no files and
+// passes. `repo_path` climbs to the workspace root and fails outright when the
+// sources are absent, so a run that examined nothing cannot report green.
+fn bridge_src() -> PathBuf {
+    repo_path("bin/bridge/src")
 }
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -44,9 +45,7 @@ fn referenced_keys(source: &str) -> Vec<String> {
 
 #[test]
 fn every_key_the_bridge_asks_for_exists_in_the_catalog() {
-    let Some(src) = bridge_src() else {
-        return;
-    };
+    let src = bridge_src();
     let mut files = Vec::new();
     rust_files(&src, &mut files);
     assert!(!files.is_empty(), "no bridge sources found under {src:?}");

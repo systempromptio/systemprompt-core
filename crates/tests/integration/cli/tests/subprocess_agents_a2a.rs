@@ -36,8 +36,8 @@ fn spawn_server(mocks: Vec<Mock>) -> u16 {
     rx.recv().expect("receive mock port")
 }
 
-fn home_cmd(home: &Path, args: &[&str]) -> Option<assert_cmd::Command> {
-    let mut cmd = command()?;
+fn home_cmd_or_skip(home: &Path, args: &[&str]) -> Option<assert_cmd::Command> {
+    let mut cmd = command_or_skip()?;
     cmd.env("HOME", home);
     cmd.current_dir(home);
     cmd.args(args);
@@ -68,7 +68,7 @@ fn completed_task_json() -> serde_json::Value {
 
 #[test]
 fn registry_parses_agent_cards() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let port = spawn_server_from(|| {
@@ -106,7 +106,7 @@ fn registry_parses_agent_cards() {
     });
     let url = format!("http://127.0.0.1:{port}");
     for extra in [vec![], vec!["--running"], vec!["--verbose"], vec!["--json"]] {
-        let Some(mut cmd) = command() else { return };
+        let Some(mut cmd) = command_or_skip() else { return };
         if extra.contains(&"--json") {
             cmd.arg("--json");
         }
@@ -128,7 +128,7 @@ fn registry_parses_agent_cards() {
 
 #[test]
 fn registry_error_paths() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let port = spawn_server_from(|| {
@@ -137,7 +137,7 @@ fn registry_error_paths() {
             .respond_with(ResponseTemplate::new(500).set_body_string("boom"));
         vec![mock]
     });
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else { return };
     cmd.args([
         "admin",
         "agents",
@@ -147,7 +147,7 @@ fn registry_error_paths() {
     ]);
     cmd.assert().failure();
 
-    let Some(mut unreachable) = command() else {
+    let Some(mut unreachable) = command_or_skip() else {
         return;
     };
     unreachable.args(["admin", "agents", "registry", "--url", "http://127.0.0.1:9"]);
@@ -156,7 +156,7 @@ fn registry_error_paths() {
 
 #[test]
 fn message_non_streaming_roundtrip() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let home = tempfile::tempdir().expect("home");
@@ -173,7 +173,7 @@ fn message_non_streaming_roundtrip() {
         vec![mock]
     });
     let url = format!("http://127.0.0.1:{port}");
-    let Some(mut cmd) = home_cmd(
+    let Some(mut cmd) = home_cmd_or_skip(
         home.path(),
         &[
             "admin",
@@ -185,6 +185,7 @@ fn message_non_streaming_roundtrip() {
             "--url",
             &url,
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -192,7 +193,7 @@ fn message_non_streaming_roundtrip() {
         .success()
         .stdout(predicate::str::contains("hello from fixture"));
 
-    let Some(mut blocking) = home_cmd(
+    let Some(mut blocking) = home_cmd_or_skip(
         home.path(),
         &[
             "admin",
@@ -206,6 +207,7 @@ fn message_non_streaming_roundtrip() {
             "--url",
             &url,
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -217,7 +219,7 @@ fn message_non_streaming_roundtrip() {
 
 #[test]
 fn message_error_and_missing_agent() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let home = tempfile::tempdir().expect("home");
@@ -234,7 +236,7 @@ fn message_error_and_missing_agent() {
         vec![mock]
     });
     let url = format!("http://127.0.0.1:{port}");
-    let Some(mut cmd) = home_cmd(
+    let Some(mut cmd) = home_cmd_or_skip(
         home.path(),
         &[
             "admin",
@@ -246,12 +248,13 @@ fn message_error_and_missing_agent() {
             "--url",
             &url,
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
     cmd.assert().failure();
 
-    let Some(mut missing) = home_cmd(
+    let Some(mut missing) = home_cmd_or_skip(
         home.path(),
         &["admin", "agents", "message", "no_such_agent", "-m", "hi"],
     ) else {
@@ -259,7 +262,7 @@ fn message_error_and_missing_agent() {
     };
     missing.assert().failure();
 
-    let Some(mut no_text) = home_cmd(home.path(), &["admin", "agents", "message", FIXTURE_AGENT])
+    let Some(mut no_text) = home_cmd_or_skip(home.path(), &["admin", "agents", "message", FIXTURE_AGENT])
     else {
         return;
     };
@@ -268,7 +271,7 @@ fn message_error_and_missing_agent() {
 
 #[test]
 fn message_streaming_roundtrip() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let home = tempfile::tempdir().expect("home");
@@ -328,7 +331,7 @@ fn message_streaming_roundtrip() {
             );
         vec![mock]
     });
-    let Some(mut cmd) = home_cmd(
+    let Some(mut cmd) = home_cmd_or_skip(
         home.path(),
         &[
             "admin",
@@ -341,6 +344,7 @@ fn message_streaming_roundtrip() {
             "--url",
             &format!("http://127.0.0.1:{port}"),
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -351,7 +355,7 @@ fn message_streaming_roundtrip() {
 
 #[test]
 fn task_get_roundtrip() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let home = tempfile::tempdir().expect("home");
@@ -367,7 +371,7 @@ fn task_get_roundtrip() {
             .respond_with(ResponseTemplate::new(200).set_body_json(body));
         vec![mock]
     });
-    let Some(mut cmd) = home_cmd(
+    let Some(mut cmd) = home_cmd_or_skip(
         home.path(),
         &[
             "admin",
@@ -379,6 +383,7 @@ fn task_get_roundtrip() {
             "--url",
             &format!("http://127.0.0.1:{port}"),
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -386,7 +391,7 @@ fn task_get_roundtrip() {
         .success()
         .stdout(predicate::str::contains("task-cov-1"));
 
-    let Some(mut missing_task) = home_cmd(home.path(), &["admin", "agents", "task", FIXTURE_AGENT])
+    let Some(mut missing_task) = home_cmd_or_skip(home.path(), &["admin", "agents", "task", FIXTURE_AGENT])
     else {
         return;
     };
@@ -399,12 +404,12 @@ fn tools_lists_stub_mcp_tools() {
         return;
     }
     let home = tempfile::tempdir().expect("home");
-    let Some(mut cmd) = home_cmd(home.path(), &["admin", "agents", "tools", FIXTURE_AGENT]) else {
+    let Some(mut cmd) = home_cmd_or_skip(home.path(), &["admin", "agents", "tools", FIXTURE_AGENT]) else {
         return;
     };
     cmd.assert().success();
 
-    let Some(mut detailed) = home_cmd(
+    let Some(mut detailed) = home_cmd_or_skip(
         home.path(),
         &[
             "--json",
@@ -414,6 +419,7 @@ fn tools_lists_stub_mcp_tools() {
             FIXTURE_AGENT,
             "--detailed",
         ],
+    // skip-ok: the systemprompt binary is not built in this checkout
     ) else {
         return;
     };
@@ -422,7 +428,7 @@ fn tools_lists_stub_mcp_tools() {
         .success()
         .stdout(predicate::str::contains("echo"));
 
-    let Some(mut missing) = home_cmd(home.path(), &["admin", "agents", "tools", "nope"]) else {
+    let Some(mut missing) = home_cmd_or_skip(home.path(), &["admin", "agents", "tools", "nope"]) else {
         return;
     };
     missing.assert().failure();
@@ -430,10 +436,10 @@ fn tools_lists_stub_mcp_tools() {
 
 #[test]
 fn edit_apply_covers_field_groups() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
-    let Some(mut edit) = command() else { return };
+    let Some(mut edit) = command_or_skip() else { return };
     edit.args([
         "admin",
         "agents",
@@ -474,7 +480,7 @@ fn edit_apply_covers_field_groups() {
     ]);
     edit.assert().success();
 
-    let Some(mut edit2) = command() else { return };
+    let Some(mut edit2) = command_or_skip() else { return };
     edit2.args([
         "admin",
         "agents",
@@ -490,11 +496,11 @@ fn edit_apply_covers_field_groups() {
     ]);
     edit2.assert().success();
 
-    let Some(mut edit3) = command() else { return };
+    let Some(mut edit3) = command_or_skip() else { return };
     edit3.args(["admin", "agents", "edit", FIXTURE_EDIT_AGENT, "--enable"]);
     edit3.assert().success();
 
-    let Some(mut bad_set) = command() else { return };
+    let Some(mut bad_set) = command_or_skip() else { return };
     bad_set.args([
         "admin",
         "agents",
@@ -505,11 +511,11 @@ fn edit_apply_covers_field_groups() {
     ]);
     bad_set.assert().failure();
 
-    let Some(mut delete) = command() else { return };
+    let Some(mut delete) = command_or_skip() else { return };
     delete.args(["admin", "agents", "delete", FIXTURE_EDIT_AGENT, "--yes"]);
     delete.assert().success();
 
-    let Some(mut delete_missing) = command() else {
+    let Some(mut delete_missing) = command_or_skip() else {
         return;
     };
     delete_missing.args(["admin", "agents", "delete", FIXTURE_EDIT_AGENT, "--yes"]);
@@ -518,10 +524,10 @@ fn edit_apply_covers_field_groups() {
 
 #[test]
 fn delete_all_and_validate() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
-    let Some(mut create) = command() else { return };
+    let Some(mut create) = command_or_skip() else { return };
     create.args([
         "admin",
         "agents",
@@ -537,7 +543,7 @@ fn delete_all_and_validate() {
     ]);
     create.assert().success();
 
-    let Some(mut dup) = command() else { return };
+    let Some(mut dup) = command_or_skip() else { return };
     dup.args([
         "admin",
         "agents",
@@ -548,13 +554,13 @@ fn delete_all_and_validate() {
         "4782",
     ]);
     dup.assert().failure();
-    let Some(mut validate) = command() else {
+    let Some(mut validate) = command_or_skip() else {
         return;
     };
     validate.args(["admin", "agents", "validate"]);
     let _ = validate.assert();
 
-    let Some(mut delete) = command() else { return };
+    let Some(mut delete) = command_or_skip() else { return };
     delete.args([
         "admin",
         "agents",

@@ -18,7 +18,7 @@ fn pool_config() -> PoolConfig {
     }
 }
 
-async fn database() -> Option<Database> {
+async fn database_or_skip() -> Option<Database> {
     let url = fixture_database_url().ok()?;
     Database::from_config("postgres", &url).await.ok()
 }
@@ -55,7 +55,7 @@ async fn from_config_with_write_builds_distinct_write_provider() {
 
 #[tokio::test]
 async fn debug_and_info_report_postgres_backend() {
-    let Some(db) = database().await else {
+    let Some(db) = database_or_skip().await else {
         return;
     };
     assert!(format!("{db:?}").contains("PostgreSQL"));
@@ -66,7 +66,7 @@ async fn debug_and_info_report_postgres_backend() {
 
 #[tokio::test]
 async fn provider_impl_delegates_reads_and_writes() {
-    let Some(db) = database().await else {
+    let Some(db) = database_or_skip().await else {
         return;
     };
     let table = unique_table();
@@ -142,7 +142,7 @@ async fn provider_impl_delegates_reads_and_writes() {
 
 #[tokio::test]
 async fn validation_helpers_detect_tables_and_columns() {
-    let Some(db) = database().await else {
+    let Some(db) = database_or_skip().await else {
         return;
     };
 

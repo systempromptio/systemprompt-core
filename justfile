@@ -134,6 +134,10 @@ lint-extensions:
 lint-comments:
     ./scripts/lint-inline-comments.sh
 
+# Reject tests that return early on a missing prerequisite without saying so
+lint-silent-skips:
+    ./scripts/lint-silent-skips.sh crates/tests
+
 # Reject inline `#[cfg(test)] mod tests` — tests belong in crates/tests/.
 # Covers bin/bridge, which no root `--workspace` invocation reaches.
 lint-inline-tests:

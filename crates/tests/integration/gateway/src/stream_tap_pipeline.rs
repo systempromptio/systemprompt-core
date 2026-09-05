@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
+use systemprompt_test_fixtures as fixtures;
 use futures::stream;
 use systemprompt_api::services::gateway::policy::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
 use systemprompt_api::services::gateway::protocol::canonical_response::{
@@ -35,19 +36,12 @@ fn gateway_repos(
 }
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {
-    CanonicalUsage {
-        input_tokens: input,
-        output_tokens: output,
-        cache_read_tokens: 0,
-        cache_creation_tokens: 0,
-        reasoning_tokens: 0,
-        total_tokens: input + output,
-    }
+    fixtures::usage().input(input).output(output).build()
 }
 
-/// The shape an Anthropic `message_delta` actually takes: it reports the
-/// output count and says nothing about the input, which `message_start`
-/// already established.
+// Why: the shape an Anthropic `message_delta` actually takes -- it reports the
+// output count and says nothing about the input, which `message_start` already
+// established.
 fn output_only_usage(output: u32) -> CanonicalUsageUpdate {
     CanonicalUsageUpdate {
         output_tokens: Some(output),

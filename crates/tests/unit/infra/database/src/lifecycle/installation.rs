@@ -9,7 +9,7 @@ use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, SchemaDefinition, Seed,
 };
 
-use crate::services::db_helper::pool;
+use crate::services::db_helper::pool_or_skip;
 
 fn leak(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -49,8 +49,8 @@ fn registry_with(ext: StubExtension) -> ExtensionRegistry {
     registry
 }
 
-async fn provider_and_db() -> Option<(PostgresProvider, DbPool)> {
-    let db = pool().await?;
+async fn provider_and_db_or_skip() -> Option<(PostgresProvider, DbPool)> {
+    let db = pool_or_skip().await?;
     let pg = db.write_pool_arc().ok()?;
     Some((PostgresProvider::from_pool(pg), db))
 }
@@ -75,7 +75,7 @@ async fn table_exists(db: &DbPool, table: &str) -> bool {
 
 #[tokio::test]
 async fn install_creates_schema_index_and_applies_seed_idempotently() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_ok");
@@ -117,7 +117,7 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
 
 #[tokio::test]
 async fn install_skips_disabled_extensions() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_disabled");
@@ -140,7 +140,7 @@ async fn install_skips_disabled_extensions() {
 
 #[tokio::test]
 async fn install_rejects_seed_with_delete_statement() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_seed_delete");
@@ -168,7 +168,7 @@ async fn install_rejects_seed_with_delete_statement() {
 
 #[tokio::test]
 async fn install_rejects_non_idempotent_insert_seed() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_seed_plain");
@@ -194,7 +194,7 @@ async fn install_rejects_non_idempotent_insert_seed() {
 
 #[tokio::test]
 async fn install_fails_when_required_column_is_missing() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_missing_col");
@@ -221,7 +221,7 @@ async fn install_fails_when_required_column_is_missing() {
 
 #[tokio::test]
 async fn install_rejects_duplicate_table_ownership() {
-    let Some((provider, _db)) = provider_and_db().await else {
+    let Some((provider, _db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_shared");
@@ -245,7 +245,7 @@ async fn install_rejects_duplicate_table_ownership() {
 
 #[tokio::test]
 async fn install_rejects_imperative_sql_in_declarative_schema() {
-    let Some((provider, _db)) = provider_and_db().await else {
+    let Some((provider, _db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_imperative");
@@ -269,7 +269,7 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
 }
 
 async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
-    let (provider, _db) = provider_and_db().await.expect("db required");
+    let (provider, _db) = provider_and_db_or_skip().await.expect("db required");
     let table = unique_id("install_seed_kind");
     let ext = StubExtension {
         id: unique_id("ext_seed_kind"),
@@ -286,7 +286,7 @@ async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
 
 #[tokio::test]
 async fn install_rejects_seed_statements_by_classified_kind() {
-    if provider_and_db().await.is_none() {
+    if provider_and_db_or_skip().await.is_none() {
         return;
     }
     let cases: [(&'static str, &'static str); 7] = [
@@ -311,7 +311,7 @@ async fn install_rejects_seed_statements_by_classified_kind() {
 
 #[tokio::test]
 async fn install_rejects_seed_with_unclassified_statement_as_other() {
-    if provider_and_db().await.is_none() {
+    if provider_and_db_or_skip().await.is_none() {
         return;
     }
     let err = seed_rejection("SET search_path TO public;").await;
@@ -322,7 +322,7 @@ async fn install_rejects_seed_with_unclassified_statement_as_other() {
 
 #[tokio::test]
 async fn install_rejects_unparseable_seed_sql() {
-    if provider_and_db().await.is_none() {
+    if provider_and_db_or_skip().await.is_none() {
         return;
     }
     let err = seed_rejection("THIS IS NOT SQL AT ALL").await;
@@ -336,7 +336,7 @@ async fn install_rejects_unparseable_seed_sql() {
 
 #[tokio::test]
 async fn install_surfaces_seed_execution_failure_and_rolls_back() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_seed_exec_fail");
@@ -380,7 +380,7 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
 
 #[tokio::test]
 async fn install_applies_update_and_multi_statement_seed() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("install_seed_update");
@@ -417,7 +417,7 @@ async fn install_applies_update_and_multi_statement_seed() {
 
 #[tokio::test]
 async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("dep_rollback");
@@ -465,7 +465,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
 
 #[tokio::test]
 async fn an_extension_declaring_no_schema_installs_cleanly() {
-    let Some((provider, _db)) = provider_and_db().await else {
+    let Some((provider, _db)) = provider_and_db_or_skip().await else {
         return;
     };
     let registry = registry_with(StubExtension {
@@ -481,7 +481,7 @@ async fn an_extension_declaring_no_schema_installs_cleanly() {
 
 #[tokio::test]
 async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("unparseable");
@@ -729,7 +729,7 @@ mod transaction_failures {
 
 #[tokio::test]
 async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("unclassified");
@@ -769,7 +769,7 @@ async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance(
 
 #[tokio::test]
 async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("safe_drop");
@@ -818,7 +818,7 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
 
 #[tokio::test]
 async fn an_unguarded_drop_is_rejected_as_imperative() {
-    let Some((provider, db)) = provider_and_db().await else {
+    let Some((provider, db)) = provider_and_db_or_skip().await else {
         return;
     };
     let table = unique_id("unguarded_drop");

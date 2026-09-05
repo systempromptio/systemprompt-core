@@ -84,7 +84,7 @@ struct Ctx {
     email: String,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -105,7 +105,7 @@ async fn setup() -> Option<Ctx> {
 
 #[tokio::test]
 async fn start_registration_with_no_existing_credentials_succeeds() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     // No credentials are stored for this email, so the exclude-credentials
     // lookup (get_user_credentials_by_email) must resolve to an empty set and
     // the ceremony still starts.
@@ -120,7 +120,7 @@ async fn start_registration_with_no_existing_credentials_succeeds() {
 
 #[tokio::test]
 async fn start_registration_unknown_email_treats_credentials_as_empty() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     // get_user_credentials_by_email on an email with no matching user must
     // short-circuit to an empty Vec rather than erroring.
     let unknown = format!("nobody-{}@waflow.invalid", Uuid::new_v4().simple());
@@ -134,7 +134,7 @@ async fn start_registration_unknown_email_treats_credentials_as_empty() {
 
 #[tokio::test]
 async fn start_authentication_unknown_user_errors() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let err = ctx
         .service
         .start_authentication("absent@waflow.invalid", None)
@@ -148,7 +148,7 @@ async fn start_authentication_unknown_user_errors() {
 
 #[tokio::test]
 async fn start_authentication_user_without_credentials_errors() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     // The user exists (seeded) but has no webauthn credentials, exercising the
     // get_user_credentials empty path and the "No credentials found" branch.
     let err = ctx
@@ -164,7 +164,7 @@ async fn start_authentication_user_without_credentials_errors() {
 
 #[tokio::test]
 async fn verified_authentication_roundtrip_consumes_once() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let token = format!("vtok-{}", Uuid::new_v4().simple());
     ctx.service
         .store_verified_authentication(token.clone(), ctx.user_id.clone())
@@ -191,7 +191,7 @@ async fn verified_authentication_roundtrip_consumes_once() {
 
 #[tokio::test]
 async fn consume_verified_authentication_unknown_token_errors() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let err = ctx
         .service
         .consume_verified_authentication("never-stored")
@@ -205,7 +205,7 @@ async fn consume_verified_authentication_unknown_token_errors() {
 
 #[tokio::test]
 async fn service_debug_redacts_runtime_state() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     let debug = format!("{:?}", ctx.service);
     assert!(debug.contains("WebAuthnService"));
     assert!(debug.contains("localhost"));
@@ -217,7 +217,7 @@ async fn service_debug_redacts_runtime_state() {
 
 #[tokio::test]
 async fn cleanup_expired_states_is_idempotent_when_empty() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else { return };
     ctx.service
         .cleanup_expired_states()
         .await

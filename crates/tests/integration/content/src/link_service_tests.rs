@@ -8,14 +8,14 @@ use systemprompt_content::services::link::{GenerateLinkParams, LinkGenerationSer
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CampaignId;
 
-async fn try_db() -> Option<DbPool> {
+async fn try_db_or_skip() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
     systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
 async fn generate_link_with_minimal_params_creates_row() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
@@ -40,7 +40,7 @@ async fn generate_link_with_minimal_params_creates_row() {
 
 #[tokio::test]
 async fn generate_link_with_utm_persists_utm_json() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
@@ -77,7 +77,7 @@ async fn generate_link_with_utm_persists_utm_json() {
 
 #[tokio::test]
 async fn generate_social_media_link_round_trips_through_get_by_short_code() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
@@ -98,7 +98,7 @@ async fn generate_social_media_link_round_trips_through_get_by_short_code() {
 
 #[tokio::test]
 async fn delete_link_via_service_removes_row() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
