@@ -8,8 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
-use systemprompt_database::MigrationService;
 use systemprompt_database::services::DatabaseProvider;
+use systemprompt_database::{ExtensionMigrationStatus, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
@@ -69,6 +69,52 @@ async fn run_migrate_status(
     Ok(())
 }
 
+// Why: one label per applied slot, most specific first. A tracked tombstone is
+// a spent slot, a collision is a reused one, an orphan has no file on disk,
+// drift is an edited file; "applied" only when none of those hold.
+fn status_label(status: &ExtensionMigrationStatus, version: u32) -> &'static str {
+    if status.tombstoned.iter().any(|t| t.version == version) {
+        "tombstone"
+    } else if status.slot_collisions.iter().any(|c| c.version == version) {
+        "collision"
+    } else if status.orphaned.iter().any(|o| o.version == version) {
+        "orphaned"
+    } else if status.drift.iter().any(|d| d.version == version) {
+        "drift"
+    } else {
+        "applied"
+    }
+}
+
+fn rows_for(status: &ExtensionMigrationStatus) -> Vec<MigrateStatusRow> {
+    let row =
+        |version: u32, name: &str, label: &str, applied_at: Option<String>| MigrateStatusRow {
+            extension_id: status.extension_id.clone(),
+            version,
+            name: name.to_owned(),
+            status: label.to_owned(),
+            applied_at,
+        };
+    let applied = status.applied.iter().map(|a| {
+        row(
+            a.version,
+            &a.name,
+            status_label(status, a.version),
+            a.applied_at.clone(),
+        )
+    });
+    let untracked_tombstones = status
+        .tombstoned
+        .iter()
+        .filter(|t| !t.tracked)
+        .map(|t| row(t.version, &t.name, "tombstone", None));
+    let pending = status
+        .pending
+        .iter()
+        .map(|p| row(p.version, &p.name, "pending", None));
+    applied.chain(untracked_tombstones).chain(pending).collect()
+}
+
 async fn collect_status(
     extensions: &[std::sync::Arc<dyn systemprompt_extension::Extension>],
     migration_service: &MigrationService<'_>,
@@ -85,75 +131,28 @@ async fn collect_status(
             .status(ext.as_ref())
             .await
             .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
-
-        let drift_versions: std::collections::HashSet<u32> =
-            status.drift.iter().map(|d| d.version).collect();
-        let collision_versions: std::collections::HashSet<u32> =
-            status.slot_collisions.iter().map(|c| c.version).collect();
-        let orphan_versions: std::collections::HashSet<u32> =
-            status.orphaned.iter().map(|o| o.version).collect();
-        let tombstone_versions: std::collections::HashSet<u32> =
-            status.tombstoned.iter().map(|t| t.version).collect();
-
-        for a in &status.applied {
-            let label = if tombstone_versions.contains(&a.version) {
-                "tombstone"
-            } else if collision_versions.contains(&a.version) {
-                "collision"
-            } else if orphan_versions.contains(&a.version) {
-                "orphaned"
-            } else if drift_versions.contains(&a.version) {
-                "drift"
-            } else {
-                "applied"
-            };
-            rows.push(MigrateStatusRow {
-                extension_id: status.extension_id.clone(),
-                version: a.version,
-                name: a.name.clone(),
-                status: label.to_owned(),
-                applied_at: a.applied_at.clone(),
-            });
-        }
-        for t in status.tombstoned.iter().filter(|t| !t.tracked) {
-            rows.push(MigrateStatusRow {
-                extension_id: status.extension_id.clone(),
-                version: t.version,
-                name: t.name.clone(),
-                status: "tombstone".to_owned(),
-                applied_at: None,
-            });
-        }
-        for p in &status.pending {
-            rows.push(MigrateStatusRow {
-                extension_id: status.extension_id.clone(),
-                version: p.version,
-                name: p.name.clone(),
-                status: "pending".to_owned(),
-                applied_at: None,
-            });
-        }
-        for c in status.slot_collisions {
-            collision_rows.push(MigrationCollisionInfo {
-                extension_id: c.extension_id,
-                version: c.version,
-                stored_name: c.stored_name,
-                current_name: c.current_name,
-            });
-        }
-        for d in status.drift {
-            drift_rows.push(MigrationDriftInfo {
-                extension_id: d.extension_id,
-                version: d.version,
-                name: d.name,
-                stored_checksum: d.stored_checksum,
-                current_checksum: d.current_checksum,
-            });
-        }
-
+        rows.extend(rows_for(&status));
         total_applied += status.applied.len();
         total_pending += status.pending.len();
         total_orphaned += status.orphaned.len();
+        collision_rows.extend(
+            status
+                .slot_collisions
+                .into_iter()
+                .map(|c| MigrationCollisionInfo {
+                    extension_id: c.extension_id,
+                    version: c.version,
+                    stored_name: c.stored_name,
+                    current_name: c.current_name,
+                }),
+        );
+        drift_rows.extend(status.drift.into_iter().map(|d| MigrationDriftInfo {
+            extension_id: d.extension_id,
+            version: d.version,
+            name: d.name,
+            stored_checksum: d.stored_checksum,
+            current_checksum: d.current_checksum,
+        }));
     }
 
     rows.sort_by(|a, b| {
