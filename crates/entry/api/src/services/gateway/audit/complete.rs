@@ -74,6 +74,7 @@ impl GatewayAudit {
                 cache_hit: usage.cache_read_tokens > 0,
                 cache_read_tokens: usage.cache_read_tokens as i32,
                 cache_creation_tokens: usage.cache_creation_tokens as i32,
+                reasoning_tokens: usage.reasoning_tokens as i32,
             })
             .await?;
 

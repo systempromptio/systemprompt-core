@@ -35,6 +35,10 @@ pub struct AuditOutput {
     pub output_tokens: i32,
     pub cache_read_tokens: i32,
     pub cache_creation_tokens: i32,
+    // Why: defaulted so an audit card deserialised from an older payload --
+    // fixtures and stored output predating the column -- still loads.
+    #[serde(default)]
+    pub reasoning_tokens: i32,
     pub cost_dollars: f64,
     pub latency_ms: i64,
     pub task_id: Option<TaskId>,
@@ -82,6 +86,7 @@ async fn execute_with_pool_inner(
         input_tokens: row.input_tokens.unwrap_or(0),
         output_tokens: row.output_tokens.unwrap_or(0),
         cache_read_tokens: row.cache_read_tokens.unwrap_or(0),
+        reasoning_tokens: row.reasoning_tokens.unwrap_or(0),
         cache_creation_tokens: row.cache_creation_tokens.unwrap_or(0),
         cost_dollars: row.cost_microdollars as f64 / 1_000_000.0,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),

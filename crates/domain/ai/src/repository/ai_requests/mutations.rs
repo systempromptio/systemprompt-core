@@ -23,6 +23,7 @@ pub struct UpdateCompletionParams {
     pub cache_hit: bool,
     pub cache_read_tokens: i32,
     pub cache_creation_tokens: i32,
+    pub reasoning_tokens: i32,
 }
 
 impl AiRequestRepository {
@@ -38,9 +39,10 @@ impl AiRequestRepository {
             SET tokens_used = $1, input_tokens = $2, output_tokens = $3,
                 cost_microdollars = $4, latency_ms = $5,
                 cache_hit = $6, cache_read_tokens = $7, cache_creation_tokens = $8,
-                status = $9,
+                reasoning_tokens = $9,
+                status = $10,
                 completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $10
+            WHERE id = $11
             RETURNING id as "id!: AiRequestId",
                       request_id as "request_id!: AiRequestId",
                       user_id as "user_id!: UserId",
@@ -52,7 +54,8 @@ impl AiRequestRepository {
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
-                      cache_read_tokens, cache_creation_tokens, is_streaming, status,
+                      cache_read_tokens, cache_creation_tokens, reasoning_tokens,
+                      is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
             params.tokens_used,
@@ -63,6 +66,7 @@ impl AiRequestRepository {
             params.cache_hit,
             params.cache_read_tokens,
             params.cache_creation_tokens,
+            params.reasoning_tokens,
             RequestStatus::Completed.as_str(),
             params.id.as_str()
         )

@@ -135,6 +135,7 @@ async fn update_completion_sets_tokens_and_status() {
             cache_hit: true,
             cache_read_tokens: 128,
             cache_creation_tokens: 0,
+            reasoning_tokens: 40,
         })
         .await
         .expect("update");
@@ -147,6 +148,11 @@ async fn update_completion_sets_tokens_and_status() {
     assert_eq!(updated.latency_ms, Some(750));
     assert!(updated.cache_hit);
     assert_eq!(updated.cache_read_tokens, Some(128));
+    assert_eq!(
+        updated.reasoning_tokens,
+        Some(40),
+        "the thinking share of output_tokens is persisted, not dropped"
+    );
     assert!(updated.completed_at.is_some());
 }
 

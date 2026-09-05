@@ -70,10 +70,20 @@ async fn execute_with_pool_inner(
             // Why: prompt-cached clients (Claude Code always) carry ~40k+
             // tokens per turn in the cache columns; hiding them made the
             // tokens and cost columns look mutually impossible.
-            let tokens = if cached > 0 {
-                format!("{input}+{cached}c/{output}")
+            // Why: reasoning tokens are inside `output`, so they are rendered
+            // as a share of it (`6r` of `200`) rather than a separate term --
+            // a turn that spent its whole budget thinking otherwise reads as
+            // near-free output next to a cost nothing explains.
+            let reasoning = r.reasoning_tokens.unwrap_or(0);
+            let out = if reasoning > 0 {
+                format!("{output}({reasoning}r)")
             } else {
-                format!("{input}/{output}")
+                output.to_string()
+            };
+            let tokens = if cached > 0 {
+                format!("{input}+{cached}c/{out}")
+            } else {
+                format!("{input}/{out}")
             };
             let cost_dollars = r.cost_microdollars as f64 / 1_000_000.0;
 

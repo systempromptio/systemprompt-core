@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     cache_hit BOOLEAN NOT NULL DEFAULT FALSE,
     cache_read_tokens INTEGER,
     cache_creation_tokens INTEGER,
+    reasoning_tokens INTEGER,
     is_streaming BOOLEAN NOT NULL DEFAULT FALSE,
     status VARCHAR(255) NOT NULL DEFAULT 'pending',
     error_message TEXT,

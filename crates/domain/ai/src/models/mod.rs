@@ -57,6 +57,7 @@ pub struct AiRequest {
     pub cache_hit: bool,
     pub cache_read_tokens: Option<i32>,
     pub cache_creation_tokens: Option<i32>,
+    pub reasoning_tokens: Option<i32>,
     pub is_streaming: bool,
     pub status: String,
     pub error_message: Option<String>,
