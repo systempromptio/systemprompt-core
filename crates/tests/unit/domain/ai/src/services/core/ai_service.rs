@@ -279,6 +279,7 @@ struct StreamAudit {
     is_streaming: bool,
     cost_microdollars: i64,
     content_len: i32,
+    reasoning_tokens: Option<i32>,
 }
 
 // The stream wrapper persists via tokio::spawn after the stream ends, so the
@@ -289,7 +290,7 @@ async fn wait_for_streamed_row(pool: &DbPool, user_id: &UserId) -> StreamAudit {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         let row = sqlx::query!(
-            r#"SELECT status as "status!", input_tokens, output_tokens,
+            r#"SELECT status as "status!", input_tokens, output_tokens, reasoning_tokens,
                is_streaming as "is_streaming!", cost_microdollars as "cost_microdollars!",
                LENGTH(COALESCE(m.content, '')) as "content_len!"
                FROM ai_requests r
@@ -311,6 +312,7 @@ async fn wait_for_streamed_row(pool: &DbPool, user_id: &UserId) -> StreamAudit {
                 is_streaming: row.is_streaming,
                 cost_microdollars: row.cost_microdollars,
                 content_len: row.content_len,
+                reasoning_tokens: row.reasoning_tokens,
             };
         }
         assert!(
@@ -353,6 +355,9 @@ async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
     assert!(audit.is_streaming);
     assert_eq!(audit.input_tokens, Some(3));
     assert_eq!(audit.output_tokens, Some(5));
+    // Anthropic reports no separate thinking count, so the column is selected
+    // to prove the streamed INSERT carries it, and is legitimately NULL here.
+    assert_eq!(audit.reasoning_tokens, None);
     assert!(
         audit.cost_microdollars > 0,
         "priced model must accrue cost, got {}",

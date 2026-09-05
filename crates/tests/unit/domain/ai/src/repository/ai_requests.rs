@@ -157,6 +157,33 @@ async fn update_completion_sets_tokens_and_status() {
 }
 
 #[tokio::test]
+async fn insert_persists_the_reasoning_share_of_output_tokens() {
+    let Some((repo, pool)) = repo().await else {
+        return;
+    };
+    let uid = user();
+    let email = format!("{}@ai.invalid", uid.as_str());
+    systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
+        .await
+        .expect("seed");
+    let mut record = completed_record(&uid);
+    record.tokens.reasoning_tokens = Some(40);
+    let id = repo.insert(&record).await.expect("insert");
+
+    let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
+    assert_eq!(
+        fetched.reasoning_tokens,
+        Some(40),
+        "the INSERT must write reasoning_tokens, not leave it NULL"
+    );
+    assert_eq!(
+        fetched.tokens_used,
+        Some(150),
+        "reasoning is already inside output_tokens and must not be summed again"
+    );
+}
+
+#[tokio::test]
 async fn update_error_sets_failed_status_and_message() {
     let Some((repo, pool)) = repo().await else {
         return;

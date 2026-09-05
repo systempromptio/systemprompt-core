@@ -20,6 +20,7 @@ mod token_info_tests {
         assert!(info.tokens_used.is_none());
         assert!(info.input_tokens.is_none());
         assert!(info.output_tokens.is_none());
+        assert!(info.reasoning_tokens.is_none());
     }
 
     #[test]
@@ -28,7 +29,9 @@ mod token_info_tests {
             tokens_used: Some(1500),
             input_tokens: Some(1000),
             output_tokens: Some(500),
+            reasoning_tokens: Some(120),
         };
+        assert_eq!(info.reasoning_tokens, Some(120));
         assert_eq!(info.tokens_used, Some(1500));
         assert_eq!(info.input_tokens, Some(1000));
         assert_eq!(info.output_tokens, Some(500));

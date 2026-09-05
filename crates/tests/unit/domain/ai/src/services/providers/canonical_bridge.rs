@@ -172,6 +172,50 @@ fn to_ai_response_maps_tokens_and_cache() {
     assert_eq!(ai.cache_read_tokens, Some(4));
     assert_eq!(ai.cache_creation_tokens, None);
     assert_eq!(ai.finish_reason.as_deref(), Some("stop"));
+    assert_eq!(ai.reasoning_tokens, None);
+}
+
+#[test]
+fn to_ai_response_carries_reasoning_without_adding_it_to_tokens_used() {
+    let usage = CanonicalUsage {
+        input_tokens: 20,
+        output_tokens: 106,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
+        reasoning_tokens: 100,
+        total_tokens: 126,
+    };
+    let ai = to_ai_response(
+        "openai",
+        "o4-mini",
+        Uuid::nil(),
+        Instant::now(),
+        &response_with(usage),
+    );
+    assert_eq!(ai.reasoning_tokens, Some(100));
+    assert_eq!(ai.output_tokens, Some(106));
+    assert_eq!(ai.tokens_used, Some(126));
+}
+
+#[test]
+fn to_ai_response_folds_reasoning_a_provider_reported_additionally() {
+    let usage = CanonicalUsage {
+        input_tokens: 20,
+        output_tokens: 40,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
+        reasoning_tokens: 100,
+        total_tokens: 0,
+    };
+    let ai = to_ai_response(
+        "cerebras",
+        "gpt-oss-120b",
+        Uuid::nil(),
+        Instant::now(),
+        &response_with(usage),
+    );
+    assert_eq!(ai.output_tokens, Some(140));
+    assert_eq!(ai.tokens_used, Some(160));
 }
 
 #[test]
@@ -362,6 +406,7 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
             tokens_used,
             cache_read_tokens,
             cache_creation_tokens,
+            reasoning_tokens,
             finish_reason,
         }) => {
             assert_eq!(input_tokens, Some(12));
@@ -370,6 +415,7 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
             assert_eq!(tokens_used, Some(23));
             assert_eq!(cache_read_tokens, Some(3));
             assert_eq!(cache_creation_tokens, None);
+            assert_eq!(reasoning_tokens, None);
             assert!(finish_reason.is_none());
         },
         other => panic!("expected Usage chunk, got {other:?}"),

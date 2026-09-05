@@ -29,6 +29,7 @@ mod token_usage_tests {
             cache_hit: true,
             cache_read_tokens: Some(200),
             cache_creation_tokens: Some(50),
+            reasoning_tokens: None,
         };
 
         assert_eq!(usage.tokens_used, Some(1500));
@@ -109,6 +110,7 @@ mod build_response_tests {
                 cache_hit: true,
                 cache_read_tokens: Some(100),
                 cache_creation_tokens: Some(50),
+                reasoning_tokens: None,
             },
             start,
         };
@@ -247,6 +249,7 @@ mod build_response_tests {
                 cache_hit: false,
                 cache_read_tokens: None,
                 cache_creation_tokens: None,
+                reasoning_tokens: None,
                 ..TokenUsage::default()
             },
             start: Instant::now(),
