@@ -9,6 +9,15 @@
 //! and finally validates the merged configuration — provider registry and
 //! gateway references included — before returning it to the caller.
 //!
+//! A provider whose `api_key_secret` does not resolve is demoted to
+//! `surface: backend` before validation, so its models stop being advertised
+//! rather than being offered in every client's picker and failing on first use.
+//! It is not a boot failure: an instance serving one provider must still start
+//! when an unrelated credential is absent. An uninitialised secret store means
+//! "unknown", never "absent" — several entry points load services with no
+//! secrets at all, and demoting there would empty the catalog. That also keeps
+//! the memoisation below benign: the worst case is the old behaviour.
+//!
 //! [`ConfigLoader::load`] — the active-profile entry point — memoises its
 //! result for the lifetime of the process. The explicit
 //! [`ConfigLoader::load_from_path`] and [`ConfigLoader::validate_file`] forms
@@ -258,22 +267,6 @@ fn cache_store(key: PathBuf, config: &ServicesConfig) {
         .insert(key, config.clone());
 }
 
-// Why: a provider whose `api_key_secret` does not resolve cannot dispatch, and
-// until now nothing downstream noticed. Its models stayed in `/v1/models` and
-// in every client's model picker, then failed on first use with a 502 naming a
-// secret the developer has never heard of. `Backend` is the existing
-// "servable but never advertised" surface, so demoting to it turns an
-// undispatchable model into an absent one, which is the honest answer.
-//
-// Deliberately not a boot failure: an instance serving Anthropic must still
-// start when an unrelated provider's credential is missing.
-//
-// An uninitialised secret store means "unknown", never "absent". Several entry
-// points load services with no secrets at all, and demoting there would empty
-// the catalog for reasons that have nothing to do with configuration — so the
-// unknown case leaves every surface alone. That also keeps the failure mode of
-// the surrounding config cache benign: the worst case is advertising a model
-// that cannot dispatch, which is exactly today's behaviour.
 fn demote_providers_without_credentials(config: &mut ServicesConfig) {
     let Ok(secrets) = systemprompt_config::SecretsBootstrap::get() else {
         return;
@@ -286,10 +279,9 @@ fn demote_providers_without_credentials(config: &mut ServicesConfig) {
         if secrets.get(provider.api_key_secret.as_str()).is_some() {
             continue;
         }
-        // Why: the secret's *name* is deliberately not logged. The logging
-        // layer redacts any field called `secret`, so it rendered as
-        // `[REDACTED]` and told the reader nothing. The provider name is the
-        // actionable half, and `cloud doctor` names the secret in full.
+        // Why: the logging layer redacts any field named `secret`, so naming
+        // the missing one here rendered as `[REDACTED]`. `cloud doctor` names
+        // it in full.
         tracing::warn!(
             provider = %provider.name.as_str(),
             "provider has no credential in the secret store; its models will not be advertised"

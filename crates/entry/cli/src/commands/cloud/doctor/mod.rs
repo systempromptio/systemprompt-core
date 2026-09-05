@@ -71,13 +71,11 @@ impl DoctorReport {
 }
 
 // Why: a cloud profile's `paths.config()` is the container's `/app/services`
-// tree, which does not exist on the machine running `cloud doctor`. That made
-// the provider-credential check — the one that would have named a missing
-// Vertex credential before a deploy — degrade to a warning and report green,
-// so two undeployable providers shipped. The catalog ships from the repo's
-// services tree, so when the profile's own path is absent, check the local one
-// rather than giving up. Falling back to the declared path keeps the warning
-// (naming the path the profile asked for) when neither exists.
+// tree, absent on the machine running `cloud doctor`, so the provider-credential
+// check degraded to a warning and reported green while two undeployable
+// providers shipped. The catalog also ships from the repo's services tree, so
+// fall back to that before giving up; returning the declared path when neither
+// exists keeps the warning naming what the profile asked for.
 fn resolve_services_config(profile: &Profile) -> PathBuf {
     let declared = PathBuf::from(profile.paths.config());
     if declared.exists() {

@@ -26,10 +26,8 @@ use systemprompt_models::services::ProviderEntry;
 
 use super::DispatchError;
 
-/// Resolve the credential to present for `provider`.
-///
-/// Returns an owned value because a minted token is short-lived and cannot
-/// borrow from the process-wide secret store the way a static key does.
+// Why: returns an owned value because a minted token is short-lived and cannot
+// borrow from the process-wide secret store the way a static key does.
 pub(super) async fn resolve(provider: &ProviderEntry) -> Result<String, DispatchError> {
     let secrets = systemprompt_config::SecretsBootstrap::get()
         .map_err(|e| DispatchError::PreAudit(anyhow!("Secrets not available: {e}")))?;

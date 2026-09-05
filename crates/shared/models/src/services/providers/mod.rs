@@ -107,15 +107,12 @@ impl ProviderEntry {
         self.models.iter().find(|m| m.matches(requested))
     }
 
-    /// The model name to send upstream for `requested`.
-    ///
-    /// `route_override` is a route's own `upstream_model`, an operator
-    /// deliberately substituting one model for another, and wins. Otherwise the
-    /// catalog's per-model mapping applies, which is the only place it can
-    /// live: a route matches a whole glob, so one route cannot carry a
-    /// different upstream name for each model under it. Vertex `MaaS` needs
-    /// exactly that — `qwen.qwen3-next-instruct` is published upstream as
-    /// `qwen/qwen3-next-80b-a3b-instruct-maas`.
+    // Why: `route_override` is an operator deliberately substituting one model
+    // for another and wins. Otherwise the catalog's per-model mapping applies,
+    // the only place it can live: a route matches a whole glob, so one route
+    // cannot carry a different upstream name per model. Vertex MaaS needs
+    // exactly that — qwen.qwen3-next-instruct is published upstream as
+    // qwen/qwen3-next-80b-a3b-instruct-maas.
     #[must_use]
     pub fn upstream_model_for<'a>(
         &'a self,

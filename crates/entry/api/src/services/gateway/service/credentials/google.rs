@@ -22,16 +22,16 @@ use anyhow::{Result, anyhow, bail};
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 
-/// The assertion's own lifetime. Google caps this at one hour; it only has to
-/// survive the exchange, so it is not the same thing as the token's lifetime.
+// Why: the assertion only has to survive the exchange, so this is not the
+// token's lifetime. Google caps it at one hour either way.
 const ASSERTION_TTL: Duration = Duration::from_secs(3600);
 
-/// Retire a token this long before it actually expires, so one that would
-/// expire mid-flight is replaced instead of being sent.
+// Why: a token that expires in flight fails the user's request, so one is
+// retired early rather than used to the last second.
 const EXPIRY_SKEW: Duration = Duration::from_secs(120);
 
-/// Vertex AI accepts the broad cloud-platform scope; narrower scopes differ per
-/// surface and would have to be configured per provider.
+// Why: the broad cloud-platform scope. Narrower scopes differ per surface and
+// would each have to be configured per provider.
 const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 
 #[derive(Debug, Deserialize)]
@@ -47,9 +47,9 @@ fn default_token_uri() -> String {
 }
 
 impl ServiceAccountKey {
-    /// Recognise a Google service-account key by the `type` field the document
-    /// declares about itself. Anything else — including any other JSON — is not
-    /// one, and the caller treats it as a plain API key.
+    // Why: recognised by the `type` field the document declares about itself,
+    // not by shape. Anything else — including any other JSON — is not one, and
+    // the caller sends it verbatim as an API key.
     pub(super) fn parse(secret: &str) -> Option<Self> {
         let value: serde_json::Value = serde_json::from_str(secret).ok()?;
         if value.get("type").and_then(serde_json::Value::as_str)? != "service_account" {
@@ -86,7 +86,6 @@ fn cache() -> &'static RwLock<HashMap<String, CachedToken>> {
     CACHE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
-/// A cached token for `secret_name`, or a freshly minted one.
 pub(super) async fn access_token(secret_name: &str, key: &ServiceAccountKey) -> Result<String> {
     if let Some(token) = cached(secret_name) {
         return Ok(token);
