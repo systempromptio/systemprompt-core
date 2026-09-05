@@ -93,6 +93,59 @@ fn route_finds_matching_model() {
     );
 }
 
+/// Vertex MaaS publishes fully-qualified upstream names
+/// (`qwen/qwen3-next-80b-a3b-instruct-maas`) for the short ids clients ask for
+/// (`qwen.qwen3-next-instruct`). One route matches the whole `qwen.*` glob and
+/// so cannot carry a different name per model, which is why the mapping lives
+/// on the catalog model. This test exists because that field was parsed and
+/// validated for a release without ever being read at dispatch.
+#[test]
+fn catalog_model_supplies_the_upstream_name() {
+    let mut maas = model("qwen.qwen3-next-instruct");
+    maas.upstream_model = Some("qwen/qwen3-next-80b-a3b-instruct-maas".to_owned());
+    let provider = provider_entry("vertex-maas", "https://example.invalid/v1", vec![maas]);
+    let route = route("qwen.*");
+
+    assert_eq!(
+        route.effective_upstream_model_for(&provider, "qwen.qwen3-next-instruct"),
+        "qwen/qwen3-next-80b-a3b-instruct-maas"
+    );
+}
+
+#[test]
+fn route_rewrite_outranks_the_catalog_mapping() {
+    let mut maas = model("qwen.qwen3-next-instruct");
+    maas.upstream_model = Some("qwen/qwen3-next-80b-a3b-instruct-maas".to_owned());
+    let provider = provider_entry("vertex-maas", "https://example.invalid/v1", vec![maas]);
+    let mut route = route("qwen.*");
+    route.upstream_model = Some("operator-substitution".to_owned());
+
+    assert_eq!(
+        route.effective_upstream_model_for(&provider, "qwen.qwen3-next-instruct"),
+        "operator-substitution",
+        "an operator substituting a model must win over the catalog default"
+    );
+}
+
+#[test]
+fn an_unmapped_model_passes_its_own_name_upstream() {
+    let provider = provider_entry(
+        "anthropic",
+        "https://api.anthropic.com/v1",
+        vec![model("claude-sonnet-4-20250514")],
+    );
+
+    assert_eq!(
+        route("claude-*").effective_upstream_model_for(&provider, "claude-sonnet-4-20250514"),
+        "claude-sonnet-4-20250514"
+    );
+    assert_eq!(
+        route("claude-*").effective_upstream_model_for(&provider, "not-in-the-catalog"),
+        "not-in-the-catalog",
+        "a model the provider does not list must not be rewritten into nothing"
+    );
+}
+
 #[test]
 fn slugify_replaces_star_and_non_alnum() {
     assert_eq!(slugify_pattern("claude-*"), "claude-star");

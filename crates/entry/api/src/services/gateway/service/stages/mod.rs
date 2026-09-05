@@ -63,7 +63,7 @@ impl PreparedDispatch {
     ) -> Result<Self, DispatchError> {
         let upstream_model = upstream
             .route
-            .effective_upstream_model(&request.model)
+            .effective_upstream_model_for(upstream.provider, &request.model)
             .to_owned();
         let override_descriptor = apply_system_prompt_override(
             config,

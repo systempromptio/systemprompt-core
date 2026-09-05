@@ -62,6 +62,28 @@ impl GatewayRoute {
         self.upstream_model.as_deref().unwrap_or(requested)
     }
 
+    /// The model name to send upstream, honouring both places one can be
+    /// declared.
+    ///
+    /// A route's `upstream_model` is an operator substituting one model for
+    /// another and wins outright. Otherwise the catalog decides: a provider
+    /// whose upstream names differ from the ids clients use — Vertex MaaS
+    /// publishes `qwen/qwen3-next-80b-a3b-instruct-maas` for the id
+    /// `qwen.qwen3-next-instruct` — records the mapping per model, because one
+    /// route matches a whole glob and cannot carry a different name for each
+    /// model in it.
+    pub fn effective_upstream_model_for<'a>(
+        &'a self,
+        provider: &'a ProviderEntry,
+        requested: &'a str,
+    ) -> &'a str {
+        self.upstream_model.as_deref().unwrap_or_else(|| {
+            provider
+                .find_model(requested)
+                .map_or(requested, |model| model.effective_upstream_model(requested))
+        })
+    }
+
     pub fn ensure_id(&mut self) {
         if self.id.as_str().trim().is_empty() {
             self.id = synthesize_route_id(&self.model_pattern, self.provider.as_str());

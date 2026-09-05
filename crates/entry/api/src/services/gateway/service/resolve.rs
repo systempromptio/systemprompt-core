@@ -151,7 +151,7 @@ pub fn enforce_route_requirements(
     let Some(requires) = route.requires.as_ref() else {
         return Ok(());
     };
-    let upstream = route.effective_upstream_model(requested_model);
+    let upstream = route.effective_upstream_model_for(provider, requested_model);
     let unmet = requires.unmet(provider.effective_governance(upstream));
     if unmet.is_empty() {
         return Ok(());

@@ -130,9 +130,22 @@ pub(super) async fn extract_request_context(
         .hydrate_request(&gateway_conversation_id, &mut gateway_request, wire)
         .await;
 
-    let upstream_model = route
-        .effective_upstream_model(&gateway_request.model)
-        .to_owned();
+    let upstream_model = rc
+        .services
+        .providers
+        .find_provider(route.provider.as_str())
+        .map_or_else(
+            || {
+                route
+                    .effective_upstream_model(&gateway_request.model)
+                    .to_owned()
+            },
+            |provider| {
+                route
+                    .effective_upstream_model_for(provider, &gateway_request.model)
+                    .to_owned()
+            },
+        );
 
     enforce_authz_pre_dispatch(
         &principal,
