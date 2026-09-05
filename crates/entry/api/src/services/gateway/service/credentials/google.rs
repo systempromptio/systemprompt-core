@@ -115,8 +115,11 @@ pub(super) async fn access_token(secret_name: &str, key: &ServiceAccountKey) -> 
 
 fn cached(secret_name: &str) -> Option<String> {
     let guard = cache().read().unwrap_or_else(PoisonError::into_inner);
-    let entry = guard.get(secret_name)?;
-    (entry.expires_at > SystemTime::now() + EXPIRY_SKEW).then(|| entry.token.clone())
+    let token = guard.get(secret_name).and_then(|entry| {
+        (entry.expires_at > SystemTime::now() + EXPIRY_SKEW).then(|| entry.token.clone())
+    });
+    drop(guard);
+    token
 }
 
 async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse> {
