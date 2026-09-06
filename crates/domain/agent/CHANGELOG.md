@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Fixed
+
+- **Security:** admin provisioning validates the address it is handed. `get_or_create_admin` looked up, provisioned and assigned the `admin` role on whatever string it received, so a non-address literal created a user with that address and made it an admin — and this is the path that mints admin-tier session tokens. It validates through `Email::try_new` first, the same validator the CLI already applies to `--admin-email`.
+
+### Removed
+
+- `resolve_context_id`'s empty-context branch and the session lookup behind it. `ContextId` is UUID-validated on every construction path, so the branch could never execute.
+- `monitor_all_agents`' second dead-pid re-check. It sources rows from `list_all_agents`, which calls `get_status`, which already downgrades a dead pid to `Failed`, so a dead pid always arrives on the `Failed` arm.
+
 ## [0.44.0] - 2026-09-02
 
 ### Changed

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.46.0] - 2026-09-05
+## [0.47.0] - 2026-09-06
 
 ### Added
 
@@ -12,6 +12,7 @@
 
 - Manifest assembly unions every enabled marketplace instead of resolving one active marketplace. Two enabled marketplaces without a default selector now assemble rather than failing closed with `NoDefault`; with exactly one enabled, or none, behaviour is unchanged.
 - `MarketplaceService` drops `active`, `active_entry`, and `resolve_active` for `enabled`, and `resolve_default` now names only the marketplace the rendered catalogue JSON describes.
+- `chain_sources` collects its per-kind owner bands through `member_bands`, and `selected_configs` and `plugin_inclusion_diagnostics` return their values directly instead of an always-`Ok` `Result`. No behaviour change.
 
 ## [0.42.0] - 2026-08-31
 

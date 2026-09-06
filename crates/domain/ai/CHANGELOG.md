@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Added
+
+- `CanonicalUsage` and `CanonicalUsageUpdate` carry `reasoning_tokens`, parsed on every wire in both modes: Gemini `usageMetadata.thoughtsTokenCount`, OpenAI Responses `usage.output_tokens_details.reasoning_tokens`, OpenAI Chat `usage.completion_tokens_details.reasoning_tokens`. Anthropic bills thinking as ordinary output tokens and reports no separate count, so it stays 0. Reasoning is a breakdown *of* `output_tokens`, never an addition: OpenAI already folds it in, Gemini's adapter adds it into output, and billing needs no per-provider arithmetic. Before this the count was dropped by construction — a `gemini-2.5-flash` turn that burned a 200-token thinking budget recorded and billed 6 output tokens.
+- The internal AI path records reasoning tokens too. The count was dropped between `CanonicalUsage` and the INSERT, so the gateway wrote the column and the internal half of the product wrote NULL. It is threaded through `AiResponse`, `StreamChunk::Usage`, the stream accumulator, `TokenInfo` and the INSERT. `AiRequestBuilder` gains a separate `reasoning()` setter rather than widening `tokens()`, which is a public const fn an arity change would break. `tokens_used` stays input + output throughout, because reasoning is already inside output and summing it double-counts.
+- `AuditLookupResult` carries `reasoning_tokens`, and `update_error`'s `RETURNING` list includes the column.
+
+### Changed
+
+- **Breaking:** `CanonicalUsage` is the only usage type. `CapturedUsage`, `CostTokens` and the `TokenUsage` builder are deleted; `ModelPricing::cost_microdollars(&CanonicalUsage)` in the shared crate prices all four billable classes on both paths, so the agent path now bills cache tokens. The internal $1-per-million fabrication for an unknown provider is replaced by a warning and zero, matching the gateway. `CanonicalUsage::billable_total` is the single definition of `tokens_used`.
+- `CanonicalUsageUpdate` carries the wire's own total when a frame states one, so `normalise_reasoning`'s total-based clause fires on streams; with input exclusive of cache reads the additive shape is exactly `total == billable_total + reasoning`, which also catches an additive provider that caches. The internal stream is normalised too.
+
+### Fixed
+
+- **Breaking (wire semantics):** `input_tokens` is exclusive of cache reads on every wire. OpenAI Chat, OpenAI Responses and Gemini report `cached_tokens` as a subset of the prompt count while Anthropic reports the two disjoint, and every adapter mapped them as disjoint — so a cached OpenAI, Gemini or Cerebras turn was charged for the cached slice at the input rate and again at the cache-read rate.
+- A reply the wire cannot parse is an upstream error, not an empty turn. All four buffered parsers turned a top-level deserialisation failure into an empty canonical response that succeeded with zero usage and logged nothing; `parse_response` returns `Result<_, WireParseError>` and the fifteen internal provider call sites propagate it. Per-field `serde(default)` leniency is unchanged.
+- `normalise_reasoning` enforces the reasoning invariant at runtime instead of trusting it. The OpenAI-compatible third parties (Cerebras, Moonshot, Qwen) were assumed to follow the contract because they copy the field name, and one reporting additively under-bills silently. A breakdown exceeding its parent, or a wire total overshooting input + output by exactly the reasoning count, folds the count into `output_tokens` and warns with the provider named.
+- The Anthropic streaming codec carries block state, so the `with_tool_use` correction applies where a `tool_use` block was opened several frames earlier. `events_from_sse` was stateless per frame, so a client read `finish_reason: "stop"` beside a fully-formed tool call and dropped it while the audit path read `tool_use`. `AnthropicStreamState` also absorbs the message-id tracking all three callers were doing by hand.
+- `mutations.rs` still writes NULL for `reasoning_tokens` on the path where the count genuinely does not exist, deliberately: the column is nullable so "not recorded" stays distinguishable from "the model did no thinking", and writing 0 would assert the second and corrupt any later aggregate.
+
 ## [0.46.0] - 2026-09-04
 
 ### Added

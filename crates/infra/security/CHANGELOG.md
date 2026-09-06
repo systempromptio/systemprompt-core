@@ -1,12 +1,22 @@
 # Changelog
 
-## [0.46.0] - 2026-09-04
+## [0.47.0] - 2026-09-06
 
 ### Added
 
 - `ChainSources` is many-to-many: `marketplaces`, and a set of owning marketplaces per plugin and per member, replace the single active marketplace. `ParentChainIndex` loads every enabled marketplace in one bulk pair of queries and enumerates one chain per owner, so query count is still independent of catalogue size.
 - Marketplace `access.rules` are projected into `access_control_rules` alongside roles, one row per value in the extension subject-dimension band the rule names, honouring `access: deny`. Orphan deletion is scoped to the `(entity_id, rule_type)` pairs the config still declares. A band the config names is pruned to exactly what it names; a band it no longer mentions is left in place rather than swept up, so rows another writer owns survive. A malformed slug is rejected before the transaction opens.
 - `member_attribute_floor` merges the `access.attributes` bags of every enabled marketplace that includes the entity, in marketplace-id order with first key wins, and warns on a conflicting key rather than resolving it silently. It now returns an owned map.
+- The high-entropy secret backstop exempts provider-signed reasoning blobs. Every reasoning-capable provider hands the client an opaque signed blob and requires it back verbatim on the next turn — Gemini's `thoughtSignature`, Anthropic's `signature` on a `thinking` block and `data` on a `redacted_thinking` block, OpenAI's `encrypted_content` on a `reasoning` item — and all four are dense base64, so an enforcing `secret_scan` stage denied every multi-turn thinking continuation. `SignatureExemptions` suppresses the entropy detector at those JSON paths only: the two `thoughtSignature` spellings unconditionally, the three generically named keys only when the enclosing object declares the reasoning content type that owns them. Every vendor pattern still runs there, so a PEM block or an AWS key smuggled into one of those fields is still reported.
+
+### Changed
+
+- A marketplace access rule rejected for a malformed `rule_type` slug now carries `RuleType::extension`'s own message, so the error says what was wrong with the slug rather than only that it was wrong. `ingest_marketplace_access` is split into validation, orphan deletion and the per-marketplace upsert; behaviour is otherwise unchanged.
+
+## [0.46.0] - 2026-09-04
+
+### Added
+
 - Governance policies take a `mode: enforce | warn`, with a top-level `governance.mode` supplying the default for every policy that does not name its own. An unrecognised value is a parse error rather than a silent fallback, because reading it either way changes what is enforced without saying so.
 - `Decision::Warn` carries the same `DenyReason` the enforcing form would have, so a warn row and a deny row are directly comparable. `Decision::permits` is the predicate every enforcement point should use; matching on `Allow` alone turns warn mode back into enforcement silently. `DecisionTag::Warn` and a migration extending the `governance_decisions` CHECK constraint go with it.
 - A policy in warn mode records a `ChainEntryResult::Warn` and does not halt the chain, so the audit row carries every finding on the call rather than only the first.

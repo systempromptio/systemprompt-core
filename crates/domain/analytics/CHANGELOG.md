@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Breaking
+
+- **Breaking:** `RequestStatsRow` gains `reasoning_tokens`, `cache_read_tokens` and `cache_creation_tokens`; `CostSummaryRow` gains the same three. Struct literals need the new fields; the platform, per-user and request aggregations sum them from the existing `ai_requests` columns. The three figures were already stored per request and were dropped on the way into every rollup, so reasoning and cache spend could be read for one request and for no window.
 ## [0.44.0] - 2026-09-02
 
 ### Fixed
