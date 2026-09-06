@@ -33,10 +33,6 @@ struct AnthropicResponse {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "field names mirror the Anthropic usage wire schema verbatim"
-)]
 struct AnthropicUsage {
     #[serde(default)]
     input_tokens: u32,
