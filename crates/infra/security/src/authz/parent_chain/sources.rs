@@ -18,6 +18,8 @@ use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind, Se
 
 use crate::authz::types::EntityKind;
 
+static EMPTY_MARKETPLACES: BTreeSet<MarketplaceId> = BTreeSet::new();
+
 #[derive(Debug, Clone)]
 pub struct MarketplaceSource {
     pub id: MarketplaceId,
@@ -108,28 +110,21 @@ impl ChainSources {
     }
 
     #[must_use]
-    pub fn marketplace_ids_to_load(&self) -> Vec<String> {
-        self.marketplaces
-            .keys()
-            .map(|id| id.as_str().to_owned())
-            .collect()
+    pub fn marketplace_ids_to_load(&self) -> Vec<MarketplaceId> {
+        self.marketplaces.keys().cloned().collect()
     }
 
     #[must_use]
     pub fn marketplaces_of(&self, kind: EntityKind, id: &str) -> &BTreeSet<MarketplaceId> {
-        static NONE: std::sync::OnceLock<BTreeSet<MarketplaceId>> = std::sync::OnceLock::new();
         self.marketplace_members
             .get(&kind)
             .and_then(|band| band.get(id))
-            .unwrap_or_else(|| NONE.get_or_init(BTreeSet::new))
+            .unwrap_or(&EMPTY_MARKETPLACES)
     }
 
     #[must_use]
-    pub fn plugin_marketplaces(&self, id: &str) -> &BTreeSet<MarketplaceId> {
-        static NONE: std::sync::OnceLock<BTreeSet<MarketplaceId>> = std::sync::OnceLock::new();
-        self.plugins
-            .get(&PluginId::new(id))
-            .unwrap_or_else(|| NONE.get_or_init(BTreeSet::new))
+    pub fn plugin_marketplaces(&self, id: &PluginId) -> &BTreeSet<MarketplaceId> {
+        self.plugins.get(id).unwrap_or(&EMPTY_MARKETPLACES)
     }
 
     #[must_use]

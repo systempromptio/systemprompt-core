@@ -156,26 +156,27 @@ async fn load_marketplaces(
     if ids.is_empty() {
         return Ok(BTreeMap::new());
     }
-    let mut rules = repo.list_rules_bulk(EntityKind::Marketplace, &ids).await?;
+    let raw: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
+    let mut rules = repo.list_rules_bulk(EntityKind::Marketplace, &raw).await?;
     let entities = repo
-        .list_entities_bulk(EntityKind::Marketplace, &ids)
+        .list_entities_bulk(EntityKind::Marketplace, &raw)
         .await?;
     Ok(ids
         .into_iter()
         .map(|id| {
             let fallback = sources
                 .marketplaces
-                .get(&MarketplaceId::new(id.clone()))
+                .get(&id)
                 .and_then(|source| source.fallback_default_included);
             let parent = LoadedParent {
-                entity: EntityRef::Marketplace(MarketplaceId::new(id.clone())),
-                rules: rules.remove(&id).unwrap_or_default(),
+                entity: EntityRef::Marketplace(id.clone()),
+                rules: rules.remove(id.as_str()).unwrap_or_default(),
                 default_included: entities
-                    .get(&id)
+                    .get(id.as_str())
                     .map(|row| row.default_included)
                     .or(fallback),
             };
-            (MarketplaceId::new(id), parent)
+            (id, parent)
         })
         .collect())
 }

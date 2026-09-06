@@ -22,10 +22,6 @@ use systemprompt_models::services::GatewayRoute;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-/// Builds the request body then sends it, mirroring what the gateway does.
-///
-/// The adapter splits the two so the gateway can inspect the exact bytes before
-/// they go on the wire; these tests exercise the pair together.
 async fn send_via<A: OutboundAdapter>(
     adapter: &A,
     ctx: OutboundCtx<'_>,
@@ -582,9 +578,6 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
     }
 }
 
-/// A 200 whose body breaks the wire's shape must not reach the client as an
-/// empty, unbilled turn: the adapter raises the upstream failure the audit row
-/// records, and keeps the raw body so the cause survives into it.
 #[tokio::test]
 async fn anthropic_outbound_buffered_rejects_a_body_that_does_not_parse() {
     let server = MockServer::start().await;

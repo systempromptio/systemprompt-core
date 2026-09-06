@@ -93,8 +93,6 @@ pub const fn is_retryable(status: u16) -> bool {
     status == 429 || status == 503
 }
 
-// Why: attempts are 1-based, so the first wait is exactly `base_delay` and
-// each later one doubles until `max_delay` clamps it.
 #[must_use]
 pub fn backoff_delay(attempt: u32, policy: &RetryPolicy) -> Duration {
     let base = policy.base_delay.as_millis().min(u128::from(u64::MAX)) as u64;
@@ -107,8 +105,6 @@ pub fn backoff_delay(attempt: u32, policy: &RetryPolicy) -> Duration {
     Duration::from_millis(apply_jitter(capped, policy.jitter_ratio))
 }
 
-// Why: spread is symmetric around the computed delay, so the average pacing
-// stays the doubling curve while no two callers land on the same instant.
 fn apply_jitter(millis: u64, ratio: f64) -> u64 {
     if millis == 0 || ratio <= 0.0 {
         return millis;
@@ -163,18 +159,13 @@ tokio::task_local! {
     // without threading a parameter through every adapter's `send`.
     static POLICY: RetryPolicy;
 
-    // Why: `send_checked` keeps its one-value signature, so the retry count
-    // rides back to whoever scoped the observation rather than the call site.
     static OBSERVED: Cell<u32>;
 }
 
-// Why: scopes `policy` over every retryable send `fut` makes.
 pub async fn with_policy<F: Future>(policy: RetryPolicy, fut: F) -> F::Output {
     POLICY.scope(policy, fut).await
 }
 
-// Why: returns `fut`'s output paired with the total re-sends underneath it,
-// which is the only way a caller learns a request was retried at all.
 pub async fn observing_retries<F: Future>(fut: F) -> (F::Output, u32) {
     let out = OBSERVED.scope(Cell::new(0), async move {
         let out = fut.await;
@@ -183,7 +174,6 @@ pub async fn observing_retries<F: Future>(fut: F) -> (F::Output, u32) {
     out.await
 }
 
-// Why: an unscoped call is the production default, not an error.
 #[must_use]
 pub fn current_policy() -> RetryPolicy {
     POLICY.try_with(|p| *p).unwrap_or_default()
@@ -203,11 +193,6 @@ fn record_retry() {
     }
 }
 
-// Why: returns the first successful response paired with the retry count, zero
-// when the first attempt succeeded. Any non-retryable status, and the last
-// retryable one once the budget is spent, becomes an `UpstreamError` carrying
-// the upstream body and headers unchanged, so the gateway still relays
-// upstream errors verbatim.
 pub async fn send_with_retry(
     provider: &str,
     req: reqwest::RequestBuilder,
@@ -264,8 +249,6 @@ pub async fn send_with_retry(
     }
 }
 
-// Why: the loop keeps a retryable response alive to read its headers, so the
-// conversion to a relayable error is deferred to whoever gives up on it.
 async fn into_error(provider: &str, failure: SendFailure) -> anyhow::Error {
     match failure {
         SendFailure::Fatal(e) => e,

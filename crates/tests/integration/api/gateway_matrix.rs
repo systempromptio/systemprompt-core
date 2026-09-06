@@ -35,8 +35,6 @@ use super::gateway_pipeline::{
     provider_registry,
 };
 
-/// The upstream half of one matrix cell: which wire the provider speaks, and
-/// the tool-call reply it returns in that dialect.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum OutWire {
     Anthropic,
@@ -128,14 +126,6 @@ impl OutWire {
     }
 }
 
-/// What the upstream says about a turn that produced a tool call.
-///
-/// The three are one failure class seen from three angles. `ToolCall` is the
-/// well-behaved upstream. `GenericStop` is the one that shipped the outage:
-/// a fully-formed call under a plain "stop"/"end_turn", which every client
-/// reads as a finished turn. `Truncated` is its mirror -- a call cut off
-/// mid-arguments, where declaring tool use hands the client unparseable JSON
-/// instead of telling it the budget ran out.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Scenario {
     ToolCall,
@@ -144,9 +134,6 @@ pub(super) enum Scenario {
     NullOptionalFields,
 }
 
-/// The tool the whole matrix exercises. Named and shaped like `plain_tool()` in
-/// the wire-codec unit tests so a failure here and a failure there name the
-/// same call.
 pub(super) const TOOL_NAME: &str = "lookup";
 pub(super) const TOOL_ARG: &str = "rust";
 
@@ -157,7 +144,6 @@ fn tool_schema() -> Value {
     })
 }
 
-/// A caller body on the Anthropic Messages surface that declares the tool.
 pub(super) fn anthropic_request_body(stream: bool) -> Bytes {
     body(&json!({
         "model": MODEL,
@@ -172,7 +158,6 @@ pub(super) fn anthropic_request_body(stream: bool) -> Bytes {
     }))
 }
 
-/// A caller body on the `OpenAI` Chat Completions surface.
 pub(super) fn openai_chat_request_body(stream: bool) -> Bytes {
     body(&json!({
         "model": MODEL,
@@ -190,7 +175,6 @@ pub(super) fn openai_chat_request_body(stream: bool) -> Bytes {
     }))
 }
 
-/// A caller body on the `OpenAI` Responses surface.
 pub(super) fn openai_responses_request_body(stream: bool) -> Bytes {
     body(&json!({
         "model": MODEL,
@@ -436,10 +420,6 @@ fn openai_responses_tool_sse() -> String {
     .concat()
 }
 
-/// Runs one matrix cell end to end and returns what the caller would receive.
-///
-/// `label` seeds a distinct admin credential per cell; the suites run
-/// concurrently against one database.
 pub(super) async fn run_cell(
     label: &str,
     out: OutWire,
@@ -450,7 +430,6 @@ pub(super) async fn run_cell(
     run_scenario(label, out, Scenario::ToolCall, inbound, raw, stream).await
 }
 
-/// Runs one matrix cell with a chosen upstream [`Scenario`].
 pub(super) async fn run_scenario(
     label: &str,
     out: OutWire,
@@ -496,7 +475,6 @@ pub(super) async fn run_scenario(
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// Assertion 1: the call itself made it across, name and arguments intact.
 pub(super) fn assert_tool_call_survived(label: &str, rendered: &str) {
     assert!(
         rendered.contains(TOOL_NAME),
@@ -508,11 +486,6 @@ pub(super) fn assert_tool_call_survived(label: &str, rendered: &str) {
     );
 }
 
-/// Assertion 2: the terminal reason declares the tool use.
-///
-/// This is the assertion no cell had. A client that follows its contract reads
-/// only this; a body carrying a perfect `tool_calls` array under a `"stop"`
-/// finish reason is a dropped tool call, not a served one.
 pub(super) fn assert_declares_tool_use(label: &str, rendered: &str, marker: &str) {
     assert!(
         rendered.contains(marker),
@@ -520,12 +493,6 @@ pub(super) fn assert_declares_tool_use(label: &str, rendered: &str, marker: &str
     );
 }
 
-/// Assertion 3: a truncated turn says it was truncated.
-///
-/// The mirror of assertion 2. Correcting a generic stop to tool use must not
-/// also swallow a real cutoff: the call's arguments are incomplete JSON, so a
-/// client told "tool_calls" either fails to parse them or runs the tool with
-/// the wrong ones, while "length" tells it to ask for more budget.
 pub(super) fn assert_declares_truncation(label: &str, rendered: &str, marker: &str) {
     assert!(
         rendered.contains(marker),
@@ -534,12 +501,6 @@ pub(super) fn assert_declares_truncation(label: &str, rendered: &str, marker: &s
     );
 }
 
-/// Assertion 4: a truncated turn does not also claim a complete tool call.
-///
-/// The pair to [`assert_declares_truncation`]. Truncation and tool use are the
-/// two mutually exclusive readings of the same frame, and a renderer that
-/// emits both leaves the client to pick -- most pick tool use, which is the
-/// unparseable-arguments outcome the truncation reason exists to prevent.
 pub(super) fn assert_no_complete_tool_use(label: &str, rendered: &str, tool_use_marker: &str) {
     assert!(
         !rendered.contains(tool_use_marker),

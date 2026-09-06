@@ -57,33 +57,22 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
 
     fn render_terminal_event(
         &self,
-        event: &CanonicalEvent,
-        snapshot: &CanonicalResponse,
-        model: &str,
+        _event: &CanonicalEvent,
+        _snapshot: &CanonicalResponse,
+        _model: &str,
     ) -> Option<Bytes> {
-        // Why: unused-arg suppression in a default trait method body.
-        let _ = (event, snapshot, model);
         None
     }
 
-    // Why: `stream_options.include_usage` is a Chat Completions concept and
-    // the caller's raw body is the only place it is stated, so the surface
-    // that understands the field answers for it.
-    fn wants_stream_usage(&self, raw: &Bytes) -> bool {
-        let _ = raw;
+    fn wants_stream_usage(&self, _raw: &Bytes) -> bool {
         false
     }
 
-    // Why: the frames that close a streamed turn after its last event. Chat
-    // Completions ends with a usage-only chunk and the `[DONE]` sentinel, and
-    // both must follow the finish chunk -- the usage a client asked for is
-    // only complete once the upstream stream has ended.
     fn render_stream_tail(
         &self,
-        snapshot: &CanonicalResponse,
-        include_usage: bool,
+        _snapshot: &CanonicalResponse,
+        _include_usage: bool,
     ) -> Option<Bytes> {
-        let _ = (snapshot, include_usage);
         None
     }
 

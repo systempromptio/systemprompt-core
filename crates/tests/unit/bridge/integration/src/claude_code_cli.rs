@@ -26,6 +26,14 @@ use systemprompt_bridge::integration::claude_code_cli::{
 use systemprompt_identifiers::MarketplaceId;
 use tempfile::tempdir;
 
+fn names(ids: Vec<MarketplaceId>) -> Vec<String> {
+    ids.iter().map(|id| id.as_str().to_owned()).collect()
+}
+
+fn ids(plugin_ids: &[PluginId]) -> Vec<&str> {
+    plugin_ids.iter().map(PluginId::as_str).collect()
+}
+
 fn read(path: &Path) -> Value {
     serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
 }
@@ -115,7 +123,12 @@ fn upsert_known_marketplace_writes_last_updated_and_preserves_foreign() {
         br#"{"someones-mp":{"source":{"source":"github","repo":"a/b"}}}"#,
     )
     .unwrap();
-    upsert_known_marketplace(d.path(), "org-provisioned", "2026-02-03T04:05:06Z").unwrap();
+    upsert_known_marketplace(
+        d.path(),
+        &MarketplaceId::new("org-provisioned"),
+        "2026-02-03T04:05:06Z",
+    )
+    .unwrap();
     let km = read(&d.path().join("known_marketplaces.json"));
     assert_eq!(
         km["org-provisioned"]["lastUpdated"],
@@ -136,7 +149,7 @@ fn strip_known_marketplace_removes_only_ours() {
         br#"{"org-provisioned":{},"acme":{},"keep":{}}"#,
     )
     .unwrap();
-    strip_known_marketplace(d.path(), "acme").unwrap();
+    strip_known_marketplace(d.path(), &MarketplaceId::new("acme")).unwrap();
     let km = read(&d.path().join("known_marketplaces.json"));
     assert!(km.get("acme").is_none());
     assert!(
@@ -201,9 +214,12 @@ fn a_manifest_that_lists_no_marketplaces_is_mirrored_as_the_legacy_one_holding_e
     assert_eq!(
         host_marketplaces(&m),
         vec![HostMarketplace {
-            id: LEGACY_MARKETPLACE.into(),
+            id: MarketplaceId::new(LEGACY_MARKETPLACE),
             name: "Skills, agents, and MCP servers provisioned by your organization.".into(),
-            plugin_ids: vec!["alpha".into(), "beta".into()],
+            plugin_ids: vec![
+                PluginId::try_new("alpha").unwrap(),
+                PluginId::try_new("beta").unwrap(),
+            ],
         }]
     );
 }
@@ -219,11 +235,11 @@ fn each_manifest_marketplace_becomes_one_host_marketplace_and_a_shared_plugin_is
     );
     let hosts = host_marketplaces(&m);
     assert_eq!(hosts.len(), 2);
-    assert_eq!(hosts[0].id, "core");
+    assert_eq!(hosts[0].id.as_str(), "core");
     assert_eq!(hosts[0].name, "Core");
-    assert_eq!(hosts[0].plugin_ids, vec!["alpha"]);
-    assert_eq!(hosts[1].id, "commerce");
-    assert_eq!(hosts[1].plugin_ids, vec!["alpha", "beta"]);
+    assert_eq!(ids(&hosts[0].plugin_ids), vec!["alpha"]);
+    assert_eq!(hosts[1].id.as_str(), "commerce");
+    assert_eq!(ids(&hosts[1].plugin_ids), vec!["alpha", "beta"]);
 }
 
 #[test]
@@ -233,34 +249,49 @@ fn a_manifest_with_no_plugins_yields_no_host_marketplaces_even_if_it_names_some(
 }
 
 #[test]
-fn sidecar_round_trips_and_the_legacy_marketplace_is_always_previously_owned() {
+fn sidecar_round_trips_and_the_legacy_marketplace_is_always_purgeable() {
     let d = tempdir().unwrap();
     assert_eq!(
-        sidecar::previously_owned(d.path()),
-        vec![LEGACY_MARKETPLACE.to_owned()],
+        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::Always).unwrap()),
+        vec![LEGACY_MARKETPLACE],
         "with no sidecar the only thing the bridge could have written is the legacy layout"
     );
     assert_eq!(
-        sidecar::owned_marketplaces(d.path()),
-        vec![LEGACY_MARKETPLACE.to_owned()]
+        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::WhenUnrecorded).unwrap()),
+        vec![LEGACY_MARKETPLACE]
     );
 
-    sidecar::write(d.path(), &["core".into(), "commerce".into()]).unwrap();
+    sidecar::write(
+        d.path(),
+        &[MarketplaceId::new("core"), MarketplaceId::new("commerce")],
+    )
+    .unwrap();
     assert_eq!(
-        sidecar::owned_marketplaces(d.path()),
-        vec!["core".to_owned(), "commerce".to_owned()]
+        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::WhenUnrecorded).unwrap()),
+        vec!["core", "commerce"]
     );
     assert_eq!(
-        sidecar::previously_owned(d.path()),
-        vec![
-            "core".to_owned(),
-            "commerce".to_owned(),
-            LEGACY_MARKETPLACE.to_owned()
-        ],
+        names(sidecar::owned_marketplaces(d.path(), sidecar::Legacy::Always).unwrap()),
+        vec!["core", "commerce", LEGACY_MARKETPLACE],
         "the legacy marketplace stays purgeable however the sidecar reads"
     );
 
     sidecar::remove(d.path()).unwrap();
     assert!(!d.path().join(sidecar::SIDECAR).exists());
     sidecar::remove(d.path()).expect("removing an absent sidecar is not an error");
+}
+
+#[test]
+fn a_corrupt_sidecar_is_an_error_rather_than_an_empty_ownership_record() {
+    let d = tempdir().unwrap();
+    std::fs::write(d.path().join(sidecar::SIDECAR), b"{ not json").unwrap();
+
+    for legacy in [sidecar::Legacy::Always, sidecar::Legacy::WhenUnrecorded] {
+        let err = sidecar::owned_marketplaces(d.path(), legacy)
+            .expect_err("a present but unparseable sidecar must not read as absent");
+        assert!(
+            err.to_string().contains(sidecar::SIDECAR),
+            "the error names the file the operator has to fix: {err}"
+        );
+    }
 }

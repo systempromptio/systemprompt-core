@@ -61,10 +61,10 @@ impl InboundAdapter for AnthropicMessagesInbound {
         &self,
         event: &CanonicalEvent,
         snapshot: &CanonicalResponse,
-        model: &str,
+        _model: &str,
     ) -> Option<Bytes> {
         matches!(event, CanonicalEvent::MessageStop { .. })
-            .then(|| render::render_terminal_frames(snapshot, model))
+            .then(|| render::render_terminal_frames(snapshot))
     }
 
     fn render_error(&self, status: StatusCode, message: &str) -> Bytes {

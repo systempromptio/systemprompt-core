@@ -12,8 +12,6 @@ use crate::services::gateway::protocol::canonical::{
 };
 use crate::services::gateway::protocol::inbound::InboundParseError;
 
-// Why: rejection detail for a `tool_choice` that is not an object of a known
-// type.
 const TOOL_CHOICE_EXPECTED: &str = "expected an object with type auto|any|tool";
 
 pub(super) fn parse_tool(value: &Value) -> CanonicalTool {

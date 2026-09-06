@@ -74,9 +74,6 @@ fn unknown_model_costs_zero() {
     );
 }
 
-/// Cache tokens reach the bill on the catalog path too: the shared cost
-/// function prices all four counts, so a cached turn is not silently charged
-/// as though only input and output existed.
 #[test]
 fn cache_tokens_are_billed_by_the_shared_cost_function() {
     let models = seed_models("anthropic");

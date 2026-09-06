@@ -11,6 +11,8 @@
 
 use std::path::Path;
 
+use systemprompt_identifiers::MarketplaceId;
+
 use crate::config::paths;
 use crate::integration::claude_code_cli::{claude_cli_installed, marketplace_dir, sidecar};
 
@@ -39,7 +41,11 @@ pub fn check_marketplace() -> Check {
         );
     };
 
-    let checks: Vec<Check> = sidecar::owned_marketplaces(&plugins)
+    let owned = match sidecar::owned_marketplaces(&plugins, sidecar::Legacy::WhenUnrecorded) {
+        Ok(owned) => owned,
+        Err(e) => return Check::fail(NAME, format!("cannot read the marketplace sidecar: {e}")),
+    };
+    let checks: Vec<Check> = owned
         .iter()
         .map(|marketplace| check_one(&plugins, marketplace, bin))
         .collect();
@@ -73,7 +79,7 @@ fn combine(mut checks: Vec<Check>) -> Check {
     }
 }
 
-fn check_one(plugins: &Path, marketplace: &str, bin: &str) -> Check {
+fn check_one(plugins: &Path, marketplace: &MarketplaceId, bin: &str) -> Check {
     let manifest = marketplace_dir(plugins, marketplace)
         .join(".claude-plugin")
         .join("marketplace.json");

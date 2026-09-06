@@ -334,7 +334,7 @@ fn from_services_records_which_plugin_selects_each_skill() {
         market_set(&["market"])
     );
     assert_eq!(
-        sources.plugin_marketplaces("admin-plugin"),
+        sources.plugin_marketplaces(&PluginId::new("admin-plugin")),
         &market_set(&["market"])
     );
 }

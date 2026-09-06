@@ -15,7 +15,6 @@ use super::input::parse_input;
 
 const DEFAULT_MAX_OUTPUT_TOKENS: u32 = 4096;
 
-// Why: rejection detail for a `tool_choice` outside the Responses grammar.
 const TOOL_CHOICE_EXPECTED: &str =
     "expected \"none\", \"auto\", \"required\", or an object with type function";
 

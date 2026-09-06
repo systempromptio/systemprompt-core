@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::MarketplaceId;
+use systemprompt_identifiers::{MarketplaceId, PluginId};
 
 use super::ParentChainIndex;
 use crate::authz::resolver::ResolveParent;
@@ -43,7 +43,7 @@ impl ParentChainIndex {
     }
 
     fn plugin_chains(&self, id: &str) -> Vec<Vec<ResolveParent<'_>>> {
-        self.marketplace_parents(self.sources.plugin_marketplaces(id))
+        self.marketplace_parents(self.sources.plugin_marketplaces(&PluginId::new(id)))
             .into_iter()
             .map(|parent| vec![parent])
             .collect()
@@ -56,8 +56,7 @@ impl ParentChainIndex {
                 continue;
             };
             let plugin_parent = plugin.as_resolve_parent();
-            let marketplaces =
-                self.marketplace_parents(self.sources.plugin_marketplaces(owner.as_str()));
+            let marketplaces = self.marketplace_parents(self.sources.plugin_marketplaces(owner));
             if marketplaces.is_empty() {
                 owned.push(vec![plugin_parent]);
                 continue;

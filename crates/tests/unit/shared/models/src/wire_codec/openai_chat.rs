@@ -704,12 +704,6 @@ async fn openai_chat_stream_reports_reasoning_tokens_in_the_usage_delta() {
     assert_eq!(update.output_tokens, Some(40));
 }
 
-/// The exact response shape Vertex MaaS returns on an ordinary completion:
-/// `tool_calls` and `prompt_tokens_details` present but explicitly `null`.
-/// `#[serde(default)]` covers an absent field, not a null, so this failed the
-/// whole `ChatCompletion` -- and `parse_response` defaulted on error, turning a
-/// good answer into HTTP 200 with no content and no tokens. Nine models
-/// returned blanks for it. Every assertion here is content that was lost.
 #[test]
 fn parse_response_survives_explicit_nulls() {
     let value: Value = json!({
@@ -753,8 +747,6 @@ fn parse_response_survives_explicit_nulls() {
     assert_eq!(canon.usage.total_tokens, 15);
 }
 
-/// An unknown-but-populated `usage` member must not cost us the usage either:
-/// Vertex adds `extra_properties`, and a strict struct would reject the object.
 #[test]
 fn parse_response_ignores_unknown_usage_members() {
     let value: Value = json!({

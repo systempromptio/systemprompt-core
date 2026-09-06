@@ -487,9 +487,6 @@ fn event_to_chunk_relays_no_total_when_the_frame_states_none() {
     }
 }
 
-/// The agent path and the gateway must record the same `tokens_used` for the
-/// same usage: both take it from `CanonicalUsage::billable_total`, so a cached
-/// turn cannot report one number in the CLI and another in the dashboards.
 #[test]
 fn the_agent_path_records_the_same_tokens_used_the_gateway_would() {
     let usage = CanonicalUsage {

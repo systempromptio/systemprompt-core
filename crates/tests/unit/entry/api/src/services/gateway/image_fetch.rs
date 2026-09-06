@@ -17,9 +17,6 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\nfake-pixels";
 
-/// Loopback is blocked for caller-supplied URLs, so a mock host has to be
-/// trusted explicitly — which is exactly the assertion the SSRF tests make by
-/// leaving the list empty.
 fn policy_trusting_mock() -> ImageFetchPolicy {
     ImageFetchPolicy {
         trusted_hosts: vec!["127.0.0.1".to_owned()],

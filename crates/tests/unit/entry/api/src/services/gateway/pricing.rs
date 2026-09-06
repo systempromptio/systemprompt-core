@@ -203,9 +203,6 @@ fn cost_microdollars_rounds_to_nearest() {
     assert_eq!(p.cost_microdollars(&input_only(500_000)), 500_000);
 }
 
-/// The Claude Code shape: a large cached system prompt means cache reads
-/// dominate the token mix, so pricing on `input + output` alone reports a
-/// fraction of the real bill.
 #[test]
 fn cost_microdollars_prices_cache_tokens_at_their_own_rates() {
     let p = ModelPricing {
@@ -312,9 +309,6 @@ fn reasoning_tokens_are_never_added_to_cost_a_second_time() {
     );
 }
 
-/// The double-billing defect: `OpenAI` reports `cached_tokens` as a subset of
-/// `prompt_tokens`, so a canonical usage whose `input_tokens` still contains
-/// the cached slice charges it at the input rate and again at the cache rate.
 #[test]
 fn a_cached_openai_turn_bills_the_cached_slice_once_at_the_cache_rate() {
     let value = serde_json::json!({

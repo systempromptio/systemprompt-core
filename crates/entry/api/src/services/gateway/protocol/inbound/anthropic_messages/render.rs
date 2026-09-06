@@ -207,8 +207,7 @@ fn render_message_stop(stop_reason: Option<CanonicalStopReason>) -> Bytes {
         reason = "items are re-exported via `test_api` only when the feature is on"
     )
 )]
-pub fn render_terminal_frames(snapshot: &CanonicalResponse, model: &str) -> Bytes {
-    let _ = model;
+pub fn render_terminal_frames(snapshot: &CanonicalResponse) -> Bytes {
     render_message_stop_with_usage(snapshot.stop_reason, Some(&snapshot.usage))
 }
 

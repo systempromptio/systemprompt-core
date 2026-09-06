@@ -60,7 +60,16 @@ fn hook_files() -> Option<Vec<PathBuf>> {
     use crate::integration::claude_code_cli::{marketplace_dir, sidecar};
     let plugins = crate::config::paths::claude_cli_plugins_dir()?;
     let mut files = Vec::new();
-    for marketplace in sidecar::owned_marketplaces(&plugins) {
+    let owned = sidecar::owned_marketplaces(&plugins, sidecar::Legacy::WhenUnrecorded)
+        .inspect_err(|e| {
+            tracing::warn!(
+                target: "bridge::doctor",
+                error = %e,
+                "cannot read the claude-code marketplace sidecar; skipping the hook-url check"
+            );
+        })
+        .ok()?;
+    for marketplace in owned {
         let root = marketplace_dir(&plugins, &marketplace).join("plugins");
         let Ok(entries) = std::fs::read_dir(root) else {
             continue;

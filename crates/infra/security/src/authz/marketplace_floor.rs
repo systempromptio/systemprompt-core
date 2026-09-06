@@ -22,6 +22,8 @@ use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind, Se
 
 use super::types::EntityKind;
 
+// JSON: declarative `access.attributes` bags forwarded verbatim to the ABAC
+// hook; core never interprets their shape.
 #[must_use]
 pub fn member_attribute_floor(
     services: &ServicesConfig,

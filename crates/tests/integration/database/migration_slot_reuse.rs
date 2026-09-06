@@ -66,8 +66,6 @@ impl Drop for Cleanup {
     }
 }
 
-/// An extension whose migration list is supplied per-test, so the same
-/// extension id can be presented with a different set of declared slots.
 struct SlotExt {
     id: &'static str,
     table: &'static str,
@@ -165,8 +163,6 @@ async fn fixture() -> Fixture {
     }
 }
 
-/// Applies version 7 under the name `original`, leaving the tracking row that
-/// every established database would carry.
 async fn apply_original(f: &Fixture) {
     let ext = SlotExt {
         id: f.ext_id,

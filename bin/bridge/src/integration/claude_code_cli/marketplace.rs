@@ -11,6 +11,7 @@
 use std::path::Path;
 
 use serde_json::{Value, json};
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::bridge::plugin_bundle::PluginManifest;
 
 use super::json_io::{object_entry, read_json_object, read_optional_object, write_json};
@@ -18,6 +19,7 @@ use super::{HostMarketplace, Mirrored, cache_install_dir, io_err, marketplace_di
 use crate::config::paths;
 use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::ApplyError;
+use crate::ids::PluginId;
 
 #[derive(Debug)]
 pub struct MarketplaceEntry {
@@ -26,9 +28,9 @@ pub struct MarketplaceEntry {
     pub version: String,
 }
 
-pub(super) fn entry_for(src: &Path, plugin_id: &str, version: &str) -> MarketplaceEntry {
+pub(super) fn entry_for(src: &Path, plugin_id: &PluginId, version: &str) -> MarketplaceEntry {
     MarketplaceEntry {
-        name: plugin_id.to_owned(),
+        name: plugin_id.as_str().to_owned(),
         description: read_plugin_description(src).unwrap_or_default(),
         version: version.to_owned(),
     }
@@ -56,7 +58,7 @@ pub(super) fn write_marketplace_json(
     fs_create(&dir)?;
     write_json(
         &dir.join("marketplace.json"),
-        &marketplace_value(&marketplace.id, &marketplace.name, version, entries),
+        &marketplace_value(marketplace.id.as_str(), &marketplace.name, version, entries),
     )
 }
 
@@ -92,7 +94,7 @@ pub fn marketplace_value(
 
 pub fn upsert_known_marketplace(
     plugins: &Path,
-    marketplace: &str,
+    marketplace: &MarketplaceId,
     updated_at: &str,
 ) -> Result<(), ApplyError> {
     let path = plugins.join("known_marketplaces.json");
@@ -101,7 +103,7 @@ pub fn upsert_known_marketplace(
         .to_string_lossy()
         .into_owned();
     root.insert(
-        marketplace.to_owned(),
+        marketplace.as_str().to_owned(),
         json!({
             "source": { "source": "directory", "path": &loc },
             "installLocation": loc,
@@ -111,12 +113,15 @@ pub fn upsert_known_marketplace(
     write_json(&path, &Value::Object(root))
 }
 
-pub fn strip_known_marketplace(plugins: &Path, marketplace: &str) -> Result<(), ApplyError> {
+pub fn strip_known_marketplace(
+    plugins: &Path,
+    marketplace: &MarketplaceId,
+) -> Result<(), ApplyError> {
     let path = plugins.join("known_marketplaces.json");
     let Some(mut root) = read_optional_object(&path)? else {
         return Ok(());
     };
-    if root.remove(marketplace).is_some() {
+    if root.remove(marketplace.as_str()).is_some() {
         write_json(&path, &Value::Object(root))?;
     }
     Ok(())
@@ -125,8 +130,8 @@ pub fn strip_known_marketplace(plugins: &Path, marketplace: &str) -> Result<(), 
 pub(super) fn upsert_installed_plugins(
     plugins: &Path,
     manifest: &SignedManifest,
-    marketplace: &str,
-    ids: &[&str],
+    marketplace: &MarketplaceId,
+    ids: &[&PluginId],
 ) -> Result<(), ApplyError> {
     let path = plugins.join("installed_plugins.json");
     let mut root = read_json_object(&path)?;
@@ -159,7 +164,10 @@ pub fn installed_entry(cache: &Path, version: &str, issued_at: &str) -> Value {
     }])
 }
 
-pub fn strip_installed_plugins(plugins: &Path, marketplace: &str) -> Result<(), ApplyError> {
+pub fn strip_installed_plugins(
+    plugins: &Path,
+    marketplace: &MarketplaceId,
+) -> Result<(), ApplyError> {
     let path = plugins.join("installed_plugins.json");
     let Some(mut root) = read_optional_object(&path)? else {
         return Ok(());
@@ -177,7 +185,7 @@ pub fn strip_installed_plugins(plugins: &Path, marketplace: &str) -> Result<(), 
 // Why: `stale` names marketplaces this emitter wrote before and no longer
 // mirrors; only their keys are stripped, so an enable the user set for a
 // marketplace of their own is never touched.
-pub(super) fn set_enabled(current: &[Mirrored], stale: &[String]) -> Result<(), ApplyError> {
+pub(super) fn set_enabled(current: &[Mirrored], stale: &[MarketplaceId]) -> Result<(), ApplyError> {
     let Some(path) = paths::claude_cli_settings_path() else {
         return Ok(());
     };
@@ -188,7 +196,7 @@ pub(super) fn set_enabled(current: &[Mirrored], stale: &[String]) -> Result<(), 
             strip_marketplace_keys(enabled_map, marketplace, &[]);
         }
         for mirrored in current {
-            let ids: Vec<&str> = mirrored.plugin_ids.iter().map(String::as_str).collect();
+            let ids: Vec<&PluginId> = mirrored.plugin_ids.iter().collect();
             strip_marketplace_keys(enabled_map, &mirrored.id, &ids);
             for id in ids {
                 enabled_map.insert(plugin_key(id, &mirrored.id), Value::Bool(true));
@@ -198,7 +206,7 @@ pub(super) fn set_enabled(current: &[Mirrored], stale: &[String]) -> Result<(), 
 
     if let Some(mkts) = object_entry(&mut root, "extraKnownMarketplaces") {
         for marketplace in stale {
-            mkts.remove(marketplace);
+            mkts.remove(marketplace.as_str());
         }
         let plugins = paths::claude_cli_plugins_dir();
         for mirrored in current {
@@ -211,7 +219,7 @@ pub(super) fn set_enabled(current: &[Mirrored], stale: &[String]) -> Result<(), 
                 })
                 .unwrap_or_default();
             mkts.insert(
-                mirrored.id.clone(),
+                mirrored.id.as_str().to_owned(),
                 json!({ "source": { "source": "directory", "path": loc } }),
             );
         }
@@ -222,10 +230,10 @@ pub(super) fn set_enabled(current: &[Mirrored], stale: &[String]) -> Result<(), 
 
 fn strip_marketplace_keys(
     map: &mut serde_json::Map<String, Value>,
-    marketplace: &str,
-    keep: &[&str],
+    marketplace: &MarketplaceId,
+    keep: &[&PluginId],
 ) -> bool {
-    let suffix = format!("@{marketplace}");
+    let suffix = format!("@{}", marketplace.as_str());
     let expected: Vec<String> = keep.iter().map(|id| plugin_key(id, marketplace)).collect();
     let stale: Vec<String> = map
         .keys()

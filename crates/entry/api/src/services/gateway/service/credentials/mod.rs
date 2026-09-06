@@ -51,7 +51,14 @@ pub(super) async fn resolve(provider: &ProviderEntry) -> Result<Credential, Disp
             ))
         })?;
 
-    match google::ServiceAccountKey::parse(secret) {
+    let parsed = google::ServiceAccountKey::parse(secret).map_err(|e| {
+        DispatchError::PreAudit(anyhow!(
+            "secret '{}' declares a Google service account but is malformed: {e}",
+            provider.api_key_secret.as_str()
+        ))
+    })?;
+
+    match parsed {
         Some(key) => {
             let token = google::access_token(provider.api_key_secret.as_str(), &key)
                 .await

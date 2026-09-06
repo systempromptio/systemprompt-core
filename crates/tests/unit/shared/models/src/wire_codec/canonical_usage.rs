@@ -152,11 +152,6 @@ fn billable_total_counts_cache_and_excludes_reasoning() {
     assert_eq!(u.billable_total(), 282);
 }
 
-/// The three cache-bearing shapes the total-based clause has to tell apart,
-/// now that `input_tokens` is exclusive of `cache_read_tokens` on every wire.
-/// A wire total that used to equal `input + output + reasoning` now equals
-/// `billable_total() + reasoning`, so a cached additive provider is caught
-/// rather than silently missed.
 fn cached(input: u32, output: u32, cache_read: u32, reasoning: u32, total: u32) -> CanonicalUsage {
     CanonicalUsage {
         input_tokens: input,

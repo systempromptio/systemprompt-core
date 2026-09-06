@@ -181,8 +181,6 @@ fn inbound() -> Arc<dyn InboundAdapter> {
     Arc::new(AnthropicMessagesInbound)
 }
 
-/// The parameterised seam the wire matrix drives: any inbound adapter, any raw
-/// body in that adapter's own dialect.
 pub(super) fn inputs_with(
     cred: &AuthedFixture,
     request: CanonicalRequest,

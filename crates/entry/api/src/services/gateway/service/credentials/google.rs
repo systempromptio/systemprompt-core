@@ -49,13 +49,20 @@ fn default_token_uri() -> String {
 impl ServiceAccountKey {
     // Why: recognised by the `type` field the document declares about itself,
     // not by shape. Anything else — including any other JSON — is not one, and
-    // the caller sends it verbatim as an API key.
-    pub(super) fn parse(secret: &str) -> Option<Self> {
-        let value: serde_json::Value = serde_json::from_str(secret).ok()?;
-        if value.get("type").and_then(serde_json::Value::as_str)? != "service_account" {
-            return None;
+    // the caller sends it verbatim as an API key. A document that *does* claim
+    // to be a service account and then fails to deserialise is an error, never
+    // an API key: silently downgrading it would send the private key to the
+    // provider as a bearer secret.
+    pub(super) fn parse(secret: &str) -> Result<Option<Self>> {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(secret) else {
+            return Ok(None);
+        };
+        if value.get("type").and_then(serde_json::Value::as_str) != Some("service_account") {
+            return Ok(None);
         }
-        serde_json::from_value(value).ok()
+        serde_json::from_value(value)
+            .map(Some)
+            .map_err(|e| anyhow!("service-account key is malformed: {e}"))
     }
 }
 

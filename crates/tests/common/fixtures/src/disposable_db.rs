@@ -17,7 +17,6 @@ use systemprompt_extension::ExtensionRegistry;
 
 use crate::db::{fixture_database_url, fixture_db_pool};
 
-/// A database created for the calling test, addressed by its own URL.
 pub struct DisposableDb {
     admin: sqlx::PgPool,
     name: String,

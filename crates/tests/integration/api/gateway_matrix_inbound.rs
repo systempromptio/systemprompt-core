@@ -23,7 +23,6 @@ use super::gateway_matrix::{
     openai_chat_request_body, openai_responses_request_body, run_scenario,
 };
 
-/// The caller-facing surface of one matrix cell.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum InWire {
     Anthropic,
