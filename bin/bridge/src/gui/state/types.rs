@@ -47,6 +47,10 @@ pub struct GatewayProbeOutcome {
 }
 
 #[derive(Debug, Clone, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors StatePayload, the flat wire contract; each flag is a field the GUI reads by name"
+)]
 pub struct AppStateSnapshot {
     pub gateway_url: String,
     pub gateway_configured: bool,

@@ -56,6 +56,7 @@ pub fn state_payload<'a>(
     {
         StatePayload {
             gateway_url: snap.gateway_url.as_str(),
+            gateway_configured: snap.gateway_configured,
             config_file: snap.config_file.as_str(),
             pat_file: snap.pat_file.as_str(),
             config_present: snap.config_present,
