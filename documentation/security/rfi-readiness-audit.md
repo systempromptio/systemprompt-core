@@ -181,9 +181,9 @@ workspaces.
 - The `crates/tests/` workspace declares **92 member crates** across unit tests per layer,
   integration, contract, concurrency and property suites, plus shared test utilities. Fuzz,
   bench and load-test crates are standalone workspaces exercised by `exercise-suites.yml`.
-- CI runs the suite in **13 shards** (`shared`, `infra`, `domain`, `app-runtime`,
+- CI runs the suite in **14 shards** (`shared`, `infra`, `domain`, `app-runtime`,
   `app-scheduler`, `app-generator`, `entry-api`, `entry-cli`, `bridge`, `integration-api`,
-  `integration-cli`, `integration-rest`, `edge`) under `cargo-nextest`, each against a fresh,
+  `integration-cli`, `integration-rest-1`, `integration-rest-2`, `edge`) under `cargo-nextest`, each against a fresh,
   freshly-migrated database. `scripts/test-shard.sh` is the single source of truth for the
   shard definitions, shared by CI and the local recipes.
 - Four fuzz targets are maintained: `a2a_request`, `config_loading`, `identifier_validation`,

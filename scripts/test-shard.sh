@@ -22,7 +22,8 @@ group_prefixes() {
     # them apart would buy no parallelism.
     integration-api)  echo "/tests/integration/api/" ;;
     integration-cli)  echo "/tests/integration/cli/ /tests/integration/cloud/" ;;
-    integration-rest) echo "/tests/integration/agent/ /tests/integration/analytics/ \
+    integration-rest|integration-rest-1|integration-rest-2)
+                      echo "/tests/integration/agent/ /tests/integration/analytics/ \
                              /tests/integration/content/ /tests/integration/database/ \
                              /tests/integration/events/ /tests/integration/extension/ \
                              /tests/integration/files/ /tests/integration/gateway/ \
@@ -34,10 +35,18 @@ group_prefixes() {
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }
-SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest edge"
+SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge"
 
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
 group="${1:?usage: test-shard.sh <group|--list> [extra nextest args]}"; shift || true
+
+# integration-rest is still the widest group after the three-way split, so the
+# two CI shards run the same package set under complementary nextest partitions.
+PARTITION=()
+case "$group" in
+  integration-rest-1) PARTITION=(--partition count:1/2) ;;
+  integration-rest-2) PARTITION=(--partition count:2/2) ;;
+esac
 
 prefixes="$(group_prefixes "$group")"
 PKGS=$(cargo metadata --no-deps --format-version 1 --manifest-path crates/tests/Cargo.toml \
@@ -53,7 +62,7 @@ echo "shard $group: $PKGS"
 # prebuild it once so subprocess fixtures never pay for (or time out on) a
 # cold `cargo build` inside a running test.
 case "$group" in
-  entry-cli|integration-api|integration-cli|integration-rest)
+  entry-cli|integration-api|integration-cli|integration-rest*)
     echo "==> Prebuilding systemprompt binary for subprocess tests"
     cargo build -p systemprompt-cli --bin systemprompt
     export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
@@ -79,4 +88,4 @@ esac
 
 cargo nextest run --profile "${NEXTEST_PROFILE:-default}" \
   --manifest-path crates/tests/Cargo.toml \
-  $targets $PKGS --test-threads "$threads" "$@"
+  $targets $PKGS "${PARTITION[@]}" --test-threads "$threads" "$@"

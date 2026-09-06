@@ -2,7 +2,7 @@
 # A crate that changed must say what changed in it.
 #
 # 0.42.0 shipped source changes in ten crates and a CHANGELOG entry in none of
-# them. Nothing caught it: the build, clippy, rustdoc, all 13 shards and every
+# them. Nothing caught it: the build, clippy, rustdoc, all 14 shards and every
 # other source gate pass against an undocumented crate, and all 53 checks on
 # the release PR were green. The rule existed only as prose in
 # release-flow.md 3, and prose is not a gate. The decay was visible in the

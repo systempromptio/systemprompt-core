@@ -44,7 +44,7 @@ main   ← protected, release-only. Tagged. Never pushed to directly.
 ```
 
 **Every push to `next` runs CI, Quality and Supply Chain** — fmt, build,
-sqlx-check, the 13 test shards, clippy, rustdoc, the source-gate linters, MSRV,
+sqlx-check, the 14 test shards, clippy, rustdoc, the source-gate linters, MSRV,
 the file-size guard and `cargo deny`. The repository is public, so runners are
 free; there is no reason to push blind. Concurrency is `cancel-in-progress`, so
 a second push supersedes the first run rather than queueing behind it.
