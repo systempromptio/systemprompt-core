@@ -9,6 +9,7 @@ use systemprompt_identifiers::{
     AiRequestId, AiToolCallId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::RequestContext;
+use systemprompt_models::wire::canonical::CanonicalUsage;
 
 pub(super) struct MessageData {
     pub role: String,
@@ -44,15 +45,7 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     .actor(params.context.actor().clone())
     .provider(&params.response.provider)
     .model(&params.response.model)
-    .tokens(
-        params.response.input_tokens.map(|t| t as i32),
-        params.response.output_tokens.map(|t| t as i32),
-    )
-    .cache(
-        params.response.cache_hit,
-        params.response.cache_read_tokens.map(|t| t as i32),
-        params.response.cache_creation_tokens.map(|t| t as i32),
-    )
+    .usage(response_usage(params.response))
     .streaming(params.response.is_streaming)
     .cost(params.cost_microdollars)
     .latency(params.response.latency_ms as i32);
@@ -93,6 +86,30 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     };
 
     builder.build()
+}
+
+// Why: a turn that reported no counts at all -- a failed request -- must leave
+// the token columns NULL, so absence is distinguished from a genuine zero.
+fn response_usage(response: &AiResponse) -> Option<CanonicalUsage> {
+    let reported = [
+        response.input_tokens,
+        response.output_tokens,
+        response.cache_read_tokens,
+        response.cache_creation_tokens,
+        response.reasoning_tokens,
+        response.tokens_used,
+    ];
+    if !reported.iter().any(Option::is_some) {
+        return None;
+    }
+    Some(CanonicalUsage {
+        input_tokens: response.input_tokens.unwrap_or(0),
+        output_tokens: response.output_tokens.unwrap_or(0),
+        cache_read_tokens: response.cache_read_tokens.unwrap_or(0),
+        cache_creation_tokens: response.cache_creation_tokens.unwrap_or(0),
+        reasoning_tokens: response.reasoning_tokens.unwrap_or(0),
+        total_tokens: response.tokens_used.unwrap_or(0),
+    })
 }
 
 pub(super) fn extract_messages(

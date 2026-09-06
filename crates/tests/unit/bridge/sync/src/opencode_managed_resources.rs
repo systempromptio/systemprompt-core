@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
-    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
+    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, ManifestMarketplace, SignedManifest, SkillEntry,
+    ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
@@ -60,6 +61,7 @@ fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedM
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),
+        marketplaces: Vec::new(),
     }
 }
 
@@ -317,5 +319,33 @@ fn an_empty_manifest_writes_nothing() {
         apply(&manifest_with(vec![], vec![]), &sb.skills).unwrap();
         assert!(!sb.config.exists(), "no config is created for nothing");
         assert!(!sb.skills.exists());
+    });
+}
+
+#[test]
+fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
+    with_sandbox(|sb| {
+        let mut m = manifest_with(vec![skill("review", "# Review")], vec![]);
+        m.marketplaces = vec![
+            ManifestMarketplace {
+                id: systemprompt_identifiers::MarketplaceId::new("core"),
+                name: "Core".into(),
+                plugin_ids: vec![],
+            },
+            ManifestMarketplace {
+                id: systemprompt_identifiers::MarketplaceId::new("commerce"),
+                name: "Commerce".into(),
+                plugin_ids: vec![],
+            },
+        ];
+        apply(&m, &sb.skills).unwrap();
+
+        let sidecar = read_json(&sb.skills.join(".systemprompt-managed.json"));
+        assert_eq!(
+            sidecar["marketplaces"],
+            serde_json::json!(["core", "commerce"]),
+            "{sidecar}"
+        );
+        assert_eq!(sidecar["ids"], serde_json::json!(["review"]), "{sidecar}");
     });
 }

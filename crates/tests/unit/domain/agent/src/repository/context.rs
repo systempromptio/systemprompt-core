@@ -1,4 +1,4 @@
-use super::{seed_user_and_session, try_pool};
+use super::{seed_user_and_session, try_pool_or_skip};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
@@ -9,7 +9,7 @@ async fn ctx_repo(pool: &systemprompt_database::DbPool) -> ContextRepository {
 
 #[tokio::test]
 async fn create_get_and_validate_ownership() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -32,7 +32,7 @@ async fn create_get_and_validate_ownership() {
 
 #[tokio::test]
 async fn create_without_session() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, _session_id) = seed_user_and_session(&pool).await;
@@ -48,7 +48,7 @@ async fn create_without_session() {
 
 #[tokio::test]
 async fn get_context_wrong_user_is_not_found() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -77,7 +77,7 @@ async fn get_context_wrong_user_is_not_found() {
 
 #[tokio::test]
 async fn find_user_id_for_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -102,7 +102,7 @@ async fn find_user_id_for_context() {
 
 #[tokio::test]
 async fn find_by_session_id_returns_latest() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -127,7 +127,7 @@ async fn find_by_session_id_returns_latest() {
 
 #[tokio::test]
 async fn update_context_name() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -146,7 +146,7 @@ async fn update_context_name() {
 
 #[tokio::test]
 async fn update_context_name_unknown_is_not_found() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, _session_id) = seed_user_and_session(&pool).await;
@@ -163,7 +163,7 @@ async fn update_context_name_unknown_is_not_found() {
 
 #[tokio::test]
 async fn delete_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -190,7 +190,7 @@ async fn delete_context() {
 
 #[tokio::test]
 async fn list_contexts_basic_and_with_stats() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -222,7 +222,7 @@ async fn list_contexts_basic_and_with_stats() {
 
 #[tokio::test]
 async fn get_context_events_since_empty() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -243,7 +243,7 @@ async fn get_context_events_since_empty() {
 
 #[tokio::test]
 async fn kind_round_trips_through_reads() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -279,7 +279,7 @@ async fn kind_round_trips_through_reads() {
 
 #[tokio::test]
 async fn get_or_create_cli_context_reuses_row_across_sessions() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, first_session) = seed_user_and_session(&pool).await;
@@ -311,7 +311,7 @@ async fn get_or_create_cli_context_reuses_row_across_sessions() {
 
 #[tokio::test]
 async fn get_or_create_cli_context_keeps_profiles_separate() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -330,7 +330,7 @@ async fn get_or_create_cli_context_keeps_profiles_separate() {
 
 #[tokio::test]
 async fn ensure_context_is_idempotent_and_never_clobbers_an_existing_row() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user_id, session_id) = seed_user_and_session(&pool).await;

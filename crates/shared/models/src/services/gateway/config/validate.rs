@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::services::ai::ModelPricing;
 use crate::services::gateway::config::GatewayConfig;
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 use crate::services::gateway::route::GatewayRoute;
@@ -61,22 +62,24 @@ impl GatewayConfig {
             return Ok(());
         }
         let route_id = route.id.as_str().to_owned();
+        let provider = route.provider.as_str().to_owned();
         if let Some(pricing) = route.pricing {
-            return if pricing.is_billable() {
-                Ok(())
-            } else {
-                Err(GatewayProfileError::RouteModelUnpriced {
+            if !pricing.is_billable() {
+                return Err(GatewayProfileError::RouteModelUnpriced {
                     route: route_id,
                     model: route.model_pattern.clone(),
-                })
-            };
+                });
+            }
+            return check_cache_rate(&pricing, &route_id, &provider, &route.model_pattern);
         }
         let Some(entry) = route.resolve(registry) else {
             return Ok(());
         };
         if let Some(upstream) = route.upstream_model.as_deref() {
             return match entry.find_model(upstream) {
-                Some(model) if model.pricing.is_billable() => Ok(()),
+                Some(model) if model.pricing.is_billable() => {
+                    check_cache_rate(&model.pricing, &route_id, &provider, model.id.as_str())
+                },
                 Some(model) => Err(GatewayProfileError::RouteModelUnpriced {
                     route: route_id,
                     model: model.id.as_str().to_owned(),
@@ -97,6 +100,7 @@ impl GatewayConfig {
                     model: model.id.as_str().to_owned(),
                 });
             }
+            check_cache_rate(&model.pricing, &route_id, &provider, model.id.as_str())?;
         }
         if reached == 0 {
             return Err(GatewayProfileError::RouteReachesNoPricedModel {
@@ -106,6 +110,33 @@ impl GatewayConfig {
             });
         }
         Ok(())
+    }
+}
+
+// Why: every outbound wire the gateway speaks -- anthropic, openai-chat,
+// openai-responses, gemini -- can report cached prompt tokens, and the
+// canonical usage type keeps them out of `input_tokens`. A model with no
+// declared cache rate therefore bills its cached slice at nothing, invisibly.
+// An explicit 0.0 is a statement that the provider does not bill cache reads.
+// A model billed only per image is exempt: it charges no token classes at all,
+// so there is no cached slice for a missing rate to hide.
+fn check_cache_rate(
+    pricing: &ModelPricing,
+    route: &str,
+    provider: &str,
+    model: &str,
+) -> GatewayResult<()> {
+    if pricing.input_per_million <= 0.0 && pricing.output_per_million <= 0.0 {
+        return Ok(());
+    }
+    if pricing.declares_cache_rate() {
+        Ok(())
+    } else {
+        Err(GatewayProfileError::RouteModelCacheRateUndeclared {
+            route: route.to_owned(),
+            provider: provider.to_owned(),
+            model: model.to_owned(),
+        })
     }
 }
 

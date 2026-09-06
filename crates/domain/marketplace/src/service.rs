@@ -1,8 +1,13 @@
 //! Read-only access to the configured marketplaces.
 //!
 //! [`MarketplaceService`] borrows a [`ServicesConfig`] and resolves marketplace
-//! lookups, the active-marketplace selection, and referential integrity without
-//! owning or cloning the config.
+//! lookups, the enabled set, the rendering default, and referential integrity
+//! without owning or cloning the config.
+//!
+//! There is no "active" marketplace: the manifest unions every enabled one.
+//! [`MarketplaceService::resolve_default`] selects the single marketplace the
+//! public `/marketplace.json` and the CLI's generated file render, and nothing
+//! else.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,10 +43,22 @@ impl<'a> MarketplaceService<'a> {
     pub fn resolve_default(
         &self,
     ) -> Result<(&'a MarketplaceId, &'a MarketplaceConfig), MarketplaceError> {
-        self.active_entry().ok_or(MarketplaceError::NoDefault)
+        self.default_entry().ok_or(MarketplaceError::NoDefault)
     }
 
-    fn active_entry(&self) -> Option<(&'a MarketplaceId, &'a MarketplaceConfig)> {
+    #[must_use]
+    pub fn enabled(&self) -> Vec<(&'a MarketplaceId, &'a MarketplaceConfig)> {
+        let mut out: Vec<(&'a MarketplaceId, &'a MarketplaceConfig)> = self
+            .services
+            .marketplaces
+            .iter()
+            .filter(|(_, config)| config.enabled)
+            .collect();
+        out.sort_by(|(a, _), (b, _)| a.as_str().cmp(b.as_str()));
+        out
+    }
+
+    fn default_entry(&self) -> Option<(&'a MarketplaceId, &'a MarketplaceConfig)> {
         let mut enabled = self
             .services
             .marketplaces
@@ -56,22 +73,6 @@ impl<'a> MarketplaceService<'a> {
             .marketplaces
             .get_key_value(id)
             .filter(|(_, config)| config.enabled)
-    }
-
-    // Why: with at least one enabled marketplace configured, an unresolvable
-    // selection must fail closed rather than assemble unscoped.
-    pub fn resolve_active(&self) -> Result<Option<&'a MarketplaceConfig>, MarketplaceError> {
-        let any_enabled = self.services.marketplaces.values().any(|m| m.enabled);
-        match self.active_entry() {
-            Some((_, config)) => Ok(Some(config)),
-            None if any_enabled => Err(MarketplaceError::NoDefault),
-            None => Ok(None),
-        }
-    }
-
-    #[must_use]
-    pub fn active(&self) -> Option<&'a MarketplaceConfig> {
-        self.active_entry().map(|(_, config)| config)
     }
 
     pub fn validate_referential_integrity(&self) -> Result<(), MarketplaceError> {

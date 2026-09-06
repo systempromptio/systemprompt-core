@@ -4,6 +4,7 @@
 //! empty/not-found path.
 
 mod duration_parse;
+mod governance_report_db;
 mod logs_builders;
 mod request_builders;
 mod trace_show_output;

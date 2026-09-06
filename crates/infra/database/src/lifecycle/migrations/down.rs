@@ -76,6 +76,17 @@ impl MigrationService<'_> {
                 ),
             })?;
 
+        if migration.tombstone {
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_owned(),
+                message: format!(
+                    "Cannot revert migration {version} ('{}'): the slot is tombstoned — its file \
+                     was deleted, so there is no down SQL to run",
+                    migration.name
+                ),
+            });
+        }
+
         let down_sql = migration
             .down
             .ok_or_else(|| LoaderError::MigrationNotReversible {

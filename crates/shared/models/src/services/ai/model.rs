@@ -54,6 +54,13 @@ pub struct ModelCapabilities {
 
     #[serde(default)]
     pub image_resolution_config: bool,
+
+    // Why: a model that emits hidden reasoning tokens bills them inside
+    // output_tokens, so a reader comparing output against visible text needs to
+    // know the model is a thinking one. Declarative only -- the runtime guard,
+    // not this flag, is what enforces the accounting invariant.
+    #[serde(default)]
+    pub reasoning: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
@@ -76,11 +83,16 @@ pub struct ModelPricing {
     #[serde(default)]
     pub output_per_million: f64,
 
+    // Why: `Option` rather than a defaulted `f64` because an absent rate and a
+    // declared free rate must not look alike. `input_tokens` is exclusive of
+    // cache reads, so a forgotten rate silently bills the cached slice at zero;
+    // `validate_route_pricing` refuses boot on `None`, and an explicit `0.0`
+    // passes as a deliberate statement that the provider does not bill it.
     #[serde(default)]
-    pub cache_read_per_million: f64,
+    pub cache_read_per_million: Option<f64>,
 
     #[serde(default)]
-    pub cache_write_per_million: f64,
+    pub cache_write_per_million: Option<f64>,
 
     #[serde(default)]
     pub per_image_cents: Option<f64>,
@@ -110,6 +122,21 @@ impl ModelPricing {
             return true;
         }
         self.input_per_million > 0.0 && self.output_per_million > 0.0
+    }
+
+    #[must_use]
+    pub const fn declares_cache_rate(&self) -> bool {
+        self.cache_read_per_million.is_some()
+    }
+
+    #[must_use]
+    pub fn cache_read_rate(&self) -> f64 {
+        self.cache_read_per_million.unwrap_or(0.0)
+    }
+
+    #[must_use]
+    pub fn cache_write_rate(&self) -> f64 {
+        self.cache_write_per_million.unwrap_or(0.0)
     }
 }
 

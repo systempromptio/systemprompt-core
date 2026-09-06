@@ -153,6 +153,19 @@ jobs:
           # directory.
           cargo build -p systemprompt-cli --bin systemprompt
 
+      - name: Build instrumented systemprompt-bridge binary
+        env:
+          RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
+        run: |
+          # bin/bridge is its own workspace, so neither the main build above nor
+          # the test workspace's --bins produces this binary. The black-box
+          # suite in crates/tests/unit/bridge/cli-subprocess spawns it via
+          # SP_BRIDGE_BIN and skips silently when the path is absent; without
+          # this step those 11 tests never ran and bin/bridge/src/cli measured
+          # 66%. The spawned process inherits LLVM_PROFILE_FILE from the test
+          # step, so its counters land in the shared profraw directory.
+          cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
+
       - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
         id: tests
         env:
@@ -166,6 +179,7 @@ jobs:
           RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
           SQLX_OFFLINE: "false"
           SYSTEMPROMPT_BIN: /mnt/coverage-target/debug/systemprompt
+          SP_BRIDGE_BIN: /mnt/coverage-target/debug/systemprompt-bridge
           # Test tempdirs (generator sites, CLI subprocess fixtures) otherwise
           # accumulate on the root disk.
           TMPDIR: /mnt/tmp
@@ -228,13 +242,19 @@ jobs:
           fi
           exit $status
 
-      # --ignore-filename-regex below excludes twelve process-entry files. Ten
-      # CLI ones (serve, deploy orchestrator/artifacts, tenant create cloud,
-      # setup docker/docker_database, backup client/mod, plugins run, agents
-      # run) and two domain ones (a2a_server standalone, mcp orchestrator
-      # daemon). Each is a supervisor that spawns a subprocess, binds a
-      # listener, or loops until a signal, has no seam to drive from a test,
-      # and measures 0%. Listed file-by-file, not by directory, so testable
+      # --ignore-filename-regex below excludes sixteen process-entry files.
+      # Twelve CLI ones (serve, deploy orchestrator/artifacts, tenant create
+      # cloud, setup docker/docker_database/docker_compose, tenant docker
+      # container, backup client/mod, plugins run, agents run), three domain
+      # ones (a2a_server standalone, mcp orchestrator daemon, agent
+      # orchestration daemon) and one bridge one (update install linux, which
+      # replaces the running executable). Each is a supervisor that spawns a
+      # subprocess, binds a listener, drives Docker, or loops until a signal,
+      # and has no seam to drive from a test. A file qualifies only if it
+      # cannot execute in-process at all: merely lacking a test is not enough,
+      # which is why the interactive dialoguer paths (interactive.rs at 84%,
+      # wizard_prompts.rs at 70%) stay in the denominator. Listed file-by-file,
+      # not by directory, so testable
       # code alongside them still counts — which is why sibling files with
       # real seams (a2a_server/server.rs, backup/extract.rs, policy/audit.rs)
       # are deliberately absent. Mirrors the justfile `coverage` recipe
@@ -254,22 +274,24 @@ jobs:
             | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
           SP_BIN="/mnt/coverage-target/debug/systemprompt"
           [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
+          BRIDGE_BIN="/mnt/coverage-target/debug/systemprompt-bridge"
+          [ -x "$BRIDGE_BIN" ] && BINS="$BINS $BRIDGE_BIN"
           OBJ_ARGS=""
           for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
 
           # Unfiltered first so we can see raw paths llvm-cov emits.
           "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)' \
             --summary-only \
             | tee coverage-summary.txt
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)' \
             --format=text --summary-only \
             > coverage-summary.json
 
           "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)' \
+            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)' \
             --format=lcov \
             > lcov.info
 

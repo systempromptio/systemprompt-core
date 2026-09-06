@@ -7,7 +7,7 @@ use systemprompt_files::{File, FileMetadata, FileRepository, FilesError, InsertF
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<DbPool> {
+async fn db_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -34,7 +34,7 @@ fn ai_file(id: uuid::Uuid, user: &UserId) -> File {
 
 #[tokio::test]
 async fn insert_rejects_non_uuid_file_id() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
 
     let request = InsertFileRequest::new(
@@ -58,7 +58,7 @@ async fn insert_rejects_non_uuid_file_id() {
 
 #[tokio::test]
 async fn insert_file_round_trips_all_optional_fields() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let id = uuid::Uuid::new_v4();
     let user = UserId::new(format!("u-{}", id.simple()));
@@ -97,7 +97,7 @@ async fn insert_file_round_trips_all_optional_fields() {
 
 #[tokio::test]
 async fn count_ai_images_reflects_inserted_rows() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
 

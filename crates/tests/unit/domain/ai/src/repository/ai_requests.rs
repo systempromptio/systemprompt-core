@@ -7,17 +7,17 @@ use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId};
 use uuid::Uuid;
 
-use super::{completed_record, pool, seed_request, user};
+use super::{completed_record, pool_or_skip, seed_request, user};
 
-async fn repo() -> Option<(AiRequestRepository, systemprompt_database::DbPool)> {
-    let pool = pool().await?;
+async fn repo_or_skip() -> Option<(AiRequestRepository, systemprompt_database::DbPool)> {
+    let pool = pool_or_skip().await?;
     let repo = AiRequestRepository::new(&pool).expect("repo");
     Some((repo, pool))
 }
 
 #[tokio::test]
 async fn insert_then_get_by_id_round_trips() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -43,7 +43,7 @@ async fn insert_then_get_by_id_round_trips() {
 
 #[tokio::test]
 async fn rejection_without_a_resolved_provider_still_persists_a_row() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -66,7 +66,7 @@ async fn rejection_without_a_resolved_provider_still_persists_a_row() {
 
 #[tokio::test]
 async fn completed_request_without_a_provider_is_refused_by_the_database() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -92,7 +92,7 @@ async fn completed_request_without_a_provider_is_refused_by_the_database() {
 
 #[tokio::test]
 async fn get_by_id_missing_returns_none() {
-    let Some((repo, _pool)) = repo().await else {
+    let Some((repo, _pool)) = repo_or_skip().await else {
         return;
     };
     let missing = AiRequestId::generate();
@@ -101,7 +101,7 @@ async fn get_by_id_missing_returns_none() {
 
 #[tokio::test]
 async fn insert_with_id_uses_supplied_id() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -118,7 +118,7 @@ async fn insert_with_id_uses_supplied_id() {
 
 #[tokio::test]
 async fn update_completion_sets_tokens_and_status() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -135,6 +135,7 @@ async fn update_completion_sets_tokens_and_status() {
             cache_hit: true,
             cache_read_tokens: 128,
             cache_creation_tokens: 0,
+            reasoning_tokens: 40,
         })
         .await
         .expect("update");
@@ -147,12 +148,45 @@ async fn update_completion_sets_tokens_and_status() {
     assert_eq!(updated.latency_ms, Some(750));
     assert!(updated.cache_hit);
     assert_eq!(updated.cache_read_tokens, Some(128));
+    assert_eq!(
+        updated.reasoning_tokens,
+        Some(40),
+        "the thinking share of output_tokens is persisted, not dropped"
+    );
     assert!(updated.completed_at.is_some());
 }
 
 #[tokio::test]
+async fn insert_persists_the_reasoning_share_of_output_tokens() {
+    let Some((repo, pool)) = repo_or_skip().await else {
+        return;
+    };
+    let uid = user();
+    let email = format!("{}@ai.invalid", uid.as_str());
+    systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
+        .await
+        .expect("seed");
+    let mut record = completed_record(&uid);
+    record.tokens.reasoning_tokens = Some(40);
+    let id = repo.insert(&record).await.expect("insert");
+
+    let fetched = repo.get_by_id(&id).await.expect("get").expect("present");
+    assert_eq!(
+        fetched.reasoning_tokens,
+        Some(40),
+        "the INSERT must write reasoning_tokens, not leave it NULL"
+    );
+    assert_eq!(
+        fetched.tokens_used,
+        Some(180),
+        "tokens_used is input + output + cache; reasoning is already inside \
+         output_tokens and must not be summed again"
+    );
+}
+
+#[tokio::test]
 async fn update_error_sets_failed_status_and_message() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -169,7 +203,7 @@ async fn update_error_sets_failed_status_and_message() {
 
 #[tokio::test]
 async fn update_error_can_stamp_a_pre_routing_rejection() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -184,7 +218,7 @@ async fn update_error_can_stamp_a_pre_routing_rejection() {
 
 #[tokio::test]
 async fn update_model_changes_model() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -198,7 +232,7 @@ async fn update_model_changes_model() {
 
 #[tokio::test]
 async fn get_user_usage_aggregates_requests() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -216,12 +250,14 @@ async fn get_user_usage_aggregates_requests() {
     let usage = repo.get_user_usage(&uid).await.expect("usage");
     assert_eq!(usage.user_id, uid);
     assert_eq!(usage.request_count, 2);
-    assert_eq!(usage.total_tokens, 300);
+    // tokens_used is CanonicalUsage::billable_total: 100 + 50 + 20 + 10 per
+    // record, the same definition the gateway writes.
+    assert_eq!(usage.total_tokens, 360);
 }
 
 #[tokio::test]
 async fn get_provider_usage_groups_by_provider_model() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -242,7 +278,7 @@ async fn get_provider_usage_groups_by_provider_model() {
 
 #[tokio::test]
 async fn insert_and_get_messages_in_sequence_order() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -268,7 +304,7 @@ async fn insert_and_get_messages_in_sequence_order() {
 
 #[tokio::test]
 async fn get_max_sequence_reflects_inserted_messages() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -282,7 +318,7 @@ async fn get_max_sequence_reflects_inserted_messages() {
 
 #[tokio::test]
 async fn add_response_message_appends_after_max() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -302,7 +338,7 @@ async fn add_response_message_appends_after_max() {
 
 #[tokio::test]
 async fn insert_and_get_tool_calls() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();
@@ -331,7 +367,7 @@ async fn insert_and_get_tool_calls() {
 
 #[tokio::test]
 async fn link_tool_calls_empty_input_returns_zero() {
-    let Some((repo, _pool)) = repo().await else {
+    let Some((repo, _pool)) = repo_or_skip().await else {
         return;
     };
     let affected = repo
@@ -343,7 +379,7 @@ async fn link_tool_calls_empty_input_returns_zero() {
 
 #[tokio::test]
 async fn link_tool_calls_no_matching_executions_affects_zero() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let uid = user();

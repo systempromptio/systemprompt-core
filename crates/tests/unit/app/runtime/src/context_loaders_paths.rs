@@ -72,10 +72,11 @@ fn app_paths_for(system: &std::path::Path) -> AppPaths {
 }
 
 fn valid_mmdb_path() -> String {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../domain/analytics/fixtures/GeoIP2-City-Test.mmdb")
-        .display()
-        .to_string()
+    systemprompt_test_fixtures::repo_path(
+        "crates/tests/unit/domain/analytics/fixtures/GeoIP2-City-Test.mmdb",
+    )
+    .display()
+    .to_string()
 }
 
 #[test]

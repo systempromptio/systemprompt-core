@@ -62,6 +62,7 @@ fn regular_files_under(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
 #[tokio::test]
 async fn upload_context_scoped_persists_file_and_row() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };
@@ -124,6 +125,7 @@ async fn upload_context_scoped_persists_file_and_row() {
 #[tokio::test]
 async fn upload_rejected_when_persistence_disabled() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };
@@ -148,6 +150,7 @@ async fn upload_rejected_when_persistence_disabled() {
 #[tokio::test]
 async fn upload_rejects_oversized_base64_payload() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };
@@ -174,6 +177,7 @@ async fn upload_rejects_oversized_base64_payload() {
 #[tokio::test]
 async fn upload_rejects_invalid_base64() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };
@@ -192,6 +196,7 @@ async fn upload_rejects_invalid_base64() {
 #[tokio::test]
 async fn upload_user_library_scopes_path_to_user() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };
@@ -227,6 +232,7 @@ async fn upload_user_library_scopes_path_to_user() {
 #[tokio::test]
 async fn upload_user_library_without_user_uses_anonymous() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };
@@ -256,6 +262,7 @@ async fn upload_user_library_without_user_uses_anonymous() {
 #[tokio::test]
 async fn upload_rejects_user_id_with_traversal() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };
@@ -325,6 +332,7 @@ async fn upload_db_failure_removes_stored_file() {
 #[tokio::test]
 async fn upload_io_error_when_uploads_path_is_blocked() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };

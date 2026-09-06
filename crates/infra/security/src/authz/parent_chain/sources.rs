@@ -1,8 +1,12 @@
-//! Pure membership data behind a [`super::ParentChainIndex`]: which plugins a
-//! marketplace parents, which plugins select each skill, and which agents
-//! and MCP servers the marketplace names directly. Derived from a
-//! [`ServicesConfig`] by [`ChainSources::from_services`], or assembled by a
+//! Pure membership data behind a [`super::ParentChainIndex`]: which plugins
+//! each enabled marketplace parents, which plugins select each skill, and
+//! which agents and MCP servers each marketplace names directly. Derived from
+//! a [`ServicesConfig`] by [`ChainSources::from_services`], or assembled by a
 //! caller that already holds the resolved catalogue.
+//!
+//! Membership is many-to-many: a plugin listed by two enabled marketplaces
+//! belongs to both, and the resolver is handed one chain per owner so any
+//! admitting marketplace admits the entity.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,10 +14,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
-use systemprompt_models::services::{MarketplaceMemberKind, ServicesConfig};
+use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind, ServicesConfig};
 
-use crate::authz::marketplace_floor::active_marketplace;
 use crate::authz::types::EntityKind;
+
+static EMPTY_MARKETPLACES: BTreeSet<MarketplaceId> = BTreeSet::new();
 
 #[derive(Debug, Clone)]
 pub struct MarketplaceSource {
@@ -23,62 +28,81 @@ pub struct MarketplaceSource {
 
 #[derive(Debug, Clone, Default)]
 pub struct ChainSources {
-    pub marketplace: Option<MarketplaceSource>,
-    pub plugins: BTreeSet<PluginId>,
+    pub marketplaces: BTreeMap<MarketplaceId, MarketplaceSource>,
+    pub plugins: BTreeMap<PluginId, BTreeSet<MarketplaceId>>,
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
-    pub marketplace_members: BTreeMap<EntityKind, BTreeSet<String>>,
+    pub marketplace_members: BTreeMap<EntityKind, BTreeMap<String, BTreeSet<MarketplaceId>>>,
 }
 
 impl ChainSources {
     #[must_use]
     pub fn from_services(services: &ServicesConfig) -> Self {
-        let Some(marketplace) = active_marketplace(services) else {
-            return Self::default();
-        };
-        let plugins = services.marketplace_plugin_configs(marketplace);
+        let mut out = Self::default();
+        for marketplace in services.enabled_marketplaces() {
+            out.absorb(services, marketplace);
+        }
+        out
+    }
 
-        let mut skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>> = BTreeMap::new();
-        for plugin in &plugins {
+    fn absorb(&mut self, services: &ServicesConfig, marketplace: &MarketplaceConfig) {
+        let id = marketplace.id.clone();
+        self.marketplaces.insert(
+            id.clone(),
+            MarketplaceSource {
+                id: id.clone(),
+                fallback_default_included: Some(marketplace.access.default_included),
+            },
+        );
+
+        for plugin in services.marketplace_plugin_configs(marketplace) {
+            self.plugins
+                .entry(plugin.id.clone())
+                .or_default()
+                .insert(id.clone());
             for skill in services.plugin_selected_skill_ids(plugin) {
-                skill_owners
+                self.skill_owners
                     .entry(SkillId::new(skill))
                     .or_default()
                     .insert(plugin.id.clone());
             }
         }
 
-        let marketplace_members = [
-            (EntityKind::Agent, MarketplaceMemberKind::Agents),
-            (EntityKind::McpServer, MarketplaceMemberKind::McpServers),
-        ]
-        .into_iter()
-        .map(|(kind, member_kind)| {
+        for (kind, member_kind, catalogue) in [
             (
-                kind,
-                marketplace
-                    .members(member_kind)
-                    .include
-                    .iter()
+                EntityKind::Agent,
+                MarketplaceMemberKind::Agents,
+                services.agents.keys().cloned().collect::<Vec<String>>(),
+            ),
+            (
+                EntityKind::McpServer,
+                MarketplaceMemberKind::McpServers,
+                services
+                    .mcp_servers
+                    .keys()
                     .cloned()
-                    .collect(),
-            )
-        })
-        .collect();
-
-        Self {
-            marketplace: Some(MarketplaceSource {
-                id: marketplace.id.clone(),
-                fallback_default_included: Some(marketplace.access.default_included),
-            }),
-            plugins: plugins.iter().map(|plugin| plugin.id.clone()).collect(),
-            skill_owners,
-            marketplace_members,
+                    .collect::<Vec<String>>(),
+            ),
+        ] {
+            // Why: an empty `include:` means "every member of that catalogue",
+            // the same rule the manifest scoper applies — validation rejects an
+            // explicit ref with an empty include, so empty here is never
+            // "nothing".
+            let include = &marketplace.members(member_kind).include;
+            let members: Vec<String> = if include.is_empty() {
+                catalogue
+            } else {
+                include.clone()
+            };
+            let band = self.marketplace_members.entry(kind).or_default();
+            for member in members {
+                band.entry(member).or_default().insert(id.clone());
+            }
         }
     }
 
     #[must_use]
     pub fn plugin_ids_to_load(&self) -> Vec<String> {
-        let mut ids: BTreeSet<&str> = self.plugins.iter().map(PluginId::as_str).collect();
+        let mut ids: BTreeSet<&str> = self.plugins.keys().map(PluginId::as_str).collect();
         for owners in self.skill_owners.values() {
             ids.extend(owners.iter().map(PluginId::as_str));
         }
@@ -86,9 +110,25 @@ impl ChainSources {
     }
 
     #[must_use]
-    pub fn is_marketplace_member(&self, kind: EntityKind, id: &str) -> bool {
+    pub fn marketplace_ids_to_load(&self) -> Vec<MarketplaceId> {
+        self.marketplaces.keys().cloned().collect()
+    }
+
+    #[must_use]
+    pub fn marketplaces_of(&self, kind: EntityKind, id: &str) -> &BTreeSet<MarketplaceId> {
         self.marketplace_members
             .get(&kind)
-            .is_some_and(|members| members.contains(id))
+            .and_then(|band| band.get(id))
+            .unwrap_or(&EMPTY_MARKETPLACES)
+    }
+
+    #[must_use]
+    pub fn plugin_marketplaces(&self, id: &PluginId) -> &BTreeSet<MarketplaceId> {
+        self.plugins.get(id).unwrap_or(&EMPTY_MARKETPLACES)
+    }
+
+    #[must_use]
+    pub fn is_marketplace_member(&self, kind: EntityKind, id: &str) -> bool {
+        !self.marketplaces_of(kind, id).is_empty()
     }
 }

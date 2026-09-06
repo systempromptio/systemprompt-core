@@ -25,7 +25,8 @@ use prompts::{resolve_interactive_primary, select_provider_keys};
 
 pub use data::SecretsData;
 
-pub(super) fn collect_non_interactive(
+#[doc(hidden)]
+pub fn collect_non_interactive(
     args: &SetupArgs,
     config: &CliConfig,
 ) -> Result<(SecretsData, Option<ProviderId>)> {
@@ -61,7 +62,8 @@ pub(super) fn collect_non_interactive(
     Ok((secrets, primary))
 }
 
-pub(super) fn collect_interactive(
+#[doc(hidden)]
+pub fn collect_interactive(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     env_name: &str,

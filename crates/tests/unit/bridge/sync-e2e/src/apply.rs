@@ -328,6 +328,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             artifacts: vec![],
             allow_claude_ai_connectors: false,
             diagnostics: Vec::new(),
+            marketplaces: Vec::new(),
         };
 
         pat_mock().mount(&server).await;
@@ -486,6 +487,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
             artifacts: vec![],
             allow_claude_ai_connectors: false,
             diagnostics: Vec::new(),
+            marketplaces: Vec::new(),
         };
 
         pat_mock().mount(&server).await;
@@ -542,6 +544,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             artifacts: vec![],
             allow_claude_ai_connectors: false,
             diagnostics: Vec::new(),
+            marketplaces: Vec::new(),
         };
 
         pat_mock().mount(&server).await;
@@ -596,6 +599,7 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),
+        marketplaces: Vec::new(),
     }
 }
 
@@ -770,6 +774,7 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),
+        marketplaces: Vec::new(),
     }
 }
 
@@ -1174,6 +1179,7 @@ fn empty_manifest() -> SignedManifest {
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),
+        marketplaces: Vec::new(),
     }
 }
 

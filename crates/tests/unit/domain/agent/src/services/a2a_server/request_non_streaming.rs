@@ -15,7 +15,7 @@ use systemprompt_identifiers::{ContextId, MessageId, SessionId, UserId};
 use systemprompt_models::RequestContext;
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn rpc_request(context: RequestContext, body: &Value) -> Request {
     let mut request = Request::builder()
@@ -69,7 +69,7 @@ async fn fixture(pool: &systemprompt_database::DbPool) -> Fixture {
 
 #[tokio::test]
 async fn send_message_dispatch_returns_a_task_for_the_seeded_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -105,7 +105,7 @@ async fn send_message_dispatch_returns_a_task_for_the_seeded_context() {
 
 #[tokio::test]
 async fn send_message_for_an_unknown_context_is_rejected_by_validation() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -135,7 +135,7 @@ async fn send_message_for_an_unknown_context_is_rejected_by_validation() {
 
 #[tokio::test]
 async fn cancel_task_returns_a_canceled_task_bound_to_its_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -168,7 +168,7 @@ async fn cancel_task_returns_a_canceled_task_bound_to_its_context() {
 
 #[tokio::test]
 async fn cancel_task_for_an_unknown_id_is_a_jsonrpc_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let f = fixture(&pool).await;
@@ -198,7 +198,7 @@ async fn cancel_task_for_an_unknown_id_is_a_jsonrpc_error() {
 
 #[tokio::test]
 async fn list_push_notification_configs_is_declined_by_dispatch_and_rejected_downstream() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -230,7 +230,7 @@ async fn list_push_notification_configs_is_declined_by_dispatch_and_rejected_dow
 
 #[tokio::test]
 async fn an_extended_card_request_falls_through_to_unsupported() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let f = fixture(&pool).await;

@@ -13,7 +13,7 @@ use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseSe
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 use uuid::Uuid;
 
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 // A PID that can never name a live, signalable process (> i32::MAX).
 const DEAD_PID: u32 = 4_000_000_000;
@@ -35,7 +35,7 @@ async fn service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
 
 #[tokio::test]
 async fn register_then_status_reconciles_dead_pid_to_failed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -60,7 +60,7 @@ async fn register_then_status_reconciles_dead_pid_to_failed() {
 
 #[tokio::test]
 async fn status_no_record_is_failed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -76,7 +76,7 @@ async fn status_no_record_is_failed() {
 
 #[tokio::test]
 async fn status_starting_is_failed_with_starting_reason() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -96,7 +96,7 @@ async fn status_starting_is_failed_with_starting_reason() {
 
 #[tokio::test]
 async fn status_stopped_is_failed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -114,7 +114,7 @@ async fn status_stopped_is_failed() {
 
 #[tokio::test]
 async fn mark_failed_and_error_message() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -132,7 +132,7 @@ async fn mark_failed_and_error_message() {
 
 #[tokio::test]
 async fn error_message_no_record() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -145,7 +145,7 @@ async fn error_message_no_record() {
 
 #[tokio::test]
 async fn list_running_agents_includes_registered() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -162,7 +162,7 @@ async fn list_running_agents_includes_registered() {
 
 #[tokio::test]
 async fn cleanup_orphaned_services_marks_dead_pids() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -183,7 +183,7 @@ async fn cleanup_orphaned_services_marks_dead_pids() {
 
 #[tokio::test]
 async fn lifecycle_register_starting_mark_running_then_stopped() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -210,7 +210,7 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
 
 #[tokio::test]
 async fn mark_error_and_mark_crashed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -229,7 +229,7 @@ async fn mark_error_and_mark_crashed() {
 
 #[tokio::test]
 async fn agent_exists_false_for_unconfigured() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -242,7 +242,7 @@ async fn agent_exists_false_for_unconfigured() {
 
 #[tokio::test]
 async fn get_agent_config_unknown_errors() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -255,7 +255,7 @@ async fn get_agent_config_unknown_errors() {
 
 #[tokio::test]
 async fn list_all_agents_empty_default_config() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;
@@ -266,7 +266,7 @@ async fn list_all_agents_empty_default_config() {
 
 #[tokio::test]
 async fn remove_unknown_service_is_ok() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let svc = service(&pool).await;

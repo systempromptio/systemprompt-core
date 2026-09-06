@@ -103,6 +103,7 @@ fn died_within(pid: u32, timeout: Duration) -> bool {
 
 #[tokio::test]
 async fn terminate_gracefully_escalates_to_sigkill_when_sigterm_is_ignored() {
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_term_deaf_agent(&unique_service("sigesc")) else {
         return;
     };
@@ -119,6 +120,7 @@ async fn terminate_gracefully_escalates_to_sigkill_when_sigterm_is_ignored() {
 
 #[tokio::test]
 async fn terminate_gracefully_stops_a_process_that_honours_sigterm() {
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_agent(&unique_service("sigterm")) else {
         return;
     };
@@ -131,6 +133,7 @@ async fn terminate_gracefully_stops_a_process_that_honours_sigterm() {
 
 #[tokio::test]
 async fn terminate_gracefully_returns_immediately_for_a_pid_that_is_already_gone() {
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_agent(&unique_service("siggone")) else {
         return;
     };
@@ -147,6 +150,7 @@ async fn terminate_gracefully_returns_immediately_for_a_pid_that_is_already_gone
 #[tokio::test]
 async fn terminate_gracefully_verified_signals_a_process_carrying_this_agents_markers() {
     let service = unique_service("sigown");
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_agent(&service) else {
         return;
     };
@@ -163,6 +167,7 @@ async fn terminate_gracefully_verified_signals_a_process_carrying_this_agents_ma
 
 #[tokio::test]
 async fn terminate_gracefully_verified_refuses_a_pid_that_names_a_different_agent() {
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_agent(&unique_service("sigmine")) else {
         return;
     };
@@ -180,6 +185,7 @@ async fn terminate_gracefully_verified_refuses_a_pid_that_names_a_different_agen
 
 #[test]
 fn kill_process_verified_leaves_a_pid_belonging_to_another_agent_running() {
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_agent(&unique_service("killmine")) else {
         return;
     };
@@ -198,6 +204,7 @@ fn kill_process_verified_leaves_a_pid_belonging_to_another_agent_running() {
 #[test]
 fn kill_process_verified_kills_a_process_that_still_names_this_agent() {
     let service = unique_service("killown");
+    // skip-ok: no spawnable child process on this host
     let Some(pid) = spawn_marked_agent(&service) else {
         return;
     };

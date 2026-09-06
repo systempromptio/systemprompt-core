@@ -26,7 +26,9 @@ use systemprompt_security::policy::ChainEntryResult;
 
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
-use self::outbound::{CtxParts, audit_upstream_failure, outbound_ctx, strip_caller_identity};
+use self::outbound::{
+    CtxParts, audit_upstream_failure, outbound_ctx, resolve_url_images, strip_caller_identity,
+};
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::inbound::InboundAdapter;
@@ -62,8 +64,8 @@ impl PreparedDispatch {
         relay: UpstreamRelay<'_>,
     ) -> Result<Self, DispatchError> {
         let upstream_model = upstream
-            .route
-            .effective_upstream_model(&request.model)
+            .provider
+            .upstream_model_for(upstream.route.upstream_model.as_deref(), &request.model)
             .to_owned();
         let override_descriptor = apply_system_prompt_override(
             config,
@@ -75,9 +77,15 @@ impl PreparedDispatch {
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
+        // Why: the catalog matches on the model's id and aliases, never on its
+        // upstream name, so the lookup must use what the caller asked for.
+        // Looking up the upstream name found nothing for every provider whose
+        // ids differ from the upstream's (both Vertex entries), which silently
+        // dropped the output cap and thinking budget and let Gemini 2.5 Pro
+        // spend the caller's whole max_tokens thinking.
         let model_limits = upstream
             .provider
-            .find_model(&upstream_model)
+            .find_model(&request.model)
             .map(|m| m.limits);
         let raw_body = match &override_descriptor {
             Some(_) => None,
@@ -85,6 +93,7 @@ impl PreparedDispatch {
                 .then_some(relay.raw_body),
         };
         strip_caller_identity(&mut request);
+        resolve_url_images(upstream.provider.wire, &mut request, audit).await?;
 
         let ctx = outbound_ctx(
             upstream,

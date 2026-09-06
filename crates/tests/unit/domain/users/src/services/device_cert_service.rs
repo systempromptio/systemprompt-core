@@ -16,7 +16,7 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup(prefix: &str) -> Option<Ctx> {
+async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -50,7 +50,7 @@ fn valid_fingerprint(seed: char) -> String {
 
 #[tokio::test]
 async fn enroll_normalizes_and_verify_roundtrips() {
-    let Some(ctx) = setup("dcs1").await else {
+    let Some(ctx) = setup_or_skip("dcs1").await else {
         return;
     };
     // Upper-case + surrounding whitespace must normalize to lower-case.
@@ -98,7 +98,7 @@ async fn enroll_normalizes_and_verify_roundtrips() {
 
 #[tokio::test]
 async fn enroll_rejects_empty_label() {
-    let Some(ctx) = setup("dcs2").await else {
+    let Some(ctx) = setup_or_skip("dcs2").await else {
         return;
     };
     let err = ctx
@@ -117,7 +117,7 @@ async fn enroll_rejects_empty_label() {
 
 #[tokio::test]
 async fn enroll_rejects_bad_length_fingerprint() {
-    let Some(ctx) = setup("dcs3").await else {
+    let Some(ctx) = setup_or_skip("dcs3").await else {
         return;
     };
     let err = ctx
@@ -136,7 +136,7 @@ async fn enroll_rejects_bad_length_fingerprint() {
 
 #[tokio::test]
 async fn enroll_rejects_non_hex_fingerprint() {
-    let Some(ctx) = setup("dcs4").await else {
+    let Some(ctx) = setup_or_skip("dcs4").await else {
         return;
     };
     let non_hex: String = std::iter::repeat_n('z', 64).collect();
@@ -156,7 +156,7 @@ async fn enroll_rejects_non_hex_fingerprint() {
 
 #[tokio::test]
 async fn verify_rejects_invalid_fingerprint() {
-    let Some(ctx) = setup("dcs5").await else {
+    let Some(ctx) = setup_or_skip("dcs5").await else {
         return;
     };
     let err = ctx
@@ -171,7 +171,7 @@ async fn verify_rejects_invalid_fingerprint() {
 
 #[tokio::test]
 async fn revoke_unknown_returns_false() {
-    let Some(ctx) = setup("dcs6").await else {
+    let Some(ctx) = setup_or_skip("dcs6").await else {
         return;
     };
     let revoked = ctx

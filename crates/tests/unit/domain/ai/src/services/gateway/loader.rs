@@ -11,7 +11,7 @@ use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
-async fn pool() -> Option<DbPool> {
+async fn pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     Some(fixture_db_pool(&url).await.expect("pool"))
@@ -34,7 +34,7 @@ fn config_yaml(names: &[&str]) -> String {
 
 #[tokio::test]
 async fn missing_policies_file_is_a_noop() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let dir = tempfile::tempdir().expect("tempdir");
@@ -52,7 +52,7 @@ async fn missing_policies_file_is_a_noop() {
 
 #[tokio::test]
 async fn malformed_yaml_is_rejected_with_invalid_data() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let dir = tempfile::tempdir().expect("tempdir");
@@ -70,7 +70,7 @@ async fn malformed_yaml_is_rejected_with_invalid_data() {
 
 #[tokio::test]
 async fn unknown_yaml_fields_are_rejected() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let dir = tempfile::tempdir().expect("tempdir");
@@ -92,7 +92,7 @@ async fn unknown_yaml_fields_are_rejected() {
 
 #[tokio::test]
 async fn ingest_inserts_then_skips_without_override() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let name = unique_name("ingest-skip");
@@ -120,7 +120,7 @@ async fn ingest_inserts_then_skips_without_override() {
 
 #[tokio::test]
 async fn ingest_with_override_updates_existing_spec() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let name = unique_name("ingest-override");
@@ -167,7 +167,7 @@ async fn ingest_with_override_updates_existing_spec() {
 
 #[tokio::test]
 async fn disabled_policy_is_upserted_but_not_served() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let name = unique_name("ingest-disabled");
@@ -189,7 +189,7 @@ async fn disabled_policy_is_upserted_but_not_served() {
 
 #[tokio::test]
 async fn empty_policy_name_fails_validation() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let cfg: GatewayPolicyConfig =
@@ -206,7 +206,7 @@ async fn empty_policy_name_fails_validation() {
 
 #[tokio::test]
 async fn duplicate_policy_names_fail_validation() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let name = unique_name("dup");
@@ -231,7 +231,7 @@ async fn duplicate_policy_names_fail_validation() {
 
 #[tokio::test]
 async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let name = unique_name("loader-happy");
@@ -286,7 +286,7 @@ async fn a_valid_policies_file_is_ingested_and_reconciles_the_table_to_it() {
 
 #[tokio::test]
 async fn an_unreadable_policies_path_is_an_error_rather_than_a_silent_noop() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let dir = tempfile::tempdir().expect("tempdir");
@@ -309,7 +309,7 @@ async fn an_unreadable_policies_path_is_an_error_rather_than_a_silent_noop() {
 
 #[tokio::test]
 async fn a_service_built_from_a_repository_ingests_the_same_as_one_built_from_a_pool() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let name = unique_name("from-repo");

@@ -9,10 +9,12 @@
 use std::path::{Path, PathBuf};
 
 use predicates::prelude::*;
-use systemprompt_cli_integration_tests::full_bootstrap::{command, command_bare, fixture};
+use systemprompt_cli_integration_tests::full_bootstrap::{
+    command_bare_or_skip, command_or_skip, fixture_or_skip,
+};
 
-fn isolated_home() -> Option<tempfile::TempDir> {
-    fixture()?;
+fn isolated_home_or_skip() -> Option<tempfile::TempDir> {
+    fixture_or_skip()?;
     Some(tempfile::tempdir().expect("create isolated home"))
 }
 
@@ -46,8 +48,12 @@ fn store_json(home: &Path) -> serde_json::Value {
 
 #[test]
 fn session_from_profile_flag_creates_store() {
-    let Some(home) = isolated_home() else { return };
-    let Some(mut cmd) = command() else { return };
+    let Some(home) = isolated_home_or_skip() else {
+        return;
+    };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.env("HOME", home.path());
     cmd.current_dir(home.path());
     cmd.args(session_probe_args());
@@ -65,9 +71,14 @@ fn session_from_profile_flag_creates_store() {
 
 #[test]
 fn session_from_env_profile_resolves() {
-    let Some(home) = isolated_home() else { return };
-    let profile_path = fixture().expect("fixture present").profile_path.clone();
-    let Some(mut cmd) = command_bare() else {
+    let Some(home) = isolated_home_or_skip() else {
+        return;
+    };
+    let profile_path = fixture_or_skip()
+        .expect("fixture present")
+        .profile_path
+        .clone();
+    let Some(mut cmd) = command_bare_or_skip() else {
         return;
     };
     cmd.env("HOME", home.path());
@@ -84,15 +95,19 @@ fn session_from_env_profile_resolves() {
 
 #[test]
 fn session_from_stored_active_key_resolves() {
-    let Some(home) = isolated_home() else { return };
+    let Some(home) = isolated_home_or_skip() else {
+        return;
+    };
 
-    let Some(mut first) = command() else { return };
+    let Some(mut first) = command_or_skip() else {
+        return;
+    };
     first.env("HOME", home.path());
     first.current_dir(home.path());
     first.args(session_probe_args());
     first.assert().failure();
 
-    let Some(mut second) = command_bare() else {
+    let Some(mut second) = command_bare_or_skip() else {
         return;
     };
     second.env("HOME", home.path());
@@ -107,10 +122,14 @@ fn session_from_stored_active_key_resolves() {
 
 #[test]
 fn cached_session_is_reused_on_second_invocation() {
-    let Some(home) = isolated_home() else { return };
+    let Some(home) = isolated_home_or_skip() else {
+        return;
+    };
 
     for _ in 0..2 {
-        let Some(mut cmd) = command() else { return };
+        let Some(mut cmd) = command_or_skip() else {
+            return;
+        };
         cmd.env("HOME", home.path());
         cmd.current_dir(home.path());
         cmd.args(session_probe_args());
@@ -126,8 +145,10 @@ fn cached_session_is_reused_on_second_invocation() {
 
 #[test]
 fn no_profile_anywhere_reports_profile_required() {
-    let Some(home) = isolated_home() else { return };
-    let Some(mut cmd) = command_bare() else {
+    let Some(home) = isolated_home_or_skip() else {
+        return;
+    };
+    let Some(mut cmd) = command_bare_or_skip() else {
         return;
     };
     cmd.env("HOME", home.path());
@@ -140,8 +161,13 @@ fn no_profile_anywhere_reports_profile_required() {
 
 #[test]
 fn tenant_profile_without_credentials_fails_closed() {
-    let Some(home) = isolated_home() else { return };
-    let profile_path = fixture().expect("fixture present").profile_path.clone();
+    let Some(home) = isolated_home_or_skip() else {
+        return;
+    };
+    let profile_path = fixture_or_skip()
+        .expect("fixture present")
+        .profile_path
+        .clone();
     let base = std::fs::read_to_string(&profile_path).expect("read fixture profile");
 
     let tenant_dir = home.path().join("tenantprof");
@@ -153,7 +179,7 @@ fn tenant_profile_without_credentials_fails_closed() {
     )
     .expect("write tenant profile");
 
-    let Some(mut cmd) = command_bare() else {
+    let Some(mut cmd) = command_bare_or_skip() else {
         return;
     };
     cmd.env("HOME", home.path());

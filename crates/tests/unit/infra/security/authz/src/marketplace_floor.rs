@@ -190,22 +190,64 @@ mod resolution {
     }
 
     #[test]
-    fn ambiguous_marketplaces_need_an_explicit_default() {
+    fn a_marketplace_that_does_not_include_the_entity_contributes_nothing() {
         let mut alpha = marketplace("alpha");
         alpha.mcp_servers = include(&["srv"]);
         alpha
             .access
             .attributes
             .insert("tier".to_owned(), serde_json::json!("gold"));
-        let beta = marketplace("beta");
-        let mut config = config_with(vec![alpha, beta]);
+        let mut beta = marketplace("beta");
+        beta.mcp_servers = include(&["other"]);
+        beta.access
+            .attributes
+            .insert("region".to_owned(), serde_json::json!("eu"));
+        let config = config_with(vec![alpha, beta]);
 
-        assert!(
-            member_attribute_floor(&config, EntityKind::McpServer, "srv").is_none(),
-            "two marketplaces without a default resolve to no active marketplace",
-        );
+        let floor = member_attribute_floor(&config, EntityKind::McpServer, "srv")
+            .expect("alpha includes srv");
+        assert_eq!(floor.get("tier"), Some(&serde_json::json!("gold")));
+        assert!(floor.get("region").is_none());
+    }
 
-        config.settings.default_marketplace_id = Some(MarketplaceId::new("alpha"));
-        assert!(member_attribute_floor(&config, EntityKind::McpServer, "srv").is_some());
+    #[test]
+    fn two_enabled_marketplaces_merge_their_floors() {
+        let mut alpha = marketplace("alpha");
+        alpha.mcp_servers = include(&["srv"]);
+        alpha
+            .access
+            .attributes
+            .insert("tier".to_owned(), serde_json::json!("gold"));
+        let mut beta = marketplace("beta");
+        beta.mcp_servers = include(&["srv"]);
+        beta.access
+            .attributes
+            .insert("region".to_owned(), serde_json::json!("eu"));
+        let config = config_with(vec![alpha, beta]);
+
+        let floor = member_attribute_floor(&config, EntityKind::McpServer, "srv")
+            .expect("both marketplaces include srv");
+        assert_eq!(floor.get("tier"), Some(&serde_json::json!("gold")));
+        assert_eq!(floor.get("region"), Some(&serde_json::json!("eu")));
+    }
+
+    #[test]
+    fn conflicting_floor_key_keeps_first_by_id() {
+        let mut alpha = marketplace("alpha");
+        alpha.mcp_servers = include(&["srv"]);
+        alpha
+            .access
+            .attributes
+            .insert("tier".to_owned(), serde_json::json!("gold"));
+        let mut beta = marketplace("beta");
+        beta.mcp_servers = include(&["srv"]);
+        beta.access
+            .attributes
+            .insert("tier".to_owned(), serde_json::json!("silver"));
+        let config = config_with(vec![beta, alpha]);
+
+        let floor = member_attribute_floor(&config, EntityKind::McpServer, "srv")
+            .expect("both marketplaces include srv");
+        assert_eq!(floor.get("tier"), Some(&serde_json::json!("gold")));
     }
 }

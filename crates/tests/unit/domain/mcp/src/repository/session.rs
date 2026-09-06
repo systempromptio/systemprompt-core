@@ -4,20 +4,20 @@ use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     drop(McpSessionRepository::new(&db).expect("ctor"));
 }
 
 #[tokio::test]
 async fn exists_for_random_returns_false() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
     assert!(!repo.exists(&id).await.unwrap());
@@ -25,7 +25,7 @@ async fn exists_for_random_returns_false() {
 
 #[tokio::test]
 async fn find_active_random_returns_none() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
     assert!(repo.find_active(&id).await.unwrap().is_none());
@@ -33,7 +33,7 @@ async fn find_active_random_returns_none() {
 
 #[tokio::test]
 async fn update_close_on_missing_session_no_panic() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
     repo.update_last_event_id(&id, "evt").await.unwrap();
@@ -43,7 +43,7 @@ async fn update_close_on_missing_session_no_panic() {
 
 #[tokio::test]
 async fn cleanup_expired_then_delete_stale_removes_a_seeded_session() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
 
@@ -77,7 +77,7 @@ async fn cleanup_expired_then_delete_stale_removes_a_seeded_session() {
 
 #[tokio::test]
 async fn find_initialize_params_random_returns_none() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
     assert!(repo.find_initialize_params(&id).await.unwrap().is_none());
@@ -85,7 +85,7 @@ async fn find_initialize_params_random_returns_none() {
 
 #[tokio::test]
 async fn store_find_and_clear_initialize_params_round_trip() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
     let params = serde_json::json!({ "protocolVersion": "2025-06-18" });
@@ -102,7 +102,7 @@ async fn store_find_and_clear_initialize_params_round_trip() {
 
 #[tokio::test]
 async fn find_initialize_params_recovers_closed_session() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
     let params = serde_json::json!({ "protocolVersion": "2025-06-18" });
@@ -125,7 +125,7 @@ async fn find_initialize_params_recovers_closed_session() {
 
 #[tokio::test]
 async fn update_activity_reactivates_closed_session() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpSessionRepository::new(&db).unwrap();
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
 

@@ -11,7 +11,7 @@ struct Ctx {
     fingerprint: String,
 }
 
-async fn setup(prefix: &str) -> Option<Ctx> {
+async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -28,7 +28,7 @@ async fn setup(prefix: &str) -> Option<Ctx> {
 
 #[tokio::test]
 async fn ban_then_query_then_unban_round_trip() {
-    let Some(ctx) = setup("round").await else {
+    let Some(ctx) = setup_or_skip("round").await else {
         return;
     };
     let params = BanIpParams::new(&ctx.ip, "abuse", BanDuration::Hours(2), &ctx.source)
@@ -74,7 +74,7 @@ async fn ban_then_query_then_unban_round_trip() {
 
 #[tokio::test]
 async fn reban_increments_count_and_permanent_ban_stays_permanent() {
-    let Some(ctx) = setup("perm").await else {
+    let Some(ctx) = setup_or_skip("perm").await else {
         return;
     };
     ctx.repo
@@ -113,7 +113,7 @@ async fn reban_increments_count_and_permanent_ban_stays_permanent() {
 
 #[tokio::test]
 async fn ban_with_metadata_accumulates_session_ids_and_keeps_metadata() {
-    let Some(ctx) = setup("meta").await else {
+    let Some(ctx) = setup_or_skip("meta").await else {
         return;
     };
     let first = BanIpWithMetadataParams::new(&ctx.ip, "bot", BanDuration::Days(1), &ctx.source)
@@ -149,7 +149,7 @@ async fn ban_with_metadata_accumulates_session_ids_and_keeps_metadata() {
 
 #[tokio::test]
 async fn expired_ban_is_invisible_and_removed_by_cleanup() {
-    let Some(ctx) = setup("exp").await else {
+    let Some(ctx) = setup_or_skip("exp").await else {
         return;
     };
     ctx.repo

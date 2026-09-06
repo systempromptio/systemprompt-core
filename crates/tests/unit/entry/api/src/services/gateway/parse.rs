@@ -110,3 +110,17 @@ fn extract_assistant_text_skips_non_text_variants() {
     ];
     assert!(extract_assistant_text(&r).is_none());
 }
+
+#[test]
+fn extract_from_canonical_carries_reasoning_tokens_into_the_capture() {
+    let mut r = empty_response();
+    r.usage = CanonicalUsage {
+        input_tokens: 27,
+        output_tokens: 200,
+        reasoning_tokens: 194,
+        ..CanonicalUsage::default()
+    };
+    let (usage, _) = extract_from_canonical(&r);
+    assert_eq!(usage.reasoning_tokens, 194);
+    assert_eq!(usage.output_tokens, 200);
+}

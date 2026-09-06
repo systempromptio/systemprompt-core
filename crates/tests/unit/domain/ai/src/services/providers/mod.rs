@@ -16,5 +16,4 @@ mod provider_factory;
 mod provider_factory_extended;
 mod provider_trait;
 mod resilient;
-mod shared;
 mod trait_defaults;

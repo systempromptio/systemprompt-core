@@ -23,7 +23,7 @@ use systemprompt_security::authz::{
 use super::{extract_bearer_token, extract_request_context};
 
 #[path = "rbac/jwt.rs"]
-mod jwt;
+pub(crate) mod jwt;
 #[path = "rbac/proxy.rs"]
 mod proxy;
 
@@ -161,7 +161,7 @@ pub async fn enforce_rbac_from_registry(
         &claims,
         act_chain.clone(),
         &request_context.execution,
-        floor,
+        floor.as_ref(),
     );
     enforce_authz_for_server(server_name, authz_request, hook).await?;
 

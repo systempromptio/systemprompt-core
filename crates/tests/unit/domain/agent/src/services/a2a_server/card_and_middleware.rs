@@ -25,7 +25,7 @@ use tokio::sync::{RwLock, Semaphore};
 use tower::ServiceExt;
 
 use super::a2a_helpers::{StubAiProvider, agent_config, make_agent_state};
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 const ISSUER: &str = "card-middleware-tests";
 
@@ -54,7 +54,7 @@ async fn body_string(response: axum::response::Response) -> String {
 
 #[tokio::test]
 async fn agent_card_unregistered_agent_returns_not_found() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -90,7 +90,7 @@ fn protected_app(pool: &DbPool) -> Router {
 
 #[tokio::test]
 async fn middleware_rejects_missing_authorization() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let response = protected_app(&pool)
@@ -102,7 +102,7 @@ async fn middleware_rejects_missing_authorization() {
 
 #[tokio::test]
 async fn middleware_rejects_malformed_bearer_token() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let response = protected_app(&pool)
@@ -119,7 +119,7 @@ async fn middleware_rejects_malformed_bearer_token() {
 
 #[tokio::test]
 async fn middleware_admits_valid_jwt_and_injects_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let user = UserId::new(uuid::Uuid::new_v4().to_string());

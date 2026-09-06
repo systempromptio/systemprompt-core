@@ -223,7 +223,7 @@ impl MessageProcessor {
     }
 }
 
-fn resolve_task_id(message: &Message) -> TaskId {
+pub fn resolve_task_id(message: &Message) -> TaskId {
     message.task_id.clone().map_or_else(
         || {
             let new_task_id = TaskId::new(Uuid::new_v4().to_string());
@@ -237,7 +237,7 @@ fn resolve_task_id(message: &Message) -> TaskId {
     )
 }
 
-fn new_submitted_task(task_id: &TaskId, context_id: &ContextId, agent_name: &str) -> Task {
+pub fn new_submitted_task(task_id: &TaskId, context_id: &ContextId, agent_name: &str) -> Task {
     Task {
         id: task_id.clone(),
         context_id: context_id.clone(),
@@ -254,7 +254,7 @@ fn new_submitted_task(task_id: &TaskId, context_id: &ContextId, agent_name: &str
     }
 }
 
-fn resolve_agent_message(task: &Task, user_message: &Message, response_text: &str) -> Message {
+pub fn resolve_agent_message(task: &Task, user_message: &Message, response_text: &str) -> Message {
     task.status.message.clone().unwrap_or_else(|| {
         let client_message_id = user_message
             .metadata

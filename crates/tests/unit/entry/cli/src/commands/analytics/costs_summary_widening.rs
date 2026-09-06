@@ -23,6 +23,9 @@ fn row(requests: i64) -> CostSummaryRow {
         requests,
         cost: Some(requests * 100),
         tokens: Some(requests * 10),
+        reasoning_tokens: Some(requests * 2),
+        cache_read_tokens: Some(requests * 3),
+        cache_creation_tokens: Some(requests),
     }
 }
 

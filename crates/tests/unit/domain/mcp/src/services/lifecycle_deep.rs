@@ -25,7 +25,8 @@ use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
-async fn make_lifecycle() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)> {
+async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)>
+{
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {
@@ -95,7 +96,7 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
 
 #[tokio::test]
 async fn stop_server_cleans_up_stale_db_row() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("stop-stale-{}", uuid::Uuid::new_v4().simple());
@@ -123,7 +124,7 @@ async fn stop_server_cleans_up_stale_db_row() {
 
 #[tokio::test]
 async fn health_check_dead_port_returns_false_and_updates_status() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("health-dead-{}", uuid::Uuid::new_v4().simple());
@@ -152,7 +153,7 @@ async fn health_check_dead_port_returns_false_and_updates_status() {
 
 #[tokio::test]
 async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
-    let Some((_, db)) = make_lifecycle().await else {
+    let Some((_, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("clean-stale-{}", uuid::Uuid::new_v4().simple());
@@ -178,7 +179,7 @@ async fn cleanup_stale_services_marks_dead_port_rows_stopped() {
 
 #[tokio::test]
 async fn sync_database_state_marks_unhealthy_crashed() {
-    let Some((_, db)) = make_lifecycle().await else {
+    let Some((_, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("sync-crash-{}", uuid::Uuid::new_v4().simple());
@@ -205,7 +206,7 @@ async fn sync_database_state_marks_unhealthy_crashed() {
 
 #[tokio::test]
 async fn reconcile_running_processes_reports_dead_ports() {
-    let Some((_, db)) = make_lifecycle().await else {
+    let Some((_, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("rec-{}", uuid::Uuid::new_v4().simple());
@@ -235,7 +236,7 @@ async fn reconcile_running_processes_reports_dead_ports() {
 
 #[tokio::test]
 async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
-    let Some((_, db)) = make_lifecycle().await else {
+    let Some((_, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("repair-{}", uuid::Uuid::new_v4().simple());
@@ -260,7 +261,7 @@ async fn repair_inconsistencies_marks_pidless_running_as_stopped() {
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
-    let Some((_, db)) = make_lifecycle().await else {
+    let Some((_, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("crash-{}", uuid::Uuid::new_v4().simple());
@@ -284,7 +285,7 @@ async fn delete_crashed_services_runs() {
 
 #[tokio::test]
 async fn health_check_with_stale_pid_marks_stopped() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("health-pid-{}", uuid::Uuid::new_v4().simple());
@@ -314,7 +315,7 @@ async fn health_check_with_stale_pid_marks_stopped() {
 
 #[tokio::test]
 async fn stop_server_with_stale_db_pid_goes_through_stale_cleanup() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let name = format!("stop-pid-{}", uuid::Uuid::new_v4().simple());

@@ -27,16 +27,30 @@ fn plugin_parent(id: &str, rules: Vec<AccessRule>, default_included: Option<bool
     }
 }
 
-fn market_parent(rules: Vec<AccessRule>, default_included: Option<bool>) -> LoadedParent {
+fn market_parent_named(
+    id: &str,
+    rules: Vec<AccessRule>,
+    default_included: Option<bool>,
+) -> LoadedParent {
     LoadedParent {
-        entity: EntityRef::Marketplace(MarketplaceId::new("market")),
+        entity: EntityRef::Marketplace(MarketplaceId::new(id)),
         rules,
         default_included,
     }
 }
 
-fn set(values: &[&str]) -> BTreeSet<String> {
-    values.iter().map(|v| (*v).to_owned()).collect()
+fn market_set(values: &[&str]) -> BTreeSet<MarketplaceId> {
+    values.iter().map(|v| MarketplaceId::new(*v)).collect()
+}
+
+fn market_source(id: &str) -> (MarketplaceId, MarketplaceSource) {
+    (
+        MarketplaceId::new(id),
+        MarketplaceSource {
+            id: MarketplaceId::new(id),
+            fallback_default_included: Some(true),
+        },
+    )
 }
 
 fn plugin_set(values: &[&str]) -> BTreeSet<PluginId> {
@@ -44,23 +58,52 @@ fn plugin_set(values: &[&str]) -> BTreeSet<PluginId> {
 }
 
 fn sources(plugins: &[&str], skill_owners: &[(&str, &[&str])]) -> ChainSources {
+    sources_in(plugins, skill_owners, &["market"])
+}
+
+fn sources_in(
+    plugins: &[&str],
+    skill_owners: &[(&str, &[&str])],
+    markets: &[&str],
+) -> ChainSources {
     ChainSources {
-        marketplace: Some(MarketplaceSource {
-            id: MarketplaceId::new("market"),
-            fallback_default_included: Some(true),
-        }),
-        plugins: plugin_set(plugins),
+        marketplaces: markets.iter().map(|m| market_source(m)).collect(),
+        plugins: plugins
+            .iter()
+            .map(|p| (PluginId::new(*p), market_set(markets)))
+            .collect(),
         skill_owners: skill_owners
             .iter()
             .map(|(skill, owners)| (SkillId::new(*skill), plugin_set(owners)))
             .collect(),
-        marketplace_members: BTreeMap::from([(EntityKind::McpServer, set(&["odoo"]))]),
+        marketplace_members: BTreeMap::from([(
+            EntityKind::McpServer,
+            BTreeMap::from([("odoo".to_owned(), market_set(markets))]),
+        )]),
     }
 }
 
 fn index(plugins: Vec<(&str, LoadedParent)>, sources: ChainSources) -> ParentChainIndex {
+    index_with(
+        vec![(
+            "market",
+            market_parent_named("market", vec![rule("user", Access::Allow)], Some(true)),
+        )],
+        plugins,
+        sources,
+    )
+}
+
+fn index_with(
+    markets: Vec<(&str, LoadedParent)>,
+    plugins: Vec<(&str, LoadedParent)>,
+    sources: ChainSources,
+) -> ParentChainIndex {
     ParentChainIndex::from_parts(
-        Some(market_parent(vec![rule("user", Access::Allow)], Some(true))),
+        markets
+            .into_iter()
+            .map(|(id, parent)| (MarketplaceId::new(id), parent))
+            .collect(),
         plugins
             .into_iter()
             .map(|(id, parent)| (PluginId::new(id), parent))
@@ -257,6 +300,7 @@ fn from_services_records_which_plugin_selects_each_skill() {
         access: MarketplaceAccess {
             default_included: true,
             roles: vec!["user".into()],
+            rules: vec![],
             attributes: Default::default(),
             justification: None,
         },
@@ -268,7 +312,7 @@ fn from_services_records_which_plugin_selects_each_skill() {
     let sources = ChainSources::from_services(&services);
 
     assert_eq!(
-        sources.plugins,
+        sources.plugins.keys().cloned().collect::<BTreeSet<_>>(),
         plugin_set(&["admin-plugin", "user-plugin"])
     );
     assert_eq!(
@@ -282,7 +326,185 @@ fn from_services_records_which_plugin_selects_each_skill() {
     assert!(!sources.skill_owners.contains_key("never"));
     assert!(sources.is_marketplace_member(EntityKind::McpServer, "odoo"));
     assert_eq!(
-        sources.marketplace.as_ref().map(|m| m.id.as_str()),
-        Some("market")
+        sources
+            .marketplaces
+            .keys()
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+        market_set(&["market"])
     );
+    assert_eq!(
+        sources.plugin_marketplaces(&PluginId::new("admin-plugin")),
+        &market_set(&["market"])
+    );
+}
+
+fn two_market_index(
+    plugin_rules: Vec<AccessRule>,
+    alpha_rules: Vec<AccessRule>,
+    beta_rules: Vec<AccessRule>,
+) -> ParentChainIndex {
+    index_with(
+        vec![
+            (
+                "alpha",
+                market_parent_named("alpha", alpha_rules, Some(false)),
+            ),
+            ("beta", market_parent_named("beta", beta_rules, Some(false))),
+        ],
+        vec![(
+            "shared-plugin",
+            plugin_parent("shared-plugin", plugin_rules, None),
+        )],
+        sources_in(
+            &["shared-plugin"],
+            &[("shared_skill", &["shared-plugin"])],
+            &["alpha", "beta"],
+        ),
+    )
+}
+
+#[test]
+fn plugin_in_two_marketplaces_is_allowed_when_either_admits() {
+    let index = two_market_index(
+        vec![],
+        vec![rule("admin", Access::Allow)],
+        vec![rule("user", Access::Allow)],
+    );
+
+    assert_eq!(
+        index.chains_for(EntityKind::Plugin, "shared-plugin").len(),
+        2
+    );
+    assert!(matches!(
+        decide(&index, EntityKind::Plugin, "shared-plugin", &["user"]),
+        Decision::Allow { .. }
+    ));
+    assert!(matches!(
+        decide(&index, EntityKind::Plugin, "shared-plugin", &["admin"]),
+        Decision::Allow { .. }
+    ));
+}
+
+#[test]
+fn plugin_in_two_marketplaces_denied_by_both_reports_first_deny_in_id_order() {
+    let index = two_market_index(
+        vec![],
+        vec![rule("admin", Access::Allow)],
+        vec![rule("admin", Access::Allow)],
+    );
+
+    let chains = index.chains_for(EntityKind::Plugin, "shared-plugin");
+    let ids: Vec<&str> = chains.iter().map(|c| c[0].entity.id_str()).collect();
+    assert_eq!(
+        ids,
+        ["alpha", "beta"],
+        "chains are ordered by marketplace id"
+    );
+    assert!(matches!(
+        decide(&index, EntityKind::Plugin, "shared-plugin", &["user"]),
+        Decision::Deny { .. }
+    ));
+}
+
+#[test]
+fn entity_level_deny_beats_every_owning_marketplace() {
+    let index = two_market_index(
+        vec![],
+        vec![rule("user", Access::Allow)],
+        vec![rule("user", Access::Allow)],
+    );
+
+    let user = fixture_user_id();
+    let roles = vec!["user".to_owned()];
+    let decision = index.resolve(
+        EntityKind::Plugin,
+        "shared-plugin",
+        ResolveBase {
+            rules: &[rule("user", Access::Deny)],
+            user_id: &user,
+            user_roles: &roles,
+            default_included: Some(true),
+            attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+            dimensions: &[],
+        },
+    );
+    assert!(matches!(decision, Decision::Deny { .. }));
+}
+
+#[test]
+fn plugin_level_rule_closes_cascade_before_any_marketplace() {
+    let index = two_market_index(
+        vec![rule("user", Access::Deny)],
+        vec![rule("user", Access::Allow)],
+        vec![rule("user", Access::Allow)],
+    );
+
+    assert!(matches!(
+        decide(&index, EntityKind::Skill, "shared_skill", &["user"]),
+        Decision::Deny { .. }
+    ));
+}
+
+#[test]
+fn skill_owned_by_plugins_in_different_marketplaces_gets_one_chain_per_pair() {
+    let mut sources = sources_in(
+        &["shared-plugin"],
+        &[("shared_skill", &["shared-plugin", "solo-plugin"])],
+        &["alpha", "beta"],
+    );
+    sources
+        .plugins
+        .insert(PluginId::new("solo-plugin"), market_set(&["beta"]));
+
+    let index = index_with(
+        vec![
+            ("alpha", market_parent_named("alpha", vec![], Some(true))),
+            ("beta", market_parent_named("beta", vec![], Some(true))),
+        ],
+        vec![
+            (
+                "shared-plugin",
+                plugin_parent("shared-plugin", vec![], None),
+            ),
+            ("solo-plugin", plugin_parent("solo-plugin", vec![], None)),
+        ],
+        sources,
+    );
+
+    let chains = index.chains_for(EntityKind::Skill, "shared_skill");
+    let pairs: Vec<Vec<&str>> = chains
+        .iter()
+        .map(|c| c.iter().map(|p| p.entity.id_str()).collect())
+        .collect();
+    assert_eq!(
+        pairs,
+        vec![
+            vec!["shared-plugin", "alpha"],
+            vec!["shared-plugin", "beta"],
+            vec!["solo-plugin", "beta"],
+        ]
+    );
+}
+
+#[test]
+fn orphan_skill_falls_back_to_every_marketplace() {
+    let mut sources = sources_in(&["shared-plugin"], &[], &["alpha", "beta"]);
+    sources.marketplace_members.insert(
+        EntityKind::Skill,
+        BTreeMap::from([("orphan".to_owned(), market_set(&["alpha", "beta"]))]),
+    );
+
+    let index = index_with(
+        vec![
+            ("alpha", market_parent_named("alpha", vec![], Some(true))),
+            ("beta", market_parent_named("beta", vec![], Some(true))),
+        ],
+        vec![],
+        sources,
+    );
+
+    let chains = index.chains_for(EntityKind::Skill, "orphan");
+    let ids: Vec<&str> = chains.iter().map(|c| c[0].entity.id_str()).collect();
+    assert_eq!(ids, ["alpha", "beta"]);
 }

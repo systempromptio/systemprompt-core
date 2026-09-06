@@ -1,8 +1,8 @@
 //! DB-backed tests for the scheduler persistence layer.
 //!
 //! Each test acquires a real Postgres pool via the fixtures crate and
-//! early-returns when `DATABASE_URL` is unset, so the suite still passes in
-//! environments without a database. Every test owns uniquely-named rows
+//! skips when `DATABASE_URL` is unset locally, failing under `CI`
+//! instead. Every test owns uniquely-named rows
 //! (`scheduled_jobs.job_name`) so concurrent shards never collide, and asserts
 //! a concrete outcome: row present/absent, field values, or row counts.
 //!
@@ -19,17 +19,6 @@ use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus, SchedulerRe
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 // Returns None (skipping the test) when no integration DB is configured.
-macro_rules! pool_or_skip {
-    () => {{
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(pool) = fixture_db_pool(&url).await else {
-            return;
-        };
-        pool
-    }};
-}
 
 // Builds a name unique across processes (PID), tests (atomic counter), and
 // reruns (nanosecond clock) without pulling in a uuid dependency.
@@ -51,13 +40,13 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn new_succeeds_against_migrated_db() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let _repo = SchedulerRepository::new(&pool).expect("composite repo should construct");
     }
 
     #[tokio::test]
     async fn upsert_then_find_returns_inserted_row() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_upsert");
 
@@ -77,7 +66,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn find_missing_job_returns_none() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let missing = unique_job_name("sched_absent");
 
@@ -87,7 +76,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn upsert_conflict_updates_schedule_and_enabled() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_conflict");
 
@@ -109,7 +98,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn update_job_execution_persists_status_and_error() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_exec");
 
@@ -140,7 +129,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn update_job_execution_success_clears_error() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_success");
 
@@ -184,7 +173,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn increment_run_count_accumulates() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let name = unique_job_name("sched_runcount");
 
@@ -205,7 +194,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn list_enabled_jobs_includes_enabled_excludes_disabled() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
         let enabled = unique_job_name("sched_list_on");
         let disabled = unique_job_name("sched_list_off");
@@ -231,7 +220,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn cleanup_empty_contexts_returns_rows_affected_count() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SchedulerRepository::new(&pool).expect("repo");
 
         // No seeded contexts; the DELETE simply affects whatever stale empty
@@ -250,13 +239,13 @@ mod job_repository {
 
     #[tokio::test]
     async fn new_succeeds() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let _repo = JobRepository::new(&pool).expect("job repo should construct");
     }
 
     #[tokio::test]
     async fn set_enabled_toggles_flag() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = JobRepository::new(&pool).expect("repo");
         let name = unique_job_name("job_set_enabled");
 
@@ -287,7 +276,7 @@ mod job_repository {
 
     #[tokio::test]
     async fn list_recent_runs_includes_executed_job() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = JobRepository::new(&pool).expect("repo");
         let name = unique_job_name("job_recent");
 
@@ -316,7 +305,7 @@ mod job_repository {
 
     #[tokio::test]
     async fn list_recent_runs_respects_limit() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = JobRepository::new(&pool).expect("repo");
 
         let rows = repo.list_recent_runs(2).await.expect("list recent");
@@ -329,7 +318,7 @@ mod job_repository {
 
     #[tokio::test]
     async fn list_recent_runs_excludes_never_run_job() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = JobRepository::new(&pool).expect("repo");
         let name = unique_job_name("job_never_run");
 
@@ -353,13 +342,13 @@ mod analytics_repository {
 
     #[tokio::test]
     async fn new_succeeds() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let _repo = AnalyticsRepository::new(&pool).expect("analytics repo should construct");
     }
 
     #[tokio::test]
     async fn cleanup_empty_contexts_executes_for_various_windows() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = AnalyticsRepository::new(&pool).expect("repo");
 
         for hours in [0_i64, 1, 24, 168] {
@@ -371,7 +360,7 @@ mod analytics_repository {
 
     #[tokio::test]
     async fn cleanup_collects_orphaned_cli_contexts_but_spares_session_bound_ones() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = AnalyticsRepository::new(&pool).expect("repo");
         let raw = pool.pool_arc().expect("raw pool");
 
@@ -443,13 +432,13 @@ mod security_repository {
 
     #[tokio::test]
     async fn new_succeeds() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let _repo = SecurityRepository::new(&pool).expect("security repo should construct");
     }
 
     #[tokio::test]
     async fn find_high_volume_ips_returns_well_formed_records() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         // A very high threshold guarantees an empty result on any realistic
@@ -475,7 +464,7 @@ mod security_repository {
 
     #[tokio::test]
     async fn find_scanner_ips_executes() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         let records = repo
@@ -490,7 +479,7 @@ mod security_repository {
 
     #[tokio::test]
     async fn find_recent_ips_executes() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         let records = repo
@@ -504,7 +493,7 @@ mod security_repository {
 
     #[tokio::test]
     async fn find_high_risk_country_ips_populates_country() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let repo = SecurityRepository::new(&pool).expect("repo");
 
         let records = repo

@@ -18,7 +18,7 @@ use systemprompt_agent::services::a2a_server::handlers::push_notification_config
 use systemprompt_identifiers::TaskId;
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn config(url: &str) -> PushNotificationConfig {
     PushNotificationConfig {
@@ -32,7 +32,7 @@ fn config(url: &str) -> PushNotificationConfig {
 
 #[tokio::test]
 async fn set_then_list_then_delete_roundtrip() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -94,7 +94,7 @@ async fn set_then_list_then_delete_roundtrip() {
 
 #[tokio::test]
 async fn get_unknown_task_returns_empty_configs() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let provider = Arc::new(StubAiProvider::new());
@@ -119,7 +119,7 @@ async fn get_unknown_task_returns_empty_configs() {
 
 #[tokio::test]
 async fn delete_unknown_task_reports_zero_deleted() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let provider = Arc::new(StubAiProvider::new());
@@ -138,7 +138,7 @@ async fn delete_unknown_task_reports_zero_deleted() {
 
 #[tokio::test]
 async fn set_for_unknown_task_fails_on_fk() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let provider = Arc::new(StubAiProvider::new());

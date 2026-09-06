@@ -37,6 +37,6 @@ pub async fn generate_with_code_execution(
         .await?
         .json()
         .await?;
-    let parsed = gemini::parse_response(&value, model);
+    let parsed = gemini::parse_response(&value, model)?;
     Ok(canonical_bridge::to_code_execution(start, &parsed))
 }

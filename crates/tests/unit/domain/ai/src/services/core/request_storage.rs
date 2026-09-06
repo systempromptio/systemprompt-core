@@ -15,7 +15,7 @@ use systemprompt_traits::{
 };
 use uuid::Uuid;
 
-use super::{pool, seeded_context};
+use super::{pool_or_skip, seeded_context};
 
 #[derive(Default)]
 struct RecordingSessionProvider {
@@ -109,7 +109,7 @@ async fn store(storage: &RequestStorage, request: &AiRequest, response: &AiRespo
 
 #[tokio::test]
 async fn session_is_touched_then_usage_incremented() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let (_user, ctx) = seeded_context(&pool).await;
@@ -133,7 +133,7 @@ async fn session_is_touched_then_usage_incremented() {
 
 #[tokio::test]
 async fn system_user_skips_usage_accounting_but_touches_session() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let system_user = UserId::new("system");
@@ -156,7 +156,7 @@ async fn system_user_skips_usage_accounting_but_touches_session() {
 
 #[tokio::test]
 async fn analytics_publisher_receives_token_count() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let (_user, ctx) = seeded_context(&pool).await;
@@ -173,7 +173,7 @@ async fn analytics_publisher_receives_token_count() {
 
 #[tokio::test]
 async fn stored_request_persists_messages_and_assistant_reply() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let (_user, ctx) = seeded_context(&pool).await;
@@ -224,7 +224,7 @@ impl AiSessionProvider for FailingSessionProvider {
 
 #[tokio::test]
 async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let (user, ctx) = seeded_context(&pool).await;
@@ -267,7 +267,7 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
 
 #[tokio::test]
 async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let (user, ctx) = seeded_context(&pool).await;
@@ -351,7 +351,7 @@ async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() 
 
 #[tokio::test]
 async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let (user, ctx) = seeded_context(&pool).await;
@@ -389,7 +389,7 @@ async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
 
 #[tokio::test]
 async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let (user, ctx) = seeded_context(&pool).await;
@@ -425,7 +425,7 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
 
 #[tokio::test]
 async fn the_storage_debug_elides_the_analytics_publisher() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let storage = RequestStorage::new(

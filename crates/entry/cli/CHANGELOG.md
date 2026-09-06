@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Added
+
+- A migration slot can be declared spent. `NNN_<name>.tombstone` (or `NNN-MMM_<name>.tombstone` for a retired chain) records a number with no SQL and a prose body; `build.rs` treats it as occupied, so reusing it fails the build rather than a deployment. The runner never executes, records or checksums a tombstoned slot, and fresh-install stamping skips it. Refilling a spent number previously looked exactly like editing the migration that used to live there, and the operator was told a file nobody could find had been edited since it was applied — with both offered remedies wrong, since `--reconcile-only --apply` rewrites the checksum so the new DDL never runs and `--apply` re-executes it out of order.
+- `infra logs audit <id>` carries `reasoning_tokens`, and `infra logs request list` renders it as a share of the output figure (`27/200(194r)`) because it sits inside `output_tokens`, not beside it.
+- `analytics costs summary` and `analytics requests stats` report `reasoning_tokens`, `cache_read_tokens` and `cache_creation_tokens`.
+
+### Fixed
+
+- **Security:** admin provisioning validates the address before any lookup or write. `get_or_create_admin` accepted any string, so an unvalidated value became an admin identity on the path that mints admin-tier session tokens. It goes through `Email::try_new`, the same validator `--admin-email` already used.
+- `migrate-repair` refuses a reused migration slot instead of stamping one migration's checksum onto a row describing another, which permanently silenced that row's drift detector. `status()` separates slot collisions from checksum drift, both repair paths refuse when a collision is present and point at the tombstone mechanism, and the refusal fires on the dry run as well as under `--apply`. `migrate-status` labels and warns about collision rows, and reports applied versions no file claims any more as `orphaned` — warned at boot, never fatal, since every database predating this carries rows for since-deleted migrations.
+- `migrate-repair --apply` no longer reports success for work it did not do. It printed `0 migration(s) re-applied` because `migrations_run` counted newly-applied pending migrations rather than the drifted ones it had just re-executed; `RepairResult` carries `reapplied` separately, and the reconcile-only path states plainly that no SQL was executed.
+- `PendingMigration.no_tx` was hardcoded `false` at both construction sites, so every no-transaction migration was reported as transactional.
+- `--content-types ""` no longer writes a template bound to a single empty-string content type. `resolve_content_types` guarded against an empty list, but both paths end in `str::split(',')`, which yields one empty element for an empty string rather than an empty `Vec`, so the guard could never fire. Empties are dropped before the check, which makes the existing refusal reachable.
+- `cmd_login`'s usage/exit-64 arm is deleted: `code` was `None` only where `pasted_pat` was `Some`, so it could never be entered. `comprehensive_health_check`'s liveness guard is deleted for the same reason — `get_status` already downgrades a dead-pid row to `Failed`.
+- `cloud doctor` falls back to the repository's services tree before giving up on provider credentials. It resolved only the container path, so off-container it warned that credentials were not checked and reported success — which is why nine misconfigured Vertex models passed the gate that exists to catch them.
+
+### Changed
+
+- The setup wizard's prompt module and its prompt helpers are `#[doc(hidden)] pub` so the separate test workspace can drive them through the existing `Prompter` seam. Visibility only.
+
 ## [0.46.0] - 2026-09-04
 
 ### Added

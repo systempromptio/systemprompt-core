@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{
-    ArtifactEntry, MANIFEST_SCHEMA_VERSION, PluginEntry, PluginFile, SignedManifest, UserInfo,
+    ArtifactEntry, MANIFEST_SCHEMA_VERSION, ManifestMarketplace, PluginEntry, PluginFile,
+    SignedManifest, UserInfo,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
@@ -209,6 +210,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         artifacts,
         allow_claude_ai_connectors: false,
         diagnostics: Vec::new(),
+        marketplaces: Vec::new(),
     }
 }
 
@@ -237,16 +239,16 @@ async fn mount_gateway(server: &MockServer, m: &SignedManifest) {
         .await;
 }
 
-fn assert_claude_cli_installed(claude_home: &Path) {
+fn assert_claude_cli_installed(claude_home: &Path, marketplace: &str) {
     let plugins = claude_home.join("plugins");
     let source = plugins
         .join("marketplaces")
-        .join("org-provisioned")
+        .join(marketplace)
         .join("plugins")
         .join(PLUGIN_ID);
     let cache = plugins
         .join("cache")
-        .join("org-provisioned")
+        .join(marketplace)
         .join(PLUGIN_ID)
         .join("current");
 
@@ -279,40 +281,40 @@ fn assert_claude_cli_installed(claude_home: &Path) {
         );
     }
 
-    let marketplace: serde_json::Value = serde_json::from_slice(
+    let marketplace_json: serde_json::Value = serde_json::from_slice(
         &fs::read(
             plugins
                 .join("marketplaces")
-                .join("org-provisioned")
+                .join(marketplace)
                 .join(".claude-plugin")
                 .join("marketplace.json"),
         )
         .unwrap(),
     )
     .unwrap();
-    assert_eq!(marketplace["name"], "org-provisioned");
-    assert_eq!(marketplace["plugins"][0]["name"], PLUGIN_ID);
+    assert_eq!(marketplace_json["name"], marketplace);
+    assert_eq!(marketplace_json["plugins"][0]["name"], PLUGIN_ID);
     assert_eq!(
-        marketplace["plugins"][0]["source"],
+        marketplace_json["plugins"][0]["source"],
         format!("./plugins/{PLUGIN_ID}")
     );
 
     let known: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("known_marketplaces.json")).unwrap())
             .unwrap();
-    assert!(known["org-provisioned"].is_object());
+    assert!(known[marketplace].is_object());
 
     let installed: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("installed_plugins.json")).unwrap()).unwrap();
-    assert!(installed["plugins"][format!("{PLUGIN_ID}@org-provisioned")].is_array());
+    assert!(installed["plugins"][format!("{PLUGIN_ID}@{marketplace}")].is_array());
 
     let settings: serde_json::Value =
         serde_json::from_slice(&fs::read(claude_home.join("settings.json")).unwrap()).unwrap();
     assert_eq!(
-        settings["enabledPlugins"][format!("{PLUGIN_ID}@org-provisioned")],
+        settings["enabledPlugins"][format!("{PLUGIN_ID}@{marketplace}")],
         true
     );
-    assert!(settings["extraKnownMarketplaces"]["org-provisioned"].is_object());
+    assert!(settings["extraKnownMarketplaces"][marketplace].is_object());
 }
 
 #[test]
@@ -343,7 +345,7 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
         summary.host_failures
     );
 
-    assert_claude_cli_installed(&dirs.claude_home);
+    assert_claude_cli_installed(&dirs.claude_home, "org-provisioned");
 
     let cowork_settings: serde_json::Value = serde_json::from_slice(
         &fs::read(dirs.session_org_dir.join("cowork_settings.json")).unwrap(),
@@ -510,4 +512,168 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+}
+
+// Seeds the layout a pre-marketplace bridge wrote — the legacy marketplace
+// under every registry key — beside a marketplace the user registered by hand.
+fn seed_legacy_and_foreign_marketplaces(claude_home: &Path) {
+    let plugins = claude_home.join("plugins");
+    for marketplace in ["org-provisioned", "someones-mp"] {
+        let plugin = plugins
+            .join("marketplaces")
+            .join(marketplace)
+            .join("plugins")
+            .join("old-plugin");
+        fs::create_dir_all(&plugin).unwrap();
+        fs::create_dir_all(plugins.join("cache").join(marketplace).join("old-plugin")).unwrap();
+    }
+    fs::write(
+        plugins.join("known_marketplaces.json"),
+        serde_json::json!({
+            "org-provisioned": {"source": {"source": "directory", "path": "x"}},
+            "someones-mp": {"source": {"source": "github", "repo": "a/b"}},
+        })
+        .to_string(),
+    )
+    .unwrap();
+    fs::write(
+        plugins.join("installed_plugins.json"),
+        serde_json::json!({
+            "version": 2,
+            "plugins": {
+                "old-plugin@org-provisioned": [{"scope": "user"}],
+                "old-plugin@someones-mp": [{"scope": "user"}],
+            }
+        })
+        .to_string(),
+    )
+    .unwrap();
+    fs::write(
+        claude_home.join("settings.json"),
+        serde_json::json!({
+            "enabledPlugins": {
+                "old-plugin@org-provisioned": true,
+                "old-plugin@someones-mp": true,
+            },
+            "extraKnownMarketplaces": {
+                "org-provisioned": {"source": {"source": "directory", "path": "x"}},
+                "someones-mp": {"source": {"source": "github", "repo": "a/b"}},
+            }
+        })
+        .to_string(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_foreign_ones() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let mut m = manifest(vec!["claude-code".into()], true, "bbbb0002");
+    m.marketplaces = ["core", "commerce"]
+        .into_iter()
+        .map(|id| ManifestMarketplace {
+            id: systemprompt_identifiers::MarketplaceId::new(id),
+            name: format!("{id} marketplace"),
+            plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
+        })
+        .collect();
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        mount_gateway(&server, &m).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    let _ = &server;
+    seed_legacy_and_foreign_marketplaces(&dirs.claude_home);
+
+    let summary = run_sync(&dirs).expect("run_once should succeed");
+    assert!(
+        summary.host_failures.is_empty(),
+        "host emitters must succeed: {:?}",
+        summary.host_failures
+    );
+
+    // The plugin both marketplaces carry is mirrored under each.
+    assert_claude_cli_installed(&dirs.claude_home, "core");
+    assert_claude_cli_installed(&dirs.claude_home, "commerce");
+
+    let plugins = dirs.claude_home.join("plugins");
+    let marketplace_json: serde_json::Value = serde_json::from_slice(
+        &fs::read(
+            plugins
+                .join("marketplaces")
+                .join("commerce")
+                .join(".claude-plugin")
+                .join("marketplace.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(marketplace_json["description"], "commerce marketplace");
+
+    let sidecar: serde_json::Value =
+        serde_json::from_slice(&fs::read(plugins.join(".systemprompt-marketplaces.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        sidecar["marketplaces"],
+        serde_json::json!(["core", "commerce"])
+    );
+
+    assert!(
+        !plugins
+            .join("marketplaces")
+            .join("org-provisioned")
+            .exists()
+            && !plugins.join("cache").join("org-provisioned").exists(),
+        "the legacy single marketplace is purged on the first marketplace-aware sync"
+    );
+    assert!(
+        plugins
+            .join("marketplaces")
+            .join("someones-mp")
+            .join("plugins")
+            .join("old-plugin")
+            .is_dir(),
+        "a marketplace the user registered is never touched"
+    );
+
+    let known: serde_json::Value =
+        serde_json::from_slice(&fs::read(plugins.join("known_marketplaces.json")).unwrap())
+            .unwrap();
+    assert!(known.get("org-provisioned").is_none(), "{known}");
+    assert_eq!(known["someones-mp"]["source"]["repo"], "a/b", "{known}");
+
+    let installed: serde_json::Value =
+        serde_json::from_slice(&fs::read(plugins.join("installed_plugins.json")).unwrap()).unwrap();
+    assert!(
+        installed["plugins"]
+            .get("old-plugin@org-provisioned")
+            .is_none(),
+        "{installed}"
+    );
+    assert!(
+        installed["plugins"]["old-plugin@someones-mp"].is_array(),
+        "{installed}"
+    );
+
+    let settings: serde_json::Value =
+        serde_json::from_slice(&fs::read(dirs.claude_home.join("settings.json")).unwrap()).unwrap();
+    assert!(
+        settings["enabledPlugins"]
+            .get("old-plugin@org-provisioned")
+            .is_none(),
+        "{settings}"
+    );
+    assert_eq!(settings["enabledPlugins"]["old-plugin@someones-mp"], true);
+    assert!(
+        settings["extraKnownMarketplaces"]
+            .get("org-provisioned")
+            .is_none()
+    );
+    assert!(settings["extraKnownMarketplaces"]["someones-mp"].is_object());
 }

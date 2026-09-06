@@ -6,7 +6,7 @@
 use std::sync::OnceLock;
 
 use predicates::prelude::*;
-use systemprompt_cli_integration_tests::full_bootstrap::{command, database_url};
+use systemprompt_cli_integration_tests::full_bootstrap::{command_or_skip, database_url_or_skip};
 
 struct SeededTrace {
     task_id: String,
@@ -16,10 +16,10 @@ struct SeededTrace {
 
 static SEED: OnceLock<Option<SeededTrace>> = OnceLock::new();
 
-fn seeded() -> Option<&'static SeededTrace> {
+fn seeded_or_skip() -> Option<&'static SeededTrace> {
     SEED.get_or_init(|| {
-        let url = database_url()?;
-        command()?;
+        let url = database_url_or_skip()?;
+        command_or_skip()?;
         Some(seed_trace_data(&url))
     })
     .as_ref()
@@ -286,7 +286,7 @@ async fn seed(pool: &sqlx::PgPool) -> SeededTrace {
 }
 
 fn trace_show(id: &str, extra: &[&str]) -> Option<assert_cmd::Command> {
-    let mut cmd = command()?;
+    let mut cmd = command_or_skip()?;
     cmd.args(["infra", "logs", "trace", "show", id]);
     cmd.args(extra);
     Some(cmd)
@@ -294,7 +294,9 @@ fn trace_show(id: &str, extra: &[&str]) -> Option<assert_cmd::Command> {
 
 #[test]
 fn trace_show_task_all_sections() {
-    let Some(seeded) = seeded() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
     let Some(mut cmd) = trace_show(&seeded.task_id, &["--all"]) else {
         return;
     };
@@ -308,7 +310,9 @@ fn trace_show_task_all_sections() {
 
 #[test]
 fn trace_show_task_verbose_sections() {
-    let Some(seeded) = seeded() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
     let Some(mut cmd) = trace_show(
         &seeded.task_id,
         &["--steps", "--ai", "--mcp", "--artifacts", "--verbose"],
@@ -323,7 +327,9 @@ fn trace_show_task_verbose_sections() {
 
 #[test]
 fn trace_show_task_json() {
-    let Some(seeded) = seeded() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
     let Some(mut cmd) = trace_show(&seeded.task_id, &["--json"]) else {
         return;
     };
@@ -334,7 +340,9 @@ fn trace_show_task_json() {
 
 #[test]
 fn trace_show_task_partial_id() {
-    let Some(seeded) = seeded() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
     let partial = &seeded.task_id[..seeded.task_id.len() - 4];
     let Some(mut cmd) = trace_show(partial, &["--all"]) else {
         return;
@@ -346,7 +354,9 @@ fn trace_show_task_partial_id() {
 
 #[test]
 fn trace_show_log_events_table() {
-    let Some(seeded) = seeded() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
     let Some(mut cmd) = trace_show(&seeded.log_trace_id, &[]) else {
         return;
     };
@@ -357,7 +367,9 @@ fn trace_show_log_events_table() {
 
 #[test]
 fn trace_show_log_events_verbose() {
-    let Some(seeded) = seeded() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
     let Some(mut cmd) = trace_show(&seeded.log_trace_id, &["--verbose"]) else {
         return;
     };
@@ -368,7 +380,9 @@ fn trace_show_log_events_verbose() {
 
 #[test]
 fn trace_show_log_events_json() {
-    let Some(seeded) = seeded() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
     let Some(mut cmd) = trace_show(&seeded.log_trace_id, &["--json"]) else {
         return;
     };
@@ -379,7 +393,9 @@ fn trace_show_log_events_json() {
 
 #[test]
 fn trace_show_unknown_id_reports_empty() {
-    let Some(_seeded) = seeded() else { return };
+    let Some(_seeded) = seeded_or_skip() else {
+        return;
+    };
     let Some(mut cmd) = trace_show("covnosuchtrace", &[]) else {
         return;
     };
@@ -390,8 +406,12 @@ fn trace_show_unknown_id_reports_empty() {
 
 #[test]
 fn trace_list_includes_seeded_traces() {
-    let Some(seeded) = seeded() else { return };
-    let Some(mut cmd) = command() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(["infra", "logs", "trace", "list", "--limit", "50"]);
     cmd.assert()
         .success()
@@ -400,14 +420,20 @@ fn trace_list_includes_seeded_traces() {
 
 #[test]
 fn trace_list_excludes_log_only_traces_until_all() {
-    let Some(seeded) = seeded() else { return };
-    let Some(mut cmd) = command() else { return };
+    let Some(seeded) = seeded_or_skip() else {
+        return;
+    };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(["infra", "logs", "trace", "list", "--limit", "50"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains(&seeded.log_trace_id).not());
 
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(["infra", "logs", "trace", "list", "--all", "--limit", "50"]);
     cmd.assert()
         .success()

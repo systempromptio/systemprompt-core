@@ -57,16 +57,31 @@ pub fn check_hook_urls(actual: u16) -> Option<Check> {
 }
 
 fn hook_files() -> Option<Vec<PathBuf>> {
+    use crate::integration::claude_code_cli::{marketplace_dir, sidecar};
     let plugins = crate::config::paths::claude_cli_plugins_dir()?;
-    let root = crate::integration::claude_code_cli::marketplace_dir(&plugins).join("plugins");
-    let entries = std::fs::read_dir(root).ok()?;
-    Some(
-        entries
-            .flatten()
-            .map(|e| e.path().join("hooks").join("hooks.json"))
-            .filter(|p| p.is_file())
-            .collect(),
-    )
+    let mut files = Vec::new();
+    let owned = sidecar::owned_marketplaces(&plugins, sidecar::Legacy::WhenUnrecorded)
+        .inspect_err(|e| {
+            tracing::warn!(
+                target: "bridge::doctor",
+                error = %e,
+                "cannot read the claude-code marketplace sidecar; skipping the hook-url check"
+            );
+        })
+        .ok()?;
+    for marketplace in owned {
+        let root = marketplace_dir(&plugins, &marketplace).join("plugins");
+        let Ok(entries) = std::fs::read_dir(root) else {
+            continue;
+        };
+        files.extend(
+            entries
+                .flatten()
+                .map(|e| e.path().join("hooks").join("hooks.json"))
+                .filter(|p| p.is_file()),
+        );
+    }
+    Some(files)
 }
 
 // Why: the host's schema nests `url` at varying depths, so this walks the

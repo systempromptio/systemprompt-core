@@ -13,7 +13,7 @@ use systemprompt_scheduler::{
 use systemprompt_test_fixtures::{fixture_actor, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{Job, JobContext};
 
-async fn try_pool() -> Option<DbPool> {
+async fn try_pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -27,7 +27,7 @@ fn make_ctx(pool: &DbPool) -> JobContext {
 
 #[tokio::test]
 async fn database_cleanup_job_execute_succeeds() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = make_ctx(&pool);
@@ -37,7 +37,7 @@ async fn database_cleanup_job_execute_succeeds() {
 
 #[tokio::test]
 async fn cleanup_inactive_sessions_job_execute_succeeds() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = make_ctx(&pool);
@@ -50,7 +50,7 @@ async fn cleanup_inactive_sessions_job_execute_succeeds() {
 
 #[tokio::test]
 async fn cleanup_empty_contexts_job_execute_succeeds() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = make_ctx(&pool);
@@ -63,7 +63,7 @@ async fn cleanup_empty_contexts_job_execute_succeeds() {
 
 #[tokio::test]
 async fn behavioral_analysis_job_execute_succeeds() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = make_ctx(&pool);
@@ -73,7 +73,7 @@ async fn behavioral_analysis_job_execute_succeeds() {
 
 #[tokio::test]
 async fn ghost_session_cleanup_job_execute_succeeds() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = make_ctx(&pool);
@@ -86,7 +86,7 @@ async fn ghost_session_cleanup_job_execute_succeeds() {
 
 #[tokio::test]
 async fn malicious_ip_blacklist_job_execute_succeeds() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = make_ctx(&pool);
@@ -99,7 +99,7 @@ async fn malicious_ip_blacklist_job_execute_succeeds() {
 
 #[tokio::test]
 async fn no_js_cleanup_job_execute_succeeds() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = make_ctx(&pool);
@@ -136,8 +136,8 @@ mod cleanup_empty_contexts_enforce_gate {
         context_id: String,
     }
 
-    async fn seed(tag: &str) -> Option<Fixture> {
-        let pool = try_pool().await?;
+    async fn seed_or_skip(tag: &str) -> Option<Fixture> {
+        let pool = try_pool_or_skip().await?;
         let user_id = unique_user_id(tag);
         seed_user_row(
             &pool,
@@ -195,7 +195,7 @@ mod cleanup_empty_contexts_enforce_gate {
 
     #[tokio::test]
     async fn without_enforce_the_context_survives_and_nothing_is_reported_processed() {
-        let Some(fixture) = seed("enfoff").await else {
+        let Some(fixture) = seed_or_skip("enfoff").await else {
             return;
         };
         let ctx = make_ctx(&fixture.pool).with_parameters(
@@ -224,7 +224,7 @@ mod cleanup_empty_contexts_enforce_gate {
 
     #[tokio::test]
     async fn with_enforce_the_old_empty_context_is_deleted() {
-        let Some(fixture) = seed("enfon").await else {
+        let Some(fixture) = seed_or_skip("enfon").await else {
             return;
         };
         let ctx = make_ctx(&fixture.pool).with_enforce(true).with_parameters(

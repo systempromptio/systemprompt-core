@@ -1,4 +1,4 @@
-use super::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool};
+use super::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 use systemprompt_agent::models::a2a::{
     DataPart, FileContent, FilePart, Message, MessageRole, Part, TaskState, TextPart,
 };
@@ -54,7 +54,7 @@ async fn save_pair(
 
 #[tokio::test]
 async fn text_part_roundtrip() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -104,7 +104,7 @@ async fn text_part_roundtrip() {
 
 #[tokio::test]
 async fn file_part_roundtrip() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -159,7 +159,7 @@ async fn file_part_roundtrip() {
 
 #[tokio::test]
 async fn data_part_roundtrip() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -210,7 +210,7 @@ async fn data_part_roundtrip() {
 
 #[tokio::test]
 async fn mixed_parts_preserve_order() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -268,7 +268,7 @@ async fn mixed_parts_preserve_order() {
 
 #[tokio::test]
 async fn get_messages_by_task_empty() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -282,7 +282,7 @@ async fn get_messages_by_task_empty() {
 
 #[tokio::test]
 async fn get_messages_by_context_empty() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -296,7 +296,7 @@ async fn get_messages_by_context_empty() {
 
 #[tokio::test]
 async fn get_message_parts_unknown_message_empty() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

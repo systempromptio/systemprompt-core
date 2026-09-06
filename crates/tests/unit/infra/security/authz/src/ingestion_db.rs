@@ -18,7 +18,7 @@ use systemprompt_security::authz::{
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
-async fn pool() -> Option<DbPool> {
+async fn pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -45,7 +45,7 @@ async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
 
 #[tokio::test]
 async fn ingest_config_inserts_updates_and_skips() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
@@ -106,7 +106,7 @@ async fn ingest_config_inserts_updates_and_skips() {
 
 #[tokio::test]
 async fn ingest_config_expands_entity_match_glob() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
@@ -150,7 +150,7 @@ async fn ingest_config_expands_entity_match_glob() {
 
 #[tokio::test]
 async fn from_pool_constructs_a_usable_service() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let arc = db.write_pool_arc().expect("write pool");
@@ -176,7 +176,7 @@ async fn from_pool_constructs_a_usable_service() {
 
 #[tokio::test]
 async fn marketplace_with_no_roles_is_skipped_entirely() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
@@ -202,13 +202,42 @@ async fn marketplace_with_no_roles_is_skipped_entirely() {
             report.deleted
         ),
         (0, 0, 0, 0),
-        "a roles-less marketplace writes no rows"
+        "a marketplace declaring neither roles nor rules writes no rows"
     );
 }
 
 #[tokio::test]
+async fn marketplace_with_only_attribute_rules_is_ingested() {
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
+    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let id = unique_id("mkt");
+
+    let cfg: MarketplaceConfig = serde_yaml::from_str(&format!(
+        "id: {id}\nname: Test Market\ndescription: d\nversion: 1.0.0\nlicense: MIT\nauthor:\n  \
+         name: t\n  email: t@example.com\naccess:\n  roles: []\n  rules:\n    - rule_type: \
+         adfs_group\n      values: [commerce-devs, core-devs]\n"
+    ))
+    .expect("marketplace yaml");
+    let mut map = HashMap::new();
+    map.insert(MarketplaceId::new(&id), cfg);
+
+    let report = svc
+        .ingest_marketplace_access(&map, IngestOptions::default())
+        .await
+        .expect("marketplace ingest");
+    assert_eq!(
+        report.inserted, 2,
+        "a marketplace with no roles but two group values still projects"
+    );
+
+    cleanup(&db, "marketplace", &id).await;
+}
+
+#[tokio::test]
 async fn slack_seed_updates_an_existing_deny_rule() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");

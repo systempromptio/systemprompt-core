@@ -244,7 +244,7 @@ fn render_error_escapes_quotes_and_backslashes() {
     let s = String::from_utf8_lossy(&body);
     assert!(s.contains("\\\""));
     assert!(s.contains("\\\\"));
-    assert!(s.contains("api_error"));
+    assert!(s.contains("invalid_request_error"));
 }
 
 #[test]

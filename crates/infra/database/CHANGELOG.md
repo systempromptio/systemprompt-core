@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Added
+
+- A migration slot the tree has deliberately retired can declare itself spent. `NNN_<name>.tombstone` — or `NNN-MMM_<name>.tombstone` for a retired chain — records the number with no SQL and a prose body; `build.rs` treats it as occupied, so reusing the number fails the build rather than a deployment. The runner never executes, records or checksums a tombstoned slot, and fresh-install stamping skips it, because a database that never ran the migration should not carry a row claiming it did. A migration that has shipped is applied in every established database, which keeps its tracking row forever: deleting the file does not give the number back, and nothing used to say so. The runner keyed on version alone and never compared the recorded `name` against the file now occupying the slot, so refilling a spent number looked exactly like editing the migration that used to live there — the checksum hashes only the SQL — and the operator got "Migration 34 ('…') has been edited since it was applied", naming a file nobody could find, with both offered remedies wrong (`--reconcile-only --apply` rewrites the checksum so the new DDL never runs; `--apply` re-executes it out of order).
+- The recorded migration name is asserted against the file in the slot. A mismatch on an applied version is `MigrationSlotReused`, which names the file that held the slot and the one that wants it, and is tolerated by `--allow-checksum-drift` exactly as a checksum mismatch already is. Applied versions no file claims any more are reported as `orphaned` by `migrate-status` and warned about at boot, never fatal — every database predating this carries rows for since-deleted migrations, and refusing to boot on those would strand every established install. Adding the tombstone is what clears the warning.
+- `refuse_slot_collisions` is public, so the CLI's dry-run refusal can reach the same decision the runner makes rather than reimplementing it.
+
+### Changed
+
+- **Operator-visible:** both `migrate-repair` paths refuse outright when a slot collision is present and point at the tombstone mechanism. Repair matched recorded rows on `(extension_id, version)` alone, so where the file in a slot carried a different name than the row — a reused number, not drift — repairing stamped one migration's checksum onto a row describing another and permanently silenced that row's drift detector. `status()` separates slot collisions from checksum drift, and `migrate-status` labels and warns about the collision rows.
+- `RepairResult` carries `reapplied` separately from `migrations_run`. `--apply` printed "0 migration(s) re-applied" because the count only ever covered newly-applied pending migrations, never the drifted ones it had just re-executed. The reconcile-only path prints a warning stating plainly that no SQL was executed, in place of an unqualified success.
+- The two slot-verification methods moved to a sibling `verify.rs`, following the layout this directory already uses for `down`/`exec`/`repair`/`stamp`/`status`. Both compare a stored row against the file now in its slot and both are downgraded by `--allow-checksum-drift`; the distinction between them is worth a module head. No behaviour change.
+
+### Fixed
+
+- A fresh install's baseline stamp commits in the same transaction as the structural DDL it describes. It had been written in a transaction of its own, after every extension's structural DDL had already run, so an install that failed part-way left earlier extensions holding their tables with no baseline. That state is not fresh, so the next install called them established and executed migration SQL written against a schema shape the declarative baseline has already moved past — `ai` migration 003 against a current `ai_quota_buckets`, for one, which fails on a column that no longer exists and fails identically on every retry. Stamping is rows rather than a transaction now: `baseline_stamp_rows` yields them and the installer writes them alongside that extension's structural statements, so a crash can leave an extension not installed, which is fresh and correct, but never installed-and-unstamped.
+- A tombstoned slot is no longer put through slot-identity verification, which refused to boot on precisely the databases tombstones exist for. A tombstone's name labels the retirement — `002-027_retired_chain` — and is not the name of the migration that once held the slot, so every established database, which carries the real names in the retired range, failed the comparison and had schema installation refused outright. A tracked row inside a tombstoned range is the normal state: it means the slot really was spent, which is what the tombstone asserts. A fresh database passed, having no rows in the range to disagree with.
+- `PendingMigration::no_tx` was hardcoded `false` at both construction sites, so every no-transaction migration was reported as transactional.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

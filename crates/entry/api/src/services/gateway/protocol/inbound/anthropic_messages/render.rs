@@ -34,9 +34,14 @@ pub fn render_response_value(response: &CanonicalResponse) -> Value {
         "content": content,
         "stop_reason": response.stop_reason.map(CanonicalStopReason::anthropic_str),
         "stop_sequence": Value::Null,
+        // Why: the streaming render emits all four counts, so a buffered reply
+        // that omitted the cache pair reported less usage than the identical
+        // streamed one to the same client.
         "usage": {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
+            "cache_read_input_tokens": response.usage.cache_read_tokens,
+            "cache_creation_input_tokens": response.usage.cache_creation_tokens,
         },
     })
 }
@@ -187,10 +192,44 @@ fn render_usage(usage: &CanonicalUsageUpdate) -> Map<String, Value> {
 }
 
 fn render_message_stop(stop_reason: Option<CanonicalStopReason>) -> Bytes {
+    render_message_stop_with_usage(stop_reason, None)
+}
+
+// Why: the terminal pair (`message_delta` + `message_stop`) states the counts
+// the turn actually used. An Anthropic client reads its output count off
+// `message_delta.usage`, and this frame used to state a hardcoded zero -- so a
+// streamed turn reported itself as free to every SDK, while the audit row for
+// the same request carried the real numbers.
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn render_terminal_frames(snapshot: &CanonicalResponse) -> Bytes {
+    render_message_stop_with_usage(snapshot.stop_reason, Some(&snapshot.usage))
+}
+
+fn render_message_stop_with_usage(
+    stop_reason: Option<CanonicalStopReason>,
+    usage: Option<&CanonicalUsage>,
+) -> Bytes {
+    let usage_value = usage.map_or_else(
+        || json!({ "output_tokens": 0 }),
+        |u| {
+            json!({
+                "input_tokens": u.input_tokens,
+                "output_tokens": u.output_tokens,
+                "cache_read_input_tokens": u.cache_read_tokens,
+                "cache_creation_input_tokens": u.cache_creation_tokens,
+            })
+        },
+    );
     let rendered = json!({
         "type": "message_delta",
         "delta": { "stop_reason": stop_reason.map(CanonicalStopReason::anthropic_str) },
-        "usage": { "output_tokens": 0 },
+        "usage": usage_value,
     });
     Bytes::from(format!(
         "event: message_delta\ndata: {}\n\nevent: message_stop\ndata: \

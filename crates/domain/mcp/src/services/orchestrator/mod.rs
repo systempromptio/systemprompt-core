@@ -19,7 +19,7 @@ pub mod handlers;
 mod lifecycle_ops;
 pub(crate) mod process_cleanup;
 mod reconciliation;
-mod schema_sync;
+pub(crate) mod schema_sync;
 mod server_startup;
 mod service_validation;
 mod target_resolution;

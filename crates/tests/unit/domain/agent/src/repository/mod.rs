@@ -25,7 +25,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 
 // Returns a live pool, or None when no test database is configured.
-pub(crate) async fn try_pool() -> Option<DbPool> {
+pub(crate) async fn try_pool_or_skip() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
     systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }

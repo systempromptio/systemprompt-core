@@ -7,11 +7,11 @@ use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::mcp::task_helper::complete_task;
 use systemprompt_identifiers::TaskId;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 #[tokio::test]
 async fn unknown_task_completes_without_broadcast() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -23,7 +23,7 @@ async fn unknown_task_completes_without_broadcast() {
 
 #[tokio::test]
 async fn known_task_swallows_webhook_delivery_failure() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();

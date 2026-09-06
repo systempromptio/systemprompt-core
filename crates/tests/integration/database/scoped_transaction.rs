@@ -25,7 +25,7 @@ impl ConnectionScopeProvider for OrgScopeProvider {
 
 register_scope_provider!(|| Arc::new(OrgScopeProvider) as SharedScopeProvider);
 
-async fn test_pool() -> Option<sqlx::PgPool> {
+async fn test_pool_or_skip() -> Option<sqlx::PgPool> {
     let url = std::env::var("DATABASE_URL").ok()?;
     sqlx::postgres::PgPoolOptions::new()
         .max_connections(2)
@@ -51,7 +51,7 @@ fn org_scope(org: &str) -> RequestScope {
 
 #[tokio::test]
 async fn a_scoped_transaction_sees_its_guc_and_the_pool_is_clean_afterwards() {
-    let Some(pool) = test_pool().await else {
+    let Some(pool) = test_pool_or_skip().await else {
         return;
     };
 
@@ -70,7 +70,7 @@ async fn a_scoped_transaction_sees_its_guc_and_the_pool_is_clean_afterwards() {
 
 #[tokio::test]
 async fn concurrent_scopes_stay_isolated_on_a_shared_pool() {
-    let Some(pool) = test_pool().await else {
+    let Some(pool) = test_pool_or_skip().await else {
         return;
     };
 
@@ -97,7 +97,7 @@ async fn concurrent_scopes_stay_isolated_on_a_shared_pool() {
 
 #[tokio::test]
 async fn a_rolled_back_scoped_transaction_leaves_no_guc_behind() {
-    let Some(pool) = test_pool().await else {
+    let Some(pool) = test_pool_or_skip().await else {
         return;
     };
 
@@ -123,7 +123,7 @@ async fn a_rolled_back_scoped_transaction_leaves_no_guc_behind() {
 
 #[tokio::test]
 async fn plain_transactions_ignore_registered_providers() {
-    let Some(pool) = test_pool().await else {
+    let Some(pool) = test_pool_or_skip().await else {
         return;
     };
 
@@ -139,7 +139,7 @@ async fn plain_transactions_ignore_registered_providers() {
 
 #[tokio::test]
 async fn an_empty_scope_applies_nothing() {
-    let Some(pool) = test_pool().await else {
+    let Some(pool) = test_pool_or_skip().await else {
         return;
     };
 

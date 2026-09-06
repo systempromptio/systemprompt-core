@@ -17,12 +17,14 @@ use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 mod request;
 mod response;
 pub(in crate::services::gateway) mod streaming;
+mod terminal;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use super::request::build_request_body;
     pub use super::response::parse_response;
     pub use super::streaming::sse_to_canonical_events;
+    pub use systemprompt_models::wire::anthropic::buffered_defect;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -69,7 +71,7 @@ impl OutboundAdapter for AnthropicOutbound {
             if passthrough {
                 return Ok(OutboundOutcome::RawStreaming {
                     content_type,
-                    stream: streaming::raw_sse_stream(stream),
+                    stream: terminal::correct_stream(streaming::raw_sse_stream(stream)),
                 });
             }
             return Ok(OutboundOutcome::Streaming(
@@ -83,10 +85,22 @@ impl OutboundAdapter for AnthropicOutbound {
             .map_err(|e| anyhow!("Failed to read Anthropic response: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Anthropic response not valid JSON: {e}"))?;
-        let canonical = Box::new(response::parse_response(&value, ctx.request.model.as_str()));
+        if let Some(defect) = anthropic::buffered_defect(&value) {
+            return Err(super::reject_defective_body(
+                ctx.route.provider.as_str(),
+                "anthropic",
+                &defect,
+                &bytes,
+            ));
+        }
+        let canonical = Box::new(
+            response::parse_response(&value, ctx.request.model.as_str()).map_err(|e| {
+                super::reject_unparsable_body(ctx.route.provider.as_str(), "anthropic", &e, &bytes)
+            })?,
+        );
         if passthrough {
             return Ok(OutboundOutcome::RawBuffered {
-                body: bytes,
+                body: terminal::correct_buffered(bytes),
                 content_type,
                 canonical,
             });

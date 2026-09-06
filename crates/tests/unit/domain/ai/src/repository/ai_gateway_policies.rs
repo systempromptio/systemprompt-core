@@ -4,10 +4,10 @@ use serde_json::json;
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use uuid::Uuid;
 
-use super::pool;
+use super::pool_or_skip;
 
-async fn repo() -> Option<AiGatewayPolicyRepository> {
-    let pool = pool().await?;
+async fn repo_or_skip() -> Option<AiGatewayPolicyRepository> {
+    let pool = pool_or_skip().await?;
     Some(AiGatewayPolicyRepository::new(&pool).expect("repo"))
 }
 
@@ -17,7 +17,7 @@ fn unique_name() -> String {
 
 #[tokio::test]
 async fn upsert_inserts_then_updates_same_name() {
-    let Some(repo) = repo().await else {
+    let Some(repo) = repo_or_skip().await else {
         return;
     };
     let name = unique_name();
@@ -32,7 +32,7 @@ async fn upsert_inserts_then_updates_same_name() {
 
 #[tokio::test]
 async fn find_for_global_returns_only_enabled() {
-    let Some(repo) = repo().await else {
+    let Some(repo) = repo_or_skip().await else {
         return;
     };
     let enabled = unique_name();
@@ -51,7 +51,7 @@ async fn find_for_global_returns_only_enabled() {
 
 #[tokio::test]
 async fn list_all_names_includes_disabled() {
-    let Some(repo) = repo().await else {
+    let Some(repo) = repo_or_skip().await else {
         return;
     };
     let name = unique_name();
@@ -64,7 +64,7 @@ async fn list_all_names_includes_disabled() {
 
 #[tokio::test]
 async fn delete_by_name_removes_policy() {
-    let Some(repo) = repo().await else {
+    let Some(repo) = repo_or_skip().await else {
         return;
     };
     let name = unique_name();
@@ -78,7 +78,7 @@ async fn delete_by_name_removes_policy() {
 
 #[tokio::test]
 async fn upsert_persists_priority_and_orders_ascending() {
-    let Some(repo) = repo().await else {
+    let Some(repo) = repo_or_skip().await else {
         return;
     };
     let low = unique_name();
@@ -98,7 +98,7 @@ async fn upsert_persists_priority_and_orders_ascending() {
 
 #[tokio::test]
 async fn upsert_updates_priority_on_conflict() {
-    let Some(repo) = repo().await else {
+    let Some(repo) = repo_or_skip().await else {
         return;
     };
     let name = unique_name();

@@ -8,7 +8,7 @@ use bytes::{Bytes, BytesMut};
 use systemprompt_identifiers::AiToolCallId;
 use systemprompt_models::wire::inspect::{SurfaceBudget, sse_string_leaves};
 
-use super::super::captures::{CapturedToolUse, CapturedUsage};
+use super::super::captures::CapturedToolUse;
 use super::super::protocol::canonical::CanonicalContent;
 use super::super::protocol::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
@@ -61,7 +61,7 @@ enum BlockAccumulator {
 )]
 #[derive(Debug)]
 pub struct Summary {
-    pub usage: CapturedUsage,
+    pub usage: CanonicalUsage,
     pub tool_calls: Vec<CapturedToolUse>,
     pub response: CanonicalResponse,
     pub final_bytes: Bytes,
@@ -80,12 +80,6 @@ pub struct Summary {
 )]
 pub fn extract_summary(state: &mut TapState) -> Summary {
     let mut response = build_response(state);
-    let usage = CapturedUsage {
-        input_tokens: state.usage.input_tokens,
-        output_tokens: state.usage.output_tokens,
-        cache_read_tokens: state.usage.cache_read_tokens,
-        cache_creation_tokens: state.usage.cache_creation_tokens,
-    };
     let tool_calls = response
         .content
         .iter()
@@ -115,7 +109,7 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
         Some(state.served_model.clone())
     };
     Summary {
-        usage,
+        usage: state.usage,
         tool_calls,
         response,
         final_bytes,
@@ -271,10 +265,30 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
             apply_usage(state, u);
         },
         CanonicalEvent::MessageStop { stop_reason, .. } => {
-            state.final_stop_reason = stop_reason.or(Some(CanonicalStopReason::EndTurn));
+            apply_stop_reason(state, *stop_reason);
         },
         CanonicalEvent::Error(msg) => {
             state.error = Some(msg.clone());
         },
     }
+}
+
+// Why: providers end a message more than once -- Anthropic's `message_delta`
+// carries the real reason and the `message_stop` that follows carries none.
+// Assigning on every stop let that second frame default a streamed tool-use
+// turn back to EndTurn, so it was audited and rendered as "stop" and the call
+// was dropped. First stated reason wins; a bare stop only fills in what nothing
+// else gave, and the tool-use correction is repeated from the wire codecs.
+fn apply_stop_reason(state: &mut TapState, reason: Option<CanonicalStopReason>) {
+    let has_tool_use = state
+        .blocks
+        .iter()
+        .any(|b| matches!(b, BlockAccumulator::ToolUse { .. }));
+    if state.final_stop_reason.is_some() && reason.is_some() {
+        return;
+    }
+    let reason = reason
+        .or(state.final_stop_reason)
+        .unwrap_or(CanonicalStopReason::EndTurn);
+    state.final_stop_reason = Some(reason.with_tool_use(has_tool_use));
 }

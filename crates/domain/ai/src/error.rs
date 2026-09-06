@@ -134,6 +134,9 @@ pub enum AiError {
     #[error(transparent)]
     Secrets(#[from] systemprompt_config::SecretsBootstrapError),
 
+    #[error(transparent)]
+    WireParse(#[from] systemprompt_models::wire::error::WireParseError),
+
     #[error("internal: {0}")]
     Internal(String),
 }

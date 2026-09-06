@@ -58,6 +58,7 @@ pub async fn manifest(
         hooks,
         managed_mcp_servers,
         artifacts,
+        marketplaces,
         diagnostics,
     } = entries;
 
@@ -88,6 +89,7 @@ pub async fn manifest(
         artifacts,
         allow_claude_ai_connectors,
         diagnostics,
+        marketplaces,
     };
 
     seal_manifest(&manifest).map(Json)

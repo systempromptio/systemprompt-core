@@ -31,6 +31,8 @@ pub struct AiResponse {
     pub cache_read_tokens: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_creation_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<u32>,
     pub is_streaming: bool,
 }
 
@@ -51,6 +53,7 @@ impl Default for AiResponse {
             cache_hit: false,
             cache_read_tokens: None,
             cache_creation_tokens: None,
+            reasoning_tokens: None,
             is_streaming: false,
         }
     }
@@ -110,6 +113,7 @@ pub enum StreamChunk {
         tokens_used: Option<u32>,
         cache_read_tokens: Option<u32>,
         cache_creation_tokens: Option<u32>,
+        reasoning_tokens: Option<u32>,
         finish_reason: Option<String>,
     },
 }

@@ -1,5 +1,9 @@
+use std::collections::BTreeSet;
+
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceError, MarketplaceFilterError};
+use systemprompt_marketplace::{
+    MarketplaceCandidate, MarketplaceError, MarketplaceFilterError, MarketplaceMembership,
+};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, SkillEntry,
 };
@@ -221,41 +225,53 @@ fn candidate_with_only_artifacts_is_not_empty() {
 }
 
 #[test]
-fn with_marketplace_attaches_id_and_access() {
+fn with_membership_attaches_access_and_owners() {
     let access = MarketplaceAccess {
         default_included: true,
         roles: vec!["admin".into()],
+        rules: vec![],
         attributes: Default::default(),
         justification: None,
     };
-    let c = MarketplaceCandidate::default()
-        .with_marketplace(MarketplaceId::new("test-market"), Some(access.clone()));
+    let mut membership = MarketplaceMembership::default();
+    membership
+        .access
+        .insert(MarketplaceId::new("test-market"), access);
+    membership.plugins.insert(
+        systemprompt_identifiers::PluginId::new("p"),
+        BTreeSet::from([MarketplaceId::new("test-market")]),
+    );
+
+    let c = MarketplaceCandidate::default().with_membership(membership);
 
     assert_eq!(
-        c.marketplace_id.as_ref().map(|id| id.as_str()),
-        Some("test-market"),
+        c.membership.all_ids(),
+        BTreeSet::from([MarketplaceId::new("test-market")]),
     );
-    let a = c.access.as_ref().expect("access was set");
+    let a = &c.membership.access[&MarketplaceId::new("test-market")];
     assert!(a.default_included);
     assert_eq!(a.roles, vec!["admin".to_owned()]);
 }
 
 #[test]
-fn with_marketplace_none_access_is_allowed() {
-    let c = MarketplaceCandidate::default()
-        .with_marketplace(MarketplaceId::new("no-access-market"), None);
+fn with_membership_of_two_marketplaces_keeps_both() {
+    let mut membership = MarketplaceMembership::default();
+    for id in ["alpha", "beta"] {
+        membership
+            .access
+            .insert(MarketplaceId::new(id), MarketplaceAccess::default());
+    }
+    let c = MarketplaceCandidate::default().with_membership(membership);
     assert_eq!(
-        c.marketplace_id.as_ref().map(|id| id.as_str()),
-        Some("no-access-market"),
+        c.membership.all_ids(),
+        BTreeSet::from([MarketplaceId::new("alpha"), MarketplaceId::new("beta")]),
     );
-    assert!(c.access.is_none());
 }
 
 #[test]
-fn entry_lists_leave_marketplace_fields_unset() {
+fn entry_lists_leave_membership_empty() {
     let c = candidate(vec![plugin("p")], vec![], vec![], vec![], vec![], vec![]);
-    assert!(c.marketplace_id.is_none());
-    assert!(c.access.is_none());
+    assert!(c.membership.is_empty());
     assert!(!c.is_empty());
 }
 
@@ -280,6 +296,7 @@ fn keep(
         agents: agents.iter().map(|s| AgentId::new(*s)).collect(),
         hooks: hooks.iter().map(|s| HookId::new(*s)).collect(),
         mcp_servers: mcp_servers.iter().map(|s| McpServerId::new(*s)).collect(),
+        marketplaces: std::collections::HashSet::new(),
     }
 }
 
@@ -341,18 +358,41 @@ fn retain_entries_prunes_artifacts_of_dropped_plugins() {
 
 #[test]
 fn retain_entries_leaves_assembly_context_untouched() {
+    let mut membership = MarketplaceMembership::default();
+    membership.access.insert(
+        MarketplaceId::new("test-market"),
+        MarketplaceAccess::default(),
+    );
     let mut c = candidate(vec![plugin("p1")], vec![], vec![], vec![], vec![], vec![])
-        .with_marketplace(MarketplaceId::new("test-market"), None);
+        .with_membership(membership);
     c.diagnostics.push("assembly warning".to_owned());
 
     c.retain_entries(&keep(&[], &[], &[], &[], &[]));
 
     assert!(c.plugins.is_empty());
     assert_eq!(
-        c.marketplace_id.as_ref().map(|id| id.as_str()),
-        Some("test-market"),
+        c.membership.all_ids(),
+        BTreeSet::from([MarketplaceId::new("test-market")]),
     );
     assert_eq!(c.diagnostics, vec!["assembly warning".to_owned()]);
+}
+
+#[test]
+fn into_manifest_parts_carries_membership_into_filter_context() {
+    let mut membership = MarketplaceMembership::default();
+    membership
+        .access
+        .insert(MarketplaceId::new("alpha"), MarketplaceAccess::default());
+    let c = candidate(vec![plugin("p1")], vec![], vec![], vec![], vec![], vec![])
+        .with_membership(membership);
+
+    let (entries, context) = c.into_manifest_parts();
+
+    assert_eq!(entries.plugins.len(), 1);
+    assert_eq!(
+        context.membership.all_ids(),
+        BTreeSet::from([MarketplaceId::new("alpha")]),
+    );
 }
 
 #[test]

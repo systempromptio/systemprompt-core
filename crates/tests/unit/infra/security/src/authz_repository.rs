@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 const KIND: EntityKind = EntityKind::Skill;
 
-async fn repo() -> Option<(AccessControlRepository, DbPool)> {
+async fn repo_or_skip() -> Option<(AccessControlRepository, DbPool)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let repo = AccessControlRepository::new(&db).ok()?;
@@ -47,7 +47,7 @@ async fn cleanup(db: &DbPool, entity_id: &str) {
 
 #[tokio::test]
 async fn upsert_entity_then_get_roundtrips() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -86,7 +86,7 @@ async fn upsert_entity_then_get_roundtrips() {
 
 #[tokio::test]
 async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -138,7 +138,7 @@ async fn upsert_rule_requires_an_entity_then_persists_and_lists() {
 
 #[tokio::test]
 async fn upsert_rule_conflict_updates_access_in_place() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -186,7 +186,7 @@ async fn upsert_rule_conflict_updates_access_in_place() {
 
 #[tokio::test]
 async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let with_rule = unique_entity();
@@ -229,7 +229,7 @@ async fn list_rules_bulk_groups_by_entity_and_seeds_empty_ids() {
 
 #[tokio::test]
 async fn set_justification_and_delete_rule_report_affected_rows() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -294,7 +294,7 @@ async fn set_justification_and_delete_rule_report_affected_rows() {
 
 #[tokio::test]
 async fn list_role_rules_for_export_includes_role_grants_only() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -335,7 +335,7 @@ async fn list_role_rules_for_export_includes_role_grants_only() {
 
 #[tokio::test]
 async fn chain_fingerprint_moves_with_rule_and_entity_writes() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();

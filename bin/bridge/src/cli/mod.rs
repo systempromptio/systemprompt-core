@@ -17,7 +17,7 @@ mod install_claude_policy;
 pub mod login;
 pub mod logout;
 pub mod oauth_client;
-mod proxy;
+pub mod proxy;
 mod run;
 pub mod status;
 pub mod sync;

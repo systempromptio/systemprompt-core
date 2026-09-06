@@ -19,7 +19,7 @@ use systemprompt_agent::services::a2a_server::handlers::request::helpers::{
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn push_config(url: &str) -> PushNotificationConfig {
     PushNotificationConfig {
@@ -52,7 +52,7 @@ fn send_params(ctx: &ContextId) -> MessageSendParams {
 
 #[tokio::test]
 async fn push_dispatch_set_get_delete_answer_with_request_id() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -96,7 +96,7 @@ async fn push_dispatch_set_get_delete_answer_with_request_id() {
 
 #[tokio::test]
 async fn push_dispatch_declines_list_and_non_push_requests() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 4);
@@ -126,7 +126,7 @@ async fn push_dispatch_declines_list_and_non_push_requests() {
 
 #[tokio::test]
 async fn streaming_path_with_no_permits_returns_service_unavailable() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -155,7 +155,7 @@ async fn streaming_path_with_no_permits_returns_service_unavailable() {
 
 #[tokio::test]
 async fn streaming_path_unknown_context_streams_validation_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (user, session) = seed_user_and_session(&pool).await;

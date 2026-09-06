@@ -82,6 +82,7 @@ fn ctx<'a>(
         route,
         endpoint: "http://unused.invalid",
         api_key: "k",
+        api_key_is_bearer: false,
         request,
         upstream_model: "upstream-1",
         model_limits: limits,

@@ -176,3 +176,6 @@ fn confirm(version: &str) -> bool {
     }
     matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes")
 }
+
+#[path = "update_test_api.rs"]
+pub mod test_api;

@@ -13,7 +13,7 @@ struct Ctx {
     external_sub: String,
 }
 
-async fn setup(prefix: &str) -> Option<Ctx> {
+async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -31,7 +31,7 @@ async fn cleanup(ctx: &Ctx, user_id: &UserId) {
 
 #[tokio::test]
 async fn preferred_username_wins_over_display_name() {
-    let Some(ctx) = setup("username").await else {
+    let Some(ctx) = setup_or_skip("username").await else {
         return;
     };
     let claims = FederatedIdentityClaims {
@@ -55,7 +55,7 @@ async fn preferred_username_wins_over_display_name() {
 
 #[tokio::test]
 async fn missing_username_and_name_derive_hashed_fallback() {
-    let Some(ctx) = setup("fallback").await else {
+    let Some(ctx) = setup_or_skip("fallback").await else {
         return;
     };
     let claims = FederatedIdentityClaims {
@@ -93,7 +93,7 @@ async fn missing_username_and_name_derive_hashed_fallback() {
 
 #[tokio::test]
 async fn upstream_roles_pass_through_when_present() {
-    let Some(ctx) = setup("roles").await else {
+    let Some(ctx) = setup_or_skip("roles").await else {
         return;
     };
     let claims = FederatedIdentityClaims {

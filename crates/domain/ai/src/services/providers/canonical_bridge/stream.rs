@@ -21,17 +21,18 @@ pub fn event_to_chunk(event: CanonicalEvent) -> Option<StreamChunk> {
     }
 }
 
-fn usage_chunk(usage: &CanonicalUsageUpdate) -> StreamChunk {
-    let total = usage.input_tokens.unwrap_or(0)
-        + usage.output_tokens.unwrap_or(0)
-        + usage.cache_read_tokens.unwrap_or(0)
-        + usage.cache_creation_tokens.unwrap_or(0);
+// Why: `tokens_used` is relayed, never recomputed here. A frame states the
+// wire's own total or nothing; the stream wrapper folds the counts into one
+// `CanonicalUsage` and takes `billable_total` from there, so this stays a
+// single definition rather than a second, partial-frame sum.
+const fn usage_chunk(usage: &CanonicalUsageUpdate) -> StreamChunk {
     StreamChunk::Usage {
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,
-        tokens_used: (!usage.is_empty()).then_some(total),
+        tokens_used: usage.total_tokens,
         cache_read_tokens: usage.cache_read_tokens,
         cache_creation_tokens: usage.cache_creation_tokens,
+        reasoning_tokens: usage.reasoning_tokens,
         finish_reason: None,
     }
 }
@@ -43,6 +44,7 @@ fn finish_chunk(stop_reason: Option<CanonicalStopReason>) -> StreamChunk {
         tokens_used: None,
         cache_read_tokens: None,
         cache_creation_tokens: None,
+        reasoning_tokens: None,
         finish_reason: stop_reason.map(|s| stop_reason_str(s).to_owned()),
     }
 }

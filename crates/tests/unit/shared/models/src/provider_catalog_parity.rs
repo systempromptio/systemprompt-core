@@ -202,18 +202,19 @@ fn anthropic_seed_prices_cache_tokens() {
     let entry = registry.find_provider("anthropic").expect("anthropic seed");
     for model in &entry.models {
         let p = model.pricing;
+        let (read, write) = (p.cache_read_rate(), p.cache_write_rate());
         assert!(
-            p.cache_read_per_million > 0.0 && p.cache_write_per_million > 0.0,
+            p.declares_cache_rate() && read > 0.0 && write > 0.0,
             "{} has no cache rates: a cache-heavy agent loop would bill as free",
             model.id.as_str()
         );
         assert!(
-            (p.cache_read_per_million - p.input_per_million * 0.1).abs() < 1e-9,
+            (read - p.input_per_million * 0.1).abs() < 1e-9,
             "{} cache read is not 0.1x input",
             model.id.as_str()
         );
         assert!(
-            (p.cache_write_per_million - p.input_per_million * 1.25).abs() < 1e-9,
+            (write - p.input_per_million * 1.25).abs() < 1e-9,
             "{} cache write is not 1.25x input",
             model.id.as_str()
         );

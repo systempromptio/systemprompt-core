@@ -13,11 +13,16 @@
 //! atomically: a mid-SQL failure leaves the row tracked with the old
 //! checksum, which still reports as drift rather than crash-looping.
 //!
+//! Both entry points refuse outright when the recorded row for a slot names a
+//! different migration than the file now occupying it. That is a reused slot,
+//! not drift, and reconciling it would stamp one migration's checksum onto a
+//! row describing another — silencing that row's drift detector for good.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::exec::{TrackingWrite, check_cross_extension_alters, execute_statements_transactional};
-use super::{ChecksumDrift, MigrationService};
+use super::{ChecksumDrift, ExtensionMigrationStatus, MigrationService};
 use crate::lifecycle::installation::BootstrapLockGuard;
 use crate::services::SqlExecutor;
 use systemprompt_extension::{Extension, LoaderError, Migration};
@@ -29,6 +34,11 @@ const UPDATE_CHECKSUM_SQL: &str =
 #[derive(Debug, Default, Clone)]
 pub struct RepairResult {
     pub repaired: Vec<ChecksumDrift>,
+    // Why: drifted migrations whose SQL was actually re-executed. Zero for
+    // reconcile_drift, which only rewrites bookkeeping.
+    pub reapplied: usize,
+    // Why: previously-unapplied migrations run as part of the repair — a
+    // different number, and reporting it as re-applied is what hid the bug.
     pub migrations_run: usize,
 }
 
@@ -38,11 +48,13 @@ impl MigrationService<'_> {
         extension: &dyn Extension,
     ) -> Result<RepairResult, LoaderError> {
         let status = self.status(extension).await?;
+        Self::refuse_slot_collisions(&status)?;
 
         if status.drift.is_empty() {
             return Ok(RepairResult::default());
         }
 
+        let reapplied = status.drift.len();
         let guard = BootstrapLockGuard::acquire(self.db).await?;
         let outcome = self.reapply_drifted(extension, &status.drift).await;
         let pending = match outcome {
@@ -54,6 +66,7 @@ impl MigrationService<'_> {
 
         Ok(RepairResult {
             repaired: status.drift,
+            reapplied,
             migrations_run: result.migrations_run,
         })
     }
@@ -63,6 +76,7 @@ impl MigrationService<'_> {
         extension: &dyn Extension,
     ) -> Result<RepairResult, LoaderError> {
         let status = self.status(extension).await?;
+        Self::refuse_slot_collisions(&status)?;
 
         if status.drift.is_empty() {
             return Ok(RepairResult::default());
@@ -81,7 +95,24 @@ impl MigrationService<'_> {
 
         Ok(RepairResult {
             repaired: status.drift,
+            reapplied: 0,
             migrations_run: 0,
+        })
+    }
+
+    // Why: matching a recorded row on (extension_id, version) alone cannot
+    // tell an edited migration from a reused slot. Reconciling a collision
+    // stamps one migration's checksum onto a row describing another, which
+    // silences that row's drift detector permanently. Refuse instead.
+    pub fn refuse_slot_collisions(status: &ExtensionMigrationStatus) -> Result<(), LoaderError> {
+        let Some(collision) = status.slot_collisions.first() else {
+            return Ok(());
+        };
+        Err(LoaderError::MigrationSlotReused {
+            extension: collision.extension_id.clone(),
+            version: collision.version,
+            stored_name: collision.stored_name.clone(),
+            current_name: collision.current_name.clone(),
         })
     }
 

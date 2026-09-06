@@ -3,26 +3,14 @@
 //! Each job is constructed (zero-cost unit struct), a real `JobContext` is
 //! assembled from the fixture pool, and `execute` is driven against the
 //! migrated DB. The DB starts empty of application data, so every job should
-//! complete without errors and return a success `JobResult`. Tests
-//! early-return when `DATABASE_URL` is unset.
+//! complete without errors and return a success `JobResult`. Tests skip when
+//! `DATABASE_URL` is unset locally, and fail under `CI`.
 
 use std::sync::Arc;
 
 use systemprompt_scheduler::{BehavioralAnalysisJob, DatabaseCleanupJob, MaliciousIpBlacklistJob};
 use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{Job, JobContext};
-
-macro_rules! pool_or_skip {
-    () => {{
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(pool) = fixture_db_pool(&url).await else {
-            return;
-        };
-        (pool, url)
-    }};
-}
 
 fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
@@ -49,7 +37,7 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ctx = make_test_ctx(&pool, &url);
         let job = BehavioralAnalysisJob;
 
@@ -66,7 +54,7 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_returns_valid_duration() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ctx = make_test_ctx(&pool, &url);
         let job = BehavioralAnalysisJob;
 
@@ -77,7 +65,7 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_has_stats_fields() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ctx = make_test_ctx(&pool, &url);
         let job = BehavioralAnalysisJob;
 
@@ -96,7 +84,7 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ctx = make_test_ctx(&pool, &url);
         let job = MaliciousIpBlacklistJob;
 
@@ -113,7 +101,7 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_reports_zero_banned_on_empty_db() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ctx = make_test_ctx(&pool, &url);
         let job = MaliciousIpBlacklistJob;
 
@@ -128,7 +116,7 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_is_idempotent() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let job = MaliciousIpBlacklistJob;
 
         for _ in 0..2 {
@@ -184,7 +172,7 @@ mod malicious_ip_blacklist_db {
     // no-enforce test's seeded IP would be banned by the other test's run.
     #[tokio::test]
     async fn enforce_flag_gates_banning_of_qualifying_candidates() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ip = format!("198.51.100.{}", std::process::id() % 200);
         cleanup_seed(&pool, &ip).await;
         seed_scanner_sessions(&pool, &ip, 3).await;
@@ -218,7 +206,7 @@ mod database_cleanup_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ctx = make_test_ctx(&pool, &url);
         let job = DatabaseCleanupJob;
 
@@ -235,7 +223,7 @@ mod database_cleanup_db {
 
     #[tokio::test]
     async fn execute_is_idempotent() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let job = DatabaseCleanupJob;
 
         for _ in 0..2 {
@@ -248,7 +236,7 @@ mod database_cleanup_db {
 
     #[tokio::test]
     async fn execute_reports_no_failures() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let ctx = make_test_ctx(&pool, &url);
         let job = DatabaseCleanupJob;
 

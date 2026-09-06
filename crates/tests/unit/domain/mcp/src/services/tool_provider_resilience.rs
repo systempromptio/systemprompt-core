@@ -44,7 +44,7 @@ fn call_request(id: &str) -> ToolCallRequest {
     }
 }
 
-async fn provider_for_endpoint(
+async fn provider_for_endpoint_or_skip(
     agent: &str,
     endpoint: &str,
     resilience: &ResilienceSettings,
@@ -102,7 +102,7 @@ async fn call_tool_maps_per_attempt_timeout() {
         "request_timeout_ms": 500,
         "retry_attempts": 1
     }));
-    let Some((provider, server)) = provider_for_endpoint(
+    let Some((provider, server)) = provider_for_endpoint_or_skip(
         "res_agent_timeout",
         &format!("{}/mcp", mock.uri()),
         &resilience,
@@ -129,7 +129,8 @@ async fn call_tool_maps_inner_error_then_circuit_open() {
         "breaker_open_cooldown_ms": 60_000
     }));
     let Some((provider, server)) =
-        provider_for_endpoint("res_agent_circuit", "http://127.0.0.1:1/mcp", &resilience).await
+        provider_for_endpoint_or_skip("res_agent_circuit", "http://127.0.0.1:1/mcp", &resilience)
+            .await
     else {
         return;
     };
@@ -163,7 +164,7 @@ async fn call_tool_maps_bulkhead_full_under_concurrency() {
         "retry_attempts": 1,
         "max_concurrent": 1
     }));
-    let Some((provider, server)) = provider_for_endpoint(
+    let Some((provider, server)) = provider_for_endpoint_or_skip(
         "res_agent_bulkhead",
         &format!("{}/mcp", mock.uri()),
         &resilience,

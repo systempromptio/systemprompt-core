@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use serde_json::{Value, json};
+use systemprompt_models::wire::anthropic::AnthropicStreamState;
 use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason, ContentBlockKind};
 use systemprompt_models::wire::{anthropic, gemini, openai_chat, openai_responses};
 
@@ -19,7 +20,8 @@ mod anthropic_events_from_sse {
     use super::*;
 
     fn event(value: Value) -> Option<CanonicalEvent> {
-        anthropic::events_from_sse(&value, "msg_1")
+        AnthropicStreamState::new("msg_1")
+            .events_from_sse(&value)
             .into_iter()
             .next()
     }
@@ -244,19 +246,16 @@ mod anthropic_events_from_sse {
     /// `message_start` placeholder — a few tokens instead of thousands.
     #[test]
     fn message_delta_with_stop_reason_still_emits_usage() {
-        let events = anthropic::events_from_sse(
-            &json!({
-                "type": "message_delta",
-                "delta": {"stop_reason": "end_turn"},
-                "usage": {
-                    "input_tokens": 12,
-                    "output_tokens": 340,
-                    "cache_read_input_tokens": 51_200,
-                    "cache_creation_input_tokens": 900
-                }
-            }),
-            "msg_1",
-        );
+        let events = AnthropicStreamState::new("msg_1").events_from_sse(&json!({
+            "type": "message_delta",
+            "delta": {"stop_reason": "end_turn"},
+            "usage": {
+                "input_tokens": 12,
+                "output_tokens": 340,
+                "cache_read_input_tokens": 51_200,
+                "cache_creation_input_tokens": 900
+            }
+        }));
         assert_eq!(events.len(), 2, "expected usage then stop: {events:?}");
         match &events[0] {
             CanonicalEvent::UsageDelta(usage) => {
@@ -279,14 +278,11 @@ mod anthropic_events_from_sse {
     /// the tap overwrite the input and cache totals `message_start` gave.
     #[test]
     fn message_delta_states_only_the_counts_it_carries() {
-        let events = anthropic::events_from_sse(
-            &json!({
-                "type": "message_delta",
-                "delta": {"stop_reason": "end_turn"},
-                "usage": {"output_tokens": 340}
-            }),
-            "msg_1",
-        );
+        let events = AnthropicStreamState::new("msg_1").events_from_sse(&json!({
+            "type": "message_delta",
+            "delta": {"stop_reason": "end_turn"},
+            "usage": {"output_tokens": 340}
+        }));
         match &events[0] {
             CanonicalEvent::UsageDelta(u) => {
                 assert_eq!(u.output_tokens, Some(340));
@@ -301,7 +297,8 @@ mod anthropic_events_from_sse {
     #[test]
     fn message_delta_without_stop_or_usage_emits_nothing() {
         assert!(
-            anthropic::events_from_sse(&json!({"type": "message_delta", "delta": {}}), "msg_1")
+            AnthropicStreamState::new("msg_1")
+                .events_from_sse(&json!({"type": "message_delta", "delta": {}}))
                 .is_empty()
         );
     }
@@ -338,7 +335,7 @@ mod anthropic_parse_response {
 
     #[test]
     fn empty_object_uses_fallback_model() {
-        let resp = anthropic::parse_response(&json!({}), "fallback-model");
+        let resp = anthropic::parse_response(&json!({}), "fallback-model").expect("fixture parses");
         assert_eq!(resp.model, "fallback-model");
         assert!(resp.content.is_empty());
         assert!(resp.stop_reason.is_none());
@@ -355,7 +352,8 @@ mod anthropic_parse_response {
                 "usage": {"input_tokens": 3, "output_tokens": 4}
             }),
             "fallback",
-        );
+        )
+        .expect("fixture parses");
         assert_eq!(resp.id, "msg_x");
         assert_eq!(resp.model, "claude-3");
         assert_eq!(resp.stop_reason, Some(CanonicalStopReason::EndTurn));
@@ -376,7 +374,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         match resp.content.first() {
             Some(CanonicalContent::ToolUse {
                 id, name, input, ..
@@ -396,7 +395,8 @@ mod anthropic_parse_response {
                 "content": [{"type": "thinking", "thinking": "hmm", "signature": "s"}]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         assert!(matches!(
             resp.content.first(),
             Some(CanonicalContent::Thinking { text, signature, .. })
@@ -417,7 +417,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         let grounding = resp.grounding.expect("grounding");
         assert_eq!(grounding.sources.len(), 1);
         assert_eq!(grounding.sources[0].uri, "https://a.com");
@@ -434,7 +435,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         let grounding = resp.grounding.expect("grounding");
         assert_eq!(grounding.sources[0].uri, "https://c.com");
         assert_eq!(grounding.sources[0].snippet.as_deref(), Some("x"));
@@ -450,7 +452,8 @@ mod anthropic_parse_response {
                 }]
             }),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         match resp.content.first() {
             Some(CanonicalContent::Image(
                 systemprompt_models::wire::canonical::ImageSource::Base64 {
@@ -469,7 +472,8 @@ mod anthropic_parse_response {
         let resp = anthropic::parse_response(
             &json!({"content": [{"type": "future_thing", "x": 1}]}),
             "fb",
-        );
+        )
+        .expect("fixture parses");
         assert!(resp.content.is_empty());
     }
 }
@@ -556,6 +560,137 @@ mod openai_chat_streaming {
         assert!(matches!(
             events.last(),
             Some(CanonicalEvent::MessageStop { .. })
+        ));
+    }
+
+    fn block_start_kinds(events: &[CanonicalEvent]) -> Vec<(u32, &'static str)> {
+        events
+            .iter()
+            .filter_map(|e| match e {
+                CanonicalEvent::ContentBlockStart { index, block } => Some((
+                    *index,
+                    match block {
+                        ContentBlockKind::Text => "text",
+                        ContentBlockKind::Thinking { .. } => "thinking",
+                        _ => "other",
+                    },
+                )),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn position(events: &[CanonicalEvent], pred: impl Fn(&CanonicalEvent) -> bool) -> usize {
+        events.iter().position(pred).expect("event present")
+    }
+
+    #[tokio::test]
+    async fn reasoning_opens_before_text_and_closes_when_text_starts() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"qwen\",\"choices\":[{\"delta\":{\"reasoning_content\":\"pon\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"der\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"content\":\"answer\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert_eq!(
+            block_start_kinds(&events),
+            vec![(0, "thinking"), (1, "text")]
+        );
+        let thinking_stop = position(&events, |e| {
+            matches!(e, CanonicalEvent::ContentBlockStop { index: 0 })
+        });
+        let text_start = position(&events, |e| {
+            matches!(
+                e,
+                CanonicalEvent::ContentBlockStart {
+                    index: 1,
+                    block: ContentBlockKind::Text
+                }
+            )
+        });
+        assert!(
+            thinking_stop < text_start,
+            "thinking must close before text"
+        );
+        let thinking: String = events
+            .iter()
+            .filter_map(|e| match e {
+                CanonicalEvent::ThinkingDelta { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(thinking, "ponder");
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::TextDelta { index: 1, text } if text == "answer")
+        ));
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, .. }
+                    if *stop_reason == Some(CanonicalStopReason::EndTurn))
+        ));
+    }
+
+    #[tokio::test]
+    async fn explicit_null_reasoning_content_does_not_open_a_block() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"qwen\",\"choices\":[{\"delta\":{\"reasoning_content\":\"why\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"reasoning_content\":null,\"content\":\"hi\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"reasoning_content\":null,\"content\":\" there\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert_eq!(
+            block_start_kinds(&events),
+            vec![(0, "thinking"), (1, "text")]
+        );
+        let text: String = events
+            .iter()
+            .filter_map(|e| match e {
+                CanonicalEvent::TextDelta { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(text, "hi there");
+    }
+
+    #[tokio::test]
+    async fn alternate_reasoning_field_name_is_accepted() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"deepseek\",\"choices\":[{\"delta\":{\"reasoning\":\"hmm\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert_eq!(block_start_kinds(&events), vec![(0, "thinking")]);
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, CanonicalEvent::ThinkingDelta { text, .. } if text == "hmm"))
+        );
+    }
+
+    #[tokio::test]
+    async fn reasoning_before_tool_call_keeps_tool_use_terminal_reason() {
+        let sse = "data: {\"id\":\"c1\",\"model\":\"kimi\",\"choices\":[{\"delta\":{\"reasoning_content\":\"plan\"}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"t1\",\"function\":{\"name\":\"go\",\"arguments\":\"{}\"}}]}}]}\n\n\
+                   data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        let thinking_stop = position(&events, |e| {
+            matches!(e, CanonicalEvent::ContentBlockStop { index: 0 })
+        });
+        let tool_start = position(&events, |e| {
+            matches!(
+                e,
+                CanonicalEvent::ContentBlockStart {
+                    block: ContentBlockKind::ToolUse { .. },
+                    ..
+                }
+            )
+        });
+        assert!(
+            thinking_stop < tool_start,
+            "thinking must close before tool use"
+        );
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, .. }
+                    if *stop_reason == Some(CanonicalStopReason::ToolUse))
         ));
     }
 
@@ -749,6 +884,65 @@ mod openai_responses_streaming {
 
 mod gemini_streaming {
     use super::*;
+
+    // Gemini reports finishReason STOP even on a turn whose candidate is a
+    // functionCall, so the wire's own reason cannot tell "finished talking"
+    // from "wants a tool run". Left as EndTurn it renders as
+    // `finish_reason: "stop"` on the OpenAI surface, and a client following
+    // that contract ends the turn without running the tool -- the call is in
+    // the payload and silently ignored. Measured against a live gateway: an
+    // OpenAI-compatible client received tool_calls alongside "stop" and ran
+    // nothing, while the same request on an Anthropic-backed model got
+    // "tool_calls" and ran it.
+    #[tokio::test]
+    async fn a_function_call_turn_stops_with_tool_use_not_end_turn() {
+        let sse = concat!(
+            "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":",
+            "[{\"functionCall\":{\"name\":\"systemprompt\",",
+            "\"args\":{\"command\":\"core skills list\"}}}]},",
+            "\"finishReason\":\"STOP\"}]}\n\n",
+        );
+        let events = run(sse.to_owned()).await;
+
+        let stop = events
+            .iter()
+            .rev()
+            .find_map(|e| match e {
+                CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+                _ => None,
+            })
+            .expect("the stream must end with a MessageStop");
+
+        assert_eq!(
+            stop,
+            Some(CanonicalStopReason::ToolUse),
+            "a stream that emitted a functionCall must stop with ToolUse"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_text_only_turn_still_stops_with_end_turn() {
+        let sse = concat!(
+            "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":",
+            "[{\"text\":\"pong\"}]},\"finishReason\":\"STOP\"}]}\n\n",
+        );
+        let events = run(sse.to_owned()).await;
+
+        let stop = events
+            .iter()
+            .rev()
+            .find_map(|e| match e {
+                CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+                _ => None,
+            })
+            .expect("the stream must end with a MessageStop");
+
+        assert_eq!(
+            stop,
+            Some(CanonicalStopReason::EndTurn),
+            "a text-only turn must not be reported as tool use"
+        );
+    }
 
     #[tokio::test]
     async fn thought_parts_stream_as_thinking_block_with_signature() {

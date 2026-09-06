@@ -10,7 +10,7 @@ use systemprompt_database::{
     with_scoped_transaction_raw,
 };
 
-use crate::services::db_helper::pool;
+use crate::services::db_helper::pool_or_skip;
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
@@ -26,7 +26,7 @@ async fn user_exists(pg: &sqlx::PgPool, id: &str) -> bool {
 
 #[tokio::test]
 async fn a_scoped_transaction_commits_and_returns_the_closure_value() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let pg = db.write_pool_arc().expect("write pool");
@@ -62,7 +62,7 @@ async fn a_scoped_transaction_commits_and_returns_the_closure_value() {
 
 #[tokio::test]
 async fn a_failing_scoped_closure_rolls_back_its_write() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let pg = db.write_pool_arc().expect("write pool");
@@ -91,7 +91,7 @@ async fn a_failing_scoped_closure_rolls_back_its_write() {
 
 #[tokio::test]
 async fn the_raw_form_behaves_identically_to_the_wrapper() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let pg = db.write_pool_arc().expect("write pool");
@@ -128,7 +128,7 @@ async fn the_raw_form_behaves_identically_to_the_wrapper() {
 
 #[tokio::test]
 async fn begin_scoped_hands_back_a_transaction_that_can_be_rolled_back() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let pg = db.write_pool_arc().expect("write pool");
@@ -154,7 +154,7 @@ async fn begin_scoped_hands_back_a_transaction_that_can_be_rolled_back() {
 
 #[tokio::test]
 async fn the_database_handle_exposes_the_same_scoped_begin() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let pg = db.write_pool_arc().expect("write pool");
@@ -186,7 +186,7 @@ async fn the_database_handle_exposes_the_same_scoped_begin() {
 
 #[tokio::test]
 async fn a_scope_carrying_settings_still_commits() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let pg = db.write_pool_arc().expect("write pool");

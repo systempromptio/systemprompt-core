@@ -120,9 +120,11 @@ async fn execute_without_db_pool_is_configuration_error() {
 async fn execute_without_files_config_is_configuration_error() {
     // No bootstrap: FilesConfig::get() must fail in this process.
     let Ok(url) = std::env::var("TEST_DATABASE_URL").or_else(|_| std::env::var("DATABASE_URL"))
+    // skip-ok: no database, so nothing to act on
     else {
         return;
     };
+    // skip-ok: no database, so nothing to act on
     let Ok(read) = sqlx::PgPool::connect(&url).await else {
         return;
     };
@@ -141,6 +143,7 @@ async fn execute_without_files_config_is_configuration_error() {
 #[tokio::test]
 async fn execute_with_missing_images_dir_short_circuits() {
     let b = ensure_test_bootstrap();
+    // skip-ok: no database, so nothing to act on
     let Some(pool) = live_pool(b).await else {
         return;
     };

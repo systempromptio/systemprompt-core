@@ -261,8 +261,56 @@ mod static_files_serving;
 mod gateway_pipeline;
 
 #[cfg(test)]
+#[path = "gateway_matrix.rs"]
+mod gateway_matrix;
+
+#[cfg(test)]
+#[path = "gateway_matrix_anthropic_in.rs"]
+mod gateway_matrix_anthropic_in;
+
+#[cfg(test)]
+#[path = "gateway_matrix_degenerate.rs"]
+mod gateway_matrix_degenerate;
+
+#[cfg(test)]
+#[path = "gateway_matrix_openai_chat_in.rs"]
+mod gateway_matrix_openai_chat_in;
+
+#[cfg(test)]
+#[path = "gateway_matrix_openai_responses_in.rs"]
+mod gateway_matrix_openai_responses_in;
+
+#[cfg(test)]
+#[path = "gateway_matrix_inbound.rs"]
+mod gateway_matrix_inbound;
+
+#[cfg(test)]
+#[path = "gateway_matrix_anthropic_terminal.rs"]
+mod gateway_matrix_anthropic_terminal;
+
+#[cfg(test)]
+#[path = "gateway_matrix_openai_responses_terminal.rs"]
+mod gateway_matrix_openai_responses_terminal;
+
+#[cfg(test)]
+#[path = "gateway_matrix_null_fields.rs"]
+mod gateway_matrix_null_fields;
+
+#[cfg(test)]
 #[path = "gateway_upstream_error_map.rs"]
 mod gateway_upstream_error_map;
+
+#[cfg(test)]
+#[path = "gateway_empty_upstream_body.rs"]
+mod gateway_empty_upstream_body;
+
+#[cfg(test)]
+#[path = "gateway_stream_abort.rs"]
+mod gateway_stream_abort;
+
+#[cfg(test)]
+#[path = "gateway_stream_usage.rs"]
+mod gateway_stream_usage;
 
 #[cfg(test)]
 #[path = "routes_content_blog.rs"]
@@ -449,5 +497,17 @@ mod gateway_profile_usage_seeded;
 mod jwt_user_state_denial;
 
 #[cfg(test)]
+#[path = "gateway_limits_by_catalog_id.rs"]
+mod gateway_limits_by_catalog_id;
+
+#[cfg(test)]
+#[path = "gateway_limits_passthrough.rs"]
+mod gateway_limits_passthrough;
+
+#[cfg(test)]
 #[path = "gateway_dispatch_success.rs"]
 mod gateway_dispatch_success;
+
+#[cfg(test)]
+#[path = "gateway_malformed_tool_choice.rs"]
+mod gateway_malformed_tool_choice;

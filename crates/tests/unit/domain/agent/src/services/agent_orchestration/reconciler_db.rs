@@ -17,7 +17,7 @@ use systemprompt_models::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 const DEAD_PID: u32 = 4_000_000_001;
 
@@ -50,7 +50,7 @@ fn db_service_with(
 
 #[tokio::test]
 async fn reconcile_repairs_dead_pid_row_via_status_lookup() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let name = unique_name("rec_dead");
@@ -74,7 +74,7 @@ async fn reconcile_repairs_dead_pid_row_via_status_lookup() {
 
 #[tokio::test]
 async fn consistency_check_buckets_live_and_dead_agents() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let dead = unique_name("rec_bucket_d");
@@ -105,7 +105,7 @@ async fn consistency_check_buckets_live_and_dead_agents() {
 
 #[tokio::test]
 async fn fix_inconsistencies_marks_reported_agents_failed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let stale = unique_name("rec_fix_a");

@@ -5,7 +5,7 @@ use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow}
 use systemprompt_models::auth::{Permission, UserType};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -34,7 +34,7 @@ async fn expire(db: &systemprompt_database::DbPool, id: &SessionId) {
 
 #[tokio::test]
 async fn upsert_then_find_round_trips_the_identity() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpProxyIdentityRepository::new(&db).unwrap();
     let id = session("pid-rt");
     let identity = row("tok-1");
@@ -50,7 +50,7 @@ async fn upsert_then_find_round_trips_the_identity() {
 
 #[tokio::test]
 async fn upsert_replaces_the_identity_and_refreshes_expiry() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpProxyIdentityRepository::new(&db).unwrap();
     let id = session("pid-up");
 
@@ -67,14 +67,14 @@ async fn upsert_replaces_the_identity_and_refreshes_expiry() {
 
 #[tokio::test]
 async fn find_unknown_session_returns_none() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpProxyIdentityRepository::new(&db).unwrap();
     assert!(repo.find(&session("pid-none")).await.unwrap().is_none());
 }
 
 #[tokio::test]
 async fn expired_identity_is_not_found() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpProxyIdentityRepository::new(&db).unwrap();
     let id = session("pid-exp");
 
@@ -86,7 +86,7 @@ async fn expired_identity_is_not_found() {
 
 #[tokio::test]
 async fn delete_removes_the_identity() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpProxyIdentityRepository::new(&db).unwrap();
     let id = session("pid-del");
 
@@ -99,7 +99,7 @@ async fn delete_removes_the_identity() {
 
 #[tokio::test]
 async fn cleanup_expired_counts_only_expired_rows() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = McpProxyIdentityRepository::new(&db).unwrap();
     let live = session("pid-live");
     let stale = session("pid-stale");

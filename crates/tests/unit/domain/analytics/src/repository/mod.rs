@@ -10,6 +10,7 @@ mod fingerprint_reputation;
 mod funnel_mutations;
 mod funnel_queries;
 mod query_repository;
+mod reasoning_reporting_db;
 mod session_behavioral_queries;
 mod session_geo_backfill;
 mod session_mutations;

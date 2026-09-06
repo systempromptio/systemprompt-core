@@ -23,6 +23,7 @@ mod header_source;
 mod jwt_params;
 mod jwt_revocation_db;
 mod negotiation_middleware;
+mod payload_context_source;
 mod rate_limit_config;
 mod router_ext;
 mod security_headers;

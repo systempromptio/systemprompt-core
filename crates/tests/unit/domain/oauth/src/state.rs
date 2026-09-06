@@ -164,7 +164,7 @@ impl McpRegistryProvider for NullRegistry {
     }
 }
 
-async fn base_state() -> Option<OAuthState> {
+async fn base_state_or_skip() -> Option<OAuthState> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -178,7 +178,7 @@ async fn base_state() -> Option<OAuthState> {
 
 #[tokio::test]
 async fn new_state_has_no_optional_providers() {
-    let Some(state) = base_state().await else {
+    let Some(state) = base_state_or_skip().await else {
         return;
     };
 
@@ -193,7 +193,7 @@ async fn new_state_has_no_optional_providers() {
 
 #[tokio::test]
 async fn builder_methods_attach_optional_providers() {
-    let Some(state) = base_state().await else {
+    let Some(state) = base_state_or_skip().await else {
         return;
     };
 

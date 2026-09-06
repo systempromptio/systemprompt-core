@@ -14,7 +14,7 @@ struct Ctx {
     pool: systemprompt_database::DbPool,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -54,7 +54,7 @@ async fn backdate_created_at(ctx: &Ctx, id: &UserId, days: i64) {
 
 #[tokio::test]
 async fn find_by_role_and_first_user_and_first_admin() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let user = create_user(&ctx, "role").await;
@@ -94,7 +94,7 @@ async fn find_by_role_and_first_user_and_first_admin() {
 
 #[tokio::test]
 async fn find_authenticated_user_requires_active_status() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let user = create_user(&ctx, "authd").await;
@@ -124,7 +124,7 @@ async fn find_authenticated_user_requires_active_status() {
 
 #[tokio::test]
 async fn find_with_sessions_and_activity_count_open_sessions() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let url = fixture_database_url().expect("url");
@@ -163,7 +163,7 @@ async fn find_with_sessions_and_activity_count_open_sessions() {
 
 #[tokio::test]
 async fn list_search_and_count_reflect_created_users() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let user = create_user(&ctx, "listable").await;
@@ -193,7 +193,7 @@ async fn list_search_and_count_reflect_created_users() {
 
 #[tokio::test]
 async fn list_by_filter_applies_status_role_and_age() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let user = create_user(&ctx, "filter").await;
@@ -229,7 +229,7 @@ async fn list_by_filter_applies_status_role_and_age() {
 
 #[tokio::test]
 async fn bulk_update_status_and_bulk_delete() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let a = create_user(&ctx, "bulk-a").await;
@@ -270,7 +270,7 @@ async fn bulk_update_status_and_bulk_delete() {
 
 #[tokio::test]
 async fn update_display_name_persists() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let user = create_user(&ctx, "disp").await;
@@ -285,7 +285,7 @@ async fn update_display_name_persists() {
 
 #[tokio::test]
 async fn missing_user_yields_not_found_across_mutations() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let ghost = UserId::new(Uuid::new_v4().to_string());
@@ -326,7 +326,7 @@ async fn missing_user_yields_not_found_across_mutations() {
 
 #[tokio::test]
 async fn merge_users_transfers_sessions_and_removes_source() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let url = fixture_database_url().expect("url");
@@ -366,7 +366,7 @@ async fn merge_users_transfers_sessions_and_removes_source() {
 
 #[tokio::test]
 async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let url = fixture_database_url().expect("url");
@@ -423,7 +423,7 @@ async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
 
 #[tokio::test]
 async fn create_anonymous_reuses_existing_fingerprint_row() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let fingerprint = format!("fp-{}", Uuid::new_v4().simple());
@@ -445,7 +445,7 @@ async fn create_anonymous_reuses_existing_fingerprint_row() {
 
 #[tokio::test]
 async fn stats_and_breakdowns_reflect_active_user_population() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let user = create_user(&ctx, "stats").await;
@@ -469,7 +469,7 @@ async fn stats_and_breakdowns_reflect_active_user_population() {
 
 #[tokio::test]
 async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("absent");
@@ -507,7 +507,7 @@ async fn create_if_absent_yields_the_row_once_and_none_to_every_later_caller() {
 // The plain `create` path fails every loser with a unique violation.
 #[tokio::test]
 async fn concurrent_create_if_absent_on_one_identity_elects_a_single_winner() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("racer");

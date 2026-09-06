@@ -10,7 +10,7 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
-async fn split_pool() -> Option<DbPool> {
+async fn split_pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let live = fixture_db_pool(&url).await.ok()?;
@@ -22,7 +22,7 @@ async fn split_pool() -> Option<DbPool> {
 
 #[tokio::test]
 async fn token_and_revocation_lookups_read_the_primary() {
-    let Some(db) = split_pool().await else {
+    let Some(db) = split_pool_or_skip().await else {
         return;
     };
     let repo = OAuthRepository::new(&db).expect("repo");

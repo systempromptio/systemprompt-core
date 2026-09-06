@@ -106,6 +106,7 @@ fn get_process_name_by_pid_names_this_process_and_rejects_a_dead_pid() {
 #[test]
 fn find_pids_by_name_finds_a_marked_child_and_nothing_for_an_absent_pattern() {
     let marker = format!("mcp-pid-marker-{}", uuid::Uuid::new_v4().simple());
+    // skip-ok: no spawnable child process on this host
     let Some(mut child) = spawn_marked_child(&marker) else {
         return;
     };
@@ -130,6 +131,7 @@ fn find_pids_by_name_finds_a_marked_child_and_nothing_for_an_absent_pattern() {
 #[test]
 fn find_process_on_port_with_name_matches_only_the_expected_command() {
     let (_listener, port) = held_port();
+    // skip-ok: no spawnable child process on this host
     let Some(actual_name) = get_process_name_by_pid(std::process::id()) else {
         return;
     };

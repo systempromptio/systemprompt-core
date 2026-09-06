@@ -47,12 +47,12 @@ pub struct FullBootstrap {
 
 static FULL: OnceLock<Option<FullBootstrap>> = OnceLock::new();
 
-pub fn database_url() -> Option<String> {
+pub fn database_url_or_skip() -> Option<String> {
     std::env::var("DATABASE_URL").ok().filter(|v| !v.is_empty())
 }
 
-pub fn fixture() -> Option<&'static FullBootstrap> {
-    FULL.get_or_init(|| database_url().map(|_| build()))
+pub fn fixture_or_skip() -> Option<&'static FullBootstrap> {
+    FULL.get_or_init(|| database_url_or_skip().map(|_| build()))
         .as_ref()
 }
 
@@ -81,8 +81,8 @@ pub fn systemprompt_bin() -> PathBuf {
     );
 }
 
-pub fn command_bare() -> Option<Command> {
-    fixture()?;
+pub fn command_bare_or_skip() -> Option<Command> {
+    fixture_or_skip()?;
     let mut c = Command::new(systemprompt_bin());
     c.env_remove("RUST_LOG");
     c.env_remove("SYSTEMPROMPT_PROFILE");
@@ -95,8 +95,8 @@ pub fn command_bare() -> Option<Command> {
     Some(c)
 }
 
-pub fn command() -> Option<Command> {
-    let fixture = fixture()?;
+pub fn command_or_skip() -> Option<Command> {
+    let fixture = fixture_or_skip()?;
     let mut c = Command::new(systemprompt_bin());
     c.env_remove("RUST_LOG");
     c.env_remove("SYSTEMPROMPT_PROFILE");
@@ -111,7 +111,9 @@ pub fn command() -> Option<Command> {
 }
 
 pub fn run(args: &[&str]) {
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     let _ = cmd.assert();
 }
@@ -119,7 +121,9 @@ pub fn run(args: &[&str]) {
 pub fn run_with_formats(args: &[&str]) {
     run(args);
     for format in ["--json", "--yaml"] {
-        let Some(mut cmd) = command() else { return };
+        let Some(mut cmd) = command_or_skip() else {
+            return;
+        };
         cmd.arg(format);
         cmd.args(args);
         let _ = cmd.assert();
@@ -225,7 +229,9 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
 // A pre-existing `testadmin` row keeps its original email through bootstrap;
 // session-token generation rejects dot-less domains, so repair it in place.
 fn normalize_admin_email() {
-    let Some(url) = database_url() else { return };
+    let Some(url) = database_url_or_skip() else {
+        return;
+    };
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -387,6 +393,7 @@ const PROVIDERS_CONFIG: &str = r#"providers:
         pricing:
           input_per_million: 3.0
           output_per_million: 15.0
+          cache_read_per_million: 0.0
   - name: openai
     wire: openai-chat
     surface: openai
@@ -397,6 +404,7 @@ const PROVIDERS_CONFIG: &str = r#"providers:
         pricing:
           input_per_million: 1.25
           output_per_million: 10.0
+          cache_read_per_million: 0.0
 "#;
 
 const GATEWAY_CONFIG: &str = r#"gateway:

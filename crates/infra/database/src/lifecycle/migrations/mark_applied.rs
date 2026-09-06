@@ -40,6 +40,17 @@ impl MigrationService<'_> {
                 ),
             })?;
 
+        if migration.tombstone {
+            return Err(LoaderError::MigrationFailed {
+                extension: ext_id.to_owned(),
+                message: format!(
+                    "Migration {version} ('{}') is a tombstone: the slot is recorded as spent and \
+                     has no SQL, so there is nothing to mark applied",
+                    migration.name
+                ),
+            });
+        }
+
         self.ensure_migrations_table_exists().await?;
 
         let applied = self.get_applied_migrations(ext_id).await?;

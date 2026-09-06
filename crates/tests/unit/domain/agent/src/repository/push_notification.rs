@@ -1,4 +1,4 @@
-use super::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 use systemprompt_agent::models::a2a::protocol::PushNotificationConfig;
 use systemprompt_identifiers::{ConfigId, TaskId};
 
@@ -19,7 +19,7 @@ fn make_config(url: &str) -> PushNotificationConfig {
 
 #[tokio::test]
 async fn add_get_and_list_config() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -58,7 +58,7 @@ async fn add_get_and_list_config() {
 
 #[tokio::test]
 async fn get_config_unknown_returns_none() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -77,7 +77,7 @@ async fn get_config_unknown_returns_none() {
 
 #[tokio::test]
 async fn delete_config() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -110,7 +110,7 @@ async fn delete_config() {
 
 #[tokio::test]
 async fn delete_all_for_task() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -145,7 +145,7 @@ async fn delete_all_for_task() {
 
 #[tokio::test]
 async fn list_configs_empty_for_unknown_task() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

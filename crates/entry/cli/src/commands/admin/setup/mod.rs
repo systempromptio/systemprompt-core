@@ -23,7 +23,8 @@ pub mod services_files;
 mod types;
 pub mod wizard;
 mod wizard_dry_run;
-mod wizard_prompts;
+#[doc(hidden)]
+pub mod wizard_prompts;
 
 use crate::shared::CommandOutput;
 use anyhow::Result;

@@ -15,7 +15,7 @@ use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_system_admin};
+use systemprompt_test_fixtures::fixture_system_admin;
 
 fn tmp_paths() -> PathsConfig {
     PathsConfig {
@@ -32,21 +32,9 @@ fn content_config() -> Arc<ContentConfigRaw> {
     Arc::new(serde_yaml::from_str("{}").expect("empty content config"))
 }
 
-macro_rules! pool_or_skip {
-    () => {{
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(pool) = fixture_db_pool(&url).await else {
-            return;
-        };
-        (pool, url)
-    }};
-}
-
 #[tokio::test]
 async fn plane_debug_impls_flag_optional_members() {
-    let (pool, url) = pool_or_skip!();
+    let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
 
     let analytics_service = Arc::new(AnalyticsService::new(
         None,

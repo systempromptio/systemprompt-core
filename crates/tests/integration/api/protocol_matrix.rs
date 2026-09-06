@@ -143,7 +143,8 @@ fn anthropic_response_parser_extracts_text_and_usage() {
         "stop_reason": "end_turn",
         "usage": {"input_tokens": 10, "output_tokens": 20}
     });
-    let canon = outbound_anthropic::test_api::parse_response(&resp, "fallback-model");
+    let canon = outbound_anthropic::test_api::parse_response(&resp, "fallback-model")
+        .expect("fixture parses");
     assert_eq!(canon.id, "msg_1");
     assert_eq!(canon.usage.input_tokens, 10);
     assert_eq!(canon.usage.output_tokens, 20);
@@ -163,7 +164,8 @@ fn anthropic_response_parser_falls_back_to_model_when_missing() {
         "id": "msg_x",
         "content": [{"type": "text", "text": "y"}]
     });
-    let canon = outbound_anthropic::test_api::parse_response(&resp, "fallback-model");
+    let canon = outbound_anthropic::test_api::parse_response(&resp, "fallback-model")
+        .expect("fixture parses");
     assert_eq!(canon.model, "fallback-model");
 }
 
@@ -178,7 +180,7 @@ fn openai_chat_response_parser_extracts_choice_content() {
         }],
         "usage": {"prompt_tokens": 5, "completion_tokens": 7}
     });
-    let canon = openai_chat::test_api::parse_response(&resp, "fallback");
+    let canon = openai_chat::test_api::parse_response(&resp, "fallback").expect("fixture parses");
     assert_eq!(canon.id, "chatcmpl_1");
     assert!(
         canon
@@ -201,7 +203,8 @@ fn openai_responses_object_parser_extracts_output_text() {
         }],
         "usage": {"input_tokens": 4, "output_tokens": 3}
     });
-    let canon = outbound_openai_responses::test_api::parse_response_object(&resp, "fallback");
+    let canon = outbound_openai_responses::test_api::parse_response_object(&resp, "fallback")
+        .expect("fixture parses");
     assert_eq!(canon.id, "resp_1");
     assert!(
         canon

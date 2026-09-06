@@ -12,9 +12,9 @@ use systemprompt_identifiers::AiToolCallId;
 
 use super::GatewayAudit;
 use super::payload::{slice_payload, truncate_for_tool_input};
-use crate::services::gateway::captures::{CapturedToolUse, CapturedUsage};
+use crate::services::gateway::captures::CapturedToolUse;
 use crate::services::gateway::pricing;
-use crate::services::gateway::protocol::canonical_response::CanonicalResponse;
+use crate::services::gateway::protocol::canonical_response::{CanonicalResponse, CanonicalUsage};
 
 impl GatewayAudit {
     pub(super) fn effective_model(&self) -> String {
@@ -31,13 +31,17 @@ impl GatewayAudit {
 
     pub async fn complete(
         &self,
-        usage: CapturedUsage,
+        mut usage: CanonicalUsage,
         tool_calls: Vec<CapturedToolUse>,
         response: &CanonicalResponse,
         response_body: &Bytes,
     ) -> Result<i64> {
         let latency_ms = self.elapsed_ms();
         let effective_model = self.effective_model();
+        // Why: the one place both gateway paths -- buffered and streamed --
+        // hand usage to billing, and the only one that knows the provider
+        // name. See `CanonicalUsage::normalise_reasoning` for the invariant.
+        usage.normalise_reasoning(&self.ctx.provider);
         let services = systemprompt_loader::ServicesBootstrap::get().ok();
         let gateway =
             services.and_then(systemprompt_models::services::ServicesConfig::gateway_config);
@@ -49,19 +53,8 @@ impl GatewayAudit {
             self.ctx.requested_model.as_deref().unwrap_or(""),
         ];
         let pricing_rates = pricing::resolve(&self.ctx.provider, &candidates, gateway, registry);
-        let cost = pricing::cost_microdollars(
-            pricing_rates,
-            pricing::CostTokens {
-                input: usage.input_tokens,
-                output: usage.output_tokens,
-                cache_read: usage.cache_read_tokens,
-                cache_creation: usage.cache_creation_tokens,
-            },
-        );
-        let tokens_used = usage.input_tokens
-            + usage.output_tokens
-            + usage.cache_read_tokens
-            + usage.cache_creation_tokens;
+        let cost = pricing_rates.cost_microdollars(&usage);
+        let tokens_used = usage.billable_total();
 
         self.requests
             .update_completion(UpdateCompletionParams {
@@ -74,6 +67,7 @@ impl GatewayAudit {
                 cache_hit: usage.cache_read_tokens > 0,
                 cache_read_tokens: usage.cache_read_tokens as i32,
                 cache_creation_tokens: usage.cache_creation_tokens as i32,
+                reasoning_tokens: usage.reasoning_tokens as i32,
             })
             .await?;
 
@@ -90,6 +84,7 @@ impl GatewayAudit {
             output_tokens = usage.output_tokens,
             cache_read_tokens = usage.cache_read_tokens,
             cache_creation_tokens = usage.cache_creation_tokens,
+            reasoning_tokens = usage.reasoning_tokens,
             tokens_used,
             cost_microdollars = cost,
             latency_ms,

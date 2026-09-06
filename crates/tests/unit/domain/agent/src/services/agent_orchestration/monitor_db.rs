@@ -15,7 +15,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::super::a2a_server::a2a_helpers::agent_config;
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 const DEAD_PID: u32 = 4_000_000_002;
 
@@ -56,7 +56,7 @@ async fn free_port_listener() -> (tokio::net::TcpListener, u16) {
 
 #[tokio::test]
 async fn health_check_reports_not_running_for_unknown_agent() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let name = unique_name("mon_missing");
@@ -73,7 +73,7 @@ async fn health_check_reports_not_running_for_unknown_agent() {
 
 #[tokio::test]
 async fn health_check_passes_for_live_process_with_open_port() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (listener, port) = free_port_listener().await;
@@ -103,7 +103,7 @@ async fn health_check_passes_for_live_process_with_open_port() {
 
 #[tokio::test]
 async fn health_check_fails_for_live_process_with_closed_port() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (listener, port) = free_port_listener().await;
@@ -128,7 +128,7 @@ async fn health_check_fails_for_live_process_with_closed_port() {
 
 #[tokio::test]
 async fn monitor_all_agents_buckets_healthy_and_failed() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (listener, port) = free_port_listener().await;
@@ -162,7 +162,7 @@ async fn monitor_all_agents_buckets_healthy_and_failed() {
 
 #[tokio::test]
 async fn unresponsive_agents_include_running_agent_without_card_endpoint() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let (listener, port) = free_port_listener().await;
@@ -186,7 +186,7 @@ async fn unresponsive_agents_include_running_agent_without_card_endpoint() {
 
 #[tokio::test]
 async fn unresponsive_agents_skip_agent_serving_valid_card() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let server = MockServer::start().await;

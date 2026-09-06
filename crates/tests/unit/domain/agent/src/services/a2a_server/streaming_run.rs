@@ -20,7 +20,7 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::ServicesConfig;
 
 use super::a2a_helpers::{StubAiProvider, agent_config, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn registry_with(agent_name: &str) -> AgentRegistry {
     let mut agents = HashMap::new();
@@ -78,7 +78,7 @@ async fn wait_for_state(
 
 #[tokio::test]
 async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -121,7 +121,7 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
 
 #[tokio::test]
 async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -165,7 +165,7 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
 
 #[tokio::test]
 async fn run_stream_with_failing_model_stream_fails_task() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     systemprompt_test_fixtures::ensure_test_bootstrap();

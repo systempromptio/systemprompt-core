@@ -62,7 +62,9 @@ pub fn to_ai_response(
     start: Instant,
     response: &CanonicalResponse,
 ) -> AiResponse {
-    let usage = &response.usage;
+    let mut normalised = response.usage;
+    normalised.normalise_reasoning(provider);
+    let usage = &normalised;
     let cache_read = (usage.cache_read_tokens > 0).then_some(usage.cache_read_tokens);
     let cache_creation = (usage.cache_creation_tokens > 0).then_some(usage.cache_creation_tokens);
     AiResponse {
@@ -71,12 +73,13 @@ pub fn to_ai_response(
         provider: provider.to_owned(),
         model: model.to_owned(),
         finish_reason: response.raw_finish_reason.clone(),
-        tokens_used: Some(usage.input_tokens + usage.output_tokens),
+        tokens_used: Some(usage.billable_total()),
         input_tokens: Some(usage.input_tokens),
         output_tokens: Some(usage.output_tokens),
         cache_hit: usage.cache_read_tokens > 0,
         cache_read_tokens: cache_read,
         cache_creation_tokens: cache_creation,
+        reasoning_tokens: (usage.reasoning_tokens > 0).then_some(usage.reasoning_tokens),
         is_streaming: false,
         latency_ms: start.elapsed().as_millis() as u64,
         tool_calls: tool_calls(response),
@@ -107,7 +110,7 @@ pub fn to_search_grounded(start: Instant, response: &CanonicalResponse) -> Searc
         confidence_scores,
         web_search_queries: grounding.queries,
         url_context_metadata: None,
-        tokens_used: Some(response.usage.input_tokens + response.usage.output_tokens),
+        tokens_used: Some(response.usage.billable_total()),
         latency_ms: start.elapsed().as_millis() as u64,
         finish_reason: response.raw_finish_reason.clone(),
         safety_ratings: None,

@@ -7,7 +7,7 @@ use systemprompt_identifiers::{
     Actor, ActorKind, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{fixture_user_id, usage};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -20,6 +20,7 @@ mod token_info_tests {
         assert!(info.tokens_used.is_none());
         assert!(info.input_tokens.is_none());
         assert!(info.output_tokens.is_none());
+        assert!(info.reasoning_tokens.is_none());
     }
 
     #[test]
@@ -28,7 +29,9 @@ mod token_info_tests {
             tokens_used: Some(1500),
             input_tokens: Some(1000),
             output_tokens: Some(500),
+            reasoning_tokens: Some(120),
         };
+        assert_eq!(info.reasoning_tokens, Some(120));
         assert_eq!(info.tokens_used, Some(1500));
         assert_eq!(info.input_tokens, Some(1000));
         assert_eq!(info.output_tokens, Some(500));
@@ -242,7 +245,7 @@ mod ai_request_record_builder_tests {
         )
         .provider("openai")
         .model("gpt-4")
-        .tokens(Some(1000), Some(500))
+        .usage(Some(usage().input(1000).output(500).build()))
         .build();
 
         assert_eq!(record.tokens.input_tokens, Some(1000));
@@ -259,11 +262,11 @@ mod ai_request_record_builder_tests {
         )
         .provider("openai")
         .model("gpt-4")
-        .tokens(Some(1000), None)
+        .usage(Some(usage().input(1000).build()))
         .build();
 
         assert_eq!(record.tokens.input_tokens, Some(1000));
-        assert_eq!(record.tokens.output_tokens, None);
+        assert_eq!(record.tokens.output_tokens, Some(0));
         assert_eq!(record.tokens.tokens_used, Some(1000));
     }
 
@@ -276,10 +279,10 @@ mod ai_request_record_builder_tests {
         )
         .provider("openai")
         .model("gpt-4")
-        .tokens(None, Some(500))
+        .usage(Some(usage().output(500).build()))
         .build();
 
-        assert_eq!(record.tokens.input_tokens, None);
+        assert_eq!(record.tokens.input_tokens, Some(0));
         assert_eq!(record.tokens.output_tokens, Some(500));
         assert_eq!(record.tokens.tokens_used, Some(500));
     }
@@ -293,7 +296,7 @@ mod ai_request_record_builder_tests {
         )
         .provider("anthropic")
         .model("claude-3")
-        .cache(true, Some(500), Some(100))
+        .usage(Some(usage().cache_read(500).cache_creation(100).build()))
         .build();
 
         assert!(record.cache.hit);
@@ -399,8 +402,9 @@ mod ai_request_record_builder_tests {
         .task_id(task_id)
         .trace_id(trace_id)
         .max_tokens(8192)
-        .tokens(Some(2000), Some(1000))
-        .cache(true, Some(500), None)
+        .usage(Some(
+            usage().input(2000).output(1000).cache_read(500).build(),
+        ))
         .streaming(true)
         .cost(500)
         .latency(1500)
@@ -411,7 +415,11 @@ mod ai_request_record_builder_tests {
         assert_eq!(record.provider.as_deref(), Some("anthropic"));
         assert_eq!(record.model.as_deref(), Some("claude-3-opus"));
         assert_eq!(record.max_tokens, Some(8192));
-        assert_eq!(record.tokens.tokens_used, Some(3000));
+        assert_eq!(
+            record.tokens.tokens_used,
+            Some(3500),
+            "tokens_used counts the cache read"
+        );
         assert!(record.cache.hit);
         assert!(record.is_streaming);
         assert_eq!(record.cost_microdollars, 500);
@@ -505,7 +513,7 @@ mod builder_optional_ids_tests {
         )
         .provider("openai")
         .model("gpt-4")
-        .tokens(None, None)
+        .usage(None)
         .build();
         assert!(record.tokens.tokens_used.is_none());
     }

@@ -16,6 +16,10 @@ allowlist=(
     # trees are exempt.
     '^crates/tests/integration/'
     '^crates/tests/unit/'
+    # Shared test fixtures create and drop the per-run databases themselves;
+    # CREATE/DROP DATABASE cannot take a bind parameter, so the name is
+    # interpolated under AssertSqlSafe. Same exemption as the two test trees.
+    '^crates/tests/common/'
     '^crates/entry/cli/src/commands/admin/setup/'
     '^crates/entry/cli/src/commands/infrastructure/jobs/cleanup_logs\.rs:'
 )

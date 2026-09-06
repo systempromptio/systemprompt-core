@@ -236,6 +236,7 @@ mod model_capabilities_tests {
             structured_output: true,
             system_prompts: true,
             image_resolution_config: false,
+            reasoning: true,
         };
         let json = serde_json::to_string(&caps).expect("serialize");
         let deserialized: ModelCapabilities = serde_json::from_str(&json).expect("deserialize");
@@ -243,6 +244,7 @@ mod model_capabilities_tests {
         assert!(deserialized.audio_input);
         assert!(deserialized.streaming);
         assert!(deserialized.tools);
+        assert!(deserialized.reasoning);
         assert!(deserialized.structured_output);
         assert!(deserialized.system_prompts);
         assert!(!deserialized.video_input);

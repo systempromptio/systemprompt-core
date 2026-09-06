@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Breaking
+
+- **Breaking:** `AiRequestListItem` and `AuditLookupResult` gain `reasoning_tokens: Option<i32>`. Struct literals need the new field; the queries populate it from the `ai_requests` column added in this release. The column is nullable so rows written before it keep their meaning — "not recorded", not "zero" — and reasoning is already inside `output_tokens`, so nothing about cost changes.
+
+### Added
+
+- `infra logs audit <id>` reports `reasoning_tokens`, and `infra logs request list` renders it as a share of the output figure — `27/200(194r)` — because it is inside `output_tokens`, not beside it. The thinking share of a turn was counted at the wire and then died at the gateway audit, so reasoning spend was invisible everywhere cost is read.
 ## [0.45.0] - 2026-09-03
 
 ### Removed

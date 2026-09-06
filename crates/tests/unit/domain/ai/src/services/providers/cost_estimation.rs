@@ -1,14 +1,15 @@
 //! Regression lock for token-cost math against the seeded catalog pricing.
 //!
 //! Production cost accounting (`AiService::estimate_cost`,
-//! `StreamStorageWrapper`) converts usage to microdollars as
-//! `round(input * input_per_million + output * output_per_million)`, with the
+//! `StreamStorageWrapper`) and the gateway share one conversion —
+//! `ModelPricing::cost_microdollars` over a `CanonicalUsage` — with the
 //! per-million rates resolved from the provider catalog via
 //! [`catalog_pricing`]. These tests pin both the rates and that conversion so a
 //! drift in either is caught.
 
 use systemprompt_ai::services::providers::catalog_pricing;
 use systemprompt_models::services::{ProviderModel, ProviderRegistry};
+use systemprompt_test_fixtures::usage;
 
 fn seed_models(provider: &str) -> Vec<ProviderModel> {
     ProviderRegistry::default_seed()
@@ -20,10 +21,7 @@ fn seed_models(provider: &str) -> Vec<ProviderModel> {
 }
 
 fn microdollars(models: &[ProviderModel], model: &str, input: u32, output: u32) -> i64 {
-    let pricing = catalog_pricing(models, model);
-    let input_cost = (f64::from(input) / 1_000_000.0) * pricing.input_per_million;
-    let output_cost = (f64::from(output) / 1_000_000.0) * pricing.output_per_million;
-    ((input_cost + output_cost) * 1_000_000.0).round() as i64
+    catalog_pricing(models, model).cost_microdollars(&usage().input(input).output(output).build())
 }
 
 #[test]
@@ -73,5 +71,23 @@ fn unknown_model_costs_zero() {
         microdollars(&models, "no-such-model", 1_000, 1_000),
         0,
         "an unknown model resolves to default (zero) pricing"
+    );
+}
+
+#[test]
+fn cache_tokens_are_billed_by_the_shared_cost_function() {
+    let models = seed_models("anthropic");
+    let pricing = catalog_pricing(&models, "claude-sonnet-4-6");
+    let cached = usage()
+        .input(1_000)
+        .output(500)
+        .cache_read(100_000)
+        .cache_creation(10_000)
+        .build();
+    assert_eq!(cached.billable_total(), 111_500);
+    assert!(
+        pricing.cost_microdollars(&cached)
+            > pricing.cost_microdollars(&usage().input(1_000).output(500).build()),
+        "cache tokens must be billed, not dropped"
     );
 }

@@ -14,7 +14,7 @@ use systemprompt_models::ai::{
     AiProvider, GenerateResponseParams, GoogleSearchParams, StreamChunk,
 };
 
-use super::{pool, seeded_context, service};
+use super::{pool_or_skip, seeded_context, service};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -35,7 +35,7 @@ fn request(context: systemprompt_models::RequestContext) -> AiRequest {
 
 #[tokio::test]
 async fn the_trait_reports_the_same_defaults_as_the_inherent_accessors() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -61,7 +61,7 @@ async fn the_trait_reports_the_same_defaults_as_the_inherent_accessors() {
 
 #[tokio::test]
 async fn generate_through_the_trait_returns_the_upstream_content() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -76,7 +76,7 @@ async fn generate_through_the_trait_returns_the_upstream_content() {
 
 #[tokio::test]
 async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -97,7 +97,7 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
 
 #[tokio::test]
 async fn generate_with_tools_and_single_turn_go_through_the_trait() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -124,7 +124,7 @@ async fn generate_with_tools_and_single_turn_go_through_the_trait() {
 
 #[tokio::test]
 async fn both_streaming_entry_points_yield_chunks_through_the_trait() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server = mock_http::anthropic_messages_stream(SSE).await;
@@ -158,7 +158,7 @@ async fn both_streaming_entry_points_yield_chunks_through_the_trait() {
 
 #[tokio::test]
 async fn tool_discovery_and_execution_go_through_the_trait() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -185,7 +185,7 @@ async fn tool_discovery_and_execution_go_through_the_trait() {
 
 #[tokio::test]
 async fn health_check_reports_a_status_per_configured_provider() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -202,7 +202,7 @@ async fn health_check_reports_a_status_per_configured_provider() {
 
 #[tokio::test]
 async fn plan_and_response_generation_go_through_the_trait() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =
@@ -243,7 +243,7 @@ async fn plan_and_response_generation_go_through_the_trait() {
 
 #[tokio::test]
 async fn google_search_through_the_trait_is_rejected_for_a_non_gemini_default() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let server =

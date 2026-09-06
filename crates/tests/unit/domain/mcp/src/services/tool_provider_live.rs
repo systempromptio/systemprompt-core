@@ -34,7 +34,7 @@ fn tool_context() -> ToolContext {
     context
 }
 
-async fn setup(agent: &str) -> Option<(McpToolProvider, McpServerId, MockServer)> {
+async fn setup_or_skip(agent: &str) -> Option<(McpToolProvider, McpServerId, MockServer)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
 
@@ -60,7 +60,7 @@ async fn setup(agent: &str) -> Option<(McpToolProvider, McpServerId, MockServer)
 
 #[tokio::test]
 async fn list_tools_resolves_agent_servers() {
-    let Some((provider, _server, _mock)) = setup("tp_agent_list").await else {
+    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_list").await else {
         return;
     };
 
@@ -75,7 +75,7 @@ async fn list_tools_resolves_agent_servers() {
 
 #[tokio::test]
 async fn list_tools_unknown_agent_is_configuration_error() {
-    let Some((provider, _server, _mock)) = setup("tp_agent_missing").await else {
+    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_missing").await else {
         return;
     };
 
@@ -88,7 +88,7 @@ async fn list_tools_unknown_agent_is_configuration_error() {
 
 #[tokio::test]
 async fn call_tool_executes_through_resilience_guard() {
-    let Some((provider, server, _mock)) = setup("tp_agent_call").await else {
+    let Some((provider, server, _mock)) = setup_or_skip("tp_agent_call").await else {
         return;
     };
 
@@ -113,7 +113,7 @@ async fn call_tool_executes_through_resilience_guard() {
 
 #[tokio::test]
 async fn call_tool_unknown_server_is_configuration_error() {
-    let Some((provider, _server, _mock)) = setup("tp_agent_badsrv").await else {
+    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_badsrv").await else {
         return;
     };
 
@@ -136,7 +136,7 @@ async fn call_tool_unknown_server_is_configuration_error() {
 
 #[tokio::test]
 async fn call_tool_requires_context_headers() {
-    let Some((provider, server, _mock)) = setup("tp_agent_hdrs").await else {
+    let Some((provider, server, _mock)) = setup_or_skip("tp_agent_hdrs").await else {
         return;
     };
 
@@ -166,7 +166,7 @@ async fn call_tool_requires_context_headers() {
 
 #[tokio::test]
 async fn refresh_connections_validates_reachable_server() {
-    let Some((provider, _server, _mock)) = setup("tp_agent_refresh").await else {
+    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_refresh").await else {
         return;
     };
 
@@ -178,7 +178,7 @@ async fn refresh_connections_validates_reachable_server() {
 
 #[tokio::test]
 async fn health_check_reports_no_managed_servers() {
-    let Some((provider, _server, _mock)) = setup("tp_agent_health").await else {
+    let Some((provider, _server, _mock)) = setup_or_skip("tp_agent_health").await else {
         return;
     };
 

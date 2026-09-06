@@ -11,7 +11,7 @@ use systemprompt_files::{FileRepository, FileRole, InsertFileRequest};
 use systemprompt_identifiers::{ContentId, ContextId, FileId};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<DbPool> {
+async fn db_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -68,7 +68,7 @@ async fn cleanup_file(repo: &FileRepository, id: &FileId) {
 
 #[tokio::test]
 async fn link_to_content_persists_association() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let file_id = new_file_id();
@@ -90,7 +90,7 @@ async fn link_to_content_persists_association() {
 
 #[tokio::test]
 async fn link_to_content_upserts_display_order_on_conflict() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let file_id = new_file_id();
@@ -116,7 +116,7 @@ async fn link_to_content_upserts_display_order_on_conflict() {
 
 #[tokio::test]
 async fn link_to_content_rejects_non_uuid_file_id() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let bad = FileId::new("not-a-uuid");
@@ -129,7 +129,7 @@ async fn link_to_content_rejects_non_uuid_file_id() {
 
 #[tokio::test]
 async fn unlink_removes_association() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let file_id = new_file_id();
@@ -152,7 +152,7 @@ async fn unlink_removes_association() {
 
 #[tokio::test]
 async fn unlink_rejects_non_uuid_file_id() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let bad = FileId::new("xyz");
@@ -165,7 +165,7 @@ async fn unlink_rejects_non_uuid_file_id() {
 
 #[tokio::test]
 async fn list_files_by_content_returns_ordered_joined_rows() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let first = new_file_id();
@@ -204,7 +204,7 @@ async fn list_files_by_content_returns_ordered_joined_rows() {
 
 #[tokio::test]
 async fn list_files_by_content_empty_for_unknown_content() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let rows = repo.list_files_by_content(&content_id).await.expect("list");
@@ -213,7 +213,7 @@ async fn list_files_by_content_empty_for_unknown_content() {
 
 #[tokio::test]
 async fn find_featured_image_returns_only_featured() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let attachment = new_file_id();
@@ -243,7 +243,7 @@ async fn find_featured_image_returns_only_featured() {
 
 #[tokio::test]
 async fn find_featured_image_none_when_only_attachments() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let attachment = new_file_id();
@@ -265,7 +265,7 @@ async fn find_featured_image_none_when_only_attachments() {
 
 #[tokio::test]
 async fn set_featured_demotes_existing_and_promotes_target() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let old_featured = new_file_id();
@@ -313,7 +313,7 @@ async fn set_featured_demotes_existing_and_promotes_target() {
 
 #[tokio::test]
 async fn set_featured_errors_when_file_not_linked() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let unlinked = new_file_id();
@@ -332,7 +332,7 @@ async fn set_featured_errors_when_file_not_linked() {
 
 #[tokio::test]
 async fn set_featured_rejects_non_uuid_file_id() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_id = new_content_id();
     let err = repo
@@ -344,7 +344,7 @@ async fn set_featured_rejects_non_uuid_file_id() {
 
 #[tokio::test]
 async fn list_content_by_file_returns_links() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let content_a = new_content_id();
     let content_b = new_content_id();
@@ -375,7 +375,7 @@ async fn list_content_by_file_returns_links() {
 
 #[tokio::test]
 async fn list_content_by_file_rejects_non_uuid() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let err = repo
         .list_content_by_file(&FileId::new("nope"))
@@ -386,7 +386,7 @@ async fn list_content_by_file_rejects_non_uuid() {
 
 #[tokio::test]
 async fn list_content_by_file_empty_for_unknown_file() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = FileRepository::new(&db).expect("repo");
     let file_id = new_file_id();
     let links = repo.list_content_by_file(&file_id).await.expect("list");

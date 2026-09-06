@@ -32,14 +32,14 @@ fn make_entry(module: &str, msg: &str) -> LogEntry {
     }
 }
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
 async fn database_log_service_log_get_recent_delete() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let svc = DatabaseLogService::new(&db).expect("ctor");
     let entry = make_entry("svc-test-mod", "svc-msg");
     let id = entry.id.clone();
@@ -61,7 +61,7 @@ async fn database_log_service_log_get_recent_delete() {
 
 #[tokio::test]
 async fn database_log_service_from_repository() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = systemprompt_logging::LoggingRepository::new(&db).unwrap();
     let svc = DatabaseLogService::from_repository(repo);
     let _ = svc.repository();
@@ -69,7 +69,7 @@ async fn database_log_service_from_repository() {
 
 #[tokio::test]
 async fn maintenance_service_full_surface() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let svc = LoggingMaintenanceService::new(&db).expect("ctor");
 
     let _recent = svc.get_recent_logs(10).await.unwrap();

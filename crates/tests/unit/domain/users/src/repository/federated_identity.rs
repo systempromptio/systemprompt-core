@@ -13,7 +13,7 @@ struct Ctx {
     external_sub: String,
 }
 
-async fn setup(prefix: &str) -> Option<Ctx> {
+async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -43,7 +43,7 @@ async fn cleanup(ctx: &Ctx, user_id: &UserId) {
 
 #[tokio::test]
 async fn find_federated_unknown_returns_none() {
-    let Some(ctx) = setup("unknown").await else {
+    let Some(ctx) = setup_or_skip("unknown").await else {
         return;
     };
     let found = ctx
@@ -56,7 +56,7 @@ async fn find_federated_unknown_returns_none() {
 
 #[tokio::test]
 async fn create_then_find_and_reuse_identity() {
-    let Some(ctx) = setup("create").await else {
+    let Some(ctx) = setup_or_skip("create").await else {
         return;
     };
 
@@ -92,7 +92,7 @@ async fn create_then_find_and_reuse_identity() {
 
 #[tokio::test]
 async fn unverified_email_yields_synthetic_local_address() {
-    let Some(ctx) = setup("unverified").await else {
+    let Some(ctx) = setup_or_skip("unverified").await else {
         return;
     };
 
@@ -118,7 +118,7 @@ async fn unverified_email_yields_synthetic_local_address() {
 
 #[tokio::test]
 async fn missing_email_yields_synthetic_local_address() {
-    let Some(ctx) = setup("noemail").await else {
+    let Some(ctx) = setup_or_skip("noemail").await else {
         return;
     };
 

@@ -2,22 +2,28 @@
 //! (create, update, merge, bulk, ban, session end, webauthn) plus the
 //! `admin keys` and `admin access-control` trees.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{command, fixture};
+use systemprompt_cli_integration_tests::full_bootstrap::{command_or_skip, fixture_or_skip};
 
 fn run_ok(args: &[&str]) {
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     cmd.assert().success();
 }
 
 fn run_any(args: &[&str]) {
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     let _ = cmd.assert();
 }
 
 fn run_err(args: &[&str]) {
-    let Some(mut cmd) = command() else { return };
+    let Some(mut cmd) = command_or_skip() else {
+        return;
+    };
     cmd.args(args);
     cmd.assert().failure();
 }
@@ -27,8 +33,8 @@ fn unique(name: &str) -> String {
     format!("{name}_{}", std::process::id())
 }
 
-fn user_id_by_name(name: &str) -> Option<String> {
-    let mut cmd = command()?;
+fn user_id_by_name_or_skip(name: &str) -> Option<String> {
+    let mut cmd = command_or_skip()?;
     cmd.args(["--json", "admin", "users", "search", name]);
     let output = cmd.assert().success();
     let raw = String::from_utf8_lossy(&output.get_output().stdout).into_owned();
@@ -44,7 +50,7 @@ fn user_id_by_name(name: &str) -> Option<String> {
 
 #[test]
 fn user_create_update_show_delete_cycle() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let name = unique("covuser_cycle");
@@ -76,7 +82,7 @@ fn user_create_update_show_delete_cycle() {
         "admin", "users", "create", "--name", &name, "--email", &email,
     ]);
 
-    let Some(id) = user_id_by_name(&name) else {
+    let Some(id) = user_id_by_name_or_skip(&name) else {
         return;
     };
     run_ok(&["admin", "users", "show", &id]);
@@ -107,7 +113,7 @@ fn user_create_update_show_delete_cycle() {
 
 #[test]
 fn user_merge_flow() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     let src_name = unique("covmerge_src");
@@ -120,7 +126,10 @@ fn user_merge_flow() {
     run_ok(&[
         "admin", "users", "create", "--name", &dst_name, "--email", &dst_email,
     ]);
-    let (Some(src), Some(dst)) = (user_id_by_name(&src_name), user_id_by_name(&dst_name)) else {
+    let (Some(src), Some(dst)) = (
+        user_id_by_name_or_skip(&src_name),
+        user_id_by_name_or_skip(&dst_name),
+    ) else {
         return;
     };
     run_any(&[
@@ -141,7 +150,7 @@ fn user_merge_flow() {
 
 #[test]
 fn bulk_update_and_delete() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_any(&[
@@ -197,7 +206,7 @@ fn bulk_update_and_delete() {
 
 #[test]
 fn ban_lifecycle() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_ok(&[
@@ -232,7 +241,7 @@ fn ban_lifecycle() {
 
 #[test]
 fn webauthn_setup_token() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_any(&[
@@ -257,7 +266,7 @@ fn webauthn_setup_token() {
 
 #[test]
 fn keys_issue_plugin_token() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_any(&[
@@ -292,7 +301,7 @@ fn keys_issue_plugin_token() {
 
 #[test]
 fn access_control_export_and_lint() {
-    if fixture().is_none() {
+    if fixture_or_skip().is_none() {
         return;
     }
     run_any(&["admin", "access-control", "export-yaml"]);

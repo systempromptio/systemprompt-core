@@ -31,7 +31,7 @@ use systemprompt_traits::{
 
 const ONE_PIXEL_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-async fn pool() -> Option<DbPool> {
+async fn image_pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -245,7 +245,7 @@ async fn seed_user(pool: &DbPool) -> UserId {
 
 #[tokio::test]
 async fn generate_image_persists_file_and_audit_row() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -288,7 +288,7 @@ async fn generate_image_persists_file_and_audit_row() {
 
 #[tokio::test]
 async fn generate_image_propagates_provider_error_and_persists_nothing() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -311,7 +311,7 @@ async fn generate_image_propagates_provider_error_and_persists_nothing() {
 
 #[tokio::test]
 async fn generate_image_without_model_or_default_errors() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -333,7 +333,7 @@ async fn generate_image_without_model_or_default_errors() {
 
 #[tokio::test]
 async fn generate_image_unknown_model_errors() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -359,7 +359,7 @@ async fn generate_image_unknown_model_errors() {
 
 #[tokio::test]
 async fn generate_image_routes_by_model_name() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -381,7 +381,7 @@ async fn generate_image_routes_by_model_name() {
 
 #[tokio::test]
 async fn list_and_delete_user_images_round_trip() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -430,7 +430,7 @@ async fn list_and_delete_user_images_round_trip() {
 
 #[tokio::test]
 async fn generate_batch_returns_all_responses() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -452,7 +452,7 @@ async fn generate_batch_returns_all_responses() {
 
 #[tokio::test]
 async fn generate_batch_stops_on_first_error() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -474,7 +474,7 @@ async fn generate_batch_stops_on_first_error() {
 
 #[tokio::test]
 async fn provider_registry_accessors_report_state() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let file_provider = Arc::new(InMemoryFileProvider::default());
@@ -582,7 +582,7 @@ fn build_failing_service(pool: &DbPool) -> (tempfile::TempDir, ImageService) {
 
 #[tokio::test]
 async fn a_failing_file_record_write_surfaces_as_a_database_error() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -600,7 +600,7 @@ async fn a_failing_file_record_write_surfaces_as_a_database_error() {
 
 #[tokio::test]
 async fn a_failing_lookup_is_reported_rather_than_read_as_absent() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let (_dir, service) = build_failing_service(&pool);
@@ -617,7 +617,7 @@ async fn a_failing_lookup_is_reported_rather_than_read_as_absent() {
 
 #[tokio::test]
 async fn a_failing_listing_is_reported_rather_than_read_as_empty() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let user_id = seed_user(&pool).await;
@@ -639,7 +639,7 @@ async fn a_failing_listing_is_reported_rather_than_read_as_empty() {
 
 #[tokio::test]
 async fn deleting_an_image_the_store_cannot_look_up_is_an_error() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let (_dir, service) = build_failing_service(&pool);
@@ -656,7 +656,7 @@ async fn deleting_an_image_the_store_cannot_look_up_is_an_error() {
 
 #[tokio::test]
 async fn deleting_an_absent_image_through_a_working_store_is_a_no_op() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = image_pool_or_skip().await else {
         return;
     };
     let file_provider = Arc::new(InMemoryFileProvider::default());

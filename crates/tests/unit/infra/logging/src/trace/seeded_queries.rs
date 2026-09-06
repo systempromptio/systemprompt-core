@@ -24,7 +24,7 @@ struct Seed {
 }
 
 impl Seed {
-    async fn new() -> Option<Self> {
+    async fn new_or_skip() -> Option<Self> {
         let url = fixture_database_url().ok()?;
         let db = fixture_db_pool(&url).await.ok()?;
         let pool = db.pool_arc().ok()?.as_ref().clone();
@@ -200,7 +200,7 @@ impl Seed {
 
 #[tokio::test]
 async fn step_queries_map_seeded_mcp_and_step_rows() {
-    let Some(seed) = Seed::new().await else {
+    let Some(seed) = Seed::new_or_skip().await else {
         return;
     };
 
@@ -290,7 +290,7 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
 
 #[tokio::test]
 async fn mcp_trace_queries_map_seeded_rows() {
-    let Some(seed) = Seed::new().await else {
+    let Some(seed) = Seed::new_or_skip().await else {
         return;
     };
 
@@ -338,7 +338,7 @@ async fn mcp_trace_queries_map_seeded_rows() {
 
 #[tokio::test]
 async fn filtered_lists_surface_seeded_rows() {
-    let Some(seed) = Seed::new().await else {
+    let Some(seed) = Seed::new_or_skip().await else {
         return;
     };
 

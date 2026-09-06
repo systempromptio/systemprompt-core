@@ -6,6 +6,7 @@
 use http::{HeaderName, HeaderValue};
 use rmcp::model::{ClientCapabilities, ClientJsonRpcMessage, GetMeta, ProtocolVersion};
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 
 // Why: SEP-2575. From 2026-07-28 a stateless server rejects any non-initialize
 // request whose `_meta` omits the negotiated protocol version and client
@@ -13,9 +14,9 @@ use std::collections::HashMap;
 // rmcp sets the `MCP-Protocol-Version` header but never the `_meta` fields,
 // so without this every call fails at the transport. Below 2026-07-28 nothing
 // is stamped. The SEP-2243 headers need no help: rmcp adds them itself.
-pub(super) fn stamp_request_metadata(
+pub fn stamp_request_metadata<S: BuildHasher>(
     message: &mut ClientJsonRpcMessage,
-    custom_headers: &HashMap<HeaderName, HeaderValue>,
+    custom_headers: &HashMap<HeaderName, HeaderValue, S>,
     client_capabilities: &ClientCapabilities,
 ) {
     let ClientJsonRpcMessage::Request(request) = message else {

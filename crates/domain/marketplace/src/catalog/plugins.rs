@@ -1,8 +1,8 @@
 //! Projects plugin specs into the bundles the gateway serves and the
 //! `PluginEntry` records the signed manifest carries.
 //!
-//! [`plugin_bundles`] is the single source: it selects the enabled,
-//! active-marketplace-scoped plugins, assembles each into its installable
+//! [`plugin_bundles`] is the single source: it selects the enabled plugins any
+//! enabled marketplace includes, assembles each into its installable
 //! bundle via [`build_plugin_bundle`] (the owner of the bundle contract), and
 //! drops fail-closed any spec whose references resolve to no content. Both the
 //! manifest path ([`load_plugins`], which hashes each bundle into a
@@ -25,19 +25,21 @@ use std::sync::{Arc, OnceLock, RwLock};
 use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest, SkillId};
 use systemprompt_models::bridge::manifest::{ArtifactEntry, PluginEntry, PluginFile};
-use systemprompt_models::services::{ComponentSource, PluginConfig, ServicesConfig};
+use systemprompt_models::services::{
+    ComponentSource, MarketplaceMemberKind, PluginConfig, ServicesConfig,
+};
 
 use crate::bundle::{BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content};
 use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::error::MarketplaceError;
-use crate::scope::scope_to_marketplace;
+use crate::scope::{enabled_marketplaces, scope_to_union, union_include};
 
 pub fn plugin_bundles(
     services: &ServicesConfig,
     content: &BundleContent<'_>,
 ) -> Result<BTreeMap<PluginId, PluginBundle>, MarketplaceError> {
     let mut out = BTreeMap::new();
-    for config in selected_configs(services)? {
+    for config in selected_configs(services) {
         let bundle = match build_plugin_bundle(config, content) {
             Ok(bundle) => bundle,
             Err(e) => {
@@ -151,7 +153,7 @@ pub fn artifact_owners(
     artifacts: &[ArtifactEntry],
 ) -> Result<BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>, MarketplaceError> {
     let mut out: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = BTreeMap::new();
-    for config in selected_configs(services)? {
+    for config in selected_configs(services) {
         let selected: Vec<LibraryArtifactId> = match config.artifacts.source {
             ComponentSource::Explicit => config
                 .artifacts
@@ -190,17 +192,13 @@ pub fn selects_artifact(config: &PluginConfig, artifact_id: &LibraryArtifactId) 
     }
 }
 
-pub(crate) fn selected_configs(
-    services: &ServicesConfig,
-) -> Result<Vec<&PluginConfig>, MarketplaceError> {
+pub(crate) fn selected_configs(services: &ServicesConfig) -> Vec<&PluginConfig> {
     let enabled: Vec<&PluginConfig> = services.plugins.values().filter(|p| p.enabled).collect();
-    let active = crate::MarketplaceService::new(services).resolve_active()?;
-    let mut scoped = match active {
-        Some(mp) => scope_to_marketplace(enabled, &mp.plugins.include, |c| c.id.as_str()),
-        None => enabled,
-    };
+    let marketplaces = enabled_marketplaces(services);
+    let include = union_include(&marketplaces, MarketplaceMemberKind::Plugins);
+    let mut scoped = scope_to_union(enabled, include.as_ref(), |c| c.id.as_str());
     scoped.sort_by(|a, b| a.id.as_str().cmp(b.id.as_str()));
-    Ok(scoped)
+    scoped
 }
 
 pub fn skill_owners(
@@ -208,7 +206,7 @@ pub fn skill_owners(
     content: &BundleContent<'_>,
 ) -> Result<BTreeMap<SkillId, BTreeSet<PluginId>>, MarketplaceError> {
     let mut out: BTreeMap<SkillId, BTreeSet<PluginId>> = BTreeMap::new();
-    for config in selected_configs(services)? {
+    for config in selected_configs(services) {
         let agent_ids = crate::bundle::resolve_agents(config, content.agents);
         let owner = PluginId::try_new(config.id.as_str())
             .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;

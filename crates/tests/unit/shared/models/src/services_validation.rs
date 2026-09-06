@@ -216,14 +216,15 @@ fn marketplace_referencing_unknown_plugin_is_rejected() {
 }
 
 #[test]
-fn two_marketplaces_require_a_default_selector() {
+fn two_marketplaces_need_no_default_selector() {
     let yaml = format!(
         "marketplaces:{}{}",
         marketplace_yaml("market-a", ""),
         marketplace_yaml("market-b", "")
     );
-    let err = parse(&yaml).validate().unwrap_err();
-    assert!(err.to_string().contains("default_marketplace_id is unset"));
+    parse(&yaml)
+        .validate()
+        .expect("several enabled marketplaces union into one manifest");
 }
 
 #[test]

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::services::{
-    MarketplaceConfig, MarketplaceVisibility, PluginAuthor, PluginComponentRef, ServicesConfig,
+    MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceRuleAccess,
+    MarketplaceVisibility, PluginAuthor, PluginComponentRef, ServicesConfig,
 };
 
 fn author() -> PluginAuthor {
@@ -93,7 +94,7 @@ fn services_config_validates_marketplace_with_known_plugin() {
 }
 
 #[test]
-fn services_config_rejects_multiple_marketplaces_without_default() {
+fn services_config_accepts_multiple_marketplaces_without_default() {
     let mut services = ServicesConfig::default();
     for id in ["alpha", "beta"] {
         services.marketplaces.insert(
@@ -102,10 +103,9 @@ fn services_config_rejects_multiple_marketplaces_without_default() {
         );
     }
 
-    let err = services
+    services
         .validate()
-        .expect_err("ambiguous selector must fail bootstrap");
-    assert!(err.to_string().contains("default_marketplace_id"));
+        .expect("the manifest unions every enabled marketplace, so no selector is needed");
 }
 
 #[test]
@@ -271,3 +271,103 @@ marketplace:
 // Silence unused warning for the imports re-used across helpers above.
 #[allow(dead_code)]
 fn _hint(_: HashMap<String, String>) {}
+
+fn with_rules(id: &str, rules: Vec<MarketplaceAccessRule>) -> MarketplaceConfig {
+    let mut mp = marketplace(id, PluginComponentRef::default());
+    mp.access = MarketplaceAccess {
+        default_included: false,
+        roles: vec!["platform_admin".to_owned()],
+        rules,
+        attributes: Default::default(),
+        justification: None,
+    };
+    mp
+}
+
+fn rule(rule_type: &str, values: &[&str]) -> MarketplaceAccessRule {
+    MarketplaceAccessRule {
+        rule_type: rule_type.to_owned(),
+        values: values.iter().map(|v| (*v).to_owned()).collect(),
+        access: MarketplaceRuleAccess::Allow,
+        justification: None,
+    }
+}
+
+#[test]
+fn access_rules_accept_an_extension_dimension() {
+    let mp = with_rules("market", vec![rule("adfs_group", &["commerce-devs"])]);
+    mp.validate("market").expect("a well-formed slug validates");
+    assert!(mp.access.declares_rules());
+    assert_eq!(
+        mp.access.rule_types().into_iter().collect::<Vec<_>>(),
+        vec!["adfs_group", "role"]
+    );
+}
+
+#[test]
+fn access_rules_reject_role_and_user_rule_types() {
+    for banned in ["role", "user"] {
+        let mp = with_rules("market", vec![rule(banned, &["x"])]);
+        let err = mp
+            .validate("market")
+            .expect_err("roles have their own list");
+        assert!(err.to_string().contains(banned), "{err}");
+    }
+}
+
+#[test]
+fn access_rules_reject_blank_values() {
+    let mp = with_rules("market", vec![rule("adfs_group", &["  "])]);
+    assert!(mp.validate("market").is_err());
+
+    let empty = with_rules("market", vec![rule("adfs_group", &[])]);
+    assert!(empty.validate("market").is_err());
+}
+
+#[test]
+fn access_rules_reject_malformed_slug() {
+    for bad in ["Bad-Slug", "_leading", "trailing_", "", "with space"] {
+        let mp = with_rules("market", vec![rule(bad, &["x"])]);
+        assert!(
+            mp.validate("market").is_err(),
+            "'{bad}' is not a subject-dimension slug"
+        );
+    }
+}
+
+#[test]
+fn access_rules_round_trip_yaml() {
+    let yaml = r"
+default_included: false
+roles: [platform_admin]
+rules:
+  - rule_type: adfs_group
+    values: [commerce-devs]
+  - rule_type: project
+    values: [storefront]
+    access: deny
+    justification: Storefront squad tooling
+";
+    let access: MarketplaceAccess = serde_yaml::from_str(yaml).expect("parses");
+    assert_eq!(access.rules.len(), 2);
+    assert_eq!(access.rules[0].rule_type, "adfs_group");
+    assert_eq!(access.rules[0].access, MarketplaceRuleAccess::Allow);
+    assert_eq!(access.rules[1].access, MarketplaceRuleAccess::Deny);
+    assert_eq!(
+        access.rules[1].justification.as_deref(),
+        Some("Storefront squad tooling")
+    );
+
+    let round_tripped: MarketplaceAccess =
+        serde_yaml::from_str(&serde_yaml::to_string(&access).expect("serialises"))
+            .expect("re-parses");
+    assert_eq!(round_tripped.rules.len(), 2);
+}
+
+#[test]
+fn access_without_rules_declares_nothing_when_roles_are_empty() {
+    let mut mp = marketplace("market", PluginComponentRef::default());
+    assert!(!mp.access.declares_rules());
+    mp.access.rules = vec![rule("adfs_group", &["x"])];
+    assert!(mp.access.declares_rules());
+}

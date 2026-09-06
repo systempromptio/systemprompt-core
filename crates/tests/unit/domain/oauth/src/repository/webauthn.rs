@@ -12,7 +12,7 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -26,7 +26,9 @@ async fn setup() -> Option<Ctx> {
 
 #[tokio::test]
 async fn store_then_get_credentials() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let id = format!("cred-{}", Uuid::new_v4());
     let credential_id = Uuid::new_v4().as_bytes().to_vec();
     let public_key = vec![1u8, 2, 3, 4];
@@ -60,7 +62,9 @@ async fn store_then_get_credentials() {
 
 #[tokio::test]
 async fn get_credentials_empty_for_unknown_user() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let other = unique_user_id("wa-empty");
     let creds = ctx
         .repo
@@ -72,7 +76,9 @@ async fn get_credentials_empty_for_unknown_user() {
 
 #[tokio::test]
 async fn update_counter_advances() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let id = format!("cred-{}", Uuid::new_v4());
     let credential_id = Uuid::new_v4().as_bytes().to_vec();
 
@@ -104,7 +110,9 @@ async fn update_counter_advances() {
 
 #[tokio::test]
 async fn store_rejects_counter_exceeding_i32() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let id = Uuid::new_v4().to_string();
     let credential_id = Uuid::new_v4().into_bytes().to_vec();
     let err = ctx
@@ -120,7 +128,9 @@ async fn store_rejects_counter_exceeding_i32() {
 
 #[tokio::test]
 async fn update_counter_rejects_value_exceeding_i32() {
-    let Some(ctx) = setup().await else { return };
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
     let err = ctx
         .repo
         .update_webauthn_credential_counter(&[1u8, 2, 3], u32::MAX)

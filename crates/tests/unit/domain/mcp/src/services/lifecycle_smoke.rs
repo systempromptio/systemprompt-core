@@ -16,7 +16,7 @@ use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
-async fn make_orchestrator() -> Option<(LifecycleOrchestrator, McpServerConfig)> {
+async fn make_orchestrator_or_skip() -> Option<(LifecycleOrchestrator, McpServerConfig)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {
@@ -85,7 +85,7 @@ async fn make_orchestrator() -> Option<(LifecycleOrchestrator, McpServerConfig)>
 
 #[tokio::test]
 async fn accessor_methods_return_inner_services() {
-    let Some((life, _)) = make_orchestrator().await else {
+    let Some((life, _)) = make_orchestrator_or_skip().await else {
         return;
     };
     let _ = life.process();
@@ -97,7 +97,7 @@ async fn accessor_methods_return_inner_services() {
 
 #[tokio::test]
 async fn stop_server_on_missing_service_is_noop() {
-    let Some((life, config)) = make_orchestrator().await else {
+    let Some((life, config)) = make_orchestrator_or_skip().await else {
         return;
     };
     life.stop_server(&config).await.unwrap();
@@ -105,7 +105,7 @@ async fn stop_server_on_missing_service_is_noop() {
 
 #[tokio::test]
 async fn health_check_on_missing_service_returns_false() {
-    let Some((life, config)) = make_orchestrator().await else {
+    let Some((life, config)) = make_orchestrator_or_skip().await else {
         return;
     };
     let r = life.health_check(&config).await.unwrap();
@@ -114,7 +114,7 @@ async fn health_check_on_missing_service_returns_false() {
 
 #[tokio::test]
 async fn start_server_with_nonexistent_binary_returns_err() {
-    let Some((life, config)) = make_orchestrator().await else {
+    let Some((life, config)) = make_orchestrator_or_skip().await else {
         return;
     };
     let r = life.start_server(&config).await;
@@ -123,7 +123,7 @@ async fn start_server_with_nonexistent_binary_returns_err() {
 
 #[tokio::test]
 async fn start_server_rejects_external_without_spawning() {
-    let Some((life, mut config)) = make_orchestrator().await else {
+    let Some((life, mut config)) = make_orchestrator_or_skip().await else {
         return;
     };
     config.server_type = McpServerType::External;

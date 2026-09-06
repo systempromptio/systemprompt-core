@@ -8,7 +8,7 @@ use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fi
 use systemprompt_users::UserRateLimitBucketRepository;
 use uuid::Uuid;
 
-async fn repo() -> Option<(UserRateLimitBucketRepository, DbPool)> {
+async fn repo_or_skip() -> Option<(UserRateLimitBucketRepository, DbPool)> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let db = fixture_db_pool(&url).await.expect("pool");
@@ -34,7 +34,7 @@ fn user() -> UserId {
 
 #[tokio::test]
 async fn thirty_two_concurrent_hits_on_one_key_sum_to_exactly_thirty_two() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let user = user();
@@ -67,7 +67,7 @@ async fn thirty_two_concurrent_hits_on_one_key_sum_to_exactly_thirty_two() {
 
 #[tokio::test]
 async fn scopes_and_windows_count_independently() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let user = user();
@@ -87,7 +87,7 @@ async fn scopes_and_windows_count_independently() {
 
 #[tokio::test]
 async fn prune_removes_only_windows_before_the_cutoff() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let user = user();

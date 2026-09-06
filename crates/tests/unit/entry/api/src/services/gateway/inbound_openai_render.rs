@@ -219,7 +219,10 @@ fn render_terminal_completed_carries_full_output_list() {
         .find(|f| f["type"] == "response.completed")
         .expect("response.completed frame");
     assert_eq!(completed["response"]["status"], "completed");
-    assert_eq!(completed["response"]["stop_reason"], "tool_calls");
+    assert!(
+        completed["response"]["stop_reason"].is_null(),
+        "the Responses object has no stop_reason field: {completed:?}"
+    );
     let output = completed["response"]["output"]
         .as_array()
         .expect("output array");
@@ -255,6 +258,32 @@ fn render_terminal_incomplete_maps_to_incomplete_status() {
     assert_eq!(
         incomplete["response"]["incomplete_details"]["reason"],
         "max_output_tokens"
+    );
+}
+
+// Why: the buffered lane renders the same response object without any SSE
+// frame around it, and it read `status` off nothing at all until this pinned
+// it to the canonical reason the streaming lane already honours.
+#[test]
+fn render_buffered_truncation_marks_the_response_incomplete() {
+    let inbound = OpenAiResponsesInbound;
+    let mut response = sample_response();
+    response.stop_reason = Some(CanonicalStopReason::MaxTokens);
+    let body = inbound.render_response(&response);
+    let value: serde_json::Value = serde_json::from_slice(&body).expect("json body");
+    assert_eq!(value["status"], "incomplete");
+    assert_eq!(value["incomplete_details"]["reason"], "max_output_tokens");
+    assert!(
+        value["stop_reason"].is_null(),
+        "the Responses object has no stop_reason field: {value:?}"
+    );
+    assert!(
+        value["output"]
+            .as_array()
+            .expect("output array")
+            .iter()
+            .all(|item| item["status"] != "completed"),
+        "a truncated turn must not carry a completed item: {value:?}"
     );
 }
 

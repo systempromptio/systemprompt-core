@@ -43,7 +43,7 @@ pub(super) async fn generate(
         .await?
         .json()
         .await?;
-    let parsed = gemini::parse_response(&value, params.model);
+    let parsed = gemini::parse_response(&value, params.model)?;
     Ok(canonical_bridge::to_ai_response(
         "gemini",
         params.model,
@@ -79,7 +79,7 @@ pub(super) async fn generate_with_schema(
         .await?
         .json()
         .await?;
-    let parsed = gemini::parse_response(&value, params.base.model);
+    let parsed = gemini::parse_response(&value, params.base.model)?;
     Ok(canonical_bridge::to_ai_response(
         "gemini",
         params.base.model,

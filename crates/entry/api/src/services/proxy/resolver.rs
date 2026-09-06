@@ -57,9 +57,31 @@ impl ServiceResolver {
             if service.status == "crashed" {
                 tracing::info!(service = %service_name, "Service crashed, attempting restart");
 
+                // Why: re-read rather than recurse. `start_services` reports Ok
+                // when it started nothing — an unregistered name filters to an
+                // empty target list — so recursing on Ok alone spins forever on
+                // a row that never leaves `crashed`, and a single proxied
+                // request exhausts the stack and kills the process.
                 if Self::attempt_restart(service_name, ctx).await.is_ok() {
-                    tracing::info!("Service restarted successfully, retrying proxy");
-                    return Box::pin(Self::resolve(service_name, ctx)).await;
+                    let restarted = service_repo
+                        .find_service_by_name(service_name)
+                        .await
+                        .map_err(|e| ProxyError::DatabaseError {
+                            service: service_name.to_owned(),
+                            source: e,
+                        })?;
+
+                    if let Some(restarted) = restarted
+                        && restarted.status == "running"
+                    {
+                        tracing::info!(service = %service_name, "Service restarted, retrying proxy");
+                        return Ok(restarted);
+                    }
+
+                    tracing::warn!(
+                        service = %service_name,
+                        "Restart reported success but the service is not running"
+                    );
                 }
             }
 

@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::wire::canonical::CanonicalUsage;
+
 use systemprompt_identifiers::{
     Actor, AiRequestId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
@@ -13,6 +15,7 @@ pub struct TokenInfo {
     pub tokens_used: Option<i32>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
+    pub reasoning_tokens: Option<i32>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -194,27 +197,25 @@ impl AiRequestRecordBuilder {
         self
     }
 
-    pub const fn tokens(mut self, input: Option<i32>, output: Option<i32>) -> Self {
-        self.tokens.input_tokens = input;
-        self.tokens.output_tokens = output;
-        self.tokens.tokens_used = match (input, output) {
-            (Some(i), Some(o)) => Some(i + o),
-            (Some(i), None) => Some(i),
-            (None, Some(o)) => Some(o),
-            (None, None) => None,
+    // Why: the record's token columns are set from one `CanonicalUsage` and
+    // nowhere else, so `tokens_used` cannot drift from the gateway's
+    // definition. `None` is a request that never reported usage at all -- a
+    // failed turn -- and leaves every column NULL rather than storing zeros.
+    #[must_use]
+    pub fn usage(mut self, usage: Option<CanonicalUsage>) -> Self {
+        let Some(usage) = usage else { return self };
+        let n = |v: u32| i32::try_from(v).unwrap_or(i32::MAX);
+        self.tokens = TokenInfo {
+            tokens_used: Some(n(usage.billable_total())),
+            input_tokens: Some(n(usage.input_tokens)),
+            output_tokens: Some(n(usage.output_tokens)),
+            reasoning_tokens: Some(n(usage.reasoning_tokens)),
         };
-        self
-    }
-
-    pub const fn cache(
-        mut self,
-        hit: bool,
-        read_tokens: Option<i32>,
-        creation_tokens: Option<i32>,
-    ) -> Self {
-        self.cache.hit = hit;
-        self.cache.read_tokens = read_tokens;
-        self.cache.creation_tokens = creation_tokens;
+        self.cache = CacheInfo {
+            hit: usage.cache_read_tokens > 0,
+            read_tokens: Some(n(usage.cache_read_tokens)),
+            creation_tokens: Some(n(usage.cache_creation_tokens)),
+        };
         self
     }
 

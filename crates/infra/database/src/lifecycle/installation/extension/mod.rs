@@ -6,7 +6,9 @@
 //! shape before any `CREATE INDEX`/`VIEW` references a migration-added column.
 //! A fresh database (no migration history, no owned tables) skips migration
 //! execution entirely: the declarative schema is the baseline, and every
-//! defined migration is stamped as applied without running.
+//! defined migration is stamped as applied without running — in the same
+//! transaction as that extension's structural DDL, so the tables and the
+//! baseline claiming them can never be committed apart.
 //! A session-scoped advisory lock serialises concurrent boots. See
 //! `instructions/information/migrations.md`.
 //!
@@ -23,7 +25,9 @@ use self::lock::BootstrapLockGuard;
 use self::validation::{validate_extension_columns, validate_table_ownership};
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::seeds::apply_seeds;
-use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
+use crate::lifecycle::migrations::{
+    BaselineStamp, MigrationConfig, MigrationService, RECORD_MIGRATION_SQL,
+};
 use crate::services::DatabaseProvider;
 
 pub async fn install_extension_schemas(
@@ -103,25 +107,33 @@ async fn run_install(
         }
     }
 
-    for p in &prepared {
-        execute_statements_transactional(db, &p.structural, &p.extension_id).await?;
+    for (ext, p) in schema_extensions.iter().zip(&prepared) {
+        let stamp = if fresh_extensions.contains(&p.extension_id) {
+            MigrationService::baseline_stamp_rows(ext.as_ref())
+        } else {
+            Vec::new()
+        };
+        if !stamp.is_empty() {
+            info!(
+                extension = %p.extension_id,
+                migrations_stamped = stamp.len(),
+                "Fresh install: stamping migrations as baseline without executing them"
+            );
+        }
+        execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
     }
 
     for ext in schema_extensions {
-        if ext.has_migrations() {
-            if fresh_extensions.contains(ext.id()) {
-                migration_service.stamp_all_migrations(ext.as_ref()).await?;
-            } else {
-                debug!(extension = %ext.id(), "Running pending migrations");
-                migration_service
-                    .run_pending_migrations(ext.as_ref())
-                    .await?;
-            }
+        if ext.has_migrations() && !fresh_extensions.contains(ext.id()) {
+            debug!(extension = %ext.id(), "Running pending migrations");
+            migration_service
+                .run_pending_migrations(ext.as_ref())
+                .await?;
         }
     }
 
     for p in &prepared {
-        execute_statements_transactional(db, &p.dependent, &p.extension_id).await?;
+        execute_phase(db, &p.dependent, &[], &p.extension_id).await?;
         for cols in &p.columns_to_validate {
             validate_extension_columns(db, cols, &p.extension_id).await?;
         }
@@ -134,12 +146,18 @@ async fn run_install(
     Ok(())
 }
 
-async fn execute_statements_transactional(
+// Why: the baseline stamp commits with the DDL it describes. Stamping in a
+// transaction of its own left a window — tables created, baseline not yet
+// written — and a database interrupted there is treated as established on the
+// next install, which then executes migration SQL the declarative schema has
+// already superseded. The failure is unrecoverable by re-running.
+async fn execute_phase(
     db: &dyn DatabaseProvider,
     statements: &[String],
+    stamp: &[BaselineStamp],
     extension_id: &str,
 ) -> Result<(), LoaderError> {
-    if statements.is_empty() {
+    if statements.is_empty() && stamp.is_empty() {
         return Ok(());
     }
 
@@ -164,6 +182,29 @@ async fn execute_statements_transactional(
                 message: format!(
                     "Statement {n}/{total} failed: {e}{rollback_note}\nSQL:\n{statement}",
                     n = idx + 1,
+                ),
+            });
+        }
+    }
+
+    for row in stamp {
+        let params: [&dyn systemprompt_identifiers::ToDbValue; 5] = [
+            &row.id,
+            &extension_id,
+            &row.version,
+            &row.name,
+            &row.checksum,
+        ];
+        if let Err(e) = tx.execute(&RECORD_MIGRATION_SQL, &params).await {
+            let rollback_note = match tx.rollback().await {
+                Ok(()) => String::new(),
+                Err(rb) => format!(" (rollback also failed: {rb})"),
+            };
+            return Err(LoaderError::SchemaInstallationFailed {
+                extension: extension_id.to_owned(),
+                message: format!(
+                    "Failed to stamp migration {} ({}) as applied: {e}{rollback_note}",
+                    row.version, row.name
                 ),
             });
         }

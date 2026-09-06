@@ -11,15 +11,16 @@ use systemprompt_api::services::gateway::protocol::{
 use systemprompt_api::services::gateway::stream_tap::test_api::{
     TapState, accumulate_event, extract_summary, snapshot,
 };
+use systemprompt_test_fixtures as fixtures;
 
+// Why: `total(0)` is the wire reporting no total, which is what the
+// accumulator's recompute path is being driven with here.
 fn usage(input: u32, output: u32) -> CanonicalUsage {
-    CanonicalUsage {
-        input_tokens: input,
-        output_tokens: output,
-        cache_read_tokens: 0,
-        cache_creation_tokens: 0,
-        total_tokens: 0,
-    }
+    fixtures::usage()
+        .input(input)
+        .output(output)
+        .total(0)
+        .build()
 }
 
 fn usage_update(input: u32, output: u32) -> CanonicalUsageUpdate {

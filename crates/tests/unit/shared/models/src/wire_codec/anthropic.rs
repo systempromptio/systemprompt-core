@@ -1,8 +1,9 @@
 //! Anthropic Messages wire-codec tests.
 
 use serde_json::{Value, json};
-use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_models::services::ai::{ModelLimits, ModelPricing};
 use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::anthropic::AnthropicStreamState;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ContentBlockKind,
     ImageSource, ResponseFormat, Role, SearchConfig,
@@ -260,7 +261,7 @@ fn anthropic_parse_derives_total_and_keeps_cache_tokens() {
             "cache_creation_input_tokens": 1
         }
     });
-    let response = anthropic::parse_response(&value, "fallback");
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.input_tokens, 10);
     assert_eq!(response.usage.cache_read_tokens, 4);
     assert_eq!(response.usage.cache_creation_tokens, 1);
@@ -274,7 +275,8 @@ fn anthropic_sse_parses_thinking_signature_delta() {
         "index": 1,
         "delta": { "type": "signature_delta", "signature": "abc123==" },
     });
-    match anthropic::events_from_sse(&frame, "msg_1")
+    match AnthropicStreamState::new("msg_1")
+        .events_from_sse(&frame)
         .into_iter()
         .next()
     {
@@ -291,7 +293,7 @@ fn anthropic_tool_use_signature_round_trips() {
     let block = anthropic::content_to_anthropic_block(&tool_use(Some("sig==")));
     assert_eq!(block["signature"], "sig==");
     let response = json!({ "content": [block] });
-    let parsed = anthropic::parse_response(&response, "fallback");
+    let parsed = anthropic::parse_response(&response, "fallback").expect("fixture parses");
     match parsed.content.first() {
         Some(CanonicalContent::ToolUse { signature, .. }) => {
             assert_eq!(signature.as_deref(), Some("sig=="));
@@ -307,7 +309,8 @@ fn anthropic_sse_tool_use_block_start_carries_signature() {
         "index": 3,
         "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup", "signature": "sig=="},
     });
-    match anthropic::events_from_sse(&frame, "msg_1")
+    match AnthropicStreamState::new("msg_1")
+        .events_from_sse(&frame)
         .into_iter()
         .next()
     {
@@ -482,4 +485,285 @@ fn non_credential_identity_headers_keep_their_value() {
         assert!(!anthropic::is_credential_request_header(name), "{name}");
         assert_eq!(anthropic::recordable_header_value(name, "value"), "value");
     }
+}
+
+// Why: this codec also fronts Anthropic-compatible upstreams, which do not all
+// honour `stop_reason: "tool_use"`. An `end_turn` beside a tool_use block is
+// relayed as a finished turn and the call is silently never run.
+#[test]
+fn anthropic_parse_reports_tool_use_even_though_the_upstream_says_end_turn() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "msg_1",
+        "model": "claude-x",
+        "stop_reason": "end_turn",
+        "content": [{
+            "type": "tool_use",
+            "id": "toolu_1",
+            "name": "lookup",
+            "input": {"q": "rust"}
+        }]
+    });
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(
+        response.stop_reason,
+        Some(CanonicalStopReason::ToolUse),
+        "a turn carrying a tool_use block is a tool-use turn whatever the upstream calls it"
+    );
+    assert_eq!(
+        response.raw_finish_reason.as_deref(),
+        Some("end_turn"),
+        "the wire's own reason must still be preserved verbatim for auditing"
+    );
+}
+
+#[test]
+fn anthropic_parse_keeps_max_tokens_over_a_truncated_tool_use_block() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "msg_2",
+        "model": "claude-x",
+        "stop_reason": "max_tokens",
+        "content": [{
+            "type": "tool_use",
+            "id": "toolu_1",
+            "name": "lookup",
+            "input": {"q": "ru"}
+        }]
+    });
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(
+        response.stop_reason,
+        Some(CanonicalStopReason::MaxTokens),
+        "a truncated tool call must report the cutoff rather than claim to be runnable"
+    );
+}
+
+// Why: the fixture is a real `claude-opus-5` adaptive-thinking reply that
+// went through the gateway on 2026-09-06 and was audited with
+// `reasoning_tokens = 0`. Anthropic's `output_tokens` already includes the
+// thinking share, so the count is copied across and the cost must not move.
+#[test]
+fn anthropic_parse_reads_adaptive_thinking_tokens_as_a_breakdown_of_output() {
+    let value: Value = json!({
+        "id": "msg_1",
+        "model": "claude-opus-5",
+        "content": [
+            {"type": "thinking", "thinking": "let me work through it", "signature": "sig"},
+            {"type": "text", "text": "42"}
+        ],
+        "stop_reason": "end_turn",
+        "usage": {
+            "input_tokens": 100,
+            "output_tokens": 4302,
+            "output_tokens_details": {"thinking_tokens": 3776}
+        }
+    });
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.usage.reasoning_tokens, 3776);
+    assert_eq!(
+        response.usage.output_tokens, 4302,
+        "thinking tokens are already inside output_tokens and must not be added again"
+    );
+    assert_eq!(response.usage.total_tokens, 4402);
+
+    let mut without_details = value.clone();
+    without_details["usage"]
+        .as_object_mut()
+        .expect("usage is an object")
+        .remove("output_tokens_details");
+    let plain = anthropic::parse_response(&without_details, "fallback").expect("fixture parses");
+    let pricing = opus_pricing();
+    assert_eq!(
+        pricing.cost_microdollars(&response.usage),
+        pricing.cost_microdollars(&plain.usage),
+        "the thinking breakdown is informational; cost is computed on output_tokens"
+    );
+    assert_eq!(pricing.cost_microdollars(&response.usage), 108_050);
+}
+
+#[test]
+fn anthropic_parse_reports_zero_reasoning_when_no_details_are_stated() {
+    let value: Value = json!({
+        "id": "msg_1",
+        "model": "claude-sonnet-5",
+        "content": [{"type": "text", "text": "42"}],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 10, "output_tokens": 300}
+    });
+    let response = anthropic::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.usage.reasoning_tokens, 0);
+    assert_eq!(response.usage.output_tokens, 300);
+}
+
+// Why: the stream reports the thinking share only on the trailing
+// `message_delta`, after `message_start` established the input side, so the
+// accumulated usage must carry the breakdown without disturbing the counts an
+// earlier frame set.
+#[test]
+fn anthropic_stream_accumulates_adaptive_thinking_tokens_from_the_terminal_frame() {
+    use systemprompt_models::wire::canonical::CanonicalUsage;
+
+    let mut codec = AnthropicStreamState::default();
+    let mut usage = CanonicalUsage::default();
+    let frames = [
+        json!({"type": "message_start", "message": {"id": "msg_1", "model": "claude-opus-5",
+            "usage": {"input_tokens": 100, "output_tokens": 1}}}),
+        json!({"type": "content_block_start", "index": 0,
+            "content_block": {"type": "thinking", "thinking": ""}}),
+        json!({"type": "content_block_delta", "index": 0,
+            "delta": {"type": "thinking_delta", "thinking": "hmm"}}),
+        json!({"type": "content_block_stop", "index": 0}),
+        json!({"type": "message_delta", "delta": {"stop_reason": "end_turn"},
+            "usage": {"output_tokens": 4302, "output_tokens_details": {"thinking_tokens": 3776}}}),
+        json!({"type": "message_stop"}),
+    ];
+    for frame in &frames {
+        for event in codec.events_from_sse(frame) {
+            match event {
+                CanonicalEvent::MessageStart { usage: start, .. } => usage = start,
+                CanonicalEvent::UsageDelta(update) => update.apply_to(&mut usage),
+                _ => {},
+            }
+        }
+    }
+    assert_eq!(usage.input_tokens, 100);
+    assert_eq!(usage.output_tokens, 4302);
+    assert_eq!(usage.reasoning_tokens, 3776);
+    assert_eq!(usage.total_tokens, 4402);
+    assert_eq!(opus_pricing().cost_microdollars(&usage), 108_050);
+}
+
+#[test]
+fn anthropic_stream_leaves_reasoning_at_zero_when_no_details_are_stated() {
+    use systemprompt_models::wire::canonical::CanonicalUsage;
+
+    let mut codec = AnthropicStreamState::default();
+    let mut usage = CanonicalUsage::default();
+    let frames = [
+        json!({"type": "message_start", "message": {"id": "msg_1", "model": "claude-sonnet-5",
+            "usage": {"input_tokens": 10, "output_tokens": 1}}}),
+        json!({"type": "message_delta", "delta": {"stop_reason": "end_turn"},
+            "usage": {"output_tokens": 300}}),
+    ];
+    for frame in &frames {
+        for event in codec.events_from_sse(frame) {
+            match event {
+                CanonicalEvent::MessageStart { usage: start, .. } => usage = start,
+                CanonicalEvent::UsageDelta(update) => {
+                    assert_eq!(update.reasoning_tokens, None);
+                    update.apply_to(&mut usage);
+                },
+                _ => {},
+            }
+        }
+    }
+    assert_eq!(usage.reasoning_tokens, 0);
+    assert_eq!(usage.output_tokens, 300);
+}
+
+// Why: the live `claude-opus-5` rates ($5 / $25 per million) reproduce the
+// audited 0.10805 USD for the fixture above.
+fn opus_pricing() -> ModelPricing {
+    ModelPricing {
+        input_per_million: 5.0,
+        output_per_million: 25.0,
+        cache_read_per_million: Some(0.0),
+        ..ModelPricing::default()
+    }
+}
+
+// Why: this is the third instance of one bug class and the only one the
+// buffered twin could not catch. The stream opens a tool_use block, then the
+// terminal `message_delta` reports a generic `end_turn`; mapped straight
+// through it renders as a finished turn, and the client stops without ever
+// running the call. The buffered parse was corrected first, which is exactly
+// why the streaming half has to be pinned separately.
+#[test]
+fn anthropic_stream_reports_tool_use_even_though_the_terminal_frame_says_end_turn() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let mut codec = AnthropicStreamState::new("msg_1");
+    codec.events_from_sse(&json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup"},
+    }));
+    codec.events_from_sse(&json!({
+        "type": "content_block_delta",
+        "index": 0,
+        "delta": {"type": "input_json_delta", "partial_json": "{\"q\":\"rust\"}"},
+    }));
+    let events = codec.events_from_sse(&json!({
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn"},
+    }));
+
+    let stop = events.iter().find_map(|e| match e {
+        CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::ToolUse)),
+        "a stream that opened a tool_use block must not terminate as end_turn"
+    );
+}
+
+#[test]
+fn anthropic_stream_keeps_max_tokens_over_a_truncated_tool_use_block() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let mut codec = AnthropicStreamState::new("msg_1");
+    codec.events_from_sse(&json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup"},
+    }));
+    let events = codec.events_from_sse(&json!({
+        "type": "message_delta",
+        "delta": {"stop_reason": "max_tokens"},
+    }));
+
+    let stop = events.iter().find_map(|e| match e {
+        CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::MaxTokens)),
+        "a call cut mid-arguments must report the cutoff, not claim to be runnable"
+    );
+}
+
+// Why: the state must not leak the correction across turns. A tool-use turn
+// followed by a text-only one on the same decoder would otherwise report the
+// second as tool use, which is the same drop inverted -- the client would wait
+// for a call that was never made.
+#[test]
+fn anthropic_stream_tool_use_does_not_leak_into_a_later_message() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let mut codec = AnthropicStreamState::new("msg_1");
+    codec.events_from_sse(&json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "text", "text": ""},
+    }));
+    let events = codec.events_from_sse(&json!({
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn"},
+    }));
+
+    let stop = events.iter().find_map(|e| match e {
+        CanonicalEvent::MessageStop { stop_reason, .. } => Some(*stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::EndTurn)),
+        "a text-only turn must not be reported as tool use"
+    );
 }

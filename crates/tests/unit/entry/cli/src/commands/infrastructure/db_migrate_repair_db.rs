@@ -110,6 +110,7 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
     .await
     .unwrap();
 
+    // skip-ok: no database, so nothing to act on
     let Some((ext, version, original)) = tamper_checksum(&pool).await else {
         return;
     };
@@ -144,6 +145,7 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
 async fn reconcile_only_rewrites_checksum_in_place() {
     let pool = pool().await;
 
+    // skip-ok: no database, so nothing to act on
     let Some((ext, version, original)) = tamper_checksum(&pool).await else {
         return;
     };

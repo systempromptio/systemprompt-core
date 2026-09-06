@@ -53,7 +53,7 @@ fn dead_port() -> u16 {
     port
 }
 
-async fn provider_over_internal_servers(
+async fn provider_over_internal_servers_or_skip(
     agent: &str,
     blocks: &[String],
     assigned: &[&str],
@@ -83,7 +83,7 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
     let up = unique("tphup");
     let down = unique("tphdown");
 
-    let Some((provider, bootstrap)) = provider_over_internal_servers(
+    let Some((provider, bootstrap)) = provider_over_internal_servers_or_skip(
         "tph_agent",
         &[
             internal_server_block(&up, mock_port),
@@ -92,6 +92,7 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
         &[&up],
     )
     .await
+    // skip-ok: no live MCP server on this host
     else {
         return;
     };
@@ -116,7 +117,7 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
 async fn health_check_failures_open_the_per_server_circuit_breaker() {
     let down = unique("tphbreak");
 
-    let Some((provider, bootstrap)) = provider_over_internal_servers(
+    let Some((provider, bootstrap)) = provider_over_internal_servers_or_skip(
         "tph_break",
         &[internal_server_block(&down, dead_port())],
         &[&down],
@@ -156,7 +157,7 @@ async fn health_check_failures_open_the_per_server_circuit_breaker() {
 async fn refresh_connections_tolerates_a_managed_server_that_is_not_listening() {
     let down = unique("tphrefresh");
 
-    let Some((provider, bootstrap)) = provider_over_internal_servers(
+    let Some((provider, bootstrap)) = provider_over_internal_servers_or_skip(
         "tph_refresh",
         &[internal_server_block(&down, dead_port())],
         &[&down],

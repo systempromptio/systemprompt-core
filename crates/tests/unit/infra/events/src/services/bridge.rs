@@ -33,7 +33,7 @@ use systemprompt_test_fixtures::{
 // turns through this process-global async lock.
 static BRIDGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-async fn pool() -> Option<sqlx::PgPool> {
+async fn pool_or_skip() -> Option<sqlx::PgPool> {
     let url = fixture_database_url().ok()?;
     let db: DbPool = fixture_db_pool(&url).await.ok()?;
     let arc = db.pool_arc().ok()?;
@@ -93,7 +93,7 @@ type R = Result<axum::response::sse::Event, std::convert::Infallible>;
 
 #[tokio::test]
 async fn agui_event_relays_through_bridge_to_local_subscriber() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -133,7 +133,7 @@ async fn agui_event_relays_through_bridge_to_local_subscriber() {
 
 #[tokio::test]
 async fn a2a_event_relays_through_bridge_to_local_subscriber() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -169,7 +169,7 @@ async fn a2a_event_relays_through_bridge_to_local_subscriber() {
 
 #[tokio::test]
 async fn system_event_relays_through_bridge_to_context_subscriber() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -205,7 +205,7 @@ async fn system_event_relays_through_bridge_to_context_subscriber() {
 
 #[tokio::test]
 async fn analytics_event_relays_through_bridge_to_local_subscriber() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -245,7 +245,7 @@ async fn analytics_event_relays_through_bridge_to_local_subscriber() {
 // the listener's long-lived connection while the assertions run.
 #[tokio::test]
 async fn route_persists_queryable_outbox_row() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -339,7 +339,7 @@ where
 
 #[tokio::test]
 async fn bridge_survives_missing_outbox_row_notification() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -376,7 +376,7 @@ async fn bridge_survives_missing_outbox_row_notification() {
 
 #[tokio::test]
 async fn bridge_survives_unknown_channel_row() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -418,7 +418,7 @@ async fn bridge_survives_unknown_channel_row() {
 
 #[tokio::test]
 async fn bridge_survives_undecodable_payload() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -460,7 +460,7 @@ async fn bridge_survives_undecodable_payload() {
 
 #[tokio::test]
 async fn bridge_survives_undecodable_payloads_on_every_channel() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -518,7 +518,7 @@ async fn terminate_outbox_listeners(pool: &sqlx::PgPool) {
 
 #[tokio::test]
 async fn bridge_reconnects_after_listener_connection_is_terminated() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -633,7 +633,7 @@ async fn outbox_row_exists(pool: &sqlx::PgPool, id: &str) -> bool {
 // the DELETE itself then runs in resumed real time.
 #[tokio::test]
 async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;
@@ -692,7 +692,7 @@ async fn notified_row_delivers(
 
 #[tokio::test]
 async fn bridge_skips_rows_it_originated_and_delivers_peer_rows() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let _guard = BRIDGE_LOCK.lock().await;

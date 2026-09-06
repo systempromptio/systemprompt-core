@@ -1,5 +1,16 @@
 //! Parses a buffered Gemini reply into a [`CanonicalResponse`].
 //!
+//! # Usage counts
+//!
+//! Gemini reports `thoughtsTokenCount` beside `candidatesTokenCount`, so a
+//! turn that spent its whole budget thinking arrives with `candidates: 0` and
+//! looks free; `CanonicalUsage` requires `output_tokens` to include reasoning,
+//! so the two are summed and thoughts kept on their own for reporting.
+//! `cachedContentTokenCount` is a *subset* of `promptTokenCount`, while
+//! `CanonicalUsage::input_tokens` is exclusive of cache reads, so it is
+//! subtracted -- left in, the cached slice bills at the input rate as well as
+//! the cache-read rate. The wire total already counts it once and is kept.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -11,6 +22,8 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CodeExecutionOutput,
     GroundedSource, Grounding,
 };
+use crate::wire::defect::{BodyDefect, buffered_body_defect};
+use crate::wire::error::WireParseError;
 
 const GEMINI_GROUNDING_RELEVANCE: f32 = 0.85;
 
@@ -23,14 +36,12 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     }
 }
 
-#[must_use]
-pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let parsed: GeminiResponse = serde_json::from_value(value.clone()).unwrap_or(GeminiResponse {
-        candidates: Vec::new(),
-        usage_metadata: None,
-        response_id: None,
-        model_version: None,
-    });
+pub fn parse_response(
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let parsed: GeminiResponse =
+        serde_json::from_value(value.clone()).map_err(WireParseError::Gemini)?;
 
     let id = parsed
         .response_id
@@ -50,7 +61,19 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         |parts| (parts_to_content(&parts), code_execution(&parts)),
     );
 
-    CanonicalResponse {
+    // Why: Gemini reports finishReason STOP even when the candidate it just
+    // returned is a functionCall, so the wire's reason cannot tell "finished
+    // talking" from "wants a tool run". Left as EndTurn it renders as
+    // `finish_reason: "stop"`, the client ends the turn, and the call rides
+    // along in the payload unexecuted. The content is the only reliable
+    // signal; MAX_TOKENS still wins, since a call truncated mid-args is not
+    // one the client can run.
+    let has_tool_use = content
+        .iter()
+        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
+    let stop_reason = stop_reason.map(|r| r.with_tool_use(has_tool_use));
+
+    Ok(CanonicalResponse {
         id,
         model,
         content,
@@ -60,19 +83,22 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         code_execution,
         raw_finish_reason,
         ..Default::default()
-    }
+    })
 }
 
+// Why: thoughts are summed into output and cached is subtracted from prompt;
+// the module head explains both conventions and why billing depends on them.
 fn usage(meta: Option<GeminiUsageMetadata>) -> CanonicalUsage {
     meta.map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
-        input_tokens: u.prompt,
-        output_tokens: u.candidates,
+        input_tokens: u.prompt.saturating_sub(u.cached),
+        output_tokens: u.candidates + u.thoughts,
         cache_read_tokens: u.cached,
         cache_creation_tokens: 0,
+        reasoning_tokens: u.thoughts,
         total_tokens: if u.total > 0 {
             u.total
         } else {
-            u.prompt + u.candidates
+            u.prompt + u.candidates + u.thoughts
         },
     })
 }
@@ -152,4 +178,12 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
             _ => None,
         })
         .collect()
+}
+
+// Why: runs before `parse_response`, which is total and would turn a body
+// carrying nothing into a well-formed empty turn. `None` means the body is
+// worth parsing.
+#[must_use]
+pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
+    buffered_body_defect(value, "candidates", "usageMetadata")
 }

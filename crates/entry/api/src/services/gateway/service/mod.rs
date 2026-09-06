@@ -8,6 +8,7 @@
     reason = "Arc::clone usage is intentional and ergonomic in this gateway dispatch path"
 )]
 
+mod credentials;
 mod finalize;
 mod resolve;
 mod stages;
@@ -120,6 +121,7 @@ impl GatewayService {
             )));
         }
 
+        let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
 
@@ -174,6 +176,7 @@ impl GatewayService {
                 policy,
                 inbound,
                 request_model: scanned.request_model().to_owned(),
+                stream_usage,
             },
         )
         .await;

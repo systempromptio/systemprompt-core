@@ -12,7 +12,7 @@ use systemprompt_test_fixtures::{
     closed_db_pool, fixture_database_url, fixture_db_pool, unique_user_id,
 };
 
-async fn pool() -> Option<sqlx::PgPool> {
+async fn pool_or_skip() -> Option<sqlx::PgPool> {
     let url = fixture_database_url().ok()?;
     let db: DbPool = fixture_db_pool(&url).await.ok()?;
     let arc = db.pool_arc().ok()?;
@@ -33,7 +33,7 @@ async fn cleanup(pool: &sqlx::PgPool, user: &UserId) {
 
 #[tokio::test]
 async fn install_relay_second_call_is_ignored_and_routing_persists_one_row() {
-    let Some(pool) = pool().await else {
+    let Some(pool) = pool_or_skip().await else {
         return;
     };
     let user = unique_user_id("relay-idempotent");

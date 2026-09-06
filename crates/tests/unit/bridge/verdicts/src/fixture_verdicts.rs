@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde_json::{Value, json};
 use systemprompt_bridge::integration::agent_health::{
@@ -21,9 +21,13 @@ use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
 };
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
+use systemprompt_test_fixtures::repo_path;
 
+// Why: a fixed number of `..` segments resolves to a different directory the
+// moment a crate moves, and a fixtures directory that is not there reads as
+// "no fixtures to check" rather than as an error.
 fn fixtures_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../../bin/bridge/web/dev/fixtures")
+    repo_path("bin/bridge/web/dev/fixtures")
 }
 
 fn profile_state_of(health: &Value) -> ProfileState {

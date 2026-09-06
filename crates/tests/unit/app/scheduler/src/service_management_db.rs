@@ -2,30 +2,17 @@
 //!
 //! The service wraps `ServiceRepository` from `systemprompt-database`. Tests
 //! assert that construction succeeds and that each public query method returns
-//! a well-formed result against the freshly-migrated DB. Tests early-return
-//! when `DATABASE_URL` is unset.
+//! a well-formed result against the freshly-migrated DB. Tests skip when
+//! `DATABASE_URL` is unset locally, and fail under `CI`.
 
 use systemprompt_scheduler::ServiceManagementService;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-macro_rules! pool_or_skip {
-    () => {{
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(pool) = fixture_db_pool(&url).await else {
-            return;
-        };
-        pool
-    }};
-}
 
 mod service_management_db {
     use super::*;
 
     #[tokio::test]
     async fn get_services_by_type_mcp_returns_vec() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -45,7 +32,7 @@ mod service_management_db {
 
     #[tokio::test]
     async fn get_services_by_type_agent_returns_vec() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -64,7 +51,7 @@ mod service_management_db {
 
     #[tokio::test]
     async fn get_running_services_with_pid_returns_vec() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -91,7 +78,7 @@ mod service_management_db {
 
     #[tokio::test]
     async fn cleanup_stale_entries_returns_count() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -111,7 +98,7 @@ mod service_management_db {
 
     #[tokio::test]
     async fn mark_service_stopped_noop_on_unknown_service() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,
@@ -129,7 +116,7 @@ mod service_management_db {
 
     #[tokio::test]
     async fn cleanup_stale_entries_is_idempotent() {
-        let pool = pool_or_skip!();
+        let pool = systemprompt_test_fixtures::db_pool_or_skip!().0;
         let svc = ServiceManagementService::new(
             systemprompt_database::ServiceRepository::new(
                 &pool,

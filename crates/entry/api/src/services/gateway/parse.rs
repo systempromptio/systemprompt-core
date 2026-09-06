@@ -5,19 +5,13 @@
 
 use systemprompt_identifiers::AiToolCallId;
 
-use super::captures::{CapturedToolUse, CapturedUsage};
+use super::captures::CapturedToolUse;
 use super::protocol::canonical::CanonicalContent;
-use super::protocol::canonical_response::CanonicalResponse;
+use super::protocol::canonical_response::{CanonicalResponse, CanonicalUsage};
 
 pub fn extract_from_canonical(
     response: &CanonicalResponse,
-) -> (CapturedUsage, Vec<CapturedToolUse>) {
-    let usage = CapturedUsage {
-        input_tokens: response.usage.input_tokens,
-        output_tokens: response.usage.output_tokens,
-        cache_read_tokens: response.usage.cache_read_tokens,
-        cache_creation_tokens: response.usage.cache_creation_tokens,
-    };
+) -> (CanonicalUsage, Vec<CapturedToolUse>) {
     let mut tool_calls = Vec::new();
     for part in &response.content {
         if let CanonicalContent::ToolUse {
@@ -34,7 +28,7 @@ pub fn extract_from_canonical(
             });
         }
     }
-    (usage, tool_calls)
+    (response.usage, tool_calls)
 }
 
 pub fn extract_assistant_text(response: &CanonicalResponse) -> Option<String> {

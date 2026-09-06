@@ -7,7 +7,7 @@ use systemprompt_test_fixtures::{
 };
 use uuid::Uuid;
 
-async fn repo() -> Option<(OAuthRepository, systemprompt_database::DbPool)> {
+async fn repo_or_skip() -> Option<(OAuthRepository, systemprompt_database::DbPool)> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -17,7 +17,7 @@ async fn repo() -> Option<(OAuthRepository, systemprompt_database::DbPool)> {
 
 #[tokio::test]
 async fn find_user_by_email_round_trips() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let user_id = unique_user_id("ou");
@@ -36,7 +36,7 @@ async fn find_user_by_email_round_trips() {
 
 #[tokio::test]
 async fn find_user_by_email_missing_returns_none() {
-    let Some((repo, _pool)) = repo().await else {
+    let Some((repo, _pool)) = repo_or_skip().await else {
         return;
     };
     assert!(
@@ -49,7 +49,7 @@ async fn find_user_by_email_missing_returns_none() {
 
 #[tokio::test]
 async fn get_authenticated_user_resolves_permissions() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     // get_authenticated_user parses the user id as a UUID, so the row id must
@@ -67,7 +67,7 @@ async fn get_authenticated_user_resolves_permissions() {
 
 #[tokio::test]
 async fn get_authenticated_user_skips_unparseable_roles() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let user_id = UserId::new(Uuid::new_v4().to_string());
@@ -90,7 +90,7 @@ async fn get_authenticated_user_skips_unparseable_roles() {
 
 #[tokio::test]
 async fn get_authenticated_user_rejects_user_with_only_invalid_roles() {
-    let Some((repo, pool)) = repo().await else {
+    let Some((repo, pool)) = repo_or_skip().await else {
         return;
     };
     let user_id = UserId::new(Uuid::new_v4().to_string());
@@ -113,7 +113,7 @@ async fn get_authenticated_user_rejects_user_with_only_invalid_roles() {
 
 #[tokio::test]
 async fn get_authenticated_user_missing_errors() {
-    let Some((repo, _pool)) = repo().await else {
+    let Some((repo, _pool)) = repo_or_skip().await else {
         return;
     };
     let user_id = UserId::new(Uuid::new_v4().to_string());

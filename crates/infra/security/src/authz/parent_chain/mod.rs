@@ -2,23 +2,29 @@
 //! [`ChainIndexCache`] and shared by every enforcement site.
 //!
 //! [`ChainSources`] says who parents whom; [`ParentChainIndex::load`] fetches
-//! the rules and `default_included` sentinels for the marketplace and every
-//! plugin named in four bulk queries, independent of catalogue size.
+//! the rules and `default_included` sentinels for every enabled marketplace
+//! and every named plugin in four bulk queries, independent of catalogue size.
 //! [`ParentChainIndex::resolve`] then runs the pure [`resolve`] resolver once
-//! per owner chain: a skill selected by several plugins is admitted when any
-//! owner admits the subject, mirroring how an artifact survives while any
-//! plugin shipping it survives.
+//! per owner chain: an entity that belongs to several marketplaces, or a skill
+//! selected by several plugins, is admitted when any one of them admits the
+//! subject, mirroring how an artifact survives while any plugin shipping it
+//! survives.
+//!
+//! The entity's own ruleset is evaluated ahead of its parents, and a plugin
+//! rule closes the cascade before any marketplace is consulted, so a deny at
+//! the entity or plugin level still wins over every admitting marketplace.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod cache;
+mod chains;
 mod sources;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{PluginId, UserId};
+use systemprompt_identifiers::{MarketplaceId, PluginId, UserId};
 
 use super::error::AuthzResult;
 use super::repository::AccessControlRepository;
@@ -59,24 +65,24 @@ pub struct ResolveBase<'a> {
 
 #[derive(Debug, Clone, Default)]
 pub struct ParentChainIndex {
-    marketplace: Option<LoadedParent>,
-    plugins: BTreeMap<PluginId, LoadedParent>,
+    pub(super) marketplaces: BTreeMap<MarketplaceId, LoadedParent>,
+    pub(super) plugins: BTreeMap<PluginId, LoadedParent>,
     // Why: shared rather than owned. The sources are fixed for the process
     // lifetime while the index is rebuilt whenever the cache sees the rule or
     // entity tables change, so an owned copy would deep-clone every plugin
     // id, skill id and member set on each rebuild for no benefit.
-    sources: Arc<ChainSources>,
+    pub(super) sources: Arc<ChainSources>,
 }
 
 impl ParentChainIndex {
     #[must_use]
     pub const fn from_parts(
-        marketplace: Option<LoadedParent>,
+        marketplaces: BTreeMap<MarketplaceId, LoadedParent>,
         plugins: BTreeMap<PluginId, LoadedParent>,
         sources: Arc<ChainSources>,
     ) -> Self {
         Self {
-            marketplace,
+            marketplaces,
             plugins,
             sources,
         }
@@ -86,10 +92,7 @@ impl ParentChainIndex {
         repo: &AccessControlRepository,
         sources: Arc<ChainSources>,
     ) -> AuthzResult<Self> {
-        let marketplace = match sources.marketplace.as_ref() {
-            Some(source) => Some(load_marketplace(repo, source).await?),
-            None => None,
-        };
+        let marketplaces = load_marketplaces(repo, &sources).await?;
 
         let plugin_ids = sources.plugin_ids_to_load();
         let mut rules = repo
@@ -111,54 +114,10 @@ impl ParentChainIndex {
             .collect();
 
         Ok(Self {
-            marketplace,
+            marketplaces,
             plugins,
             sources,
         })
-    }
-
-    #[must_use]
-    pub fn chains_for(&self, kind: EntityKind, id: &str) -> Vec<Vec<ResolveParent<'_>>> {
-        let marketplace = self
-            .marketplace
-            .as_ref()
-            .map(LoadedParent::as_resolve_parent);
-        let marketplace_chain = || {
-            marketplace
-                .map(|parent| vec![vec![parent]])
-                .unwrap_or_default()
-        };
-
-        match kind {
-            EntityKind::Skill => {
-                let owned: Vec<Vec<ResolveParent<'_>>> = self
-                    .sources
-                    .skill_owners
-                    .get(id)
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|owner| self.plugins.get(owner).map(|plugin| (owner, plugin)))
-                    .map(|(owner, plugin)| {
-                        let mut chain = vec![plugin.as_resolve_parent()];
-                        if self.sources.plugins.contains(owner) {
-                            chain.extend(marketplace);
-                        }
-                        chain
-                    })
-                    .collect();
-                if !owned.is_empty() {
-                    return owned;
-                }
-                if self.sources.is_marketplace_member(kind, id) {
-                    return marketplace_chain();
-                }
-                Vec::new()
-            },
-            EntityKind::Plugin if self.sources.plugins.contains(id) => marketplace_chain(),
-            EntityKind::Plugin => Vec::new(),
-            _ if self.sources.is_marketplace_member(kind, id) => marketplace_chain(),
-            _ => Vec::new(),
-        }
     }
 
     #[must_use]
@@ -189,22 +148,35 @@ impl ParentChainIndex {
     }
 }
 
-async fn load_marketplace(
+async fn load_marketplaces(
     repo: &AccessControlRepository,
-    source: &MarketplaceSource,
-) -> AuthzResult<LoadedParent> {
-    let id = source.id.as_str();
-    let rules = repo
-        .list_rules_for_entity(EntityKind::Marketplace, id)
+    sources: &ChainSources,
+) -> AuthzResult<BTreeMap<MarketplaceId, LoadedParent>> {
+    let ids = sources.marketplace_ids_to_load();
+    if ids.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let raw: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
+    let mut rules = repo.list_rules_bulk(EntityKind::Marketplace, &raw).await?;
+    let entities = repo
+        .list_entities_bulk(EntityKind::Marketplace, &raw)
         .await?;
-    let default_included = repo
-        .get_entity(EntityKind::Marketplace, id)
-        .await?
-        .map(|row| row.default_included)
-        .or(source.fallback_default_included);
-    Ok(LoadedParent {
-        entity: EntityRef::Marketplace(source.id.clone()),
-        rules,
-        default_included,
-    })
+    Ok(ids
+        .into_iter()
+        .map(|id| {
+            let fallback = sources
+                .marketplaces
+                .get(&id)
+                .and_then(|source| source.fallback_default_included);
+            let parent = LoadedParent {
+                entity: EntityRef::Marketplace(id.clone()),
+                rules: rules.remove(id.as_str()).unwrap_or_default(),
+                default_included: entities
+                    .get(id.as_str())
+                    .map(|row| row.default_included)
+                    .or(fallback),
+            };
+            (id, parent)
+        })
+        .collect())
 }

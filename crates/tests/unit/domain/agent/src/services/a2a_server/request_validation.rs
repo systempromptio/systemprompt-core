@@ -15,7 +15,7 @@ use systemprompt_agent::services::a2a_server::handlers::request::validation::{
 use systemprompt_identifiers::{ContextId, MessageId, UserId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 fn rpc(method: &str, params: serde_json::Value) -> A2aJsonRpcRequest {
     A2aJsonRpcRequest {
@@ -98,7 +98,7 @@ fn user_message(ctx: &ContextId) -> systemprompt_agent::models::a2a::Message {
 
 #[tokio::test]
 async fn validate_message_context_requires_user_id() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = ContextId::generate();
@@ -110,7 +110,7 @@ async fn validate_message_context_requires_user_id() {
 
 #[tokio::test]
 async fn validate_message_context_rejects_placeholder_user_id() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let ctx = ContextId::generate();
@@ -127,7 +127,7 @@ async fn validate_message_context_rejects_placeholder_user_id() {
 
 #[tokio::test]
 async fn validate_message_context_rejects_foreign_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let stranger = UserId::new("u-stranger");
@@ -141,7 +141,7 @@ async fn validate_message_context_rejects_foreign_context() {
 
 #[tokio::test]
 async fn validate_message_context_accepts_owned_context() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = repos(&pool);
@@ -155,7 +155,7 @@ async fn validate_message_context_accepts_owned_context() {
 
 #[tokio::test]
 async fn should_require_oauth_reflects_handler_config() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);

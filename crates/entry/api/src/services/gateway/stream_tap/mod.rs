@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod abort;
 mod accumulator;
 mod finalize;
 
@@ -32,6 +33,8 @@ use super::protocol::outbound::anthropic::streaming::SseDecoder;
 
 pub use self::finalize::{FailCause, FinalizeDecision, classify};
 
+pub use self::abort::STREAM_ABORT_MESSAGE;
+
 /// Shared by the streaming and buffered completion tasks so both debit quota
 /// and run the response-phase safety scan identically.
 #[derive(Debug)]
@@ -42,28 +45,50 @@ pub struct TapFinalizeCtx {
     pub ai_request_id: AiRequestId,
 }
 
+/// How the tapped stream is rendered back to the caller.
+///
+/// `stream_usage` is the caller's own `stream_options.include_usage`; it
+/// decides whether the closing frames carry a usage chunk.
+#[derive(Debug)]
+pub struct TapRender {
+    pub inbound: Arc<dyn InboundAdapter>,
+    pub request_model: String,
+    pub stream_usage: bool,
+}
+
 pub fn tap(
     upstream: BoxStream<'static, Result<CanonicalEvent, String>>,
-    inbound: Arc<dyn InboundAdapter>,
-    request_model: String,
+    render: TapRender,
     audit: Arc<GatewayAudit>,
     finalize_ctx: TapFinalizeCtx,
 ) -> Body {
+    let TapRender {
+        inbound,
+        request_model,
+        stream_usage,
+    } = render;
     let state = Arc::new(Mutex::new(TapState::default()));
     let tapped = TappedStream {
         inner: upstream,
         state: Arc::clone(&state),
         inbound,
         request_model,
+        stream_usage,
         audit,
         finalize_ctx: Some(finalize_ctx),
         message_stop_rendered: false,
+        ended: false,
     };
     Body::from_stream(tapped)
 }
 
+// Why: on the byte-passthrough lane the caller receives the upstream frames
+// verbatim, so `inbound` is carried for one purpose only -- stating an abort.
+// The lane renders nothing of its own, so a stream that ends with no terminal
+// event would otherwise close on the client with no frame explaining it.
 pub fn tap_raw(
     upstream: BoxStream<'static, Result<Bytes, String>>,
+    inbound: Arc<dyn InboundAdapter>,
     audit: Arc<GatewayAudit>,
     finalize_ctx: TapFinalizeCtx,
 ) -> Body {
@@ -71,8 +96,10 @@ pub fn tap_raw(
         inner: upstream,
         state: Arc::new(Mutex::new(TapState::default())),
         decoder: SseDecoder::default(),
+        inbound,
         audit,
         finalize_ctx: Some(finalize_ctx),
+        ended: false,
     })
 }
 
@@ -80,8 +107,10 @@ struct RawTappedStream {
     inner: BoxStream<'static, Result<Bytes, String>>,
     state: Arc<Mutex<TapState>>,
     decoder: SseDecoder,
+    inbound: Arc<dyn InboundAdapter>,
     audit: Arc<GatewayAudit>,
     finalize_ctx: Option<TapFinalizeCtx>,
+    ended: bool,
 }
 
 impl RawTappedStream {
@@ -101,13 +130,22 @@ impl Stream for RawTappedStream {
     type Item = Result<Bytes, std::io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.ended {
+            return Poll::Ready(None);
+        }
         match self.inner.as_mut().poll_next(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(None) => {
-                if let Some((summary, ctx)) = self.take_summary() {
-                    finalize(Arc::clone(&self.audit), summary, ctx, "eof");
+                self.ended = true;
+                let Some((summary, ctx)) = self.take_summary() else {
+                    return Poll::Ready(None);
+                };
+                let aborted = abort::is_abort(&summary);
+                finalize(Arc::clone(&self.audit), summary, ctx, "eof");
+                if !aborted {
+                    return Poll::Ready(None);
                 }
-                Poll::Ready(None)
+                Poll::Ready(abort::abort_frame(&self.inbound, "").map(Ok))
             },
             Poll::Ready(Some(Err(e))) => {
                 if let Ok(mut s) = self.state.lock() {
@@ -146,24 +184,35 @@ struct TappedStream {
     state: Arc<Mutex<TapState>>,
     inbound: Arc<dyn InboundAdapter>,
     request_model: String,
+    // Why: the caller's own `stream_options.include_usage`; the trailing
+    // usage chunk is rendered only for a caller that asked for one.
+    stream_usage: bool,
     audit: Arc<GatewayAudit>,
     finalize_ctx: Option<TapFinalizeCtx>,
     // Why: providers signal the end of a message more than once (Anthropic's
     // message_delta + message_stop, OpenAI's finish_reason chunk + [DONE]);
-    // only the first may drive the adapter's terminal render or wires that
-    // emit a closing frame (chat's [DONE], responses' response.completed)
-    // would close the stream twice.
+    // only the first may be rendered at all, by either the terminal path or
+    // the plain-event fallback, or wires that emit a closing frame (chat's
+    // [DONE], responses' response.completed, anthropic's message_stop) would
+    // close the stream twice -- the second one carrying the weaker reason.
     message_stop_rendered: bool,
+    // Why: the abort frame is emitted after the inner stream has already
+    // reported EOF, so the next poll must not reach it again.
+    ended: bool,
 }
 
 impl Stream for TappedStream {
     type Item = Result<Bytes, std::io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.ended {
+            return Poll::Ready(None);
+        }
         loop {
             match self.inner.as_mut().poll_next(cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(None) => {
+                    self.ended = true;
                     return self.finalize_on_eof();
                 },
                 Poll::Ready(Some(Err(e))) => {
@@ -181,6 +230,7 @@ impl Stream for TappedStream {
                         accumulate_event(&mut s, &event);
                         terminal.then(|| snapshot(&s))
                     });
+                    let terminal_suppressed = is_message_stop && self.message_stop_rendered;
                     if is_message_stop {
                         self.message_stop_rendered = true;
                     }
@@ -193,7 +243,17 @@ impl Stream for TappedStream {
                                 &self.request_model,
                             )
                         })
-                        .or_else(|| self.inbound.render_event(&event, &self.request_model));
+                        .or_else(|| {
+                            // Why: `terminal` already suppressed the second
+                            // terminal render, but the plain-event fallback was
+                            // not covered -- the Anthropic inbound renders
+                            // MessageStop through `render_event`, so a repeat
+                            // stop still reached the client as a second,
+                            // weaker `message_stop` frame after the real one.
+                            (!terminal_suppressed)
+                                .then(|| self.inbound.render_event(&event, &self.request_model))
+                                .flatten()
+                        });
                     if let Some(bytes) = rendered {
                         if let Ok(mut s) = self.state.lock() {
                             s.final_bytes.extend_from_slice(&bytes);
@@ -222,8 +282,15 @@ impl TappedStream {
         let Some((summary, ctx)) = self.take_summary() else {
             return Poll::Ready(None);
         };
+        let aborted = abort::is_abort(&summary);
+        let tail = (!aborted)
+            .then(|| abort::tail_frames(&self.inbound, &summary.response, self.stream_usage))
+            .flatten();
         finalize(Arc::clone(&self.audit), summary, ctx, "eof");
-        Poll::Ready(None)
+        if !aborted {
+            return Poll::Ready(tail.map(Ok));
+        }
+        Poll::Ready(abort::abort_frame(&self.inbound, &self.request_model).map(Ok))
     }
 }
 

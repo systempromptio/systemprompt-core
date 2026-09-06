@@ -29,4 +29,7 @@ mod gateway_sessions_mint;
 mod gateway_otel_handle;
 mod mcp_registry_handler;
 
+mod content_blog;
 mod content_links_redirect;
+mod gateway_auth_mtls;
+mod wellknown_agent_cards;

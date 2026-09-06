@@ -75,7 +75,7 @@ fn ctx() -> RequestContext {
     )
 }
 
-async fn build(client: &ClientProfile, artifact: CliArtifact) -> Option<CallToolResult> {
+async fn build_or_skip(client: &ClientProfile, artifact: CliArtifact) -> Option<CallToolResult> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let repo = McpArtifactRepository::new(&db).expect("repo");
@@ -126,7 +126,7 @@ fn assert_meta_keys_are_prefixed(result: &CallToolResult) {
 
 #[tokio::test]
 async fn unknown_client_gets_text_only_result() {
-    let Some(result) = build(&unknown_client(), table()).await else {
+    let Some(result) = build_or_skip(&unknown_client(), table()).await else {
         return;
     };
 
@@ -151,7 +151,7 @@ async fn unknown_client_gets_text_only_result() {
 
 #[tokio::test]
 async fn old_protocol_client_gets_no_structured_content() {
-    let Some(result) = build(&old_client(), text()).await else {
+    let Some(result) = build_or_skip(&old_client(), text()).await else {
         return;
     };
 
@@ -174,7 +174,7 @@ async fn old_protocol_client_gets_no_structured_content() {
 
 #[tokio::test]
 async fn structured_client_gets_typed_output_matching_the_advertised_schema() {
-    let Some(result) = build(&structured_client(), table()).await else {
+    let Some(result) = build_or_skip(&structured_client(), table()).await else {
         return;
     };
 
@@ -208,7 +208,7 @@ async fn structured_client_gets_typed_output_matching_the_advertised_schema() {
 
 #[tokio::test]
 async fn ui_client_gets_embedded_resource_and_prefixed_meta() {
-    let Some(result) = build(&ui_client(), table()).await else {
+    let Some(result) = build_or_skip(&ui_client(), table()).await else {
         return;
     };
 
@@ -258,7 +258,7 @@ fn stateless_ui_client() -> ClientProfile {
 
 #[tokio::test]
 async fn v2025_11_25_client_result_validates_against_official_schema() {
-    let Some(result) = build(&modern_client(), table()).await else {
+    let Some(result) = build_or_skip(&modern_client(), table()).await else {
         return;
     };
 
@@ -275,7 +275,7 @@ async fn v2025_11_25_client_result_validates_against_official_schema() {
 
 #[tokio::test]
 async fn v2026_07_28_stateless_client_result_validates_against_official_schema() {
-    let Some(result) = build(&stateless_ui_client(), table()).await else {
+    let Some(result) = build_or_skip(&stateless_ui_client(), table()).await else {
         return;
     };
 
@@ -301,7 +301,7 @@ fn advertised_protocol_version_is_pinned_not_sdk_latest() {
 
 #[tokio::test]
 async fn text_artifact_plain_result_carries_body_without_json_dump() {
-    let Some(result) = build(&unknown_client(), text()).await else {
+    let Some(result) = build_or_skip(&unknown_client(), text()).await else {
         return;
     };
 

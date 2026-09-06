@@ -12,6 +12,8 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, GroundedSource,
     Grounding,
 };
+use crate::wire::defect::{BodyDefect, buffered_body_defect};
+use crate::wire::error::WireParseError;
 
 #[derive(Debug, Default, Deserialize)]
 struct ResponseObject {
@@ -43,6 +45,8 @@ struct ResponseUsage {
     total_tokens: u32,
     #[serde(default)]
     input_tokens_details: ResponseInputTokensDetails,
+    #[serde(default)]
+    output_tokens_details: ResponseOutputTokensDetails,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -51,13 +55,27 @@ struct ResponseInputTokensDetails {
     cached_tokens: u32,
 }
 
+// Why: reasoning tokens are already counted inside output_tokens on this
+// contract; this field only breaks them out.
+#[derive(Debug, Default, Deserialize)]
+struct ResponseOutputTokensDetails {
+    #[serde(default)]
+    reasoning_tokens: u32,
+}
+
 impl ResponseUsage {
+    // Why: `cached_tokens` is a subset of `input_tokens` on this wire, while
+    // `CanonicalUsage::input_tokens` is exclusive of cache reads. Without the
+    // subtraction the cached slice is charged at the input rate and again at
+    // the cache-read rate.
     const fn into_canonical(self) -> CanonicalUsage {
+        let cached = self.input_tokens_details.cached_tokens;
         CanonicalUsage {
-            input_tokens: self.input_tokens,
+            input_tokens: self.input_tokens.saturating_sub(cached),
             output_tokens: self.output_tokens,
-            cache_read_tokens: self.input_tokens_details.cached_tokens,
+            cache_read_tokens: cached,
             cache_creation_tokens: 0,
+            reasoning_tokens: self.output_tokens_details.reasoning_tokens,
             total_tokens: self.total_tokens,
         }
     }
@@ -119,8 +137,11 @@ struct SummaryPart {
     text: Option<String>,
 }
 
-pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let resp = ResponseObject::deserialize(value).unwrap_or_default();
+pub fn parse_response_object(
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let resp = ResponseObject::deserialize(value).map_err(WireParseError::OpenAiResponses)?;
     let id = resp
         .id
         .unwrap_or_else(|| format!("resp_{}", Uuid::new_v4().simple()));
@@ -143,7 +164,7 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
     let incomplete_reason = resp.incomplete_details.and_then(|d| d.reason);
     let stop_reason = Some(buffered_stop_reason(&content, incomplete_reason.as_deref()));
 
-    CanonicalResponse {
+    Ok(CanonicalResponse {
         id,
         model,
         content,
@@ -153,7 +174,7 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
         code_execution: None,
         raw_finish_reason: incomplete_reason,
         ..Default::default()
-    }
+    })
 }
 
 fn buffered_stop_reason(
@@ -229,4 +250,12 @@ fn collect_output_item(
         },
         OutputItem::Unknown => {},
     }
+}
+
+// Why: runs before `parse_response`, which is total and would turn a body
+// carrying nothing into a well-formed empty turn. `None` means the body is
+// worth parsing.
+#[must_use]
+pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
+    buffered_body_defect(value, "output", "usage")
 }

@@ -30,6 +30,20 @@ pub enum LoaderError {
     )]
     MigrationNotReversible { extension: String, version: u32 },
 
+    #[error(
+        "Extension '{extension}' migration slot {version} was applied as '{stored_name}' but the \
+         tree now names it '{current_name}'. A migration file was deleted and its number reused; \
+         established databases have already spent that slot, so the new SQL would be skipped, \
+         never executed. Renumber it above every used slot and leave a \
+         `{version:03}_{stored_name}.tombstone` behind so the number cannot be claimed again."
+    )]
+    MigrationSlotReused {
+        extension: String,
+        version: u32,
+        stored_name: String,
+        current_name: String,
+    },
+
     #[error("Configuration validation failed for extension '{extension}': {message}")]
     ConfigValidationFailed { extension: String, message: String },
 

@@ -12,7 +12,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, SourceId};
 use tempfile::TempDir;
 
-async fn try_db() -> Option<DbPool> {
+async fn try_db_or_skip() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
     systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
@@ -31,7 +31,7 @@ fn sample_frontmatter(slug: &str, title: &str) -> String {
 
 #[tokio::test]
 async fn ingest_directory_dry_run_lists_would_create_for_new_files() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));
@@ -68,7 +68,7 @@ async fn ingest_directory_dry_run_lists_would_create_for_new_files() {
 
 #[tokio::test]
 async fn ingest_directory_creates_then_unchanged_on_second_pass() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));
@@ -108,7 +108,7 @@ async fn ingest_directory_creates_then_unchanged_on_second_pass() {
 
 #[tokio::test]
 async fn ingest_directory_skips_modified_when_override_disabled() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));
@@ -151,7 +151,7 @@ async fn ingest_directory_skips_modified_when_override_disabled() {
 
 #[tokio::test]
 async fn ingest_directory_reports_parse_errors() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let svc = IngestionService::new(&db, ContentRepository::new(&db).expect("repo"));

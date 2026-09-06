@@ -1,7 +1,8 @@
 //! Tests for cluster- versus node-scoped job claims: a node-scoped job runs on
 //! every replica and only de-duplicates against its own instance, while a
 //! cluster-scoped job still yields to a peer-held advisory lock. DB-backed
-//! tests early-return when `DATABASE_URL` is unset.
+//! tests skip when `DATABASE_URL` is
+//! unset locally, and fail under `CI`.
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -10,27 +11,13 @@ use systemprompt_database::DbPool;
 use systemprompt_models::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{
-    fixture_app_context_with_config, fixture_config, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{fixture_app_context_with_config, fixture_config};
 
 use crate::test_jobs::{NODE_JOB, NODE_JOB_RUNS};
 
 // Why: every test here shares one `scheduled_jobs` row and one run counter,
 // so they must not interleave within the process.
 static SERIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
-macro_rules! pool_or_skip {
-    () => {{
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(pool) = fixture_db_pool(&url).await else {
-            return;
-        };
-        (pool, url)
-    }};
-}
 
 fn context_for_instance(pool: &DbPool, url: &str, instance_id: &str) -> Arc<AppContext> {
     let mut config = fixture_config(url);
@@ -77,7 +64,7 @@ mod node_scope {
 
     #[tokio::test]
     async fn runs_on_every_replica_back_to_back() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let _guard = SERIALIZE.lock().await;
         let repo = seed_row(&pool).await;
 
@@ -100,7 +87,7 @@ mod node_scope {
 
     #[tokio::test]
     async fn same_replica_within_dedupe_window_is_skipped() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let _guard = SERIALIZE.lock().await;
         seed_row(&pool).await;
 
@@ -121,7 +108,7 @@ mod cluster_scope {
 
     #[tokio::test]
     async fn config_override_to_cluster_yields_to_peer_held_lock() {
-        let (pool, url) = pool_or_skip!();
+        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
         let _guard = SERIALIZE.lock().await;
         let repo = seed_row(&pool).await;
 

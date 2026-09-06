@@ -65,7 +65,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .map_or_else(Vec::new, |arr| {
             arr.iter().filter_map(parse_tool).collect::<Vec<_>>()
         });
-    let tool_choice = value.get("tool_choice").and_then(parse_tool_choice);
+    let tool_choice = parse_tool_choice(value)?;
     let stream = value
         .get("stream")
         .and_then(Value::as_bool)

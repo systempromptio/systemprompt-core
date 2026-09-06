@@ -31,7 +31,7 @@ mod elicitation;
 pub mod external_auth;
 mod external_proxy;
 mod handler;
-mod http_client_with_context;
+pub(crate) mod http_client_with_context;
 mod invocation;
 mod tasks;
 mod types;

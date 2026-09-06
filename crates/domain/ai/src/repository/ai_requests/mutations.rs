@@ -23,6 +23,7 @@ pub struct UpdateCompletionParams {
     pub cache_hit: bool,
     pub cache_read_tokens: i32,
     pub cache_creation_tokens: i32,
+    pub reasoning_tokens: i32,
 }
 
 impl AiRequestRepository {
@@ -38,9 +39,10 @@ impl AiRequestRepository {
             SET tokens_used = $1, input_tokens = $2, output_tokens = $3,
                 cost_microdollars = $4, latency_ms = $5,
                 cache_hit = $6, cache_read_tokens = $7, cache_creation_tokens = $8,
-                status = $9,
+                reasoning_tokens = $9,
+                status = $10,
                 completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $10
+            WHERE id = $11
             RETURNING id as "id!: AiRequestId",
                       request_id as "request_id!: AiRequestId",
                       user_id as "user_id!: UserId",
@@ -52,7 +54,8 @@ impl AiRequestRepository {
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
-                      cache_read_tokens, cache_creation_tokens, is_streaming, status,
+                      cache_read_tokens, cache_creation_tokens, reasoning_tokens,
+                      is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
             params.tokens_used,
@@ -63,6 +66,7 @@ impl AiRequestRepository {
             params.cache_hit,
             params.cache_read_tokens,
             params.cache_creation_tokens,
+            params.reasoning_tokens,
             RequestStatus::Completed.as_str(),
             params.id.as_str()
         )
@@ -100,7 +104,8 @@ impl AiRequestRepository {
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
                       input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
-                      cache_read_tokens, cache_creation_tokens, is_streaming, status,
+                      cache_read_tokens, cache_creation_tokens, reasoning_tokens,
+                      is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
             status.as_str(),
@@ -188,15 +193,15 @@ impl AiRequestRepository {
                 mcp_execution_id, provider, model, max_tokens, tokens_used, input_tokens, output_tokens,
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
                 cost_microdollars, latency_ms, status, error_message,
-                actor_kind, actor_id, requested_model, instance_id,
+                actor_kind, actor_id, requested_model, instance_id, reasoning_tokens,
                 created_at, updated_at, completed_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-                $25, $26, $27, $29,
+                $25, $26, $27, $28, $29,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                CASE WHEN $28 THEN CURRENT_TIMESTAMP ELSE NULL END
+                CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
             ON CONFLICT (id) DO NOTHING
             "#,
@@ -227,8 +232,9 @@ impl AiRequestRepository {
             actor_kind,
             actor_id,
             record.requested_model.as_deref(),
-            use_completed_at,
-            record.instance_id.as_ref().map(InstanceId::as_str)
+            record.instance_id.as_ref().map(InstanceId::as_str),
+            record.tokens.reasoning_tokens,
+            use_completed_at
         )
         .execute(self.write_pool())
         .await?;

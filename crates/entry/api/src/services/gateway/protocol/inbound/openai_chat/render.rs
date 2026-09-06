@@ -92,6 +92,9 @@ pub(super) fn usage_object(usage: &CanonicalUsage) -> Value {
         "completion_tokens": usage.output_tokens,
         "total_tokens": usage.input_tokens + usage.output_tokens,
         "prompt_tokens_details": { "cached_tokens": usage.cache_read_tokens },
+        // Why: a breakdown of completion_tokens, per the OpenAI contract --
+        // adding it to the totals above would double-count every thinking turn.
+        "completion_tokens_details": { "reasoning_tokens": usage.reasoning_tokens },
     })
 }
 
@@ -174,7 +177,11 @@ pub(super) fn render_chunk(
 
 fn render_error_frame(msg: &str) -> Bytes {
     let escaped = msg.replace('\\', "\\\\").replace('"', "\\\"");
+    // Why: an OpenAI-SDK client reads until the `[DONE]` sentinel, so an error
+    // frame without one leaves the turn open and the client waiting on a
+    // stream the gateway has already finished.
     Bytes::from(format!(
-        "data: {{\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}\n\n"
+        "data: {{\"error\":{{\"type\":\"upstream_error\",\"message\":\"{escaped}\"}}}}\n\n\
+         data: [DONE]\n\n"
     ))
 }

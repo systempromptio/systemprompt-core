@@ -33,7 +33,7 @@ use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
 use systemprompt_identifiers::{
-    AgentId, AgentName, HookId, McpServerId, TenantId, UserId, ValidatedUrl,
+    AgentId, AgentName, HookId, MarketplaceId, McpServerId, TenantId, UserId, ValidatedUrl,
 };
 
 pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
@@ -94,6 +94,21 @@ pub struct SignedManifest {
     pub allow_claude_ai_connectors: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostics: Vec<String>,
+    // Why: which enabled marketplace each surviving plugin came from, so a
+    // client can mirror one host marketplace per gateway marketplace. Empty on
+    // a manifest built before this field existed, which clients treat as a
+    // single unnamed marketplace holding every plugin.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub marketplaces: Vec<ManifestMarketplace>,
+}
+
+/// An enabled marketplace and the manifest plugins it carries, after the
+/// per-user filter: `plugin_ids` never names a plugin absent from `plugins`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestMarketplace {
+    pub id: MarketplaceId,
+    pub name: String,
+    pub plugin_ids: Vec<PluginId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

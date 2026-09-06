@@ -40,6 +40,7 @@ pub fn access(default_included: bool, roles: &[&str]) -> MarketplaceAccess {
     MarketplaceAccess {
         default_included,
         roles: roles.iter().map(|r| (*r).to_owned()).collect(),
+        rules: vec![],
         attributes: Default::default(),
         justification: None,
     }

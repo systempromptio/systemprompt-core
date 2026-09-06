@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 // JSON: protocol boundary — event shapes are owned by the models::wire
 // Anthropic codec.
 use serde_json::Value;
-use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::anthropic::AnthropicStreamState;
 
 use super::super::super::canonical_response::CanonicalEvent;
 
@@ -27,17 +27,20 @@ where
     use futures_util::stream;
     let s = stream
         .map(|chunk| chunk.map_err(|e| e.to_string()))
-        .scan((Vec::<u8>::new(), String::new()), |state, item| {
-            let (buf, msg_id) = state;
-            let res = match item {
-                Ok(bytes) => {
-                    buf.extend_from_slice(&bytes);
-                    Some(drain_frames(buf, msg_id))
-                },
-                Err(e) => Some(vec![Err(e)]),
-            };
-            futures_util::future::ready(res)
-        })
+        .scan(
+            (Vec::<u8>::new(), AnthropicStreamState::default()),
+            |state, item| {
+                let (buf, codec) = state;
+                let res = match item {
+                    Ok(bytes) => {
+                        buf.extend_from_slice(&bytes);
+                        Some(drain_frames(buf, codec))
+                    },
+                    Err(e) => Some(vec![Err(e)]),
+                };
+                futures_util::future::ready(res)
+            },
+        )
         .flat_map(stream::iter);
     s.boxed()
 }
@@ -54,20 +57,23 @@ where
 #[derive(Debug, Default)]
 pub(in crate::services::gateway) struct SseDecoder {
     buf: Vec<u8>,
-    msg_id: String,
+    codec: AnthropicStreamState,
 }
 
 impl SseDecoder {
     pub(in crate::services::gateway) fn push(&mut self, chunk: &[u8]) -> Vec<CanonicalEvent> {
         self.buf.extend_from_slice(chunk);
-        drain_frames(&mut self.buf, &mut self.msg_id)
+        drain_frames(&mut self.buf, &mut self.codec)
             .into_iter()
             .flatten()
             .collect()
     }
 }
 
-fn drain_frames(buf: &mut Vec<u8>, msg_id: &mut String) -> Vec<Result<CanonicalEvent, String>> {
+fn drain_frames(
+    buf: &mut Vec<u8>,
+    codec: &mut AnthropicStreamState,
+) -> Vec<Result<CanonicalEvent, String>> {
     let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
     while let Some(end) = systemprompt_models::wire::sse::frame_end(buf) {
         let frame: Vec<u8> = buf.drain(..end).collect();
@@ -78,12 +84,7 @@ fn drain_frames(buf: &mut Vec<u8>, msg_id: &mut String) -> Vec<Result<CanonicalE
                     continue;
                 }
                 if let Ok(value) = serde_json::from_str::<Value>(data) {
-                    for ev in anthropic::events_from_sse(&value, msg_id) {
-                        if let CanonicalEvent::MessageStart { id, .. } = &ev {
-                            msg_id.clone_from(id);
-                        }
-                        events.push(Ok(ev));
-                    }
+                    events.extend(codec.events_from_sse(&value).into_iter().map(Ok));
                 }
             }
         }

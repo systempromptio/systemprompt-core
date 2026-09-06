@@ -12,3 +12,4 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }

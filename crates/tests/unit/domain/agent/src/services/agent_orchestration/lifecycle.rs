@@ -11,7 +11,7 @@ use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle
 use systemprompt_models::AppPaths;
 use uuid::Uuid;
 
-use crate::repository::try_pool;
+use crate::repository::try_pool_or_skip;
 
 const DEAD_PID: u32 = 4_000_000_000;
 
@@ -47,7 +47,7 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
 
 #[tokio::test]
 async fn start_agent_unknown_agent_fails_before_spawn() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -60,7 +60,7 @@ async fn start_agent_unknown_agent_fails_before_spawn() {
 
 #[tokio::test]
 async fn enable_agent_delegates_to_start() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -73,7 +73,7 @@ async fn enable_agent_delegates_to_start() {
 
 #[tokio::test]
 async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -96,7 +96,7 @@ async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
 
 #[tokio::test]
 async fn disable_agent_with_dead_pid_removes_service_row() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -116,7 +116,7 @@ async fn disable_agent_with_dead_pid_removes_service_row() {
 
 #[tokio::test]
 async fn cleanup_crashed_agent_without_record_is_noop() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -131,7 +131,7 @@ async fn cleanup_crashed_agent_without_record_is_noop() {
 
 #[tokio::test]
 async fn disable_with_event_bus_publishes_agent_disabled() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -160,7 +160,7 @@ async fn disable_with_event_bus_publishes_agent_disabled() {
 
 #[tokio::test]
 async fn restart_with_event_bus_publishes_restart_requested_before_failing() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -189,7 +189,7 @@ async fn restart_with_event_bus_publishes_restart_requested_before_failing() {
 
 #[tokio::test]
 async fn free_function_verbs_cover_missing_agent_paths() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;

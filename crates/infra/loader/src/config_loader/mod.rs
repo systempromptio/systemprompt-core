@@ -9,6 +9,15 @@
 //! and finally validates the merged configuration — provider registry and
 //! gateway references included — before returning it to the caller.
 //!
+//! A provider whose `api_key_secret` does not resolve is demoted to
+//! `surface: backend` before validation, so its models stop being advertised
+//! rather than being offered in every client's picker and failing on first use.
+//! It is not a boot failure: an instance serving one provider must still start
+//! when an unrelated credential is absent. An uninitialised secret store means
+//! "unknown", never "absent" — several entry points load services with no
+//! secrets at all, and demoting there would empty the catalog. That also keeps
+//! the memoisation below benign: the worst case is the old behaviour.
+//!
 //! [`ConfigLoader::load`] — the active-profile entry point — memoises its
 //! result for the lifetime of the process. The explicit
 //! [`ConfigLoader::load_from_path`] and [`ConfigLoader::validate_file`] forms
@@ -29,7 +38,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, PoisonError, RwLock};
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_models::services::{ApiSurface, ServicesConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
@@ -193,6 +202,8 @@ impl ConfigLoader {
                 .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
         }
 
+        demote_providers_without_credentials(&mut merged);
+
         merged
             .validate()
             .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
@@ -254,4 +265,27 @@ fn cache_store(key: PathBuf, config: &ServicesConfig) {
         .write()
         .unwrap_or_else(PoisonError::into_inner)
         .insert(key, config.clone());
+}
+
+fn demote_providers_without_credentials(config: &mut ServicesConfig) {
+    let Ok(secrets) = systemprompt_config::SecretsBootstrap::get() else {
+        return;
+    };
+
+    for provider in &mut config.providers.providers {
+        if !provider.surface.is_advertised() {
+            continue;
+        }
+        if secrets.get(provider.api_key_secret.as_str()).is_some() {
+            continue;
+        }
+        // Why: the logging layer redacts any field named `secret`, so naming
+        // the missing one here rendered as `[REDACTED]`. `cloud doctor` names
+        // it in full.
+        tracing::warn!(
+            provider = %provider.name.as_str(),
+            "provider has no credential in the secret store; its models will not be advertised"
+        );
+        provider.surface = ApiSurface::Backend;
+    }
 }

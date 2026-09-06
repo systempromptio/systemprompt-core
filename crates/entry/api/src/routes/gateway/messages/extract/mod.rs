@@ -130,9 +130,7 @@ pub(super) async fn extract_request_context(
         .hydrate_request(&gateway_conversation_id, &mut gateway_request, wire)
         .await;
 
-    let upstream_model = route
-        .effective_upstream_model(&gateway_request.model)
-        .to_owned();
+    let upstream_model = upstream_model_for(&rc.services.providers, &route, &gateway_request.model);
 
     enforce_authz_pre_dispatch(
         &principal,
@@ -183,4 +181,26 @@ pub fn derive_conversation(
     partial.context_id = Some(context_id.clone());
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
     Ok((gateway_conversation_id, context_id))
+}
+
+// Why: the upstream name can be declared on the route (an operator's
+// substitution) or per model in the catalog, and only the provider entry knows
+// the latter. A route naming a provider that is not in the registry keeps the
+// route's own answer rather than failing here — the missing provider is
+// reported later, by the dispatch path that can audit it.
+fn upstream_model_for(
+    providers: &systemprompt_models::services::ProviderRegistry,
+    route: &systemprompt_models::services::GatewayRoute,
+    requested: &str,
+) -> String {
+    providers
+        .find_provider(route.provider.as_str())
+        .map_or_else(
+            || route.effective_upstream_model(requested).to_owned(),
+            |provider| {
+                provider
+                    .upstream_model_for(route.upstream_model.as_deref(), requested)
+                    .to_owned()
+            },
+        )
 }

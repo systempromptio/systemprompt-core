@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow, bail};
-use systemprompt_cloud::ProfilePath;
+use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
@@ -70,6 +70,28 @@ impl DoctorReport {
     }
 }
 
+// Why: a cloud profile's `paths.config()` is the container's `/app/services`
+// tree, absent on the machine running `cloud doctor`, so the
+// provider-credential check degraded to a warning and reported green while two
+// undeployable providers shipped. The catalog also ships from the repo's
+// services tree, so fall back to that before giving up; returning the declared
+// path when neither exists keeps the warning naming what the profile asked for.
+fn resolve_services_config(profile: &Profile) -> PathBuf {
+    let declared = PathBuf::from(profile.paths.config());
+    if declared.exists() {
+        return declared;
+    }
+    let local = ProjectContext::discover()
+        .root()
+        .join("services")
+        .join("config")
+        .join("config.yaml");
+    if local.exists() {
+        return local;
+    }
+    declared
+}
+
 pub(in crate::commands::cloud) async fn run(
     profile: &Profile,
     profile_dir: &Path,
@@ -91,10 +113,7 @@ pub(in crate::commands::cloud) async fn run(
 
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
-    // Why: the catalog lives in the services tree the profile points at, which
-    // for a cloud profile exists on the host rather than here — so an
-    // unreadable tree is a warning that names the path, not a failed check.
-    let services_root = PathBuf::from(profile.paths.config());
+    let services_root = resolve_services_config(profile);
     match ConfigLoader::load_from_path(&services_root) {
         Ok(services) => checks.push(check_provider_secrets(&services.providers, &secrets)),
         Err(err) => checks.push(CheckResult::warn(

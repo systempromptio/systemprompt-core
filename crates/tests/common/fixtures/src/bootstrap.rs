@@ -155,7 +155,15 @@ fn init_bootstrap_inner_expecting(
 
     install_subprocess_env(&database_url);
 
-    let tmp = tempfile::tempdir().expect("create bootstrap tempdir");
+    // Why: the CLI derives the session's profile name from the directory
+    // holding `profile.yaml` (`extract_profile_name`), and `ProfileName`
+    // rejects anything outside alphanumerics, `-` and `_`. A default tempdir is
+    // named `.tmpXXXXXX`, whose leading dot fails that check — every command
+    // that resolves a session then dies before reaching its own body.
+    let tmp = tempfile::Builder::new()
+        .prefix("sptest")
+        .tempdir()
+        .expect("create bootstrap tempdir");
     let tmp_path = tmp.path().to_path_buf();
 
     let system_path = tmp_path.join("system");

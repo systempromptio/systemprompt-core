@@ -20,7 +20,7 @@ struct AuditSeed {
 }
 
 impl AuditSeed {
-    async fn new() -> Option<Self> {
+    async fn new_or_skip() -> Option<Self> {
         let url = fixture_database_url().ok()?;
         let db = fixture_db_pool(&url).await.ok()?;
         let pool = db.pool_arc().ok()?.as_ref().clone();
@@ -237,7 +237,7 @@ impl AuditSeed {
 
 #[tokio::test]
 async fn ai_trace_service_maps_seeded_task_and_message_rows() {
-    let Some(seed) = AuditSeed::new().await else {
+    let Some(seed) = AuditSeed::new_or_skip().await else {
         return;
     };
 
@@ -318,7 +318,7 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
 
 #[tokio::test]
 async fn audit_and_request_queries_map_seeded_rows() {
-    let Some(seed) = AuditSeed::new().await else {
+    let Some(seed) = AuditSeed::new_or_skip().await else {
         return;
     };
 
@@ -467,7 +467,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
 // of recording it — while the per-provider and per-model aggregates skip it.
 #[tokio::test]
 async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_stats() {
-    let Some(seed) = AuditSeed::new().await else {
+    let Some(seed) = AuditSeed::new_or_skip().await else {
         return;
     };
     let rejected_id = seed.insert_rejected_request().await;
@@ -510,7 +510,7 @@ async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_
 
 #[tokio::test]
 async fn log_lookup_search_and_summaries_map_seeded_rows() {
-    let Some(seed) = AuditSeed::new().await else {
+    let Some(seed) = AuditSeed::new_or_skip().await else {
         return;
     };
 

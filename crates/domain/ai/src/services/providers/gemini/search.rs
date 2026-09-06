@@ -105,6 +105,6 @@ pub(super) async fn generate_with_google_search(
         .await?
         .json()
         .await?;
-    let parsed = gemini::parse_response(&value, params.model);
+    let parsed = gemini::parse_response(&value, params.model)?;
     Ok(canonical_bridge::to_search_grounded(start, &parsed))
 }

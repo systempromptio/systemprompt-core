@@ -23,6 +23,14 @@ mod migration_plan_status;
 mod fresh_install_stamp;
 
 #[cfg(test)]
+#[path = "../migration_slot_reuse.rs"]
+mod migration_slot_reuse;
+
+#[cfg(test)]
+#[path = "../interrupted_install.rs"]
+mod interrupted_install;
+
+#[cfg(test)]
 #[path = "../advisory_lock.rs"]
 mod advisory_lock;
 

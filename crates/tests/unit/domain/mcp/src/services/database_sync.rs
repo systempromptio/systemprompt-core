@@ -12,14 +12,14 @@ use systemprompt_mcp::services::database::sync::{
 };
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
 async fn cleanup_stale_services_empty_table_returns_ok() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -30,7 +30,7 @@ async fn cleanup_stale_services_empty_table_returns_ok() {
 
 #[tokio::test]
 async fn delete_crashed_services_empty_table_returns_ok() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -41,7 +41,7 @@ async fn delete_crashed_services_empty_table_returns_ok() {
 
 #[tokio::test]
 async fn sync_database_state_empty_servers_returns_ok() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -52,7 +52,7 @@ async fn sync_database_state_empty_servers_returns_ok() {
 
 #[tokio::test]
 async fn reconcile_running_processes_reports_a_pidless_running_service() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -85,7 +85,7 @@ async fn reconcile_running_processes_reports_a_pidless_running_service() {
 
 #[tokio::test]
 async fn repair_database_inconsistencies_runs() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let svc_repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),
@@ -96,7 +96,7 @@ async fn repair_database_inconsistencies_runs() {
 
 #[tokio::test]
 async fn delete_disabled_services_removes_only_the_disabled_service() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let repo = ServiceRepository::new(
         &db,
         systemprompt_identifiers::InstanceId::new("test-instance"),

@@ -22,7 +22,7 @@ use systemprompt_identifiers::{TaskId, UserId};
 use systemprompt_models::{A2AEvent, AgUiEvent};
 use tokio::sync::mpsc;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 #[derive(Debug, Default)]
 struct RecordingBroadcaster {
@@ -77,7 +77,7 @@ fn recorded_for(entries: &Mutex<Vec<String>>, task_id: &TaskId) -> Vec<String> {
 #[tokio::test]
 async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     let rec = recorder();
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -123,7 +123,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
 #[tokio::test]
 async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     let _rec = recorder();
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -158,7 +158,7 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
 #[tokio::test]
 async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     let rec = recorder();
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

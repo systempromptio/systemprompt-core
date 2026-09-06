@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Changed
+
+- `stamp_request_metadata` is generic over the header map's hasher, so a caller holding a `HashMap` with a non-default `BuildHasher` no longer has to rebuild it.
+- The RBAC middleware passes the merged marketplace attribute floor by reference, following `member_attribute_floor`'s move to an owned map that merges every enabled marketplace's `access.attributes` bag.
+- The client, orchestrator and RBAC modules expose `#[doc(hidden)] pub` test seams so the separate test workspace can drive them in-process. Modules widen only to `pub(crate)`; no logic, signature or behaviour changes.
+
 ## [0.46.0] - 2026-09-04
 
 ### Fixed

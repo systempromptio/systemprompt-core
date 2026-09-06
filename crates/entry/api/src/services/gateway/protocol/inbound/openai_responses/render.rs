@@ -22,6 +22,13 @@ use super::super::super::canonical_response::{
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut output: Vec<Value> = Vec::new();
     let mut text_parts: Vec<Value> = Vec::new();
+    // Why: the Responses object has no finish-reason scalar. A truncated turn
+    // is `status: "incomplete"` plus `incomplete_details.reason`, exactly as
+    // the streaming terminal frame renders it; anything else is `completed`.
+    // The items carry the same verdict -- an item cut mid-arguments is not a
+    // completed one, and a client that reads item status must not run it.
+    let truncated = matches!(response.stop_reason, Some(CanonicalStopReason::MaxTokens));
+    let item_status = if truncated { "incomplete" } else { "completed" };
 
     for part in &response.content {
         match part {
@@ -38,7 +45,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
                     "call_id": id,
                     "name": name,
                     "arguments": arguments,
-                    "status": "completed",
+                    "status": item_status,
                 }));
             },
             CanonicalContent::Thinking {
@@ -62,7 +69,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
             json!({
                 "type": "message",
                 "id": format!("msg_{}", response.id),
-                "status": "completed",
+                "status": item_status,
                 "role": "assistant",
                 "content": text_parts,
             }),
@@ -73,7 +80,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
         "id": response.id,
         "object": "response",
         "created_at": current_unix_ts(),
-        "status": "completed",
+        "status": if truncated { "incomplete" } else { "completed" },
         "model": response.model,
         "output": output,
         "usage": {
@@ -81,7 +88,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
             "output_tokens": response.usage.output_tokens,
             "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
         },
-        "stop_reason": response.stop_reason.map(CanonicalStopReason::openai_str),
+        "incomplete_details": truncated.then(|| json!({ "reason": "max_output_tokens" })),
     })
 }
 
@@ -230,9 +237,13 @@ pub(super) fn reasoning_output_item(
 
 fn render_error_frame(msg: &str) -> Bytes {
     let escaped = msg.replace('\\', "\\\\").replace('"', "\\\"");
+    // Why: the Responses contract puts the outcome on `response.status`, and a
+    // client (Codex) reads that field to decide the turn failed; a bare
+    // top-level `error` left the response object absent and the turn unresolved.
     Bytes::from(format!(
         "event: response.failed\ndata: \
-         {{\"type\":\"response.failed\",\"error\":{{\"type\":\"api_error\",\"message\":\"\
-         {escaped}\"}}}}\n\n"
+         {{\"type\":\"response.failed\",\"response\":{{\"status\":\"failed\",\"error\":\
+         {{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}},\"error\":\
+         {{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}\n\n"
     ))
 }

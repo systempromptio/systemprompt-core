@@ -9,71 +9,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::request::{CanonicalContent, flatten_part};
+use super::usage::{CanonicalUsage, CanonicalUsageUpdate};
 use crate::wire::inspect::ForwardedSurface;
-
-#[derive(Debug, Clone, Copy, Default)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "every field is a token count; the `_tokens` suffix is the domain vocabulary shared \
-              with the provider usage wire formats"
-)]
-pub struct CanonicalUsage {
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub cache_read_tokens: u32,
-    pub cache_creation_tokens: u32,
-    pub total_tokens: u32,
-}
-
-/// A streaming usage report, carrying only the counts its frame actually
-/// stated.
-///
-/// [`CanonicalUsage`] cannot express this: an unreported count and a reported
-/// zero are both `0`. Providers differ in what a mid-stream usage frame
-/// includes — an Anthropic `message_delta` may carry `output_tokens` alone —
-/// so folding one in as though it were complete zeroes the input and cache
-/// counts an earlier frame established, and billing loses them.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "every field is a token count; the `_tokens` suffix is the domain vocabulary shared \
-              with the provider usage wire formats"
-)]
-pub struct CanonicalUsageUpdate {
-    pub input_tokens: Option<u32>,
-    pub output_tokens: Option<u32>,
-    pub cache_read_tokens: Option<u32>,
-    pub cache_creation_tokens: Option<u32>,
-}
-
-impl CanonicalUsageUpdate {
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.input_tokens.is_none()
-            && self.output_tokens.is_none()
-            && self.cache_read_tokens.is_none()
-            && self.cache_creation_tokens.is_none()
-    }
-
-    pub const fn apply_to(&self, usage: &mut CanonicalUsage) {
-        if let Some(v) = self.input_tokens {
-            usage.input_tokens = v;
-        }
-        if let Some(v) = self.output_tokens {
-            usage.output_tokens = v;
-        }
-        if let Some(v) = self.cache_read_tokens {
-            usage.cache_read_tokens = v;
-        }
-        if let Some(v) = self.cache_creation_tokens {
-            usage.cache_creation_tokens = v;
-        }
-        usage.total_tokens = usage.input_tokens
-            + usage.output_tokens
-            + usage.cache_read_tokens
-            + usage.cache_creation_tokens;
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalStopReason {
@@ -109,6 +46,21 @@ impl CanonicalStopReason {
             "stop_sequence" => Self::StopSequence,
             "tool_use" => Self::ToolUse,
             _ => Self::Other,
+        }
+    }
+
+    // Why: providers routinely report a generic "stop" beside a fully-formed
+    // tool call -- Gemini sends `finishReason: STOP` on a functionCall
+    // candidate, several OpenAI-compatible upstreams send `finish_reason:
+    // "stop"` beside a tool_calls array. Relayed verbatim, every client ends
+    // the turn and the call is silently never run. Truncation still wins: a
+    // call cut mid-arguments carries unparseable JSON, so declaring tool use
+    // there hands the client a call it cannot run.
+    #[must_use]
+    pub const fn with_tool_use(self, has_tool_use: bool) -> Self {
+        match self {
+            Self::EndTurn | Self::Other if has_tool_use => Self::ToolUse,
+            other => other,
         }
     }
 

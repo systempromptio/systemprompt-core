@@ -11,7 +11,7 @@ use crate::proxy::ProxyRole;
 use crate::stdio;
 use crate::stdio::diag;
 
-pub(super) fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
+pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
     match ctx.proxy.role() {
         ProxyRole::Serving(_) => {},
         // Why: our own proxy already serving is the outcome this command wants,
@@ -101,3 +101,6 @@ pub(super) fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
         },
     }
 }
+
+#[path = "proxy_test_api.rs"]
+pub mod test_api;

@@ -21,7 +21,8 @@ use wiremock::MockServer;
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};
 
-async fn make_lifecycle() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)> {
+async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)>
+{
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {
@@ -115,7 +116,7 @@ async fn seed_service(
 
 #[tokio::test]
 async fn health_check_live_mcp_endpoint_reports_healthy() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let mock = MockServer::start().await;
@@ -141,7 +142,7 @@ async fn health_check_live_mcp_endpoint_reports_healthy() {
 
 #[tokio::test]
 async fn health_check_non_mcp_listener_marks_service_error() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
     let mock = MockServer::start().await;
@@ -175,7 +176,7 @@ fn marker_helper() {
 
 #[tokio::test]
 async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
 
@@ -200,7 +201,7 @@ async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
 
 #[tokio::test]
 async fn restart_server_sweeps_stale_running_row_then_fails_on_missing_binary() {
-    let Some((life, db)) = make_lifecycle().await else {
+    let Some((life, db)) = make_lifecycle_or_skip().await else {
         return;
     };
 

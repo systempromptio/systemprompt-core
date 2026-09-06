@@ -3,14 +3,14 @@
 use systemprompt_mcp::orchestration::ServiceStateService;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]
 async fn state_service_get_missing_service_returns_none() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let s = ServiceStateService::new(
         systemprompt_database::ServiceRepository::new(
             &db,
@@ -28,7 +28,7 @@ async fn state_service_get_missing_service_returns_none() {
 #[tokio::test]
 async fn state_service_list_surfaces_seeded_service_and_filters_by_status() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let s = ServiceStateService::new(
         systemprompt_database::ServiceRepository::new(
             &db,

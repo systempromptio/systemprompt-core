@@ -82,7 +82,7 @@ pub(crate) fn ai_config(provider: &str) -> AiConfig {
     }
 }
 
-pub(crate) async fn pool() -> Option<DbPool> {
+pub(crate) async fn pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     ensure_test_secrets_bootstrap();

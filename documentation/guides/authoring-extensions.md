@@ -13,7 +13,7 @@ An extension is a Rust type that implements the `Extension` trait and is registe
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.46", features = ["core"] }
+systemprompt = { version = "0.47", features = ["core"] }
 ```
 
 The trait, the macro, and the value types are re-exported through the facade prelude:
@@ -142,8 +142,24 @@ Filename conventions enforced by the build script (`crates/shared/extension/src/
 | `NNN_<name>.sql` | An up migration; `NNN` is the version, the remainder is the name. |
 | `NNN_<name>.down.sql` | The optional paired down migration. |
 | First non-blank line `-- @no-transaction` | Emitted with `Migration::new_no_transaction`, for statements Postgres rejects inside a transaction (for example `CREATE INDEX CONCURRENTLY`). A `-- @no-transaction` migration must not declare a `.down.sql`. |
+| `NNN_<name>.tombstone` | Records the slot as spent. No SQL — the body is prose explaining why. |
+| `NNN-MMM_<name>.tombstone` | The same, for an inclusive range of spent slots. |
 
-The build fails if a file is misnamed or two files share a version. Adding a file retriggers the build through the emitted `cargo:rerun-if-changed` directive.
+The build fails if a file is misnamed or two files claim the same version. Adding a file retriggers the build through the emitted `cargo:rerun-if-changed` directive.
+
+### Deleting a migration
+
+**Never free a number by deleting its file.** A migration that has shipped is applied in every established database, which keeps a tracking row for that version forever. Delete the file and the number *looks* free, but refilling it means the runner sees the version as already applied, skips the new SQL entirely, and then refuses to boot on a checksum belonging to a migration nobody can find.
+
+So deleting is two steps: remove the `.sql` and leave a `.tombstone` in its place, keeping the original name.
+
+```
+schema/migrations/
+  007_add_index.sql          ->  007_add_index.tombstone
+  008_next_change.sql
+```
+
+The runner never executes, records, or checksums a tombstoned slot, and `emit_migrations` treats the number as occupied — so reusing it fails the **build** rather than a deployment. `infra db migrate-status` lists any applied version that no file claims as `orphaned`; that is the list of tombstones still owed.
 
 ## Step 5 — Mount an API router
 

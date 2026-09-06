@@ -11,7 +11,7 @@ use systemprompt_traits::auth::AuthProviderError;
 use systemprompt_users::{RoleProvider, UserProvider, UserRepository, UserService};
 use uuid::Uuid;
 
-async fn setup() -> Option<UserService> {
+async fn setup_or_skip() -> Option<UserService> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -30,7 +30,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn user_provider_creates_and_finds_auth_users() {
-    let Some(service) = setup().await else {
+    let Some(service) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("provider");
@@ -77,7 +77,7 @@ async fn user_provider_creates_and_finds_auth_users() {
 
 #[tokio::test]
 async fn user_provider_creates_anonymous_and_federated_identities() {
-    let Some(service) = setup().await else {
+    let Some(service) = setup_or_skip().await else {
         return;
     };
     let fingerprint = format!("prov-anon-{}", Uuid::new_v4().simple());
@@ -111,7 +111,7 @@ async fn user_provider_creates_anonymous_and_federated_identities() {
 
 #[tokio::test]
 async fn role_provider_assign_and_revoke_are_idempotent() {
-    let Some(service) = setup().await else {
+    let Some(service) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("roles");
@@ -143,7 +143,7 @@ async fn role_provider_assign_and_revoke_are_idempotent() {
 
 #[tokio::test]
 async fn role_provider_lists_by_role_and_ignores_unknown_roles() {
-    let Some(service) = setup().await else {
+    let Some(service) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("byrole");
@@ -169,7 +169,7 @@ async fn role_provider_lists_by_role_and_ignores_unknown_roles() {
 
 #[tokio::test]
 async fn missing_user_maps_to_user_not_found() {
-    let Some(service) = setup().await else {
+    let Some(service) = setup_or_skip().await else {
         return;
     };
     let ghost = UserId::new(Uuid::new_v4().to_string());

@@ -10,7 +10,7 @@ struct Ctx {
     service: UserService,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -33,7 +33,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn create_then_find_by_id_email_name() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("usvc");
@@ -76,7 +76,7 @@ async fn create_then_find_by_id_email_name() {
 
 #[tokio::test]
 async fn find_by_id_unknown_returns_none() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let missing = UserId::new(format!("missing-{}", Uuid::new_v4()));
@@ -86,7 +86,7 @@ async fn find_by_id_unknown_returns_none() {
 
 #[tokio::test]
 async fn update_fields_persist() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("uupd");
@@ -133,7 +133,7 @@ async fn update_fields_persist() {
 
 #[tokio::test]
 async fn update_all_fields_replaces_state() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("uall");
@@ -166,7 +166,7 @@ async fn update_all_fields_replaces_state() {
 
 #[tokio::test]
 async fn assign_roles_persists() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("urole");
@@ -189,7 +189,7 @@ async fn assign_roles_persists() {
 
 #[tokio::test]
 async fn delete_removes_user() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("udel");
@@ -211,7 +211,7 @@ async fn delete_removes_user() {
 
 #[tokio::test]
 async fn create_anonymous_then_flagged_temporary() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let fingerprint = format!("fp-{}", Uuid::new_v4());

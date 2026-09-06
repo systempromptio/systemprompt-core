@@ -72,6 +72,14 @@ pub async fn get_or_create_admin(
     email: &str,
     context_type: &str,
 ) -> Result<systemprompt_users::User> {
+    // Why: this path provisions a user and assigns it `admin`, so an
+    // unvalidated string would become an admin identity. Validate before any
+    // lookup or write, not after.
+    let email = Email::try_new(email).map_err(|e| {
+        anyhow::anyhow!("refusing to provision an admin for an invalid address: {e}")
+    })?;
+    let email = email.as_str();
+
     let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
 
     if let Some(user) = user_service
@@ -212,9 +220,8 @@ pub async fn resolve_local_admin(
     Ok(user)
 }
 
-pub(super) async fn resolve_credentialed_user_email(
-    session_email_hint: Option<&str>,
-) -> Result<Email> {
+#[doc(hidden)]
+pub async fn resolve_credentialed_user_email(session_email_hint: Option<&str>) -> Result<Email> {
     if let Some(email) = session_email_hint {
         return Email::try_new(email).context("session email hint is not a valid email address");
     }
@@ -232,7 +239,8 @@ pub(super) async fn resolve_credentialed_user_email(
     Ok(creds.user_email.clone())
 }
 
-pub(super) async fn resolve_admin_with_fallback(
+#[doc(hidden)]
+pub async fn resolve_admin_with_fallback(
     db_pool: &DbPool,
     user_email: &str,
     session_email_hint: Option<&str>,

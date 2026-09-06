@@ -25,7 +25,7 @@ use systemprompt_models::{
 use tokio::sync::mpsc;
 
 use super::a2a_helpers::{StubAiProvider, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 #[derive(Debug, Default)]
 struct RecordingBroadcaster {
@@ -107,12 +107,12 @@ impl Default for LoopSpec<'_> {
     }
 }
 
-async fn spawn_loop() -> Option<Loop> {
-    spawn_loop_with(LoopSpec::default()).await
+async fn spawn_loop_or_skip() -> Option<Loop> {
+    spawn_loop_with_or_skip(LoopSpec::default()).await
 }
 
-async fn spawn_loop_with(spec: LoopSpec<'_>) -> Option<Loop> {
-    let pool = try_pool().await?;
+async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
+    let pool = try_pool_or_skip().await?;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -175,7 +175,7 @@ fn recorded_for(entries: &Mutex<Vec<String>>, task_id: &TaskId) -> Vec<String> {
 #[tokio::test]
 async fn process_events_completion_path_persists_and_broadcasts() {
     let rec = recorder();
-    let Some(mut ctx) = spawn_loop().await else {
+    let Some(mut ctx) = spawn_loop_or_skip().await else {
         return;
     };
 
@@ -218,7 +218,7 @@ async fn process_events_completion_path_persists_and_broadcasts() {
 #[tokio::test]
 async fn process_events_error_path_fails_task_and_broadcasts() {
     let rec = recorder();
-    let Some(mut ctx) = spawn_loop().await else {
+    let Some(mut ctx) = spawn_loop_or_skip().await else {
         return;
     };
 
@@ -254,7 +254,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
 #[tokio::test]
 async fn process_events_broadcasts_tool_and_step_events() {
     let rec = recorder();
-    let Some(ctx) = spawn_loop().await else {
+    let Some(ctx) = spawn_loop_or_skip().await else {
         return;
     };
 
@@ -313,7 +313,7 @@ async fn process_events_broadcasts_tool_and_step_events() {
 #[tokio::test]
 async fn completion_with_an_empty_agent_name_aborts_before_persistence() {
     let rec = recorder();
-    let Some(ctx) = spawn_loop_with(LoopSpec {
+    let Some(ctx) = spawn_loop_with_or_skip(LoopSpec {
         agent_name: "",
         ..LoopSpec::default()
     })
@@ -360,7 +360,7 @@ async fn completion_with_an_empty_agent_name_aborts_before_persistence() {
 #[tokio::test]
 async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
     let rec = recorder();
-    let Some(ctx) = spawn_loop_with(LoopSpec {
+    let Some(ctx) = spawn_loop_with_or_skip(LoopSpec {
         persist_task_row: false,
         ..LoopSpec::default()
     })

@@ -1,9 +1,9 @@
-use super::try_pool;
+use super::try_pool_or_skip;
 use systemprompt_agent::repository::A2ARepositories;
 
 #[tokio::test]
 async fn new_constructs_all_sub_repositories() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = A2ARepositories::new(
@@ -23,7 +23,7 @@ async fn new_constructs_all_sub_repositories() {
 
 #[tokio::test]
 async fn debug_format_contains_type_name() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let repos = A2ARepositories::new(

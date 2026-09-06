@@ -5,6 +5,7 @@ mod extract_live;
 mod rbac;
 mod rbac_authz_request;
 mod rbac_context;
+mod rbac_jwt_checks;
 mod rbac_live;
 mod rbac_proxy;
 mod session_manager_error;

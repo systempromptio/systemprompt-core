@@ -43,15 +43,7 @@ impl AgentMonitor {
         let status = self.db_service.get_status(agent_name).await?;
 
         match status {
-            crate::services::agent_orchestration::AgentStatus::Running { pid, port } => {
-                if !process::process_exists(pid) {
-                    return Ok(HealthCheckResult {
-                        healthy: false,
-                        message: format!("Process {} no longer exists", pid),
-                        response_time_ms: 0,
-                    });
-                }
-
+            crate::services::agent_orchestration::AgentStatus::Running { port, .. } => {
                 match perform_tcp_health_check("127.0.0.1", port).await {
                     Ok(result) => Ok(result),
                     Err(e) => Ok(HealthCheckResult {
@@ -77,17 +69,12 @@ impl AgentMonitor {
 
         for (agent_id, status) in agents {
             match status {
-                crate::services::agent_orchestration::AgentStatus::Running { pid, port } => {
-                    if process::process_exists(pid) {
-                        let health_result = perform_tcp_health_check("127.0.0.1", port).await?;
-                        if health_result.healthy {
-                            report.healthy.push(agent_id);
-                        } else {
-                            report.unhealthy.push(agent_id);
-                        }
+                crate::services::agent_orchestration::AgentStatus::Running { port, .. } => {
+                    let health_result = perform_tcp_health_check("127.0.0.1", port).await?;
+                    if health_result.healthy {
+                        report.healthy.push(agent_id);
                     } else {
-                        self.db_service.mark_failed(&agent_id).await?;
-                        report.failed.push(agent_id);
+                        report.unhealthy.push(agent_id);
                     }
                 },
                 crate::services::agent_orchestration::AgentStatus::Failed { .. } => {

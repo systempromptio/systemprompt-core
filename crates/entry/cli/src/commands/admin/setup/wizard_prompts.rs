@@ -23,7 +23,8 @@ use systemprompt_logging::CliService;
 use super::common::PostgresConfig;
 use super::{SetupArgs, postgres, secrets};
 
-pub(super) fn get_environment_name(
+#[doc(hidden)]
+pub fn get_environment_name(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
@@ -44,7 +45,8 @@ pub(super) fn get_environment_name(
     Ok(input.trim().to_lowercase())
 }
 
-pub(super) fn resolve_admin_email(
+#[doc(hidden)]
+pub fn resolve_admin_email(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
@@ -104,7 +106,8 @@ pub(super) fn collect_secrets(
     secrets::collect_non_interactive(args, config)
 }
 
-pub(super) fn should_run_migrations(
+#[doc(hidden)]
+pub fn should_run_migrations(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
@@ -122,7 +125,8 @@ pub(super) fn should_run_migrations(
     prompter.confirm("Run database migrations now?", true)
 }
 
-pub(super) fn detect_project_root() -> Result<PathBuf> {
+#[doc(hidden)]
+pub fn detect_project_root() -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("Failed to get current directory")?;
 
     let indicators = ["Cargo.toml", "services", ".systemprompt", "core"];

@@ -12,7 +12,7 @@ struct Ctx {
     users: UserService,
 }
 
-async fn setup() -> Option<Ctx> {
+async fn setup_or_skip() -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -35,7 +35,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn find_user_resolves_id_email_and_name() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("lookup");
@@ -82,7 +82,7 @@ async fn find_user_resolves_id_email_and_name() {
 
 #[tokio::test]
 async fn promote_grants_admin_then_reports_already_admin() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("promote");
@@ -115,7 +115,7 @@ async fn promote_grants_admin_then_reports_already_admin() {
 
 #[tokio::test]
 async fn demote_removes_admin_and_keeps_user_role() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let (name, email) = unique("demote");
@@ -144,7 +144,7 @@ async fn demote_removes_admin_and_keeps_user_role() {
 
 #[tokio::test]
 async fn promote_and_demote_report_missing_users() {
-    let Some(ctx) = setup().await else {
+    let Some(ctx) = setup_or_skip().await else {
         return;
     };
     let ghost = format!("ghost-{}@adm.invalid", Uuid::new_v4().simple());

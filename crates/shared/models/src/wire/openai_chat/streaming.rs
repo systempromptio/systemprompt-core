@@ -12,9 +12,22 @@ use futures_util::stream::{self, BoxStream, Stream, StreamExt};
 use serde_json::Value;
 use systemprompt_identifiers::MessageId;
 
-use crate::wire::canonical::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
+use super::stream_delta::{
+    OpenAiChatStreamState, close_reasoning, process_reasoning_delta, process_text_delta,
+    process_tool_calls,
 };
+use crate::wire::canonical::{
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
+};
+
+// Why: the codec has to act on the end of the upstream stream, not only on
+// its frames -- a turn whose `finish_reason` was seen but whose usage chunk
+// never arrived still has to state its terminal. `scan` cannot observe the
+// end, so the end is made a frame.
+enum Frame {
+    Chunk(Result<Bytes, String>),
+    Eof,
+}
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
@@ -29,19 +42,28 @@ where
         model: fallback_model,
         message_id: MessageId::new(""),
         started: false,
-        text_block_open: false,
+        text_block: None,
         next_index: 0,
         tool_calls: Vec::new(),
+        reasoning_block: None,
+        saw_tool_call: false,
+        stopped: false,
+        pending_finish: None,
     };
 
     let s = stream
-        .map(|chunk| chunk.map_err(|e| e.to_string()))
+        .map(|chunk| match chunk {
+            Ok(bytes) => Frame::Chunk(Ok(bytes)),
+            Err(e) => Frame::Chunk(Err(e.to_string())),
+        })
+        .chain(stream::once(futures_util::future::ready(Frame::Eof)))
         .scan(initial, |state, item| {
             let res = match item {
-                Ok(bytes) => Some(drain_buffer(state, &bytes)),
-                Err(e) => Some(vec![Err(e)]),
+                Frame::Chunk(Ok(bytes)) => drain_buffer(state, &bytes),
+                Frame::Chunk(Err(e)) => vec![Err(e)],
+                Frame::Eof => flush(state),
             };
-            futures_util::future::ready(res)
+            futures_util::future::ready(Some(res))
         })
         .flat_map(stream::iter);
     s.boxed()
@@ -61,14 +83,10 @@ fn drain_buffer(
                 continue;
             };
             if data.trim() == "[DONE]" {
-                if state.text_block_open {
-                    events.push(Ok(CanonicalEvent::ContentBlockStop { index: 0 }));
-                    state.text_block_open = false;
-                }
-                events.push(Ok(CanonicalEvent::MessageStop {
-                    id: state.message_id.as_str().to_owned(),
-                    stop_reason: Some(CanonicalStopReason::EndTurn),
-                }));
+                // Why: the sentinel is itself a statement that the turn ended,
+                // so a wire that sent no finish reason at all still stops here
+                // -- some OpenAI-compatible proxies never send one.
+                flush_into(state, &mut events, Some("stop"));
                 continue;
             }
             let Ok(value) = serde_json::from_str::<Value>(data) else {
@@ -80,11 +98,53 @@ fn drain_buffer(
     events
 }
 
+// Why: a stream that ended without `[DONE]` still stated a finish reason on
+// its last content chunk, and a turn that never stated one at all is a
+// truncation the gateway reports separately -- so the flush states only what
+// the wire actually said.
+fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, String>> {
+    let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
+    flush_into(state, &mut events, None);
+    events
+}
+
+fn flush_into(
+    state: &mut OpenAiChatStreamState,
+    events: &mut Vec<Result<CanonicalEvent, String>>,
+    default_reason: Option<&str>,
+) {
+    if state.stopped {
+        return;
+    }
+    // Why: at a bare end of stream `default_reason` is None -- a turn that
+    // stated no reason and never reached the sentinel was cut off, and
+    // inventing a terminal here would hide the truncation the gateway reports.
+    let Some(finish) = state
+        .pending_finish
+        .take()
+        .or_else(|| default_reason.map(str::to_owned))
+    else {
+        return;
+    };
+    emit_message_stop(state, &finish, events);
+}
+
 fn handle_chunk(
     state: &mut OpenAiChatStreamState,
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
+    // Why: chat completions reports a mid-stream failure as an `{"error":
+    // ...}` chunk with no `choices`, which every branch below skips -- the
+    // stream then reached `[DONE]` (or simply ended) with the failure dropped.
+    if let Some(message) = crate::wire::sse::upstream_error_message(value) {
+        events.push(Ok(CanonicalEvent::Error(message)));
+        // Why: `[DONE]` still follows the error frame, and the sentinel
+        // synthesises a `stop` terminal -- which would report the failed turn
+        // as a clean finish to the client and to the audit.
+        state.stopped = true;
+        return;
+    }
     if !state.started {
         emit_message_start(state, value, events);
     }
@@ -99,10 +159,20 @@ fn handle_chunk(
         return;
     };
     let delta = choice.get("delta").unwrap_or(&Value::Null);
+    process_reasoning_delta(state, delta, events);
     process_text_delta(state, delta, events);
     process_tool_calls(state, delta, events);
-    if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str) {
-        emit_message_stop(state, finish, events);
+    // Why: Chat Completions sends usage in a chunk of its own AFTER the one
+    // carrying `finish_reason`, so a terminal emitted on sight of the finish
+    // reason ends the canonical turn before its own counts arrive -- every
+    // inbound surface then renders the turn with zeroed usage and the real
+    // numbers, which the audit records, never reach the caller. The reason is
+    // held until the stream states its end.
+    if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str)
+        && !state.stopped
+        && state.pending_finish.is_none()
+    {
+        state.pending_finish = Some(finish.to_owned());
     }
 }
 
@@ -131,141 +201,49 @@ fn emit_message_start(
     state.started = true;
 }
 
-fn process_text_delta(
-    state: &mut OpenAiChatStreamState,
-    delta: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) {
-    let Some(text) = delta.get("content").and_then(Value::as_str) else {
-        return;
-    };
-    if text.is_empty() {
-        return;
-    }
-    if !state.text_block_open {
-        events.push(Ok(CanonicalEvent::ContentBlockStart {
-            index: 0,
-            block: ContentBlockKind::Text,
-        }));
-        state.text_block_open = true;
-        if state.next_index == 0 {
-            state.next_index = 1;
-        }
-    }
-    events.push(Ok(CanonicalEvent::TextDelta {
-        index: 0,
-        text: text.to_owned(),
-    }));
-}
-
-fn process_tool_calls(
-    state: &mut OpenAiChatStreamState,
-    delta: &Value,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) {
-    let Some(tool_calls) = delta.get("tool_calls").and_then(Value::as_array) else {
-        return;
-    };
-    for tc in tool_calls {
-        let provider_index = tc.get("index").and_then(Value::as_i64).unwrap_or(-1);
-        let existing = state
-            .tool_calls
-            .iter()
-            .find(|p| p.provider_index == provider_index)
-            .map(|p| p.index);
-        let canonical_index =
-            existing.unwrap_or_else(|| open_new_tool_call(state, tc, provider_index, events));
-        if let Some(args) = tc
-            .get("function")
-            .and_then(|f| f.get("arguments"))
-            .and_then(Value::as_str)
-            && !args.is_empty()
-        {
-            events.push(Ok(CanonicalEvent::ToolUseDelta {
-                index: canonical_index,
-                partial_json: args.to_owned(),
-            }));
-        }
-    }
-}
-
-fn open_new_tool_call(
-    state: &mut OpenAiChatStreamState,
-    tc: &Value,
-    provider_index: i64,
-    events: &mut Vec<Result<CanonicalEvent, String>>,
-) -> u32 {
-    let idx = state.next_index;
-    state.next_index += 1;
-    let id = tc
-        .get("id")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_owned();
-    let name = tc
-        .get("function")
-        .and_then(|f| f.get("name"))
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_owned();
-    events.push(Ok(CanonicalEvent::ContentBlockStart {
-        index: idx,
-        block: ContentBlockKind::ToolUse {
-            id,
-            name,
-            signature: None,
-        },
-    }));
-    state.tool_calls.push(ToolCallProgress {
-        index: idx,
-        provider_index,
-    });
-    idx
-}
-
 fn emit_message_stop(
     state: &mut OpenAiChatStreamState,
     finish: &str,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
-    if state.text_block_open {
-        events.push(Ok(CanonicalEvent::ContentBlockStop { index: 0 }));
-        state.text_block_open = false;
+    state.stopped = true;
+    close_reasoning(state, events);
+    if let Some(index) = state.text_block.take() {
+        events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
     }
     for tc in state.tool_calls.drain(..) {
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: tc.index }));
     }
     events.push(Ok(CanonicalEvent::MessageStop {
         id: state.message_id.as_str().to_owned(),
-        stop_reason: Some(CanonicalStopReason::from_openai(finish)),
+        stop_reason: Some(
+            CanonicalStopReason::from_openai(finish).with_tool_use(state.saw_tool_call),
+        ),
     }));
 }
 
 fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
     let field = |name: &str| usage.get(name).and_then(Value::as_u64).map(|v| v as u32);
+    let cached = usage
+        .get("prompt_tokens_details")
+        .and_then(|d| d.get("cached_tokens"))
+        .and_then(Value::as_u64)
+        .map(|v| v as u32);
+    // Why: `cached_tokens` is a subset of `prompt_tokens` here, but
+    // `CanonicalUsage::input_tokens` is exclusive of cache reads, so the
+    // streamed frame subtracts exactly as the buffered parse does.
     CanonicalUsageUpdate {
-        input_tokens: field("prompt_tokens"),
+        input_tokens: field("prompt_tokens").map(|input| input.saturating_sub(cached.unwrap_or(0))),
         output_tokens: field("completion_tokens"),
-        cache_read_tokens: usage
-            .get("prompt_tokens_details")
-            .and_then(|d| d.get("cached_tokens"))
+        cache_read_tokens: cached,
+        cache_creation_tokens: None,
+        total_tokens: field("total_tokens"),
+        // Why: already inside `completion_tokens` on this contract, so it is
+        // reported as a breakdown and never added to the total.
+        reasoning_tokens: usage
+            .get("completion_tokens_details")
+            .and_then(|d| d.get("reasoning_tokens"))
             .and_then(Value::as_u64)
             .map(|v| v as u32),
-        cache_creation_tokens: None,
     }
-}
-
-struct OpenAiChatStreamState {
-    buf: Vec<u8>,
-    model: String,
-    message_id: MessageId,
-    started: bool,
-    text_block_open: bool,
-    next_index: u32,
-    tool_calls: Vec<ToolCallProgress>,
-}
-
-struct ToolCallProgress {
-    index: u32,
-    provider_index: i64,
 }

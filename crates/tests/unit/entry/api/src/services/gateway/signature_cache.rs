@@ -28,7 +28,7 @@ struct Harness {
 }
 
 impl Harness {
-    async fn open() -> Option<Self> {
+    async fn open_or_skip() -> Option<Self> {
         let url = fixture_database_url().ok()?;
         let pool = fixture_db_pool(&url).await.ok()?;
         let repository = Arc::new(AiThoughtSignatureRepository::new(&pool).expect("repository"));
@@ -128,7 +128,7 @@ fn signature_of(request: &CanonicalRequest) -> Option<String> {
 
 #[tokio::test]
 async fn hydrate_injects_cached_signature_when_none() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let cache = h.cache();
@@ -141,7 +141,7 @@ async fn hydrate_injects_cached_signature_when_none() {
 
 #[tokio::test]
 async fn hydrate_passthrough_on_miss() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let cache = h.cache();
@@ -152,7 +152,7 @@ async fn hydrate_passthrough_on_miss() {
 
 #[tokio::test]
 async fn inbound_signature_wins_and_rewarms() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let cache = h.cache();
@@ -174,7 +174,7 @@ async fn inbound_signature_wins_and_rewarms() {
 
 #[tokio::test]
 async fn a_signature_stored_by_one_instance_is_found_by_another() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let conv = conv();
@@ -193,7 +193,7 @@ async fn a_signature_stored_by_one_instance_is_found_by_another() {
 
 #[tokio::test]
 async fn db_expiry_drops_entry_for_a_fresh_instance() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let conv = conv();
@@ -204,7 +204,7 @@ async fn db_expiry_drops_entry_for_a_fresh_instance() {
 
 #[tokio::test]
 async fn local_ttl_expiry_falls_through_to_the_database() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let conv = conv();
@@ -216,7 +216,7 @@ async fn local_ttl_expiry_falls_through_to_the_database() {
 
 #[tokio::test]
 async fn lookup_refreshes_ttl() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let conv = conv();
@@ -236,7 +236,7 @@ async fn lookup_refreshes_ttl() {
 
 #[tokio::test]
 async fn store_from_response_caches_only_signed_tool_use() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let cache = h.cache();
@@ -256,7 +256,7 @@ async fn store_from_response_caches_only_signed_tool_use() {
 
 #[tokio::test]
 async fn response_signatures_survive_a_stripped_replay() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let cache = h.cache();
@@ -274,7 +274,7 @@ async fn response_signatures_survive_a_stripped_replay() {
 
 #[tokio::test]
 async fn signatures_are_scoped_to_their_conversation() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let cache = h.cache();
@@ -289,7 +289,7 @@ async fn signatures_are_scoped_to_their_conversation() {
 
 #[tokio::test]
 async fn hydration_is_identical_for_every_wire() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     for wire in [
@@ -359,7 +359,7 @@ fn block_on_db(body: impl AsyncFnOnce(Harness)) {
         .build()
         .expect("runtime")
         .block_on(async {
-            if let Some(h) = Harness::open().await {
+            if let Some(h) = Harness::open_or_skip().await {
                 body(h).await;
             }
         });
@@ -462,7 +462,7 @@ fn uncacheable_response_records_only_when_signatures_are_present() {
 
 #[tokio::test]
 async fn cache_survives_a_poisoned_lock() {
-    let Some(h) = Harness::open().await else {
+    let Some(h) = Harness::open_or_skip().await else {
         return;
     };
     let cache = h.cache();

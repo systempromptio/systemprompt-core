@@ -4,6 +4,13 @@
 //! rows and the current migration sources for one or all extensions. Provides
 //! both the full-context and standalone (`DatabaseContext`-only) entry points.
 //!
+//! `--apply` re-executes the drifted SQL; `--reconcile-only --apply` rewrites
+//! the stored checksum and runs nothing — the only path that skips execution.
+//! The two report differently, because a bookkeeping-only run asserts the
+//! schema matches the file without checking. A reused migration slot is
+//! refused on every path, including the read-only report, so the dry run
+//! cannot say "nothing to repair" about a slot `--apply` would reject.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -83,6 +90,7 @@ async fn run_migrate_repair(
 
     let mut drift_rows: Vec<MigrationDriftInfo> = Vec::new();
     let mut migrations_run = 0usize;
+    let mut reapplied = 0usize;
 
     for ext in &extensions {
         let drift = if apply && reconcile_only {
@@ -97,12 +105,15 @@ async fn run_migrate_repair(
                 .await
                 .map_err(|e| anyhow!("Failed to repair migrations: {}", e))?;
             migrations_run += result.migrations_run;
+            reapplied += result.reapplied;
             result.repaired
         } else {
             let status = migration_service
                 .status(ext.as_ref())
                 .await
                 .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
+            MigrationService::refuse_slot_collisions(&status)
+                .map_err(|e| anyhow!("Cannot repair migrations: {}", e))?;
             status.drift
         };
         for d in drift {
@@ -126,6 +137,7 @@ async fn run_migrate_repair(
         applied: apply,
         reconcile_only,
         drift: drift_rows,
+        reapplied,
         migrations_run,
     };
 
@@ -145,8 +157,10 @@ fn render_repair_text(output: &MigrateRepairOutput) {
         return;
     }
 
-    let header = if output.applied {
-        "Repaired migration(s):"
+    let header = if output.applied && output.reconcile_only {
+        "Reconciled migration(s) (bookkeeping only, no SQL executed):"
+    } else if output.applied {
+        "Re-executed migration(s):"
     } else {
         "Drifted migration(s):"
     };
@@ -164,16 +178,16 @@ fn render_repair_text(output: &MigrateRepairOutput) {
     CliService::info("");
 
     if output.applied && output.reconcile_only {
-        CliService::success(&format!(
-            "Reconciled {} drifted migration(s): stored checksums rewritten, no SQL executed. \
-             Drift: 0",
+        CliService::warning(&format!(
+            "Bookkeeping only: rewrote the stored checksum of {} migration(s). NO SQL WAS \
+             EXECUTED, so the database schema was not checked against the edited files. Drift: 0",
             output.drift.len()
         ));
     } else if output.applied {
         CliService::success(&format!(
-            "Repaired {} drifted migration(s); {} migration(s) re-applied. Drift: 0",
-            output.drift.len(),
-            output.migrations_run
+            "Re-executed the SQL of {} drifted migration(s) and rewrote their stored checksums; \
+             {} previously-pending migration(s) also run. Drift: 0",
+            output.reapplied, output.migrations_run
         ));
     } else {
         CliService::warning(&format!(

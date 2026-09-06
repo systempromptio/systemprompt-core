@@ -6,6 +6,10 @@
 //! into a prompt — matches no pattern but still reads as machine-generated key
 //! material, and is reported under the pseudo-pattern id `high-entropy-token`.
 //!
+//! [`SignatureExemptions`] narrows the backstop: a provider-signed reasoning
+//! blob the client must echo back verbatim is not a credential, so the entropy
+//! detector is suppressed at those paths while every vendor pattern still runs.
+//!
 //! [`detect_secrets`] drives the `secret_scan` builtin policy;
 //! [`scan_str_for_secret`] is the string-level entry point shared with gateway
 //! safety scanners so every enforcement surface flags the same credentials.
@@ -15,6 +19,7 @@
 
 mod entropy;
 mod patterns;
+mod signatures;
 
 use std::sync::LazyLock;
 
@@ -24,6 +29,7 @@ use super::governed::GovernedInput;
 pub use entropy::{DEFAULT_MIN_LEN, DEFAULT_THRESHOLD, EntropyConfig, find_high_entropy_token};
 use patterns::HIGH_ENTROPY_PATTERN;
 pub use patterns::{SECRET_PATTERNS, SecretPattern};
+pub use signatures::SignatureExemptions;
 
 static DEFAULT_ENTROPY: LazyLock<EntropyConfig> = LazyLock::new(EntropyConfig::default);
 
@@ -54,15 +60,19 @@ fn redacted_snippet(s: &str, match_start: usize) -> String {
     format!("{}...[REDACTED]", &s[match_start..snippet_end])
 }
 
+fn scan_patterns(s: &str) -> Option<(&'static SecretPattern, String)> {
+    COMPILED.iter().find_map(|(i, re)| {
+        re.find(s)
+            .map(|m| (&SECRET_PATTERNS[*i], redacted_snippet(s, m.start())))
+    })
+}
+
 fn scan_str(s: &str, entropy: &EntropyConfig) -> Option<(&'static SecretPattern, String)> {
-    for (i, re) in COMPILED.iter() {
-        if let Some(m) = re.find(s) {
-            return Some((&SECRET_PATTERNS[*i], redacted_snippet(s, m.start())));
-        }
-    }
-    find_high_entropy_token(s, entropy).map(|token| {
-        let start = token.as_ptr() as usize - s.as_ptr() as usize;
-        (&HIGH_ENTROPY_PATTERN, redacted_snippet(s, start))
+    scan_patterns(s).or_else(|| {
+        find_high_entropy_token(s, entropy).map(|token| {
+            let start = token.as_ptr() as usize - s.as_ptr() as usize;
+            (&HIGH_ENTROPY_PATTERN, redacted_snippet(s, start))
+        })
     })
 }
 
@@ -88,8 +98,15 @@ pub fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
 
 #[must_use]
 pub fn detect_secrets_with(input: &GovernedInput, entropy: &EntropyConfig) -> Option<SecretHit> {
-    input.strings().into_iter().find_map(|s| {
-        scan_str(s.value, entropy).map(|(pattern, redacted)| SecretHit {
+    let strings = input.strings();
+    let exemptions = SignatureExemptions::from_strings(&strings);
+    strings.into_iter().find_map(|s| {
+        let found = if exemptions.exempts_entropy(&s.path) {
+            scan_patterns(s.value)
+        } else {
+            scan_str(s.value, entropy)
+        };
+        found.map(|(pattern, redacted)| SecretHit {
             pattern,
             path: s.path,
             redacted,

@@ -1,9 +1,10 @@
-use systemprompt_api::services::gateway::pricing::{CostTokens, cost_microdollars, resolve};
+use systemprompt_api::services::gateway::pricing::resolve;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
     ProviderRegistry, WireProtocol,
 };
+use systemprompt_test_fixtures::usage;
 
 fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
     GatewayRoute {
@@ -163,17 +164,8 @@ fn cost_microdollars_uses_per_million_units() {
         ..ModelPricing::default()
     };
     // 1M input * $1 + 1M output * $2 = $3 = 3_000_000 microdollars.
-    assert_eq!(
-        cost_microdollars(
-            p,
-            CostTokens {
-                input: 1_000_000,
-                output: 1_000_000,
-                ..CostTokens::default()
-            }
-        ),
-        3_000_000
-    );
+    let u = usage().input(1_000_000).output(1_000_000).build();
+    assert_eq!(p.cost_microdollars(&u), 3_000_000);
 }
 
 #[test]
@@ -195,7 +187,7 @@ fn cost_microdollars_zero_for_zero_tokens() {
         output_per_million: 5.0,
         ..ModelPricing::default()
     };
-    assert_eq!(cost_microdollars(p, CostTokens::default()), 0);
+    assert_eq!(p.cost_microdollars(&usage().build()), 0);
 }
 
 #[test]
@@ -206,44 +198,31 @@ fn cost_microdollars_rounds_to_nearest() {
         output_per_million: 0.0,
         ..ModelPricing::default()
     };
-    let input_only = |n| CostTokens {
-        input: n,
-        ..CostTokens::default()
-    };
-    assert_eq!(cost_microdollars(p, input_only(1)), 1);
-    assert_eq!(cost_microdollars(p, input_only(500_000)), 500_000);
+    let input_only = |n| usage().input(n).build();
+    assert_eq!(p.cost_microdollars(&input_only(1)), 1);
+    assert_eq!(p.cost_microdollars(&input_only(500_000)), 500_000);
 }
 
-/// The Claude Code shape: a large cached system prompt means cache reads
-/// dominate the token mix, so pricing on `input + output` alone reports a
-/// fraction of the real bill.
 #[test]
 fn cost_microdollars_prices_cache_tokens_at_their_own_rates() {
     let p = ModelPricing {
         input_per_million: 5.0,
         output_per_million: 25.0,
-        cache_read_per_million: 0.5,
-        cache_write_per_million: 6.25,
+        cache_read_per_million: Some(0.5),
+        cache_write_per_million: Some(6.25),
         per_image_cents: None,
     };
-    let tokens = CostTokens {
-        input: 1_000,
-        output: 2_000,
-        cache_read: 100_000,
-        cache_creation: 10_000,
-    };
+    let tokens = usage()
+        .input(1_000)
+        .output(2_000)
+        .cache_read(100_000)
+        .cache_creation(10_000)
+        .build();
     // Per million: 1k*$5 + 2k*$25 + 100k*$0.50 + 10k*$6.25, in microdollars.
     let expected = 5_000 + 50_000 + 50_000 + 62_500;
-    assert_eq!(cost_microdollars(p, tokens), expected);
+    assert_eq!(p.cost_microdollars(&tokens), expected);
 
-    let without_cache = cost_microdollars(
-        p,
-        CostTokens {
-            cache_read: 0,
-            cache_creation: 0,
-            ..tokens
-        },
-    );
+    let without_cache = p.cost_microdollars(&usage().input(1_000).output(2_000).build());
     assert_eq!(without_cache, 55_000);
     assert!(
         without_cache * 2 < expected,
@@ -269,4 +248,132 @@ fn is_billable_rejects_zeroed_token_rates_but_accepts_image_pricing() {
         }
         .is_billable()
     );
+}
+
+#[test]
+fn a_reasoning_only_gemini_turn_is_billed_for_its_thinking() {
+    // The live defect this pins: max_tokens 200 on gemini-2.5-flash, the whole
+    // budget spent thinking, six tokens of visible answer. Before the wire
+    // folded thoughtsTokenCount into output_tokens the turn billed for six.
+    let value = serde_json::json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": "ok"}]},
+            "finishReason": "MAX_TOKENS"
+        }],
+        "usageMetadata": {
+            "promptTokenCount": 27,
+            "candidatesTokenCount": 6,
+            "thoughtsTokenCount": 194,
+            "totalTokenCount": 227
+        }
+    });
+    let parsed = systemprompt_models::wire::gemini::parse_response(&value, "gemini-2.5-flash")
+        .expect("fixture parses")
+        .usage;
+    let p = ModelPricing {
+        input_per_million: 1.0,
+        output_per_million: 10.0,
+        ..ModelPricing::default()
+    };
+    // 27 input @ $1/M = 27 microdollars; 200 output (6 visible + 194 thinking)
+    // @ $10/M = 2000 microdollars.
+    assert_eq!(p.cost_microdollars(&parsed), 2_027);
+    assert_eq!(parsed.reasoning_tokens, 194);
+}
+
+#[test]
+fn reasoning_tokens_are_never_added_to_cost_a_second_time() {
+    // OpenAI already counts reasoning inside completion_tokens, so the same
+    // pricing arithmetic must charge 106 output tokens, not 206.
+    let value = serde_json::json!({
+        "id": "resp_r",
+        "model": "o4-mini",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": "42"}}],
+        "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 106,
+            "completion_tokens_details": {"reasoning_tokens": 100}
+        }
+    });
+    let parsed = systemprompt_models::wire::openai_chat::parse_response(&value, "o4-mini")
+        .expect("fixture parses")
+        .usage;
+    let p = ModelPricing {
+        output_per_million: 1_000_000.0,
+        ..ModelPricing::default()
+    };
+    assert_eq!(parsed.reasoning_tokens, 100);
+    assert_eq!(
+        p.cost_microdollars(&usage().output(parsed.output_tokens).build()),
+        106_000_000
+    );
+}
+
+#[test]
+fn a_cached_openai_turn_bills_the_cached_slice_once_at_the_cache_rate() {
+    let value = serde_json::json!({
+        "id": "resp_c",
+        "model": "gpt-4.1-mini",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": "hi"}}],
+        "usage": {
+            "prompt_tokens": 1_000,
+            "completion_tokens": 0,
+            "prompt_tokens_details": {"cached_tokens": 800}
+        }
+    });
+    let parsed = systemprompt_models::wire::openai_chat::parse_response(&value, "gpt-4.1-mini")
+        .expect("fixture parses")
+        .usage;
+    assert_eq!(
+        parsed.input_tokens + parsed.cache_read_tokens,
+        1_000,
+        "input must be exclusive of the cached slice"
+    );
+
+    let p = ModelPricing {
+        input_per_million: 10.0,
+        cache_read_per_million: Some(1.0),
+        ..ModelPricing::default()
+    };
+    // 200 uncached @ $10/M = 2000; 800 cached @ $1/M = 800.
+    assert_eq!(p.cost_microdollars(&parsed), 2_800);
+
+    let double_billed = p.cost_microdollars(
+        &usage()
+            .input(1_000)
+            .cache_read(parsed.cache_read_tokens)
+            .build(),
+    );
+    assert!(
+        double_billed > p.cost_microdollars(&parsed),
+        "the disjoint mapping over-charges: {double_billed} vs 2800"
+    );
+}
+
+#[test]
+fn an_unknown_provider_costs_nothing_rather_than_a_fabricated_rate() {
+    let p = resolve(
+        "some-new-provider",
+        &["mystery-model"],
+        None,
+        &ProviderRegistry::default(),
+    );
+    let u = usage().input(1_000_000).output(1_000_000).build();
+    assert_eq!(
+        p.cost_microdollars(&u),
+        0,
+        "an unpriced provider must bill zero, never an invented $1/$1 rate"
+    );
+}
+
+#[test]
+fn tokens_used_is_billable_total_on_every_path() {
+    let u = usage()
+        .input(10)
+        .output(20)
+        .cache_read(30)
+        .cache_creation(40)
+        .reasoning(15)
+        .build();
+    assert_eq!(u.billable_total(), 100);
 }

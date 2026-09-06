@@ -8,8 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
-use systemprompt_database::MigrationService;
 use systemprompt_database::services::DatabaseProvider;
+use systemprompt_database::{ExtensionMigrationStatus, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
@@ -18,7 +18,9 @@ use crate::cli_settings::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
-use super::types::{MigrateStatusOutput, MigrateStatusRow, MigrationDriftInfo};
+use super::types::{
+    MigrateStatusOutput, MigrateStatusRow, MigrationCollisionInfo, MigrationDriftInfo,
+};
 
 pub(super) async fn execute_migrate_status(
     ctx: &AppContext,
@@ -67,59 +69,90 @@ async fn run_migrate_status(
     Ok(())
 }
 
+// Why: one label per applied slot, most specific first. A tracked tombstone is
+// a spent slot, a collision is a reused one, an orphan has no file on disk,
+// drift is an edited file; "applied" only when none of those hold.
+fn status_label(status: &ExtensionMigrationStatus, version: u32) -> &'static str {
+    if status.tombstoned.iter().any(|t| t.version == version) {
+        "tombstone"
+    } else if status.slot_collisions.iter().any(|c| c.version == version) {
+        "collision"
+    } else if status.orphaned.iter().any(|o| o.version == version) {
+        "orphaned"
+    } else if status.drift.iter().any(|d| d.version == version) {
+        "drift"
+    } else {
+        "applied"
+    }
+}
+
+fn rows_for(status: &ExtensionMigrationStatus) -> Vec<MigrateStatusRow> {
+    let row =
+        |version: u32, name: &str, label: &str, applied_at: Option<String>| MigrateStatusRow {
+            extension_id: status.extension_id.clone(),
+            version,
+            name: name.to_owned(),
+            status: label.to_owned(),
+            applied_at,
+        };
+    let applied = status.applied.iter().map(|a| {
+        row(
+            a.version,
+            &a.name,
+            status_label(status, a.version),
+            a.applied_at.clone(),
+        )
+    });
+    let untracked_tombstones = status
+        .tombstoned
+        .iter()
+        .filter(|t| !t.tracked)
+        .map(|t| row(t.version, &t.name, "tombstone", None));
+    let pending = status
+        .pending
+        .iter()
+        .map(|p| row(p.version, &p.name, "pending", None));
+    applied.chain(untracked_tombstones).chain(pending).collect()
+}
+
 async fn collect_status(
     extensions: &[std::sync::Arc<dyn systemprompt_extension::Extension>],
     migration_service: &MigrationService<'_>,
 ) -> Result<MigrateStatusOutput> {
     let mut rows: Vec<MigrateStatusRow> = Vec::new();
     let mut drift_rows: Vec<MigrationDriftInfo> = Vec::new();
+    let mut collision_rows: Vec<MigrationCollisionInfo> = Vec::new();
     let mut total_applied = 0usize;
     let mut total_pending = 0usize;
+    let mut total_orphaned = 0usize;
 
     for ext in extensions {
         let status = migration_service
             .status(ext.as_ref())
             .await
             .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
-
-        let drift_versions: std::collections::HashSet<u32> =
-            status.drift.iter().map(|d| d.version).collect();
-
-        for a in &status.applied {
-            let label = if drift_versions.contains(&a.version) {
-                "drift"
-            } else {
-                "applied"
-            };
-            rows.push(MigrateStatusRow {
-                extension_id: status.extension_id.clone(),
-                version: a.version,
-                name: a.name.clone(),
-                status: label.to_owned(),
-                applied_at: a.applied_at.clone(),
-            });
-        }
-        for p in &status.pending {
-            rows.push(MigrateStatusRow {
-                extension_id: status.extension_id.clone(),
-                version: p.version,
-                name: p.name.clone(),
-                status: "pending".to_owned(),
-                applied_at: None,
-            });
-        }
-        for d in status.drift {
-            drift_rows.push(MigrationDriftInfo {
-                extension_id: d.extension_id,
-                version: d.version,
-                name: d.name,
-                stored_checksum: d.stored_checksum,
-                current_checksum: d.current_checksum,
-            });
-        }
-
+        rows.extend(rows_for(&status));
         total_applied += status.applied.len();
         total_pending += status.pending.len();
+        total_orphaned += status.orphaned.len();
+        collision_rows.extend(
+            status
+                .slot_collisions
+                .into_iter()
+                .map(|c| MigrationCollisionInfo {
+                    extension_id: c.extension_id,
+                    version: c.version,
+                    stored_name: c.stored_name,
+                    current_name: c.current_name,
+                }),
+        );
+        drift_rows.extend(status.drift.into_iter().map(|d| MigrationDriftInfo {
+            extension_id: d.extension_id,
+            version: d.version,
+            name: d.name,
+            stored_checksum: d.stored_checksum,
+            current_checksum: d.current_checksum,
+        }));
     }
 
     rows.sort_by(|a, b| {
@@ -129,19 +162,27 @@ async fn collect_status(
     });
 
     let total_drift = drift_rows.len();
+    let total_collisions = collision_rows.len();
     Ok(MigrateStatusOutput {
         rows,
         drift: drift_rows,
+        collisions: collision_rows,
         total_applied,
         total_pending,
         total_drift,
+        total_collisions,
+        total_orphaned,
     })
 }
 
 fn render_status_text(output: &MigrateStatusOutput) {
     CliService::info(&format!(
-        "Applied: {} | Pending: {} | Drift: {}",
-        output.total_applied, output.total_pending, output.total_drift
+        "Applied: {} | Pending: {} | Drift: {} | Collisions: {} | Orphaned: {}",
+        output.total_applied,
+        output.total_pending,
+        output.total_drift,
+        output.total_collisions,
+        output.total_orphaned
     ));
     CliService::info("");
     CliService::info(&format!(
@@ -153,6 +194,32 @@ fn render_status_text(output: &MigrateStatusOutput) {
         CliService::info(&format!(
             "  {:<24} {:>7} {:<32} {:<10} {}",
             r.extension_id, r.version, r.name, r.status, applied_at
+        ));
+    }
+
+    if !output.collisions.is_empty() {
+        CliService::info("");
+        CliService::warning(&format!(
+            "{} migration slot(s) were reused — the recorded row and the file on disk are \
+             different migrations. This is not drift and must not be repaired; renumber the new \
+             file above every used slot and leave a `NNN_<name>.tombstone` behind.",
+            output.total_collisions
+        ));
+        for c in &output.collisions {
+            CliService::info(&format!(
+                "  {} v{:03}: recorded='{}' file='{}'",
+                c.extension_id, c.version, c.stored_name, c.current_name
+            ));
+        }
+    }
+
+    if output.total_orphaned > 0 {
+        CliService::info("");
+        CliService::warning(&format!(
+            "{} applied migration(s) are no longer declared by their extension. The files were \
+             deleted without leaving a tombstone, so those numbers look free but are spent. Add a \
+             `NNN_<name>.tombstone` beside the remaining migrations to record each one.",
+            output.total_orphaned
         ));
     }
 

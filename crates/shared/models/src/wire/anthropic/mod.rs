@@ -20,8 +20,8 @@ pub use headers::{
     is_forwardable_request_header, is_identity_request_header, recordable_header_value,
     strip_user_id,
 };
-pub use parse::parse_response;
-pub use sse::events_from_sse;
+pub use parse::{buffered_defect, parse_response};
+pub use sse::AnthropicStreamState;
 
 // JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};

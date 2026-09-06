@@ -154,3 +154,27 @@ fn select_profile_tenant_picks_clone() {
     let picked = select_tenant(&scripted(&["0"]), &tenants).expect("pick");
     assert_eq!(picked.name, "alpha");
 }
+
+// Why: `resolve_tenant_id` falls back to the active profile's configured
+// tenant, so the no-tenant refusal is the one an operator actually hits when
+// they forget `--tenant` on a local profile.
+#[test]
+fn an_explicit_tenant_flag_is_taken_as_given() {
+    let id = systemprompt_cli::cloud::tenant::resolve_tenant_id(Some("tenant_abc".to_owned()))
+        .expect("an explicit id needs no profile at all");
+
+    assert_eq!(id.as_str(), "tenant_abc");
+}
+
+#[test]
+fn a_profile_with_no_tenant_refuses_and_names_the_flag_that_supplies_one() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+
+    let err = systemprompt_cli::cloud::tenant::resolve_tenant_id(None)
+        .expect_err("a local profile configures no tenant");
+
+    assert!(
+        format!("{err:#}").contains("--tenant"),
+        "the refusal must name the flag, got: {err:#}"
+    );
+}

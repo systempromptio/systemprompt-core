@@ -4,17 +4,28 @@
 //! reaches target shape from the structural/dependent DDL alone, so its
 //! migrations carry no information and must not execute. [`MigrationService::
 //! assess_freshness`] decides, before any DDL has run, whether an extension is
-//! landing on a fresh database; [`MigrationService::stamp_all_migrations`]
-//! then records every defined migration in `extension_migrations` without
-//! executing its SQL. Established databases (any tracking history, or any
-//! owned table already present) take the normal incremental path.
+//! landing on a fresh database; [`MigrationService::baseline_stamp_rows`] then
+//! yields the `extension_migrations` rows recording every defined migration as
+//! applied, which the installer commits alongside the structural DDL rather
+//! than executing their SQL. Established databases (any tracking history, or
+//! any owned table already present) take the normal incremental path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
 use systemprompt_extension::{Extension, LoaderError};
-use tracing::{info, warn};
+use tracing::warn;
+
+/// One `extension_migrations` row recording a migration as applied without
+/// having executed it.
+#[derive(Debug, Clone)]
+pub struct BaselineStamp {
+    pub id: String,
+    pub version: u32,
+    pub name: String,
+    pub checksum: String,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct FreshnessCheck {
@@ -80,66 +91,29 @@ impl MigrationService<'_> {
         Ok(check)
     }
 
-    pub async fn stamp_all_migrations(
-        &self,
-        extension: &dyn Extension,
-    ) -> Result<u32, LoaderError> {
+    // Why: the rows only, executed by the caller — the installer commits them
+    // in the same transaction as the extension's structural DDL. Stamping in a
+    // transaction of its own left a window in which the tables existed and the
+    // baseline did not, and a database in that state is no longer fresh: the
+    // next install calls it established and executes migration SQL written for
+    // a schema shape the declarative baseline has already moved past.
+    #[must_use]
+    pub fn baseline_stamp_rows(extension: &dyn Extension) -> Vec<BaselineStamp> {
         let ext_id = extension.metadata().id;
-        let migrations = extension.migrations();
-
-        if migrations.is_empty() {
-            return Ok(0);
-        }
-
-        let mut tx =
-            self.db
-                .begin_transaction()
-                .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!("Failed to begin baseline stamp transaction: {e}"),
-                })?;
-
-        let mut stamped = 0u32;
-        for migration in &migrations {
-            let id = format!("{}_{:03}", ext_id, migration.version);
-            let checksum = migration.checksum();
-            if let Err(e) = tx
-                .execute(
-                    &"INSERT INTO extension_migrations (id, extension_id, version, name, \
-                      checksum) VALUES ($1, $2, $3, $4, $5)",
-                    &[&id, &ext_id, &migration.version, &migration.name, &checksum],
-                )
-                .await
-            {
-                let rollback_note = match tx.rollback().await {
-                    Ok(()) => String::new(),
-                    Err(rb) => format!(" (rollback also failed: {rb})"),
-                };
-                return Err(LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to stamp migration {} ({}) as applied: {e}{rollback_note}",
-                        migration.version, migration.name
-                    ),
-                });
-            }
-            stamped += 1;
-        }
-
-        tx.commit()
-            .await
-            .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
-                message: format!("Failed to commit baseline stamp: {e}"),
-            })?;
-
-        info!(
-            extension = %ext_id,
-            migrations_stamped = stamped,
-            "Fresh install: stamped migrations as baseline without executing them"
-        );
-
-        Ok(stamped)
+        extension
+            .migrations()
+            .iter()
+            // Why: a tombstone has no SQL, so stamping it would record a
+            // checksum of the empty string against a slot this database never
+            // used. The slot stays free of tracking rows here and spent in the
+            // tree, which is exactly the truth.
+            .filter(|migration| !migration.tombstone)
+            .map(|migration| BaselineStamp {
+                id: format!("{}_{:03}", ext_id, migration.version),
+                version: migration.version,
+                name: migration.name.clone(),
+                checksum: migration.checksum(),
+            })
+            .collect()
     }
 }

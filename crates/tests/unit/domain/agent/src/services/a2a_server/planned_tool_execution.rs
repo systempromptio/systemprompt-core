@@ -19,7 +19,7 @@ use systemprompt_models::ai::{PlannedToolCall, PlanningResult};
 use tokio::sync::mpsc;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
 
 const AGENT: &str = "planned_exec_agent";
 
@@ -28,8 +28,8 @@ struct Harness {
     rx: mpsc::Receiver<StreamEvent>,
 }
 
-async fn harness(provider: StubAiProvider) -> Option<Harness> {
-    let pool = try_pool().await?;
+async fn harness_or_skip(provider: StubAiProvider) -> Option<Harness> {
+    let pool = try_pool_or_skip().await?;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let repos_handle = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
@@ -78,7 +78,7 @@ async fn successful_tool_run_synthesizes_and_emits_response() {
         ))
         .with_tool_result("alpha", success_result(json!({"answer": 42})))
         .with_response("final answer");
-    let Some(Harness { context, mut rx }) = harness(provider).await else {
+    let Some(Harness { context, mut rx }) = harness_or_skip(provider).await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -113,7 +113,7 @@ async fn successful_tool_run_synthesizes_and_emits_response() {
 async fn direct_response_plan_streams_text_without_tool_calls() {
     let provider =
         StubAiProvider::new().with_plan(PlanningResult::direct_response("no tools required"));
-    let Some(Harness { context, mut rx }) = harness(provider).await else {
+    let Some(Harness { context, mut rx }) = harness_or_skip(provider).await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -154,7 +154,7 @@ async fn template_referencing_unplanned_tool_returns_validation_explanation() {
             )],
         ))
         .with_response("that plan is invalid");
-    let Some(Harness { context, mut rx }) = harness(provider).await else {
+    let Some(Harness { context, mut rx }) = harness_or_skip(provider).await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -186,7 +186,7 @@ async fn failing_tool_with_working_synthesis_still_responds() {
         ))
         .with_tool_result("broken", error_result("boom"))
         .with_response("recovered gracefully");
-    let Some(Harness { context, rx }) = harness(provider).await else {
+    let Some(Harness { context, rx }) = harness_or_skip(provider).await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
@@ -210,7 +210,7 @@ async fn failing_tool_and_failing_synthesis_surface_tool_errors() {
         ))
         .with_tool_result("broken", error_result("boom"))
         .with_failing_response();
-    let Some(Harness { context, rx: _rx }) = harness(provider).await else {
+    let Some(Harness { context, rx: _rx }) = harness_or_skip(provider).await else {
         return;
     };
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;

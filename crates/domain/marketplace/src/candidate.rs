@@ -4,7 +4,10 @@
 //! access cascade and orphan pruning. They are not serialised as maps, but
 //! [`MarketplaceCandidate::into_manifest_parts`] stamps each entry's surviving
 //! owners onto `SkillEntry::plugins` / `ArtifactEntry::plugins` so the bridge
-//! can group its Marketplace listing without a second request.
+//! can group its Marketplace listing without a second request. The same pass
+//! narrows each `ManifestMarketplace` to its surviving plugins and drops a
+//! marketplace left with none, so a client mirrors exactly the marketplaces
+//! that still carry something for this user.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,9 +17,11 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use systemprompt_identifiers::{AgentId, HookId, MarketplaceId, McpServerId};
 use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, SkillId};
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
+    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, ManifestMarketplace, PluginEntry,
+    SkillEntry,
 };
-use systemprompt_models::services::MarketplaceAccess;
+
+use crate::membership::MarketplaceMembership;
 
 /// Per-kind allow-lists for [`MarketplaceCandidate::retain_entries`].
 #[derive(Debug, Clone, Default)]
@@ -26,6 +31,7 @@ pub struct EntryKeepSets {
     pub agents: HashSet<AgentId>,
     pub hooks: HashSet<HookId>,
     pub mcp_servers: HashSet<McpServerId>,
+    pub marketplaces: HashSet<MarketplaceId>,
 }
 
 /// Filters may shrink, reorder, or drop entries, but must not synthesise items
@@ -39,10 +45,10 @@ pub struct MarketplaceCandidate {
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub artifacts: Vec<ArtifactEntry>,
+    pub marketplaces: Vec<ManifestMarketplace>,
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
-    pub marketplace_id: Option<MarketplaceId>,
-    pub access: Option<MarketplaceAccess>,
+    pub membership: MarketplaceMembership,
     pub diagnostics: Vec<String>,
 }
 
@@ -55,6 +61,7 @@ pub struct ManifestEntries {
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub artifacts: Vec<ArtifactEntry>,
+    pub marketplaces: Vec<ManifestMarketplace>,
     pub diagnostics: Vec<String>,
 }
 
@@ -63,8 +70,7 @@ pub struct ManifestEntries {
 pub struct FilterContext {
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
-    pub marketplace_id: Option<MarketplaceId>,
-    pub access: Option<MarketplaceAccess>,
+    pub membership: MarketplaceMembership,
 }
 
 impl MarketplaceCandidate {
@@ -79,10 +85,10 @@ impl MarketplaceCandidate {
             hooks,
             managed_mcp_servers,
             artifacts,
+            marketplaces,
             skill_owners,
             artifact_owners,
-            marketplace_id,
-            access,
+            membership,
             diagnostics,
         } = self;
         // Why: ownership is stamped onto the entries here, at the one point
@@ -107,6 +113,14 @@ impl MarketplaceCandidate {
         for artifact in &mut artifacts {
             artifact.plugins = owned(artifact_owners.get(&artifact.id));
         }
+        // Why: a marketplace is listed only for the plugins it still carries;
+        // one whose every plugin was filtered out would tell the client to
+        // create an empty host marketplace.
+        let mut marketplaces = marketplaces;
+        for marketplace in &mut marketplaces {
+            marketplace.plugin_ids.retain(|p| surviving.contains(p));
+        }
+        marketplaces.retain(|m| !m.plugin_ids.is_empty());
         (
             ManifestEntries {
                 plugins,
@@ -115,13 +129,13 @@ impl MarketplaceCandidate {
                 hooks,
                 managed_mcp_servers,
                 artifacts,
+                marketplaces,
                 diagnostics,
             },
             FilterContext {
                 skill_owners,
                 artifact_owners,
-                marketplace_id,
-                access,
+                membership,
             },
         )
     }
@@ -142,20 +156,19 @@ impl MarketplaceCandidate {
     }
 
     #[must_use]
-    pub fn with_marketplace(
-        mut self,
-        id: MarketplaceId,
-        access: Option<MarketplaceAccess>,
-    ) -> Self {
-        self.marketplace_id = Some(id);
-        self.access = access;
+    pub fn with_membership(mut self, membership: MarketplaceMembership) -> Self {
+        self.membership = membership;
         self
     }
 
-    // Why: filters shrink entry lists, not the manifest's assembly context —
-    // marketplace scope, access, ownership, and diagnostics stay untouched.
+    // Why: filters shrink entry lists — the listed marketplaces included, since
+    // a marketplace denied at its own level must not be mirrored even when a
+    // plugin it carries survives through another owner — but never the
+    // assembly context: membership, ownership, and diagnostics stay untouched.
     pub fn retain_entries(&mut self, keep: &EntryKeepSets) {
         self.plugins.retain(|p| keep.plugins.contains(&p.id));
+        self.marketplaces
+            .retain(|m| keep.marketplaces.contains(&m.id));
         self.skills.retain(|s| keep.skills.contains(&s.id));
         self.agents.retain(|a| keep.agents.contains(&a.id));
         self.hooks.retain(|h| keep.hooks.contains(&h.id));

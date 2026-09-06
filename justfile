@@ -134,6 +134,10 @@ lint-extensions:
 lint-comments:
     ./scripts/lint-inline-comments.sh
 
+# Reject tests that return early on a missing prerequisite without saying so
+lint-silent-skips:
+    ./scripts/lint-silent-skips.sh crates/tests
+
 # Reject inline `#[cfg(test)] mod tests` — tests belong in crates/tests/.
 # Covers bin/bridge, which no root `--workspace` invocation reaches.
 lint-inline-tests:
@@ -531,12 +535,14 @@ loadtest-distributed NODES *ARGS:
 #      Those sections are gone; if a coverage run ever produces
 #      profraws but a 0% report again, check they haven't returned.
 #
-# --ignore-filename-regex also excludes twelve process-entry files (ten CLI,
-# two domain supervisors) — see the matching comment in
-# .github/workflows/coverage.yml and keep the two regexes in sync.
+# --ignore-filename-regex also excludes sixteen process-entry files (twelve
+# CLI, three domain supervisors, one bridge installer) — see the matching
+# comment in .github/workflows/coverage.yml and keep the two regexes in sync.
 # Each is a supervisor whose body is `spawn a subprocess / long-running
 # server and wait`; there is no seam to drive one from a test without
-# actually booting the thing it supervises, and all seven measure 0%.
+# actually booting the thing it supervises. A file qualifies only if it
+# cannot execute in-process at all — merely lacking a test is not enough,
+# which is why the interactive dialoguer paths stay in the denominator.
 # They are listed explicitly rather than by directory so that ordinary
 # testable code added alongside them still counts. Keep this list in
 # sync with .github/workflows/coverage.yml (3 sites each):
@@ -548,6 +554,10 @@ loadtest-distributed NODES *ARGS:
 #   commands/admin/setup/docker.rs                 — spawns docker daemon setup
 #   commands/admin/setup/docker_database.rs        — spawns a postgres container
 #   commands/cloud/backup/client.rs                — streams a live backup socket
+#   commands/admin/setup/docker_compose.rs         — renders and runs compose
+#   commands/cloud/tenant/docker/container.rs      — drives live docker containers
+#   agent/services/agent_orchestration/orchestrator/daemon.rs — supervises agents
+#   bin/bridge/src/update/install/linux.rs         — replaces the running binary
 coverage:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -587,6 +597,18 @@ coverage:
         RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
         cargo build -p systemprompt-cli --bin systemprompt --jobs 4)
     export SYSTEMPROMPT_BIN="$MAINTDIR/debug/systemprompt"
+
+    # bin/bridge is its own workspace, so neither build above produces it. The
+    # black-box suite spawns it via SP_BRIDGE_BIN and skips silently when the
+    # path is absent, which is why bin/bridge/src/cli measured 66%. The spawned
+    # process inherits LLVM_PROFILE_FILE, so its counters pool with the rest.
+    echo "==> Building instrumented systemprompt-bridge binary"
+    (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
+        CARGO_TARGET_DIR="$MAINTDIR-bridge" \
+        LLVM_PROFILE_FILE="$PROFDIR/%m%c.profraw" \
+        RUSTFLAGS="-C instrument-coverage -C llvm-args=--runtime-counter-relocation" \
+        cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --jobs 4)
+    export SP_BRIDGE_BIN="$MAINTDIR-bridge/debug/systemprompt-bridge"
 
     # DATABASE_URL is required by subprocess_full.rs and other tests that
     # invoke the systemprompt binary through full SecretsBootstrap; without
@@ -643,6 +665,8 @@ coverage:
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
     SP_BIN="$MAINTDIR/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
+    BRIDGE_BIN="$MAINTDIR-bridge/debug/systemprompt-bridge"
+    [ -x "$BRIDGE_BIN" ] && BINS="$BINS $BRIDGE_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
 
@@ -650,13 +674,13 @@ coverage:
     "$LLVM_COV" report \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)" \
         --summary-only
 
     "$LLVM_COV" export \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)" \
         --format=lcov \
         > "$ROOT/coverage-report/lcov.info"
 
@@ -692,13 +716,15 @@ coverage-html:
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
     SP_BIN="$MAINTDIR/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
+    BRIDGE_BIN="$MAINTDIR-bridge/debug/systemprompt-bridge"
+    [ -x "$BRIDGE_BIN" ] && BINS="$BINS $BRIDGE_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
     mkdir -p "$ROOT/coverage-report/html"
     "$LLVM_COV" show \
         --instr-profile="$ROOT/coverage-report/tests.profdata" \
         $OBJ_ARGS \
-        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/a2a_server/standalone|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database)?|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs)" \
+        --ignore-filename-regex="(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|$HOME/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)" \
         --format=html \
         --output-dir="$ROOT/coverage-report/html"
     echo "Coverage report: coverage-report/html/index.html"

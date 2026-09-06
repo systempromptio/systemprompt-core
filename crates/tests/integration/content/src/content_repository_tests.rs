@@ -9,7 +9,7 @@ use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
-async fn try_db() -> Option<DbPool> {
+async fn try_db_or_skip() -> Option<DbPool> {
     let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
     systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
@@ -44,7 +44,7 @@ fn sample_params(source_id: SourceId, slug: String) -> CreateContentParams {
 
 #[tokio::test]
 async fn repository_new_succeeds_against_real_pool() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         eprintln!("Skipping (DATABASE_URL not set)");
         return;
     };
@@ -53,7 +53,7 @@ async fn repository_new_succeeds_against_real_pool() {
 
 #[tokio::test]
 async fn create_then_get_by_id_round_trips() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -80,7 +80,7 @@ async fn create_then_get_by_id_round_trips() {
 
 #[tokio::test]
 async fn get_by_slug_and_locale_finds_existing_row() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -109,7 +109,7 @@ async fn get_by_slug_and_locale_finds_existing_row() {
 
 #[tokio::test]
 async fn get_by_id_returns_none_for_unknown_id() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -120,7 +120,7 @@ async fn get_by_id_returns_none_for_unknown_id() {
 
 #[tokio::test]
 async fn list_by_source_returns_inserted_rows() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -158,7 +158,7 @@ async fn list_by_source_returns_inserted_rows() {
 
 #[tokio::test]
 async fn list_paginates_with_limit_and_offset() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -171,7 +171,7 @@ async fn list_paginates_with_limit_and_offset() {
 
 #[tokio::test]
 async fn category_exists_returns_false_for_unknown_category() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -182,7 +182,7 @@ async fn category_exists_returns_false_for_unknown_category() {
 
 #[tokio::test]
 async fn update_changes_title_and_description() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -216,7 +216,7 @@ async fn update_changes_title_and_description() {
 
 #[tokio::test]
 async fn delete_by_source_removes_all_rows_for_source() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -249,7 +249,7 @@ async fn delete_by_source_removes_all_rows_for_source() {
 
 #[tokio::test]
 async fn find_sources_by_slug_returns_distinct_sources() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -292,7 +292,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
 
 #[tokio::test]
 async fn list_slugs_with_locales_by_source_lists_inserted() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");
@@ -317,7 +317,7 @@ async fn list_slugs_with_locales_by_source_lists_inserted() {
 
 #[tokio::test]
 async fn get_popular_content_ids_runs_without_error_when_no_metrics() {
-    let Some(db) = try_db().await else {
+    let Some(db) = try_db_or_skip().await else {
         return;
     };
     let repo = ContentRepository::new(&db).expect("repo");

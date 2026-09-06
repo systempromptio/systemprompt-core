@@ -13,6 +13,7 @@ mod auth_validation;
 mod config_authoring;
 mod context_history;
 mod context_provider;
+mod context_provider_faults;
 mod execution_tracking_service;
 mod mcp;
 mod message_service;

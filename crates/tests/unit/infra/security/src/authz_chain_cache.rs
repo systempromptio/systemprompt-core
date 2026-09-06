@@ -16,7 +16,7 @@ use uuid::Uuid;
 const KIND: EntityKind = EntityKind::Plugin;
 const LONG: Duration = Duration::from_secs(3600);
 
-async fn repo() -> Option<(AccessControlRepository, DbPool)> {
+async fn repo_or_skip() -> Option<(AccessControlRepository, DbPool)> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let repo = AccessControlRepository::new(&db).ok()?;
@@ -56,7 +56,7 @@ async fn upsert_rule(repo: &AccessControlRepository, entity_id: &str, value: &st
 
 #[tokio::test]
 async fn within_the_recheck_window_the_same_index_is_served_without_a_reload() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -78,7 +78,7 @@ async fn within_the_recheck_window_the_same_index_is_served_without_a_reload() {
 
 #[tokio::test]
 async fn an_upserted_rule_moves_the_fingerprint_and_forces_a_reload() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -101,7 +101,7 @@ async fn an_upserted_rule_moves_the_fingerprint_and_forces_a_reload() {
 
 #[tokio::test]
 async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
-    let Some((repo, db)) = repo().await else {
+    let Some((repo, db)) = repo_or_skip().await else {
         return;
     };
     let id = unique_entity();
@@ -134,7 +134,7 @@ async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
 
 #[tokio::test]
 async fn ttl_expiry_reloads_even_when_the_fingerprint_is_unchanged() {
-    let Some((repo, _db)) = repo().await else {
+    let Some((repo, _db)) = repo_or_skip().await else {
         return;
     };
     let cache = ChainIndexCache::new(Duration::ZERO, Duration::ZERO);

@@ -16,10 +16,11 @@
 mod request;
 mod response;
 mod streaming;
+mod thinking;
 mod wire;
 
 pub use request::build_request_body;
-pub use response::{parse_response, stop_reason};
+pub use response::{buffered_defect, parse_response, stop_reason};
 pub use streaming::sse_to_canonical_events;
 
 pub const API_KEY_HEADER: &str = "x-goog-api-key";

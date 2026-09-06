@@ -1,7 +1,8 @@
 //! Extension migration runner backed by the `extension_migrations`
 //! bookkeeping table. [`MigrationService`] applies, reverts, and inspects
 //! per-extension migration history; reverts live in [`down`], status/plan
-//! queries in [`status`], fresh-install baseline stamping in [`stamp`].
+//! queries in [`status`], fresh-install baseline stamping in [`stamp`] (whose
+//! rows the installer commits with the structural DDL they describe).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,13 +13,14 @@ mod mark_applied;
 mod repair;
 mod stamp;
 mod status;
+mod verify;
 
 pub use mark_applied::MarkAppliedOutcome;
 pub use repair::RepairResult;
-pub use stamp::FreshnessCheck;
+pub use stamp::{BaselineStamp, FreshnessCheck};
 pub use status::{
     AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationResult, MigrationStatus,
-    PendingMigration,
+    OrphanedMigration, PendingMigration, SlotCollision, TombstonedSlot,
 };
 
 use crate::services::{DatabaseProvider, SqlExecutor};
@@ -28,7 +30,7 @@ use systemprompt_extension::{Extension, LoaderError, Migration};
 use systemprompt_identifiers::ToDbValue;
 use tracing::{debug, info, warn};
 
-const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations (id, extension_id, version, \
+pub(crate) const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations (id, extension_id, version, \
                                     name, checksum) VALUES ($1, $2, $3, $4, $5)";
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -123,22 +125,37 @@ impl<'a> MigrationService<'a> {
         self.ensure_migrations_table_exists().await?;
 
         let applied = self.get_applied_migrations(ext_id).await?;
-        let applied_versions: HashSet<u32> = applied.iter().map(|m| m.version).collect();
-        let applied_checksums: std::collections::HashMap<u32, &str> = applied
-            .iter()
-            .map(|m| (m.version, m.checksum.as_str()))
-            .collect();
+        let applied_rows: std::collections::HashMap<u32, &AppliedMigration> =
+            applied.iter().map(|m| (m.version, m)).collect();
+
+        warn_orphaned_versions(ext_id, &applied, &migrations);
 
         let mut migrations_run = 0;
         let mut migrations_skipped = 0;
 
         for migration in &migrations {
-            if applied_versions.contains(&migration.version) {
-                self.verify_checksum(
-                    ext_id,
-                    migration,
-                    applied_checksums.get(&migration.version).copied(),
-                )?;
+            let row = applied_rows.get(&migration.version).copied();
+
+            if migration.tombstone {
+                // Why: a tombstone's name labels the retirement ("retired_chain"),
+                // it is not the name of the migration that once held the slot, so
+                // comparing it to a tracked row is meaningless — and it failed on
+                // exactly the population tombstones exist for. Every established
+                // database carries the real names in a retired range, so slot
+                // identity was checked against a label and refused the boot.
+                debug!(
+                    extension = %ext_id,
+                    version = migration.version,
+                    name = %migration.name,
+                    tracked = row.is_some(),
+                    "Migration slot is tombstoned, nothing to run"
+                );
+                continue;
+            }
+
+            if let Some(row) = row {
+                self.verify_slot_identity(ext_id, migration, Some(row))?;
+                self.verify_checksum(ext_id, migration, Some(row.checksum.as_str()))?;
                 migrations_skipped += 1;
                 debug!(
                     extension = %ext_id,
@@ -167,46 +184,9 @@ impl<'a> MigrationService<'a> {
         })
     }
 
-    fn verify_checksum(
-        &self,
-        ext_id: &str,
-        migration: &Migration,
-        stored: Option<&str>,
-    ) -> Result<(), LoaderError> {
-        let Some(stored_checksum) = stored else {
-            return Ok(());
-        };
-        let current_checksum = migration.checksum();
-        if stored_checksum == current_checksum {
-            return Ok(());
-        }
-        if self.config.allow_checksum_drift {
-            warn!(
-                extension = %ext_id,
-                version = migration.version,
-                name = %migration.name,
-                stored_checksum = %stored_checksum,
-                current_checksum = %current_checksum,
-                "Migration checksum mismatch tolerated by --allow-checksum-drift"
-            );
-            return Ok(());
-        }
-        Err(LoaderError::MigrationFailed {
-            extension: ext_id.to_owned(),
-            message: format!(
-                "Migration {ver} ('{name}') has been edited since it was applied (stored checksum \
-                 {stored_checksum}, current {current_checksum}). Refusing to proceed. If the \
-                 database schema already matches the edited file, run `systemprompt infra db \
-                 migrate-repair --reconcile-only --apply` to rewrite the stored checksum without \
-                 executing any SQL. To re-execute the edited migration, run `systemprompt infra \
-                 db migrate-repair --apply`. Passing --allow-checksum-drift bypasses the check \
-                 without fixing it.",
-                ver = migration.version,
-                name = migration.name,
-            ),
-        })
-    }
-
+    // Why: the recorded name is the only thing that distinguishes a migration
+    // edited in place from a slot whose file was deleted and its number reused.
+    // The checksum cannot tell them apart — it hashes the SQL alone.
     async fn execute_migration(
         &self,
         extension: &dyn Extension,
@@ -271,4 +251,30 @@ impl<'a> MigrationService<'a> {
 
         Ok(())
     }
+}
+
+// Why: reported, never fatal. Databases predating tombstones carry rows for
+// every migration since deleted, and refusing to boot on those would strand
+// every established install. Adding the matching `.tombstone` file clears the
+// warning; `infra db migrate-status` lists the rows.
+pub(crate) fn orphaned_versions(applied: &[AppliedMigration], defined: &[Migration]) -> Vec<u32> {
+    let declared: HashSet<u32> = defined.iter().map(|m| m.version).collect();
+    applied
+        .iter()
+        .map(|m| m.version)
+        .filter(|version| !declared.contains(version))
+        .collect()
+}
+
+fn warn_orphaned_versions(ext_id: &str, applied: &[AppliedMigration], defined: &[Migration]) {
+    let orphaned = orphaned_versions(applied, defined);
+    if orphaned.is_empty() {
+        return;
+    }
+    warn!(
+        extension = %ext_id,
+        versions = ?orphaned,
+        "Applied migrations are no longer declared by the extension; their files were deleted \
+         without leaving a tombstone, so the numbers look free but are spent"
+    );
 }

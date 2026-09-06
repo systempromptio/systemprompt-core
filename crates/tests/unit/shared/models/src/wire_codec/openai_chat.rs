@@ -321,9 +321,499 @@ fn openai_chat_parse_maps_cached_and_total_tokens() {
             "prompt_tokens_details": {"cached_tokens": 5}
         }
     });
-    let response = openai_chat::parse_response(&value, "fallback");
-    assert_eq!(response.usage.input_tokens, 12);
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+    // cached_tokens is a subset of prompt_tokens on the wire; input_tokens is
+    // exclusive of it, so 12 - 5.
+    assert_eq!(response.usage.input_tokens, 7);
     assert_eq!(response.usage.output_tokens, 6);
     assert_eq!(response.usage.total_tokens, 18);
     assert_eq!(response.usage.cache_read_tokens, 5);
+}
+
+#[test]
+fn openai_chat_round_trips_thinking_through_reasoning_content() {
+    let value: Value = json!({
+        "id": "resp_think",
+        "model": "qwen3-next-thinking",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "42",
+                "reasoning_content": "first I counted"
+            },
+            "finish_reason": "stop"
+        }]
+    });
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+    let thinking = response.content.iter().find_map(|c| match c {
+        CanonicalContent::Thinking { text, .. } => Some(text.clone()),
+        _ => None,
+    });
+    assert_eq!(
+        thinking.as_deref(),
+        Some("first I counted"),
+        "reasoning_content must arrive as Thinking, not be discarded"
+    );
+
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::Assistant,
+        content: response.content.clone(),
+    }];
+    let body = openai_chat::build_request_body(&req, "upstream", None);
+    let assistant = &body["messages"][0];
+    assert_eq!(
+        assistant["reasoning_content"], "first I counted",
+        "the replayed turn must carry the reasoning it was given"
+    );
+    assert_eq!(assistant["content"], "42");
+}
+
+#[tokio::test]
+async fn openai_chat_stream_does_not_overwrite_tool_calls_with_the_done_sentinel() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
+
+    let sse = concat!(
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\
+         \"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\
+         \"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]}}]}\n\n",
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\
+         \"finish_reason\":\"tool_calls\"}]}\n\n",
+        "data: [DONE]\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = openai_chat::sse_to_canonical_events(upstream, "m".to_owned())
+        .collect()
+        .await;
+    let stops: Vec<_> = events
+        .into_iter()
+        .filter_map(|e| match e {
+            Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        stops,
+        vec![Some(CanonicalStopReason::ToolUse)],
+        "the [DONE] sentinel must not append a second, weaker stop reason"
+    );
+}
+
+// Why: the buffered parse had no finish_reason coverage at all, so nothing
+// pinned `tool_calls -> ToolUse` -- the mapping every OpenAI-compatible
+// upstream depends on to have its tool call executed.
+#[test]
+fn openai_chat_buffered_tool_calls_finish_reason_maps_to_tool_use() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "chatcmpl_1",
+        "model": "gpt-x",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": Value::Null,
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup", "arguments": "{\"q\":\"rust\"}"}
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }]
+    });
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::ToolUse));
+    assert_eq!(response.raw_finish_reason.as_deref(), Some("tool_calls"));
+    match response.content.first() {
+        Some(CanonicalContent::ToolUse { name, input, .. }) => {
+            assert_eq!(name, "lookup");
+            assert_eq!(input["q"], "rust");
+        },
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
+}
+
+// Why: several OpenAI-compatible upstreams (Cerebras, vLLM builds, Moonshot)
+// send a plain `finish_reason: "stop"` beside a fully-formed tool_calls array.
+// Relayed verbatim the client ends the turn and never runs the call, and the
+// drop is invisible -- it reads as the model declining to use tools.
+#[test]
+fn openai_chat_buffered_reports_tool_use_even_though_the_upstream_says_stop() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "chatcmpl_1",
+        "model": "gpt-x",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": Value::Null,
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup", "arguments": "{\"q\":\"rust\"}"}
+                }]
+            },
+            "finish_reason": "stop"
+        }]
+    });
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(
+        response.stop_reason,
+        Some(CanonicalStopReason::ToolUse),
+        "a turn carrying a tool call is a tool-use turn whatever the upstream calls it"
+    );
+    assert_eq!(
+        response.raw_finish_reason.as_deref(),
+        Some("stop"),
+        "the wire's own reason must still be preserved verbatim for auditing"
+    );
+}
+
+// Why: a call cut off mid-arguments carries unparseable JSON. Declaring tool
+// use there hands the client a call it cannot run instead of telling it the
+// turn was truncated.
+#[test]
+fn openai_chat_buffered_keeps_length_over_a_truncated_tool_call() {
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let value: Value = json!({
+        "id": "chatcmpl_1",
+        "model": "gpt-x",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": Value::Null,
+                "tool_calls": [{
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup", "arguments": "{\"q\":\"ru"}
+                }]
+            },
+            "finish_reason": "length"
+        }]
+    });
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(
+        response.stop_reason,
+        Some(CanonicalStopReason::MaxTokens),
+        "truncation must survive the tool-use correction"
+    );
+}
+
+#[tokio::test]
+async fn openai_chat_stream_reports_tool_use_even_though_the_upstream_says_stop() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
+
+    let sse = concat!(
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\
+         \"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\
+         \"function\":{\"name\":\"lookup\",\"arguments\":\"{}\"}}]}}]}\n\n",
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\
+         \"finish_reason\":\"stop\"}]}\n\n",
+        "data: [DONE]\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = openai_chat::sse_to_canonical_events(upstream, "m".to_owned())
+        .collect()
+        .await;
+    let stops: Vec<_> = events
+        .into_iter()
+        .filter_map(|e| match e {
+            Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        stops,
+        vec![Some(CanonicalStopReason::ToolUse)],
+        "a streamed turn that emitted tool_calls must not terminate as \"stop\""
+    );
+}
+
+#[tokio::test]
+async fn openai_chat_stream_keeps_length_over_a_truncated_tool_call() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason};
+
+    let sse = concat!(
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\
+         \"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":\
+         {\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\\\"ru\"}}]}}]}\n\n",
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\
+         \"finish_reason\":\"length\"}]}\n\n",
+        "data: [DONE]\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = openai_chat::sse_to_canonical_events(upstream, "m".to_owned())
+        .collect()
+        .await;
+    let stops: Vec<_> = events
+        .into_iter()
+        .filter_map(|e| match e {
+            Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        stops,
+        vec![Some(CanonicalStopReason::MaxTokens)],
+        "a stream cut mid-arguments must say so, not claim a runnable tool call"
+    );
+}
+
+// Why: the buffered parse reads `reasoning_content`, so a thinking model's
+// trace survives a non-streamed turn. The streaming half ignored it, which
+// dropped the entire output of the models whose purpose is that trace.
+#[tokio::test]
+async fn openai_chat_stream_carries_reasoning_content_deltas() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::CanonicalEvent;
+
+    let sse = concat!(
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\
+         \"reasoning_content\":\"first I \"}}]}\n\n",
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\
+         \"reasoning_content\":\"counted\"}}]}\n\n",
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{\
+         \"content\":\"42\"}}]}\n\n",
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"delta\":{},\
+         \"finish_reason\":\"stop\"}]}\n\n",
+        "data: [DONE]\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = openai_chat::sse_to_canonical_events(upstream, "m".to_owned())
+        .collect()
+        .await;
+
+    let thinking: Vec<(u32, String)> = events
+        .iter()
+        .filter_map(|e| match e {
+            Ok(CanonicalEvent::ThinkingDelta { index, text }) => Some((*index, text.clone())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        thinking,
+        vec![(0, "first I ".to_owned()), (0, "counted".to_owned())],
+        "streamed reasoning must arrive as thinking deltas on their own block"
+    );
+
+    let text_index = events.iter().find_map(|e| match e {
+        Ok(CanonicalEvent::TextDelta { index, .. }) => Some(*index),
+        _ => None,
+    });
+    assert_eq!(
+        text_index,
+        Some(1),
+        "blocks are numbered in arrival order; reasoning came first, so text follows it"
+    );
+    let stops = events
+        .iter()
+        .filter(|e| matches!(e, Ok(CanonicalEvent::ContentBlockStop { index: 0 })))
+        .count();
+    assert_eq!(
+        stops, 1,
+        "the reasoning block must be closed before the stop"
+    );
+}
+
+#[test]
+fn openai_chat_parse_breaks_reasoning_out_of_completion_tokens() {
+    let value: Value = json!({
+        "id": "resp_r",
+        "model": "o4-mini",
+        "choices": [{
+            "index": 0,
+            "message": {"role": "assistant", "content": "42"},
+            "finish_reason": "stop"
+        }],
+        "usage": {
+            "prompt_tokens": 12,
+            "completion_tokens": 106,
+            "total_tokens": 118,
+            "completion_tokens_details": {"reasoning_tokens": 100}
+        }
+    });
+    let response = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.usage.reasoning_tokens, 100);
+    assert_eq!(
+        response.usage.output_tokens, 106,
+        "the OpenAI chat contract already counts reasoning inside completion_tokens, so it \
+         must be copied across untouched or every thinking turn is billed twice"
+    );
+    assert_eq!(response.usage.total_tokens, 118);
+}
+
+#[test]
+fn openai_chat_parse_defaults_reasoning_to_zero_when_absent() {
+    let value: Value = json!({
+        "id": "resp_p",
+        "model": "gpt-x",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": "ok"}}],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}
+    });
+    assert_eq!(
+        openai_chat::parse_response(&value, "fallback")
+            .expect("fixture parses")
+            .usage
+            .reasoning_tokens,
+        0
+    );
+}
+
+#[tokio::test]
+async fn openai_chat_stream_reports_reasoning_tokens_in_the_usage_delta() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::CanonicalEvent;
+
+    let sse = concat!(
+        "data: {\"id\":\"c1\",\"model\":\"m\",\"choices\":[],\"usage\":{\"prompt_tokens\":9,\
+         \"completion_tokens\":40,\"completion_tokens_details\":{\"reasoning_tokens\":33}}}\n\n",
+        "data: [DONE]\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = openai_chat::sse_to_canonical_events(upstream, "m".to_owned())
+        .collect()
+        .await;
+    let update = events
+        .into_iter()
+        .find_map(|e| match e {
+            Ok(CanonicalEvent::UsageDelta(u)) => Some(u),
+            _ => None,
+        })
+        .expect("usage delta emitted");
+    assert_eq!(update.reasoning_tokens, Some(33));
+    assert_eq!(update.output_tokens, Some(40));
+}
+
+#[test]
+fn parse_response_survives_explicit_nulls() {
+    let value: Value = json!({
+        "id": "f272a569",
+        "object": "chat.completion",
+        "model": "qwen/qwen3-next-80b-a3b-instruct-maas",
+        "choices": [{
+            "index": 0,
+            "finish_reason": "stop",
+            "logprobs": null,
+            "matched_stop": 151645,
+            "message": {
+                "role": "assistant",
+                "content": "ok",
+                "reasoning_content": null,
+                "tool_calls": null
+            }
+        }],
+        "usage": {
+            "prompt_tokens": 13,
+            "completion_tokens": 2,
+            "total_tokens": 15,
+            "prompt_tokens_details": null,
+            "extra_properties": { "google": { "traffic_type": "ON_DEMAND" } }
+        }
+    });
+
+    let canon = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+
+    let text: String = canon
+        .content
+        .iter()
+        .filter_map(|c| match c {
+            CanonicalContent::Text(text) => Some(text.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(text, "ok", "content must survive a null sibling field");
+    assert_eq!(canon.usage.input_tokens, 13);
+    assert_eq!(canon.usage.output_tokens, 2);
+    assert_eq!(canon.usage.total_tokens, 15);
+}
+
+#[test]
+fn parse_response_ignores_unknown_usage_members() {
+    let value: Value = json!({
+        "choices": [{"finish_reason": "stop", "message": {"content": "hi"}}],
+        "usage": {
+            "prompt_tokens": 7,
+            "completion_tokens": 1,
+            "total_tokens": 8,
+            "extra_properties": { "google": { "traffic_type": "ON_DEMAND" } }
+        }
+    });
+
+    let canon = openai_chat::parse_response(&value, "fallback").expect("fixture parses");
+
+    assert_eq!(canon.usage.input_tokens, 7);
+    assert_eq!(canon.usage.output_tokens, 1);
+}
+
+#[test]
+fn openai_chat_treats_a_catalog_thinking_budget_as_a_reasoning_model() {
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "qwen.qwen3-next-thinking",
+        Some(ModelLimits {
+            max_output_tokens: 32_768,
+            max_thinking_budget: Some(8192),
+            ..Default::default()
+        }),
+    );
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32_768),
+        "a model card carrying a thinking budget must get the model cap, whatever its name"
+    );
+}
+
+#[test]
+fn openai_chat_keeps_caller_budget_for_unnamed_model_without_thinking_budget() {
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "qwen.qwen3-next-instruct",
+        Some(ModelLimits {
+            max_output_tokens: 32_768,
+            ..Default::default()
+        }),
+    );
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32),
+        "no catalog thinking budget and no reasoning prefix means the caller's number stands"
+    );
+}
+
+#[test]
+fn openai_chat_zero_thinking_budget_is_not_a_reasoning_model() {
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "qwen.qwen3-next-instruct",
+        Some(ModelLimits {
+            max_output_tokens: 32_768,
+            max_thinking_budget: Some(0),
+            ..Default::default()
+        }),
+    );
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32),
+        "a zero budget means the model does not spend completion tokens on thought"
+    );
 }

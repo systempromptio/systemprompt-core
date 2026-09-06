@@ -9,7 +9,7 @@ use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
-async fn split_pool() -> Option<DbPool> {
+async fn split_pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let live = fixture_db_pool(&url).await.ok()?;
@@ -21,7 +21,7 @@ async fn split_pool() -> Option<DbPool> {
 
 #[tokio::test]
 async fn attestation_lookup_reads_the_primary_but_listing_does_not() {
-    let Some(db) = split_pool().await else {
+    let Some(db) = split_pool_or_skip().await else {
         return;
     };
     let repo = SessionRepository::new(&db).expect("repo");

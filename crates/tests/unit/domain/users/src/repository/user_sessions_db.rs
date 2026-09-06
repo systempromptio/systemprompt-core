@@ -13,7 +13,7 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup(prefix: &str) -> Option<Ctx> {
+async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
     let url = fixture_database_url().ok()?;
     ensure_test_bootstrap();
     let pool = fixture_db_pool(&url).await.expect("pool");
@@ -37,7 +37,7 @@ async fn seed_session(ctx: &Ctx, url: &str) -> SessionId {
 
 #[tokio::test]
 async fn list_sessions_returns_all_active_and_ended() {
-    let Some(ctx) = setup("list").await else {
+    let Some(ctx) = setup_or_skip("list").await else {
         return;
     };
     let url = fixture_database_url().expect("url");
@@ -69,7 +69,7 @@ async fn list_sessions_returns_all_active_and_ended() {
 
 #[tokio::test]
 async fn list_recent_sessions_applies_limit_and_clamps_oversized() {
-    let Some(ctx) = setup("recent").await else {
+    let Some(ctx) = setup_or_skip("recent").await else {
         return;
     };
     let url = fixture_database_url().expect("url");
@@ -94,7 +94,7 @@ async fn list_recent_sessions_applies_limit_and_clamps_oversized() {
 
 #[tokio::test]
 async fn end_session_is_idempotent_and_flips_existence() {
-    let Some(ctx) = setup("end").await else {
+    let Some(ctx) = setup_or_skip("end").await else {
         return;
     };
     let url = fixture_database_url().expect("url");
@@ -108,7 +108,7 @@ async fn end_session_is_idempotent_and_flips_existence() {
 
 #[tokio::test]
 async fn session_exists_false_for_unknown_session() {
-    let Some(ctx) = setup("unknown").await else {
+    let Some(ctx) = setup_or_skip("unknown").await else {
         return;
     };
     let missing = SessionId::generate();
@@ -117,7 +117,7 @@ async fn session_exists_false_for_unknown_session() {
 
 #[tokio::test]
 async fn end_all_sessions_ends_only_open_sessions() {
-    let Some(ctx) = setup("endall").await else {
+    let Some(ctx) = setup_or_skip("endall").await else {
         return;
     };
     let url = fixture_database_url().expect("url");

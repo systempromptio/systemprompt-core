@@ -9,19 +9,18 @@ use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::ServicesConfig;
 
 use crate::candidate::MarketplaceCandidate;
-use crate::error::MarketplaceError;
 use crate::trace::{TraceEvent, TraceKind, TraceSink, TraceStage};
 
 pub(super) fn plugin_inclusion_diagnostics(
     services: &ServicesConfig,
     skills: &[SkillEntry],
     agents: &[systemprompt_models::bridge::manifest::AgentEntry],
-) -> Result<Vec<String>, MarketplaceError> {
+) -> Vec<String> {
     use systemprompt_models::services::ComponentSource;
 
     let mut diagnostics = Vec::new();
     let mut selected_agents: BTreeSet<&str> = BTreeSet::new();
-    for config in crate::catalog::selected_configs(services)? {
+    for config in crate::catalog::selected_configs(services) {
         if config.skills.source == ComponentSource::Explicit {
             for raw in &config.skills.include {
                 if !skills.iter().any(|s| s.id.as_str() == raw.as_str()) {
@@ -59,14 +58,14 @@ pub(super) fn plugin_inclusion_diagnostics(
     for a in agents {
         if !selected_agents.contains(a.id.as_str()) {
             diagnostics.push(format!(
-                "agent '{}' is in the marketplace scope but no enabled plugin includes it; it \
+                "agent '{}' is in an enabled marketplace's scope but no enabled plugin includes it; it \
                  will not be installed by any plugin bundle",
                 a.id.as_str()
             ));
         }
     }
 
-    Ok(diagnostics)
+    diagnostics
 }
 
 pub(super) struct CandidateSnapshot {

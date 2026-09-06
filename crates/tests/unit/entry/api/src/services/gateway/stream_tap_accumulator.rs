@@ -8,15 +8,10 @@ use systemprompt_api::services::gateway::protocol::canonical_response::{
 use systemprompt_api::services::gateway::stream_tap::test_api::{
     TapState, accumulate_event, extract_summary, snapshot,
 };
+use systemprompt_test_fixtures as fixtures;
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {
-    CanonicalUsage {
-        input_tokens: input,
-        output_tokens: output,
-        cache_read_tokens: 0,
-        cache_creation_tokens: 0,
-        total_tokens: input + output,
-    }
+    fixtures::usage().input(input).output(output).build()
 }
 
 fn start(state: &mut TapState, id: &str, model: &str) {
@@ -269,6 +264,8 @@ fn usage_delta_replaces_the_message_start_snapshot_wholesale() {
             output_tokens: Some(42),
             cache_read_tokens: Some(7),
             cache_creation_tokens: Some(3),
+            reasoning_tokens: None,
+            total_tokens: None,
         }),
     );
 
@@ -279,7 +276,7 @@ fn usage_delta_replaces_the_message_start_snapshot_wholesale() {
     assert_eq!(response.usage.output_tokens, 42);
     assert_eq!(response.usage.cache_read_tokens, 7);
     assert_eq!(response.usage.cache_creation_tokens, 3);
-    // Recomputed here; no producer sets total_tokens on a delta.
+    // No stated wire total on this frame, so the cache-inclusive sum stands.
     assert_eq!(response.usage.total_tokens, 52);
 }
 
@@ -301,6 +298,8 @@ fn message_start_alone_does_not_count_as_reported_usage() {
             output_tokens: Some(120),
             cache_read_tokens: Some(0),
             cache_creation_tokens: Some(0),
+            reasoning_tokens: None,
+            total_tokens: None,
         }),
     );
     assert!(extract_summary(&mut state).saw_usage_delta);
@@ -438,4 +437,133 @@ fn encrypted_content_delta_lands_on_the_thinking_block() {
         },
         other => panic!("expected Thinking, got {other:?}"),
     }
+}
+
+// Why: Anthropic ends a stream twice -- `message_delta` carries the real stop
+// reason and the `message_stop` frame that follows carries none. Assigning on
+// every stop let that second frame default the turn back to EndTurn, so a
+// streamed tool-use turn was audited and rendered as "stop" and the client
+// dropped the call.
+#[test]
+fn a_reason_less_stop_does_not_overwrite_the_reason_already_stated() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::ToolUse),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: None,
+        },
+    );
+
+    assert_eq!(
+        snapshot(&state).stop_reason,
+        Some(CanonicalStopReason::ToolUse),
+        "the trailing message_stop frame must not weaken the reason message_delta gave"
+    );
+}
+
+// Why: an upstream that states a generic reason beside a fully accumulated
+// tool-use block must not reach the terminal render as "stop".
+#[test]
+fn an_end_turn_stop_beside_an_accumulated_tool_call_becomes_tool_use() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::ToolUse {
+                id: "call_1".to_owned(),
+                name: "lookup".to_owned(),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "{\"q\":\"rust\"}".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::EndTurn),
+        },
+    );
+
+    assert_eq!(
+        snapshot(&state).stop_reason,
+        Some(CanonicalStopReason::ToolUse),
+        "a turn that accumulated a tool call is a tool-use turn"
+    );
+}
+
+#[test]
+fn a_max_tokens_stop_survives_beside_a_truncated_tool_call() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-1", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::ToolUse {
+                id: "call_1".to_owned(),
+                name: "lookup".to_owned(),
+                signature: None,
+            },
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::ToolUseDelta {
+            index: 0,
+            partial_json: "{\"q\":\"ru".to_owned(),
+        },
+    );
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::MessageStop {
+            id: "resp-1".to_owned(),
+            stop_reason: Some(CanonicalStopReason::MaxTokens),
+        },
+    );
+
+    assert_eq!(
+        snapshot(&state).stop_reason,
+        Some(CanonicalStopReason::MaxTokens),
+        "truncation must survive the tool-use correction"
+    );
+}
+
+#[test]
+fn a_stated_wire_total_survives_the_accumulator() {
+    let mut state = TapState::default();
+    start(&mut state, "resp-10", "model-a");
+    accumulate_event(
+        &mut state,
+        &CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
+            input_tokens: Some(20),
+            output_tokens: Some(106),
+            reasoning_tokens: Some(100),
+            total_tokens: Some(126),
+            ..CanonicalUsageUpdate::default()
+        }),
+    );
+    assert_eq!(
+        snapshot(&state).usage.total_tokens,
+        126,
+        "the wire's own total is the signal normalise_reasoning reads; \
+         recomputing it here discards it"
+    );
 }

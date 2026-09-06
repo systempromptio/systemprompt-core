@@ -108,7 +108,7 @@ fn render_error_escapes_quotes_and_backslashes() {
     let out = a.render_error(StatusCode::BAD_REQUEST, r#"oops "quoted" \back"#);
     let s = String::from_utf8(out.to_vec()).unwrap();
     assert!(s.starts_with("{\"type\":\"error\""));
-    assert!(s.contains("api_error"));
+    assert!(s.contains("invalid_request_error"));
     assert!(s.contains(r#"\"quoted\""#), "got: {s}");
     assert!(s.contains(r#"\\back"#), "got: {s}");
 }

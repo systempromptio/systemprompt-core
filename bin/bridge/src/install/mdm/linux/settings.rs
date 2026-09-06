@@ -1,7 +1,8 @@
-//! Claude Code settings on Linux: the `apiKeyHelper` script plus the `env` keys
-//! the bridge owns inside the settings file —
-//! `/etc/claude-code/managed-settings.json` when running as root, otherwise the
-//! per-user `~/.claude/settings.json`.
+//! Claude Code settings on Linux.
+//!
+//! The `apiKeyHelper` script plus the `env` keys the bridge owns inside the
+//! settings file: `/etc/claude-code/managed-settings.json` when running as
+//! root, otherwise the per-user `~/.claude/settings.json`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -226,3 +227,6 @@ pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     write_atomic(&settings_path, &format!("{rendered}\n"))?;
     Ok(true)
 }
+
+#[path = "settings_test_api.rs"]
+pub mod test_api;

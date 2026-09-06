@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.47.0] - 2026-09-06
+
+### Added
+
+- A migration slot can be declared spent. `NNN_<name>.tombstone` (or `NNN-MMM_<name>.tombstone` for a retired chain) records the number with no SQL and a prose body; `build.rs` treats the slot as occupied, so refilling a spent number fails the build rather than a deployment. A shipped migration keeps a tracking row in every established database forever, and deleting the file did not give the number back — refilling it looked exactly like editing the migration that used to live there, and the runner reported "has been edited since it was applied" naming a file nobody could find, with both offered remedies wrong.
+- `MigrationError::MigrationSlotReused` names the file that held the slot and the one that wants it. The recorded `name` of an applied version is finally compared against the file now occupying it; the mismatch is tolerated by `--allow-checksum-drift` the same way a checksum mismatch already is.
+
+### Changed
+
+- The runner never executes, records, or checksums a tombstoned slot, and fresh-install stamping skips it — a database that never ran the migration should not carry a row claiming it did.
+- An applied version no file claims any more is reported as orphaned and warned about, never fatal. Every database predating this carries rows for migrations since deleted, so refusing to boot on those would strand every established install; adding the tombstone is what clears the warning.
+
+### Fixed
+
+- `PendingMigration.no_tx` reports the migration's real transaction mode. It was hardcoded `false` at both construction sites, so every no-transaction migration was reported as transactional.
+
 ## [0.27.0] - 2026-07-29
 
 ### Breaking

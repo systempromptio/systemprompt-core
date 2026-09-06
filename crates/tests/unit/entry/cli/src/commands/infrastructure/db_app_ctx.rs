@@ -20,8 +20,8 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
-    install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
+    fixture_db_pool, install_test_signing_key,
 };
 
 #[derive(Debug, Parser)]
@@ -135,9 +135,22 @@ async fn migration_reporting_subcommands_resolve_through_the_app_context() {
 
 #[tokio::test]
 async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
-    let (pool, app) = app().await;
+    // A database created for this run, not the shared one: the command under
+    // test installs a schema, and an install that lands on whatever an
+    // earlier run left behind is testing that leftover rather than the code.
+    ensure_test_bootstrap();
+    install_test_signing_key();
+    let disp = DisposableDb::installed("cov_cli_reinstall")
+        .await
+        .expect("a freshly installed disposable database");
+    let pool = disp.pool().await.expect("pool on the disposable database");
+    let app = fixture_app_context(&pool, disp.url()).expect("fixture app context");
+
     let before = applied_migration_count(&pool).await;
-    assert!(before > 0, "the shared database is already migrated");
+    assert!(
+        before > 0,
+        "installing the schema stamps a baseline ledger, got {before} rows"
+    );
 
     // Routed through `dispatch_profile_migration`, not the standalone
     // dispatcher: a full-profile context has no `DatabaseContext`.
@@ -145,9 +158,12 @@ async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
         .await
         .expect("re-installing an installed schema is a no-op");
 
+    let after = applied_migration_count(&pool).await;
+    drop(pool);
+    drop(app);
+    disp.drop_now().await;
     assert_eq!(
-        applied_migration_count(&pool).await,
-        before,
+        after, before,
         "an idempotent re-install must not add or drop ledger rows"
     );
 }

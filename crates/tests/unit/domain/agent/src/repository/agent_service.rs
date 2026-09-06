@@ -1,4 +1,4 @@
-use super::{repos, try_pool};
+use super::{repos, try_pool_or_skip};
 use uuid::Uuid;
 
 fn unique_name(prefix: &str) -> String {
@@ -7,7 +7,7 @@ fn unique_name(prefix: &str) -> String {
 
 #[tokio::test]
 async fn register_and_get_status_running() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -39,7 +39,7 @@ async fn register_and_get_status_running() {
 
 #[tokio::test]
 async fn register_starting_then_mark_running() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -74,7 +74,7 @@ async fn register_starting_then_mark_running() {
 
 #[tokio::test]
 async fn mark_crashed_clears_pid() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -99,7 +99,7 @@ async fn mark_crashed_clears_pid() {
 
 #[tokio::test]
 async fn mark_stopped_and_error_clear_pid() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -139,7 +139,7 @@ async fn mark_stopped_and_error_clear_pid() {
 
 #[tokio::test]
 async fn update_health_status_sets_arbitrary_status() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -166,7 +166,7 @@ async fn update_health_status_sets_arbitrary_status() {
 
 #[tokio::test]
 async fn list_running_agents_and_pids_include_registered() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -195,7 +195,7 @@ async fn list_running_agents_and_pids_include_registered() {
 
 #[tokio::test]
 async fn get_status_unknown_returns_none() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -209,7 +209,7 @@ async fn get_status_unknown_returns_none() {
 
 #[tokio::test]
 async fn register_twice_upserts() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);
@@ -236,7 +236,7 @@ async fn register_twice_upserts() {
 
 #[tokio::test]
 async fn remove_unknown_is_ok() {
-    let Some(pool) = try_pool().await else {
+    let Some(pool) = try_pool_or_skip().await else {
         return;
     };
     let r = repos(&pool);

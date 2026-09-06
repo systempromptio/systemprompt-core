@@ -43,7 +43,11 @@ pub fn render_terminal_event_frame(
 
 fn render_item_done(index: u32, snapshot: &CanonicalResponse) -> Option<Bytes> {
     let block = snapshot.content.get(index as usize)?;
-    let item = output_item_value(index, block)?;
+    // Why: an upstream that reports the cutoff before closing the block has
+    // already put the reason on the snapshot, and this item is the partial one
+    // it was cut in. Calling it completed here contradicts the
+    // `response.incomplete` frame that follows it.
+    let item = output_item_value(index, block, item_status(snapshot.stop_reason))?;
     let mut frames = String::new();
     if let CanonicalContent::ToolUse { id, input, .. } = block {
         let arguments = serde_json::to_string(input).unwrap_or_else(|_| "{}".into());
@@ -75,13 +79,14 @@ fn render_completed(
     stop_reason: Option<CanonicalStopReason>,
     snapshot: &CanonicalResponse,
 ) -> Bytes {
+    let truncated = matches!(stop_reason, Some(CanonicalStopReason::MaxTokens));
+    let status = item_status(stop_reason);
     let output: Vec<Value> = snapshot
         .content
         .iter()
         .enumerate()
-        .filter_map(|(i, block)| output_item_value(i as u32, block))
+        .filter_map(|(i, block)| output_item_value(i as u32, block, status))
         .collect();
-    let truncated = matches!(stop_reason, Some(CanonicalStopReason::MaxTokens));
     let response = json!({
         "id": id,
         "object": "response",
@@ -95,7 +100,6 @@ fn render_completed(
             "total_tokens": snapshot.usage.input_tokens + snapshot.usage.output_tokens,
         },
         "incomplete_details": truncated.then(|| json!({ "reason": "max_output_tokens" })),
-        "stop_reason": stop_reason.map(CanonicalStopReason::openai_str),
     });
     let event_name = if truncated {
         "response.incomplete"
@@ -108,12 +112,22 @@ fn render_completed(
     Bytes::from(frame)
 }
 
-fn output_item_value(index: u32, block: &CanonicalContent) -> Option<Value> {
+// Why: an item whose arguments were cut mid-JSON is not a completed one, and
+// `status` is what a client reads to decide the call is ready to run.
+const fn item_status(stop_reason: Option<CanonicalStopReason>) -> &'static str {
+    if matches!(stop_reason, Some(CanonicalStopReason::MaxTokens)) {
+        "incomplete"
+    } else {
+        "completed"
+    }
+}
+
+fn output_item_value(index: u32, block: &CanonicalContent, status: &str) -> Option<Value> {
     match block {
         CanonicalContent::Text(text) => Some(json!({
             "type": "message",
             "id": format!("msg_{index}"),
-            "status": "completed",
+            "status": status,
             "role": "assistant",
             "content": [{ "type": "output_text", "text": text, "annotations": [] }],
         })),
@@ -127,7 +141,7 @@ fn output_item_value(index: u32, block: &CanonicalContent) -> Option<Value> {
                 "call_id": id,
                 "name": name,
                 "arguments": arguments,
-                "status": "completed",
+                "status": status,
             }))
         },
         CanonicalContent::Thinking {

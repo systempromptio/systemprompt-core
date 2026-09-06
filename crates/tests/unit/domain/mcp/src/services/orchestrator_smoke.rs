@@ -14,7 +14,7 @@ use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 
-async fn make_orchestrator() -> Option<McpOrchestrator> {
+async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let paths = PathsConfig {
@@ -39,7 +39,7 @@ async fn make_orchestrator() -> Option<McpOrchestrator> {
 
 #[tokio::test]
 async fn orchestrator_new_succeeds() {
-    let Some(_o) = make_orchestrator().await else {
+    let Some(_o) = make_orchestrator_or_skip().await else {
         return;
     };
 }
@@ -47,7 +47,7 @@ async fn orchestrator_new_succeeds() {
 #[tokio::test]
 async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
     use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let Some(o) = make_orchestrator().await else {
+    let Some(o) = make_orchestrator_or_skip().await else {
         return;
     };
     let Some(url) = fixture_database_url().ok() else {
@@ -82,7 +82,7 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
 
 #[tokio::test]
 async fn orchestrator_get_service_info_missing_returns_none() {
-    let Some(o) = make_orchestrator().await else {
+    let Some(o) = make_orchestrator_or_skip().await else {
         return;
     };
     let r = o
@@ -94,7 +94,7 @@ async fn orchestrator_get_service_info_missing_returns_none() {
 
 #[tokio::test]
 async fn orchestrator_subscribe_events_returns_receiver() {
-    let Some(o) = make_orchestrator().await else {
+    let Some(o) = make_orchestrator_or_skip().await else {
         return;
     };
     let _rx = o.subscribe_events();
@@ -102,7 +102,7 @@ async fn orchestrator_subscribe_events_returns_receiver() {
 
 #[tokio::test]
 async fn orchestrator_registry_accessor() {
-    let Some(o) = make_orchestrator().await else {
+    let Some(o) = make_orchestrator_or_skip().await else {
         return;
     };
     let _ = o.registry();

@@ -94,6 +94,53 @@ fn route_finds_matching_model() {
 }
 
 #[test]
+fn catalog_model_supplies_the_upstream_name() {
+    let mut maas = model("qwen.qwen3-next-instruct");
+    maas.upstream_model = Some("qwen/qwen3-next-80b-a3b-instruct-maas".to_owned());
+    let provider = provider_entry("vertex-maas", "https://example.invalid/v1", vec![maas]);
+    let route = route("qwen.*");
+
+    assert_eq!(
+        provider.upstream_model_for(route.upstream_model.as_deref(), "qwen.qwen3-next-instruct"),
+        "qwen/qwen3-next-80b-a3b-instruct-maas"
+    );
+}
+
+#[test]
+fn route_rewrite_outranks_the_catalog_mapping() {
+    let mut maas = model("qwen.qwen3-next-instruct");
+    maas.upstream_model = Some("qwen/qwen3-next-80b-a3b-instruct-maas".to_owned());
+    let provider = provider_entry("vertex-maas", "https://example.invalid/v1", vec![maas]);
+    let mut route = route("qwen.*");
+    route.upstream_model = Some("operator-substitution".to_owned());
+
+    assert_eq!(
+        provider.upstream_model_for(route.upstream_model.as_deref(), "qwen.qwen3-next-instruct"),
+        "operator-substitution",
+        "an operator substituting a model must win over the catalog default"
+    );
+}
+
+#[test]
+fn an_unmapped_model_passes_its_own_name_upstream() {
+    let provider = provider_entry(
+        "anthropic",
+        "https://api.anthropic.com/v1",
+        vec![model("claude-sonnet-4-20250514")],
+    );
+
+    assert_eq!(
+        provider.upstream_model_for(None, "claude-sonnet-4-20250514"),
+        "claude-sonnet-4-20250514"
+    );
+    assert_eq!(
+        provider.upstream_model_for(None, "not-in-the-catalog"),
+        "not-in-the-catalog",
+        "a model the provider does not list must not be rewritten into nothing"
+    );
+}
+
+#[test]
 fn slugify_replaces_star_and_non_alnum() {
     assert_eq!(slugify_pattern("claude-*"), "claude-star");
     assert_eq!(slugify_pattern("foo/bar baz!"), "foo-bar-baz");
@@ -264,9 +311,6 @@ fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> Pro
     }
 }
 
-/// Carries real rates because `GatewayConfig::validate` refuses to boot a route
-/// that can only bill zero — a fixture priced at zero would fail every
-/// validation test for a reason unrelated to what it is testing.
 fn model(id: &str) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
@@ -276,6 +320,7 @@ fn model(id: &str) -> ProviderModel {
         pricing: ModelPricing {
             input_per_million: 3.0,
             output_per_million: 15.0,
+            cache_read_per_million: Some(0.3),
             ..ModelPricing::default()
         },
         capabilities: Default::default(),
@@ -974,6 +1019,7 @@ fn token_rates(input: f64, output: f64) -> ModelPricing {
     ModelPricing {
         input_per_million: input,
         output_per_million: output,
+        cache_read_per_million: Some(0.0),
         ..ModelPricing::default()
     }
 }
@@ -1005,9 +1051,6 @@ fn validate_accepts_a_glob_route_whose_reachable_models_are_all_priced() {
     );
 }
 
-/// The reported production shape: traffic on `claude-opus-5` through a
-/// `claude-*` route whose provider catalog had fallen behind, so pricing
-/// resolved to nothing and every request audited at `cost_dollars 0.000000`.
 #[test]
 fn validate_rejects_a_glob_route_that_reaches_no_model() {
     let registry = priced_registry(vec![priced_model("gpt-oss-120b", token_rates(0.35, 0.75))]);
@@ -1020,9 +1063,6 @@ fn validate_rejects_a_glob_route_that_reaches_no_model() {
     );
 }
 
-/// The quieter defect: `ProviderModel.pricing` is `#[serde(default)]`, so a
-/// `models:` entry with `pricing:` omitted resolves *successfully* to zeroed
-/// rates and never even logs a warning.
 #[test]
 fn validate_rejects_a_reachable_model_with_defaulted_pricing() {
     let registry = priced_registry(vec![
@@ -1046,8 +1086,6 @@ fn validate_accepts_a_route_level_pricing_override_over_an_unpriced_catalog() {
     assert!(enabled_gateway(vec![r]).validate(&registry).is_ok());
 }
 
-/// Image models price per image, not per token, so zeroed token rates are
-/// correct for them rather than a gap.
 #[test]
 fn validate_accepts_an_image_model_priced_per_image() {
     let registry = priced_registry(vec![priced_model(
@@ -1064,10 +1102,6 @@ fn validate_accepts_an_image_model_priced_per_image() {
     );
 }
 
-/// A rewrite route dispatches every request to its `upstream_model`, so the
-/// pattern never has to match a catalog id — only the upstream model's rates
-/// matter. The production shape: `gemini-*` rewritten to a priced
-/// `gpt-oss-120b`.
 #[test]
 fn validate_accepts_a_rewrite_route_whose_upstream_model_is_priced() {
     let registry = priced_registry(vec![priced_model("gpt-oss-120b", token_rates(0.35, 0.75))]);

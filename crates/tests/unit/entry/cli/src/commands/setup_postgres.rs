@@ -48,7 +48,7 @@ struct DbUrl {
     database: String,
 }
 
-fn db_url() -> Option<DbUrl> {
+fn db_url_or_skip() -> Option<DbUrl> {
     let raw = std::env::var("DATABASE_URL").ok()?;
     let url = url::Url::parse(&raw).ok()?;
     Some(DbUrl {
@@ -125,7 +125,7 @@ fn test_connection_fails_for_bad_credentials() {
 
 #[test]
 fn non_interactive_with_reachable_database() {
-    let Some(db) = db_url() else { return };
+    let Some(db) = db_url_or_skip() else { return };
     let mut setup_args = args();
     setup_args.db_host = db.host.clone();
     setup_args.db_port = db.port;
@@ -164,7 +164,7 @@ fn non_interactive_with_unreachable_database_still_returns_config() {
 
 #[test]
 fn interactive_existing_connection_succeeds() {
-    let Some(db) = db_url() else { return };
+    let Some(db) = db_url_or_skip() else { return };
     let mut setup_args = args();
     setup_args.db_password = Some(db.password.clone());
 
@@ -229,7 +229,7 @@ fn interactive_invalid_selection_is_error() {
 
 #[test]
 fn interactive_generated_password_and_skipped_creation() {
-    let Some(db) = db_url() else { return };
+    let Some(db) = db_url_or_skip() else { return };
     let prompter = scripted(&[
         "0",
         db.host.as_str(),
@@ -253,7 +253,7 @@ fn interactive_generated_password_and_skipped_creation() {
 
 #[test]
 fn interactive_empty_manual_password_is_error() {
-    let Some(db) = db_url() else { return };
+    let Some(db) = db_url_or_skip() else { return };
     let prompter = scripted(&[
         "0",
         db.host.as_str(),
@@ -275,7 +275,7 @@ fn interactive_empty_manual_password_is_error() {
 
 #[test]
 fn interactive_creates_database_and_user_via_superuser() {
-    let Some(db) = db_url() else { return };
+    let Some(db) = db_url_or_skip() else { return };
     let scratch_user = "cov_setup_role";
     let scratch_db = "cov_setup_db";
     runtime().block_on(async {
@@ -340,7 +340,7 @@ fn interactive_creates_database_and_user_via_superuser() {
 
 #[test]
 fn interactive_superuser_empty_password_is_error() {
-    let Some(db) = db_url() else { return };
+    let Some(db) = db_url_or_skip() else { return };
     let prompter = scripted(&[
         "0",
         db.host.as_str(),
@@ -365,7 +365,7 @@ fn interactive_superuser_empty_password_is_error() {
 
 #[test]
 fn docker_non_interactive_reuses_reachable_database_without_compose() {
-    let Some(db) = db_url() else { return };
+    let Some(db) = db_url_or_skip() else { return };
     let dir = tempfile::tempdir().expect("tempdir");
     std::env::set_current_dir(dir.path()).expect("chdir");
 

@@ -49,6 +49,7 @@ providers:
         pricing:
           input_per_million: 3.0
           output_per_million: 15.0
+          cache_read_per_million: 0.0
 "#;
 
 const SERVICES_YAML: &str = r#"agents:
@@ -166,4 +167,50 @@ async fn the_router_answers_only_the_paths_it_declares() {
         .expect("response");
 
     assert_eq!(resp.status().as_u16(), 404);
+}
+
+// Why: the hand-written Debug impl exists because the server holds a pool, a
+// JWT provider and an AI client, all of which would otherwise print their
+// contents. It must stay a redaction: what it names is a fixed set of
+// placeholders plus the two values that are safe and diagnostically useful,
+// the port and the free stream permits.
+#[tokio::test]
+async fn the_debug_impl_redacts_every_handle_it_holds() {
+    let (agent_state, pool) = state().await;
+    let server = Server::new(
+        pool,
+        agent_state,
+        ai(),
+        Some("a2a_fixture_agent".to_owned()),
+        4711,
+    )
+    .await
+    .expect("a registered agent should produce a server");
+
+    let rendered = format!("{server:?}");
+
+    assert!(rendered.starts_with("Server {"), "got {rendered}");
+    assert!(
+        rendered.contains("port: 4711"),
+        "the port is the field that makes the dump useful: {rendered}"
+    );
+    for placeholder in [
+        "Arc<RwLock<AgentConfig>>",
+        "Arc<AgentOAuthState>",
+        "Arc<AgentState>",
+        "<Arc<dyn AiProvider>>",
+    ] {
+        assert!(
+            rendered.contains(placeholder),
+            "{placeholder} must be redacted to a placeholder, got {rendered}"
+        );
+    }
+    assert!(
+        rendered.contains("stream_semaphore:"),
+        "the permit count is reported, not the semaphore: {rendered}"
+    );
+    assert!(
+        !rendered.contains("postgres://") && !rendered.contains("password"),
+        "no connection detail may reach a debug dump: {rendered}"
+    );
 }

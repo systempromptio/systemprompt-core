@@ -20,7 +20,7 @@ use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use systemprompt_models::wire::gemini::{
-        build_request_body, parse_response, sse_to_canonical_events,
+        buffered_defect, build_request_body, parse_response, sse_to_canonical_events,
     };
 }
 
@@ -43,9 +43,17 @@ impl OutboundAdapter for GeminiOutbound {
         let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
         let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
 
-        let mut req = super::http_client()
-            .post(&url)
-            .header(gemini::API_KEY_HEADER, ctx.api_key)
+        // Why: Vertex refuses an API key outright and wants an OAuth token on the
+        // bearer header; the public Gemini endpoint takes the key on
+        // x-goog-api-key. Same wire and body, different credential header, and
+        // this applies to the streaming path too -- it shares this request.
+        let base = super::http_client().post(&url);
+        let base = if ctx.api_key_is_bearer {
+            base.header("authorization", format!("Bearer {}", ctx.api_key))
+        } else {
+            base.header(gemini::API_KEY_HEADER, ctx.api_key)
+        };
+        let mut req = base
             .header("content-type", "application/json")
             .body(body.bytes.clone());
         for (name, value) in &ctx.route.extra_headers {
@@ -65,7 +73,18 @@ impl OutboundAdapter for GeminiOutbound {
             .map_err(|e| anyhow!("Failed to read Gemini response: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Gemini response not valid JSON: {e}"))?;
-        let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str());
+        if let Some(defect) = gemini::buffered_defect(&value) {
+            return Err(super::reject_defective_body(
+                ctx.route.provider.as_str(),
+                "gemini",
+                &defect,
+                &bytes,
+            ));
+        }
+        let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str())
+            .map_err(|e| {
+            super::reject_unparsable_body(ctx.route.provider.as_str(), "gemini", &e, &bytes)
+        })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

@@ -13,7 +13,7 @@ use systemprompt_security::authz::{
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
 
-async fn pool() -> Option<DbPool> {
+async fn pool_or_skip() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -57,7 +57,7 @@ async fn role_rule_count(db: &DbPool, entity_id: &str) -> i64 {
 
 #[tokio::test]
 async fn a_yaml_file_on_disk_is_ingested_the_same_as_a_parsed_config() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
@@ -85,7 +85,7 @@ async fn a_yaml_file_on_disk_is_ingested_the_same_as_a_parsed_config() {
 
 #[tokio::test]
 async fn a_missing_yaml_file_is_a_validation_error_naming_the_path() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
@@ -109,7 +109,7 @@ async fn a_missing_yaml_file_is_a_validation_error_naming_the_path() {
 
 #[tokio::test]
 async fn a_yaml_file_that_is_not_an_access_control_config_is_rejected() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
@@ -135,7 +135,7 @@ async fn a_yaml_file_that_is_not_an_access_control_config_is_rejected() {
 
 #[tokio::test]
 async fn delete_orphans_clears_stale_role_grants_before_reapplying_the_config() {
-    let Some(db) = pool().await else {
+    let Some(db) = pool_or_skip().await else {
         return;
     };
     let svc = AccessControlIngestionService::new(&db).expect("ingestion service");

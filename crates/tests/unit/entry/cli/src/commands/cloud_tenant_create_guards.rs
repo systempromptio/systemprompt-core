@@ -54,3 +54,16 @@ async fn an_exhausted_prompter_is_surfaced_rather_than_defaulted() {
     let err = create_external_tenant(&prompter).await.unwrap_err();
     assert!(err.to_string().contains("Scripted prompter exhausted"), "{err}");
 }
+
+// Why: the port is parsed before any Docker call, so a non-numeric answer must
+// be refused here rather than reaching `TenantContainer` with a bad value.
+#[tokio::test]
+async fn a_non_numeric_port_is_refused_by_the_docker_flow() {
+    let prompter = ScriptedPrompter::new(["covtenant", "not-a-number"]);
+
+    let err = create_local_tenant(&prompter).await.unwrap_err();
+    assert!(
+        format!("{err:#}").contains("PostgreSQL port must be a number"),
+        "the refusal must name the port as the problem, got: {err:#}"
+    );
+}

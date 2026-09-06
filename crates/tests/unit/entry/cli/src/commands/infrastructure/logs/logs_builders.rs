@@ -53,3 +53,56 @@ fn audit_not_found_returns_message() {
     let output = audit_not_found("missing");
     assert!(matches!(output.artifact(), CliArtifact::Message { .. }));
 }
+
+#[test]
+fn audit_card_carries_the_reasoning_token_count() {
+    let audit: AuditOutput = serde_json::from_value(serde_json::json!({
+        "request_id": "req_think",
+        "status": "completed",
+        "provider": "gemini",
+        "model": "gemini-2.5-flash",
+        "input_tokens": 27,
+        "output_tokens": 200,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "reasoning_tokens": 194,
+        "cost_dollars": 0.002027,
+        "latency_ms": 42,
+        "task_id": null,
+        "trace_id": null,
+        "messages": [],
+        "tool_calls": []
+    }))
+    .unwrap();
+    assert_eq!(audit.reasoning_tokens, 194);
+    assert_eq!(
+        audit.output_tokens, 200,
+        "reasoning is the thinking share of output_tokens, never an addition to it"
+    );
+    assert!(matches!(
+        build_audit(&audit).artifact(),
+        CliArtifact::PresentationCard { .. }
+    ));
+}
+
+#[test]
+fn audit_output_predating_the_reasoning_column_still_deserialises() {
+    let audit: AuditOutput = serde_json::from_value(serde_json::json!({
+        "request_id": "req_old",
+        "status": "completed",
+        "provider": "anthropic",
+        "model": "claude",
+        "input_tokens": 10,
+        "output_tokens": 20,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "cost_dollars": 0.0001,
+        "latency_ms": 42,
+        "task_id": null,
+        "trace_id": null,
+        "messages": [],
+        "tool_calls": []
+    }))
+    .unwrap();
+    assert_eq!(audit.reasoning_tokens, 0);
+}

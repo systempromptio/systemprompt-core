@@ -172,6 +172,7 @@ fn audit_lookup_result_construction() {
         error_message: None,
         task_id: None,
         trace_id: None,
+        reasoning_tokens: None,
     };
     assert_eq!(result.provider.as_deref(), Some("anthropic"));
     assert_eq!(result.cost_microdollars, 5);
@@ -196,6 +197,7 @@ fn audit_lookup_result_with_ids() {
         error_message: Some("stream ended without stop event".to_owned()),
         task_id: Some("task-abc".to_owned().into()),
         trace_id: Some(systemprompt_identifiers::TraceId::new("trace-def")),
+        reasoning_tokens: None,
     };
     assert_eq!(
         result.task_id.as_ref().map(|t| t.as_str()),
@@ -224,6 +226,7 @@ fn audit_lookup_result_serialize() {
         error_message: None,
         task_id: None,
         trace_id: None,
+        reasoning_tokens: None,
     };
     let json = serde_json::to_string(&result).unwrap();
     assert!(json.contains("provider"));

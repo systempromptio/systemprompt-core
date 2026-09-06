@@ -9,7 +9,7 @@ use rmcp::transport::streamable_http_server::session::{RestoreOutcome, SessionId
 use systemprompt_mcp::middleware::{DatabaseSessionHandler, PostgresSessionStore};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-async fn db() -> Option<systemprompt_database::DbPool> {
+async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
     let url = fixture_database_url().ok()?;
     fixture_db_pool(&url).await.ok()
 }
@@ -30,7 +30,7 @@ fn random_id() -> SessionId {
 
 #[tokio::test]
 async fn session_store_round_trip() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let store = PostgresSessionStore::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -46,7 +46,7 @@ async fn session_store_round_trip() {
 
 #[tokio::test]
 async fn session_store_load_unknown_returns_none() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let store = PostgresSessionStore::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),
@@ -56,7 +56,7 @@ async fn session_store_load_unknown_returns_none() {
 
 #[tokio::test]
 async fn restore_session_recreates_local_worker() {
-    let Some(db) = db().await else { return };
+    let Some(db) = db_or_skip().await else { return };
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db)
             .expect("mcp session repository"),

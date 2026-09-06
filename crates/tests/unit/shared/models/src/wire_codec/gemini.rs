@@ -277,7 +277,7 @@ fn gemini_parse_surfaces_grounding_sources_and_queries() {
         }],
         "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4, "totalTokenCount": 7}
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     let grounding = response.grounding.expect("grounding present");
     assert_eq!(grounding.sources.len(), 1);
     assert_eq!(grounding.sources[0].uri, "https://example.com");
@@ -299,7 +299,7 @@ fn gemini_parse_surfaces_cache_read_tokens() {
             "cachedContentTokenCount": 6
         }
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     assert_eq!(response.usage.cache_read_tokens, 6);
     assert_eq!(response.usage.total_tokens, 15);
 }
@@ -315,7 +315,7 @@ fn gemini_parse_surfaces_code_execution_output() {
             "finishReason": "STOP"
         }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     let exec = response.code_execution.expect("code execution present");
     assert_eq!(exec.code, "print(1)");
     assert_eq!(exec.result.as_deref(), Some("1"));
@@ -332,7 +332,7 @@ fn gemini_parse_captures_function_call_thought_signature() {
             "finishReason": "STOP"
         }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     match response.content.first() {
         Some(CanonicalContent::ToolUse { signature, .. }) => {
             assert_eq!(signature.as_deref(), Some("sig=="));
@@ -351,7 +351,7 @@ fn gemini_parse_leaves_signature_none_when_absent() {
             "finishReason": "STOP"
         }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     match response.content.first() {
         Some(CanonicalContent::ToolUse { signature, .. }) => assert!(signature.is_none()),
         other => panic!("expected ToolUse, got {other:?}"),
@@ -512,7 +512,7 @@ fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
             { "text": "the answer" }
         ]}, "finishReason": "STOP" }]
     });
-    let response = gemini::parse_response(&value, "fallback");
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
     match response.content.first() {
         Some(CanonicalContent::Thinking {
             text, signature, ..
@@ -526,4 +526,300 @@ fn gemini_parse_maps_thought_parts_to_thinking_with_signature() {
         response.content.get(1),
         Some(CanonicalContent::Text(t)) if t == "the answer"
     ));
+}
+
+// Gemini reports finishReason STOP even when the candidate it returned is a
+// functionCall, so the wire's own reason cannot distinguish "finished talking"
+// from "wants a tool run". Left as EndTurn it renders as `finish_reason:
+// "stop"` on the OpenAI surface, and a client that follows that contract ends
+// the turn without executing the tool -- the call rides along in the payload
+// and is silently dropped. Measured against a live gateway: an
+// OpenAI-compatible client got a tool_calls payload with finish_reason "stop"
+// and ran nothing, while the same request against an Anthropic-backed model got
+// "tool_calls".
+#[test]
+fn gemini_parse_reports_tool_use_when_the_candidate_is_a_function_call() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "STOP",
+            "content": {
+                "role": "model",
+                "parts": [{
+                    "functionCall": { "name": "systemprompt", "args": { "command": "core skills list" } }
+                }]
+            }
+        }]
+    });
+
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash").expect("fixture parses");
+
+    assert_eq!(
+        parsed.stop_reason,
+        Some(systemprompt_models::wire::canonical::CanonicalStopReason::ToolUse),
+        "a functionCall candidate is a tool-use turn whatever Gemini calls it"
+    );
+    assert_eq!(
+        parsed.raw_finish_reason.as_deref(),
+        Some("STOP"),
+        "the wire's own reason must still be preserved verbatim for auditing"
+    );
+}
+
+#[test]
+fn gemini_parse_keeps_end_turn_for_a_plain_text_candidate() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "STOP",
+            "content": { "role": "model", "parts": [{ "text": "pong" }] }
+        }]
+    });
+
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash").expect("fixture parses");
+
+    assert_eq!(
+        parsed.stop_reason,
+        Some(systemprompt_models::wire::canonical::CanonicalStopReason::EndTurn),
+        "a text-only turn must not be reported as tool use"
+    );
+}
+
+// Why: the buffered path has a test for this; the streaming path had five
+// tests and none about tool calls at all. Gemini reports `STOP` on the
+// finishing chunk of a turn whose only part was a functionCall, so the wire's
+// own reason is the wrong one and the stream state is the only signal.
+#[tokio::test]
+async fn gemini_stream_reports_tool_use_even_though_gemini_says_stop() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let sse = concat!(
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":\
+         {\"name\":\"lookup\",\"args\":{\"q\":\"rust\"}}}]}}]}\n\n",
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\
+         \"STOP\"}]}\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = gemini::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+
+    let arguments = events.iter().find_map(|e| match e {
+        Ok(CanonicalEvent::ToolUseDelta { partial_json, .. }) => Some(partial_json.clone()),
+        _ => None,
+    });
+    assert_eq!(
+        arguments.as_deref(),
+        Some("{\"q\":\"rust\"}"),
+        "the streamed call must carry its arguments"
+    );
+
+    let stop = events.into_iter().find_map(|e| match e {
+        Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::ToolUse)),
+        "STOP on a functionCall turn renders as finish_reason \"stop\" downstream, and the \
+         client drops the call"
+    );
+}
+
+// Why: the tool-use correction must not swallow truncation. Gemini reports
+// MAX_TOKENS on a candidate whose functionCall was cut short; declaring tool
+// use there hands the client a call whose arguments are incomplete.
+#[test]
+fn gemini_parse_keeps_max_tokens_over_a_truncated_function_call() {
+    let value: Value = json!({
+        "candidates": [{
+            "finishReason": "MAX_TOKENS",
+            "content": {
+                "role": "model",
+                "parts": [{ "functionCall": { "name": "lookup", "args": { "q": "ru" } } }]
+            }
+        }]
+    });
+
+    let parsed = gemini::parse_response(&value, "gemini-2.5-flash").expect("fixture parses");
+
+    assert_eq!(
+        parsed.stop_reason,
+        Some(systemprompt_models::wire::canonical::CanonicalStopReason::MaxTokens),
+        "a truncated turn must say so rather than claim a runnable tool call"
+    );
+}
+
+#[tokio::test]
+async fn gemini_stream_keeps_max_tokens_over_a_truncated_function_call() {
+    use futures::StreamExt;
+    use systemprompt_models::wire::canonical::CanonicalStopReason;
+
+    let sse = concat!(
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":\
+         {\"name\":\"lookup\",\"args\":{\"q\":\"ru\"}}}]}}]}\n\n",
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\
+         \"MAX_TOKENS\"}]}\n\n",
+    );
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from_static(sse.as_bytes()))
+    });
+    let events: Vec<_> = gemini::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+
+    let stop = events.into_iter().find_map(|e| match e {
+        Ok(CanonicalEvent::MessageStop { stop_reason, .. }) => Some(stop_reason),
+        _ => None,
+    });
+    assert_eq!(
+        stop,
+        Some(Some(CanonicalStopReason::MaxTokens)),
+        "truncation must survive the tool-use correction on the streaming path too"
+    );
+}
+
+#[test]
+fn gemini_parse_counts_thoughts_tokens_inside_output_tokens() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [{"text": "ok"}]},
+            "finishReason": "MAX_TOKENS"
+        }],
+        "usageMetadata": {
+            "promptTokenCount": 27,
+            "candidatesTokenCount": 6,
+            "thoughtsTokenCount": 194,
+            "totalTokenCount": 227
+        }
+    });
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.usage.reasoning_tokens, 194);
+    assert_eq!(
+        response.usage.output_tokens, 200,
+        "thoughtsTokenCount sits beside candidatesTokenCount on the wire, so it must be \
+         folded into output_tokens or the thinking spend is never billed"
+    );
+    assert_eq!(response.usage.total_tokens, 227);
+}
+
+#[test]
+fn gemini_parse_defaults_thoughts_to_zero_when_absent() {
+    let value: Value = json!({
+        "candidates": [{"content": {"role": "model", "parts": [{"text": "ok"}]}}],
+        "usageMetadata": {"promptTokenCount": 3, "candidatesTokenCount": 4, "totalTokenCount": 7}
+    });
+    let response = gemini::parse_response(&value, "fallback").expect("fixture parses");
+    assert_eq!(response.usage.reasoning_tokens, 0);
+    assert_eq!(response.usage.output_tokens, 4);
+}
+
+#[tokio::test]
+async fn gemini_stream_reports_thoughts_tokens_in_the_usage_delta() {
+    use futures::StreamExt;
+
+    let frame = json!({
+        "candidates": [{"content": {"role": "model", "parts": [{"text": "hi"}]}}],
+        "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 5,
+            "thoughtsTokenCount": 64,
+            "totalTokenCount": 79
+        }
+    });
+    let sse = format!("data: {frame}\n\n");
+    let upstream =
+        futures::stream::once(async move { Ok::<_, std::io::Error>(bytes::Bytes::from(sse)) });
+    let events: Vec<_> = gemini::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+    let update = events
+        .into_iter()
+        .find_map(|e| match e {
+            Ok(CanonicalEvent::UsageDelta(u)) => Some(u),
+            _ => None,
+        })
+        .expect("usage delta emitted");
+    assert_eq!(update.reasoning_tokens, Some(64));
+    assert_eq!(update.output_tokens, Some(69));
+}
+
+#[test]
+fn gemini_raises_the_ceiling_for_default_thinking_without_sending_a_budget() {
+    let req = base_request();
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 65_536,
+            max_thinking_budget: Some(24_576),
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert!(
+        cfg.get("thinkingConfig").is_none_or(Value::is_null),
+        "a thinkingBudget would switch thinking on for models Google ships with it off"
+    );
+    assert_eq!(
+        cfg["maxOutputTokens"],
+        json!(24_576 + 32),
+        "maxOutputTokens must leave the caller's max_tokens for visible text"
+    );
+}
+
+#[test]
+fn gemini_default_thinking_headroom_stays_under_the_model_output_cap() {
+    let mut req = base_request();
+    req.max_tokens = 4000;
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 4096,
+            max_thinking_budget: Some(24_576),
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert!(cfg.get("thinkingConfig").is_none_or(Value::is_null));
+    assert_eq!(cfg["maxOutputTokens"], json!(4096));
+}
+
+#[test]
+fn gemini_explicit_client_thinking_leaves_max_output_tokens_untouched() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: Some(1024),
+    });
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 65_536,
+            max_thinking_budget: Some(24_576),
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert_eq!(cfg["thinkingConfig"]["thinkingBudget"], json!(1024));
+    assert_eq!(cfg["maxOutputTokens"], json!(32));
+}
+
+#[test]
+fn gemini_model_without_thinking_budget_emits_no_thinking_config() {
+    let req = base_request();
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 8192,
+            ..Default::default()
+        }),
+    );
+    let cfg = &body["generationConfig"];
+    assert!(cfg.get("thinkingConfig").is_none_or(Value::is_null));
+    assert_eq!(
+        cfg["maxOutputTokens"],
+        json!(32),
+        "no catalog thinking budget means the caller's number is forwarded as-is"
+    );
 }

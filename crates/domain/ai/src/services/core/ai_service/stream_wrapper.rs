@@ -1,5 +1,10 @@
 //! Stream wrapper capturing usage and persisting the assembled response.
 //!
+//! Usage is accumulated as a [`CanonicalUsage`], normalised against the
+//! provider, and priced by the one cost function — the same type and the same
+//! arithmetic the gateway bills with, so an agent turn and a gateway turn on
+//! identical counts cost the same and record the same `tokens_used`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -13,6 +18,7 @@ use crate::models::ai::{AiRequest, AiResponse};
 use crate::services::core::request_storage::{RequestStorage, StoreParams};
 use crate::services::providers::ModelPricing;
 use systemprompt_models::ai::StreamChunk;
+use systemprompt_models::wire::canonical::{CanonicalUsage, CanonicalUsageUpdate};
 
 pub(super) struct StreamStorageParams {
     pub inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
@@ -36,11 +42,8 @@ pub(super) struct StreamStorageWrapper {
     pricing: ModelPricing,
     accumulated: String,
     completed: bool,
-    input_tokens: Option<u32>,
-    output_tokens: Option<u32>,
-    tokens_used: Option<u32>,
-    cache_read_tokens: Option<u32>,
-    cache_creation_tokens: Option<u32>,
+    usage: CanonicalUsage,
+    saw_usage: bool,
     finish_reason: Option<String>,
 }
 
@@ -57,11 +60,8 @@ impl StreamStorageWrapper {
             pricing: params.pricing,
             accumulated: String::new(),
             completed: false,
-            input_tokens: None,
-            output_tokens: None,
-            tokens_used: None,
-            cache_read_tokens: None,
-            cache_creation_tokens: None,
+            usage: CanonicalUsage::default(),
+            saw_usage: false,
             finish_reason: None,
         }
     }
@@ -73,27 +73,25 @@ impl StreamStorageWrapper {
             tokens_used,
             cache_read_tokens,
             cache_creation_tokens,
+            reasoning_tokens,
             finish_reason,
         } = chunk
         {
             // Why: providers report usage as a cumulative snapshot, not an
-            // increment, so a later frame replaces an earlier one. Summing
+            // increment, so a later frame replaces an earlier one and an
+            // unreported count leaves the earlier value standing. Summing
             // double-counts any stream that reports usage more than once.
-            if input_tokens.is_some() {
-                self.input_tokens = input_tokens;
+            CanonicalUsageUpdate {
+                input_tokens,
+                output_tokens,
+                cache_read_tokens,
+                cache_creation_tokens,
+                reasoning_tokens,
+                total_tokens: tokens_used,
             }
-            if output_tokens.is_some() {
-                self.output_tokens = output_tokens;
-            }
-            if let Some(v) = tokens_used {
-                self.tokens_used = Some(v);
-            }
-            if cache_read_tokens.is_some() {
-                self.cache_read_tokens = cache_read_tokens;
-            }
-            if cache_creation_tokens.is_some() {
-                self.cache_creation_tokens = cache_creation_tokens;
-            }
+            .apply_to(&mut self.usage);
+            self.saw_usage = true;
+            self.usage.normalise_reasoning(&self.provider);
             if finish_reason.is_some() {
                 self.finish_reason = finish_reason;
             }
@@ -101,11 +99,11 @@ impl StreamStorageWrapper {
     }
 
     fn calculate_cost(&self) -> i64 {
-        let input = f64::from(self.input_tokens.unwrap_or(0));
-        let output = f64::from(self.output_tokens.unwrap_or(0));
-        let input_cost = (input / 1_000_000.0) * self.pricing.input_per_million;
-        let output_cost = (output / 1_000_000.0) * self.pricing.output_per_million;
-        ((input_cost + output_cost) * 1_000_000.0).round() as i64
+        self.pricing.cost_microdollars(&self.usage)
+    }
+
+    const fn reported(&self, count: u32) -> Option<u32> {
+        if self.saw_usage { Some(count) } else { None }
     }
 
     fn build_response(&self) -> AiResponse {
@@ -118,13 +116,14 @@ impl StreamStorageWrapper {
         .with_latency(self.start.elapsed().as_millis() as u64)
         .with_streaming(true);
 
-        response.input_tokens = self.input_tokens;
-        response.output_tokens = self.output_tokens;
-        response.tokens_used = self.tokens_used;
+        response.input_tokens = self.reported(self.usage.input_tokens);
+        response.output_tokens = self.reported(self.usage.output_tokens);
+        response.tokens_used = self.reported(self.usage.billable_total());
         response.finish_reason.clone_from(&self.finish_reason);
-        response.cache_hit = self.cache_read_tokens.is_some_and(|t| t > 0);
-        response.cache_read_tokens = self.cache_read_tokens;
-        response.cache_creation_tokens = self.cache_creation_tokens;
+        response.cache_hit = self.usage.cache_read_tokens > 0;
+        response.cache_read_tokens = self.reported(self.usage.cache_read_tokens);
+        response.cache_creation_tokens = self.reported(self.usage.cache_creation_tokens);
+        response.reasoning_tokens = self.reported(self.usage.reasoning_tokens);
 
         response
     }

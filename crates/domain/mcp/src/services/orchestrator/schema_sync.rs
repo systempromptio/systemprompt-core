@@ -9,7 +9,7 @@ use systemprompt_database::DbPool;
 use crate::McpServerConfig;
 use crate::services::schema::{SchemaValidationMode, SchemaValidationReport, SchemaValidator};
 
-pub(super) async fn validate_schemas(
+pub async fn validate_schemas(
     servers: &[McpServerConfig],
     db_pool: &DbPool,
 ) -> McpDomainResult<()> {
@@ -39,7 +39,7 @@ fn report_schema_errors(report: &SchemaValidationReport) -> McpDomainResult<()> 
     )))
 }
 
-pub(super) async fn validate_and_migrate_schemas(
+pub async fn validate_and_migrate_schemas(
     servers: &[McpServerConfig],
     db_pool: &DbPool,
 ) -> McpDomainResult<SchemaValidationReport> {

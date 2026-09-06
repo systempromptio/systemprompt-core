@@ -72,6 +72,8 @@ mod profile_gateway;
 
 #[cfg(test)]
 mod provider_catalog_parity;
+#[cfg(test)]
+mod provider_model_lookup;
 
 #[cfg(test)]
 mod provider_protocol_filter;
@@ -101,6 +103,9 @@ mod routing;
 
 #[cfg(test)]
 mod marketplace;
+
+#[cfg(test)]
+mod gateway_cache_pricing_gate;
 
 #[cfg(test)]
 mod gateway_hash;
@@ -223,10 +228,25 @@ mod schema_sanitizer;
 mod validators_driven;
 
 #[cfg(test)]
+mod wire_cache_convention;
+
+#[cfg(test)]
+mod wire_terminal_discipline;
+
+#[cfg(test)]
+mod wire_usage_omission;
+
+#[cfg(test)]
 mod wire_streaming;
 
 #[cfg(test)]
 mod wire_sse;
+
+#[cfg(test)]
+mod wire_stream_abort;
+
+#[cfg(test)]
+mod wire_stream_usage_order;
 
 #[cfg(test)]
 mod profile_validation;

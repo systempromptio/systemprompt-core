@@ -15,6 +15,8 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, GroundedSource,
     Grounding, ImageSource,
 };
+use crate::wire::defect::{BodyDefect, buffered_body_defect};
+use crate::wire::error::WireParseError;
 
 #[derive(Debug, Default, Deserialize)]
 struct AnthropicResponse {
@@ -31,10 +33,6 @@ struct AnthropicResponse {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "field names mirror the Anthropic usage wire schema verbatim"
-)]
 struct AnthropicUsage {
     #[serde(default)]
     input_tokens: u32,
@@ -44,6 +42,18 @@ struct AnthropicUsage {
     cache_read_input_tokens: u32,
     #[serde(default)]
     cache_creation_input_tokens: u32,
+    #[serde(default)]
+    output_tokens_details: AnthropicOutputTokensDetails,
+}
+
+// Why: Claude 5 adaptive thinking reports its spend here. It is a breakdown
+// of `output_tokens`, which already includes it, so it is copied across as
+// `reasoning_tokens` and never added to `output_tokens` -- that would
+// double-bill. A model that reports no details yields 0, as before.
+#[derive(Debug, Default, Deserialize)]
+struct AnthropicOutputTokensDetails {
+    #[serde(default)]
+    thinking_tokens: u32,
 }
 
 impl AnthropicUsage {
@@ -53,6 +63,7 @@ impl AnthropicUsage {
             output_tokens: self.output_tokens,
             cache_read_tokens: self.cache_read_input_tokens,
             cache_creation_tokens: self.cache_creation_input_tokens,
+            reasoning_tokens: self.output_tokens_details.thinking_tokens,
             total_tokens: self.input_tokens
                 + self.output_tokens
                 + self.cache_read_input_tokens
@@ -132,12 +143,14 @@ enum AnthropicImageSource {
     Unknown,
 }
 
-#[must_use]
-pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let resp = AnthropicResponse::deserialize(value).unwrap_or_default();
+pub fn parse_response(
+    value: &Value,
+    fallback_model: &str,
+) -> Result<CanonicalResponse, WireParseError> {
+    let resp = AnthropicResponse::deserialize(value).map_err(WireParseError::Anthropic)?;
     let id = resp.id.unwrap_or_default();
     let model = resp.model.unwrap_or_else(|| fallback_model.to_owned());
-    let stop_reason = resp
+    let wire_stop_reason = resp
         .stop_reason
         .as_deref()
         .map(CanonicalStopReason::from_anthropic);
@@ -182,7 +195,16 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         queries: Vec::new(),
     });
 
-    CanonicalResponse {
+    // Why: Anthropic itself reports `tool_use` correctly, but this codec also
+    // fronts Anthropic-compatible upstreams that send a plain `end_turn`
+    // beside a tool_use block. Relayed as end_turn the client finishes the
+    // turn and the call is silently never run.
+    let has_tool_use = content
+        .iter()
+        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
+    let stop_reason = wire_stop_reason.map(|r| r.with_tool_use(has_tool_use));
+
+    Ok(CanonicalResponse {
         id,
         model,
         content,
@@ -192,7 +214,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         code_execution: None,
         raw_finish_reason: resp.stop_reason,
         ..Default::default()
-    }
+    })
 }
 
 fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
@@ -238,4 +260,12 @@ fn canonical_image(source: AnthropicImageSource) -> Option<CanonicalContent> {
         })),
         AnthropicImageSource::Unknown => None,
     }
+}
+
+// Why: runs before `parse_response`, which is total and would turn a body
+// carrying nothing into a well-formed empty turn. `None` means the body is
+// worth parsing.
+#[must_use]
+pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
+    buffered_body_defect(value, "content", "usage")
 }

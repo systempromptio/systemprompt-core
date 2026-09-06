@@ -7,10 +7,10 @@
 use chrono::{Duration, Utc};
 use systemprompt_database::CleanupRepository;
 
-use crate::services::db_helper::pool;
+use crate::services::db_helper::pool_or_skip;
 
-async fn repo_and_pool() -> Option<(CleanupRepository, sqlx::PgPool)> {
-    let db = pool().await?;
+async fn repo_and_pool_or_skip() -> Option<(CleanupRepository, sqlx::PgPool)> {
+    let db = pool_or_skip().await?;
     let pg = db.write_pool_arc().ok()?;
     Some((CleanupRepository::new((*pg).clone()), (*pg).clone()))
 }
@@ -42,7 +42,7 @@ async fn log_exists(pool: &sqlx::PgPool, id: &str) -> bool {
 
 #[tokio::test]
 async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
-    let Some((repo, pg)) = repo_and_pool().await else {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
         return;
     };
     // A `logs` row must never carry a NULL user_id: every global read of the
@@ -86,7 +86,7 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
 // tests each seeding an orphan race each other's DELETE.
 #[tokio::test]
 async fn orphaned_logs_are_counted_then_removed_for_missing_users() {
-    let Some((repo, pg)) = repo_and_pool().await else {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
         return;
     };
     let orphan_id = unique("orphan_log");
@@ -138,7 +138,7 @@ async fn remove_user_and_client(pool: &sqlx::PgPool, user_id: &str, client_id: &
 
 #[tokio::test]
 async fn delete_expired_oauth_tokens_removes_expired_and_keeps_live() {
-    let Some((repo, pg)) = repo_and_pool().await else {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
         return;
     };
     let (user_id, client_id) = seed_user_and_client(&pg).await;
@@ -178,7 +178,7 @@ async fn delete_expired_oauth_tokens_removes_expired_and_keeps_live() {
 
 #[tokio::test]
 async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
-    let Some((repo, pg)) = repo_and_pool().await else {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
         return;
     };
     let (user_id, client_id) = seed_user_and_client(&pg).await;
@@ -219,7 +219,7 @@ async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
 
 #[tokio::test]
 async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool().await else {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
         return;
     };
     let hash = unique("state_hash");
@@ -251,7 +251,7 @@ async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool().await else {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
         return;
     };
     let jti = unique("jti");
@@ -283,7 +283,7 @@ async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_id_jag_replays_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool().await else {
+    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
         return;
     };
     let jti = unique("replay_jti");

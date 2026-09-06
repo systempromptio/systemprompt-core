@@ -160,17 +160,62 @@ fn to_ai_response_maps_tokens_and_cache() {
         output_tokens: 5,
         cache_read_tokens: 4,
         cache_creation_tokens: 0,
+        reasoning_tokens: 0,
         total_tokens: 15,
     };
     let response = response_with(usage);
     let ai = to_ai_response("openai", "gpt-4o", Uuid::nil(), Instant::now(), &response);
     assert_eq!(ai.content, "answer");
-    assert_eq!(ai.tokens_used, Some(15));
+    assert_eq!(ai.tokens_used, Some(19), "tokens_used counts cache reads");
     assert_eq!(ai.input_tokens, Some(10));
     assert!(ai.cache_hit);
     assert_eq!(ai.cache_read_tokens, Some(4));
     assert_eq!(ai.cache_creation_tokens, None);
     assert_eq!(ai.finish_reason.as_deref(), Some("stop"));
+    assert_eq!(ai.reasoning_tokens, None);
+}
+
+#[test]
+fn to_ai_response_carries_reasoning_without_adding_it_to_tokens_used() {
+    let usage = CanonicalUsage {
+        input_tokens: 20,
+        output_tokens: 106,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
+        reasoning_tokens: 100,
+        total_tokens: 126,
+    };
+    let ai = to_ai_response(
+        "openai",
+        "o4-mini",
+        Uuid::nil(),
+        Instant::now(),
+        &response_with(usage),
+    );
+    assert_eq!(ai.reasoning_tokens, Some(100));
+    assert_eq!(ai.output_tokens, Some(106));
+    assert_eq!(ai.tokens_used, Some(126));
+}
+
+#[test]
+fn to_ai_response_folds_reasoning_a_provider_reported_additionally() {
+    let usage = CanonicalUsage {
+        input_tokens: 20,
+        output_tokens: 40,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
+        reasoning_tokens: 100,
+        total_tokens: 0,
+    };
+    let ai = to_ai_response(
+        "cerebras",
+        "gpt-oss-120b",
+        Uuid::nil(),
+        Instant::now(),
+        &response_with(usage),
+    );
+    assert_eq!(ai.output_tokens, Some(140));
+    assert_eq!(ai.tokens_used, Some(160));
 }
 
 #[test]
@@ -352,6 +397,8 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
         output_tokens: Some(8),
         cache_read_tokens: Some(3),
         cache_creation_tokens: None,
+        reasoning_tokens: None,
+        total_tokens: Some(23),
     };
     match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
         Some(StreamChunk::Usage {
@@ -360,14 +407,16 @@ fn event_to_chunk_usage_delta_carries_token_totals() {
             tokens_used,
             cache_read_tokens,
             cache_creation_tokens,
+            reasoning_tokens,
             finish_reason,
         }) => {
             assert_eq!(input_tokens, Some(12));
             assert_eq!(output_tokens, Some(8));
-            // Cache reads are billable tokens, so they belong in the total.
+            // The wire's own total is relayed, never recomputed here.
             assert_eq!(tokens_used, Some(23));
             assert_eq!(cache_read_tokens, Some(3));
             assert_eq!(cache_creation_tokens, None);
+            assert_eq!(reasoning_tokens, None);
             assert!(finish_reason.is_none());
         },
         other => panic!("expected Usage chunk, got {other:?}"),
@@ -417,4 +466,44 @@ fn event_to_chunk_end_turn_maps_to_stop() {
 fn event_to_chunk_other_events_are_dropped() {
     assert!(event_to_chunk(CanonicalEvent::Error("boom".to_owned())).is_none());
     assert!(event_to_chunk(CanonicalEvent::ContentBlockStop { index: 0 }).is_none());
+}
+
+#[test]
+fn event_to_chunk_relays_no_total_when_the_frame_states_none() {
+    let usage = CanonicalUsageUpdate {
+        input_tokens: Some(12),
+        output_tokens: Some(8),
+        cache_read_tokens: Some(3),
+        cache_creation_tokens: None,
+        reasoning_tokens: None,
+        total_tokens: None,
+    };
+    match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
+        Some(StreamChunk::Usage { tokens_used, .. }) => assert_eq!(
+            tokens_used, None,
+            "a frame with no stated total leaves tokens_used to billable_total"
+        ),
+        other => panic!("expected Usage chunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn the_agent_path_records_the_same_tokens_used_the_gateway_would() {
+    let usage = CanonicalUsage {
+        input_tokens: 1_000,
+        output_tokens: 500,
+        cache_read_tokens: 100_000,
+        cache_creation_tokens: 10_000,
+        reasoning_tokens: 200,
+        total_tokens: 0,
+    };
+    let ai = to_ai_response(
+        "anthropic",
+        "claude-sonnet-4-6",
+        Uuid::nil(),
+        Instant::now(),
+        &response_with(usage),
+    );
+    assert_eq!(ai.tokens_used, Some(usage.billable_total()));
+    assert_eq!(ai.tokens_used, Some(111_500));
 }

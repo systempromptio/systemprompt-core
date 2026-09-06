@@ -1,7 +1,8 @@
 //! Unit tests for AppliedMigration, MigrationResult, MigrationStatus,
-//! PendingMigration, ChecksumDrift, and ExtensionMigrationStatus structs,
-//! plus the `MigrationService` runner (transactional wrapping,
-//! `no_transaction` opt-out, and `run_down_migrations` reversibility).
+//! PendingMigration, ChecksumDrift, OrphanedMigration, TombstonedSlot, and
+//! ExtensionMigrationStatus structs, plus the `MigrationService` runner
+//! (transactional wrapping, `no_transaction` opt-out, tombstoned slots, and
+//! `run_down_migrations` reversibility).
 
 use std::sync::{Arc, Mutex};
 
@@ -9,8 +10,8 @@ use async_trait::async_trait;
 use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
     DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome,
-    MigrationResult, MigrationService, MigrationStatus, PendingMigration, QueryResult,
-    QuerySelector, ToDbValue,
+    MigrationResult, MigrationService, MigrationStatus, OrphanedMigration, PendingMigration,
+    QueryResult, QuerySelector, SlotCollision, ToDbValue, TombstonedSlot,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
@@ -730,11 +731,11 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
 
 mod checksum_drift_db {
     use super::{Migration, MigrationService, StubExtension};
-    use crate::services::db_helper::pool;
+    use crate::services::db_helper::pool_or_skip;
     use systemprompt_database::{MigrationConfig, PostgresProvider};
 
-    async fn provider() -> Option<PostgresProvider> {
-        let db = pool().await?;
+    async fn provider_or_skip() -> Option<PostgresProvider> {
+        let db = pool_or_skip().await?;
         let pg = db.write_pool_arc().ok()?;
         Some(PostgresProvider::from_pool(pg))
     }
@@ -748,7 +749,7 @@ mod checksum_drift_db {
 
     #[tokio::test]
     async fn edited_applied_migration_is_refused_unless_drift_allowed() {
-        let Some(provider) = provider().await else {
+        let Some(provider) = provider_or_skip().await else {
             return;
         };
         let service = MigrationService::new(&provider);
@@ -886,6 +887,7 @@ fn test_extension_migration_status_with_drift_and_pending() {
             stored_checksum: "old".to_string(),
             current_checksum: "edited".to_string(),
         }],
+        ..Default::default()
     };
 
     assert_eq!(s.applied.len(), 1);
@@ -1368,4 +1370,467 @@ async fn an_extension_with_no_migrations_short_circuits_before_touching_the_ledg
          table: {:?}",
         log.snapshot()
     );
+}
+
+#[test]
+fn tombstone_declares_a_spent_slot_with_no_sql() {
+    let migration = Migration::tombstone(34, "knowledge_bank");
+
+    assert_eq!(migration.version, 34);
+    assert_eq!(migration.name, "knowledge_bank");
+    assert!(migration.tombstone);
+    assert!(migration.sql.is_empty());
+    assert!(migration.down.is_none());
+    assert!(!migration.no_transaction);
+}
+
+#[test]
+fn a_real_migration_is_never_a_tombstone() {
+    assert!(!Migration::new(1, "a", "SELECT 1;").tombstone);
+    assert!(!Migration::with_down(1, "a", "SELECT 1;", "SELECT 2;").tombstone);
+    assert!(!Migration::new_no_transaction(1, "a", "SELECT 1;").tombstone);
+}
+
+#[tokio::test]
+async fn a_tombstoned_slot_is_neither_executed_nor_recorded() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "tombstone_ext",
+        migrations: vec![Migration::tombstone(1, "deleted_long_ago")],
+    };
+
+    let result = service
+        .run_pending_migrations(&extension)
+        .await
+        .expect("a tombstone must never fail the run");
+
+    assert_eq!(result.migrations_run, 0);
+    assert_eq!(result.migrations_skipped, 0);
+    assert!(
+        !log.snapshot().iter().any(|e| e == "begin"),
+        "a spent slot opens no transaction: {:?}",
+        log.snapshot()
+    );
+}
+
+#[test]
+fn orphaned_migration_names_the_slot_no_file_claims() {
+    let orphan = OrphanedMigration {
+        extension_id: "web".to_owned(),
+        version: 34,
+        name: "knowledge_bank".to_owned(),
+    };
+
+    assert_eq!(orphan.version, 34);
+    assert_eq!(orphan.name, "knowledge_bank");
+}
+
+#[test]
+fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
+    let tracked = TombstonedSlot {
+        extension_id: "web".to_owned(),
+        version: 34,
+        name: "knowledge_bank".to_owned(),
+        tracked: true,
+    };
+    let untracked = TombstonedSlot {
+        tracked: false,
+        ..tracked.clone()
+    };
+
+    assert!(tracked.tracked);
+    assert!(!untracked.tracked);
+    assert_eq!(untracked.version, 34);
+}
+
+
+// ---------------------------------------------------------------------------
+// Drift repair: slot collisions are refused, reconcile-only executes no SQL.
+// ---------------------------------------------------------------------------
+//
+// `HealingRowsProvider` differs from `AppliedRowsProvider` in returning a
+// mutable set of `extension_migrations` rows: any write heals the stored
+// checksum, the way the real UPDATE does, so `repair_drift`'s follow-up pass
+// sees a reconciled row instead of the stale one it just fixed.
+
+#[derive(Debug)]
+struct AppliedRows {
+    rows: Mutex<Vec<(u32, String, String)>>,
+    healed_checksum: String,
+}
+
+impl AppliedRows {
+    fn heal(&self) {
+        for row in self.rows.lock().expect("lock").iter_mut() {
+            row.2 = self.healed_checksum.clone();
+        }
+    }
+
+    fn query_result(&self) -> QueryResult {
+        let rows = self
+            .rows
+            .lock()
+            .expect("lock")
+            .iter()
+            .map(|(version, name, checksum)| {
+                let mut row = JsonRow::new();
+                row.insert("extension_id".to_string(), serde_json::json!("repair_ext"));
+                row.insert("version".to_string(), serde_json::json!(version));
+                row.insert("name".to_string(), serde_json::json!(name));
+                row.insert("checksum".to_string(), serde_json::json!(checksum));
+                row.insert("applied_at".to_string(), serde_json::json!(null));
+                row
+            })
+            .collect::<Vec<_>>();
+        QueryResult {
+            columns: vec![],
+            row_count: rows.len(),
+            rows,
+            execution_time_ms: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct HealingRowsProvider {
+    log: Arc<CallLog>,
+    state: Arc<AppliedRows>,
+}
+
+#[async_trait]
+impl DatabaseProvider for HealingRowsProvider {
+    async fn execute(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.log.push("execute");
+        self.state.heal();
+        Ok(1)
+    }
+
+    async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
+        self.log.push(format!("execute_raw:{sql}"));
+        Ok(())
+    }
+
+    async fn fetch_all(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn fetch_scalar_value(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<DbValue> {
+        Ok(DbValue::NullString)
+    }
+
+    async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
+        self.log.push("begin");
+        Ok(Box::new(HealingTx {
+            log: Arc::clone(&self.log),
+            state: Arc::clone(&self.state),
+            statement_index: 0,
+        }))
+    }
+
+    async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
+        Ok(DatabaseInfo {
+            path: String::new(),
+            size: 0,
+            version: "test".into(),
+            tables: vec![],
+        })
+    }
+
+    async fn test_connection(&self) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn execute_batch(&self, _sql: &str) -> DatabaseResult<()> {
+        Ok(())
+    }
+
+    async fn query_raw(&self, _query: &dyn QuerySelector) -> DatabaseResult<QueryResult> {
+        Ok(self.state.query_result())
+    }
+
+    async fn query_raw_with(
+        &self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<QueryResult> {
+        Ok(self.state.query_result())
+    }
+}
+
+#[derive(Debug)]
+struct HealingTx {
+    log: Arc<CallLog>,
+    state: Arc<AppliedRows>,
+    statement_index: usize,
+}
+
+#[async_trait]
+impl DatabaseTransaction for HealingTx {
+    async fn execute(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<u64> {
+        self.statement_index += 1;
+        self.log
+            .push(format!("tx_execute:{}", self.statement_index));
+        Ok(0)
+    }
+
+    async fn fetch_all(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Vec<JsonRow>> {
+        Ok(vec![])
+    }
+
+    async fn fetch_one(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<JsonRow> {
+        Ok(JsonRow::new())
+    }
+
+    async fn fetch_optional(
+        &mut self,
+        _query: &dyn QuerySelector,
+        _params: &[&dyn ToDbValue],
+    ) -> DatabaseResult<Option<JsonRow>> {
+        Ok(None)
+    }
+
+    async fn commit(self: Box<Self>) -> DatabaseResult<()> {
+        self.log.push("commit");
+        self.state.heal();
+        Ok(())
+    }
+
+    async fn rollback(self: Box<Self>) -> DatabaseResult<()> {
+        self.log.push("rollback");
+        Ok(())
+    }
+}
+
+const REPAIR_SQL: &str = "CREATE TABLE repaired (id TEXT);";
+
+fn repair_extension(name: &'static str) -> StubExtension {
+    StubExtension {
+        id: "repair_ext",
+        migrations: vec![Migration::new(34, name, REPAIR_SQL)],
+    }
+}
+
+fn drifted_provider(
+    log: &Arc<CallLog>,
+    stored_name: &str,
+    file_name: &'static str,
+) -> HealingRowsProvider {
+    HealingRowsProvider {
+        log: Arc::clone(log),
+        state: Arc::new(AppliedRows {
+            rows: Mutex::new(vec![(
+                34,
+                stored_name.to_string(),
+                "stale_checksum".to_string(),
+            )]),
+            healed_checksum: Migration::new(34, file_name, REPAIR_SQL).checksum(),
+        }),
+    }
+}
+
+#[tokio::test]
+async fn status_reports_a_renamed_slot_as_a_collision_not_as_drift() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let service = MigrationService::new(&provider);
+
+    let status = service
+        .status(&repair_extension("034_project_activity"))
+        .await
+        .expect("status succeeds");
+
+    assert!(
+        status.drift.is_empty(),
+        "a renamed slot is not drift: {:?}",
+        status.drift
+    );
+    assert_eq!(status.slot_collisions.len(), 1);
+    assert_eq!(status.slot_collisions[0].stored_name, "034_knowledge_bank");
+    assert_eq!(
+        status.slot_collisions[0].current_name,
+        "034_project_activity"
+    );
+}
+
+#[tokio::test]
+async fn repair_drift_refuses_a_reused_slot() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let service = MigrationService::new(&provider);
+
+    let err = service
+        .repair_drift(&repair_extension("034_project_activity"))
+        .await
+        .expect_err("a reused slot must be refused");
+
+    let message = err.to_string();
+    assert!(message.contains("034_knowledge_bank"), "{message}");
+    assert!(message.contains("034_project_activity"), "{message}");
+    assert!(message.contains("tombstone"), "{message}");
+    let events = log.snapshot();
+    assert!(
+        !events.iter().any(|e| e == "begin" || e == "execute"),
+        "nothing may be written for a refused repair: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn reconcile_drift_refuses_a_reused_slot() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_project_activity");
+    let service = MigrationService::new(&provider);
+
+    service
+        .reconcile_drift(&repair_extension("034_project_activity"))
+        .await
+        .expect_err("a reused slot must be refused");
+    assert!(
+        !log.snapshot().iter().any(|e| e == "execute"),
+        "no checksum was rewritten"
+    );
+}
+
+#[tokio::test]
+async fn repair_drift_reapplies_when_the_name_matches() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let service = MigrationService::new(&provider);
+
+    let result = service
+        .repair_drift(&repair_extension("034_knowledge_bank"))
+        .await
+        .expect("genuine drift repairs");
+
+    assert_eq!(result.repaired.len(), 1);
+    assert_eq!(result.reapplied, 1, "the drifted SQL must actually run");
+    let events = log.snapshot();
+    assert!(
+        events.iter().any(|e| e == "begin") && events.iter().any(|e| e == "commit"),
+        "the re-apply runs in a transaction: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
+    let log = Arc::new(CallLog::default());
+    let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank");
+    let service = MigrationService::new(&provider);
+
+    let result = service
+        .reconcile_drift(&repair_extension("034_knowledge_bank"))
+        .await
+        .expect("reconcile succeeds");
+
+    assert_eq!(result.repaired.len(), 1);
+    assert_eq!(
+        result.reapplied, 0,
+        "reconcile must execute no migration SQL"
+    );
+    let events = log.snapshot();
+    assert!(
+        !events.iter().any(|e| e == "begin"),
+        "reconcile opens no migration transaction: {events:?}"
+    );
+}
+
+fn status_with_collisions(collisions: Vec<SlotCollision>) -> ExtensionMigrationStatus {
+    ExtensionMigrationStatus {
+        extension_id: "knowledge_bank".to_string(),
+        slot_collisions: collisions,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn refuse_slot_collisions_accepts_a_status_without_collisions() {
+    let status = status_with_collisions(Vec::new());
+
+    MigrationService::refuse_slot_collisions(&status).expect("no collision, nothing to refuse");
+}
+
+#[test]
+fn refuse_slot_collisions_names_both_the_stored_and_the_current_migration() {
+    let status = status_with_collisions(vec![SlotCollision {
+        extension_id: "knowledge_bank".to_string(),
+        version: 34,
+        stored_name: "034_knowledge_bank".to_string(),
+        current_name: "034_project_activity".to_string(),
+    }]);
+
+    let err = MigrationService::refuse_slot_collisions(&status)
+        .expect_err("a reused slot must be refused");
+
+    let message = err.to_string();
+    assert!(message.contains("034_knowledge_bank"), "{message}");
+    assert!(message.contains("034_project_activity"), "{message}");
+    assert!(message.contains("34"), "{message}");
+    assert!(message.contains("knowledge_bank"), "{message}");
+}
+
+#[test]
+fn refuse_slot_collisions_reports_the_first_collision_when_several_exist() {
+    let status = status_with_collisions(vec![
+        SlotCollision {
+            extension_id: "knowledge_bank".to_string(),
+            version: 34,
+            stored_name: "034_knowledge_bank".to_string(),
+            current_name: "034_project_activity".to_string(),
+        },
+        SlotCollision {
+            extension_id: "knowledge_bank".to_string(),
+            version: 35,
+            stored_name: "035_files".to_string(),
+            current_name: "035_projects".to_string(),
+        },
+    ]);
+
+    let err = MigrationService::refuse_slot_collisions(&status)
+        .expect_err("a reused slot must be refused");
+
+    let message = err.to_string();
+    assert!(message.contains("034_knowledge_bank"), "{message}");
+    assert!(!message.contains("035_files"), "{message}");
 }

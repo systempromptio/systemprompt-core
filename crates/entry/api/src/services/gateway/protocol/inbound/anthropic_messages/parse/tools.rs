@@ -10,6 +10,9 @@ use serde_json::{Map, Value};
 use crate::services::gateway::protocol::canonical::{
     CanonicalTool, CanonicalToolChoice, ThinkingConfig,
 };
+use crate::services::gateway::protocol::inbound::InboundParseError;
+
+const TOOL_CHOICE_EXPECTED: &str = "expected an object with type auto|any|tool";
 
 pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
     CanonicalTool {
@@ -29,27 +32,41 @@ pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
     }
 }
 
-pub(super) fn parse_tool_choice(value: &Value) -> Option<CanonicalToolChoice> {
-    if let Some(s) = value.as_str() {
-        return match s {
-            "auto" => Some(CanonicalToolChoice::Auto),
-            "any" => Some(CanonicalToolChoice::Any),
-            "none" => Some(CanonicalToolChoice::None),
-            "required" => Some(CanonicalToolChoice::Required),
-            _ => None,
-        };
-    }
-    let kind = value.get("type").and_then(Value::as_str)?;
+// Why: the Anthropic Messages contract defines `tool_choice` as an object; a
+// bare string (the OpenAI form) or an unknown `type` is a client bug, and the
+// upstream API answers it with a 400 rather than silently ignoring the field.
+pub(super) fn parse_tool_choice(
+    request: &Value,
+) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
+    request
+        .get("tool_choice")
+        .map(parse_present_tool_choice)
+        .transpose()
+}
+
+fn parse_present_tool_choice(value: &Value) -> Result<CanonicalToolChoice, InboundParseError> {
+    let unsupported = || InboundParseError::Unsupported {
+        field: "tool_choice",
+        detail: TOOL_CHOICE_EXPECTED.to_owned(),
+    };
+    let kind = value
+        .get("type")
+        .and_then(Value::as_str)
+        .ok_or_else(unsupported)?;
     match kind {
-        "auto" => Some(CanonicalToolChoice::Auto),
-        "any" => Some(CanonicalToolChoice::Any),
-        "none" => Some(CanonicalToolChoice::None),
-        "required" => Some(CanonicalToolChoice::Required),
+        "auto" => Ok(CanonicalToolChoice::Auto),
+        "any" => Ok(CanonicalToolChoice::Any),
+        "none" => Ok(CanonicalToolChoice::None),
+        "required" => Ok(CanonicalToolChoice::Required),
         "tool" => value
             .get("name")
             .and_then(Value::as_str)
-            .map(|n| CanonicalToolChoice::Tool(n.to_owned())),
-        _ => None,
+            .map(|n| CanonicalToolChoice::Tool(n.to_owned()))
+            .ok_or_else(|| InboundParseError::Unsupported {
+                field: "tool_choice",
+                detail: "expected a `name` for tool_choice type tool".to_owned(),
+            }),
+        _ => Err(unsupported()),
     }
 }
 

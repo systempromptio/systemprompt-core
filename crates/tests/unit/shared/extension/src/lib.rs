@@ -35,3 +35,6 @@ mod seed;
 
 #[cfg(test)]
 mod injected_lock;
+
+#[cfg(test)]
+mod migration_slots;

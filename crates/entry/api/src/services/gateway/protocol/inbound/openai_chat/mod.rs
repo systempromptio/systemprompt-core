@@ -64,9 +64,30 @@ impl InboundAdapter for OpenAiChatInbound {
         render_terminal::render_terminal_event_frame(event, snapshot)
     }
 
-    fn render_error(&self, _status: StatusCode, message: &str) -> Bytes {
+    fn wants_stream_usage(&self, raw: &Bytes) -> bool {
+        serde_json::from_slice::<Value>(raw).is_ok_and(|v| {
+            v.get("stream_options")
+                .and_then(|o| o.get("include_usage"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+    }
+
+    fn render_stream_tail(
+        &self,
+        snapshot: &CanonicalResponse,
+        include_usage: bool,
+    ) -> Option<Bytes> {
+        Some(render_terminal::render_stream_tail_frames(
+            snapshot,
+            include_usage,
+        ))
+    }
+
+    fn render_error(&self, status: StatusCode, message: &str) -> Bytes {
+        let kind = super::error_type_for_status(status);
         let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
-        let body = format!("{{\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}");
+        let body = format!("{{\"error\":{{\"type\":\"{kind}\",\"message\":\"{escaped}\"}}}}");
         Bytes::from(body)
     }
 }

@@ -6,7 +6,7 @@
 //! surface and the `ToDbValue` blanket impls from `systemprompt-traits`, which
 //! are the pure-logic half of the conversion module.
 
-use super::db_helper::pool;
+use super::db_helper::pool_or_skip;
 use systemprompt_database::DbValue;
 
 fn assert_db_value_debug(v: &DbValue) {
@@ -213,7 +213,9 @@ fn to_db_value_for_vec_string() {
 
 #[tokio::test]
 async fn row_to_json_converts_each_scalar_type() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let provider = db.read();
 
     let sql = "SELECT \
@@ -288,7 +290,9 @@ async fn row_to_json_converts_each_scalar_type() {
 
 #[tokio::test]
 async fn bind_params_round_trips_each_db_value_variant() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let provider = db.read();
 
     let s = "bound".to_string();
@@ -340,7 +344,9 @@ async fn bind_params_round_trips_each_db_value_variant() {
 
 #[tokio::test]
 async fn bind_params_handles_null_variants() {
-    let Some(db) = pool().await else { return };
+    let Some(db) = pool_or_skip().await else {
+        return;
+    };
     let provider = db.read();
 
     let null_string: Option<String> = None;
