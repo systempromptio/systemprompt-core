@@ -21,8 +21,11 @@
 # job-execution tests additionally share the one inventory-registered
 # `cleanup_inactive_sessions` scheduled_jobs row, so a concurrent run flips its
 # status mid-assertion; the dispatch-scope tests likewise share the one
-# `sp_test_node_job` row and stamp `last_instance_id` on it. Serialise the suite into one slot so each test's job sees
-# only its own seeded data.
+# `sp_test_node_job` row and stamp `last_instance_id` on it, and the
+# instance-stamp tests own the `stamp_*` rows a sibling suite's sweep can delete
+# between the running stamp and the result write (a per-module mutex cannot
+# serialise across nextest's one-process-per-test). Serialise the suite into one
+# slot so each test's job sees only its own seeded data.
 # The users-domain DB tests share the `users` table and its `email`/`name`
 # UNIQUE indexes. The federated-identity tests run concurrent
 # `find_or_create_federated` INSERTs whose synthetic local emails collide on
@@ -196,11 +199,11 @@ filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
@@ -404,7 +407,7 @@ filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_
 test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.coverage.overrides]]
