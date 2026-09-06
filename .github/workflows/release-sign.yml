@@ -35,17 +35,11 @@ jobs:
       # keyring → dbus-secret-service → libdbus-sys builds from pkg-config;
       # ubuntu-latest no longer ships libdbus-1-dev.
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2026-06-03
-          components: rustfmt
+      - run: rustup show
       # Scope the gate to the bridge package: `--all` formats/lints the whole
       # enclosing workspace, so unrelated crates (committed by other work, and
       # subject to nightly rustfmt churn) would block a bridge release.
       - run: cargo fmt --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge -- --check
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: bin/bridge

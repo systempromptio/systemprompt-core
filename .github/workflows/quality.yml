@@ -37,10 +37,7 @@ jobs:
       # libdbus-sys through pkg-config; ubuntu-latest no longer ships
       # libdbus-1-dev.
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2026-06-03
-          components: clippy
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -63,10 +60,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2026-06-03
-          components: clippy
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: bin/bridge
@@ -83,7 +77,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |

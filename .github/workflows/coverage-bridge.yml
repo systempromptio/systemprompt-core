@@ -67,9 +67,7 @@ jobs:
               p.write_text(s)
               print(f"--- {path} ---\n{p.read_text()}")
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
+      - run: rustup show
 
       - uses: Swatinem/rust-cache@v2
         with:
