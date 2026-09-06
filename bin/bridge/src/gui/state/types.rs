@@ -49,6 +49,7 @@ pub struct GatewayProbeOutcome {
 #[derive(Debug, Clone, Default)]
 pub struct AppStateSnapshot {
     pub gateway_url: String,
+    pub gateway_configured: bool,
     pub config_file: String,
     pub pat_file: String,
     pub config_present: bool,

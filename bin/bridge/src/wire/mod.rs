@@ -28,8 +28,13 @@ use payloads::{
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "flat JSON wire contract; each flag is a serialised field the GUI reads by name"
+)]
 pub struct StatePayload<'a> {
     pub gateway_url: &'a str,
+    pub gateway_configured: bool,
     pub config_file: &'a str,
     pub pat_file: &'a str,
     pub config_present: bool,

@@ -9,6 +9,8 @@ setup-lede = systemprompt bridge routes one or more coding agents through your e
 setup-eyebrow-prefix = DEMO BUILD
 setup-gateway-label = Gateway URL
 setup-gateway-empty = enter a URL to check…
+setup-gateway-target = Signing in to { $host }.
+setup-gateway-target-default = Using the default gateway, { $host }. Change it above if yours is elsewhere.
 setup-connect = Connect
 setup-sign-in-default = Sign in to your gateway
 setup-sign-in-hint = Opens your browser to sign in on the gateway; this device is linked automatically.
@@ -350,7 +352,7 @@ setup-agents-empty = No agents available on this platform.
 setup-connecting = Connecting…
 setup-signing-in = Waiting for your browser…
 setup-sign-in-cancel = Cancel
-setup-gateway-required = Check the gateway URL under Advanced, then try again.
+setup-gateway-required = Check the gateway URL above, then try again.
 setup-step-label-connect = Step 1 of 2
 setup-step-label-agents = Step 2 of 2
 

@@ -26,6 +26,7 @@ struct LastSyncRecord {
 pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     let cfg = config::load();
     snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
+    snap.gateway_configured = cfg.gateway_url.is_some();
 
     snap.first_run.done = crate::gui::first_run::record::read().is_some();
     snap.agents_onboarded = crate::gui::onboarding::is_complete();

@@ -39,6 +39,14 @@ export class SpToast extends SpElement {
       // same way and is dismissed deliberately.
       this.show(msg, "error", 0);
     });
+    // A rejected credential has no timeout, so nothing but the user could
+    // clear it — it outlived the purge and the fresh sign-in that answered it.
+    // The moment the snapshot carries a verified identity, the answer has
+    // arrived and the prompt is stale.
+    this.useSnapshot((snap) => {
+      const identity = (snap && snap.verified_identity) || null;
+      if (this.visible && this.offerReauth && identity && identity.user_id) { this.hide(); }
+    });
     this._unsubs.push(onBridgeEvent("sp:toast", (e) => {
       const d = (e && e.detail) || {};
       if (!d.message) { return; }

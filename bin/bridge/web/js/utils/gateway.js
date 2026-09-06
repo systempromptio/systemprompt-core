@@ -46,6 +46,22 @@ export function patLinkFor(gateway) {
   return "#";
 }
 
+export function gatewayHost(url) {
+  try { return new URL((url || "").trim()).host; } catch { return ""; }
+}
+
+// The field used to arrive pre-filled with the brand default and nothing said
+// so; a user with a local gateway running signed in to it before noticing the
+// URL was never theirs. Name the destination, and say when it is a default.
+export function renderGatewayTarget(gateway, snap) {
+  const host = gatewayHost(gateway);
+  if (!host) { return ""; }
+  if (snap && snap.gateway_configured === false) {
+    return `<p class="sp-setup__target sp-setup__target--default">${escapeHtml(t("setup-gateway-target-default", { host }) || `Using the default gateway, ${host}. Change it above if yours is elsewhere.`)}</p>`;
+  }
+  return `<p class="sp-setup__target">${escapeHtml(t("setup-gateway-target", { host }) || `Signing in to ${host}.`)}</p>`;
+}
+
 const SPINNER = `<span class="sp-btn__spinner" aria-hidden="true"></span>`;
 
 export function renderGatewayForm(state) {
@@ -68,7 +84,8 @@ export function renderGatewayForm(state) {
   const signInDisabled = signInBusy || state.pending || !reachable;
   const gateReason = reachable || signInBusy || state.pending
     ? ""
-    : `<p class="sp-setup__hint sp-setup__hint--gate">${escapeHtml(t("setup-gateway-required") || "Check the gateway URL under Advanced, then try again.")}</p>`;
+    : `<p class="sp-setup__hint sp-setup__hint--gate">${escapeHtml(t("setup-gateway-required") || "Check the gateway URL above, then try again.")}</p>`;
+  const target = renderGatewayTarget(state.gateway, snap);
   const cancelBtn = signInBusy
     ? `<button class="sp-btn-ghost" type="button" data-action="cancel-sign-in">
         <span class="sp-btn__label">${escapeHtml(t("setup-sign-in-cancel") || "Cancel")}</span>
@@ -82,6 +99,7 @@ export function renderGatewayForm(state) {
         <span class="sp-dot ${probe.dot}" aria-hidden="true"></span>
         <span class="${probe.muted ? "sp-u-muted" : ""}">${escapeHtml(probe.text)}</span>
       </div>
+      ${target}
     </div>
     <div class="sp-setup__actions">
       <button class="sp-btn-primary ${signInBusy ? "is-busy" : ""}" type="button" ${signInDisabled ? "disabled" : ""} data-action="sign-in">
