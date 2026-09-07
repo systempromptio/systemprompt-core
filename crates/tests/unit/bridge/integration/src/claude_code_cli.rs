@@ -295,3 +295,32 @@ fn a_corrupt_sidecar_is_an_error_rather_than_an_empty_ownership_record() {
         );
     }
 }
+
+#[test]
+fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
+    use systemprompt_bridge::integration::claude_code_cli::filter_skills_for_host;
+    use systemprompt_bridge::gateway::manifest::SkillEntry;
+    let skills: Vec<SkillEntry> = [
+        ("setup_admin", vec!["cowork"]),
+        ("admin_report", vec![]),
+    ].into_iter().map(|(id, hosts)| serde_json::from_value(serde_json::json!({
+        "id":id,"name":id,"description":"test","file_path":"SKILL.md",
+        "sha256":"0".repeat(64),"instructions":"test","hosts":hosts
+    })).expect("skill")).collect();
+    let source = tempfile::tempdir().expect("source");
+    let destination = tempfile::tempdir().expect("destination");
+    for root in [source.path(), destination.path()] {
+        for id in ["setup-admin", "admin-report"] {
+            let path = root.join("skills").join(id);
+            std::fs::create_dir_all(&path).expect("directory");
+            std::fs::write(path.join("SKILL.md"), "instructions").expect("skill file");
+        }
+    }
+    filter_skills_for_host(destination.path(), &skills, "claude-code").expect("projection");
+    assert!(!destination.path().join("skills/setup-admin").exists());
+    assert!(destination.path().join("skills/admin-report/SKILL.md").exists());
+    assert!(source.path().join("skills/setup-admin/SKILL.md").exists());
+    filter_skills_for_host(destination.path(), &skills, "claude-code").expect("repeat");
+    filter_skills_for_host(source.path(), &skills, "cowork").expect("cowork");
+    assert!(source.path().join("skills/setup-admin/SKILL.md").exists());
+}

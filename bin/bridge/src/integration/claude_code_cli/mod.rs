@@ -31,6 +31,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use systemprompt_identifiers::MarketplaceId;
 
+pub use bundle::filter_skills_for_host;
 use bundle::{mirror_plugin, remove_dir, remove_stale_children};
 use marketplace::{
     set_enabled, strip_installed_plugins, strip_known_marketplace, upsert_installed_plugins,
@@ -237,12 +238,14 @@ fn mirror_marketplace(
             &src,
             &source_plugin_dir(plugins, &marketplace.id, id),
             mcp_servers,
+            &ctx.manifest.skills,
         )?;
         mirror_plugin(
             ctx.loopback,
             &src,
             &cache_install_dir(plugins, &marketplace.id, id),
             mcp_servers,
+            &ctx.manifest.skills,
         )?;
         entries.push(marketplace::entry_for(&src, id, version));
         ids.push(id);

@@ -23,14 +23,50 @@ pub(super) fn mirror_plugin(
     src: &Path,
     dst: &Path,
     mcp_servers: &[String],
+    skills: &[crate::gateway::manifest::SkillEntry],
 ) -> Result<(), ApplyError> {
     if dst.exists() {
         fs::remove_dir_all(dst).map_err(|e| io_err(format!("clear {}", dst.display()), e))?;
     }
     copy_dir_all(src, dst)?;
+    filter_skills_for_host(dst, skills, "claude-code")?;
     drop_standard_hooks_pointer(dst)?;
     if !mcp_servers.is_empty() {
         write_mcp_json(loopback, dst, mcp_servers)?;
+    }
+    Ok(())
+}
+
+pub fn filter_skills_for_host(
+    root: &Path,
+    skills: &[crate::gateway::manifest::SkillEntry],
+    host: &str,
+) -> Result<(), ApplyError> {
+    let allowed: std::collections::HashSet<String> = skills
+        .iter()
+        .filter(|skill| skill.hosts.is_empty() || skill.hosts.iter().any(|id| id == host))
+        .map(|skill| skill.id.as_str().replace('_', "-"))
+        .collect();
+    let path = root.join("skills");
+    let entries = match fs::read_dir(&path) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(io_err(format!("read {}", path.display()), error)),
+    };
+    for entry in entries {
+        let entry = entry.map_err(|error| io_err("read skill entry", error))?;
+        if !allowed.contains(entry.file_name().to_string_lossy().as_ref()) {
+            let file_type = entry
+                .file_type()
+                .map_err(|error| io_err("stat skill entry", error))?;
+            if file_type.is_dir() {
+                fs::remove_dir_all(entry.path())
+                    .map_err(|error| io_err("remove host-excluded skill", error))?;
+            } else {
+                fs::remove_file(entry.path())
+                    .map_err(|error| io_err("remove host-excluded skill file", error))?;
+            }
+        }
     }
     Ok(())
 }
