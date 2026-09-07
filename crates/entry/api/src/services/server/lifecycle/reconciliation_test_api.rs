@@ -34,3 +34,7 @@ pub async fn handle_missing_servers(
     )?);
     super::handle_missing_servers(required_servers, &orchestrator, None).await
 }
+
+pub async fn reconcile_agents(ctx: &AppContext) -> Result<usize> {
+    super::super::agents::reconcile_agents(ctx, None).await
+}

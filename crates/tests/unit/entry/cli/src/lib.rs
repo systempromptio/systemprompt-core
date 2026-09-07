@@ -67,3 +67,6 @@ mod session_resolution_helpers;
 mod session_store_reads;
 #[cfg(test)]
 mod shared;
+
+#[cfg(all(test, unix))]
+mod coverage_process_flows;

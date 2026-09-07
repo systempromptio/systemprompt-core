@@ -95,3 +95,70 @@ async fn broadcast_artifact_created_surfaces_transport_error() {
         "expected webhook transport error to surface as AgentError"
     );
 }
+
+async fn coverage_task_webhook(status: u16) {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/webhook/broadcast"))
+        .respond_with(ResponseTemplate::new(status))
+        .expect(2)
+        .mount(&server)
+        .await;
+    systemprompt_test_fixtures::init_isolated_bootstrap(&server.uri(), "mcp_servers: {}\n");
+    let ctx = ContextId::generate();
+    let task_id = TaskId::generate();
+    let user = UserId::new("webhook-owner");
+    let message = user_message(&ctx);
+    broadcast_task_created(BroadcastTaskCreatedParams {
+        task_id: &task_id,
+        context_id: &ctx,
+        user_id: user.as_str(),
+        user_message: &message,
+        agent_name: "webhook-agent",
+        token: "webhook-token",
+    })
+    .await;
+    broadcast_task_completed(&completed_task(&task_id, &ctx), &user, "webhook-token").await;
+    let requests = server.received_requests().await.unwrap();
+    for (request, event) in requests.iter().zip(["task_created", "task_completed"]) {
+        assert_eq!(request.headers["authorization"], "Bearer webhook-token");
+        let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+        assert_eq!(body["event_type"], event);
+        assert_eq!(body["entity_id"], task_id.as_str());
+        assert_eq!(body["context_id"], ctx.as_str());
+        assert_eq!(body["user_id"], user.as_str());
+        assert!(body["task_data"].is_object());
+    }
+}
+#[tokio::test]
+async fn coverage_task_lifecycle_webhooks_forward_trace_identity_and_bearer() {
+    coverage_task_webhook(200).await;
+}
+#[tokio::test]
+async fn coverage_rejected_task_webhooks_do_not_abort_task_lifecycle() {
+    coverage_task_webhook(503).await;
+}
+#[tokio::test]
+async fn coverage_missing_config_does_not_panic_for_best_effort_task_broadcasts() {
+    assert!(systemprompt_models::Config::get().is_err());
+    let ctx = ContextId::generate();
+    let task_id = TaskId::generate();
+    let message = user_message(&ctx);
+    broadcast_task_created(BroadcastTaskCreatedParams {
+        task_id: &task_id,
+        context_id: &ctx,
+        user_id: "user",
+        user_message: &message,
+        agent_name: "agent",
+        token: "token",
+    })
+    .await;
+    broadcast_task_completed(
+        &completed_task(&task_id, &ctx),
+        &UserId::new("user"),
+        "token",
+    )
+    .await;
+}

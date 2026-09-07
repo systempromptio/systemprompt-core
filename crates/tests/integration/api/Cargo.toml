@@ -14,6 +14,8 @@ path = "mod.rs"
 workspace = true
 
 [dependencies]
+async-trait = { workspace = true }
+inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true, features = ["test-api"] }
 systemprompt-runtime = { workspace = true }

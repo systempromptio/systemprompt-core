@@ -296,3 +296,106 @@ fn coverage_deploy_selection_excludes_local_profiles_and_resolves_named_profiles
     let noninteractive = CliConfig::new().with_interactive(false);
     assert!(resolve_profile(&ScriptedPrompter::default(), None, &noninteractive).is_err());
 }
+
+fn profile_context(project: &Project, answers: &[&str]) -> CommandContext {
+    CommandContext::new(
+        CliConfig::new()
+            .with_interactive(true)
+            .with_assume_terminal(true),
+        EnvOverrides {
+            profile: Some(project.profile.display().to_string()),
+            ..Default::default()
+        },
+    )
+    .with_prompter(Box::new(systemprompt_cli::ScriptedPrompter::new(
+        answers.iter().copied(),
+    )))
+}
+
+#[tokio::test]
+async fn coverage_profile_menu_edits_an_existing_profile_and_returns_to_the_menu() {
+    let project = Project::new("unused", false);
+    let before = systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap();
+    systemprompt_cli::cloud::profile::execute(None, &profile_context(&project, &["1", "4", "3"]))
+        .await
+        .unwrap();
+    let after = systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap();
+    assert_eq!(after.server.host, before.server.host);
+    assert_eq!(after.server.port, before.server.port);
+}
+
+#[tokio::test]
+async fn coverage_profile_menu_declining_deletion_preserves_profile_and_secrets() {
+    let project = Project::new("unused", false);
+    let secret = project.profile.parent().unwrap().join("secrets.json");
+    std::fs::write(&secret, r#"{"custom":"keep"}"#).unwrap();
+    systemprompt_cli::cloud::profile::execute(
+        None,
+        &profile_context(&project, &["2", "0", "no", "3"]),
+    )
+    .await
+    .unwrap();
+    assert!(project.profile.exists());
+    assert_eq!(
+        std::fs::read_to_string(secret).unwrap(),
+        r#"{"custom":"keep"}"#
+    );
+}
+
+#[tokio::test]
+async fn coverage_profile_menu_confirmed_deletion_removes_only_selected_profile() {
+    let project = Project::new("unused", false);
+    let unrelated = project
+        ._root
+        .path()
+        .join(".systemprompt/profiles/not-a-profile");
+    std::fs::create_dir(&unrelated).unwrap();
+    std::fs::write(unrelated.join("keep.txt"), "keep").unwrap();
+    systemprompt_cli::cloud::profile::execute(
+        None,
+        &profile_context(&project, &["2", "0", "yes", "3"]),
+    )
+    .await
+    .unwrap();
+    assert!(!project.profile.parent().unwrap().exists());
+    assert!(unrelated.join("keep.txt").exists());
+}
+
+#[tokio::test]
+async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
+    let project = Project::new("unused", false);
+    systemprompt_cli::cloud::profile::execute(
+        None,
+        &profile_context(
+            &project,
+            &[
+                "1",
+                "0",
+                "127.0.0.2",
+                "8123",
+                "http://127.0.0.2:8123",
+                "https://fixture.example",
+                "yes",
+                "1",
+                "https://issuer.example",
+                "600",
+                "1200",
+                "2",
+                "2",
+                "3",
+                "4",
+                "3",
+            ],
+        ),
+    )
+    .await
+    .unwrap();
+    let after = systemprompt_loader::ProfileLoader::load_from_path(&project.profile).unwrap();
+    assert_eq!(after.server.host, "127.0.0.2");
+    assert_eq!(after.server.port, 8123);
+    assert!(after.server.use_https);
+    assert_eq!(after.security.issuer, "https://issuer.example");
+    assert_eq!(after.security.access_token_expiration, 600);
+    assert_eq!(after.security.refresh_token_expiration, 1200);
+    assert_eq!(after.runtime.environment.to_string(), "staging");
+}

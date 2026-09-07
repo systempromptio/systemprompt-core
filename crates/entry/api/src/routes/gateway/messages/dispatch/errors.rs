@@ -6,7 +6,7 @@
 
 use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 
 use crate::services::gateway::image_fetch::ImageFetchFailed;
 use crate::services::gateway::protocol::outbound::UpstreamError;
@@ -221,31 +221,12 @@ pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     )
 )]
 pub fn build_error_response(status: StatusCode, error_type: &str, message: &str) -> Response<Body> {
-    let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
-    let body = format!(
-        "{{\"type\":\"error\",\"error\":{{\"type\":\"{error_type}\",\"message\":\"{escaped}\"}}}}"
-    );
-    match Response::builder()
-        .status(status)
-        .header("content-type", "application/json")
-        .body(Body::from(body))
-    {
-        Ok(resp) => resp,
-        Err(e) => {
-            tracing::error!(error = %e, status = %status, "Failed to build gateway error response");
-            internal_error_response()
-        },
-    }
-}
-
-fn internal_error_response() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header("content-type", "application/json")
-        .body(Body::from(r#"{"error":"internal"}"#))
-        .unwrap_or_else(|_| {
-            let mut fallback = Response::new(Body::from(r#"{"error":"internal"}"#));
-            *fallback.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-            fallback
-        })
+    (
+        status,
+        axum::Json(serde_json::json!({
+            "type": "error",
+            "error": { "type": error_type, "message": message },
+        })),
+    )
+        .into_response()
 }

@@ -17,7 +17,7 @@ systemprompt-analytics = { workspace = true }
 systemprompt-extension = { workspace = true }
 inventory = { workspace = true }
 systemprompt-oauth = { workspace = true }
-systemprompt-security = { workspace = true }
+systemprompt-security = { workspace = true, features = ["test-jwks-insecure-scheme"] }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 axum = { workspace = true }

@@ -6991,6 +6991,7 @@ name = "systemprompt-api-integration-tests"
 version = "0.0.11"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "base64 0.22.1",
  "bytes",
@@ -6998,6 +6999,7 @@ dependencies = [
  "futures",
  "http",
  "http-body-util",
+ "inventory",
  "jsonwebtoken",
  "reqwest",
  "rsa",
@@ -7384,6 +7386,7 @@ dependencies = [
 name = "systemprompt-bridge-mcp-probe-tests"
 version = "0.0.11"
 dependencies = [
+ "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "temp-env",

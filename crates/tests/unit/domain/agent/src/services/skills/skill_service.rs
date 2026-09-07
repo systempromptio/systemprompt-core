@@ -421,3 +421,87 @@ async fn load_skill_records_an_execution_step_when_tracking_is_wired() {
         "loading a skill with tracking wired must record a step naming it: {steps:?}"
     );
 }
+
+#[test]
+fn coverage_skill_service_requires_a_profile_before_loading_disk_content() {
+    assert!(ProfileBootstrap::get().is_err());
+    let err = SkillService::new().unwrap_err();
+    assert!(err.to_string().contains("Profile not initialized"));
+}
+#[tokio::test]
+async fn coverage_skill_config_read_failure_names_the_file() {
+    let root = skills_root();
+    fs::create_dir_all(root.join("blocked/config.yaml")).unwrap();
+    let err = SkillService::new()
+        .unwrap()
+        .load_skill_metadata(&SkillId::new("blocked"))
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("Failed to read"));
+    assert!(err.to_string().contains("config.yaml"));
+}
+#[tokio::test]
+async fn coverage_skill_content_read_failure_is_not_empty_instructions() {
+    let root = skills_root();
+    write_skill(
+        &root,
+        "blocked_body",
+        "id: blocked_body\nname: Blocked\ndescription: blocked content\n",
+        None,
+    );
+    fs::create_dir(root.join("blocked_body/index.md")).unwrap();
+    let err = SkillService::new()
+        .unwrap()
+        .load_skill(&SkillId::new("blocked_body"), &make_ctx())
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("index.md"));
+}
+#[tokio::test]
+async fn coverage_skill_listing_skips_unreadable_configs_and_regular_files() {
+    let root = skills_root();
+    fs::create_dir_all(root.join("unreadable/config.yaml")).unwrap();
+    fs::write(root.join("README.md"), "not a skill").unwrap();
+    write_skill(
+        &root,
+        "fallback_id",
+        "id: ''\nname: Fallback\ndescription: fallback identifier\nenabled: true\n",
+        None,
+    );
+    let ids = SkillService::new().unwrap().list_skill_ids().await.unwrap();
+    assert!(ids.contains(&"fallback_id".to_owned()));
+    assert!(!ids.contains(&"unreadable".to_owned()));
+    assert!(!ids.contains(&"README.md".to_owned()));
+}
+#[tokio::test]
+async fn coverage_skill_listing_with_no_directory_is_empty() {
+    let root = skills_root();
+    fs::remove_dir_all(&root).unwrap();
+    assert!(
+        SkillService::new()
+            .unwrap()
+            .list_skill_ids()
+            .await
+            .unwrap()
+            .is_empty()
+    );
+}
+#[cfg(unix)]
+#[tokio::test]
+async fn coverage_skill_listing_rejects_a_non_utf8_directory_identifier() {
+    use std::os::unix::ffi::OsStringExt;
+    let root = skills_root();
+    let dir = root.join(std::ffi::OsString::from_vec(vec![b'x', 255]));
+    fs::create_dir(&dir).unwrap();
+    fs::write(
+        dir.join("config.yaml"),
+        "id: ''\nname: Invalid\ndescription: invalid identifier\nenabled: true\n",
+    )
+    .unwrap();
+    let err = SkillService::new()
+        .unwrap()
+        .list_skill_ids()
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("Invalid skill dir entry"));
+}
