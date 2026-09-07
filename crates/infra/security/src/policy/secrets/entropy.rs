@@ -90,12 +90,6 @@ fn has_credential_shape(token: &str, config: &EntropyConfig) -> bool {
         && entropy_ratio(token) >= config.threshold
 }
 
-// Why: a whole path is one token, so exonerating it wholesale would let key
-// material hide in a segment — each segment is scored separately instead.
-// `+` and `=` are base64's own characters and effectively never appear in a
-// path, so their presence keeps the token in scope. Windows paths need no
-// handling: `:` is a delimiter and `\` is outside the charset, so they never
-// survive tokenisation as a single token.
 fn is_filesystem_path(token: &str, config: &EntropyConfig) -> bool {
     token.starts_with('/')
         && token.matches('/').count() >= 2
@@ -105,11 +99,8 @@ fn is_filesystem_path(token: &str, config: &EntropyConfig) -> bool {
             .any(|segment| has_credential_shape(segment, config))
 }
 
-// Why: an SRI hash (`sha384-<base64>`) is public integrity metadata, not key
-// material, but its payload is dense base64 that clears every entropy check.
-// The exoneration is length-verified rather than prefix-trusted: a credential
-// smuggled behind a `sha384-` prefix decodes to the wrong byte count and is
-// still reported.
+// Why: SRI digests are public integrity metadata despite their high-entropy
+// base64 payloads.
 fn is_verified_digest(token: &str) -> bool {
     let Some((prefix, payload)) = token.split_once('-') else {
         return false;
@@ -154,10 +145,6 @@ fn is_structured_payload(token: &str) -> bool {
     })
 }
 
-// Why: a `name-<base64>` token never decodes as a whole — the prefix is not
-// base64 — which used to defeat the structured-payload discriminator for
-// exactly the prefixed-payload shapes it exists to exonerate. A short
-// alphanumeric prefix is stripped and the remainder given the same chance.
 fn decoded_payload(token: &str) -> Option<Vec<u8>> {
     decode_base64(token).or_else(|| {
         let (prefix, payload) = token.split_once('-')?;
@@ -186,11 +173,6 @@ fn is_mostly_text(bytes: &[u8]) -> bool {
     printable * TEXT_RATIO_DENOMINATOR >= bytes.len() * TEXT_RATIO_NUMERATOR
 }
 
-// Why: exact buffer consumption alone is a weak signal on a short random blob,
-// so a decode only counts as protobuf when it also carries at least two fields
-// and one length-delimited payload that is itself text or protobuf. Random key
-// material clears all three by accident far less than one time in a hundred; a
-// real serialised message clears them by construction.
 fn is_protobuf(bytes: &[u8], depth: u32) -> bool {
     if depth > MAX_NESTING_DEPTH || bytes.len() < MIN_STRUCTURED_LEN {
         return false;

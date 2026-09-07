@@ -34,9 +34,6 @@ const UNKNOWN: &str = "unknown";
 pub struct InstallId(String);
 
 impl InstallId {
-    // Why: an install that cannot establish an id still runs, but as `unknown`,
-    // which `same_install` never matches — so it can never stand down for a
-    // sibling it cannot prove is itself.
     #[must_use]
     pub fn establish() -> Self {
         Self(load_or_mint().unwrap_or_else(|e| {
@@ -55,8 +52,6 @@ impl InstallId {
         is_known(&self.0)
     }
 
-    // Why: not `PartialEq` — two installs that both failed to establish an id
-    // must never read as the same install, or one would wrongly stand down.
     #[must_use]
     pub fn same_install(&self, other: &Self) -> bool {
         self.is_known() && other.is_known() && self.0 == other.0

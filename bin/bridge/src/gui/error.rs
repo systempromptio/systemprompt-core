@@ -13,9 +13,6 @@ pub enum GuiError {
     #[error("not authenticated")]
     NotAuthenticated,
 
-    // Why: an operation that was stopped before it concluded produced no
-    // finding at all. Modelled as its own variant so no caller has to sniff
-    // a message string to tell "the user pressed Cancel" from "this failed".
     #[error("cancelled")]
     Cancelled,
 

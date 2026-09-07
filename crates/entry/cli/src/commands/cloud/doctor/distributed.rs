@@ -65,10 +65,7 @@ pub fn check_instance_id(profile: &Profile) -> CheckResult {
         .filter(|id| !id.is_empty())
         .map_or_else(
             || {
-                // Why: a cloud boot without server.instance_id relies on the
-                // platform exporting HOSTNAME to the process and to every spawned
-                // MCP server. Fly does not, and a wrong guess here is a refused
-                // boot, so off-host the only verifiable state is the explicit id.
+                // Why: Fly does not automatically export HOSTNAME to application processes.
                 if profile.target.is_cloud() {
                     CheckResult::fail(
                         "instance-id",

@@ -33,8 +33,6 @@ pub(crate) fn resolve_or_reply(
     match resolve_host(host_id) {
         ResolvedHost::Local(host) => Some(host),
         ResolvedHost::SyncOnly(agent) => {
-            // Why: the activity log is where a user goes to find out why
-            // nothing happened. Silence here reads as a dropped click.
             app.append_log(format!(
                 "[{host_id}] {action}: nothing to do — {} is governed through the gateway and \
                  installs nothing on this computer",

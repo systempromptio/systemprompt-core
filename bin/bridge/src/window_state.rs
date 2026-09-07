@@ -59,9 +59,6 @@ pub const fn clamp_size(width: u32, height: u32) -> (u32, u32) {
     )
 }
 
-// Why: returning `None` is what makes an unplugged second monitor fall back to
-// OS centring instead of restoring the window off-screen, where it cannot be
-// reached.
 #[must_use]
 pub fn restore(saved: WindowGeometry, work_areas: &[WorkArea]) -> Option<WindowGeometry> {
     if work_areas.is_empty() {

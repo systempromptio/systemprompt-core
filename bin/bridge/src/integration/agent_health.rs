@@ -119,9 +119,6 @@ pub struct HostCapabilities {
 }
 
 impl HostCapabilities {
-    // Why: `can_open` is the host's own answer (some local hosts cannot be
-    // launched); the rest follow from whether anything of this agent lives on
-    // this computer at all.
     #[must_use]
     pub const fn for_surface(surface: AgentSurface, can_open: bool) -> Self {
         match surface {
@@ -132,8 +129,6 @@ impl HostCapabilities {
                 can_open_config: true,
                 can_remove: true,
             },
-            // Why: no profile to generate, no config file to open, no process
-            // to probe, nothing to remove. Governed entirely from the gateway.
             AgentSurface::SyncOnly => Self {
                 can_open: false,
                 can_verify: false,
@@ -195,18 +190,12 @@ impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRe
     }
 }
 
-// Why: precedence is deliberate and matches the order a reader can act on —
-// the most specific, most fixable fault wins, so nobody is told "the proxy is
-// down" when the real answer is "the app is not installed".
 #[must_use]
 pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     if input.surface == AgentSurface::SyncOnly {
         return super::sync_only::sync_only_verdict(input.manifest_synced);
     }
 
-    // Why: a host that has never been probed is unknown, not absent. Collapsing
-    // those two is what made healthy agents read as broken for the first
-    // second after launch.
     let Some(snap) = input.snapshot else {
         return AgentVerdict {
             state: AgentState::Checking,
@@ -232,8 +221,6 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         is_running,
     };
 
-    // Why: `Unknown` is not `NotInstalled` — an inconclusive probe must not be
-    // rendered as absence.
     if snap.app_installed == AppInstallState::NotInstalled {
         return finish(
             AgentState::Attention,
@@ -290,7 +277,6 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
             },
             open,
         ),
-        // Why: before the first proxy probe lands there is no finding to report.
         ProxyProbeState::Unknown => finish(AgentState::Checking, AgentReason::NeverProbed, None),
         probe => finish(
             AgentState::Down,

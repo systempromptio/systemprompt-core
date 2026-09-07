@@ -65,8 +65,6 @@ impl UserRepository {
         self.list_filtered(limit, offset, true).await
     }
 
-    // Why: anonymous visitors are stored as ordinary user rows, so every listing
-    // has to opt out of them explicitly or it presents traffic as people.
     async fn list_filtered(
         &self,
         limit: i64,

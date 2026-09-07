@@ -49,8 +49,6 @@ pub struct GatewayRequestContext {
     pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub trace_id: Option<TraceId>,
-    // Why: governance policies read the caller's tier; an API key carries no
-    // roles and is therefore `Unknown`.
     pub access_scope: AccessScope,
     pub client_id: Option<ClientId>,
     pub provider: String,
@@ -143,9 +141,6 @@ impl GatewayAudit {
         {
             tracing::warn!(error = %e, "audit fail update failed");
         }
-        // Why: `update_error` writes no usage columns, so a failed row keeps the
-        // zeros it was opened with — say so, or the reader takes them as "nothing
-        // was consumed" when a partial stream may well have been billed upstream.
         tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,

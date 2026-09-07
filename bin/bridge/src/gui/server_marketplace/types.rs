@@ -41,9 +41,6 @@ pub struct MarketplaceItem {
     pub(crate) change: Option<ChangeKind>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) children: Vec<PluginChild>,
-    // Why: empty for plugins themselves, for MCP servers (the registry
-    // snapshot is not per-plugin — `mark_shared_mcp` models that instead), and
-    // for items from an external source, which render under "Ungrouped".
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) plugins: Vec<String>,
     pub(crate) extra: MarketplaceExtra,

@@ -72,10 +72,6 @@ pub(crate) fn on_login_finished(
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
-            // Why: validate reads the machine policy and host files a sync
-            // writes, so an eager call here races the provisioning it is meant
-            // to describe. Both branches end in a sync, and sync re-validates
-            // on success and on failure alike.
             if crate::gui::first_run::should_run(app) {
                 app.proxy.send_event(UiEvent::FirstRunStart);
             } else {
@@ -86,9 +82,6 @@ pub(crate) fn on_login_finished(
             Ok(())
         },
         Err(e) if e.is_cancelled() => {
-            // Why: the user stopped this themselves, or a second sign-in
-            // superseded it. Neither says the credential is bad, so it is a log
-            // line and a plain reply -- never an "unauthorized" toast.
             app.append_log(i18n::t_args(
                 "login-cancelled",
                 &[("error", &e.to_string())],
@@ -161,8 +154,6 @@ pub(crate) fn on_set_gateway_finished(
             Ok(())
         },
         Err(e) if e.is_cancelled() => {
-            // Why: superseded by a later save, or cancelled by the user. The
-            // field simply was not written; that is not a failure to report.
             app.append_log(i18n::t("gateway-set-cancelled"));
             app.state.reload();
             Ok(())
@@ -184,8 +175,6 @@ pub(crate) fn on_set_gateway_finished(
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
-    // Why: as for purge — an in-flight sign-in would write a fresh credential
-    // after the sign-out cleared it, and the sign-out would look undone.
     app.state.cancel_scope(CancelScope::Login);
     app.append_log(i18n::t("logout-running"));
     let proxy = app.proxy.clone();
@@ -228,9 +217,6 @@ pub(crate) fn on_logout_finished(
             ))
         },
     };
-    // Why: the serving proxy still holds the JWT minted for the account that
-    // just signed out; without this it keeps heartbeating as them until the
-    // token expires, and the sign-out looks undone.
     app.ctx.proxy.reload_runtime_config();
     app.state.reload();
     app.refresh_ui();
@@ -238,9 +224,6 @@ pub(crate) fn on_logout_finished(
     finish_unit(app, bridge_result, reply_to);
 }
 
-// Why: raised once per rejection by the proxy's token cache latch. Nothing is
-// retried and no browser is opened; the toast carries the Re-authenticate
-// action and the rail drops to signed-out until the user acts.
 pub(crate) fn on_credential_rejected(app: &mut GuiApp, reason: &str) {
     let gateway = config::gateway_url_or_default(&config::load());
     let line = i18n::t_args(
@@ -261,9 +244,6 @@ pub(crate) fn on_credential_rejected(app: &mut GuiApp, reason: &str) {
     );
 }
 
-// Why: the proxy runtime cannot reach the GUI event loop, so the latch is
-// bridged here: one task awaits the watch channel and forwards each
-// transition into `SignInRequired` as a `CredentialRejected` event.
 pub(crate) fn watch_credential_state(app: &GuiApp) {
     let Some(mut rx) = app.ctx.proxy.auth_state() else {
         return;

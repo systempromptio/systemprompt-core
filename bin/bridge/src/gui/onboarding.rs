@@ -46,8 +46,6 @@ pub fn is_complete() -> bool {
         .is_ok()
 }
 
-// Why: best-effort -- a metadata directory we cannot write is a reason to
-// re-show the wizard next launch, not to fail the click.
 pub fn mark_complete() {
     let Some(path) = sentinel_path() else {
         tracing::warn!("no metadata dir; onboarding sentinel not written");

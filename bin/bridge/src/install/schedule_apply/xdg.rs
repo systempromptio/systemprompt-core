@@ -34,8 +34,8 @@ pub(super) fn register(
         format!("wrote: {}", proxy_path.display()),
     ];
 
-    // Why: activation needs a systemd user bus, which containers and
-    // systemd-less WSL distros lack; the written units still stand.
+    // Why: Activation requires a systemd user bus, which containers and
+    // systemd-less WSL may lack.
     if let Err(e) = activate(unit, &proxy_unit) {
         crate::stdio::diag(&format!(
             "warning: units written but not activated: {e}. Activate them yourself with: \
@@ -126,8 +126,6 @@ fn remove_if_present(path: &Path) -> std::io::Result<()> {
     }
 }
 
-// Why: there is no GUI on Linux to autostart — the desktop shell is gated to
-// macOS and Windows — so the whole toggle is inert here rather than half-wired.
 pub(super) const fn register_autostart(_rendered: &str) -> Result<Vec<String>, InstallError> {
     Err(InstallError::ScheduleOsMismatch)
 }
@@ -137,8 +135,6 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
 }
 
 pub(super) fn autostart_status() -> super::ScheduleStatus {
-    // Why: not Unknown. There is no GUI on this platform to start, so "not
-    // registered" is the whole truth rather than a guess.
     tracing::debug!("autostart unavailable: this platform has no desktop shell");
     super::ScheduleStatus::NotInstalled
 }

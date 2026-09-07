@@ -87,10 +87,6 @@ pub struct AppStateSnapshot {
 }
 
 impl AppStateSnapshot {
-    // Why: deliberately not `!enabled_hosts.is_empty()` -- an instance may
-    // disable every host, and that empty list is a real answer from a good
-    // manifest, not a missing one. Anything gating on the instance's host
-    // policy must ask this instead.
     pub const fn manifest_synced(&self) -> bool {
         self.last_sync_summary.is_some()
     }

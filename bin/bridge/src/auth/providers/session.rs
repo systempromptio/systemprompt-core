@@ -59,9 +59,6 @@ impl AuthProvider for SessionProvider {
 
 pub async fn capture_device_link_code(base_url: &ValidatedUrl) -> Result<String, AuthError> {
     let server = LoopbackServer::bind().await.map_err(|e| {
-        // Why: this failure only ever reached the GUI toast, so a sign-in
-        // wedged by another process holding the port left no trace in the log
-        // file — the only artefact available when nobody is at the machine.
         diag(&format!("loopback callback listener unavailable: {e}"));
         AuthError::Failed {
             provider: "session",

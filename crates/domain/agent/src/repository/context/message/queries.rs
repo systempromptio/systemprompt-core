@@ -151,10 +151,6 @@ pub async fn message_exists(
     Ok(row.unwrap_or(false))
 }
 
-// Why: the next sequence number is computed from MAX(sequence_number) and
-// then inserted under UNIQUE(task_id, sequence_number). Two replicas appending
-// to one task concurrently would both read the same MAX and one insert would
-// fail, so the task row is locked first and the second writer waits.
 pub async fn get_next_sequence_number_sqlx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     task_id: &TaskId,

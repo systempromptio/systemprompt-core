@@ -171,10 +171,6 @@ struct Playback {
 impl Playback {
     fn to_attributes(self) -> String {
         let mut flags = String::new();
-        // Why: `controls: false` with no autoplay renders an element with no
-        // affordance and no script to drive it — indistinguishable from a
-        // broken artifact. Controls are forced back on unless the media plays
-        // by itself.
         if self.controls || !self.autoplay {
             flags.push_str(" controls");
         }

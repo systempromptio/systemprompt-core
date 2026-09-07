@@ -11,8 +11,6 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     atomic_write_with_mode(path, bytes, 0o600)
 }
 
-// Why: a managed config the host reads as an unprivileged user must stay
-// world-readable; 0600 would lock the host out of its own policy.
 pub fn atomic_write_0644(path: &Path, bytes: &[u8]) -> io::Result<()> {
     atomic_write_with_mode(path, bytes, 0o644)
 }
@@ -37,8 +35,6 @@ fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: u32) -> io::Result<()
         #[cfg(unix)]
         {
             use std::os::unix::fs::OpenOptionsExt;
-            // Why: the mode at create() closes the TOCTOU window between write
-            // and chmod.
             opts.mode(mode);
         }
         let mut file = opts.open(&tmp)?;
@@ -49,8 +45,8 @@ fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: u32) -> io::Result<()
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        // Why: guards a pre-existing temp with different perms when
-        // OpenOptions::mode was ignored.
+        // Why: OpenOptions::mode does not change permissions on an existing temporary
+        // file.
         _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(mode));
     }
     #[cfg(not(unix))]
@@ -61,7 +57,6 @@ fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: u32) -> io::Result<()
     match fs::rename(&tmp, path) {
         Ok(()) => Ok(()),
         Err(e) => {
-            // Why: best-effort temp cleanup; the rename error is the failure to report.
             _ = fs::remove_file(&tmp);
             Err(e)
         },
@@ -90,7 +85,6 @@ pub fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        // Why: best-effort tightening; the directory exists either way.
         _ = fs::set_permissions(path, fs::Permissions::from_mode(0o700));
     }
     Ok(())

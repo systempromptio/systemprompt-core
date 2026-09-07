@@ -46,9 +46,6 @@ pub fn candidate_ports(ours: &InstallId) -> Vec<u16> {
             ports.push(p);
         }
     }
-    // Why: port 0 is the last-resort OS-assigned ephemeral — it guarantees a
-    // working proxy for this process, at the cost of a port that changes on
-    // every restart.
     ports.push(0);
     ports
 }

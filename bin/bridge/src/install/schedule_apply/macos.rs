@@ -10,7 +10,6 @@ use std::process::Command;
 use super::{InstallError, ScheduleRemoval, home, write};
 use crate::schedule::{self, Os};
 
-// Why: launchd addresses the per-user domain as `gui/<uid>`.
 fn gui_domain() -> String {
     #![allow(unsafe_code, reason = "libc::getuid is the only way to read the uid")]
     // SAFETY: getuid() is always safe; it reads the caller's real uid and cannot
@@ -32,8 +31,7 @@ pub(super) fn register(
     write(&path, rendered)?;
 
     let domain = gui_domain();
-    // Why: launchctl fails bootout with "not loaded" on a first install, which
-    // is expected and not fatal.
+    // Why: launchctl bootout fails when the job has never been loaded.
     _ = Command::new("launchctl")
         .args(["bootout", &domain])
         .arg(&path)

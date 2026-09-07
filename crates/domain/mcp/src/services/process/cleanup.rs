@@ -13,8 +13,6 @@ use std::process::Command;
 
 use super::utils::process_exists;
 
-// Why: never signal the caller: a misresolved port/name lookup must not let
-// server cleanup terminate this process.
 #[cfg(unix)]
 fn is_self(pid: u32) -> bool {
     pid == std::process::id()

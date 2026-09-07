@@ -191,9 +191,7 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository)
     .await;
 }
 
-// Why: a recycled PID is cleared without signalling — `kill(-pid)` on it would
-// hit every process in the reused group, e.g. the systemd `user@<uid>` session
-// leader.
+// Why: Unix can reuse PIDs; kill(-pid) signals the entire process group.
 async fn terminate_service_child(
     repo: &systemprompt_database::ServiceRepository,
     name: &str,

@@ -39,9 +39,6 @@ pub struct AnthropicStreamState {
 }
 
 impl AnthropicStreamState {
-    // Why: a decoder that joins a stream already in progress, and every test
-    // that drives a single frame, needs the id the terminal frame must echo
-    // without replaying a `message_start` to establish it.
     #[must_use]
     pub fn new(message_id: impl Into<String>) -> Self {
         Self {
@@ -79,8 +76,6 @@ impl AnthropicStreamState {
         events
     }
 
-    // Why: Emits the usage before the stop so a consumer that finalizes on the
-    // terminal event has already folded in the real token counts.
     fn convert_message_delta(&self, value: &Value) -> Vec<CanonicalEvent> {
         let mut events = Vec::with_capacity(2);
         if let Some(usage) = value.get("usage") {
@@ -197,12 +192,9 @@ fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
         output_tokens: field("output_tokens"),
         cache_read_tokens: field("cache_read_input_tokens"),
         cache_creation_tokens: field("cache_creation_input_tokens"),
-        // Why: a breakdown of `output_tokens`, which already includes it --
-        // see the `parse` module. Absent on models without adaptive thinking,
-        // so the accumulator keeps whatever an earlier frame established.
+        // Why: Anthropic includes thinking tokens in `output_tokens`.
         reasoning_tokens: thinking_tokens(u),
-        // Why: Anthropic states no total on the wire, so the accumulator's
-        // cache-inclusive sum stands.
+        // Why: Anthropic does not report a total token count on this wire.
         total_tokens: None,
     }
 }

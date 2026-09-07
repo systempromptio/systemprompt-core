@@ -25,8 +25,8 @@ pub(super) fn write_config_blocks(
 
     if enabled {
         let root = marketplace_root();
-        // Why: Codex stamps `last_updated` into this block, so replacing rather
-        // than merging it forces a needless re-sync.
+        // Why: Codex stores last_updated here; replacing the block triggers another
+        // sync.
         write_dotted(
             &mut value,
             &format!("marketplaces.{MARKETPLACE}.source_type"),

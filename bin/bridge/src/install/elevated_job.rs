@@ -41,12 +41,10 @@ pub(crate) struct ManagedFileJob {
     pub dest: PathBuf,
 }
 
-// Why: `grant_user` is captured by the UNELEVATED parent — the elevated
-// child may run as a different admin account, so it must never re-read
-// `%USERNAME%` itself.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct OrgPluginsJob {
     pub path: PathBuf,
+    // Why: UAC can run the child as a different admin; capture the grantee before elevation.
     pub grant_user: String,
 }
 
@@ -193,13 +191,6 @@ pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(),
     Ok(())
 }
 
-// Why: the job file used to be one fixed name. The first-run host-profile
-// write and the first sync's org-plugins provisioning both staged to it within
-// a second of each other; the second overwrote the first before its elevated
-// child had read it, the child ran the org-plugins job twice, both callers
-// read the same `ok` result, and the profile was logged as installed with no
-// registry write behind it — Cowork then started with a gateway provider and
-// no base URL. Every request now owns its own job and result file.
 pub(crate) fn elevate_and_run(stage_dir: &Path, job: &ElevatedJob) -> std::io::Result<()> {
     static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let exe = std::env::current_exe()?;

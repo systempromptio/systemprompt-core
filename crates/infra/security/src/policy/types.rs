@@ -101,9 +101,6 @@ pub enum AccessScope {
 }
 
 impl AccessScope {
-    // Why: role strings are the same vocabulary the authz webhook resolves
-    // from the database, so a token-derived scope and a DB-derived one agree.
-    // An unrecognised set is `Unknown` — deny-shaped rather than privileged.
     #[must_use]
     pub fn from_roles<S: AsRef<str>>(roles: &[S]) -> Self {
         if roles.iter().any(|r| r.as_ref() == "admin") {

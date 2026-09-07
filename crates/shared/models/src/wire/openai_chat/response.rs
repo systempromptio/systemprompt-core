@@ -31,13 +31,8 @@ struct ChatCompletion {
     choices: Vec<ChatChoice>,
 }
 
-// Why: `#[serde(default)]` covers an ABSENT field, not an explicit `null`, and
-// OpenAI-compatible providers send both. Vertex MaaS returns
-// `"tool_calls": null` and `"prompt_tokens_details": null` on every ordinary
-// completion, which failed the whole response and -- because the caller
-// defaults on error -- surfaced as a successful 200 carrying no content and no
-// tokens. Deserialize through `Option` and fall back to the default so a null
-// and an omission mean the same thing.
+// Why: Vertex MaaS can send explicit nulls for `tool_calls` and token details.
+// Serde's `default` handles omitted fields, not explicit nulls.
 fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -66,9 +61,7 @@ struct ChatPromptTokensDetails {
     cached_tokens: u32,
 }
 
-// Why: emitted by OpenAI's reasoning models and by the OpenAI-compatible
-// providers that copy the contract (DeepSeek, Qwen, Moonshot). The count is a
-// breakdown of completion_tokens, not an addition to it.
+// Why: OpenAI reports reasoning tokens as a subset of `completion_tokens`.
 #[derive(Debug, Default, Deserialize)]
 struct ChatCompletionTokensDetails {
     #[serde(default)]
@@ -76,12 +69,7 @@ struct ChatCompletionTokensDetails {
 }
 
 impl ChatUsage {
-    // Why: this wire reports `cached_tokens` as a subset of `prompt_tokens`,
-    // whereas `CanonicalUsage::input_tokens` is exclusive of cache reads (the
-    // Anthropic convention). Passing the prompt count through unchanged bills
-    // the cached slice twice, at the input rate and again at the cache-read
-    // rate. `saturating_sub` because an upstream may report a cached count
-    // larger than the prompt count on a malformed frame.
+    // Why: Chat Completions includes `cached_tokens` in `prompt_tokens`.
     const fn into_canonical(self) -> CanonicalUsage {
         let cached = self.prompt_tokens_details.cached_tokens;
         CanonicalUsage {
@@ -107,11 +95,8 @@ struct ChatChoice {
 struct ChatMessage {
     #[serde(default)]
     content: Option<String>,
-    // Why: the OpenAI chat contract has no reasoning field, but every
-    // OpenAI-compatible provider that emits thinking (DeepSeek, Qwen,
-    // Moonshot) puts it here; `alias` accepts the shorter spelling some of
-    // them use. Without it a thinking model's reasoning is discarded on
-    // arrival and cannot be replayed on the next turn.
+    // Why: DeepSeek, Qwen and Moonshot use the nonstandard `reasoning_content` field;
+    // some compatible providers spell it `reasoning`.
     #[serde(default, alias = "reasoning")]
     reasoning_content: Option<String>,
     #[serde(default, deserialize_with = "null_as_default")]
@@ -160,11 +145,8 @@ pub fn parse_response(
         if let Some(msg) = choice.message {
             collect_message_content(msg, &mut content);
         }
-        // Why: the contract says a turn carrying tool_calls finishes with
-        // "tool_calls", but several OpenAI-compatible upstreams send a plain
-        // "stop" beside a fully-formed tool_calls array. Relayed as "stop" the
-        // client ends the turn and never runs the call, and the drop is
-        // silent -- it looks exactly like the model declining to use tools.
+        // Why: Some OpenAI-compatible providers send `finish_reason: "stop"` alongside
+        // tool calls.
         let has_tool_use = content
             .iter()
             .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
@@ -219,9 +201,6 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
     }
 }
 
-// Why: runs before `parse_response`, which is total and would turn a body
-// carrying nothing into a well-formed empty turn. `None` means the body is
-// worth parsing.
 #[must_use]
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "choices", "usage")

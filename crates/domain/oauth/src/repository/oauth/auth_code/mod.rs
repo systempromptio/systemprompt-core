@@ -18,8 +18,6 @@ mod pkce;
 pub use params::{AuthCodeParams, AuthCodeValidationResult, MintAuthCodeParams};
 
 impl OAuthRepository {
-    // Why: `scope: None` falls back to the deployment's default roles, so
-    // every sign-in route mints codes the token endpoint treats identically.
     pub async fn mint_authorization_code(
         &self,
         params: MintAuthCodeParams<'_>,
@@ -110,10 +108,6 @@ impl OAuthRepository {
         let now = Utc::now();
         let code_hash = hash_at_rest(code.as_str())?;
 
-        // Why: Atomically claim the code: only one concurrent caller wins the
-        // `used_at IS NULL` race. The application-level checks below run
-        // against the row the winner just locked, so two simultaneous
-        // exchanges of the same code cannot both pass validation.
         let claimed = sqlx::query!(
             "UPDATE oauth_auth_codes
              SET used_at = $1
@@ -176,9 +170,6 @@ impl OAuthRepository {
         })
     }
 
-    // Why: Disambiguate "atomic claim returned no row." Either the code never
-    // existed, or it was previously consumed (replay) — the latter must
-    // revoke the entire refresh-token family per RFC 6819 §5.2.2.3.
     async fn handle_unclaimable_auth_code(
         &self,
         code_hash: &str,

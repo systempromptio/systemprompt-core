@@ -81,9 +81,6 @@ impl AccessControlRepository {
         Ok(())
     }
 
-    // Why: leaves an existing row's `default_included` alone, so a write that
-    // only needs the FK satisfied cannot widen access. `upsert_entity`
-    // overwrites the flag; this does not.
     pub async fn ensure_entity(
         &self,
         entity_type: EntityKind,
@@ -105,10 +102,6 @@ impl AccessControlRepository {
         Ok(())
     }
 
-    // Why: `access_control_rules` FKs onto this table ON DELETE CASCADE, so a
-    // pruned entity takes its grants with it. Only call this for a kind whose
-    // caller can enumerate the complete real set — an empty `keep` deletes
-    // every row of the kind, which is why `gateway_entities` refuses one.
     pub async fn reconcile_entities(
         &self,
         entity_type: EntityKind,

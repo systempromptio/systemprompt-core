@@ -117,9 +117,6 @@ pub(crate) async fn forward(
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_owned();
 
-    // Why: `hook_plugin` is carried out of the match: a hook token rejected
-    // upstream has to be evicted by the plugin it was minted for, and the match
-    // arm is the only place that name exists.
     let mut hook_plugin = None;
     let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
         RouteResolution::Gateway(url) => (
@@ -191,10 +188,6 @@ pub(crate) async fn forward(
         tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
         if status == StatusCode::UNAUTHORIZED {
             if let Some(plugin_id) = hook_plugin.as_ref() {
-                // Why: the mint path already retries a 401, but a token that
-                // minted cleanly and was then refused in use had nothing to
-                // evict it, so the cache served the same rejected token until
-                // it expired.
                 plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
             } else {
                 token_cache.reject_upstream(&request_path).await;

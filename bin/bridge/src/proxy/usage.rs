@@ -217,8 +217,7 @@ fn consume_sse_lines(carry: &mut Vec<u8>, usage: &mut StreamUsage) {
     }
 }
 
-// Why: Anthropic reports usage cumulatively, so the last value wins rather than
-// accumulating -- adding deltas would double-count every streamed message.
+// Why: Anthropic streams cumulative usage totals, not deltas.
 const fn apply_usage(usage: &mut StreamUsage, payload: &UsagePayload) {
     if let Some(v) = payload.input_tokens {
         usage.input_tokens = v;

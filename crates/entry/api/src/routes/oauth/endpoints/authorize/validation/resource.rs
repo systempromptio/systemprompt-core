@@ -25,20 +25,10 @@ pub(super) fn validate_resource_uri(
         return Err("Resource URI must not contain a fragment".to_owned());
     }
 
-    // Why: Self-origin carve-out: OAuth clients are permitted to target the gateway
-    // itself, even when its `api_external_url` is a loopback dev URL. Under
-    // RFC 9728 dual-self-identity (one gateway answering on multiple hosts,
-    // e.g. `127.0.0.1` and `localhost`), the request-derived origin may
-    // differ from `api_external_url`; either is a valid self-reference.
     if self_origins.matches(&url.origin()) {
         return Ok(());
     }
 
-    // Why: SSRF guard for OAuth resource indicators. The OAuth surface is stricter
-    // than the workspace default `validate_outbound_url`: loopback hostnames
-    // and `.internal` / `.local` suffixes are also rejected, because an OAuth
-    // resource URI is presented by the relying party and must reference a
-    // routable, externally-reachable service.
     let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
     let host_is_loopback_name = host == "localhost";
     let last_label = host.rsplit('.').next();

@@ -8,8 +8,7 @@ use serde_json::{Map, Value, json};
 
 use crate::wire::canonical::{CanonicalContent, CanonicalMessage, ImageSource, Role};
 
-// Why: the real Anthropic API rejects unknown keys in content blocks, while
-// the gateway's own client relies on its vendor-extension fields.
+// Why: Anthropic rejects unknown keys in upstream content blocks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum BlockAudience {
     Client,
@@ -106,9 +105,7 @@ pub(super) fn canonical_message_to_anthropic(
         .content
         .iter()
         .filter(|part| {
-            // Why: Anthropic 400s on a replayed thinking block without its
-            // signature; history without the block is valid and merely loses
-            // continuity.
+            // Why: Anthropic rejects replayed thinking blocks without their signatures.
             audience == BlockAudience::Client
                 || !matches!(
                     part,

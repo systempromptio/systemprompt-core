@@ -56,27 +56,18 @@
               with the provider usage wire formats"
 )]
 pub struct CanonicalUsage {
-    // Why: exclusive of cache_read_tokens on every wire -- see the module head.
     pub input_tokens: u32,
 
     pub output_tokens: u32,
     pub cache_read_tokens: u32,
     pub cache_creation_tokens: u32,
 
-    // Why: a breakdown of output_tokens, not an addition -- see the module
-    // head for the per-provider normalisation and why billing depends on it.
     pub reasoning_tokens: u32,
 
-    // Why: the wire's own figure when the provider states one; otherwise the
-    // cache-inclusive sum. `normalise_reasoning` reads it as a signal, so it
-    // must not be recomputed when the wire reported it.
     pub total_tokens: u32,
 }
 
 impl CanonicalUsage {
-    // Why: the single definition of `tokens_used`. Every count is disjoint --
-    // input excludes cache reads, reasoning is inside output -- so this sum
-    // charges each token once and matches what cost_microdollars prices.
     #[must_use]
     pub const fn billable_total(&self) -> u32 {
         self.input_tokens
@@ -85,16 +76,7 @@ impl CanonicalUsage {
             .saturating_add(self.cache_creation_tokens)
     }
 
-    // Why: enforces the module head's one rule for providers we have never
-    // probed. Returns whether the count had to be folded in, so callers can
-    // assert on it; the warning is emitted here so no call site can forget it.
     pub fn normalise_reasoning(&mut self, provider: &str) -> bool {
-        // Why: `input_tokens` is exclusive of cache reads, so a provider that
-        // counts reasoning on top of its completion states a wire total of
-        // exactly `billable_total() + reasoning_tokens`. A conforming provider
-        // states `billable_total()` alone, and so does a total the streaming
-        // accumulator recomputed, so both fall outside this shape without
-        // needing a separate exclusion.
         let additive = self.reasoning_tokens > self.output_tokens
             || (self.reasoning_tokens > 0
                 && self.total_tokens
@@ -138,9 +120,6 @@ pub struct CanonicalUsageUpdate {
     pub cache_creation_tokens: Option<u32>,
     pub reasoning_tokens: Option<u32>,
 
-    // Why: the wire's own total when the frame stated one. Without it every
-    // stream is billed against a recomputed sum, and `normalise_reasoning`
-    // loses its total-based signal on the streaming path entirely.
     pub total_tokens: Option<u32>,
 }
 
@@ -171,10 +150,6 @@ impl CanonicalUsageUpdate {
         if let Some(v) = self.reasoning_tokens {
             usage.reasoning_tokens = v;
         }
-        // Why: reasoning_tokens is a subset of output_tokens, so it is
-        // deliberately absent from the fallback sum -- adding it would
-        // double-count every thinking turn in `total_tokens` and in the cost
-        // derived from it.
         usage.total_tokens = match self.total_tokens {
             Some(v) => v,
             None => usage.billable_total(),

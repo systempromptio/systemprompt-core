@@ -78,9 +78,8 @@ fn install_store() -> Result<(), PluginOAuthError> {
     Ok(())
 }
 
-// Why: headless Linux has no Secret Service provider, so the D-Bus store fails
-// even with a session bus; Docker's seccomp denies `add_key`, so probe by
-// writing.
+// Why: Headless Linux may lack Secret Service; Docker seccomp can also deny
+// add_key.
 #[cfg(all(unix, not(target_os = "macos")))]
 fn linux_store() -> Result<std::sync::Arc<keyring_core::CredentialStore>, PluginOAuthError> {
     let dbus_err = match dbus_secret_service_keyring_store::Store::new() {

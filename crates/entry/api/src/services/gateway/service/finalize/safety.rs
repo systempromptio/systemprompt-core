@@ -59,9 +59,6 @@ pub(in crate::services::gateway) async fn run_request_safety_scan(
     findings
 }
 
-// Why: one predicate decides both the `blocked` column and the refusal itself,
-// so the report can never disagree with what the gateway actually did. It is
-// false throughout under `safety.mode: warn`.
 pub(in crate::services::gateway) fn request_finding_blocks(
     finding: &Finding,
     safety: &SafetyConfig,
@@ -112,9 +109,6 @@ async fn persist_findings(
     repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     findings: &[Finding],
-    // Why: `Sync`, not just `Fn`. The persisted findings are handed to
-    // `tokio::spawn` on the buffered path, and `&dyn Fn` is only `Send` when
-    // the closure behind it is `Sync`.
     blocks: &(dyn Fn(&Finding) -> bool + Sync),
 ) {
     for f in findings {

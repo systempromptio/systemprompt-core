@@ -36,10 +36,6 @@ struct SecretScan {
 
 const ENTROPY_KEYS: [&str; 4] = ["enabled", "min_len", "threshold", "allowlist"];
 
-// Why: an absent block or an absent key falls back to the built-in default,
-// but an unknown key or a value of the wrong shape is reported at error level
-// — a typo must not silently reconfigure credential detection into something
-// other than what the operator wrote.
 fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
     let defaults = EntropyConfig::default();
     let Some(block) = v.get("entropy") else {

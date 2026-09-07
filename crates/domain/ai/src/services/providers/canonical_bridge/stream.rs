@@ -21,10 +21,6 @@ pub fn event_to_chunk(event: CanonicalEvent) -> Option<StreamChunk> {
     }
 }
 
-// Why: `tokens_used` is relayed, never recomputed here. A frame states the
-// wire's own total or nothing; the stream wrapper folds the counts into one
-// `CanonicalUsage` and takes `billable_total` from there, so this stays a
-// single definition rather than a second, partial-frame sum.
 const fn usage_chunk(usage: &CanonicalUsageUpdate) -> StreamChunk {
     StreamChunk::Usage {
         input_tokens: usage.input_tokens,

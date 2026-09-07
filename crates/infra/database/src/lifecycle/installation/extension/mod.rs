@@ -146,11 +146,6 @@ async fn run_install(
     Ok(())
 }
 
-// Why: the baseline stamp commits with the DDL it describes. Stamping in a
-// transaction of its own left a window — tables created, baseline not yet
-// written — and a database interrupted there is treated as established on the
-// next install, which then executes migration SQL the declarative schema has
-// already superseded. The failure is unrecoverable by re-running.
 async fn execute_phase(
     db: &dyn DatabaseProvider,
     statements: &[String],

@@ -33,12 +33,7 @@ pub fn render_terminal_event_frame(
         return None;
     };
     let reason = finish_reason(stop_reason.or(snapshot.stop_reason));
-    // Why: the counts are not known yet. Chat Completions sends usage in a
-    // chunk of its own after the finish chunk, so anything rendered here is a
-    // zero -- and a zeroed `usage` object is worse than none, because a client
-    // that asked for usage reads it and reports the turn as free. The counts
-    // and the sentinel are rendered by `render_stream_tail_frames`, once the
-    // stream has actually ended.
+    // Why: Chat Completions can send usage after the finish chunk.
     Some(render_chunk(
         &snapshot.model,
         &json!({}),
@@ -47,10 +42,6 @@ pub fn render_terminal_event_frame(
     ))
 }
 
-// Why: the frames that close the stream are the contract's usage-only chunk
-// and then the `[DONE]` sentinel. `include_usage` is the caller's own
-// `stream_options.include_usage`: the contract reports usage in a trailing
-// chunk whose `choices` array is empty, and only when it was asked for.
 pub(super) fn render_stream_tail_frames(
     snapshot: &CanonicalResponse,
     include_usage: bool,
@@ -63,9 +54,6 @@ pub(super) fn render_stream_tail_frames(
     Bytes::from(frames)
 }
 
-// Why: the usage chunk carries an empty `choices` array, which is how an
-// OpenAI-SDK client tells it apart from a content chunk and stops looking for
-// a delta on it.
 fn render_usage_chunk(snapshot: &CanonicalResponse) -> Bytes {
     let payload = json!({
         "id": snapshot.id,

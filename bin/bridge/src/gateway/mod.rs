@@ -23,8 +23,8 @@ use systemprompt_identifiers::ValidatedUrl;
 pub use errors::GatewayError;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
-// Why: WSL2's localhost forwarder black-holes IPv6 SYNs and reqwest 0.12 lacks
-// happy-eyeballs, so order IPv4 first.
+// Why: WSL2 localhost forwarding can stall IPv6 connections; resolve IPv4
+// first.
 #[derive(Debug)]
 pub(crate) struct Ipv4FirstResolver;
 
@@ -41,9 +41,6 @@ impl Resolve for Ipv4FirstResolver {
     }
 }
 
-// Why: one pooled client per process, built by the composition root and
-// cloned into every `GatewayClient`, so calls share connections without a
-// process-global holding the pool.
 #[must_use]
 pub fn build_http_client() -> reqwest::Client {
     reqwest::Client::builder()

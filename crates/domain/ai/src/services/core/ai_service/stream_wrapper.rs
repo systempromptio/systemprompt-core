@@ -77,10 +77,6 @@ impl StreamStorageWrapper {
             finish_reason,
         } = chunk
         {
-            // Why: providers report usage as a cumulative snapshot, not an
-            // increment, so a later frame replaces an earlier one and an
-            // unreported count leaves the earlier value standing. Summing
-            // double-counts any stream that reports usage more than once.
             CanonicalUsageUpdate {
                 input_tokens,
                 output_tokens,

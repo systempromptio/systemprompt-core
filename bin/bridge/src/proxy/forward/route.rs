@@ -36,11 +36,6 @@ pub(super) fn resolve_route(
                 extra_headers: entry.headers.clone(),
             });
         }
-        // Why: on a fresh install the proxy can start before the first sync
-        // writes mcp-servers.json, leaving the boot-time rehydrate empty and
-        // every /mcp/<name> a 404 for the life of the process. A miss re-reads
-        // the fragment once before answering — the sync process publishes into
-        // its own memory, not this one's.
         mcp_registry::rehydrate_from_disk(registry);
         return mcp_registry::snapshot(registry).get(name).map_or_else(
             || RouteResolution::UnknownMcp(name.to_owned()),
@@ -91,8 +86,6 @@ fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     )
 }
 
-// Why: OTLP exporters POST `/otel` without the `/v1` prefix the gateway router
-// is nested under.
 fn rewrite_otel_to_v1(path_and_query: &str) -> Option<String> {
     let (path, suffix) = path_and_query
         .split_once('?')

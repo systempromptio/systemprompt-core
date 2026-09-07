@@ -126,8 +126,6 @@ impl FormField {
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                // Why: A JSON string default would otherwise render its own quotes
-                // into the attribute; a number formats as itself.
                 value = self.default_value.as_ref().map_or_else(String::new, |v| {
                     v.as_str().map_or_else(|| v.to_string(), html_escape)
                 }),
@@ -163,16 +161,12 @@ impl FormField {
 
         let input_html = self.render_input(required_attr, &placeholder_attr);
 
-        // Why: The asterisk is colour and glyph only; the hidden word is what a
-        // screen reader announces.
         let required_mark = if self.required {
             r#"<span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden"> (required)</span>"#
         } else {
             ""
         };
 
-        // Why: A checkbox reads as its label's sibling, not its caption: the shared
-        // block-level label put every checkbox on the line below its own text.
         if self.field_type == "checkbox" {
             return format!(
                 r#"<div class="form-field form-field-inline">

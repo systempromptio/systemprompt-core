@@ -94,13 +94,6 @@ fn synchronize_domain() {
     unsafe { CFPreferencesAppSynchronize(domain.as_concrete_TypeRef()) };
 }
 
-// Why: a managed policy value is any property-list type, but this only ever
-// understood `CFString` and returned `None` for everything else. The two keys
-// Cowork needs most — `allowedWorkspaceFolders` and `managedMcpServers` — are
-// arrays, so a fully-provisioned Mac reported them missing and `validate`
-// failed on a machine whose policy was correct. The callers already expect
-// JSON for those (`managedMcpServers == "[]"` is read as "none in manifest"),
-// so serialise rather than widen the callers.
 fn copy_app_string(key: &str) -> Option<String> {
     let key_cf = CFString::new(key);
     let domain_cf = CFString::new(POLICY_DOMAIN);
@@ -119,17 +112,11 @@ fn copy_app_string(key: &str) -> Option<String> {
     // under the Copy rule, so ownership transfers to the wrapper.
     let value: CFType = unsafe { TCFType::wrap_under_create_rule(raw.cast()) };
     match cf_to_json(&value)? {
-        // Why: a string stays bare because callers compare these to plain
-        // values like "true" or a URL, and quoting would break every match.
         serde_json::Value::String(s) => Some(s),
         other => Some(other.to_string()),
     }
 }
 
-// Why: recursion is over `CFType` rather than raw refs so every element is
-// released by its wrapper. An unrepresentable leaf (data, date) collapses the
-// whole value to `None` — reporting a policy we cannot faithfully render as
-// absent is safer than reporting a lossy rendering as present.
 fn cf_to_json(value: &CFType) -> Option<serde_json::Value> {
     if let Some(s) = value.downcast::<CFString>() {
         return Some(serde_json::Value::String(s.to_string()));

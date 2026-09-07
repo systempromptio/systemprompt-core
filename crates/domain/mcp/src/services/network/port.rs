@@ -18,11 +18,8 @@ pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
 pub const PORT_BACKOFF_BASE_MS: u64 = 200;
 pub const POST_KILL_DELAY_MS: u64 = 500;
 
-// Why: Hard cap on a single localhost TCP connect probe. Without a timeout,
-// a stuck `SYN_SENT` (WSL2 / firewall / SYN-blackhole pathologies)
-// blocks the runtime worker indefinitely and the entire MCP startup
-// hangs silently with no log line to show why. 1s is generous for
-// loopback while still failing fast and loud.
+// Why: Firewalls can blackhole even loopback SYN packets, leaving a blocking
+// connect waiting for the operating system's TCP timeout.
 const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub async fn prepare_port(port: u16, service_name: &str) -> McpDomainResult<()> {

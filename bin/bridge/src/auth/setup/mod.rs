@@ -30,8 +30,6 @@ pub enum SetupError {
     Join(#[from] tokio::task::JoinError),
     #[error("gateway: {0}")]
     Gateway(#[from] crate::gateway::GatewayError),
-    // Why: the user (or a superseding request) stopped this before it could
-    // conclude. It is not a failure and must never be reported as one.
     #[error("cancelled")]
     Cancelled,
 }

@@ -40,8 +40,6 @@ fn parse_user_part(part: &Value) -> Option<CanonicalContent> {
 }
 
 fn parse_image_source(url: String, detail: Option<ImageDetail>) -> ImageSource {
-    // Why: data URIs must round-trip to providers (Anthropic) that only accept
-    // base64 source blocks, so split them back apart here.
     if let Some(rest) = url.strip_prefix("data:")
         && let Some((media_type, data)) = rest.split_once(";base64,")
     {

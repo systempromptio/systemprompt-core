@@ -84,9 +84,6 @@ pub fn verify_envelope(
 }
 
 pub fn decode_payload(envelope: &SignedManifestEnvelope) -> Result<SignedManifest, ManifestError> {
-    // Why: the version floors are checked from a lenient probe BEFORE the full
-    // parse — a payload shaped for a newer bridge often fails the full parse,
-    // and reporting that as a shape error hides the actual fix (update).
     #[derive(serde::Deserialize)]
     struct VersionProbe {
         #[serde(default)]

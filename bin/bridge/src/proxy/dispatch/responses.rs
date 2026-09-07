@@ -57,8 +57,6 @@ pub(super) fn owned_response(status: StatusCode, body: String) -> Response<Proxy
     resp
 }
 
-// Why: `owned_response` fixes `text/plain`, which several 4xx paths rely on, so
-// JSON gets its own constructor rather than a mutable content type.
 pub(super) fn json_response(status: StatusCode, body: String) -> Response<ProxyBody> {
     let mut resp = owned_response(status, body);
     resp.headers_mut().insert(

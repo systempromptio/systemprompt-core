@@ -34,10 +34,6 @@ pub enum Selection {
 #[derive(Debug)]
 pub enum Outcome {
     Installed,
-    // Why: same distinction reapply draws — a host whose install hands the file
-    // to the OS (macOS System Settings) returns Ok long before the user has
-    // approved anything, so the verdict comes from re-probing, not from the
-    // call returning.
     Pending,
     Declined,
     SyncOnly,
@@ -84,10 +80,6 @@ impl Target {
     }
 }
 
-// Why: failing the whole line rather than skipping a bad id — `install --host
-// claude-code,opencodee` that enrolled one host and shrugged at the typo would
-// report success while leaving the client the operator cared about
-// unconfigured.
 pub fn resolve(selection: &Selection) -> Result<Vec<Target>, String> {
     let ids = match selection {
         Selection::All => {
@@ -127,12 +119,6 @@ fn known() -> String {
     ids.join(", ")
 }
 
-// Why: the reports are per host, so the `Err` arm is reserved for a request
-// that could not be understood at all. `enabled` is passed in rather than read
-// here because `sync` sits above `integration` in the module order; `None`
-// means no manifest has been applied yet, which is the normal state moments
-// after `install`, and only a record that exists and omits the host is evidence
-// the instance withholds it.
 pub async fn enrol_hosts(
     bridge: &BridgeContext,
     selection: &Selection,
@@ -251,10 +237,6 @@ pub fn render(reports: &[Report]) -> String {
     out
 }
 
-// Why: this is here rather than in `uninstall` because the only way to undo an
-// `install --host` enrolment was the GUI's Remove button, which a headless
-// Linux box does not have. A feature that can only be applied is not one an
-// operator can safely try.
 pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String> {
     let targets = resolve(selection)?;
     Ok(targets

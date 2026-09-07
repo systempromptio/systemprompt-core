@@ -82,10 +82,6 @@ pub fn tap(
     Body::from_stream(tapped)
 }
 
-// Why: on the byte-passthrough lane the caller receives the upstream frames
-// verbatim, so `inbound` is carried for one purpose only -- stating an abort.
-// The lane renders nothing of its own, so a stream that ends with no terminal
-// event would otherwise close on the client with no frame explaining it.
 pub fn tap_raw(
     upstream: BoxStream<'static, Result<Bytes, String>>,
     inbound: Arc<dyn InboundAdapter>,
@@ -184,20 +180,10 @@ struct TappedStream {
     state: Arc<Mutex<TapState>>,
     inbound: Arc<dyn InboundAdapter>,
     request_model: String,
-    // Why: the caller's own `stream_options.include_usage`; the trailing
-    // usage chunk is rendered only for a caller that asked for one.
     stream_usage: bool,
     audit: Arc<GatewayAudit>,
     finalize_ctx: Option<TapFinalizeCtx>,
-    // Why: providers signal the end of a message more than once (Anthropic's
-    // message_delta + message_stop, OpenAI's finish_reason chunk + [DONE]);
-    // only the first may be rendered at all, by either the terminal path or
-    // the plain-event fallback, or wires that emit a closing frame (chat's
-    // [DONE], responses' response.completed, anthropic's message_stop) would
-    // close the stream twice -- the second one carrying the weaker reason.
     message_stop_rendered: bool,
-    // Why: the abort frame is emitted after the inner stream has already
-    // reported EOF, so the next poll must not reach it again.
     ended: bool,
 }
 
@@ -244,12 +230,6 @@ impl Stream for TappedStream {
                             )
                         })
                         .or_else(|| {
-                            // Why: `terminal` already suppressed the second
-                            // terminal render, but the plain-event fallback was
-                            // not covered -- the Anthropic inbound renders
-                            // MessageStop through `render_event`, so a repeat
-                            // stop still reached the client as a second,
-                            // weaker `message_stop` frame after the real one.
                             (!terminal_suppressed)
                                 .then(|| self.inbound.render_event(&event, &self.request_model))
                                 .flatten()

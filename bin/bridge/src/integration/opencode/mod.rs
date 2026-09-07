@@ -57,8 +57,6 @@ impl HostApp for OpenCodeHost {
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
-        // Why: like Codex, OpenCode bakes `<origin>/v1`; the classifier ignores
-        // the path and only checks that the loopback port still matches.
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
             env.proxy_port,
@@ -132,8 +130,6 @@ impl HostApp for OpenCodeHost {
         "https://opencode.ai/"
     }
 
-    // Why: surfaces named here are OFFERED to the host, not spoken by it. See
-    // the module head for why that is not the same filter.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
         &[
             systemprompt_models::services::ApiSurface::OpenAi,

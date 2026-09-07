@@ -87,10 +87,6 @@ async fn try_reconcile(
     let id_refs: Vec<&str> = route_ids.iter().map(RouteId::as_str).collect();
     let source = format!("services:{source_path}");
 
-    // Why: an empty route set is a services tree without a gateway, not an
-    // instruction to empty the catalog — reconciling exactly would cascade away
-    // every route grant. Leave the catalog untouched and enforce nothing in
-    // that case, matching the boot job.
     let registered = if id_refs.is_empty() {
         RegisteredEntities::default()
     } else {

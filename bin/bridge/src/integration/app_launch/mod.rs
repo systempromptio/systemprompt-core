@@ -39,8 +39,8 @@ pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
 
 #[cfg(target_os = "windows")]
 pub(crate) fn open_app(loc: &AppLocator<'_>) -> io::Result<()> {
-    // Why: AppsFolder activation is the only launch path that works for an MSIX
-    // package — its exe under %ProgramFiles%\WindowsApps is not executable by us.
+    // Why: MSIX executables under WindowsApps require package activation rather
+    // than direct execution.
     if let Some(family) = loc.msix_family
         && msix_launch(family, loc.msix_app_id).is_ok()
     {
@@ -94,9 +94,8 @@ pub(crate) fn is_installed(
     if loc.windows_candidates.iter().any(|p| p.exists()) {
         return AppInstallState::Installed;
     }
-    // Why: MSIX packages live under the ACL-locked %ProgramFiles%\WindowsApps, so
-    // the path check cannot see them; the AppModel repository is readable
-    // unelevated.
+    // Why: WindowsApps is ACL-protected; the AppModel repository is readable
+    // without elevation.
     if let Some(family) = loc.msix_family
         && msix_package_present(family)
     {
@@ -114,9 +113,6 @@ pub(crate) fn is_installed(
     loc: &AppLocator<'_>,
     _start_menu: &crate::probe_cache::StartMenuCache,
 ) -> AppInstallState {
-    // Why: with no PATH to search, the scan proves nothing either way. Saying
-    // `NotInstalled` there would permanently skip the host during first use on
-    // the strength of a question we never got to ask.
     let Some(paths) = std::env::var_os("PATH") else {
         return AppInstallState::Unknown;
     };
@@ -149,10 +145,7 @@ fn run(cmd: &mut Command, what: &str) -> io::Result<()> {
     }
 }
 
-// Why: a CLI host has no `.app` bundle or Start-menu entry to find, and the
-// GUI's PATH is the login-shell minimum — `~/.opencode/bin`, Homebrew and npm
-// prefixes are routinely absent from it — so the well-known install prefixes
-// are searched alongside PATH. No PATH at all proves nothing either way.
+// Why: GUI processes may lack Homebrew, npm, and ~/.opencode/bin in PATH.
 pub(crate) fn cli_installed(binary: &str, extra_dirs: &[PathBuf]) -> AppInstallState {
     let Some(paths) = std::env::var_os("PATH") else {
         return AppInstallState::Unknown;

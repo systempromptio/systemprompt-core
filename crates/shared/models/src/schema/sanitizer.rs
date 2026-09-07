@@ -41,8 +41,6 @@ impl SchemaSanitizer {
     }
 
     fn normalize_nullable(obj: &mut Map<String, Value>) {
-        // Why: once nullability is a flag, a `null` inside `enum` contradicts
-        // the declared type and every provider rejects the schema.
         if let Some(Value::Array(values)) = obj.get_mut("enum") {
             values.retain(|v| !v.is_null());
         }

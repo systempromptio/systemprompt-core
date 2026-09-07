@@ -32,9 +32,6 @@ pub(super) fn parse_tool(value: &Value) -> CanonicalTool {
     }
 }
 
-// Why: the Anthropic Messages contract defines `tool_choice` as an object; a
-// bare string (the OpenAI form) or an unknown `type` is a client bug, and the
-// upstream API answers it with a 400 rather than silently ignoring the field.
 pub(super) fn parse_tool_choice(
     request: &Value,
 ) -> Result<Option<CanonicalToolChoice>, InboundParseError> {

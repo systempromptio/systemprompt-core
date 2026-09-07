@@ -19,8 +19,6 @@ pub(super) struct WritePlan<'a> {
 
 impl<'a> WritePlan<'a> {
     pub(super) fn new(claude: &'a Values, bridge: &'a Values) -> Self {
-        // Why: the pin used to be written into Claude's hive; a leftover copy
-        // there is what Claude Desktop warns about on every launch.
         let clear_legacy = matches!(
             crate::config::store::managed_policy_store()
                 .read_managed_policy(super::LEGACY_PUBKEY_KEY),
@@ -33,8 +31,6 @@ impl<'a> WritePlan<'a> {
         }
     }
 
-    // Why: a read error counts as drift — an unknown on-disk state must never
-    // be mistaken for an up-to-date one.
     pub(super) fn drifted(&self) -> bool {
         let store = crate::config::store::managed_policy_store();
         self.clear_legacy
@@ -64,10 +60,6 @@ impl<'a> WritePlan<'a> {
         Ok(())
     }
 
-    // Why: the error shown when Cowork sync cannot write org-plugins tells the
-    // user to re-run `install --apply` and approve ONE administrator prompt —
-    // this is the step that makes that promise true: one UAC pass writes both
-    // policy keys and grants the invoking user Modify on org-plugins.
     pub(super) fn stage_elevated(
         &self,
         org_plugins: Option<crate::install::elevated_job::OrgPluginsJob>,

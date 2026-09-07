@@ -63,10 +63,6 @@ pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_token_ex
     Ok(response)
 }
 
-// Why: RFC 7523 assertion grant, the redemption leg of Enterprise-Managed
-// Authorization: the client presents the ID-JAG its `IdP` issued and
-// receives an access token for the employee it names. Shares its validator
-// with the equivalent token-exchange call, which stays available.
 pub(in crate::routes::oauth::endpoints::token::handler) async fn handle_jwt_bearer_grant(
     repo: OAuthRepository,
     request: TokenRequest,

@@ -35,8 +35,8 @@ pub(super) fn mirror_plugin(
     Ok(())
 }
 
-// Why: the Claude Code CLI loads `hooks/hooks.json` itself and then rejects any
-// plugin whose manifest also points at it ("Duplicate hooks file detected").
+// Why: Claude Code auto-loads hooks/hooks.json and rejects a manifest that also
+// points to it.
 fn drop_standard_hooks_pointer(dst: &Path) -> Result<(), ApplyError> {
     const STANDARD: [&str; 2] = ["./hooks/hooks.json", "hooks/hooks.json"];
     let path = dst.join(".claude-plugin").join("plugin.json");

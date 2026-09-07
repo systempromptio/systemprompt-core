@@ -97,9 +97,6 @@ pub async fn keep_sets(
     })
 }
 
-// Why: skills and artifacts inherit through the plugins that ship them, so an
-// entry no plugin claims falls back to every enabled marketplace rather than
-// silently losing all inheritance.
 fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
     let membership = &candidate.membership;
     let all = membership.all_ids();
@@ -151,9 +148,6 @@ fn chain_sources(candidate: &MarketplaceCandidate) -> ChainSources {
     }
 }
 
-// Why: the per-kind owner bands are the bulk of the chain sources; splitting
-// them out keeps `chain_sources` readable. Agents and MCP servers carry their
-// own membership, everything else falls back to every enabled marketplace.
 fn member_bands(
     candidate: &MarketplaceCandidate,
     membership: &crate::membership::MarketplaceMembership,

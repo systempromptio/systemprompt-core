@@ -94,9 +94,6 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
         }
         return Ok(resp);
     }
-    // Why: a guard rejection *is* an authorization failure, so 403 — and the
-    // client's prompt to re-authenticate — is the right response here. It is
-    // the one case below that a re-login can actually fix.
     if let Some(forbidden) = inner.downcast_ref::<GuardForbidden>() {
         return Ok(build_error_response(
             StatusCode::FORBIDDEN,
@@ -107,9 +104,6 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
     if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
         return Ok(build_policy_denial(&denied.message));
     }
-    // Why: the image is part of the prompt. Degrading to text and answering
-    // anyway is the defect this path exists to remove, so the request fails and
-    // says which URL failed and whether the caller can fix it.
     if let Some(image) = inner.downcast_ref::<ImageFetchFailed>() {
         let status = if image.caller_fault {
             StatusCode::BAD_REQUEST
@@ -122,10 +116,8 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             &image.to_string(),
         ));
     }
-    // Why: Claude Code recovers from several provider rejections by matching on
-    // the provider's own error wording and retrying without the rejected
-    // capability. Re-wrapping the error defeats that even when the status is
-    // preserved, so an upstream rejection is relayed exactly as it arrived.
+    // Why: Claude Code matches provider error wording to retry without rejected
+    // capabilities.
     if let Some(upstream) = inner.downcast_ref::<UpstreamError>()
         && let Some(response) = build_upstream_passthrough(upstream)
     {

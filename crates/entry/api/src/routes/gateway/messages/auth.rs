@@ -92,8 +92,6 @@ impl AuthedPrincipal {
         }
     }
 
-    // Why: an API key asserts no roles, so it resolves to `Unknown` rather
-    // than inheriting a tier it never proved.
     pub fn access_scope(&self) -> AccessScope {
         match self {
             Self::Jwt(p) => AccessScope::from_roles(&p.roles),

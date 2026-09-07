@@ -79,9 +79,8 @@ pub fn build_request_body(
     }
     if let Some(effort) = reasoning_effort(request) {
         obj.insert("reasoning".into(), json!({ "effort": effort }));
-        // Why: reasoning continuity across turns needs stateless replay —
-        // `store: false` plus the encrypted payload, echoed back verbatim on
-        // the next turn, is the only mode that works through a gateway.
+        // Why: With `store: false`, Responses needs `reasoning.encrypted_content`
+        // included and replayed for reasoning continuity across turns.
         obj.insert("store".into(), Value::Bool(false));
         obj.insert("include".into(), json!(["reasoning.encrypted_content"]));
     }
@@ -199,8 +198,7 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
                 }
                 reasoning_items.push(Value::Object(item));
             },
-            // Why: a reasoning item without its provider id is rejected upstream;
-            // thinking that originated on another provider is dropped instead.
+            // Why: Responses rejects replayed reasoning items without their provider ID.
             _ => {},
         }
     }

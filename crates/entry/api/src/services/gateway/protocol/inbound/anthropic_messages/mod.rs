@@ -54,9 +54,6 @@ impl InboundAdapter for AnthropicMessagesInbound {
         render::render_event_frame(event, model)
     }
 
-    // Why: the terminal frame states the turn's usage, and only the tap's
-    // accumulated snapshot holds it -- the canonical MessageStop carries a
-    // stop reason and nothing else.
     fn render_terminal_event(
         &self,
         event: &CanonicalEvent,

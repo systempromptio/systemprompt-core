@@ -41,11 +41,6 @@ pub(super) fn outbound_ctx<'a>(
     }
 }
 
-// Why: `metadata.user_id` is an end-user identifier meant for the provider the
-// caller chose, so it must not reach a different wire's upstream. Stripped
-// unconditionally on the canonical form because an adapter may decline the raw
-// lane and fall back to the canonical build; the passthrough lane applies the
-// same rule to the raw body in `normalize_raw_body`.
 pub(super) fn strip_caller_identity(request: &mut CanonicalRequest) {
     let Some(metadata) = request.metadata.as_mut() else {
         return;
@@ -76,10 +71,6 @@ pub(super) async fn audit_upstream_failure(
     }
 }
 
-// Why: Gemini's generateContent has no URL image part, so a URL that reaches
-// the codec is downgraded to text and the model never sees the picture.
-// Anthropic and OpenAI both accept a URL natively, so nothing is fetched for
-// them and no other wire pays the latency.
 pub(super) async fn resolve_url_images(
     wire: WireProtocol,
     request: &mut CanonicalRequest,

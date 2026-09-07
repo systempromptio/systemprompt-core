@@ -51,8 +51,6 @@ pub(crate) fn http_get_body(
         .write_all(req.as_bytes())
         .map_err(ProbeError::Write)?;
 
-    // Why: bounded because an unrelated service on this port could stream
-    // forever.
     let mut raw = Vec::new();
     let mut chunk = [0u8; 1024];
     while raw.len() < 8192 {

@@ -9,7 +9,6 @@ use super::error::MdmError;
 use super::windows_policy;
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, MdmError> {
-    // Why: HKLM writes need elevation — hence the drift-only UAC.
     let hkcu = crate::cowork_compat::HKCU_POLICY_KEY;
     let key = crate::cowork_compat::HKLM_POLICY_KEY;
     if !crate::winproc::is_elevated() {
@@ -102,11 +101,6 @@ fn elevated_write(value: &str) -> Result<(), MdmError> {
     })
 }
 
-// Why: sync used to keep only `managedMcpServers` in step, so a policy key
-// missing `allowedWorkspaceFolders` (a fresh machine, a wiped policy) left
-// Cowork prompting on `request_cowork_directory` with telemetry and
-// auto-update back on. Every managed value is re-asserted here, with ONE
-// administrator prompt only when a value has actually drifted.
 pub(super) fn enforce_managed_policy(
     inputs: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, MdmError> {
@@ -129,8 +123,8 @@ pub(super) fn enforce_managed_policy(
     plan.stage_elevated(org_job)
 }
 
-// Why: Cowork prompts instead of pre-trusting unless the directory named by
-// `allowedWorkspaceFolders` already exists on disk.
+// Why: Cowork pre-trusts allowedWorkspaceFolders only when the directory
+// already exists.
 fn ensure_workspace_dir() -> Option<String> {
     let workspace = crate::brand::brand().workspace_dir_name;
     if workspace.is_empty() {
@@ -174,10 +168,6 @@ pub(super) fn remove_policy() -> Result<bool, MdmError> {
     Ok(hkcu || hklm)
 }
 
-// Why: `apply` and `enforce_managed_policy` both write the whole policy, and
-// assembling it twice is how the two drifted apart before. Both take it from
-// here, and `policy::claude_desktop_policy` is the only place the key set is
-// decided for either platform.
 fn policy_values(
     inputs: &super::MdmPayloadInputs<'_>,
     base_url: &str,
@@ -223,9 +213,6 @@ pub(super) fn apply(
     summary.push(format!("registry key: {key}"));
     summary.extend(ensure_workspace_dir());
     let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
-    // Why: `SOFTWARE\Policies` is machine policy and Cowork ignores HKCU once
-    // the HKLM key exists, so an unelevated run stages ONE administrator pass
-    // rather than writing a per-user copy that would never be read.
     if elevated {
         plan.write_in_process()?;
         for (name, kind, _) in values.iter().chain(&bridge) {

@@ -54,9 +54,6 @@ pub struct SecurityConfig {
     #[serde(default = "default_allow_registration")]
     pub allow_registration: bool,
 
-    // Why: when set, the OAuth authorize endpoint 302s to this
-    // deployment-owned sign-in page (carrying the original query) instead of
-    // rendering the built-in WebAuthn form; prompt=passkey opts back in.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub login_page_url: Option<String>,
 

@@ -50,11 +50,8 @@ pub fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     }
 }
 
-// Why: both spellings, because a caller may send either and the upstream
-// honours whichever it finds. A reasoning model gets the full model-card cap:
-// it bills thought against the same completion budget, so the caller's limit
-// -- which bounds visible output -- starves the turn and it stops on `length`
-// before the tool call is ever emitted.
+// Why: OpenAI reasoning models charge thinking and visible output against the
+// same completion budget.
 fn apply_output_limit(
     obj: &mut Map<String, Value>,
     upstream_model: &str,

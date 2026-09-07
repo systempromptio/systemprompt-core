@@ -18,8 +18,6 @@ use crate::stdio::diag;
 use crate::update::{self, UpdateStatus};
 use crate::{auth, config, stdio};
 
-// Why: a distinct exit code makes `--check` usable as a cron or
-// config-management probe.
 const EXIT_UPDATE_AVAILABLE: u8 = 1;
 
 #[doc(hidden)]
@@ -137,8 +135,6 @@ async fn install(
     }
 }
 
-// Why: silent when stderr is redirected — a progress bar in a CI log or a cron
-// mail is noise.
 fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
     if !std::io::stderr().is_terminal() {
         return Box::new(|_| {});

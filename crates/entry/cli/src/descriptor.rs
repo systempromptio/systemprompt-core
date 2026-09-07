@@ -56,8 +56,6 @@ impl CommandDescriptor {
         self.flags & Self::FLAG_DATABASE != 0
     }
 
-    // Why: read-only and mutating were one boolean; refusing a read because no
-    // tenant session exists fails the caller for a reason they cannot act on.
     pub const fn routing_class(&self) -> RoutingClass {
         if self.flags & Self::FLAG_REMOTE_ELIGIBLE == 0 {
             RoutingClass::LocalOnly

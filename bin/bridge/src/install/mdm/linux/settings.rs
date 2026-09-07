@@ -13,12 +13,8 @@ use std::path::{Path, PathBuf};
 use super::{io_error, read_or_empty, write_atomic};
 use crate::install::mdm::MdmError;
 
-// Why: without root the fallback must be `~/.claude/settings.json`, the
-// per-user file Claude Code reads on every invocation. `~/.claude/managed-
-// settings.json` is not a path it reads — only the system location carries
-// that name — so writing it produced a file that parsed and did nothing,
-// leaving `~/.profile` (login shells only) as the sole channel; a VS Code
-// terminal then silently billed the user's own account.
+// Why: Claude Code reads ~/.claude/settings.json, not
+// ~/.claude/managed-settings.json.
 fn managed_settings_path() -> Option<PathBuf> {
     let system = PathBuf::from("/etc/claude-code/managed-settings.json");
     if can_write(&system) {
@@ -51,8 +47,6 @@ pub(super) fn key_helper_path() -> Option<PathBuf> {
     )
 }
 
-// Why: `apiKeyHelper` runs on every request, so the loopback secret must be
-// read fresh rather than captured, or rotation breaks the session.
 fn key_helper_body(key_path: &Path) -> String {
     let bin = crate::brand::brand().binary_name;
     format!(
@@ -74,9 +68,6 @@ pub(super) fn apply_managed_settings(
     let settings_path =
         managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     let existing = read_or_empty(&settings_path)?;
-    // Why: this file may already carry an organisation's own policy. Anything
-    // the bridge does not own is preserved; refusing to parse is safer than
-    // clobbering keys we cannot read back.
     let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
         serde_json::Map::new()
     } else {
@@ -105,11 +96,8 @@ pub(super) fn apply_managed_settings(
         "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY".to_owned(),
         serde_json::Value::String("1".to_owned()),
     );
-    // Why: Claude Code prepends an attribution block to the system prompt
-    // carrying its version and a conversation fingerprint. Anthropic's endpoint
-    // strips it, but any other provider a route can target receives it as part
-    // of the prompt. The documented remedy is to omit it at the client rather
-    // than reshape system content in the gateway.
+    // Why: Claude Code's attribution header reaches non-Anthropic providers as
+    // system-prompt content.
     env.insert(
         "CLAUDE_CODE_ATTRIBUTION_HEADER".to_owned(),
         serde_json::Value::String("0".to_owned()),
@@ -134,8 +122,8 @@ pub(super) fn apply_managed_settings(
     Ok(lines)
 }
 
-// Why: on Claude Code v2.1.146+ `forceLoginMethod`/`forceLoginOrgUUID` block
-// `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, and `apiKeyHelper` at startup.
+// Why: Claude Code v2.1.146+ forceLoginMethod/forceLoginOrgUUID block API keys
+// and apiKeyHelper.
 fn warn_on_forced_login(root: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
     ["forceLoginMethod", "forceLoginOrgUUID"]
         .into_iter()
@@ -192,13 +180,8 @@ fn set_executable(path: &Path) -> Result<(), MdmError> {
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(io_error("chmod", path))
 }
 
-// Why: the default model is fleet policy, not a property of this build, so it
-// arrives from `GET /v1/bridge/profile` rather than a constant here. Seeding
-// happens on sync — which runs on every install and every scheduled poll —
-// because `install --apply` is synchronous and cannot fetch it.
-//
-// `or_insert_with`, never `insert`: Claude Code records the user's own `/model`
-// choice in this same file, so overwriting would silently undo it on each sync.
+// Why: Claude Code stores the user's /model selection in this same settings
+// file.
 pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     let settings_path =
         managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;

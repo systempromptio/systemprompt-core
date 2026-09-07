@@ -36,26 +36,22 @@ pub async fn wait_for_decision(
 
     loop {
         match repo.find(call_id).await {
-            Ok(Some(request)) => {
-                match request.status {
-                    ApprovalStatus::Approved => {
-                        return ApprovalOutcome::Approved(Box::new(request));
-                    },
-                    ApprovalStatus::Denied => {
-                        return ApprovalOutcome::Denied(Box::new(request));
-                    },
-                    ApprovalStatus::Expired => {
+            Ok(Some(request)) => match request.status {
+                ApprovalStatus::Approved => {
+                    return ApprovalOutcome::Approved(Box::new(request));
+                },
+                ApprovalStatus::Denied => {
+                    return ApprovalOutcome::Denied(Box::new(request));
+                },
+                ApprovalStatus::Expired => {
+                    return ApprovalOutcome::Expired(Box::new(request));
+                },
+                ApprovalStatus::Pending => {
+                    if request.expires_at <= chrono::Utc::now() {
                         return ApprovalOutcome::Expired(Box::new(request));
-                    },
-                    ApprovalStatus::Pending => {
-                        // Why: The sweep job may not have run; the deadline on the
-                        // row is what actually decides, not the status column.
-                        if request.expires_at <= chrono::Utc::now() {
-                            return ApprovalOutcome::Expired(Box::new(request));
-                        }
-                        last_seen = Some(request);
-                    },
-                }
+                    }
+                    last_seen = Some(request);
+                },
             },
             Ok(None) => {
                 tracing::error!(
@@ -88,10 +84,6 @@ pub async fn wait_for_decision(
     }
 }
 
-// Why: the outcome enum carries the row so callers can stamp an approver, but
-// the two failure paths above have no row to carry. A synthetic expired row
-// keeps those callers total rather than making every match arm handle a
-// second layer of `Option`.
 fn missing_placeholder(call_id: &str) -> ApprovalRequest {
     let now = chrono::Utc::now();
     ApprovalRequest {

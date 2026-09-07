@@ -9,9 +9,7 @@ use crate::sysproc;
 
 pub(super) use crate::integration::config_read::DomainRead;
 
-// Why: macOS writes these plists in the binary format, so this shells out —
-// `plutil` is the only reader guaranteed present, and adding a plist parser to
-// read one string out of one file is not worth the dependency.
+// Why: macOS managed preferences can be binary plists; plutil decodes them.
 #[cfg(target_os = "macos")]
 fn read_macos_managed() -> Option<DomainRead> {
     use base64::Engine as _;

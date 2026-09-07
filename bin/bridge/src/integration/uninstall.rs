@@ -16,9 +16,6 @@ pub fn clear_hosts() {
         diag(&format!("warning: Cowork enable-key cleanup failed: {e}"));
     }
 
-    // Why: the plugin dirs are gone by now, but `~/.claude` still enables them
-    // and still carries their `hooks.json` — hooks that would keep firing at a
-    // loopback port this uninstall guarantees will never come up again.
     if let Err(e) = super::claude_code_cli::clear_install() {
         diag(&format!("warning: Claude Code CLI cleanup failed: {e}"));
     }
@@ -30,10 +27,6 @@ pub struct PurgeReport {
     pub clean: crate::auth::setup::CleanReport,
 }
 
-// Why: `uninstall --purge` leaves the config file and the onboarding sentinels
-// behind, so the next launch still knows the gateway and skips the wizard. The
-// GUI's "remove everything" promises a machine that has never seen the bridge,
-// which is the union of uninstall, the host cleanup and `clean`.
 #[tracing::instrument(level = "info", skip(ctx))]
 pub fn purge_device(
     ctx: &crate::context::BridgeContext,

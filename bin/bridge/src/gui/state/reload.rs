@@ -64,9 +64,6 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         snap.verified_identity = None;
     }
 
-    // Why: the last-sync record is the manifest's own footprint, not the
-    // org-plugins directory's, so it must be read even when that directory
-    // does not resolve or the host gate silently loses its authority.
     if let Some(meta) = paths::bridge_metadata_dir()
         && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
         && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)

@@ -46,10 +46,8 @@ struct AnthropicUsage {
     output_tokens_details: AnthropicOutputTokensDetails,
 }
 
-// Why: Claude 5 adaptive thinking reports its spend here. It is a breakdown
-// of `output_tokens`, which already includes it, so it is copied across as
-// `reasoning_tokens` and never added to `output_tokens` -- that would
-// double-bill. A model that reports no details yields 0, as before.
+// Why: Anthropic's `output_tokens_details.thinking_tokens` is a subset of
+// `output_tokens`.
 #[derive(Debug, Default, Deserialize)]
 struct AnthropicOutputTokensDetails {
     #[serde(default)]
@@ -195,10 +193,8 @@ pub fn parse_response(
         queries: Vec::new(),
     });
 
-    // Why: Anthropic itself reports `tool_use` correctly, but this codec also
-    // fronts Anthropic-compatible upstreams that send a plain `end_turn`
-    // beside a tool_use block. Relayed as end_turn the client finishes the
-    // turn and the call is silently never run.
+    // Why: Some Anthropic-compatible upstreams send `end_turn` alongside a
+    // `tool_use` block.
     let has_tool_use = content
         .iter()
         .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
@@ -262,9 +258,6 @@ fn canonical_image(source: AnthropicImageSource) -> Option<CanonicalContent> {
     }
 }
 
-// Why: runs before `parse_response`, which is total and would turn a body
-// carrying nothing into a well-formed empty turn. `None` means the body is
-// worth parsing.
 #[must_use]
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "content", "usage")

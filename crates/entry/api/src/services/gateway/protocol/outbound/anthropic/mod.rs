@@ -109,8 +109,6 @@ impl OutboundAdapter for AnthropicOutbound {
     }
 }
 
-// Why: `anthropic-version` and `anthropic-beta` must reach the provider
-// unchanged, so the hardcoded version is a fallback, never an override.
 fn request_headers(ctx: &OutboundCtx<'_>) -> Vec<(String, String)> {
     let mut headers = vec![
         ("x-api-key".to_owned(), ctx.api_key.to_owned()),

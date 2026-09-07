@@ -30,10 +30,6 @@ use super::{MessagingError, MessagingInbound};
 
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
-// Why: the sender drives the agent with the permissions their systemprompt
-// account actually holds. A hardcoded `a2a`-only scope cannot reach an
-// admin-scoped MCP server, so every downstream tool call would fail; granting
-// `admin` unconditionally would hand it to anyone who can type in Slack.
 pub(super) fn permissions_for(roles: &[String]) -> Vec<Permission> {
     let held = if roles.iter().any(|role| role == BaseRoles::ADMIN) {
         Permission::Admin
@@ -61,9 +57,6 @@ pub(super) fn mint_a2a_token(
     authed: &AuthenticatedUser,
     session_id: &SessionId,
 ) -> Result<String, MessagingError> {
-    // Why: `mcp` rides alongside `a2a` because the agent forwards this very
-    // token to the MCP servers it is assigned; a token audienced only for a2a
-    // is rejected at the MCP door before any authz rule is consulted.
     let config = JwtConfig {
         permissions: authed.permissions.clone(),
         audience: vec![JwtAudience::A2a, JwtAudience::Mcp],

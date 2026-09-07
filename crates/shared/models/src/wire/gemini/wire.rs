@@ -59,8 +59,8 @@ pub(crate) enum GeminiPart {
     FunctionCall {
         #[serde(rename = "functionCall")]
         function_call: GeminiFunctionCall,
-        // Why: Part-level sibling of `functionCall`, not nested inside it: Gemini 3.x
-        // requires this opaque blob be returned on the same part next turn.
+        // Why: Gemini 3.x requires `thoughtSignature` replayed on the same part as
+        // `functionCall`, not nested inside it.
         #[serde(
             rename = "thoughtSignature",
             default,
@@ -260,8 +260,8 @@ pub(crate) struct GeminiUsageMetadata {
     pub(crate) total: u32,
     #[serde(default, rename = "cachedContentTokenCount")]
     pub(crate) cached: u32,
-    // Why: thinking tokens, reported beside candidatesTokenCount rather than
-    // inside it, and counted in totalTokenCount. Absent without a budget.
+    // Why: Gemini counts `thoughtsTokenCount` in `totalTokenCount`, outside
+    // `candidatesTokenCount`.
     #[serde(default, rename = "thoughtsTokenCount")]
     pub(crate) thoughts: u32,
 }

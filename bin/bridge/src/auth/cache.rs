@@ -26,9 +26,6 @@ struct CacheEntry {
     output: HelperOutput,
     expires_at: u64,
     gateway: ValidatedUrl,
-    // Why: fingerprint of the PAT on disk when the token was minted (None in
-    // session mode). Entries from before this field carry None and are
-    // discarded once a PAT exists — one extra mint, never a stale identity.
     #[serde(default)]
     credential_fingerprint: Option<String>,
 }

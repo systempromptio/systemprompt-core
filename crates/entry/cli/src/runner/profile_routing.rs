@@ -190,9 +190,6 @@ pub(super) fn confirm_remote_job_run(
     )
 }
 
-// Why: a read may proceed locally (a number with stated provenance beats an
-// error the caller cannot act on); a mutation refuses, since writing tenant
-// state to the wrong database is the failure this check exists to prevent.
 pub(super) fn allow_local_execution(
     profile: &systemprompt_models::Profile,
     class: RoutingClass,
@@ -224,8 +221,6 @@ pub(super) fn allow_local_execution(
     )
 }
 
-// Why: a tenant-store failure is not fixed by signing in (`resolve_tenant` runs
-// before the session is consulted), so the two cases get different advice.
 pub(super) fn remediation_for(reason: &str) -> &'static str {
     if reason.contains("load tenants") || reason.contains("tenant") {
         "Run 'systemprompt cloud tenant list' to sync the tenant store, and check you are in the \

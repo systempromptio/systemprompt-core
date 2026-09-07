@@ -24,9 +24,6 @@ inventory::collect!(IdentitySourceRegistration);
 
 pub const DEFAULT_WHOAMI_PATH: &str = "/v1/bridge/whoami";
 
-// Why: only one registration is meaningful; a second is ignored rather than
-// treated as an error, because a binary that links two of them is a build
-// mistake that must not take the sign-in flow down with it.
 #[must_use]
 pub fn whoami_path() -> &'static str {
     inventory::iter::<IdentitySourceRegistration>

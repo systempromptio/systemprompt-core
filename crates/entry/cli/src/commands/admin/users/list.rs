@@ -68,8 +68,6 @@ pub struct ListArgs {
     #[arg(long, value_enum)]
     pub status: Option<StatusFilter>,
 
-    // Why: anonymous visitors are user rows too, so a directory listing hides them
-    // by default; this brings them back for traffic triage.
     #[arg(long)]
     pub include_anonymous: bool,
 }

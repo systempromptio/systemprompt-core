@@ -49,8 +49,6 @@ pub(super) fn install(source: &Path, target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-// Why: the inverse of `install` — take the bridge-owned surface back out and
-// leave every other key exactly where it was.
 pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {
     let existing_text = match std::fs::read_to_string(target) {
         Ok(s) => s,

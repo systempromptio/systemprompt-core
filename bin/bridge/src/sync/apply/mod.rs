@@ -114,9 +114,6 @@ fn prune_legacy_state() {
     }
 }
 
-// Why: the synthetic aggregate plugin and the old metadata markers were last
-// written by 0.24.0; this one-way prune can go once 0.36.0 is the oldest
-// bridge still updating itself.
 fn remove_legacy_dir(path: &Path, what: &str) {
     if !path.exists() {
         return;
@@ -138,8 +135,6 @@ fn remove_legacy_dir(path: &Path, what: &str) {
     }
 }
 
-// Why: a Cowork client on a different host cannot reach a loopback MCP URL, so
-// it is re-pointed at the configured gateway host.
 fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> {
     let cfg = config::load();
     let Some(gateway) = cfg.gateway_url.as_ref() else {
@@ -151,8 +146,8 @@ fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> 
     let (Some(raw_gw_host), gw_scheme) = (gateway_url.host_str(), gateway_url.scheme()) else {
         return servers.to_vec();
     };
-    // Why: Cowork's MCP URL validator rejects literal `localhost` for non-HTTPS
-    // connectors — only `127.0.0.1` passes.
+    // Why: Cowork's non-HTTPS MCP validator accepts 127.0.0.1 but rejects literal
+    // localhost.
     let gw_host = if raw_gw_host.eq_ignore_ascii_case("localhost") {
         "127.0.0.1"
     } else {

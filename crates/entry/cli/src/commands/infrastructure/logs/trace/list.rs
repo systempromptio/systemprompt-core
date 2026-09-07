@@ -63,9 +63,6 @@ pub struct ListArgs {
 crate::define_pool_command!(ListArgs => (), with_config);
 
 fn build_filter(args: &ListArgs, since_timestamp: Option<DateTime<Utc>>) -> TraceListFilter {
-    // Why: the decision filter runs over the returned page, so the page has to
-    // be wider than the requested limit or a rare verdict returns nothing on a
-    // busy instance while plenty of matching traces exist.
     let sql_limit = if args.decision.is_some() {
         args.limit.saturating_mul(20)
     } else {
@@ -98,10 +95,6 @@ async fn execute_with_pool_inner(
     let since_timestamp = parse_since(args.since.as_ref())?;
     let filter = build_filter(&args, since_timestamp);
 
-    // Why: filtered after the listing rather than inside it. The trace query
-    // already unions four tables to establish which traces exist; joining
-    // governance_decisions into it would make every listing pay for a filter
-    // almost no listing uses.
     let decision_traces = match args.decision.as_deref() {
         Some(decision) => Some(
             list_trace_ids_with_decision(pool.as_ref(), decision, since_timestamp)

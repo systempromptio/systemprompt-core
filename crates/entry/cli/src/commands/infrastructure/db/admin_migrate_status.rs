@@ -69,9 +69,6 @@ async fn run_migrate_status(
     Ok(())
 }
 
-// Why: one label per applied slot, most specific first. A tracked tombstone is
-// a spent slot, a collision is a reused one, an orphan has no file on disk,
-// drift is an edited file; "applied" only when none of those hold.
 fn status_label(status: &ExtensionMigrationStatus, version: u32) -> &'static str {
     if status.tombstoned.iter().any(|t| t.version == version) {
         "tombstone"

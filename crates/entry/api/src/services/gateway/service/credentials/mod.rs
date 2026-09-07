@@ -26,12 +26,8 @@ use systemprompt_models::services::ProviderEntry;
 
 use super::DispatchError;
 
-// Why: returns an owned value because a minted token is short-lived and cannot
-// borrow from the process-wide secret store the way a static key does.
-// Why: Google takes a static API key on `x-goog-api-key` but an OAuth token on
-// `Authorization: Bearer`, and rejects either in the other's header. The
-// adapter cannot tell them apart by looking, so the distinction is carried
-// rather than guessed from the token's shape.
+// Why: Google API keys use x-goog-api-key; OAuth tokens use Authorization:
+// Bearer.
 #[derive(Debug, Clone)]
 pub(super) struct Credential {
     pub(super) value: String,

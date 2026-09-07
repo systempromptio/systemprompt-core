@@ -95,10 +95,6 @@ impl HostApp for ClaudeDesktopHost {
         if cfg!(target_os = "windows") {
             "imported into Windows Registry"
         } else {
-            // Why: on macOS the install only hands the profile to System
-            // Settings, which holds it until the user approves it. Claiming it
-            // had loaded made every subsequent "profile not installed" read as
-            // a contradiction rather than as the accurate report it was.
             "offered to System Settings — approve it under General › Device Management"
         }
     }
@@ -133,8 +129,6 @@ impl HostApp for ClaudeDesktopHost {
     }
 }
 
-// Why: the trailing segment is the publisher-ID hash derived from Anthropic's
-// signing certificate, so it is identical on every machine.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 const MSIX_FAMILY: &str = "Claude_pzs8sxrjxfjjc";
 

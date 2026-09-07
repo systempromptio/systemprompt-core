@@ -45,10 +45,6 @@ pub(super) struct TeeWriterImpl {
 }
 
 impl Write for TeeWriterImpl {
-    // Why: bootstrap errors raised before the appender installs must stay
-    // visible, so an absent file writer forces the stderr leg. The discarded
-    // write results are deliberate — this is the sink `tracing` itself reports
-    // through, so there is nowhere left to report a sink failure.
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.stderr || self.file.is_none() {
             _ = io::stderr().write_all(buf);

@@ -23,9 +23,8 @@ pub(crate) fn policy_dir() -> PathBuf {
     crate::config::paths::claude_code_policy_dir()
 }
 
-// Why: removes the files rather than writing an empty server map — an empty
-// managed set leaves MCP disabled entirely instead of restoring the unmanaged
-// default.
+// Why: Claude Code treats an empty managed MCP file as exclusive mode with no
+// servers.
 pub(crate) fn clear_policy() {
     let dir = policy_dir();
     let mcp_path = dir.join(MANAGED_MCP_FILE);
@@ -47,8 +46,6 @@ pub(crate) fn clear_policy() {
     if !mcp_exists && stripped.is_none() {
         return;
     }
-    // Why: try the direct removal first — a privileged user must not be
-    // prompted at all.
     if write::clear_direct(&mcp_path, &settings_path, stripped.as_deref()) {
         tracing::info!(
             target: "bridge::install::managed-mcp",

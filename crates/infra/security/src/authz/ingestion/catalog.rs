@@ -38,9 +38,6 @@ impl RegisteredEntities {
         Self::default()
     }
 
-    // Why: declaring a kind with an empty set is meaningful, not a no-op — it
-    // says "this deployment has none of these", so every literal id of that
-    // kind is rejected rather than waved through as an undeclared kind.
     #[must_use]
     pub fn with_kind<I, S>(mut self, kind: EntityKind, ids: I) -> Self
     where

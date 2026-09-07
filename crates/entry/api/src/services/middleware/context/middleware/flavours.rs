@@ -52,9 +52,6 @@ impl PublicContextMiddleware {
         next.run(request).instrument(span).await
     }
 
-    // Why: no span here — every route re-resolves and re-spans this context
-    // via its own `with_auth` flavour, so spanning here too would double-nest
-    // the same "request" span in every log line.
     pub async fn seed(&self, mut request: Request, next: Next) -> Response {
         let Some(req_ctx) = Self::resolve(&request) else {
             let trace_id = HeaderExtractor::extract_trace_id(request.headers());

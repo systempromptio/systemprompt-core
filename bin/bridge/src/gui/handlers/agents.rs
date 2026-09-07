@@ -51,8 +51,6 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
             ))
         },
     };
-    // Why: the removal changed what is on disk, so the row must not keep
-    // reporting the profile it no longer has.
     if result.is_ok() {
         app.proxy.send_event(crate::gui::events::UiEvent::Host(
             crate::gui::hosts::events::HostUiEvent::ProbeRequested {
@@ -121,10 +119,6 @@ pub(crate) fn on_setup_complete(app: &mut GuiApp) {
         return;
     }
     app.state.set_agents_onboarded(true);
-    // Why: the snapshot flag alone does not survive the process, and the next
-    // launch re-derives "needs setup" from whether any host still reports an
-    // installed profile -- so a user who finished setup is put back through it
-    // after uninstalling the last profile.
     crate::gui::onboarding::mark_complete();
     app.append_log("setup marked complete by user");
     emit::emit_state(app);

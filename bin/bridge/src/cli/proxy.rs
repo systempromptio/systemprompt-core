@@ -14,8 +14,6 @@ use crate::stdio::diag;
 pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
     match ctx.proxy.role() {
         ProxyRole::Serving(_) => {},
-        // Why: our own proxy already serving is the outcome this command wants,
-        // not a failure. Starting a second one would only split the traffic.
         ProxyRole::AlreadyRunning {
             port,
             pid,

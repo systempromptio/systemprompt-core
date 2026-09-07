@@ -60,8 +60,6 @@ pub struct PluginTokenCache {
 }
 
 impl PluginTokenCache {
-    // Why: recovers from a poisoned lock — treating poison as a miss would
-    // silently re-mint a hook token on every request from then on.
     fn entries(&self) -> std::sync::MutexGuard<'_, HashMap<String, CachedHookToken>> {
         self.entries
             .lock()

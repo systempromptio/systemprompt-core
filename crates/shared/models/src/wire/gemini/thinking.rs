@@ -37,9 +37,6 @@ pub(super) fn thinking_config(
     (Some(config(budget)), text)
 }
 
-// Why: room for the model's own default thinking on top of the caller's text
-// budget, never past the model's output cap. A model card with no thinking
-// budget leaves the caller's number exactly as it was.
 fn headroom_ceiling(text: u32, cap: Option<u32>, max_budget: Option<u32>) -> u32 {
     let ceiling = text.saturating_add(max_budget.unwrap_or(0));
     crate::wire::clamp_output_tokens(ceiling, cap)

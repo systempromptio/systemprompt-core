@@ -223,10 +223,8 @@ impl<'a> SchemaValidator<'a> {
     }
 }
 
-// Why: `SQLite` identifiers cannot be parameter-bound in PRAGMA / DDL contexts,
-// so any identifier that reaches `format!`-built SQL must be charset-checked
-// first. Accepts the `SQLite`-safe subset: leading letter / underscore, then
-// up to 63 further alphanumerics / underscores.
+// Why: SQLite does not accept bound parameters for identifiers in PRAGMA
+// statements.
 fn validate_sql_identifier(name: &str) -> McpDomainResult<()> {
     let mut chars = name.chars();
     let first_ok = chars

@@ -142,8 +142,6 @@ impl Condition {
             .filter(|scalar| erase_indices(&scalar.path) == self.path)
             .collect();
 
-        // Why: an empty candidate set is not vacuous truth. `to: []` must not
-        // read as "every recipient is internal" under `match: all`.
         if candidates.is_empty() {
             return ConditionOutcome::Unresolved(format!("{} unresolved", self.path));
         }
@@ -199,11 +197,6 @@ fn compile_one(entry: &YamlValue) -> Option<Rule> {
                 .into_iter()
                 .filter_map(|spec| compile_condition(&tool, spec))
                 .collect::<Vec<_>>();
-            // Why: an empty condition list means "hold every call to this tool"
-            // (RuleSpec::Bare). A conditional whose conditions all failed to
-            // compile would reach that same state and hold everything — the
-            // opposite of the posture this module argues for, where a config
-            // typo must never conjure a hold nobody configured. Drop it.
             if declared > 0 && conditions.is_empty() {
                 tracing::error!(
                     policy = super::ID,

@@ -16,9 +16,6 @@ pub mod state;
 
 const TIMEOUT_SECS: u64 = 300;
 
-// Why: closing hides to the tray. On Windows the difference between "minimised"
-// and "a zombie in Task Manager" is entirely whether anyone said so, and it
-// only needs saying once.
 pub(crate) fn notify_closed_to_tray() {
     if record::tray_notice_shown() {
         return;

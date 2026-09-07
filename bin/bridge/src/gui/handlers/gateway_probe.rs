@@ -17,11 +17,6 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
-    // Why: the probe is an idempotent read, issued from the tick loop, from
-    // wake-from-sleep, after login, after a gateway save, and from four places
-    // in the UI. Starting a second one used to cancel the first, and the loser
-    // reported "unreachable: probe cancelled" over a gateway that was fine.
-    // Overlapping callers now join the answer already on its way.
     if app.state.gateway_probe_in_flight() {
         if let Some(id) = reply_to {
             emit::send_reply(app, id, json!({ "inFlight": true }), true);
@@ -40,8 +35,6 @@ pub(crate) fn on_gateway_probe_finished(
     reply_to: ReplyId,
 ) {
     let Some(outcome) = outcome else {
-        // Why: a cancelled probe learned nothing. It must not alarm, and it
-        // must not overwrite the answer the last real probe left behind.
         app.state.clear_cancel(CancelScope::GatewayProbe);
         app.state.abandon_probe();
         app.refresh_ui();
@@ -67,8 +60,6 @@ pub(crate) fn on_gateway_probe_finished(
             ErrorCode::Unreachable,
             reason.clone(),
         )),
-        // Why: neither is a failure -- they are "no answer yet". Reporting
-        // them as errors would put a red toast on the absence of a finding.
         GatewayStatus::Probing => Ok(json!({ "state": "probing" })),
         GatewayStatus::Unknown => Ok(json!({ "state": "unknown" })),
     };
@@ -92,8 +83,6 @@ pub(crate) fn on_gateway_probe_finished(
     emit::send_reply_payload(app, id, &payload);
 }
 
-// Why: a laptop that wakes to a dead gateway is governing nothing, and the tray
-// dot alone is easy to miss.
 const SESSION_EXPIRY_WARN_SECS: u64 = 24 * 60 * 60;
 
 fn announce(app: &mut GuiApp) {
@@ -128,9 +117,6 @@ fn announce(app: &mut GuiApp) {
 }
 
 pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
-    // Why: post-login and post-gateway-save call in here directly, and used to
-    // cancel whatever the tick loop had already started. Joining the in-flight
-    // probe gives the same answer without producing a spurious failure.
     if app.state.gateway_probe_in_flight() {
         return;
     }

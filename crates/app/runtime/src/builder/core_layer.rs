@@ -43,9 +43,6 @@ pub(super) async fn init_core(
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config()
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
-    // Why: the services tree carries the provider catalog and gateway routes,
-    // so a tree that does not load is a deployment that cannot serve inference
-    // — it fails boot here, not on the first request.
     systemprompt_loader::ServicesBootstrap::try_init()
         .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
     let config = Arc::new(Config::get()?.clone());

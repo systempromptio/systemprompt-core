@@ -45,8 +45,6 @@ pub(super) fn install(source: &Value, target: &Path) -> std::io::Result<()> {
     write_atomic(target, &merged)
 }
 
-// Why: the inverse of `install` — take the bridge-owned model keys back out and
-// leave every other key exactly where it was.
 pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {
     let existing_text = match std::fs::read_to_string(target) {
         Ok(s) => s,
@@ -87,8 +85,6 @@ fn strip_owned(target: &mut Value) {
     let Value::Mapping(top) = target else {
         return;
     };
-    // Why: only our own `providers:` entry is removed. A user's other named
-    // providers live in the same table and must survive an uninstall.
     if let Some(Value::Mapping(providers)) = top.get_mut(yaml_key(PROVIDERS_TABLE)) {
         providers.remove(yaml_key(super::super::config::PROVIDER_ENTRY));
         if providers.is_empty() {

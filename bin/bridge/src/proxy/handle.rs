@@ -88,8 +88,6 @@ impl std::fmt::Debug for ProxyHandle {
 }
 
 impl ProxyHandle {
-    // Why: the outcome is recorded in `role` rather than returned as an error
-    // because a GUI that lost the port race is still a useful GUI.
     #[must_use]
     pub fn serve(rt: &Handle, deps: ProxyDeps) -> Self {
         let runtime_config = config::shared_from_loaded();
@@ -156,8 +154,6 @@ impl ProxyHandle {
         }
     }
 
-    // Why: `install --apply`, `sync` and `doctor` run beside a serving bridge
-    // and must find its port, not race it — so nothing is bound here.
     #[must_use]
     pub fn attach(rt: &Handle, deps: ProxyDeps) -> Self {
         let port = portfile_port(&deps.install_id).unwrap_or(DEFAULT_PROXY_PORT);
@@ -275,9 +271,6 @@ impl ProxyHandle {
     }
 }
 
-// Why: the tick renews a token that is about to expire; it never acquires one.
-// Acquisition is request-driven, and on a signed-out install a minting tick
-// would fail — and, through the session provider, prompt — every minute.
 async fn refresh_loop(cache: Arc<TokenCache>) {
     let mut interval = tokio::time::interval(REFRESH_TICK);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);

@@ -22,10 +22,8 @@ const HTTP_REQUEST_DURATION_SECONDS: &str = "http_request_duration_seconds";
 const HTTP_REQUESTS_IN_FLIGHT: &str = "http_requests_in_flight";
 const SSE_CONNECTIONS: &str = "sse_active_connections";
 
-// Why: The Prometheus recorder is a process global: `install_recorder` errors
-// in `metrics::set_global_recorder` if called twice. Cache our handle so repeat
-// callers (test binaries that build multiple API routers, or any future
-// hot-reload path) get a clone of the original instead of a hard error.
+// Why: metrics::set_global_recorder rejects a second installation in the same
+// process.
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
@@ -53,9 +51,6 @@ pub fn metrics_router(handle: PrometheusHandle) -> axum::Router {
         .with_state(handle)
 }
 
-// Why: `/metrics` is served on its own listener rather than the public router
-// so scrapers reach it without a bearer token and balancers never have to
-// filter it. The listener drains on the same readiness signal as the API.
 pub async fn serve_metrics_listener(
     addr: std::net::SocketAddr,
     handle: PrometheusHandle,

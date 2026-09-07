@@ -63,8 +63,6 @@ pub(super) fn render_table(section: &DashboardSection) -> McpDomainResult<String
         return Ok(section_empty("No rows to show."));
     }
 
-    // Why: `default_sort` was declared by the model and never applied. Sorting here
-    // rather than client-side keeps the no-JS rendering correct too.
     let mut rows: Vec<&JsonValue> = data.rows.iter().collect();
     if let Some(sort) = &data.default_sort
         && let Some(index) = data.columns.iter().position(|c| c == &sort.column)

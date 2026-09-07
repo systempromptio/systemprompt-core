@@ -128,10 +128,6 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     not_assigned(entity, user_id, user_roles)
 }
 
-// Why: a declared level that did not match closes the cascade, so only the
-// levels up to and including it may still admit the subject by default. The
-// entity is known through that level, so an absent sentinel row is
-// `NotAssigned`, never `UnknownEntity`.
 fn closed_decision(
     entity: &EntityRef,
     user_id: &UserId,

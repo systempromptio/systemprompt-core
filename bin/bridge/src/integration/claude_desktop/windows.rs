@@ -58,9 +58,8 @@ pub(super) fn list_claude_processes() -> Vec<String> {
     hits
 }
 
-// Why: the Claude Code CLI also installs as `claude.exe`, so only the image
-// path can tell it from the desktop app; an unreadable path must not exclude
-// the app.
+// Why: Claude Code and Claude Desktop both use claude.exe; distinguish them by
+// image path.
 fn is_cli_image(path: Option<&str>) -> bool {
     const CLI_MARKERS: [&str; 3] = [r"\.local\bin\", r"\npm\", r"\node_modules\"];
 
@@ -149,9 +148,6 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
             }
         });
     }
-    // Why: `SOFTWARE\Policies` is ACL-protected, so the delete goes through the
-    // same staged-and-elevated route the install uses rather than failing with
-    // status 5.
     let stage_dir = std::env::temp_dir();
     let job = crate::install::elevated_job::ElevatedJob {
         reg_path: None,

@@ -158,8 +158,6 @@ pub(super) fn list_registry_mcp(
             homepage: None,
             change: None,
             children: Vec::new(),
-            // Why: deliberately unowned: the registry snapshot is not per-plugin,
-            // and `mark_shared_mcp` already models multi-plugin membership.
             plugins: Vec::new(),
             extra: MarketplaceExtra::Mcp(McpServerEntry {
                 proxy_url: Some(proxy_url),

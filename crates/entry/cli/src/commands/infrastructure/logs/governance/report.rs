@@ -105,9 +105,6 @@ pub struct GovernanceReportOutput {
 
 crate::define_pool_command!(ReportArgs => (), with_config);
 
-// Why: accumulates in a `BTreeMap` rather than sorting at the end so the
-// distinct tool and user counts per group are exact. Summing the SQL rollup's
-// per-combination counts would double-count a tool used by two users.
 #[derive(Default)]
 struct GroupAccumulator {
     warnings: i64,
@@ -263,9 +260,6 @@ fn truncate(text: &str, max: usize) -> String {
     format!("{head}…")
 }
 
-// Why: two sections in one CSV, separated by a blank line and a fresh header
-// row. A spreadsheet reads that as two blocks, and the alternative — two files
-// or two invocations — loses the fact that both windows are the same.
 fn format_csv(output: &GovernanceReportOutput) -> String {
     let mut csv = String::from("section,group,warnings,tools,users,last_seen,example_reason\n");
     for row in &output.warnings {

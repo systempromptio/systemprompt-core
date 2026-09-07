@@ -45,8 +45,6 @@ impl ConfigStore for WindowsRegistryStore {
         &self,
         keys: &[&str],
     ) -> Result<ManagedPolicyRead, ConfigStoreError> {
-        // Why: HKLM is read last so it wins — Cowork ignores HKCU once the
-        // machine key exists, and the probe must see what Cowork sees.
         let mut values: BTreeMap<String, String> = BTreeMap::new();
         let mut hives_with_data: Vec<&'static str> = Vec::new();
         for (hive, hive_label) in [(HKEY_CURRENT_USER, "HKCU"), (HKEY_LOCAL_MACHINE, "HKLM")] {

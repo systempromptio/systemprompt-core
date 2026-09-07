@@ -197,10 +197,6 @@ impl AiRequestRecordBuilder {
         self
     }
 
-    // Why: the record's token columns are set from one `CanonicalUsage` and
-    // nowhere else, so `tokens_used` cannot drift from the gateway's
-    // definition. `None` is a request that never reported usage at all -- a
-    // failed turn -- and leaves every column NULL rather than storing zeros.
     #[must_use]
     pub fn usage(mut self, usage: Option<CanonicalUsage>) -> Self {
         let Some(usage) = usage else { return self };

@@ -25,8 +25,6 @@ pub struct BridgeProfileResponse {
     pub auth_scheme: String,
     #[serde(default)]
     pub models: Vec<String>,
-    // Why: `None` leaves the choice to the client, which is the behaviour
-    // before this field existed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_model: Option<String>,
     #[serde(default)]
@@ -35,10 +33,6 @@ pub struct BridgeProfileResponse {
     pub providers: Vec<ProviderHealth>,
 }
 
-// Why: the bridge's `HostApp` registry and its sync-only agent table must
-// together cover exactly this list; a bridge-side test asserts it, so a host
-// added on one side without the other fails there rather than vanishing from
-// the GUI.
 pub const KNOWN_HOSTS: &[&str] = &[
     "claude-code",
     "claude-desktop",

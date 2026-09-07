@@ -18,16 +18,10 @@ use serde_json::Value;
 
 const TOOL_USE: &str = "tool_use";
 
-// Why: mirrors `CanonicalStopReason::with_tool_use` -- truncation and an
-// explicit stop sequence still win, because a call cut mid-arguments is not a
-// call the client can run.
 fn is_generic_stop(reason: &str) -> bool {
     !matches!(reason, TOOL_USE | "max_tokens" | "stop_sequence")
 }
 
-// Why: the client-visible payload must not change except for the one token
-// that is wrong, so the rewrite is textual -- re-serialising the parsed value
-// would renormalise whitespace and number formatting across the whole body.
 fn rewrite_stop_reason(raw: &[u8], old: &str) -> Option<Vec<u8>> {
     let key = b"\"stop_reason\"";
     let mut from = 0usize;
@@ -73,8 +67,6 @@ fn has_tool_use_block(value: &Value) -> bool {
         .is_some_and(|blocks| blocks.iter().any(|b| b["type"] == TOOL_USE))
 }
 
-// Why: the buffered passthrough body, corrected only when it contradicts
-// itself; a consistent body is returned as the very bytes that arrived.
 pub(in crate::services::gateway) fn correct_buffered(body: Bytes) -> Bytes {
     let Ok(value) = serde_json::from_slice::<Value>(&body) else {
         return body;
@@ -95,8 +87,7 @@ struct StreamState {
 }
 
 impl StreamState {
-    // Why: SSE frames arrive split across chunks, so correction has to see
-    // whole frames; every byte is re-emitted, only re-grouped by frame.
+    // Why: HTTP chunks can split an SSE frame at any byte.
     fn push(&mut self, chunk: &[u8]) -> Vec<Bytes> {
         self.buf.extend_from_slice(chunk);
         let mut out = Vec::new();
@@ -139,9 +130,7 @@ fn frame_json(frame: &[u8]) -> Option<Value> {
         .and_then(|data| serde_json::from_str::<Value>(data).ok())
 }
 
-// Why: the streaming twin of `correct_buffered` -- the tool-use block is
-// announced before the `message_delta` that closes the turn, so the state
-// needed to spot the contradiction is always in hand by then.
+// Why: Anthropic announces tool-use blocks before the terminal message_delta.
 pub(in crate::services::gateway) fn correct_stream<S>(
     stream: S,
 ) -> BoxStream<'static, Result<Bytes, String>>

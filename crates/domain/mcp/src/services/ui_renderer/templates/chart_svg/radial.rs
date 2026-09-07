@@ -69,8 +69,6 @@ pub(super) fn plot(spec: &ChartSpec<'_>) -> Option<String> {
         String::new()
     };
 
-    // Why: Every value was non-finite or non-positive despite a positive total, so
-    // there is still nothing to draw.
     if slices.is_empty() {
         return None;
     }

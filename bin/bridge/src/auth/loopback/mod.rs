@@ -62,10 +62,6 @@ impl LoopbackServer {
     pub async fn bind_first_available(ports: &[u16]) -> Result<Self> {
         for &port in ports {
             match Self::bind_on(port).await {
-                // Why: only a port already taken is worth stepping over. Any
-                // other bind failure is a real fault and stepping past it
-                // would report the last port's error for a problem the first
-                // one already had.
                 Err(LoopbackError::Bind { source, .. })
                     if source.kind() == std::io::ErrorKind::AddrInUse => {},
                 other => return other,

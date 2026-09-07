@@ -49,13 +49,8 @@ impl CanonicalStopReason {
         }
     }
 
-    // Why: providers routinely report a generic "stop" beside a fully-formed
-    // tool call -- Gemini sends `finishReason: STOP` on a functionCall
-    // candidate, several OpenAI-compatible upstreams send `finish_reason:
-    // "stop"` beside a tool_calls array. Relayed verbatim, every client ends
-    // the turn and the call is silently never run. Truncation still wins: a
-    // call cut mid-arguments carries unparseable JSON, so declaring tool use
-    // there hands the client a call it cannot run.
+    // Why: Gemini and some OpenAI-compatible providers report generic stop reasons
+    // alongside tool calls.
     #[must_use]
     pub const fn with_tool_use(self, has_tool_use: bool) -> Self {
         match self {

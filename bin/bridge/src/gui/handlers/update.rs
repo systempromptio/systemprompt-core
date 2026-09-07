@@ -36,8 +36,6 @@ pub(crate) fn on_update_check_finished(
             app.state.set_update_state(state);
         },
         Err(e) => {
-            // Why: the network is allowed to be down, so a failed check stays a
-            // log line and leaves the button as it was rather than raising a toast.
             tracing::debug!(error = %e, "update check failed");
         },
     }
@@ -130,9 +128,6 @@ pub(crate) fn on_update_install_finished(
     reply(app, reply_to, result, "update install");
 }
 
-// Why: the new process must start before this one exits — on Windows the
-// displaced `.old` binary cannot be swept until this process releases its image
-// lock, and the sweep runs at the new process's startup.
 pub(crate) fn on_update_restart_requested(app: &GuiApp) {
     let installed = match update::installed_path() {
         Ok(p) => p,
@@ -164,9 +159,6 @@ async fn install(
     on_progress: &(dyn Fn(update::DownloadProgress) + Send + Sync),
 ) -> Result<Value, GuiError> {
     let (client, bearer) = client_and_bearer(http).await?;
-    // Why: re-checked rather than trusting the version the button was rendered
-    // with — the manifest carries the digest, and a release published in between
-    // would otherwise be installed without the user having agreed to it.
     let (_, manifest) = update::check(&client, &bearer).await?;
     if manifest.version != version {
         return Err(update::UpdateError::VersionChanged {
@@ -184,8 +176,6 @@ async fn client_and_bearer(
 ) -> Result<(crate::gateway::GatewayClient, String), GuiError> {
     let cfg = crate::config::load();
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
-    // Why: the updater is the escape hatch from a bad install, so it must not
-    // be gated on a cache that a bad install is exactly what poisons.
     let bearer = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
         .await
         .map(|out| out.token.expose().to_owned())

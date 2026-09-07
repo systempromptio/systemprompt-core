@@ -71,10 +71,6 @@ pub async fn run_once(
     #[cfg(not(target_os = "windows"))]
     check_org_plugins_scope(&synced, &location)?;
     if !location.path.is_dir() {
-        // Why: only the macOS system path needs `sudo install --apply` — the
-        // per-user location (Windows/Linux) is writable by this process, so a
-        // missing directory on a fresh install is provisioned here instead of
-        // bouncing the user to a sudo command that does not apply to their OS.
         match location.scope {
             paths::Scope::User => {
                 fs::create_dir_all(&location.path).map_err(|e| {
@@ -124,11 +120,6 @@ pub async fn run_once(
     Ok(build_summary(&synced, report))
 }
 
-// Why: the fleet's default model is server policy (`GET /v1/bridge/profile`),
-// applied on sync rather than in the synchronous `install --apply` so a policy
-// change reaches existing installs on their next scheduled sync. Best-effort
-// throughout: an absent field or an unreachable gateway leaves the model
-// choice as it was, and never fails a sync whose manifest applied cleanly.
 #[cfg(target_os = "linux")]
 async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient) {
     let Ok(profile) = client.fetch_bridge_profile().await else {
@@ -151,12 +142,6 @@ async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient)
 )]
 async fn seed_default_model_from_profile(_client: &crate::gateway::GatewayClient) {}
 
-// Why: on Windows, Cowork scans only the system org-plugins path. Writing the
-// user-scope fallback there succeeds but is invisible to Cowork, so a sync
-// that targets the Claude Desktop host from a non-elevated process must fail
-// loudly instead of reporting success. Other platforms either have no fallback
-// (macOS) or no Cowork desktop app, and the gateway enables all known hosts
-// by default, so the check cannot be platform-neutral.
 #[cfg(target_os = "windows")]
 fn check_org_plugins_scope(
     manifest: &SignedManifest,
@@ -173,10 +158,6 @@ fn check_org_plugins_scope(
     Ok(())
 }
 
-// Why: the double-click GUI flow has no CLI step, so the sync itself must be
-// able to raise the single administrator prompt that provisions org-plugins.
-// One attempt per process: a declined prompt must not re-fire from the GUI
-// auto-sync, tray retries, or a `sync --watch` loop.
 #[cfg(target_os = "windows")]
 async fn heal_org_plugins_scope(
     bridge: &crate::context::BridgeContext,

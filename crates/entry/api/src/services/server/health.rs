@@ -91,13 +91,8 @@ pub fn human_bytes(bytes: i64) -> String {
     format!("{size:.1} {}", UNITS[idx])
 }
 
-// Why: `nix::sys::statvfs` surfaces `libc::fsblkcnt_t` (block counts) and
-// `c_ulong` (fragment size), and those alias to different widths per target —
-// `u64` throughout on Linux, a mix on Darwin — so the arithmetic below only
-// type-checks once every field is widened. Doing the widening behind a generic
-// bound rather than a concrete `u64::from` keeps it a no-op where the field is
-// already `u64` without tripping `useless_conversion` on the targets where it
-// is, which a per-platform lint attribute could only chase after the fact.
+// Why: statvfs field widths vary by target; generic widening avoids
+// useless_conversion on u64 targets.
 fn widen(value: impl Into<u64>) -> u64 {
     value.into()
 }
@@ -242,13 +237,6 @@ pub fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
     })
 }
 
-// Why: the pool's own acquire timeout is 30s, so an unbounded probe answers a
-// database outage 32 seconds late. This endpoint is skip-listed from the ip-ban
-// gate precisely so an orchestrator keeps sight of the process during a
-// database fault, and a probe slower than the orchestrator's own deadline
-// defeats that as completely as a refusal would. A healthy `SELECT 1` is
-// single-digit milliseconds; matches the session middleware's bound for the
-// same reason.
 pub(super) const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub async fn handle_health(

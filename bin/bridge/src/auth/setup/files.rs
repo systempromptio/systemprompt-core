@@ -94,11 +94,6 @@ pub(super) fn remove_managed_mcp_fragment() -> Result<(), SetupError> {
     remove_if_exists(&meta_dir.join(crate::config::paths::MCP_SERVERS_FRAGMENT))
 }
 
-// Why: last-sync.json and user.json describe the identity that just logged
-// out. Left behind, the replay guard compares the NEXT account's first
-// manifest against the previous account's version and can wedge it as a
-// replay, and the user fragment keeps naming the old identity until a sync
-// happens to overwrite it.
 pub(super) fn remove_sync_state() -> Result<(), SetupError> {
     let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
         return Ok(());

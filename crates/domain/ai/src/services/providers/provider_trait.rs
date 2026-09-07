@@ -166,8 +166,8 @@ impl<'a> SearchGenerationParams<'a> {
     }
 }
 
-// Why: providers are dispatched as `Box<dyn AiProvider>` by the factory, so
-// the trait must be dyn-compatible — native `async fn` in traits is not.
+// Why: Native async trait methods are not dyn-compatible; boxed providers
+// require `async_trait`.
 #[async_trait]
 pub trait AiProvider: Send + Sync {
     fn name(&self) -> &str;

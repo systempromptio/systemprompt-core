@@ -140,10 +140,8 @@ fn insert_thinking(
     obj.insert("thinking".into(), Value::Object(t));
 }
 
-// Why: `strict` makes Anthropic compile the schema into a grammar and sample
-// only conforming output; without it the schema is advisory and the model can
-// wrap, truncate or free-text a field. The schema is shaped first because the
-// grammar compiler accepts a narrower dialect than JSON Schema.
+// Why: Anthropic's `strict` mode compiles the tool schema into a grammar that
+// accepts a narrower dialect than JSON Schema.
 fn structured_output_tool(name: &str, schema: &Value, strict: bool) -> Value {
     let input_schema = if strict {
         strict::strict_input_schema(schema)

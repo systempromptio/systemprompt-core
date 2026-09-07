@@ -34,10 +34,6 @@ impl DashboardRenderer {
             .enumerate()
             .fold(String::new(), |mut acc, (i, s)| {
                 let selected = i == 0;
-                // Why: Roving tabindex: only the selected tab is in the tab order,
-                // and the arrow keys move between them. Without the ARIA below
-                // these were unlabelled buttons whose selected state lived in a
-                // CSS class no assistive tech could see.
                 acc.push_str(&format!(
                     r#"<button type="button" class="tab-btn{active}" role="tab" id="tab-{id}" data-target="{id}" aria-controls="{id}" aria-selected="{selected}" tabindex="{tabindex}">{title}</button>"#,
                     active = if selected { " active" } else { "" },
@@ -84,7 +80,6 @@ impl DashboardRenderer {
                         r#"<p class="mcp-app-description">{}</p>"#,
                         html_escape(d)
                     )),
-            // Why: Three of the four DashboardHints fields were parsed and dropped.
             refresh_html = if dashboard.hints.refreshable {
                 format!(
                     r#"<div class="dashboard-toolbar"><button type="button" class="refresh-btn" id="dashboard-refresh"{interval}>Refresh</button><span class="refresh-status" id="refresh-status" role="status" aria-live="polite"></span></div>"#,
@@ -126,9 +121,6 @@ impl UiRenderer for DashboardRenderer {
             LayoutMode::Tabs => "layout-tabs",
         };
 
-        // Why: One malformed section used to abort the whole dashboard, so a single
-        // bad payload blanked every good section beside it. Each section now
-        // fails on its own and says so in place.
         let sections_html = sections
             .iter()
             .map(|s| {

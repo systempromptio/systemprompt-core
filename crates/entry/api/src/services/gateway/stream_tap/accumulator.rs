@@ -273,12 +273,8 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
     }
 }
 
-// Why: providers end a message more than once -- Anthropic's `message_delta`
-// carries the real reason and the `message_stop` that follows carries none.
-// Assigning on every stop let that second frame default a streamed tool-use
-// turn back to EndTurn, so it was audited and rendered as "stop" and the call
-// was dropped. First stated reason wins; a bare stop only fills in what nothing
-// else gave, and the tool-use correction is repeated from the wire codecs.
+// Why: Anthropic's message_delta carries the stop reason; the following
+// message_stop carries none.
 fn apply_stop_reason(state: &mut TapState, reason: Option<CanonicalStopReason>) {
     let has_tool_use = state
         .blocks

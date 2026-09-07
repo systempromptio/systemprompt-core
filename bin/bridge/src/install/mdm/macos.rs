@@ -181,9 +181,6 @@ pub(crate) fn apply_mobileconfig(
         source: e,
     })?;
 
-    // Why: `-g` opens System Settings without switching focus, avoiding a
-    // wry/muda/objc2 weak-ref teardown crash on the bridge window (see
-    // integration/claude_desktop/macos.rs::install_profile for the full story).
     let opened = Command::new("open").arg("-g").arg(&out_path).status();
 
     let mut summary = Vec::with_capacity(5);

@@ -35,10 +35,6 @@ pub fn install(
     persist_optional_config(gateway_str, pubkey_str);
 
     let target_os = opts.print_mdm.unwrap_or_else(Os::current);
-    // Why: `inferenceGatewayBaseUrl` must stay loopback — the upstream gateway
-    // URL must never be exposed to Cowork. The endpoint already names a proxy
-    // that had to move off the default port, which this command cannot see
-    // in-process because it runs separately from the proxy itself.
     let mdm = run_mdm_step(opts, target_os, loopback, &registry)?;
 
     let schedule = run_schedule_step(opts, &binary, bridge)?;

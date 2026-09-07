@@ -53,8 +53,6 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     let source_text = std::fs::read_to_string(generated_path)?;
     let mut source = parse_object(&source_text, generated_path)?;
 
-    // Why: lift the API key out of the generated artifact into auth.json, then
-    // drop the marker so only the provider block reaches the managed file.
     if let Some(Value::String(key)) = source.remove(render::API_KEY_MARKER) {
         upsert_auth_key(&config::auth_json_path(), &key)?;
     }
@@ -62,10 +60,6 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     let managed = config::managed_config_path();
     match merge::install(&source, &managed) {
         Ok(_) => Ok(()),
-        // Why: on Linux `write_managed_file` has no elevation to offer, so a
-        // read-only /etc/opencode used to fail the whole enrolment and leave
-        // the client with MCP servers and no credential — the 403 this fallback
-        // exists to prevent. See `config::fallback_config_path`.
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
             let Some(fallback) = config::fallback_config_path() else {
                 return Err(e);
@@ -86,8 +80,6 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     let target = config::managed_config_path();
     let removed_config = merge::uninstall(&target)?;
-    // Why: an install that fell back to the user tier left its block there, so
-    // uninstall has to sweep both or the client keeps routing at a dead port.
     let removed_fallback = match config::fallback_config_path() {
         Some(path) => merge::uninstall(&path)?,
         None => false,
@@ -109,8 +101,6 @@ pub(super) fn elevation_prompt() -> String {
     )
 }
 
-// Why: auth.json holds other providers' OAuth blobs; an unparseable or
-// non-object file must abort rather than be overwritten.
 pub(super) fn parse_object(text: &str, source: &str) -> std::io::Result<Map<String, Value>> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     if text.trim().is_empty() {

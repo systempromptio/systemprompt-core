@@ -25,20 +25,16 @@ use systemprompt_extension::runtime_config::{
 };
 use thiserror::Error;
 
-/// Web-asset serving strategy re-exported from `systemprompt-extension`.
 pub use systemprompt_extension::runtime_config::WebAssetsStrategy as WebAssets;
 
 /// Typed error returned by [`RuntimeBuilder::run`].
 #[derive(Debug, Error)]
 pub enum RuntimeError {
-    /// Extensions have already been injected for this process; calling
-    /// [`RuntimeBuilder::run`] more than once per process is not supported.
     #[error(
         "InjectedExtensions already set: a RuntimeBuilder has already been run in this process"
     )]
     ExtensionsAlreadyInjected,
 
-    /// The CLI exited with an error. Wraps the original CLI failure.
     #[error("CLI exited with error: {0}")]
     Cli(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
@@ -68,8 +64,6 @@ impl RuntimeBuilder {
         }
     }
 
-    /// Register an extension by type, instantiating it via
-    /// [`Default::default`].
     #[must_use]
     pub fn with_extension<E: Extension + Default + 'static>(mut self) -> Self {
         self.extensions.push(Arc::new(E::default()));
@@ -88,13 +82,6 @@ impl RuntimeBuilder {
         self
     }
 
-    /// Inject the configured extensions and run the CLI.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RuntimeError::ExtensionsAlreadyInjected`] if a previous call
-    /// to `run` already initialised the global injection slot, or
-    /// [`RuntimeError::Cli`] if the CLI itself exits with an error.
     pub async fn run(self) -> Result<(), RuntimeError> {
         let config = InjectedExtensions {
             extensions: self.extensions,

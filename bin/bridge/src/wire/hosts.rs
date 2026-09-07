@@ -35,9 +35,6 @@ impl<'a> From<&'a ProxyHealth> for ProxyPayload<'a> {
     }
 }
 
-// Why: the probe's raw snapshot no longer crosses the wire. The drawer used to
-// branch on `profile_state.kind` — the same anti-pattern the verdict module
-// forbids — so what it needs is shipped as verdicts and plain facts instead.
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
@@ -81,16 +78,7 @@ impl<'a> From<&'a HostAppSnapshot> for HostHealthPayload<'a> {
 pub struct HostsPayload<'a> {
     pub host_apps: Vec<HostEntryPayload<'a>>,
     pub local_proxy: ProxyPayload<'a>,
-    // Why: the gate comes from the last signed manifest, which does not exist
-    // before the first sync, so on a fresh install `host_apps` is every host
-    // this build registers rather than the subset this installation permits.
-    // Surfaces that offer to *act* on a host must fail closed while this is
-    // false. It reads `manifest_synced`, never `enabled_hosts` being non-empty:
-    // an instance may legitimately disable every host, and that empty list is a
-    // real answer, not a missing one.
     pub hosts_gated: bool,
-    // Why: folded from the very verdicts in `host_apps`, so the summary card and the
-    // rows cannot disagree.
     pub agent_fleet: AgentFleets,
     pub agents_onboarded: bool,
     pub first_run: FirstRunPayload<'a>,
@@ -112,13 +100,6 @@ pub struct HostEntryPayload<'a> {
     pub config_format: ConfigFormat,
     pub download_url: &'a str,
     pub install_action_label: &'a str,
-    // Why: what the GUI may offer for this host, decided here rather than in
-    // the front end. A sync-only agent has no local profile, no config file and
-    // nothing installed, so every one of these is false for it — and the drawer
-    // used to render Open / Repair / Verify / Show config / Remove regardless,
-    // each of which reached a handler that could only answer
-    // "unknown host: claude-code". Deriving the affordance a second time in JS
-    // (`surface === "sync-only"`) is how the two answers drift apart.
     pub can_open: bool,
     pub can_verify: bool,
     pub can_repair: bool,

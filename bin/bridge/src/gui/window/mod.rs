@@ -10,8 +10,6 @@ pub use crate::window_state as geometry;
 
 #[cfg(target_os = "windows")]
 mod dwm;
-// Why: `open_path` is not cfg-gated, so neither is its import — behind the
-// windows cfg it left the macOS build without `Path`.
 use std::path::Path;
 use std::process::Command;
 
@@ -25,8 +23,6 @@ pub const fn set_immersive_dark(_window: &dyn winit::window::Window, _dark: bool
 
 #[must_use]
 pub fn prefers_dark(window: &dyn winit::window::Window) -> bool {
-    // Why: winit returns None on X11 and Android, and a platform that will not
-    // say gets the app's own default, which is dark.
     !matches!(window.theme(), Some(winit::window::Theme::Light))
 }
 

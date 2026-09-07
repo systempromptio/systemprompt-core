@@ -67,8 +67,6 @@ struct ResolvedRule<'a> {
     justification: Option<&'a str>,
 }
 
-// Why: constructing this type is the only way to reach the write loop, so a
-// future call site cannot persist rules that skipped the registry check.
 struct ValidatedRules<'a>(Vec<ResolvedRule<'a>>);
 
 impl<'a> ValidatedRules<'a> {
@@ -203,12 +201,6 @@ impl AccessControlIngestionService {
                 Access::Deny => "deny",
             };
             let ids = match &rule.target {
-                // Why: a literal id is the only target that can name something
-                // that does not exist — a glob is expanded from the catalog, so
-                // it cannot invent members. This is therefore the only branch
-                // that needs checking, and the check has to happen here rather
-                // than after the loop: `upsert_entity_row` below would mint the
-                // row and make the id look real on the next run.
                 RuleTarget::Id(id) => {
                     registered.require(rule.entity_type, id)?;
                     vec![id.clone()]

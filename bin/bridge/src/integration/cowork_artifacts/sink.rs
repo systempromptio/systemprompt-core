@@ -40,8 +40,6 @@ pub struct StoredArtifactSummary {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
-    // Why: absent on a record written before the manifest carried ownership;
-    // such a record renders ungrouped until the next sync rewrites it.
     #[serde(default)]
     pub plugins: Vec<String>,
 }
@@ -69,19 +67,8 @@ pub fn read_library_store(target_dir: &Path) -> BTreeMap<String, StoredArtifactS
 pub trait ArtifactSink: Send + Sync {
     fn is_materialized(&self, target_dir: &Path) -> bool;
 
-    // Why: this is not `is_materialized` because the version stamp in
-    // `version.json` hashes only the ids the manifest carries, so it matches
-    // even when the sink is holding extra records the manifest has since
-    // dropped. An install that accumulated stale ids before the sinks became
-    // authoritative would take the "up to date, skipping" path forever and
-    // never shed them. Reporting the extras as not-current is what makes the
-    // next sync repair the store.
     fn is_current(&self, target_dir: &Path, artifacts: &[ArtifactEntry]) -> bool;
 
-    // Why: authoritative, mirroring `sync::apply::plugin::remove_stale`:
-    // anything the sink holds that `artifacts` does not name is removed.
-    // `artifacts` is never empty — `emit::write_artifacts` returns early on an
-    // empty set so a transient empty manifest cannot wipe the store.
     fn write(&self, target_dir: &Path, artifacts: &[ArtifactEntry]) -> Result<(), ApplyError>;
 }
 
@@ -119,8 +106,6 @@ impl ArtifactSink for FileSink {
                 "cowork artifacts: dropping records the manifest no longer carries"
             );
         }
-        // Why: built fresh rather than merged into the previous map: the store is a
-        // projection of the manifest, so a key absent from `artifacts` is gone.
         let mut store = serde_json::Map::new();
         for artifact in artifacts {
             let record = serde_json::to_value(CoworkLibraryArtifactRecord::from(artifact))
@@ -153,17 +138,12 @@ impl ArtifactSink for SeedStaging {
         let dir = target_dir.join(STAGING_SUBDIR);
         let staged = staged_ids(&dir);
         let expected = expected_ids(artifacts);
-        // Why: only ids that survive `safe_id_segment` are ever staged, so an
-        // unsafe id must not count as missing here.
         staged.len() == expected.iter().filter(|id| safe_id_segment(id)).count()
             && staged.iter().all(|id| expected.contains(id.as_str()))
     }
 
     fn write(&self, target_dir: &Path, artifacts: &[ArtifactEntry]) -> Result<(), ApplyError> {
         let dir = target_dir.join(STAGING_SUBDIR);
-        // Why: the seed skill copies whatever is staged into the library. A
-        // record left here from a manifest that no longer names it would
-        // re-introduce the very id `FileSink` just dropped.
         prune_staging(&dir, &expected_ids(artifacts))?;
         for artifact in artifacts {
             let id = artifact.id.as_str();

@@ -23,10 +23,6 @@ pub fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
         .collect()
 }
 
-// Why: service-tier scopes ([`Permission::is_service_scope`]) need only the
-// client grant, but user-tier roles are delegated authority and require both
-// the client *and* its owner to hold the permission — the RFC 6749 §4.4
-// owner is audit attribution, never authorization by itself.
 #[cfg_attr(
     not(feature = "test-api"),
     expect(

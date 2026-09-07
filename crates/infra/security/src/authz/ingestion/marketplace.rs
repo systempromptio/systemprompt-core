@@ -57,8 +57,6 @@ const fn tally(report: &mut IngestReport, outcome: UpsertOutcome) {
 
 type Tx<'a> = sqlx::Transaction<'a, sqlx::Postgres>;
 
-// Why: every rule type is checked before the transaction opens, so a malformed
-// slug cannot leave half a marketplace's grants written.
 fn validate_rule_types(
     marketplaces: &HashMap<MarketplaceId, MarketplaceConfig>,
 ) -> AuthzResult<()> {

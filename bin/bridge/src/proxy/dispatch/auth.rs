@@ -122,8 +122,6 @@ pub(super) fn verify_loopback_secret(
     Some(rejection(ctx, body, reason))
 }
 
-// Why: the secret fingerprints stay in the logs — putting either in the body
-// would let any loopback caller confirm a guessed secret.
 fn mismatch_body(ctx: &ProxyContext) -> String {
     format!(
         "forbidden: bad loopback secret\n\

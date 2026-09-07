@@ -53,10 +53,6 @@ pub fn build_listing(
             let mut agents = Vec::new();
             let mut hooks = Vec::new();
             for dir in plugins::plugin_dirs(&loc.path) {
-                // Why: the dir name is the plugin id. Stamped here, before
-                // `dedup_by_id` collapses an item shipped by two plugins —
-                // first-plugin-wins would otherwise discard the second owner
-                // and file the item under one plugin only.
                 let owner = dir
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -122,9 +118,6 @@ pub fn build_listing(
     }
 }
 
-// Why: keeps the first item per id, but unions the owner lists rather than
-// dropping the loser's — an item two plugins ship belongs to both, and the
-// grouped listing must show it under each.
 fn dedup_by_id(items: Vec<MarketplaceItem>) -> Vec<MarketplaceItem> {
     let mut out: Vec<MarketplaceItem> = Vec::new();
     let mut index: BTreeMap<String, usize> = BTreeMap::new();

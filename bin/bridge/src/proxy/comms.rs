@@ -57,10 +57,6 @@ pub fn inbox_dir() -> Option<PathBuf> {
     crate::basedirs::config_dir().map(|d| d.join("inbox"))
 }
 
-// Why: a per-session filename rather than a per-user one: the hook that reads
-// this knows only its own session id, and the isolation guarantee has to hold
-// even if the hook script is wrong. A message it must not see is not in a file
-// it can name.
 fn inbox_path(session_id: &crate::ids::HookSessionId) -> Option<PathBuf> {
     let safe: String = session_id
         .as_str()
@@ -74,9 +70,6 @@ fn inbox_path(session_id: &crate::ids::HookSessionId) -> Option<PathBuf> {
 }
 
 fn append(announcement: &CommsAnnouncement) {
-    // Why: An announcement with no session is inbox-class and must not be written:
-    // it would surface in whichever session happened to read first, which is
-    // exactly the interruption the delivery classes prevent.
     let Some(session_id) = announcement.session_id.as_ref() else {
         return;
     };

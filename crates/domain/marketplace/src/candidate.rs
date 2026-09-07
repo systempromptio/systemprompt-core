@@ -74,8 +74,6 @@ pub struct FilterContext {
 }
 
 impl MarketplaceCandidate {
-    // Why: consumes every field so a new field cannot silently fall on the
-    // floor between the wire payload and the filter context.
     #[must_use]
     pub fn into_manifest_parts(self) -> (ManifestEntries, FilterContext) {
         let Self {
@@ -91,11 +89,6 @@ impl MarketplaceCandidate {
             membership,
             diagnostics,
         } = self;
-        // Why: ownership is stamped onto the entries here, at the one point
-        // where the final plugin list and the owner maps are both in hand.
-        // Intersecting with `surviving` keeps a plugin the access filter
-        // removed from surfacing as an owner of an artifact it no longer
-        // grants.
         let surviving: BTreeSet<&PluginId> = plugins.iter().map(|p| &p.id).collect();
         let owned = |owners: Option<&BTreeSet<PluginId>>| -> Vec<PluginId> {
             owners.map_or_else(Vec::new, |o| {
@@ -113,9 +106,6 @@ impl MarketplaceCandidate {
         for artifact in &mut artifacts {
             artifact.plugins = owned(artifact_owners.get(&artifact.id));
         }
-        // Why: a marketplace is listed only for the plugins it still carries;
-        // one whose every plugin was filtered out would tell the client to
-        // create an empty host marketplace.
         let mut marketplaces = marketplaces;
         for marketplace in &mut marketplaces {
             marketplace.plugin_ids.retain(|p| surviving.contains(p));
@@ -161,10 +151,6 @@ impl MarketplaceCandidate {
         self
     }
 
-    // Why: filters shrink entry lists — the listed marketplaces included, since
-    // a marketplace denied at its own level must not be mirrored even when a
-    // plugin it carries survives through another owner — but never the
-    // assembly context: membership, ownership, and diagnostics stay untouched.
     pub fn retain_entries(&mut self, keep: &EntryKeepSets) {
         self.plugins.retain(|p| keep.plugins.contains(&p.id));
         self.marketplaces

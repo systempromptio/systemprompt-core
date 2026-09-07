@@ -71,10 +71,6 @@ fn current(schedule: &crate::schedule::status::ScheduleStatusCache) -> Value {
     })
 }
 
-// Why: a managed policy silently replaces an operator-set `sync.pinned_pubkey`
-// (see `Config::with_policy_overrides`), so the provenance travels with the
-// value — without it a supply-chain control can be swapped and the operator has
-// no way to see it happened or know the field is no longer theirs to edit.
 fn pinned_pubkey_value() -> Value {
     let Some(effective) = config::pinned_pubkey() else {
         return Value::Null;

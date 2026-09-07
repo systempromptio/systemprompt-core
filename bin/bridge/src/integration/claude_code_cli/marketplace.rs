@@ -62,8 +62,8 @@ pub(super) fn write_marketplace_json(
     )
 }
 
-// Why: `claude plugin validate` requires `owner` to be an object and `name` to
-// equal the marketplace key, else it rejects the manifest.
+// Why: Claude Code requires an object owner and a manifest name matching the
+// marketplace key.
 #[must_use]
 pub fn marketplace_value(
     marketplace: &str,
@@ -182,9 +182,6 @@ pub fn strip_installed_plugins(
     Ok(())
 }
 
-// Why: `stale` names marketplaces this emitter wrote before and no longer
-// mirrors; only their keys are stripped, so an enable the user set for a
-// marketplace of their own is never touched.
 pub(super) fn set_enabled(current: &[Mirrored], stale: &[MarketplaceId]) -> Result<(), ApplyError> {
     let Some(path) = paths::claude_cli_settings_path() else {
         return Ok(());

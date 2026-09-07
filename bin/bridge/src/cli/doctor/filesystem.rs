@@ -49,8 +49,6 @@ pub fn check_bridge_working_dir() -> Check {
     )
 }
 
-// Why: the Windows org-plugins root is admin-write-only by default; `install
-// --apply` widens its ACL for unelevated syncs.
 pub fn check_org_plugins_writable() -> Check {
     let Some(loc) = paths::org_plugins_effective() else {
         return Check::warn("org-plugins writable", "no org-plugins location resolvable");

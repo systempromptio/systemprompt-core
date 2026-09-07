@@ -52,8 +52,6 @@ pub fn check_marketplace() -> Check {
     combine(checks)
 }
 
-// Why: one line per marketplace would bury a single broken one among healthy
-// siblings, so the worst status wins and every detail is kept.
 fn combine(mut checks: Vec<Check>) -> Check {
     if checks.len() == 1 {
         return checks.remove(0);

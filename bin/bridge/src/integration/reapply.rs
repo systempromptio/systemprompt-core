@@ -23,12 +23,6 @@ pub type ModelProtocolOverrides = BTreeMap<String, Vec<String>>;
 #[derive(Debug)]
 pub enum Outcome {
     Reapplied,
-    // Why: some hosts cannot be finished by us. macOS Claude Desktop's
-    // `install_profile` shells out to `open -g <mobileconfig>`, which hands the
-    // file to System Settings and returns Ok whether or not the user ever
-    // approves it under Profiles. Reporting that as success is how a profile
-    // stays stale while every tool insists it was refreshed, so the outcome is
-    // decided by re-probing the host rather than by the call returning.
     Pending,
     Declined,
     Failed(String),
@@ -45,10 +39,6 @@ fn io_err(context: &str, e: &dyn std::fmt::Display) -> std::io::Error {
     std::io::Error::other(format!("{context}: {e}"))
 }
 
-// Why: the inputs a host profile is generated from are all live values — the
-// port the proxy actually holds, the secret it will actually check, and the
-// models the gateway currently offers. Rebuilding them is what makes a
-// re-apply a repair rather than a rewrite of the same stale bytes.
 pub async fn build_profile_inputs(
     bridge: &BridgeContext,
     host: &'static dyn HostApp,
@@ -58,8 +48,6 @@ pub async fn build_profile_inputs(
     let loopback = bridge.proxy.loopback();
     let gateway_base_url = loopback.origin();
 
-    // Why: a foreign install on our port must refuse — writing *our* secret
-    // against *their* proxy produces exactly the 403 the profile prevents.
     let port = loopback.port();
     if let crate::proxy::peer::PeerIdentity::Foreign(who) =
         crate::proxy::peer::probe_identity(port, bridge.install_id())
@@ -105,9 +93,6 @@ pub async fn build_profile_inputs(
         );
     }
 
-    // Why: the host profile carries the managed MCP servers too, so the GUI
-    // install and `install --apply` publish the same policy. Without them the
-    // profile a double-click user gets has no connectors at all.
     let mcp_servers =
         crate::install::mdm::policy::mcp_entries(loopback, &bridge.mcp_registry.load())
             .map_err(|e| io_err("resolve managed MCP servers", &e))?;
@@ -122,9 +107,6 @@ pub async fn build_profile_inputs(
     })
 }
 
-// Why: only hosts already carrying a profile are touched. A host the user has
-// never set up is left alone — repairing what is broken is a different act from
-// enrolling a new client, and login is not the place to do the second.
 pub async fn reapply_stale_profiles(
     bridge: &BridgeContext,
     overrides: &ModelProtocolOverrides,
@@ -163,15 +145,11 @@ async fn reapply_one(
     };
     match host.install_profile(&generated.path) {
         Ok(()) => verify(host, env),
-        // Why: declining the administrator prompt is a decision, not a fault —
-        // the same distinction `install::elevate` draws. Reporting it as an
-        // error would make a deliberate "not now" look like a broken install.
         Err(e) if is_declined(&e) => Outcome::Declined,
         Err(e) => Outcome::Failed(e.to_string()),
     }
 }
 
-// Why: trust the probe, not the return value — see `Outcome::Pending`.
 fn verify(host: &'static dyn HostApp, env: &ProbeEnv) -> Outcome {
     if matches!(host.probe(env).profile_state, ProfileState::Installed) {
         Outcome::Reapplied
@@ -180,8 +158,6 @@ fn verify(host: &'static dyn HostApp, env: &ProbeEnv) -> Outcome {
     }
 }
 
-// Why: declining the administrator prompt is a decision, not a fault. Shared
-// with `super::enrol`, which draws the same distinction.
 pub(crate) fn is_declined(e: &std::io::Error) -> bool {
     e.kind() == std::io::ErrorKind::PermissionDenied
         || e.to_string().contains("cancelled the administrator")

@@ -29,21 +29,8 @@ pub(super) struct OpenAiChatStreamState {
     pub(super) next_index: u32,
     pub(super) tool_calls: Vec<ToolCallProgress>,
     pub(super) reasoning_block: Option<u32>,
-    // Why: the contract says a turn carrying tool_calls finishes with
-    // "tool_calls", but several OpenAI-compatible upstreams send a plain
-    // "stop" -- and a stream that ends on [DONE] alone states no reason at
-    // all. Either renders as `finish_reason: "stop"` beside a complete
-    // tool_calls array, and the client ends the turn without running it.
     pub(super) saw_tool_call: bool,
-    // Why: a chunk carrying `finish_reason` and the `[DONE]` sentinel both end
-    // the turn, and providers send both. Emitting MessageStop twice let the
-    // sentinel's unconditional EndTurn land after a real `tool_calls` finish,
-    // so the accumulated stop reason -- and the terminal frame every
-    // OpenAI-contract client reads -- said "stop" on a turn that wanted a tool
-    // run, and the tool call was silently dropped.
     pub(super) stopped: bool,
-    // Why: the finish reason the wire stated, held until the stream ends so
-    // the usage chunk that follows it lands before the canonical terminal.
     pub(super) pending_finish: Option<String>,
 }
 
@@ -82,10 +69,6 @@ pub(super) fn process_text_delta(
     }));
 }
 
-// Why: the reasoning track ends where the answer begins. Held open across the
-// text deltas, the inbound Anthropic renderer keeps writing thinking_delta
-// frames into a block the model has already left, and the client shows the
-// answer as part of the model's private reasoning.
 pub(super) fn close_reasoning(
     state: &mut OpenAiChatStreamState,
     events: &mut Vec<Result<CanonicalEvent, String>>,
@@ -95,10 +78,8 @@ pub(super) fn close_reasoning(
     }
 }
 
-// Why: the chat contract has no reasoning field, but every OpenAI-compatible
-// provider that emits thinking (DeepSeek, Qwen, Moonshot) streams it here.
-// The buffered parse already reads it; without the streaming half a thinking
-// model's trace -- the whole point of those models -- is dropped mid-stream.
+// Why: DeepSeek, Qwen and Moonshot stream reasoning in the nonstandard
+// `reasoning_content` field; some compatible providers spell it `reasoning`.
 pub(super) fn process_reasoning_delta(
     state: &mut OpenAiChatStreamState,
     delta: &Value,

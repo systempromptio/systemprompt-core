@@ -49,10 +49,6 @@ impl std::fmt::Display for BodyDefect {
     }
 }
 
-// Why: `content_field` is the wire's array of generated items (`choices`,
-// `candidates`, `output`, `content`) and `usage_field` its token report; the
-// two names are all that differ between the dialects, so the check is written
-// once here rather than four times over.
 #[must_use]
 pub fn buffered_body_defect(
     value: &Value,
@@ -74,8 +70,8 @@ pub fn buffered_body_defect(
     (!has_content && !has_usage).then_some(BodyDefect::NoTurn)
 }
 
-// Why: providers disagree on whether `error` is an object with a `message` or
-// a bare string, and an operator reading the log needs the text either way.
+// Why: Providers return `error` as either an object with `message` or a bare
+// string.
 fn error_message(error: &Value) -> String {
     error
         .get("message")

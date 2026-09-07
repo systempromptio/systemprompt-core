@@ -82,10 +82,6 @@ fn sso_code(
     gateway: Option<&str>,
     no_browser: bool,
 ) -> Result<String, String> {
-    // Why: both SSO paths need a person — one waits on a browser callback, the
-    // other on a pasted code. Detached from a terminal neither can ever
-    // complete, so they would block until the caller gives up rather than
-    // naming the one credential that works unattended.
     if !std::io::stdin().is_terminal() {
         return Err(format!(
             "signing in interactively needs a terminal. Unattended, redeem an \
@@ -131,8 +127,6 @@ fn extract_code(pasted: &str) -> Result<String, String> {
         return Err("nothing pasted".into());
     }
 
-    // Why: first, because the displayed command carries a `--gateway` URL that
-    // a query-string parse would otherwise wander into.
     if let Some(code) = code_after_flag(pasted) {
         return Ok(code);
     }
@@ -161,10 +155,8 @@ fn extract_code(pasted: &str) -> Result<String, String> {
     Err("that URL carries no `code` parameter — paste the code the page displayed".into())
 }
 
-// Why: terminals with bracketed paste enabled wrap the paste in `ESC[200~` /
-// `ESC[201~`. Readline strips those at a shell prompt but nothing strips them
-// from a raw stdin read, so without this the gateway rejects a code the user
-// can see is correct. A non-CSI escape is two characters, hence dropping one.
+// Why: raw stdin retains terminal bracketed-paste escapes (ESC[200~ /
+// ESC[201~).
 fn strip_terminal_noise(pasted: &str) -> String {
     let mut out = String::with_capacity(pasted.len());
     let mut chars = pasted.chars();
@@ -239,12 +231,6 @@ fn default_device_name() -> Option<String> {
         })
 }
 
-// Why: signing in re-mints the credential and can move the gateway, but
-// installed host profiles keep the loopback secret they were written with —
-// see `integration::reapply`. The TTY gate is the load-bearing part here: an
-// interactive sign-in can answer the administrator prompt a managed profile
-// may raise, a scripted one cannot, and must not stall on a dialog nobody is
-// there to see.
 fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
     use std::io::IsTerminal as _;
 

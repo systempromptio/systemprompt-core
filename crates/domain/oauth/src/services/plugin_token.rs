@@ -48,8 +48,6 @@ impl PluginTokenService {
             subject.username,
             subject.email,
             permissions.clone(),
-            // Why: a hook-scoped (aud=hook) credential authorizes on scope + plugin_id,
-            // never roles; carrying the minting admin's roles would be inert privilege.
             Vec::new(),
         );
 

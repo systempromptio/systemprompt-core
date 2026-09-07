@@ -77,12 +77,6 @@ impl PreparedDispatch {
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
-        // Why: the catalog matches on the model's id and aliases, never on its
-        // upstream name, so the lookup must use what the caller asked for.
-        // Looking up the upstream name found nothing for every provider whose
-        // ids differ from the upstream's (both Vertex entries), which silently
-        // dropped the output cap and thinking budget and let Gemini 2.5 Pro
-        // spend the caller's whole max_tokens thinking.
         let model_limits = upstream
             .provider
             .find_model(&request.model)
@@ -150,16 +144,8 @@ impl GovernedDispatch {
         )]
         let denied = match &evaluation.decision {
             Decision::Allow { .. } => None,
-            // Why: warn mode's entire purpose is that the call proceeds. The
-            // reason is already on the audit row written just below, so
-            // nothing is lost by not refusing here.
             Decision::Warn { .. } => None,
             Decision::Deny { reason } => Some(reason.to_string()),
-            // Why: a held call needs somewhere to park and something to wake
-            // it. The MCP enforcement point has both; an inference request on
-            // this path has neither, so the only safe reading of "a human must
-            // authorise this" here is a refusal. Failing open would turn the
-            // strictest verdict in the chain into the weakest.
             Decision::Pending { reason } => Some(reason.to_string()),
         };
         let policy = evaluation
@@ -212,10 +198,6 @@ impl ScannedDispatch {
             safety,
         )
         .await;
-        // Why: the same predicate that stamped the `blocked` column decides the
-        // refusal, so a finding can never be reported as blocking while the
-        // request went through, or the reverse. It is false throughout under
-        // `safety.mode: warn`.
         let Some(finding) = findings.iter().find(|f| request_finding_blocks(f, safety)) else {
             return Ok(Self(prepared));
         };

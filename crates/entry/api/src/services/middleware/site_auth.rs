@@ -11,10 +11,8 @@ use systemprompt_extension::SiteAuthConfig;
 use systemprompt_models::auth::Permission;
 use systemprompt_security::{TokenExtractor, extract_user_context};
 
-// Why: Purges a token minted under a previous `security.issuer` instead of
-// bouncing the browser between login and the protected page forever;
-// `Secure` is omitted because a `Secure` deletion is discarded on
-// plain-HTTP local deployments.
+// Why: Secure cookie deletion requires HTTPS outside browsers' localhost
+// exceptions.
 const CLEAR_ACCESS_TOKEN_COOKIE: &str =
     "access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict";
 

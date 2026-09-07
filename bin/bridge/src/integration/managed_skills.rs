@@ -21,10 +21,6 @@ use crate::host_sync::ApplyError;
 
 const SIDECAR: &str = ".systemprompt-managed.json";
 
-// Why: `Verbatim` keeps the id as the directory and passes upstream front
-// matter through; `KebabNamed` kebab-cases the id and forces the front matter
-// `name` to match, for hosts that reject a skill whose name differs from its
-// folder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SkillDirPolicy {
     Verbatim,
@@ -38,9 +34,6 @@ pub(crate) struct SkillTarget {
     pub policy: SkillDirPolicy,
 }
 
-// Why: `marketplaces` records which gateway marketplaces the synced skills
-// came from. Skills land in one flat directory, so the host never sees the
-// grouping; the sidecar is where an operator (or a test) can still read it.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct ManagedState {
     version: String,
@@ -50,7 +43,6 @@ struct ManagedState {
 }
 
 impl SkillTarget {
-    // Why: an empty host list means every host.
     fn targets(&self, skill: &SkillEntry) -> bool {
         skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == self.host_id)
     }
@@ -112,8 +104,6 @@ impl SkillTarget {
             new_ids.push(s.dir.clone());
         }
 
-        // Why: prune managed dirs we wrote before but no longer manage; never
-        // touch a dir the sidecar did not claim.
         for stale in previous.ids.iter().filter(|id| !new_ids.contains(id)) {
             let dir = self.root.join(stale);
             if dir.exists() {
@@ -156,8 +146,6 @@ struct Selected<'m> {
     dir: String,
 }
 
-// Why: lowercase `[a-z0-9-]`, no leading/trailing/doubled dashes, at most 64
-// chars — the strictest folder rule among the hosts, so one mapping serves all.
 pub(crate) fn kebab_dir(id: &str) -> String {
     let mut out = String::with_capacity(id.len());
     let mut last_dash = true;
@@ -205,8 +193,6 @@ fn write_skill(root: &Path, dir_name: &str, content: &str) -> Result<(), ApplyEr
     let dir = root.join(dir_name);
     fs::create_dir_all(&dir).map_err(|e| io_err("create skill dir", &dir, e))?;
     let path = dir.join("SKILL.md");
-    // Why: skip an identical write so the file stays byte-stable and the host
-    // never sees a spurious mtime change.
     if let Ok(existing) = fs::read_to_string(&path)
         && existing == content
     {
@@ -225,8 +211,8 @@ pub(crate) fn skill_markdown(skill: &SkillEntry) -> String {
     )
 }
 
-// Why: the host refuses a skill whose front matter `name` differs from its
-// folder, so an upstream `name:` line is replaced rather than trusted.
+// Why: OpenCode requires the skill's front-matter name to match its directory
+// name.
 fn skill_markdown_named(skill: &SkillEntry, dir: &str) -> String {
     let trimmed = skill.instructions.trim_start();
     if let Some(rest) = trimmed.strip_prefix("---")

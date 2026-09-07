@@ -68,8 +68,7 @@ pub enum CanonicalContent {
         id: String,
         name: String,
         input: Value,
-        // Why: Gemini attaches an opaque `thoughtSignature` to function-call parts that
-        // must be echoed back verbatim on the next turn; this carries it through.
+        // Why: Gemini requires function-call `thoughtSignature` values replayed verbatim.
         signature: Option<String>,
     },
     ToolResult {
@@ -82,10 +81,8 @@ pub enum CanonicalContent {
     Thinking {
         text: String,
         signature: Option<String>,
-        // Why: OpenAI Responses reasoning items carry a provider id and, with
-        // `include: ["reasoning.encrypted_content"]`, an opaque blob — both must
-        // be replayed verbatim for stateless reasoning continuity, exactly like
-        // Gemini's thoughtSignature. Anthropic/Gemini thinking has neither.
+        // Why: OpenAI Responses requires the reasoning item ID and encrypted content
+        // replayed verbatim for stateless reasoning continuity.
         id: Option<String>,
         encrypted_content: Option<String>,
     },

@@ -216,9 +216,6 @@ bridge_define_token!(ProxySecret);
 bridge_define_token!(PinnedPubKey);
 
 bridge_define_id!(HostId);
-// Why: three ids this process only ever relays — the MCP `Mcp-Session-Id`
-// header, the Claude Code hook session, and a comms message — are typed so
-// they cannot be passed for one another or for the platform's own ids.
 bridge_define_id!(McpSessionId);
 bridge_define_id!(HookSessionId);
 bridge_define_id!(CommsMessageId);

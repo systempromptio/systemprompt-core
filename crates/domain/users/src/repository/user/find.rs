@@ -49,8 +49,6 @@ impl UserRepository {
         Ok(row)
     }
 
-    // Why: names are not unique; when several accounts share one, the oldest
-    // wins so the resolution is stable across calls.
     pub async fn find_by_name(&self, name: &str) -> Result<Option<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(

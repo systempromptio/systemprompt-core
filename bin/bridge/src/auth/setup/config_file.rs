@@ -48,9 +48,6 @@ pub(super) fn merge_config_file(
 ) -> Result<(), SetupError> {
     write::edit_file(path, |doc| {
         write::set(doc, &["gateway_url"], gateway);
-        // Why: the PAT and interactive-session providers are mutually exclusive
-        // credentials; leaving the previous one behind would let the auth chain
-        // silently fall back to the identity the user just replaced.
         for other in CREDENTIAL_SECTIONS {
             if other != section {
                 write::remove(doc, &[other]);
@@ -62,10 +59,6 @@ pub(super) fn merge_config_file(
     .map_err(|e| SetupError::Io(e.to_string()))
 }
 
-// Why: sign-out must drop every credential section, not just `[pat]`. A
-// surviving `[session] enabled = true` keeps the session provider configured,
-// and the next background refresh reports the user as needing to sign in to
-// an account they just left. Everything else (gateway, host sections) stays.
 pub(super) fn strip_credential_sections(contents: &str) -> Result<String, SetupError> {
     let mut doc: DocumentMut = contents
         .parse()

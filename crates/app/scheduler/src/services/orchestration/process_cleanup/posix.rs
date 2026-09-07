@@ -95,10 +95,7 @@ fn process_is_live(pid: u32) -> bool {
     process_exists(pid) && !systemprompt_models::subprocess::is_zombie(pid)
 }
 
-// Why: Our children lead their own fresh group (`process_group(0)`, pgid ==
-// pid), so a `pgid` that no longer leads its group is recycled and `kill(-pid)`
-// would reach an unrelated session — those ids fall back to single-PID
-// termination rather than broadcasting.
+// Why: POSIX reuses process IDs; negative kill targets address groups.
 pub(super) async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::{Pid, getpgid};

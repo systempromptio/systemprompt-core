@@ -109,8 +109,8 @@ pub(super) async fn forward_to_gateway(
     }
 }
 
-// Why: a credential failure otherwise maps to 503, which `/mcp` renders as a
-// dead server; the RFC 9728 401 challenge offers re-authentication instead.
+// Why: MCP clients use the RFC 9728 resource-metadata challenge to offer
+// re-authentication.
 fn mcp_auth_challenge(
     err: &forward::ForwardError,
     path: &str,

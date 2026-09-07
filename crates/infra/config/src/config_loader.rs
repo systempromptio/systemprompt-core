@@ -115,9 +115,6 @@ fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
     Ok(path.to_owned())
 }
 
-// Why: a replica's identity keys its service-registry rows, outbox origin and
-// scheduler claims. A random per-boot id would make every restart look like a
-// new node, so cloud targets must resolve to something stable or fail here.
 pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<String> {
     if let Some(id) = profile
         .server

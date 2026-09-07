@@ -183,11 +183,6 @@ pub fn derive_conversation(
     Ok((gateway_conversation_id, context_id))
 }
 
-// Why: the upstream name can be declared on the route (an operator's
-// substitution) or per model in the catalog, and only the provider entry knows
-// the latter. A route naming a provider that is not in the registry keeps the
-// route's own answer rather than failing here — the missing provider is
-// reported later, by the dispatch path that can audit it.
 fn upstream_model_for(
     providers: &systemprompt_models::services::ProviderRegistry,
     route: &systemprompt_models::services::GatewayRoute,

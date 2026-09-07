@@ -30,8 +30,6 @@ pub(crate) fn write_managed_file(
     }
     match crate::fsutil::atomic_write_0644(path, bytes) {
         Ok(()) => Ok(ManagedWrite::Written),
-        // Why: only permission-denied justifies escalating — anything else
-        // (ENOSPC and friends) is a real failure elevation cannot fix.
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
             write_elevated(path, bytes, prompt).map(|()| ManagedWrite::Written)
         },
@@ -52,8 +50,6 @@ pub(crate) fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool>
 
 #[cfg(target_os = "macos")]
 fn write_elevated(path: &Path, bytes: &[u8], prompt: &str) -> io::Result<()> {
-    // Why: stage into a user-writable tempdir first — the elevated shell can
-    // read it, whereas a heredoc would embed the body in the script itself.
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
         .tempdir()?;

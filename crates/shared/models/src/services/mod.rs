@@ -193,11 +193,6 @@ impl ServicesConfig {
         self.validate_providers_and_gateway()
     }
 
-    // Why: the registry is the authority for connectivity and the gateway only
-    // references into it, so both are checked here in that order — a route
-    // naming an undeclared provider is a services-tree error, not a boot-time
-    // surprise. A gateway still in `Spec` form is validated as it would resolve;
-    // the loader stores only the resolved form.
     fn validate_providers_and_gateway(&self) -> Result<(), ConfigValidationError> {
         self.providers
             .validate()
@@ -215,9 +210,6 @@ impl ServicesConfig {
         self.gateway.as_ref().and_then(GatewayState::resolved)
     }
 
-    // Why: the manifest is the union of every enabled marketplace — an entity
-    // reachable through any one of them is offered, and the parent chain
-    // decides who may see it. Ordered by id so every derived list is stable.
     #[must_use]
     pub fn enabled_marketplaces(&self) -> Vec<&MarketplaceConfig> {
         let mut out: Vec<&MarketplaceConfig> =

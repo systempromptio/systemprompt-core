@@ -130,9 +130,6 @@ pub(super) async fn fetch_authenticated_manifest(
 
     let mut envelope = client.fetch_manifest(bearer.expose()).await;
 
-    // Why: a rejected cached token outlives every re-login until its TTL
-    // lapses, wedging the install permanently; dropping it and minting once
-    // is the only way out that does not require the user to run `logout`.
     if is_unauthorized(&envelope) && was_cached {
         tracing::warn!("gateway refused the cached token; discarding it and re-authenticating");
         if let Err(e) = crate::auth::cache::clear() {
@@ -142,10 +139,6 @@ pub(super) async fn fetch_authenticated_manifest(
         envelope = client.fetch_manifest(bearer.expose()).await;
     }
 
-    // Why: minting writes the token to the cache before the gateway has seen
-    // it. A fresh token the gateway then refuses (revoked PAT, deleted user)
-    // must not be left behind as a "valid" cache entry, or the next run
-    // replays a known-bad credential before rediscovering the same refusal.
     if is_unauthorized(&envelope)
         && let Err(e) = crate::auth::cache::clear()
     {
@@ -223,9 +216,6 @@ async fn resolve_pubkey(
             .unpersisted_tofu_pubkey
             .store(true, Ordering::Relaxed);
         tracing::warn!(error = %e, "failed to persist pinned pubkey; next run will re-trust on first use");
-        // Why: the sync itself still succeeds, so without a line here the only
-        // trace of a pin that never landed is a warn in the rolling log -- and
-        // the key silently stops protecting anything from the next run on.
         bridge.activity.append_error(format!(
             "manifest pubkey ({prefix}…) could not be pinned: {e}. This sync is verified, but \
              the next one will trust whatever key the gateway serves."

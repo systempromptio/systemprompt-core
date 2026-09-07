@@ -167,9 +167,8 @@ async fn build_transport(
                     "User JWT required for authenticated MCP calls".to_owned(),
                 ));
             }
-            // Why: `auth_header` takes the bare token — the transport calls
-            // `bearer_auth` on it, so a pre-formatted header reaches the
-            // server as "Bearer Bearer <jwt>" and is rejected as malformed.
+            // Why: rmcp passes `auth_header` to `bearer_auth`, which adds the Bearer
+            // prefix.
             transport_config = transport_config.auth_header(user_token.as_str().to_owned());
         }
         let outbound =

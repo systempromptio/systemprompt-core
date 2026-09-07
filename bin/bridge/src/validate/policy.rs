@@ -36,9 +36,6 @@ const HARDENING: [(&str, &str); 6] = [
 
 const BASH_GATES: [&str; 2] = ["disabledBuiltinTools", "builtinToolPolicy"];
 
-// Why: none of this was validated before, so the health panel showed "all
-// green" while the policy was half-written and Cowork was broken. A required
-// value that is absent or unreadable fails the verdict.
 pub(super) fn check_managed_policy(report: &mut Report) {
     let store = crate::config::store::managed_policy_store();
     for (key, remedy) in REQUIRED {
@@ -67,8 +64,6 @@ pub(super) fn check_managed_policy(report: &mut Report) {
             Err(e) => report.fail(&format!("policy {key}"), &format!("unreadable: {e}")),
         }
     }
-    // Why: these are the only policy keys that can deny Cowork's shell; a value
-    // naming Bash breaks every skill that runs a command.
     for key in BASH_GATES {
         match store.read_managed_policy(key) {
             Ok(Some(v)) if v.contains("Bash") => report.fail(
@@ -99,11 +94,6 @@ pub(super) fn check_managed_policy(report: &mut Report) {
     check_workspace_bundle(report);
 }
 
-// Why: this asks exactly the question `managed_mcp::clear_policy` asks, so the
-// check and the remedy it names cannot disagree. Filenames alone used to decide
-// it, which permanently failed a machine holding an empty
-// `managed-settings.json` — that file shadows nothing, sync correctly leaves
-// it, and the named remedy could never clear it.
 fn check_claude_code_policy_dir(report: &mut Report) {
     use crate::claude_policy::{MANAGED_MCP_FILE, MANAGED_SETTINGS_FILE};
 
@@ -113,7 +103,6 @@ fn check_claude_code_policy_dir(report: &mut Report) {
         return;
     }
     let mut offenders: Vec<&str> = Vec::new();
-    // Why: exclusive mode is switched on by this file existing at all.
     if dir.join(MANAGED_MCP_FILE).exists() {
         offenders.push(MANAGED_MCP_FILE);
     }
@@ -154,8 +143,6 @@ fn check_workspace_bundle(report: &mut Report) {
     }
 }
 
-// Why: Cowork prompts for the workspace even when the policy names it unless
-// the directory exists on disk.
 fn check_workspace_dir(report: &mut Report) {
     let workspace = crate::brand::brand().workspace_dir_name;
     if workspace.is_empty() {

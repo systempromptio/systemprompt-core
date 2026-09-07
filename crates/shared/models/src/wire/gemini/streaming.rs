@@ -28,9 +28,6 @@ struct StreamState {
     text_block: Option<u32>,
     thinking_block: Option<u32>,
     next_index: u32,
-    // Why: Gemini reports finishReason STOP even on a turn whose candidate is a
-    // functionCall, so the wire's own reason cannot distinguish "finished
-    // talking" from "wants a tool run". Tracking it here is the only signal.
     emitted_tool_use: bool,
 }
 
@@ -94,9 +91,8 @@ fn handle_chunk(
         events.push(Ok(CanonicalEvent::Error(message)));
         return;
     }
-    // Why: a blocked prompt arrives as a chunk carrying only promptFeedback,
-    // with no candidate and no finishReason, so the stream ends with nothing
-    // said. Gemini's own reason is the only explanation the caller can get.
+    // Why: Gemini can report a blocked prompt with only `promptFeedback`,
+    // without candidates or a finish reason.
     if let Some(reason) = value
         .get("promptFeedback")
         .and_then(|f| f.get("blockReason"))
@@ -114,11 +110,7 @@ fn handle_chunk(
         emit_start(state, &chunk, events);
     }
     if let Some(usage) = chunk.usage_metadata {
-        // Why: cachedContentTokenCount is a subset of promptTokenCount, and
-        // `CanonicalUsage::input_tokens` is exclusive of cache reads. The cached
-        // count must also be carried: omitted, a streamed reply reports zero
-        // cache where the buffered parse of the same reply reports it, so the
-        // two paths bill differently.
+        // Why: Gemini includes `cachedContentTokenCount` in `promptTokenCount`.
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
             input_tokens: Some(usage.prompt.saturating_sub(usage.cached)),
             output_tokens: Some(usage.candidates + usage.thoughts),
@@ -137,12 +129,7 @@ fn handle_chunk(
         }
     }
     if let Some(finish) = candidate.finish_reason.as_deref() {
-        // Why: a turn that emitted a functionCall is a tool-use turn whatever
-        // Gemini calls it. Reporting EndTurn here renders as
-        // `finish_reason: "stop"` on the OpenAI surface, and a client that
-        // follows that contract treats the turn as complete and never runs the
-        // tool -- the call is present in the payload and silently ignored.
-        // MAX_TOKENS is not overridden: a call cut mid-turn is not runnable.
+        // Why: Gemini reports `finishReason: STOP` even for a `functionCall` candidate.
         let reason = stop_reason(finish).with_tool_use(state.emitted_tool_use);
         emit_stop(state, reason, events);
     }

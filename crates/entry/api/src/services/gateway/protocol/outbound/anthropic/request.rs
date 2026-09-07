@@ -28,9 +28,6 @@ pub fn build_request_body(
     anthropic::build_request_body(request, upstream_model, limits)
 }
 
-// Why: the passthrough lane must not become a way around the checks the
-// canonical lane applies, so the policy transforms are re-applied here in
-// place.
 pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
         return None;

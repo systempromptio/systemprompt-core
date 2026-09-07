@@ -7,9 +7,6 @@ use crate::errors::ConfigValidationError;
 use crate::services::{ComponentSource, MarketplaceConfig, PluginConfig, ServicesConfig};
 
 impl ServicesConfig {
-    // Why: several enabled marketplaces is a supported shape — the manifest is
-    // their union — so the selector only has to name a marketplace that exists
-    // and is enabled. It no longer decides what ships.
     pub(crate) fn validate_marketplace_selector(&self) -> Result<(), ConfigValidationError> {
         if let Some(id) = &self.settings.default_marketplace_id {
             let Some(marketplace) = self

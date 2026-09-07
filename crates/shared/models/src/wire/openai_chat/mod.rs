@@ -37,10 +37,7 @@ pub use streaming::sse_to_canonical_events;
 use crate::services::ai::ModelLimits;
 use crate::wire::canonical::CanonicalRequest;
 
-// Why: the model card is the authority -- a non-zero `max_thinking_budget`
-// means the provider bills thought tokens against the completion budget,
-// which is what the ceiling has to compensate for. The prefix list stays for
-// the `OpenAI` families that reason without carrying a catalog budget.
+// Why: Reasoning models charge thought tokens against the completion budget.
 pub(crate) fn is_reasoning_model(model: &str, limits: Option<ModelLimits>) -> bool {
     const REASONING_PREFIXES: [&str; 4] = ["gpt-5", "o1", "o3", "o4"];
     if limits
@@ -62,11 +59,6 @@ pub(crate) fn output_token_ceiling(
     passthrough_output_tokens(request.max_tokens, upstream_model, limits)
 }
 
-// Why: the byte-passthrough lanes forward the caller's own body rather than
-// building one, so they need the identical budget arithmetic keyed on the raw
-// token field they read. Without it passthrough is a way around the model
-// card -- a caller limit above the cap reaches the upstream as a hard 400,
-// and a reasoning model spends the caller's whole budget on thought.
 #[must_use]
 pub fn passthrough_output_tokens(
     requested: u32,

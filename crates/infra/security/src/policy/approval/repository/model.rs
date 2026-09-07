@@ -114,9 +114,8 @@ fn hex(bytes: &[u8]) -> String {
 fn canonicalize(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::Object(map) => {
-            // Why: BTreeMap ordering: serde_json preserves insertion order unless
-            // the `preserve_order` feature is off, so sort explicitly rather
-            // than relying on which way that feature happens to be set.
+            // Why: serde_json object iteration uses insertion order with `preserve_order`,
+            // so canonical digests cannot rely on its default sorted order.
             let mut keys: Vec<&String> = map.keys().collect();
             keys.sort();
             let inner = keys

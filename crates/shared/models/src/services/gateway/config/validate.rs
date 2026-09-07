@@ -113,13 +113,6 @@ impl GatewayConfig {
     }
 }
 
-// Why: every outbound wire the gateway speaks -- anthropic, openai-chat,
-// openai-responses, gemini -- can report cached prompt tokens, and the
-// canonical usage type keeps them out of `input_tokens`. A model with no
-// declared cache rate therefore bills its cached slice at nothing, invisibly.
-// An explicit 0.0 is a statement that the provider does not bill cache reads.
-// A model billed only per image is exempt: it charges no token classes at all,
-// so there is no cached slice for a missing rate to hide.
 fn check_cache_rate(
     pricing: &ModelPricing,
     route: &str,

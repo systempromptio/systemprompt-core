@@ -205,10 +205,6 @@ pub async fn provision_oauth_client(
     reason = "ApiError carries response context that is intentionally large; boxing here would \
               propagate to every caller for negligible gain"
 )]
-// Why: the endpoint must reflect the host the client dialled — formatting
-// `api_external_url` hands a remote client a loopback address. `resolve` falls
-// back to the configured URL for a host outside the allowlist, so a forged
-// `Host` cannot redirect the mint.
 fn build_token_endpoint(headers: &HeaderMap) -> Result<String, ApiHttpError> {
     let cfg = Config::get().map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
     let configured = url::Url::parse(&cfg.api_external_url)

@@ -5,13 +5,8 @@
 
 use super::SyncError;
 
-// Why: Claude Desktop only reads org-plugins from a root-owned system path on
-// macOS, and the GUI had no way to create it — sync failed closed telling a
-// double-click user to run `sudo … install --apply`, which also left the MCP
-// registry empty. This raises the same single administrator prompt Windows
-// raises, once per process so a declined prompt does not re-fire from auto-sync
-// or a watch loop, and hands the directory to the invoking user so later
-// unelevated syncs can write it.
+// Why: Claude Desktop on macOS scans org-plugins only under the root-owned
+// system directory.
 #[cfg(target_os = "macos")]
 pub(super) async fn provision_system_org_plugins(
     bridge: &crate::context::BridgeContext,

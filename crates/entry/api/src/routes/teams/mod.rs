@@ -50,8 +50,8 @@ async fn handle_messages(
     let Ok(activity) = serde_json::from_slice::<Activity>(&body) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
-    // Why: A non-dispatchable surface (e.g. a typing/event activity) is acked so
-    // the Bot Service does not retry.
+    // Why: Bot Service retries unacknowledged activities, including typing and
+    // event activities.
     let Ok(normalized) = activity.normalize() else {
         return StatusCode::OK.into_response();
     };

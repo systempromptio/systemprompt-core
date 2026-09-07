@@ -33,8 +33,6 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         .ok_or(InboundParseError::MissingField("model"))?
         .to_owned();
 
-    // Why: gpt-5/o-series clients send `max_completion_tokens`; the legacy
-    // field is still what most OpenAI-compatible tools emit, so accept both.
     let max_tokens = value
         .get("max_completion_tokens")
         .or_else(|| value.get("max_tokens"))
@@ -120,8 +118,6 @@ fn parse_messages(
     for msg in arr {
         let role = msg.get("role").and_then(Value::as_str).unwrap_or("");
         match role {
-            // Why: `developer` is the o-series successor to `system`; both
-            // carry instruction text, and canonical has one system slot.
             "system" | "developer" => {
                 let text = flatten_content_text(msg.get("content"));
                 if !text.is_empty() {

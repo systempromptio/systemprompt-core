@@ -20,10 +20,8 @@ use tracing::warn;
 
 use crate::error::{SchedulerError, SchedulerResult};
 
-// Why: call `release` once the job body finishes. `Drop` is a safety net
-// only: if `release` was missed, the connection is dropped back to the pool
-// and Postgres releases all session advisory locks when that pooled
-// connection is eventually recycled or closed.
+// Why: SQLx pool return keeps the session open; Postgres session locks
+// survive until explicit unlock or session closure.
 pub(super) struct JobLockGuard {
     conn: Option<PoolConnection<Postgres>>,
     key: i64,

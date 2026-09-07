@@ -96,8 +96,6 @@ fn legend(datasets: &[ChartDataset], labels: &[String], chart_type: ChartType) -
         },
     };
 
-    // Why: A one-series chart used to render no legend at all, so its dataset's
-    // own label appeared nowhere in the document.
     if names.is_empty() || names.iter().all(|n| n.is_empty()) {
         return String::new();
     }

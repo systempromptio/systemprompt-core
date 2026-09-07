@@ -146,12 +146,6 @@ impl SecretsBootstrap {
         Ok(seed)
     }
 
-    // Why: identity secrets are inputs. A seed minted at boot gives every
-    // replica its own manifest identity, and a key read from a file beside the
-    // binary is regenerated per container; both were found by boot failures on
-    // a second node. Local profiles may still keep the RSA key at
-    // `signing_key_path`, which is why the PEM is only demanded where a file
-    // beside the binary cannot be shared.
     fn validate_identity(secrets: &Secrets) -> ConfigResult<()> {
         let encoded = secrets
             .manifest_signing_secret_seed

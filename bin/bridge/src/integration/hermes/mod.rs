@@ -53,8 +53,6 @@ impl HostApp for HermesHost {
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
-        // Why: like Codex, Hermes bakes `<origin>/v1`; the classifier ignores the
-        // path and only checks that the loopback port still matches.
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
             env.proxy_port,
@@ -121,16 +119,11 @@ impl HostApp for HermesHost {
         "https://nousresearch.com/"
     }
 
-    // Why: the gateway serves Hermes over `/v1/chat/completions`; declaring the
-    // OpenAI surface is what makes model negotiation offer compatible models and
-    // the profile writer install the model half.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
         &[systemprompt_models::services::ApiSurface::OpenAi]
     }
 }
 
-// Why: Hermes ships as a conventional installer on every platform, so there is
-// no MSIX family to consult.
 const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
     crate::integration::app_launch::AppLocator {
         macos_name: "Hermes",

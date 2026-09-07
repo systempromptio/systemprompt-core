@@ -24,8 +24,6 @@ use crate::error::{CloudError, CloudResult};
 const TOKEN_REFRESH_MARGIN: Duration = Duration::from_secs(30);
 const RFC8693_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
 const RFC8693_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
-// Why: the token-exchange grant rejects a request without a registered
-// `client_id`; this seeded public client needs no secret.
 const PUBLIC_CLIENT_ID: &str = "sp_web";
 
 #[derive(Debug, Deserialize)]

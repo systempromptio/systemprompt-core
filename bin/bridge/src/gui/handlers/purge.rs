@@ -15,10 +15,6 @@ use crate::i18n;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 pub(crate) fn on_purge_requested(app: &GuiApp, reply_to: ReplyId) {
-    // Why: a sign-in already in flight keeps its loopback listener accepting.
-    // Its continuation writes the credential back through `setup::login` and
-    // the auth cache, so a callback landing mid-purge silently restores the
-    // credential the purge just deleted.
     app.state.cancel_scope(CancelScope::Login);
     app.append_log(i18n::t("purge-running"));
     let proxy = app.proxy.clone();
@@ -62,9 +58,6 @@ pub(crate) fn on_purge_finished(
             ))
         },
     };
-    // Why: a failed purge may still have removed the credential or the
-    // sentinels, so the runtime and the snapshot are rebuilt from disk either
-    // way rather than trusting what the UI showed before the click.
     app.ctx.proxy.reload_runtime_config();
     app.state.reload();
     app.state.set_agents_onboarded(false);

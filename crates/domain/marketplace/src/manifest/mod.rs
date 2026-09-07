@@ -145,10 +145,6 @@ impl ManifestService {
     }
 }
 
-// Why: seeded from the same plugin selection `MarketplaceMembership` reads, so
-// the listed plugin ids and the authz membership cannot disagree; the
-// intersection with the plugins that survive filtering happens at
-// `into_manifest_parts`, once the final plugin list is known.
 fn listed_marketplaces(
     services: &ServicesConfig,
     enabled: &[&MarketplaceConfig],

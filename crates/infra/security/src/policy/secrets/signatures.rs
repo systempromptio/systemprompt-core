@@ -20,14 +20,10 @@ use std::collections::HashMap;
 
 use super::super::governed::GovernedString;
 
-// Why: these key names carry no meaning other than "provider-signed reasoning
-// blob the client must echo back", so no sibling evidence is needed to
-// recognise one.
+// Why: Gemini thought signatures are opaque reasoning state that clients must
+// echo unchanged.
 const UNCONDITIONAL_KEYS: [&str; 2] = ["thoughtSignature", "thought_signature"];
 
-// Why: these key names are generic enough to appear on unrelated objects, so
-// the exemption is granted only when the enclosing object declares the
-// reasoning content type that owns them.
 const TYPED_KEYS: [(&str, &str); 3] = [
     ("signature", "thinking"),
     ("data", "redacted_thinking"),
@@ -58,8 +54,6 @@ impl SignatureExemptions {
         Self { types }
     }
 
-    // Why: the entropy backstop is the only detector suppressed here; callers
-    // still run every vendor pattern against an exempted path.
     #[must_use]
     pub fn exempts_entropy(&self, path: &str) -> bool {
         let Some((parent, key)) = split_path(path) else {

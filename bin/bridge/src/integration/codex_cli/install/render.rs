@@ -100,11 +100,6 @@ fn write_provider_block(value: &mut toml::Value, helper_bin: &str, tenant: &str,
     }
 }
 
-// Why: network access is granted because the sandbox denies it by default and
-// the commands an agent runs — installing dependencies, fetching a ref — need
-// it. Denying it here does not tighten governance, because model traffic
-// reaches the gateway from the Codex process rather than from a sandboxed
-// child; it only produces failures that read as bugs.
 fn write_policy_block(value: &mut toml::Value) {
     write_dotted(
         value,

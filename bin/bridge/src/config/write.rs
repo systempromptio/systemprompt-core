@@ -80,8 +80,6 @@ pub fn set(doc: &mut DocumentMut, path: &[&str], value: impl Into<Value>) {
         table = next;
     }
     let mut next = value.into();
-    // Why: replacing the item outright would discard the whitespace and any
-    // comment the operator wrote against this key.
     if let Some(existing) = table.get_mut(leaf).and_then(Item::as_value_mut) {
         *next.decor_mut() = existing.decor().clone();
         *existing = next;

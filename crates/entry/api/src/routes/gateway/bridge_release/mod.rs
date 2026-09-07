@@ -118,8 +118,8 @@ pub async fn download(
             )
         })?;
 
-    // Why: `Accept: application/octet-stream` on the asset *API* url is what
-    // makes GitHub serve bytes — without it the response is JSON metadata.
+    // Why: GitHub's asset API returns JSON metadata unless Accept is
+    // application/octet-stream.
     let upstream = github(&spec, &asset.url)
         .header(header::ACCEPT, "application/octet-stream")
         .send()
@@ -133,8 +133,6 @@ pub async fn download(
         ));
     }
 
-    // Why: streamed rather than buffered — these are tens of megabytes and the
-    // gateway must not hold one per updating client in memory.
     let body = Body::from_stream(upstream.bytes_stream());
     Ok((
         StatusCode::OK,

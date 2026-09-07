@@ -70,10 +70,6 @@ fn render_lines(lines: &[NoticeLine]) -> String {
         .iter()
         .map(|line| {
             let level = normalize_level(&line.level);
-            // Why: Severity used to be carried by the marker dot and border colour
-            // alone — a WCAG 1.4.1 failure on the one artifact type whose
-            // entire job is to convey status. The word is visually hidden
-            // because the colour already says it to anyone who can see it.
             format!(
                 r#"<li class="notice notice-{level}"{alert}><span class="notice-marker" aria-hidden="true"></span><span class="visually-hidden">{label}: </span><span class="notice-text">{text}</span></li>"#,
                 alert = if level == "error" {

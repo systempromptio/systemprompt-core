@@ -51,9 +51,6 @@ pub(super) fn write_hooks_json(
     Ok(())
 }
 
-// Why: The hook shells out to this binary rather than a shipped script: a
-// script would have to be portable across macOS, Linux and Windows and would
-// need to locate the inbox the same way the proxy does.
 fn comms_drain_command() -> Option<String> {
     let exe = std::env::current_exe().ok()?;
     Some(format!("\"{}\" comms-drain", exe.display()))
@@ -75,10 +72,8 @@ fn build_hooks_file(
         let govern_url = format!("{origin}/api/public/hooks/govern?plugin_id={plugin_id}");
         let track_url = format!("{origin}/api/public/hooks/track?plugin_id={plugin_id}");
         let mut file = HooksFile::new(govern_url, &track_url, &authorization);
-        // Why: The comms hooks ride with the governance owner for the same reason
-        // the governance hooks do: Claude Code runs plugin hooks
-        // session-globally, so one owner means one drain per boundary rather
-        // than one per installed plugin.
+        // Why: Claude Code runs plugin hooks session-wide; multiple owners would drain
+        // at each boundary.
         if plugin.hooks.comms
             && let Some(command) = comms_drain_command()
         {
@@ -105,8 +100,8 @@ fn build_hooks_file(
     Ok(body)
 }
 
-// Why: without `installationPreference`, Cowork's MDM path shows "Contact an
-// organization owner" instead of auto-installing.
+// Why: Cowork's MDM flow requires installationPreference to auto-install a
+// plugin.
 pub(super) fn ensure_plugin_json_managed_fields(plugin_dir: &Path) -> Result<(), ApplyError> {
     let Some(path) = super::plugin_manifest_path(plugin_dir) else {
         return Ok(());

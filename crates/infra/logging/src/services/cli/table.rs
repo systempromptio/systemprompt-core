@@ -229,9 +229,7 @@ fn render_service_row(
         .map_or_else(|| "-".to_owned(), |p| p.to_string());
 
     let status_display = format!("{} {}", service.status.symbol(), service.status.text());
-    // Why: pad before styling. A styled `String` carries ANSI escapes, and
-    // `str`'s formatter counts those bytes as content, so padding a
-    // pre-rendered status collapses the column.
+    // Why: Rust string formatting counts ANSI escape characters toward field width.
     let padded_status = format!("{status_display:<width$}", width = cols.status);
     let colored_status = match service.status {
         ServiceStatus::Running => BrandColors::running(padded_status),

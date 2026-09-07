@@ -27,10 +27,6 @@ pub struct HostSyncCtx<'a> {
     pub mcp_registry: &'a crate::mcp_registry::McpRegistry,
 }
 
-// Why: the `Any` bound lets the registry dedup by concrete emitter type —
-// `host_id()` is the manifest enablement gate and is deliberately shared by
-// the two Claude Desktop facets (Cowork plugins + artifacts), so it cannot
-// serve as the dedup key.
 #[async_trait]
 pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn host_id(&self) -> &'static str;
@@ -53,9 +49,6 @@ impl std::fmt::Debug for HostSyncRegistration {
     }
 }
 
-// Why: implementors register themselves with `register_host_sync!` beside
-// their type; nothing here names a host, so this module stays below all of
-// them.
 inventory::collect!(HostSyncRegistration);
 
 #[macro_export]

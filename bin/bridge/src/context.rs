@@ -43,20 +43,8 @@ pub struct BridgeContext {
     pub plugin_tokens: Arc<PluginTokenCache>,
     pub schedule: ScheduleStatusCache,
     pub start_menu: Arc<StartMenuCache>,
-    // Why: sync runs several layers below anything that knows about a UI, and
-    // the CLI runs the same code with no UI at all. A sink here is set by the
-    // GUI for the duration of a sync and left empty everywhere else, so the
-    // reporting calls inside `sync::apply` need no new parameters and cost
-    // nothing when nobody is watching.
     pub sync_progress: crate::progress::SyncProgressSink,
-    // Why: a trust-on-first-use pubkey that could not be written to the config
-    // leaves the process trusting a key nothing will remember, so the next sync
-    // re-trusts whatever the gateway serves. There is no on-disk trace to read
-    // back -- the failure *is* that nothing was written -- so validate learns it
-    // from here.
     pub unpersisted_tofu_pubkey: AtomicBool,
-    // Why: one administrator prompt per process — a declined prompt must not
-    // re-fire from the GUI auto-sync, tray retries, or a `sync --watch` loop.
     pub elevation_attempted: AtomicBool,
 }
 
@@ -73,9 +61,6 @@ impl BridgeContext {
         let runtime = OwnedRuntime::build()?;
         let activity = ActivityLog::new();
         crate::activity::install_persistent_writer(&activity);
-        // Why: loaded in every mode, not just when serving — `install --apply`
-        // writes the managed-MCP policy from this registry and used to run in
-        // a process that had never read it.
         let mcp_registry = mcp_registry::empty_slot();
         mcp_registry::rehydrate_from_disk(&mcp_registry);
         let http = crate::gateway::build_http_client();
@@ -142,9 +127,8 @@ impl BridgeContext {
     }
 }
 
-// Why: dropping a `Runtime` inside one of its own tasks panics, and the last
-// `Arc<BridgeContext>` can legitimately go out of scope there.
-// `shutdown_background` is the drop tokio documents for exactly that case.
+// Why: Tokio runtime drop panics inside an async task; the final owner may be
+// dropped there.
 struct OwnedRuntime(Option<Runtime>);
 
 impl OwnedRuntime {

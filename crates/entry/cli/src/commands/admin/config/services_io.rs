@@ -87,9 +87,6 @@ pub(super) fn booted_services() -> Result<&'static ServicesConfig> {
     ServicesBootstrap::get().context("services config is not loaded")
 }
 
-// Why: the registry is validated as the loader will see it — every include's
-// providers plus this file's edited list — so a name that collides with
-// another include fails here, at the edit, rather than at the next boot.
 pub(super) fn merged_registry_after_edit(
     before: &ProviderRegistry,
     after: &ProviderRegistry,
@@ -124,9 +121,7 @@ fn ensure_included(relative: &str) -> Result<()> {
     append_include(&root, relative)
 }
 
-// Why: the root aggregator is operator-authored and commented, so the include
-// is spliced in as text rather than round-tripped through a YAML value that
-// would drop every comment.
+// Why: serde_yaml::Value does not preserve YAML comments when serialized.
 pub fn append_include(root: &Path, relative: &str) -> Result<()> {
     let existing = std::fs::read_to_string(root).unwrap_or_default();
     let already = existing.lines().any(|line| {
@@ -137,9 +132,6 @@ pub fn append_include(root: &Path, relative: &str) -> Result<()> {
         return Ok(());
     }
     let entry = format!("  - {relative}\n");
-    // Why: a key that ends the file carries no newline of its own, so the entry
-    // would splice onto the same line and `includes:` would parse as a scalar —
-    // the include is then silently never loaded.
     let splice = |line_end: Option<usize>| {
         line_end.map_or_else(
             || format!("{existing}\n{entry}"),

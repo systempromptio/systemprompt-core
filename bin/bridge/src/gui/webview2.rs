@@ -14,8 +14,8 @@ use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE
 
 pub const BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 
-// Why: the runtime's fixed client GUID under both registry views — a 64-bit
-// install records itself in the 32-bit one.
+// Why: a 64-bit WebView2 runtime can register itself in the 32-bit registry
+// view.
 const CLIENT_KEY: &str =
     r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
 const CLIENT_KEY_NATIVE: &str =

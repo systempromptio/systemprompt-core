@@ -19,8 +19,6 @@ pub mod reg_values;
 mod schedule_apply;
 mod schedule_emit;
 mod summary;
-// Why: plist rendering moved into the platform-neutral policy module so it can
-// be tested from any host, so its XML escaping must build everywhere too.
 pub(crate) mod xml;
 
 pub use apply::install;

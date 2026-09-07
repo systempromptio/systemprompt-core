@@ -12,9 +12,6 @@ use serde_json::{Map, Value, json};
 use super::super::config::{DEFAULT_MODEL, NPM_PACKAGE, PROVIDER_ID};
 use crate::integration::host_app::ProfileGenInputs;
 
-// Why: a top-level key the installer strips before merging, so the static API
-// key rides along with the generated profile but never lands in the managed
-// file.
 pub(super) const API_KEY_MARKER: &str = "_systemprompt_api_key";
 
 pub(super) fn managed_json_text(inputs: &ProfileGenInputs) -> std::io::Result<String> {
@@ -37,8 +34,8 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
         options.insert("headers".to_owned(), Value::Object(headers));
     }
 
-    // Why: a custom provider has no models.dev catalogue, so every compatible
-    // model must be declared or OpenCode offers nothing under it.
+    // Why: OpenCode has no models.dev catalogue for custom providers, so models
+    // must be declared.
     let models: Map<String, Value> = inputs
         .models
         .iter()

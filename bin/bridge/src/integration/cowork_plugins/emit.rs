@@ -15,8 +15,8 @@ use crate::cowork_compat::PERSONAL_SESSION_UUID;
 
 pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";
 
-// Why: entries under this key shadow the org-provisioned filesystem scan, so
-// every `apply_enable` must purge them.
+// Why: Cowork's entries under this marketplace key shadow its org-provisioned
+// filesystem scan.
 const LEGACY_MARKETPLACE_TO_PURGE: &str = "systemprompt-bridge-managed";
 
 const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";

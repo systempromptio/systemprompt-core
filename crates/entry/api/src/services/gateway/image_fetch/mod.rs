@@ -24,15 +24,10 @@ use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, trusted_http_hosts_from_env
 
 use super::protocol::canonical::{CanonicalContent, CanonicalRequest, ImageSource};
 
-// Why: Gemini caps a whole `generateContent` request at 20 MB inline, and
-// base64 inflates by 4/3. A 5 MiB ceiling per image leaves a conversation room
-// for several images plus its text inside that budget, and is already well
-// above what any real photograph in a prompt weighs.
+// Why: Gemini limits inline generateContent requests to 20 MB; base64 expands
+// bytes by roughly 4/3.
 pub const MAX_IMAGE_BYTES: usize = 5 * 1024 * 1024;
 
-// Why: the shapes Gemini documents for `inlineData`. A server declaring
-// anything else is either not serving an image or serving one the model cannot
-// decode; both are failures, not things to inline and hope.
 pub const ACCEPTED_MIME: [&str; 5] = [
     "image/png",
     "image/jpeg",
@@ -86,9 +81,6 @@ pub struct InlineImage {
     pub base64: String,
 }
 
-// Why: redirects are followed by hand so every hop is re-checked against the
-// guard. reqwest's own policy would resolve a redirect to 169.254.169.254
-// internally, and the only URL this code ever saw would be the innocent one.
 fn client() -> &'static reqwest::Client {
     static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
     CLIENT.get_or_init(|| {
@@ -100,10 +92,6 @@ fn client() -> &'static reqwest::Client {
     })
 }
 
-// Why: the first failure aborts and returns rather than skipping the image. An
-// image the caller asked the model to look at is part of the prompt, and
-// answering about a prompt that quietly lost one of its inputs is the defect
-// this module exists to remove.
 pub async fn inline_url_images(
     request: &mut CanonicalRequest,
     policy: &ImageFetchPolicy,
@@ -126,9 +114,6 @@ pub async fn inline_url_images(
     Ok(count)
 }
 
-// Why: the timeout wraps guard, connect, redirects and body read together, so
-// a host that stalls each step just under a per-step budget still cannot hold
-// the inference request open.
 pub async fn fetch(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, ImageFetchFailed> {
     let fail = |message: String, caller_fault: bool| ImageFetchFailed {
         url: url.to_owned(),
@@ -192,9 +177,6 @@ async fn read_image(
         return Err((format!("host returned {status}"), true));
     }
     let media_type = declared_mime(&response)?;
-    // Why: the cap is enforced chunk by chunk rather than on the finished body,
-    // so a host advertising nothing and sending gigabytes is dropped after the
-    // first 5 MiB instead of being buffered whole and measured afterwards.
     let mut body: Vec<u8> = Vec::new();
     while let Some(chunk) = response
         .chunk()

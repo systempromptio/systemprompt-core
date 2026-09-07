@@ -45,10 +45,6 @@ impl ProfileUsageService {
         Self::new(CostAnalyticsRepository::from_pool(pool))
     }
 
-    // Why: Everything the profile surfaces render, for one user.
-    //
-    // `now` is a parameter rather than `Utc::now()` so all three windows are
-    // computed against a single instant, and so the result is testable.
     pub async fn get_profile_usage(
         &self,
         user_id: &UserId,
@@ -109,8 +105,6 @@ impl ProfileUsageService {
         })
     }
 
-    // Why: One rolling window ending at `now`, carrying the preceding window's
-    // cost so a caller can render a delta.
     pub async fn get_usage_window(
         &self,
         user_id: &UserId,

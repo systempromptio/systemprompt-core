@@ -123,10 +123,6 @@ impl ApprovalRepository {
             .collect())
     }
 
-    // Why: the decided rows are the audit half of the queue — an approvals
-    // console that shows only what is still pending cannot answer "who let
-    // that through?". Expired rows come back too: nobody decided them, and
-    // that is itself the answer.
     pub async fn list_decided(&self, limit: i64) -> Result<Vec<ApprovalRequest>, sqlx::Error> {
         let rows = sqlx::query!(
             "SELECT call_id, tool_name, server_name, arguments, args_digest, requested_by,
@@ -213,10 +209,6 @@ impl ApprovalRepository {
     }
 }
 
-// Why: the column is CHECK-constrained to these four, so an unknown value
-// means the constraint was dropped out of band. Treat it as unresolved rather
-// than guessing — a held call that stays held is recoverable; one that decodes
-// garbage as `Approved` is not.
 fn parse_status(raw: &str) -> ApprovalStatus {
     match raw {
         "approved" => ApprovalStatus::Approved,

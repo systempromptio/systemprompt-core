@@ -25,9 +25,6 @@ use crate::{auth, config};
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
-// Why: a token the gateway refuses this soon after minting was not stale, it
-// was revoked. Re-minting would only reproduce the rejection, so the cache
-// latches instead of spinning.
 const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -108,9 +105,6 @@ impl TokenCache {
         self.auth_state.subscribe()
     }
 
-    // Why: a `login` run from another process rewrites the PAT or config on
-    // disk and cannot reach this latch, so the latch remembers the credential
-    // stamp it was raised against and stands down when that stamp moves.
     #[must_use]
     pub fn sign_in_required(&self) -> bool {
         if !self.auth_state.borrow().sign_in_required() {
@@ -148,9 +142,6 @@ impl TokenCache {
         }
     }
 
-    // Why: the refresh tick exists to renew a token *before* it expires, not to
-    // acquire one. Minting from an empty cache is a request-driven decision
-    // (`current`), and on a signed-out install it would fail every minute.
     pub async fn refresh_if_cached(&self, refresh_threshold_secs: u64) -> ForwardResult<()> {
         if self.cached.lock().await.is_none() {
             return Ok(());
@@ -227,10 +218,6 @@ impl TokenCache {
         }
     }
 
-    // Why: the upstream said 401 to a token this cache handed out. An old
-    // token is dropped so the next caller renews it; a token still inside
-    // [`FRESH_REJECTION_WINDOW`] cannot be fixed by renewing, so the cache
-    // latches and the user is asked to sign in instead of the bridge looping.
     pub async fn reject_upstream(&self, endpoint: &str) {
         let mut guard = self.cached.lock().await;
         let Some(entry) = guard.take() else {
@@ -247,9 +234,6 @@ impl TokenCache {
         }
     }
 
-    // Why: sign-in, sign-out and a gateway change all replace the credential
-    // on disk. The latch describes the previous credential, so it is cleared
-    // together with the cached token.
     pub async fn reset(&self) {
         self.invalidate().await;
         self.unlatch();
@@ -266,10 +250,6 @@ impl TokenCache {
         if age_secs.saturating_add(refresh_threshold_secs) >= entry.token.ttl {
             return None;
         }
-        // Why: an external `login` rewrites the PAT/config on disk but cannot
-        // reach this in-memory cache; without the mtime check the old JWT is
-        // served until its TTL lapses and every sync 401s against fresh disk
-        // credentials.
         if entry.stamp_checked_at.elapsed() >= self.stamp_check_interval {
             let current = CredentialStamp::capture();
             if current != entry.stamp {

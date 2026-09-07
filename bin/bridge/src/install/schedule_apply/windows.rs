@@ -22,8 +22,6 @@ pub(super) fn register(
         source: e,
     })?;
 
-    // Why: without `/F` schtasks duplicates rather than replaces a task of the
-    // same name.
     let status = crate::winproc::no_window(&mut Command::new("schtasks"))
         .args(["/Create", "/TN", task, "/XML"])
         .arg(&path)
@@ -44,7 +42,6 @@ pub(super) fn register(
 }
 
 fn to_utf16le_bom(rendered: &str) -> Vec<u8> {
-    // Why: Task Scheduler refuses XML that is not UTF-16LE with a BOM.
     let mut bytes = vec![0xFF, 0xFE];
     for unit in rendered.encode_utf16() {
         bytes.extend_from_slice(&unit.to_le_bytes());
@@ -97,9 +94,6 @@ pub(super) fn autostart_status() -> super::ScheduleStatus {
     {
         Ok(s) if s.success() => super::ScheduleStatus::Installed,
         Ok(_) => super::ScheduleStatus::NotInstalled,
-        // Why: schtasks failing to launch says nothing about whether the task
-        // exists, and an unchecked box the user cannot tick is worse than one
-        // that admits it does not know.
         Err(_) => super::ScheduleStatus::Unknown,
     }
 }
@@ -114,8 +108,6 @@ pub(super) fn schedule_registered() -> super::ScheduleStatus {
     {
         Ok(s) if s.success() => super::ScheduleStatus::Installed,
         Ok(_) => super::ScheduleStatus::NotInstalled,
-        // Why: schtasks itself failing to launch says nothing about whether the
-        // task exists, so reporting "not installed" would be a guess.
         Err(_) => super::ScheduleStatus::Unknown,
     }
 }

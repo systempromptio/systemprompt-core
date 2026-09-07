@@ -32,11 +32,6 @@ pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseI
     for table_row in table_rows {
         let table_name: String = table_row.try_get("table_name")?;
 
-        // Why: the name comes from `information_schema`, but provenance is not
-        // a property the type system can check and the next caller of this
-        // function may not have it. Validate before interpolating; a catalog
-        // name that cannot be a plain identifier is skipped and named rather
-        // than quoted and hoped for.
         let Ok(safe_table) = SafeIdentifier::parse(&table_name) else {
             tracing::warn!(
                 table = %table_name,
@@ -46,9 +41,8 @@ pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseI
         };
         let quoted_table = safe_table.quoted();
         let count_query = format!("SELECT COUNT(*) as count FROM {quoted_table}");
-        // Why: the table list and the per-table count are separate queries, so
-        // a table dropped in between (a concurrent migration) yields 42P01;
-        // skip the vanished table instead of failing the whole introspection.
+        // Why: concurrent DDL can drop a table between catalog lookup and COUNT
+        // (SQLSTATE 42P01).
         let count_row = match sqlx::query(sqlx::AssertSqlSafe(count_query))
             .fetch_one(pool)
             .await

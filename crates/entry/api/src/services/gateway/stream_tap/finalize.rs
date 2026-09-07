@@ -44,10 +44,7 @@ impl FailCause {
         }
     }
 
-    // Why: a mid-stream failure carries no upstream HTTP status — the provider
-    // already sent 200 and the SSE error frame has none — so the status is
-    // derived, matching `map_upstream_error`'s bad-gateway fallback. A client
-    // that hung up is 499, not an upstream fault.
+    // Why: SSE errors arrive after the upstream HTTP status has already been sent.
     const fn status(self) -> u16 {
         match self {
             Self::Upstream => 502,

@@ -140,8 +140,6 @@ impl ListItem {
             },
         );
 
-        // Why: Summary is the primary body text; description is secondary detail.
-        // A payload carrying both shows both, in that order.
         let body_html = [self.summary.as_ref(), self.description.as_ref()]
             .into_iter()
             .flatten()
@@ -153,11 +151,6 @@ impl ListItem {
             format!(r#"<span class="item-category">{}</span>"#, html_escape(c))
         });
 
-        // Why: The row carried a hover treatment while only the inner anchor was
-        // clickable, so clicking the row did nothing. `is-linked` stretches the
-        // anchor over the whole row; a row with no link gets no affordance.
-        // (`data-index` used to be emitted here for a list script that has
-        // never existed.)
         format!(
             r#"<li class="list-item{linked}">
     {icon}{title}{category}
@@ -234,8 +227,6 @@ impl UiRenderer for ListRenderer {
                     r#"<p class="mcp-app-description">{}</p>"#,
                     html_escape(d)
                 )),
-            // Why: An empty <ul> rendered as nothing at all above a "0 items"
-            // caption, which reads as a broken artifact rather than a result.
             list_html = if items.is_empty() {
                 r#"<p class="list-empty">Nothing to show.</p>"#.to_owned()
             } else {

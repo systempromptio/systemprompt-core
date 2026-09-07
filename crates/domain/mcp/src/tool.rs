@@ -25,9 +25,6 @@ use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
 
-// Why: a server's tool list is baked into its binary and identical for every
-// caller, so intermediaries may share it (SEP-2549 `public`) until the next
-// redeploy — the same rationale as the static artifact-viewer template.
 const TOOL_LIST_TTL_MS: u64 = 3_600_000;
 
 #[must_use]

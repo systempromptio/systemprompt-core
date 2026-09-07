@@ -64,8 +64,6 @@ pub(super) fn list_hermes_processes() -> Vec<String> {
     sysproc::find_processes("hermes")
 }
 
-// Why: mirrors the Codex probe's `write_dotted`, walking/creating nested
-// mappings so a bridge-owned key can be set without disturbing siblings.
 pub(super) fn write_dotted(
     target: &mut serde_yaml::Value,
     dotted: &str,

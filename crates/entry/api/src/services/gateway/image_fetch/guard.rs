@@ -21,9 +21,6 @@ pub(super) fn is_trusted(host: &str, trusted_hosts: &[String]) -> bool {
     trusted_hosts.iter().any(|h| h.eq_ignore_ascii_case(host))
 }
 
-// Why: the reason is returned as a plain string rather than a typed error
-// because every rejection here is caller fault and the caller wraps them all
-// the same way; a taxonomy would have exactly one consumer.
 pub(super) async fn checked_url(raw: &str, trusted_hosts: &[String]) -> Result<url::Url, String> {
     let parsed = validate_outbound_url_with_trust(raw, trusted_hosts).map_err(|e| e.to_string())?;
     let host = parsed
@@ -45,12 +42,8 @@ pub(super) async fn checked_url(raw: &str, trusted_hosts: &[String]) -> Result<u
     Ok(parsed)
 }
 
-// Why: the resolution here and the one reqwest performs when it connects are
-// two separate lookups, so a record with a one-second TTL can answer publicly
-// for the check and internally for the connect. Closing that fully means
-// pinning the connection to a vetted address, which reqwest exposes only per
-// client; the block list still stops every static internal target, which is
-// what the caller-supplied-URL threat actually looks like in practice.
+// Why: reqwest resolves DNS again when connecting; this lookup does not prevent
+// DNS rebinding.
 async fn resolve(host: &str, port: u16) -> Result<Vec<IpAddr>, String> {
     let addrs: Vec<IpAddr> = tokio::net::lookup_host((host, port))
         .await
@@ -63,8 +56,6 @@ async fn resolve(host: &str, port: u16) -> Result<Vec<IpAddr>, String> {
     Ok(addrs)
 }
 
-// Why: one blocked answer is enough to refuse. A name that resolves to both a
-// public and an internal address is a rebinding attempt, not a fallback.
 fn reject_blocked(host: &str, addrs: &[IpAddr]) -> Result<(), String> {
     addrs
         .iter()

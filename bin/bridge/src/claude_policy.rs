@@ -23,8 +23,6 @@ const BRIDGE_KEYS: [&str; 3] = [
     "allowAllClaudeAiMcps",
 ];
 
-// Why: an unreadable existing document is an error — the file is admin-owned
-// and overwriting it would clobber keys we did not author.
 fn read_settings(path: &Path) -> Result<Option<Map<String, Value>>, std::io::Error> {
     let bytes = match fs::read(path) {
         Ok(b) => b,
@@ -37,8 +35,6 @@ fn read_settings(path: &Path) -> Result<Option<Map<String, Value>>, std::io::Err
     }
 }
 
-// Why: `None` when the file is absent or already carries none of the keys, so
-// an unlocked machine is never rewritten or prompted for elevation.
 pub fn stripped_settings(path: &Path) -> Result<Option<String>, std::io::Error> {
     let Some(mut doc) = read_settings(path)? else {
         return Ok(None);

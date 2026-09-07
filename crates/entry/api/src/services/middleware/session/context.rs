@@ -22,10 +22,6 @@ use uuid::Uuid;
 
 use super::{RequestMeta, SessionMiddleware, attest_session, lifecycle};
 
-// Why: the pool's own acquire timeout is 30s, which is a page load nobody
-// waits for and, per connection a browser opens, a site that reads as hung
-// rather than degraded. A healthy anonymous-user lookup is single-digit
-// milliseconds, so this leaves a hundredfold margin before we give up on it.
 const SESSION_ESTABLISH_TIMEOUT: Duration = Duration::from_secs(2);
 
 impl SessionMiddleware {
@@ -75,10 +71,6 @@ impl SessionMiddleware {
         }
     }
 
-    // Why: no actor and no auth token, so the `unset` user this leaves in
-    // place cannot be mistaken for an identity and every gate above `public`
-    // still refuses the request. `is_tracked` is false, which is what keeps
-    // the analytics sinks from recording a visit they cannot attribute.
     fn degraded_context(trace_id: systemprompt_identifiers::TraceId) -> RequestContext {
         let session_id = SessionId::new(format!("degraded_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);

@@ -162,13 +162,8 @@ fn render_user_message(content: &[CanonicalContent]) -> Vec<Value> {
     out
 }
 
-// Why: dropping Thinking here guts the reasoning models this wire exists to
-// reach -- `qwen3-next-thinking` and `kimi-k2-thinking` carry their entire
-// answer in the reasoning channel, and a replayed turn that omits it asks the
-// model to continue from a conversation it never had. The OpenAI chat contract
-// has no reasoning field of its own; `reasoning_content` is what the
-// OpenAI-compatible providers that emit thinking actually use, and it is the
-// field `parse_response` reads back, so a turn round-trips.
+// Why: OpenAI-compatible reasoning providers use `reasoning_content` to replay
+// assistant reasoning across turns.
 fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
     let mut text = String::new();
     let mut reasoning = String::new();

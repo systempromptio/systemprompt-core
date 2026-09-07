@@ -99,9 +99,6 @@ impl AppStateSnapshot {
         }
     }
 
-    // Why: the health board folds five sources, not just `validate`. Each
-    // synthetic row's tone is fixed here and mirrored by the row the front end
-    // draws; the *badge* is this fold, so the board cannot contradict it.
     #[must_use]
     pub fn health_verdict(&self) -> Verdict<HealthCode> {
         let mut tones: Vec<Tone> = Vec::new();
@@ -134,8 +131,6 @@ impl AppStateSnapshot {
         Verdict::new(tone, code)
     }
 
-    // Why: `probing` while the first pass is out and `warn` when nothing is
-    // registered — an empty list is not a healthy one.
     #[must_use]
     pub fn mcp_auth_tone(&self) -> Tone {
         if self.mcp_auth.is_empty() {

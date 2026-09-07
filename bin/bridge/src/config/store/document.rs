@@ -54,8 +54,6 @@ impl PolicyDocumentValue {
 pub type PolicyDocument = BTreeMap<String, PolicyDocumentValue>;
 
 impl PolicyDocumentValue {
-    // Why: `plutil -convert json` is how a plist is read back; the JSON shape
-    // has to round-trip to the same value the renderer wrote.
     #[must_use]
     pub fn from_json(v: &serde_json::Value) -> Option<Self> {
         match v {

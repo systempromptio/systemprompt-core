@@ -88,10 +88,6 @@ fn too_many_requests(now: DateTime<Utc>, start: DateTime<Utc>) -> Response {
         .into_response()
 }
 
-// Why: the governor above already refuses local bursts, so this layer only
-// has to bound the sum across replicas. It fails open on a database fault:
-// an HTTP throttle protects capacity, not data, and the ban gate ahead of it
-// is the one that stays closed.
 async fn global_user_rate_limit(
     State(limit): State<GlobalUserLimit>,
     req: Request,
@@ -147,9 +143,6 @@ impl tower_governor::key_extractor::KeyExtractor for IdentityOrTrustedIpKey {
     type Key = String;
 
     fn extract<T>(&self, req: &Request<T>) -> Result<Self::Key, tower_governor::GovernorError> {
-        // Why: an anonymous context's user id is a hash of the User-Agent and
-        // Accept-Language headers, so a caller who rotates either would mint a fresh
-        // bucket per request. Only a signature-verified identity is safe to key on.
         if let Some(ctx) = req.extensions().get::<RequestContext>()
             && ctx.auth.user_type != UserType::Anon
         {
@@ -220,10 +213,6 @@ where
             return Ok(self);
         }
 
-        // Why: a truncating `as u32` turns any product that is a multiple of 2^32 into
-        // a zero burst, which `finish()` reports only by returning `None` —
-        // silently leaving the route unlimited. Saturate and clamp so the quota
-        // is always representable.
         let burst = per_second.saturating_mul(rate_config.burst_multiplier);
         let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
         let per_second_clamped = per_second.max(1);

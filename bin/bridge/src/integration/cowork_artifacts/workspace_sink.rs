@@ -101,17 +101,11 @@ pub fn write_bundle(dir: &Path, artifacts: &[ArtifactEntry]) -> Result<(), Apply
     })
 }
 
-// Why: driving this through `emit::write_artifacts` made it unreachable until
-// Cowork had created a session dir, so a fresh install staged no dashboards and
-// the setup skill read the empty folder as "the bridge has never synced".
 pub fn stage_bundle(artifacts: &[ArtifactEntry]) -> Result<(), ApplyError> {
     let Some(dir) = paths::workspace_artifacts_dir() else {
         tracing::info!("cowork artifacts: no workspace dir on this host; bundle not staged");
         return Ok(());
     };
-    // Why: same contract as `emit::write_artifacts` — an enabled host sending an
-    // empty set signals an upstream scoping bug, so the staged bundle is
-    // preserved rather than cleared.
     if artifacts.is_empty() {
         tracing::warn!(
             workspace_dir = %dir.display(),

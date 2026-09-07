@@ -29,8 +29,6 @@ use crate::services::generation::{
 
 const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
 const EXCHANGE_CODE_BYTES: usize = 32;
-// Why: sized for a person reading the code off a screen and typing it into a
-// terminal, not for the machine round-trip of the loopback-redirect path.
 const EXCHANGE_CODE_TTL_SECONDS: i64 = 600;
 
 #[derive(Debug, Clone, Serialize)]
@@ -72,13 +70,6 @@ pub async fn issue_bridge_access(
     .await
 }
 
-// Why: a client-supplied session id keeps ONE user's session continuous
-// across token refreshes — it must never let a client attach itself to a
-// session it does not own. After a user switch the bridge can replay the
-// previous account's session header; adopting it would mint a token whose
-// session row belongs to someone else, which the gateway's attestation
-// then rejects on every call ("session user mismatch"). Adopt only a
-// session this user already owns; anything else gets a fresh id.
 async fn adopt_or_mint_session(
     analytics: &dyn AnalyticsProvider,
     request_headers: &HeaderMap,
@@ -146,11 +137,6 @@ pub async fn issue_bridge_access_with(
         &signing,
     )?;
 
-    // Why: The JWT embeds `session_id`, but the hardened gateway validator only
-    // honours tokens whose session row exists and is unrevoked. Persist the row
-    // here so the token and its session are born together. Analytics is
-    // captured from the credential-exchange request so the session is traceable
-    // to the device that minted it.
     let session_analytics = analytics.extract_analytics(
         request_headers,
         ExtractSignals {
@@ -191,12 +177,6 @@ pub async fn issue_bridge_access_with(
 fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl_hours: i64) -> JwtConfig {
     JwtConfig {
         permissions: auth_user.permissions().to_vec(),
-        // Why: the bridge's loopback proxy injects this token when forwarding
-        // MCP traffic to `/api/v1/mcp/<svc>`; `validate_service_access` and
-        // each server's RBAC require the `mcp` audience, so the token carries
-        // `mcp` beside `bridge` (kept for the auth/`/v1/messages` paths).
-        // Per-user, short TTL, loopback-only — the same trust as the OAuth
-        // flow it replaces.
         audience: vec![JwtAudience::Bridge, JwtAudience::Mcp],
         expires_in_hours: Some(ttl_hours),
         resource: None,

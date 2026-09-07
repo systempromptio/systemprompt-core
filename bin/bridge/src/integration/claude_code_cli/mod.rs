@@ -42,9 +42,6 @@ use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use crate::ids::PluginId;
 
-// Why: the one marketplace every bridge wrote before the manifest named its
-// marketplaces. It is still the shape an older gateway is mirrored as, and the
-// key a first sync against a newer gateway purges.
 pub const LEGACY_MARKETPLACE: &str = "org-provisioned";
 const LEGACY_DESCRIPTION: &str =
     "Skills, agents, and MCP servers provisioned by your organization.";
@@ -142,9 +139,7 @@ fn io_err(context: impl Into<String>, source: std::io::Error) -> ApplyError {
     }
 }
 
-// Why: `~/.claude` is created by the CLI's first run, not its installation, so
-// the PATH probe is what distinguishes genuinely-absent from
-// installed-but-unused.
+// Why: Claude Code creates ~/.claude on first run, not during installation.
 pub(crate) fn claude_cli_installed() -> bool {
     if paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return true;
@@ -187,10 +182,6 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         return clear_install();
     }
 
-    // Why: an enterprise MCP policy left by an older bridge shadows every
-    // plugin-provided server and Cowork's own tools; it goes before the
-    // per-plugin `.mcp.json` files are written so those are the servers the
-    // CLI actually loads.
     crate::install::managed_mcp::clear_policy();
 
     let mut mirrored = Vec::with_capacity(marketplaces.len());
@@ -233,9 +224,6 @@ fn mirror_marketplace(
     let mut ids: Vec<&PluginId> = Vec::with_capacity(marketplace.plugin_ids.len());
     let mut entries = Vec::with_capacity(marketplace.plugin_ids.len());
     for id in &marketplace.plugin_ids {
-        // Why: the gateway never lists a plugin the manifest lacks; if one ever
-        // arrives there is nothing on disk to mirror, so it is skipped rather
-        // than failing the whole host.
         let Some(version) = versions.get(id.as_str()) else {
             continue;
         };

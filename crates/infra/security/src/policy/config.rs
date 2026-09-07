@@ -90,9 +90,6 @@ impl std::fmt::Display for PolicyMode {
     }
 }
 
-// Why: an absent key inherits, a present-but-unreadable key is an error. Both
-// are distinct from "present and valid", so the return is a three-way option
-// rather than a defaulted value.
 fn read_mode(
     node: Option<&YamlValue>,
     location: &str,

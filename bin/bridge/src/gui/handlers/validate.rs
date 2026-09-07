@@ -27,9 +27,6 @@ pub(crate) fn on_validate_finished(
     reply_to: ReplyId,
 ) {
     let rendered = report.rendered();
-    // Why: the whole multi-line report used to go in as one entry, where the log's
-    // fixed-height rows truncated it with no wrap. The structured lines now reach
-    // the setup-health panel; the log gets a result a reader can actually take in.
     let failed = report
         .lines
         .iter()

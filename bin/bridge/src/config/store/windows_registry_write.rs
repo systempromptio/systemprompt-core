@@ -168,8 +168,6 @@ fn create_key(hive: HKEY, hive_label: &str, subkey: &str) -> Result<OwnedKey, Co
         )))
     }
 }
-// Why: `SOFTWARE\Policies` is ACL-protected in both hives; a non-elevated
-// create/set returns status 5.
 fn access_denied(hive_label: &str) -> ConfigStoreError {
     access_denied_at(hive_label, POLICY_SUBKEY)
 }

@@ -33,10 +33,6 @@ use crate::stdio::{diag, print_line};
 
 const MOCK_TAG: &str = "<script type=\"module\" src=\"/dev/mock-ipc.js\"></script>";
 
-// Why: the mock has to be installed *before* the entry module, because
-// components call `bridge.stateSnapshot()` from `connectedCallback` the moment
-// they upgrade — ordered module scripts run in document order, and the mock's
-// top-level await holds the entry module until the fixture has landed.
 const ENTRY_TAG: &str = "<script type=\"module\" src=\"/assets/js/index.js\"";
 
 #[derive(Debug)]
@@ -120,9 +116,6 @@ fn route(path: &str, query: &str, opts: &Options) -> (&'static str, &'static str
 }
 
 fn serve_file(path: &str, opts: &Options) -> (&'static str, &'static str, Vec<u8>) {
-    // Why: `/dev/*` resolves from disk or not at all — build.rs strips it from
-    // the staged tree, so it is not merely unused in a shipped binary, it is
-    // not in it.
     let rel = path
         .strip_prefix("/assets/")
         .or_else(|| path.strip_prefix('/'))

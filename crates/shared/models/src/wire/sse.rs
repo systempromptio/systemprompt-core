@@ -27,11 +27,8 @@ fn newline_len(buf: &[u8], idx: usize) -> Option<usize> {
     }
 }
 
-// Why: providers signal a mid-stream failure by sending an `{"error": {...}}`
-// object in place of a normal chunk, on a connection that already returned
-// 200. A codec that only knows the success shape parses that as an empty
-// chunk and the stream simply ends, so the caller cannot tell a failure from
-// a hang. Every codec routes candidate chunks through here first.
+// Why: Providers can signal mid-stream failure with an `{"error": {...}}` chunk
+// after the HTTP response has already returned 200.
 pub fn upstream_error_message(value: &serde_json::Value) -> Option<String> {
     let error = value.get("error")?;
     if error.is_null() {

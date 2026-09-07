@@ -195,8 +195,6 @@ async fn open_audit(
     if let Err(e) = audit.open(request, raw_body).await {
         tracing::error!(error = %e, "audit open failed — proceeding without audit row");
     }
-    // Why: identity headers are recorded against the audit row, then dropped
-    // before the upstream send so a third-party provider never receives them.
     if !identity_headers.is_empty() {
         tracing::info!(
             ai_request_id = %ctx.ai_request_id,
@@ -229,10 +227,6 @@ async fn enforce_quota(
     if decision.allow {
         return Ok(());
     }
-    // Why: warn mode on the quota plane. The window was reserved against and
-    // the ceiling was breached exactly as under enforce; only the refusal is
-    // dropped, and the breach lands in `governance_decisions` under policy
-    // `quota` so the report can price what enforcement would have cost.
     if policy.quota_mode.is_warn() {
         tracing::warn!(
             ai_request_id = %ctx.ai_request_id,

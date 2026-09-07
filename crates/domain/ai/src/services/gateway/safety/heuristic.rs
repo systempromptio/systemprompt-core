@@ -70,8 +70,6 @@ impl SafetyScanner for HeuristicScanner {
         if let Some(text) = req.latest_message_text(Role::User) {
             scan_text(&self.phrases, PHASE_REQUEST, &text, &mut findings);
         }
-        // Why: each leaf is its own unit — concatenating them would let two
-        // unrelated strings splice into a match neither one contains.
         for leaf in req.forwarded_surface.leaves() {
             scan_text(&self.phrases, PHASE_REQUEST, &leaf.value, &mut findings);
         }
@@ -109,9 +107,6 @@ fn history_units(req: &CanonicalRequest) -> Vec<String> {
 }
 
 fn scan_text(phrases: &[String], phase: &'static str, text: &str, out: &mut Vec<Finding>) {
-    // Why: the lowercased copy exists only for the phrase search — both
-    // detectors below read `text` directly. Allocating one per leaf of a
-    // multi-megabyte forwarded body was the scanner's dominant cost.
     if !phrases.is_empty() {
         let lower = text.to_ascii_lowercase();
         for phrase in phrases {
@@ -142,8 +137,6 @@ fn scan_text(phrases: &[String], phase: &'static str, text: &str, out: &mut Vec<
             scanner: "heuristic",
         });
     }
-    // Why: a card needs digits, and most leaves of a forwarded body — keys,
-    // prose, code — have none. Cheaper than entering the scan to find out.
     if !text.bytes().any(|b| b.is_ascii_digit()) {
         return;
     }
@@ -158,9 +151,6 @@ fn scan_text(phrases: &[String], phase: &'static str, text: &str, out: &mut Vec<
     }
 }
 
-// Why: phrase offsets come from an ASCII-lowercased copy, which is byte-aligned
-// with `text`, but the ±40/80 excerpt padding is not — landing mid-codepoint
-// would panic the scanner, and a panic here is a 500 on a customer's request.
 const fn floor_boundary(text: &str, mut i: usize) -> usize {
     while i > 0 && !text.is_char_boundary(i) {
         i -= 1;
@@ -204,11 +194,6 @@ fn detect_email(text: &str) -> bool {
 const CARD_MIN_DIGITS: usize = 13;
 const CARD_MAX_DIGITS: usize = 19;
 
-// Why: Luhn alone is a 1-in-10 coin flip, so sliding a 16-digit window over a
-// long digit run all but guarantees a hit — a 40-digit hash offers 25 tries.
-// Timestamps, uuids, trace ids and manifest ids were being read as cards on
-// live traffic. A candidate must now be a *whole* digit run of a plausible
-// card length carrying a real issuer prefix, and only then is Luhn consulted.
 fn detect_credit_card(text: &str) -> bool {
     let bytes = text.as_bytes();
     let mut i = 0;
@@ -226,9 +211,6 @@ fn detect_credit_card(text: &str) -> bool {
     false
 }
 
-// Why: a single space or hyphen *between* two digits is the grouping cards are
-// written with, so it is absorbed; anything else ends the run. Without that
-// stopping rule two neighbouring numbers splice into one candidate.
 fn card_candidate(bytes: &[u8], start: usize) -> (Vec<u8>, usize) {
     let mut digits = Vec::new();
     let mut i = start;
@@ -253,9 +235,6 @@ fn is_card(digits: &[u8]) -> bool {
         && luhn(digits)
 }
 
-// Why: the assigned issuer identification ranges. Requiring one costs nothing
-// against a real card and removes nine in ten of the arbitrary digit runs that
-// would otherwise reach Luhn.
 fn has_issuer_prefix(digits: &[u8]) -> bool {
     let Some(&second) = digits.get(1) else {
         return false;

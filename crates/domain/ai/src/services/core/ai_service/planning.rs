@@ -127,10 +127,6 @@ impl AiService {
     }
 
     pub(super) fn estimate_cost(&self, response: &AiResponse) -> i64 {
-        // Why: an unknown provider is a configuration gap, not a billable
-        // rate. Inventing one silently priced every such turn at a fabricated
-        // $1/$1 per million; zero plus a warning is the gateway's behaviour
-        // and now the only one.
         let pricing = self.providers.get(&response.provider).map_or_else(
             || {
                 tracing::warn!(

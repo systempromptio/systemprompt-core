@@ -55,8 +55,7 @@ struct ResponseInputTokensDetails {
     cached_tokens: u32,
 }
 
-// Why: reasoning tokens are already counted inside output_tokens on this
-// contract; this field only breaks them out.
+// Why: OpenAI Responses includes reasoning tokens in `output_tokens`.
 #[derive(Debug, Default, Deserialize)]
 struct ResponseOutputTokensDetails {
     #[serde(default)]
@@ -64,10 +63,7 @@ struct ResponseOutputTokensDetails {
 }
 
 impl ResponseUsage {
-    // Why: `cached_tokens` is a subset of `input_tokens` on this wire, while
-    // `CanonicalUsage::input_tokens` is exclusive of cache reads. Without the
-    // subtraction the cached slice is charged at the input rate and again at
-    // the cache-read rate.
+    // Why: OpenAI Responses includes `cached_tokens` in `input_tokens`.
     const fn into_canonical(self) -> CanonicalUsage {
         let cached = self.input_tokens_details.cached_tokens;
         CanonicalUsage {
@@ -252,9 +248,6 @@ fn collect_output_item(
     }
 }
 
-// Why: runs before `parse_response`, which is total and would turn a body
-// carrying nothing into a well-formed empty turn. `None` means the body is
-// worth parsing.
 #[must_use]
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "output", "usage")

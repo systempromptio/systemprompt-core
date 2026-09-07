@@ -33,8 +33,6 @@ struct CachedIndex {
     checked_at: Instant,
 }
 
-// Why: a per-decision rebuild is the cross-region cost the module head
-// describes; the fingerprint and TTL are the two staleness bounds.
 #[derive(Debug)]
 pub struct ChainIndexCache {
     slot: RwLock<Option<CachedIndex>>,
@@ -80,9 +78,6 @@ impl ChainIndexCache {
                 if now.duration_since(cached.checked_at) < self.recheck {
                     return Ok(Arc::clone(&cached.index));
                 }
-                // Why: a fingerprint fault falls through to a full reload rather
-                // than serving the cached index, so a database fault never keeps
-                // a stale index alive silently.
                 if let Ok(fingerprint) = repo.chain_fingerprint().await
                     && fingerprint == cached.fingerprint
                     && now.duration_since(cached.loaded_at) < self.ttl

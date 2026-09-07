@@ -201,8 +201,7 @@ async fn handle_interactivity(
     StatusCode::OK.into_response()
 }
 
-// Why: Dispatch in the background and post the rendered reply. Spawned so the
-// route can ack Slack within its 3-second timeout.
+// Why: Slack requires acknowledgment within three seconds.
 fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig) {
     let bot_token = bot_token(app);
     let link_by_email = app.authz.link_by_workspace_email;

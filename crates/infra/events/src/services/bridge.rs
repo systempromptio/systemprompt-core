@@ -35,7 +35,7 @@ const PRUNE_INTERVAL: Duration = Duration::from_secs(300);
 const RETRY_MIN: Duration = Duration::from_secs(1);
 const RETRY_MAX: Duration = Duration::from_secs(60);
 
-// Why: Postgres `read_only_sql_transaction`, raised by `LISTEN` on a standby.
+// Why: Postgres rejects LISTEN on a standby with SQLSTATE 25006.
 const READ_ONLY_SQL_TRANSACTION: &str = "25006";
 
 static LISTENING: AtomicBool = AtomicBool::new(true);

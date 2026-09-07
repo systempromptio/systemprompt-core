@@ -159,14 +159,7 @@ impl GovernanceEngine {
         }
 
         let mut chain: Vec<ChainEntryOutcome> = Vec::with_capacity(self.entries.len());
-        // Why: `Pending` halts the chain for the same reason `Deny` does — a
-        // later policy cannot un-hold a call, and running it would charge the
-        // rate limiter for a call that has not been authorised yet.
         let mut halted: Option<Decision> = None;
-        // Why: warn mode deliberately does not halt, so later policies still
-        // run and the report shows every finding on the call rather than only
-        // the first. The first warn is the one reported, matching first-deny
-        // -wins ordering.
         let mut first_warn: Option<DenyReason> = None;
 
         for entry in &self.entries {
@@ -213,9 +206,6 @@ impl GovernanceEngine {
     }
 }
 
-// Why: returns the chain row, the reason to record if this is the first warn,
-// and whether the chain halts here — the three things the caller does with a
-// verdict, kept together so `evaluate` reads as the loop it is.
 fn classify(
     entry: &ChainEntry,
     decision: &Decision,
@@ -246,9 +236,6 @@ fn classify(
             )
         },
         Decision::Deny { reason } => (row(ChainEntryResult::Fail, reason.to_string()), None, true),
-        // Why: a warn verdict from a policy itself is passed through unchanged
-        // in either mode. Warn is already the weaker verdict, so enforce mode
-        // has nothing to escalate it to.
         Decision::Warn { reason } => (
             row(ChainEntryResult::Warn, reason.to_string()),
             Some(reason.clone()),

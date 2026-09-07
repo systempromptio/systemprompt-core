@@ -39,8 +39,6 @@ pub(super) fn clear_elevated(
     settings_path: &Path,
     stripped_settings_body: Option<&str>,
 ) {
-    // Why: the staging dir must outlive `run_privileged` — the elevated shell
-    // reads the staged file from it.
     let staging = match stripped_settings_body.map(stage_clear).transpose() {
         Ok(s) => s,
         Err(e) => {

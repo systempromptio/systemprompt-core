@@ -130,7 +130,7 @@ lint-schema:
 lint-extensions:
     ./scripts/lint-extensions.sh crates
 
-# Reject inline // comments in production crates (whitelist: '// Why:' / '// JSON:')
+# Check production comment syntax and Rustdoc placement; review meaning per AGENTS.md.
 lint-comments:
     ./scripts/lint-inline-comments.sh
 

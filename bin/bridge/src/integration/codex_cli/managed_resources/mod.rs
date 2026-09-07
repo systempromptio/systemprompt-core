@@ -112,8 +112,8 @@ fn write_marketplace_tree(
     install_into_cache(&plugin_dir, &version)
 }
 
-// Why: Codex marks a plugin installed solely by a version dir under its managed
-// cache, so a copy into `cache/<marketplace>/<plugin>/<version>/` suffices.
+// Why: Codex recognizes installed plugins by version directories in its managed
+// cache.
 fn install_into_cache(plugin_dir: &Path, version: &str) -> Result<(), ApplyError> {
     let base = cache_plugin_dir();
     if let Ok(entries) = fs::read_dir(&base) {

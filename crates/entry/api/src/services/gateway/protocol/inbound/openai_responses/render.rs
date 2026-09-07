@@ -22,11 +22,6 @@ use super::super::super::canonical_response::{
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut output: Vec<Value> = Vec::new();
     let mut text_parts: Vec<Value> = Vec::new();
-    // Why: the Responses object has no finish-reason scalar. A truncated turn
-    // is `status: "incomplete"` plus `incomplete_details.reason`, exactly as
-    // the streaming terminal frame renders it; anything else is `completed`.
-    // The items carry the same verdict -- an item cut mid-arguments is not a
-    // completed one, and a client that reads item status must not run it.
     let truncated = matches!(response.stop_reason, Some(CanonicalStopReason::MaxTokens));
     let item_status = if truncated { "incomplete" } else { "completed" };
 
@@ -237,9 +232,6 @@ pub(super) fn reasoning_output_item(
 
 fn render_error_frame(msg: &str) -> Bytes {
     let escaped = msg.replace('\\', "\\\\").replace('"', "\\\"");
-    // Why: the Responses contract puts the outcome on `response.status`, and a
-    // client (Codex) reads that field to decide the turn failed; a bare
-    // top-level `error` left the response object absent and the turn unresolved.
     Bytes::from(format!(
         "event: response.failed\ndata: \
          {{\"type\":\"response.failed\",\"response\":{{\"status\":\"failed\",\"error\":\

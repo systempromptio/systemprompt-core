@@ -94,13 +94,6 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-// Why: `-g` opens the .mobileconfig without giving System Settings focus.
-// Losing focus fires -[NSWindow resignKeyWindow] on our winit NSWindow, and
-// a muda/tray-icon observer (objc2 0.6) then dereferences a weak reference
-// whose bookkeeping lives on the winit side (objc2 0.5) — a bogus pointer
-// and a segfault. Root fix is unifying objc2 majors, blocked on winit 0.31.
-// Because the window never surfaces, the caller states the approval step
-// itself — see `manual_approval_notice` in the GUI profile handler.
 pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
     Command::new("/usr/bin/open").args(["-g", path]).status()?;
     Ok(())
@@ -195,9 +188,6 @@ fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &
         )
 }
 
-// Why: the `HostApp::remove_profile` trait method is fallible and the Windows
-// sibling genuinely is — macOS only ever hands back a manual instruction, so
-// the Result here is the shared signature, not an unused one.
 #[expect(
     clippy::unnecessary_wraps,
     reason = "return type is fixed by the cross-platform HostApp trait"

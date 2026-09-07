@@ -22,9 +22,6 @@ fn policy_body(mcp: &MdmPayloadInputs<'_>, gateway: &str, indent: &str) -> Strin
         .secret()
         .map(crate::ids::LoopbackSecret::into_inner)
         .unwrap_or_default();
-    // Why: a registry that cannot be resolved into loopback entries (no
-    // secret yet) publishes an empty list rather than servers with no
-    // credential — the shape that could never authenticate.
     let servers = super::policy::mcp_entries(mcp.loopback, mcp.registry).unwrap_or_else(|e| {
         tracing::warn!(
             target: "bridge::install::mdm",

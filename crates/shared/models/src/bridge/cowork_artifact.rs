@@ -9,9 +9,6 @@ use crate::bridge::ids::{LibraryArtifactId, PluginId};
 use crate::bridge::manifest::ArtifactEntry;
 
 
-// Why: field names and casing must track Cowork's native `create_artifact`
-// input, so a consumer can read a bundle's `artifacts/<id>.json` and the
-// bridge's staged library records with one parser.
 #[derive(Debug, Serialize)]
 pub struct CoworkLibraryArtifactRecord<'a> {
     pub id: &'a str,
@@ -23,9 +20,7 @@ pub struct CoworkLibraryArtifactRecord<'a> {
     pub is_starred: bool,
     #[serde(rename = "mcpTools")]
     pub mcp_tools: &'a [String],
-    // Why: not part of Cowork's `create_artifact` input — an additive field Cowork
-    // ignores, carried so the bridge's Marketplace listing can group a stored
-    // record by its owning plugin without re-fetching the manifest.
+    // Why: Cowork ignores this extra field; it is not part of its `create_artifact` input.
     #[serde(default, skip_serializing_if = "<[_]>::is_empty")]
     pub plugins: &'a [PluginId],
 }
@@ -45,9 +40,6 @@ impl<'a> From<&'a ArtifactEntry> for CoworkLibraryArtifactRecord<'a> {
     }
 }
 
-// Why: the install manifest a plugin bundle ships at `artifacts/manifest.json`
-// — every record minus its HTML, which sits beside it as `artifacts/<id>.html`
-// so a seed skill can copy a page without parsing JSON.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoworkArtifactBundleManifest {
     pub artifacts: Vec<CoworkArtifactBundleRecord>,
@@ -63,8 +55,6 @@ pub struct CoworkArtifactBundleRecord {
     pub is_starred: bool,
     #[serde(rename = "mcpTools")]
     pub mcp_tools: Vec<String>,
-    // Why: the setup skills are role-split (user bundle vs admin bundle) and
-    // install only the records their plugin owns; the id alone cannot say.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
 }

@@ -121,9 +121,6 @@ pub use systemprompt_models::mcp::{
     McpProvider, McpRegistry, McpServerState,
 };
 
-// Why: pinned to a named constant, not `ProtocolVersion::LATEST`, so the
-// version we advertise cannot move silently on an rmcp bump; bumping it is a
-// deliberate release decision with wire-conformance coverage.
 pub fn mcp_protocol_version() -> String {
     ProtocolVersion::V_2026_07_28.to_string()
 }
@@ -175,11 +172,7 @@ pub struct SessionTimeouts {
 impl Default for McpHttpConfig {
     fn default() -> Self {
         Self {
-            // Why: `0.0.0.0` and `[::]` are common bind addresses for the
-            // local MCP server; clients connecting via the bind URL send a
-            // matching `Host` header that the default allow-list must
-            // accept. Port-less entries match any port via rmcp's
-            // `host_is_allowed`.
+            // Why: rmcp's `host_is_allowed` treats port-less entries as matching any port.
             allowed_hosts: Some(vec![
                 "localhost".into(),
                 "127.0.0.1".into(),

@@ -78,8 +78,6 @@ fn parse_content(value: &Value) -> Result<Vec<CanonicalContent>, InboundParseErr
     }
 }
 
-// Why: `Ok(None)` drops blocks the gateway does not model; rejecting them would
-// 400 any client replaying history from a direct Anthropic session.
 fn parse_content_block(value: &Value) -> Result<Option<CanonicalContent>, InboundParseError> {
     let kind = value.get("type").and_then(Value::as_str).unwrap_or("text");
     match kind {

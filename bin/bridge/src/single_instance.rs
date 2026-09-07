@@ -202,13 +202,6 @@ fn read_running_instance() -> Option<RunningInstance> {
     Some(RunningInstance { port, token })
 }
 
-// Why: true only when the instance *accepts* the request (204 from
-// handle_focus, sent once the event is queued to a live event loop). A
-// successful write_all is not evidence: the sidecar outlives a killed process,
-// and a recycled port means an unrelated listener accepts and discards the
-// bytes — the false positive that let a double-click report "focused its
-// window" while nothing appeared. On failure the sidecar is deleted so the
-// next launch treats the singleton as vacant.
 pub(crate) fn ping_focus_running_instance() -> bool {
     let Some(instance) = read_running_instance() else {
         return false;
@@ -228,8 +221,6 @@ fn focus_handshake(instance: &RunningInstance) -> bool {
         return false;
     };
     _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
-    // Why: the peer only replies after the winit event loop has taken the
-    // FocusWindow event, so allow more read time than connect/write.
     _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
     let request = format!(
         "POST /api/focus_window?t={} HTTP/1.1\r\nHost: localhost\r\nContent-Length: \
@@ -239,7 +230,6 @@ fn focus_handshake(instance: &RunningInstance) -> bool {
     if stream.write_all(request.as_bytes()).is_err() {
         return false;
     }
-    // Why: the reply is a bare status line; 16 bytes covers "HTTP/1.1 204 No…".
     let mut buf = [0u8; 16];
     let mut filled = 0;
     while filled < buf.len() {

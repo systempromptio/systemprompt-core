@@ -71,8 +71,7 @@ pub fn org_plugins_user() -> Option<PathBuf> {
         .map(|base| base.join("Claude").join("org-plugins"))
 }
 
-// Why: Cowork scans %ProgramFiles%\Claude\org-plugins only; %ProgramData% is
-// invisible to it.
+// Why: Cowork scans %ProgramFiles%\Claude\org-plugins, not %ProgramData%.
 #[cfg(target_os = "windows")]
 pub fn org_plugins_system() -> Option<PathBuf> {
     org_plugins_system_override()
@@ -123,9 +122,6 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     #[cfg(not(target_os = "macos"))]
     {
         let system = org_plugins_system();
-        // Why: the system leaf may not exist yet — sync creates it on first
-        // write — so a missing directory must not force user scope for a
-        // process (e.g. elevated) that could create it.
         if let Some(path) = system.clone()
             && probe_writable(&path)
         {
@@ -213,8 +209,6 @@ pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
 
 pub const LEGACY_ORG_PLUGINS_METADATA: &[&str] = &[".systemprompt-bridge", ".systemprompt-cowork"];
 
-// Why: `Permissions::readonly` reports the file's own mode bits, not whether
-// this process may create entries in the directory. Probe by creating.
 #[cfg(not(target_os = "macos"))]
 fn probe_writable(path: &std::path::Path) -> bool {
     let mut candidate = Some(path);

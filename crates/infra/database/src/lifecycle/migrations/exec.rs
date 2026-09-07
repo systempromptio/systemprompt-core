@@ -9,8 +9,6 @@ use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 use systemprompt_identifiers::ToDbValue;
 
-// Why: committed inside the same transaction as the migration statements,
-// so the SQL and its bookkeeping row can never diverge.
 pub(super) struct TrackingWrite<'a> {
     pub sql: &'a str,
     pub params: &'a [&'a dyn ToDbValue],

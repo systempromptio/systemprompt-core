@@ -125,9 +125,6 @@ impl UiRenderer for ImageRenderer {
             (None, None) => String::new(),
         };
 
-        // Why: No part yielded a source, so there is nothing to zoom into. This
-        // used to emit src="" and leave the browser's broken-image glyph as
-        // the only explanation.
         if image_data.src.is_empty() {
             return Ok(self.render_empty(title));
         }

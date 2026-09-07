@@ -23,10 +23,6 @@ pub(crate) fn on_session_login_requested(
     let proxy = app.proxy.clone();
     let cancel = app.state.install_cancel(CancelScope::Login);
     let http = app.ctx.http.clone();
-    // Why: the proxy only serves a cached token bound to its own session id.
-    // Minting under a throwaway id would leave the proxy unable to use the
-    // session the user just granted, and it would report a sign-in as needed
-    // moments after one succeeded.
     let session_id = app
         .ctx
         .proxy

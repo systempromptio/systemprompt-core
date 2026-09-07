@@ -39,11 +39,8 @@ pub(crate) fn set_app_user_model_id(aumid: &str) {
     }
 }
 
-// Why: `CREATE_NO_WINDOW` is documented as invalid alongside `DETACHED_PROCESS`
-// or `CREATE_NEW_CONSOLE`; it must stand alone or the console it was meant to
-// suppress is created anyway. The bridge is a `windows_subsystem = "windows"`
-// binary with no console of its own, so every console child it spawns without
-// this flag gets a brand-new window that takes the foreground.
+// Why: Windows ignores CREATE_NO_WINDOW when combined with DETACHED_PROCESS or
+// CREATE_NEW_CONSOLE.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub(crate) fn no_window(cmd: &mut Command) -> &mut Command {
@@ -146,8 +143,8 @@ fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-// Why: CommandLineToArgvW quoting — the child reconstructs argv from this one
-// string.
+// Why: Windows reconstructs argv from one command-line string using
+// CommandLineToArgvW quoting.
 fn quote_arg(arg: &str) -> String {
     if !arg.is_empty() && !arg.contains([' ', '\t', '"']) {
         return arg.to_owned();

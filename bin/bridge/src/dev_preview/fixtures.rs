@@ -28,8 +28,6 @@ pub fn names(web_root: &Path) -> Vec<String> {
 }
 
 pub fn load(web_root: &Path, name: &str) -> Option<String> {
-    // Why: the name arrives straight off the query string, so it is rejected
-    // rather than joined onto a path.
     if !name
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')

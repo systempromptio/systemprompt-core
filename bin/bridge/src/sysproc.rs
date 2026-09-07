@@ -212,10 +212,6 @@ mod linux {
     }
 }
 
-// Why: every CLI host answers "is it running?" the same way — by binary name,
-// with the `.exe` suffix on Windows and the `.app` bundle on macOS. Three
-// hosts carried three byte-identical copies of this, which is how a fix to
-// one would have missed the other two.
 #[must_use]
 pub(crate) fn find_processes(binary: &str) -> Vec<String> {
     let exe = format!("{binary}.exe");

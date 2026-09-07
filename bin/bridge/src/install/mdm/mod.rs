@@ -61,8 +61,6 @@ pub(crate) fn apply_mdm(
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
-    // Why: the Linux snippet embeds neither the loopback endpoint nor the
-    // egress allowlist; Windows carries MCP through `refresh_managed_mcp_servers`.
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let _ = mcp;
     match os {
@@ -84,8 +82,6 @@ pub(crate) fn apply_mdm(
     }
 }
 
-// Why: Claude's hive is Claude's; the value Cowork does not know is the
-// bridge's own supply-chain pin, so it is written under the brand's key.
 #[must_use]
 pub fn bridge_policy_values(pubkey: Option<&str>) -> Vec<(&'static str, &'static str, String)> {
     pubkey
@@ -106,9 +102,6 @@ pub use crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY as LEGACY_PUBKEY_KEY;
     reason = "{gateway} is a template placeholder consumed by str::replace, not a fmt arg"
 )]
 pub fn snippet(os: Os, gateway_url: Option<&str>) -> String {
-    // Why: the fallback has to be the gateway the bridge would actually use, so
-    // an admin never pastes a host this build never talks to -- and a
-    // white-label prints its own gateway rather than systemprompt's.
     let gateway = gateway_url.unwrap_or_else(|| crate::brand::brand().default_gateway_url);
     match os {
         Os::Mac => MDM_MACOS_SNIPPET_TMPL

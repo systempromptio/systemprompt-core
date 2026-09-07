@@ -13,12 +13,6 @@ use crate::validate::{CheckLine, ValidationCode, ValidationReport};
 use crate::verdict::{Tone, Verdict};
 use crate::wire::codes::GatewayCode;
 
-// Why: The one place the auth verdict crosses to the UI.
-//
-// Why computed here rather than re-derived in JavaScript: the front end used
-// to test the state name itself, against a variant that does not exist, and
-// so declared every healthy server broken. Shipping the verdict beside the
-// state leaves the UI nothing to get wrong.
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]

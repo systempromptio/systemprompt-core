@@ -66,8 +66,6 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
 }
 
 fn emit_codex(ctx: &BridgeContext) -> ExitCode {
-    // Why: Codex authenticates against the loopback proxy, not the upstream
-    // gateway, so it needs the loopback secret.
     let secret = match ctx.proxy.loopback().secret() {
         Ok(s) => s,
         Err(e) => {
@@ -80,8 +78,8 @@ fn emit_codex(ctx: &BridgeContext) -> ExitCode {
             return ExitCode::from(70);
         },
     };
-    // Why: Codex forwards helper stdout verbatim as `Authorization: Bearer
-    // <stdout>`, so this must be the bare secret, not JSON.
+    // Why: Codex forwards helper stdout as the bearer credential, so it must be a
+    // bare secret.
     println!("{}", secret.as_str());
     ExitCode::SUCCESS
 }

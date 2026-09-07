@@ -24,9 +24,6 @@ pub(crate) fn on_model_filter_set_requested(
     protocols: Option<Vec<String>>,
     reply_to: ReplyId,
 ) {
-    // Why: the filter is a gateway-side preference, but it is stored per host,
-    // and an agent with no local host entry has nothing to store it against —
-    // so it is accepted as a no-op rather than reported as an unknown id.
     if crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "model filter", reply_to)
         .is_none()
     {

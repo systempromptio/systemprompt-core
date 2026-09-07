@@ -77,8 +77,6 @@ impl MarketplaceMembership {
     }
 }
 
-// Why: an empty `include:` means "every entry"; validation rejects an explicit
-// component ref with an empty include, so empty here is never "nothing".
 fn select<'a, T>(items: &'a [T], include: &[String], id_of: impl Fn(&T) -> &str) -> Vec<&'a T> {
     if include.is_empty() {
         return items.iter().collect();

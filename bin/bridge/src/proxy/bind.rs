@@ -59,8 +59,6 @@ pub(super) fn bind_candidate(
             }
         }
 
-        // Why: bind anyway even after a clean probe — another process can take
-        // the port between the two calls.
         match rt.block_on(server::try_bind(port)) {
             Ok(l) => return Bind::Listener(l),
             Err(e) => {
@@ -104,8 +102,6 @@ pub(super) fn persist_and_announce(port: u16, ours: &InstallId) {
 pub(super) fn portfile_port(ours: &InstallId) -> Option<u16> {
     let record = portfile::read(ours)?;
     match peer::probe_identity(record.port, ours) {
-        // Why: down, or answering without identifying itself, still leaves the
-        // record the best guess — the port is sticky by design.
         PeerIdentity::Ours(_) | PeerIdentity::Unreachable | PeerIdentity::Unknown => {
             Some(record.port)
         },

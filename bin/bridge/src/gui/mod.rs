@@ -46,9 +46,8 @@ use crate::stdio::diag;
 
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 
-// Why: winit 0.31 removed generic user events — an `EventLoopProxy` can only
-// `wake_up()` the loop, carrying no payload, so the queue here is what actually
-// transports a `UiEvent`.
+// Why: winit 0.31 EventLoopProxy can wake the loop but cannot carry an event
+// payload.
 #[derive(Clone, Debug)]
 pub(crate) struct UiEventProxy {
     proxy: EventLoopProxy,
@@ -122,8 +121,6 @@ pub fn run(ctx: Arc<BridgeContext>) -> ExitCode {
                 ));
             }
         },
-        // Why: a sibling window of this same install already serves the port.
-        // Keep running — the GUI is still useful against that proxy.
         ProxyRole::AlreadyRunning {
             port, config_dir, ..
         } => {

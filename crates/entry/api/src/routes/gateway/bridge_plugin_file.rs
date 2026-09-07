@@ -49,11 +49,6 @@ pub async fn handle(
         (StatusCode::NOT_FOUND, "Plugin not found".to_owned())
     })?;
 
-    // Why: authentication is not authorization. The signed manifest is assembled
-    // per user and omits a plugin the caller's roles do not grant, but the
-    // bytes are served from this endpoint — so without the same scoping here,
-    // any valid token could pull an admin plugin's bundle by path and read the
-    // skills and dashboards its manifest never offered.
     if !plugin_is_granted(&ctx, &id, &user.id).await? {
         tracing::warn!(
             plugin_id = %plugin_id,
@@ -96,9 +91,6 @@ async fn authenticate(
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))
 }
 
-// Why: goes through the same `ManifestService` + marketplace filter as the
-// manifest endpoint, so the two can never disagree about what a role was
-// granted.
 async fn plugin_is_granted(
     ctx: &AppContext,
     plugin_id: &PluginId,

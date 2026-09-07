@@ -12,10 +12,7 @@ use crate::services::DatabaseProvider;
 
 const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
 
-// Why: `pg_advisory_lock` is session-scoped — only the backend that acquired
-// the lock can release it, so the guard pins one `PoolConnection` for the
-// install's lifetime and acquire/release run on the same session. Non-Postgres
-// providers skip locking; bootstrap concurrency is a Postgres-only concern.
+// Why: only the acquiring Postgres session can release its advisory locks.
 pub(crate) struct BootstrapLockGuard {
     conn: Option<PoolConnection<Postgres>>,
 }

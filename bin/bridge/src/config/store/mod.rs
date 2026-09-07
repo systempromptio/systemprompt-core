@@ -68,15 +68,10 @@ pub trait ConfigStore: Send + Sync {
 
 pub const MANIFEST_PUBKEY_KEY: &str = "manifestPubkey";
 
-// Why: where the same key used to live, inside Claude's own policy hive. Sync
-// clears it and `validate` warns while one remains, so it is named from both
-// `install` and `validate` — it belongs beside its replacement, below both.
 pub const LEGACY_MANIFEST_PUBKEY_KEY: &str = "inferenceManifestPubkey";
 
-// Why: the manifest pubkey used to ride in Claude's own policy hive as
-// `inferenceManifestPubkey`. Claude Desktop 1.44121 logs it as an unrecognized
-// key and ignores it; a later build may reject the hive. It is the bridge's
-// policy, so it lives under a bridge-owned location keyed by the brand.
+// Why: Claude Desktop 1.44121 logs inferenceManifestPubkey as an unrecognized
+// policy key.
 #[must_use]
 pub fn bridge_policy_subkey() -> String {
     format!(r"SOFTWARE\Policies\{}", crate::brand::brand().config_dir)

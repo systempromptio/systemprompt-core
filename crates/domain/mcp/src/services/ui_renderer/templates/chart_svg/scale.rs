@@ -32,8 +32,6 @@ impl Scale {
                 ((value - self.min) / span).clamp(0.0, 1.0)
             },
             ScaleKind::Logarithmic => {
-                // Why: A log axis cannot place zero or a negative, so anything at or
-                // below the floor sits on it rather than vanishing.
                 if value <= 0.0 || self.min <= 0.0 {
                     return 0.0;
                 }
@@ -54,8 +52,6 @@ impl Scale {
                     .map(|i| step.mul_add(i as f64, self.min))
                     .collect()
             },
-            // Why: One tick per decade: the whole point of a log axis is that the
-            // decades are evenly spaced.
             ScaleKind::Logarithmic => {
                 let lo = self.min.log10().round() as i32;
                 let hi = self.max.log10().round() as i32;
@@ -85,7 +81,6 @@ fn logarithmic(datasets: &[ChartDataset]) -> Option<Scale> {
         return None;
     }
 
-    // Why: Snap out to whole decades so the ticks land on powers of ten.
     let min = 10f64.powf(raw_min.log10().floor());
     let max = 10f64.powf(raw_max.log10().ceil());
     let max = if (max - min).abs() < f64::EPSILON {
