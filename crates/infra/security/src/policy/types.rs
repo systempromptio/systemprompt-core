@@ -170,4 +170,7 @@ pub trait GovernancePolicy: Send + Sync + fmt::Debug {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision;
+    fn prompt_secret_findings(&self, _input: &GovernedInput) -> Vec<super::secrets::SecretFinding> {
+        Vec::new()
+    }
 }

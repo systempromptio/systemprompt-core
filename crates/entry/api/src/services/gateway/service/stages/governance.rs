@@ -97,17 +97,19 @@ pub(super) struct PromptEvaluation {
     pub(super) evaluation: Evaluation,
     pub(super) call_id: CallId,
     pub(super) session_id: SessionId,
+    pub(super) recovery_count: usize,
+    pub(super) recovery_locations: Vec<String>,
 }
 
 pub(super) fn evaluate_prompt(
     ctx: &GatewayRequestContext,
-    request: &CanonicalRequest,
+    request: &mut CanonicalRequest,
+    body: &mut super::super::super::protocol::outbound::PreparedBody,
 ) -> Result<PromptEvaluation, systemprompt_security::policy::GovernanceEngineError> {
-    let input = GovernedInput::prompt_parts(request.flatten_parts());
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
-
-    let evaluation = GovernanceEngine::global()?.evaluate(&PolicyContext {
+    let input = GovernedInput::prompt_parts([]);
+    let policy_ctx = PolicyContext {
         target: GovernedTarget::Prompt,
         agent_scope: AgentScope::User {
             user_id: ctx.user_id.clone(),
@@ -117,11 +119,18 @@ pub(super) fn evaluate_prompt(
         user_id: &ctx.user_id,
         input: &input,
         call_id: &call_id,
-    });
+    };
+    let super::recovery::PromptRecovery {
+        evaluation,
+        recovery_count,
+        recovery_locations,
+    } = super::recovery::govern_prompt(GovernanceEngine::global()?, &policy_ctx, request, body);
 
     Ok(PromptEvaluation {
         evaluation,
         call_id,
         session_id,
+        recovery_count,
+        recovery_locations,
     })
 }

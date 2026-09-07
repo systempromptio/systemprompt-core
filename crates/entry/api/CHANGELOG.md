@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Recover gateway conversations by sanitizing detected secrets in the exact provider-bound payload, including resent system prompts and history. Preserve tool-call pairing and signed payloads, recheck repaired content before forwarding, audit sanitization, and report `x-systemprompt-recovery-count` on buffered and streaming responses. Unsafe repairs and incomplete inspection return `prompt_repair_required` guidance. Enforced MCP actions remain blocked; warn-only and disabled policies retain their behavior.
 - Enforce and audit the governance policy chain before forwarding external MCP tool calls.
 - Validate external MCP session ownership across replicas and preserve bindings when upstream deletion fails.
 

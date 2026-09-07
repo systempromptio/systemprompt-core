@@ -160,6 +160,15 @@ async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operat
         "{message}"
     );
     assert!(message.contains("prompt.text"), "{message}");
+    assert_eq!(
+        parsed["error"]["recovery"]["code"],
+        "prompt_repair_required"
+    );
+    assert_eq!(parsed["error"]["recovery"]["retryable"], false);
+    assert_eq!(
+        parsed["error"]["recovery"]["locations"],
+        serde_json::json!(["provider_payload"])
+    );
 }
 
 #[test]
@@ -447,4 +456,23 @@ fn coverage_invalid_upstream_headers_fall_back_to_a_classified_rejection() {
         assert!(!rejection.message.contains("bad\nheader"));
         assert!(rejection.status.is_client_error() || rejection.status == StatusCode::BAD_GATEWAY);
     }
+}
+
+#[tokio::test]
+async fn prompt_repair_error_reports_the_affected_provider_field() {
+    let error = systemprompt_api::services::gateway::service::PromptRepairRequired {
+        message: "Secret content could not be safely sanitized".to_owned(),
+        locations: vec!["forwarded.$.messages[0].id".to_owned()],
+    };
+    let response = map_dispatch_error(DispatchError::Recorded(error.into())).unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = axum::body::to_bytes(response.into_body(), 4096)
+        .await
+        .unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(value["error"]["recovery"]["code"], "prompt_repair_required");
+    assert_eq!(
+        value["error"]["recovery"]["locations"][0],
+        "forwarded.$.messages[0].id"
+    );
 }

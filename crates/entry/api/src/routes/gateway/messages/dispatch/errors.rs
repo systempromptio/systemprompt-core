@@ -11,7 +11,8 @@ use axum::response::{IntoResponse, Response};
 use crate::services::gateway::image_fetch::ImageFetchFailed;
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{
-    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
+    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
+    QuotaExceeded, SafetyBlocked,
 };
 
 use super::RejectionError;
@@ -101,7 +102,16 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             &forbidden.message,
         ));
     }
+    if let Some(repair) = inner.downcast_ref::<PromptRepairRequired>() {
+        return Ok(build_prompt_repair(&repair.message, &repair.locations));
+    }
     if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
+        if denied.policy == "secret_scan" {
+            return Ok(build_prompt_repair(
+                &denied.message,
+                &["provider_payload".to_owned()],
+            ));
+        }
         return Ok(build_policy_denial(&denied.message));
     }
     if let Some(image) = inner.downcast_ref::<ImageFetchFailed>() {
@@ -139,6 +149,12 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
     )
 )]
 pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
+    if let Some(repair) = e.downcast_ref::<PromptRepairRequired>() {
+        return (
+            StatusCode::BAD_REQUEST,
+            policy_denial_message(&repair.message),
+        );
+    }
     if let Some(denied) = e.downcast_ref::<PolicyDenied>() {
         return (
             StatusCode::BAD_REQUEST,
@@ -229,4 +245,20 @@ pub fn build_error_response(status: StatusCode, error_type: &str, message: &str)
         })),
     )
         .into_response()
+}
+
+fn build_prompt_repair(message: &str, locations: &[String]) -> Response<Body> {
+    (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+        "type": "error",
+        "error": {
+            "type": ERROR_TYPE_INVALID_REQUEST,
+            "message": policy_denial_message(message),
+            "recovery": {
+                "code": "prompt_repair_required",
+                "locations": locations,
+                "retryable": false,
+                "action": "Remove secret-bearing content, correct system instructions, or shorten the conversation before retrying"
+            }
+        }
+    }))).into_response()
 }

@@ -21,6 +21,9 @@ pub mod test_api {
     pub use super::finalize::safety::blocks_at_phase;
     pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
     pub use super::resolve::{describe_route_match, enforce_route_requirements};
+    pub use super::stages::recovery::{
+        PromptRecovery, attach_recovery_count, govern_prompt, repair_prompt,
+    };
 }
 
 use std::sync::Arc;
@@ -45,6 +48,7 @@ use super::protocol::inbound::InboundAdapter;
 use super::quota;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
+pub const RECOVERY_COUNT_HEADER: &str = "x-systemprompt-recovery-count";
 
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayService;
@@ -91,6 +95,13 @@ pub struct GuardForbidden {
 pub struct GovernanceDenied {
     pub policy: String,
     pub message: String,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct PromptRepairRequired {
+    pub message: String,
+    pub locations: Vec<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -167,7 +178,7 @@ impl GatewayService {
 
         let outcome = scanned.send(&upstream, &forward_headers, &audit).await?;
 
-        let response = finalize(
+        let mut response = finalize(
             outcome,
             FinalizeCtx {
                 audit: Arc::clone(&audit),
@@ -181,6 +192,7 @@ impl GatewayService {
             },
         )
         .await;
+        stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
         Ok(attach_request_id(response, &ai_request_id))
     }
 }

@@ -19,6 +19,7 @@
 
 mod entropy;
 mod patterns;
+mod recovery;
 mod signatures;
 
 use std::sync::LazyLock;
@@ -29,6 +30,10 @@ use super::governed::GovernedInput;
 pub use entropy::{DEFAULT_MIN_LEN, DEFAULT_THRESHOLD, EntropyConfig, find_high_entropy_token};
 use patterns::HIGH_ENTROPY_PATTERN;
 pub use patterns::{SECRET_PATTERNS, SecretPattern};
+pub use recovery::{
+    MAX_RECOVERY_FINDINGS, REDACTION_MARKER, SecretFinding, SecretSource, redact_spans,
+    secret_findings,
+};
 pub use signatures::SignatureExemptions;
 
 static DEFAULT_ENTROPY: LazyLock<EntropyConfig> = LazyLock::new(EntropyConfig::default);

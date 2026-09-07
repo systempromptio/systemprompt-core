@@ -13,6 +13,8 @@
 
 mod governance;
 mod outbound;
+pub(super) mod recovery;
+mod recovery_canonical;
 
 use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;
@@ -20,7 +22,6 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::inspect;
 use systemprompt_security::authz::types::Decision;
 use systemprompt_security::policy::ChainEntryResult;
 
@@ -37,7 +38,7 @@ use super::finalize::{
     apply_system_prompt_override, request_finding_blocks, run_request_safety_scan,
 };
 use super::resolve::ResolvedUpstream;
-use super::{DispatchError, GovernanceDenied, SafetyBlocked};
+use super::{DispatchError, GovernanceDenied, PromptRepairRequired, SafetyBlocked};
 
 pub(super) struct UpstreamRelay<'a> {
     pub raw_body: &'a Bytes,
@@ -49,6 +50,7 @@ pub(super) struct PreparedDispatch {
     upstream_model: String,
     model_limits: Option<ModelLimits>,
     body: PreparedBody,
+    recovery_count: usize,
 }
 
 pub(super) struct GovernedDispatch(PreparedDispatch);
@@ -105,28 +107,19 @@ impl PreparedDispatch {
             .map_err(DispatchError::Recorded)?;
         audit.set_prepared_body_digest(&body.bytes).await;
 
-        let surface = inspect::string_leaves(&body.bytes, inspect::SurfaceBudget::default());
-        if surface.truncated() {
-            tracing::warn!(
-                ai_request_id = %audit.ctx.ai_request_id,
-                leaves = surface.len(),
-                "Gateway inspection surface truncated — part of the forwarded body was not scanned"
-            );
-        }
-        request.forwarded_surface = surface;
-
         Ok(Self {
             request,
             upstream_model,
             model_limits,
             body,
+            recovery_count: 0,
         })
     }
 }
 
 impl GovernedDispatch {
     pub(super) async fn enforce(
-        prepared: PreparedDispatch,
+        mut prepared: PreparedDispatch,
         db: &DbPool,
         ctx: &GatewayRequestContext,
         audit: &GatewayAudit,
@@ -135,8 +128,17 @@ impl GovernedDispatch {
             evaluation,
             call_id,
             session_id,
-        } = evaluate_prompt(ctx, &prepared.request)
+            recovery_count,
+            recovery_locations,
+        } = evaluate_prompt(ctx, &mut prepared.request, &mut prepared.body)
             .map_err(|error| DispatchError::PreAudit(error.into()))?;
+
+        prepared.recovery_count = recovery_count;
+        if recovery_count > 0 {
+            audit.set_prepared_body_digest(&prepared.body.bytes).await;
+            tracing::warn!(ai_request_id = %ctx.ai_request_id, recovery_count, locations = ?recovery_locations,
+                "Gateway sanitized secret-bearing prompt content");
+        }
 
         #[expect(
             clippy::match_same_arms,
@@ -146,6 +148,8 @@ impl GovernedDispatch {
         let denied = match &evaluation.decision {
             Decision::Allow { .. } => None,
             Decision::Warn { .. } => None,
+            Decision::Deny { reason: systemprompt_security::authz::types::DenyReason::SecretLeak { .. } } =>
+                Some("Secret content could not be safely sanitized; remove the affected content or restart with a corrected system prompt".to_owned()),
             Decision::Deny { reason } => Some(reason.to_string()),
             Decision::Pending { reason } => Some(reason.to_string()),
         };
@@ -172,6 +176,19 @@ impl GovernedDispatch {
         );
         if let Err(e) = audit.fail(&reason).await {
             tracing::warn!(error = %e, "governance-deny audit fail failed");
+        }
+        if policy == "secret_scan" {
+            return Err(DispatchError::Recorded(
+                PromptRepairRequired {
+                    message: reason,
+                    locations: if recovery_locations.is_empty() {
+                        vec!["provider_payload".to_owned()]
+                    } else {
+                        recovery_locations
+                    },
+                }
+                .into(),
+            ));
         }
         Err(DispatchError::Recorded(
             GovernanceDenied {
@@ -222,6 +239,10 @@ impl ScannedDispatch {
             }
             .into(),
         ))
+    }
+
+    pub(super) const fn recovery_count(&self) -> usize {
+        self.0.recovery_count
     }
 
     pub(super) fn request_model(&self) -> &str {

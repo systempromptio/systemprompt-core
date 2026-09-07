@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add located secret findings and an opt-in prompt-recovery evaluator that resumes the configured chain after verified sanitization without recharging earlier policies. Existing deny-only evaluation remains unchanged. Remove whole values for prefix-only credential patterns and custom rules when a safe secret boundary is unavailable.
+
 ## [0.47.0] - 2026-09-06
 
 ### Added

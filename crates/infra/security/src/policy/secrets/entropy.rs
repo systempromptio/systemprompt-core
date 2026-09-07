@@ -71,6 +71,14 @@ pub fn find_high_entropy_token<'a>(text: &'a str, config: &EntropyConfig) -> Opt
         .find(|token| is_credential_shaped(token, config))
 }
 
+pub(super) fn high_entropy_tokens<'a>(
+    text: &'a str,
+    config: &'a EntropyConfig,
+) -> impl Iterator<Item = &'a str> {
+    text.split(|c: char| c.is_whitespace() || TOKEN_DELIMITERS.contains(c))
+        .filter(move |token| config.enabled && is_credential_shaped(token, config))
+}
+
 fn is_credential_shaped(token: &str, config: &EntropyConfig) -> bool {
     has_credential_shape(token, config)
         && !config.allowlist.iter().any(|re| re.is_match(token))

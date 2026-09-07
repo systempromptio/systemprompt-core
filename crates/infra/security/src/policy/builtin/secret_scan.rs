@@ -179,6 +179,30 @@ impl GovernancePolicy for SecretScan {
         "Block a tool call or submitted prompt containing an AWS key, GitHub PAT, \
          PEM block, connection string, or other plaintext credential pattern."
     }
+    fn prompt_secret_findings(
+        &self,
+        input: &super::super::GovernedInput,
+    ) -> Vec<super::super::secrets::SecretFinding> {
+        use super::super::secrets::{
+            MAX_RECOVERY_FINDINGS, SecretFinding, SecretSource, secret_findings,
+        };
+        let mut findings = secret_findings(input, &self.entropy);
+        for (part_index, found) in input.strings().iter().enumerate() {
+            for extra in &self.extra_patterns {
+                if found.value.contains(&extra.prefix) {
+                    findings.push(SecretFinding {
+                        source: SecretSource { part_index },
+                        span: 0..found.value.len(),
+                        pattern_id: SecretPatternId::new(extra.id.clone()),
+                    });
+                    if findings.len() > MAX_RECOVERY_FINDINGS {
+                        return findings;
+                    }
+                }
+            }
+        }
+        findings
+    }
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         let kind = ctx.input.location_kind();
         if let Some(hit) = detect_secrets_with(ctx.input, &self.entropy) {
