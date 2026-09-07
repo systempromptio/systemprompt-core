@@ -135,7 +135,8 @@ impl GovernedDispatch {
             evaluation,
             call_id,
             session_id,
-        } = evaluate_prompt(ctx, &prepared.request);
+        } = evaluate_prompt(ctx, &prepared.request)
+            .map_err(|error| DispatchError::PreAudit(error.into()))?;
 
         #[expect(
             clippy::match_same_arms,

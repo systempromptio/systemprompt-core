@@ -18,6 +18,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
+use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
@@ -124,6 +125,8 @@ impl AppContextBuilder {
             &database,
         )
         .await?;
+
+        GovernanceEngine::global()?;
 
         let assembly::ContentAnalytics {
             geoip_reader,

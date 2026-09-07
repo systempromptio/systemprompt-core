@@ -8,7 +8,7 @@ fn defaults_declare_the_four_builtins_in_order() {
     let ids: Vec<&str> = cfg.policies.iter().map(|p| p.id.as_str()).collect();
     assert_eq!(
         ids,
-        ["secret_scan", "scope_check", "tool_blocklist", "rate_limit"]
+        ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
     );
     assert!(cfg.policies.iter().all(|p| p.enabled));
     assert!(cfg.enabled);

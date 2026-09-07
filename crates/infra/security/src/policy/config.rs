@@ -132,7 +132,7 @@ pub struct GovernanceConfig {
 impl GovernanceConfig {
     #[must_use]
     pub fn defaults() -> Self {
-        let policies = ["secret_scan", "scope_check", "tool_blocklist", "rate_limit"]
+        let policies = ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
             .into_iter()
             .map(|id| PolicyConfig {
                 id: id.to_owned(),

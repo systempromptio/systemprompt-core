@@ -24,6 +24,7 @@ use std::sync::LazyLock;
 
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::PolicyId;
+use thiserror::Error;
 
 use super::audit::{ChainEntryOutcome, ChainEntryResult};
 use super::config::{GovernanceConfig, PolicyConfig, PolicyMode};
@@ -37,6 +38,14 @@ use crate::authz::types::{Decision, DenyReason, MatchedBy};
 pub struct Evaluation {
     pub decision: Decision,
     pub chain: Vec<ChainEntryOutcome>,
+}
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum GovernanceEngineError {
+    #[error(
+        "governance config names policy `{id}`, but no implementation is linked into this binary"
+    )]
+    UnknownPolicyId { id: String },
 }
 
 struct ChainEntry {
@@ -66,17 +75,17 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
-    pub fn global() -> &'static Self {
-        static ENGINE: LazyLock<GovernanceEngine> = LazyLock::new(|| {
-            let config = governance_config_path()
-                .map_or_else(GovernanceConfig::defaults, |p| GovernanceConfig::load(&p));
-            GovernanceEngine::from_config(&config)
-        });
-        &ENGINE
+    pub fn global() -> Result<&'static Self, GovernanceEngineError> {
+        static ENGINE: LazyLock<Result<GovernanceEngine, GovernanceEngineError>> =
+            LazyLock::new(|| {
+                let config = governance_config_path()
+                    .map_or_else(GovernanceConfig::defaults, |p| GovernanceConfig::load(&p));
+                GovernanceEngine::from_config(&config)
+            });
+        ENGINE.as_ref().map_err(Clone::clone)
     }
 
-    #[must_use]
-    pub fn from_config(config: &GovernanceConfig) -> Self {
+    pub fn from_config(config: &GovernanceConfig) -> Result<Self, GovernanceEngineError> {
         if !config.enabled {
             tracing::warn!(
                 "governance is DISABLED by config: no scope, secret, blocklist or rate-limit \
@@ -88,15 +97,17 @@ impl GovernanceEngine {
                 .map(|r| (r.id, r.factory))
                 .collect();
 
+        for cfg in &config.policies {
+            if !factories.contains_key(cfg.id.as_str()) {
+                return Err(GovernanceEngineError::UnknownPolicyId { id: cfg.id.clone() });
+            }
+        }
+
         let mut entries = Vec::with_capacity(config.policies.len());
         for cfg in &config.policies {
-            let Some(factory) = factories.get(cfg.id.as_str()) else {
-                tracing::warn!(
-                    policy = %cfg.id,
-                    "governance policy in config has no registered impl — skipping"
-                );
-                continue;
-            };
+            let factory = factories
+                .get(cfg.id.as_str())
+                .ok_or_else(|| GovernanceEngineError::UnknownPolicyId { id: cfg.id.clone() })?;
             entries.push(ChainEntry {
                 config: cfg.clone(),
                 instance: factory(&cfg.params),
@@ -121,10 +132,10 @@ impl GovernanceEngine {
             });
         }
 
-        Self {
+        Ok(Self {
             enabled: config.enabled,
             entries,
-        }
+        })
     }
 
     pub fn policies(&self) -> impl Iterator<Item = (&PolicyConfig, &dyn GovernancePolicy)> {

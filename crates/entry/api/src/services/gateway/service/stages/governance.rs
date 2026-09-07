@@ -102,12 +102,12 @@ pub(super) struct PromptEvaluation {
 pub(super) fn evaluate_prompt(
     ctx: &GatewayRequestContext,
     request: &CanonicalRequest,
-) -> PromptEvaluation {
+) -> Result<PromptEvaluation, systemprompt_security::policy::GovernanceEngineError> {
     let input = GovernedInput::prompt_parts(request.flatten_parts());
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
 
-    let evaluation = GovernanceEngine::global().evaluate(&PolicyContext {
+    let evaluation = GovernanceEngine::global()?.evaluate(&PolicyContext {
         target: GovernedTarget::Prompt,
         agent_scope: AgentScope::User {
             user_id: ctx.user_id.clone(),
@@ -119,9 +119,9 @@ pub(super) fn evaluate_prompt(
         call_id: &call_id,
     });
 
-    PromptEvaluation {
+    Ok(PromptEvaluation {
         evaluation,
         call_id,
         session_id,
-    }
+    })
 }

@@ -10,7 +10,8 @@ use systemprompt_security::policy::{
 };
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap())
+    let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
+    GovernanceEngine::from_config(&config).expect("registered test governance policies")
 }
 
 struct Call {
