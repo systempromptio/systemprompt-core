@@ -42,9 +42,9 @@ pub fn filter_skills_for_host(
     skills: &[crate::gateway::manifest::SkillEntry],
     host: &str,
 ) -> Result<(), ApplyError> {
-    let allowed: std::collections::HashSet<String> = skills
+    let excluded: std::collections::HashSet<String> = skills
         .iter()
-        .filter(|skill| skill.hosts.is_empty() || skill.hosts.iter().any(|id| id == host))
+        .filter(|skill| !skill.hosts.is_empty() && !skill.hosts.iter().any(|id| id == host))
         .map(|skill| skill.id.as_str().replace('_', "-"))
         .collect();
     let path = root.join("skills");
@@ -55,7 +55,7 @@ pub fn filter_skills_for_host(
     };
     for entry in entries {
         let entry = entry.map_err(|error| io_err("read skill entry", error))?;
-        if !allowed.contains(entry.file_name().to_string_lossy().as_ref()) {
+        if excluded.contains(entry.file_name().to_string_lossy().as_ref()) {
             let file_type = entry
                 .file_type()
                 .map_err(|error| io_err("stat skill entry", error))?;
