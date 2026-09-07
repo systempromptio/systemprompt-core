@@ -62,6 +62,12 @@ echo "shard $group: $PKGS"
 # prebuild it once so subprocess fixtures never pay for (or time out on) a
 # cold `cargo build` inside a running test.
 case "$group" in
+  bridge)
+    echo "==> Prebuilding bridge binary for subprocess tests"
+    cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
+    bridge_target_dir=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+    export SP_BRIDGE_BIN="$bridge_target_dir/debug/systemprompt-bridge"
+    ;;
   entry-cli|integration-api|integration-cli|integration-rest*)
     echo "==> Prebuilding systemprompt binary for subprocess tests"
     cargo build -p systemprompt-cli --bin systemprompt
