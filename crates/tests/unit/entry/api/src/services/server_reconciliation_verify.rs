@@ -119,8 +119,8 @@ async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
 
     let error = verify_database_registration(&[required(&name)], &ctx)
         .await
-        .err()
-        .expect("an unregistered required server must not be allowed through");
+        .map(|_| ())
+        .expect_err("an unregistered required server must not be allowed through");
 
     let message = error.to_string();
     assert!(
@@ -139,8 +139,8 @@ async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_
 
     let error = verify_database_registration(&[required(&name)], &ctx)
         .await
-        .err()
-        .expect("a row that is not `running` is not a started server");
+        .map(|_| ())
+        .expect_err("a row that is not `running` is not a started server");
 
     let message = error.to_string();
     assert!(
@@ -162,8 +162,8 @@ async fn every_failing_server_is_reported_not_just_the_first() {
 
     let error = verify_database_registration(&[required(&missing), required(&stopped)], &ctx)
         .await
-        .err()
-        .expect("two failing servers is still a failure");
+        .map(|_| ())
+        .expect_err("two failing servers is still a failure");
 
     let message = error.to_string();
     assert!(
@@ -183,8 +183,8 @@ async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
 
     let error = verify_database_registration(&[required(&name)], &ctx)
         .await
-        .err()
-        .expect("a database that cannot be read cannot confirm anything");
+        .map(|_| ())
+        .expect_err("a database that cannot be read cannot confirm anything");
 
     let message = error.to_string();
     assert!(
@@ -206,8 +206,8 @@ async fn a_required_server_that_never_started_is_named_in_the_refusal() {
 
     let error = handle_missing_servers(&[required(&name)], &ctx)
         .await
-        .err()
-        .expect("a required server that is not running must fail startup");
+        .map(|_| ())
+        .expect_err("a required server that is not running must fail startup");
 
     let message = error.to_string();
     assert!(
@@ -230,8 +230,8 @@ async fn several_servers_that_never_started_are_all_named() {
 
     let error = handle_missing_servers(&[required(&first), required(&second)], &ctx)
         .await
-        .err()
-        .expect("two missing servers is still a failure");
+        .map(|_| ())
+        .expect_err("two missing servers is still a failure");
 
     let message = error.to_string();
     assert!(

@@ -13,8 +13,8 @@ use std::collections::HashMap;
 
 use axum::body::Body;
 use axum::extract::Request;
-use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use axum::response::Response;
+use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::client::McpClient;
 use systemprompt_mcp::{McpDomainError, McpServerConfig};
@@ -64,10 +64,26 @@ impl ProxyEngine {
 
         let method_str = request.method().to_string();
         let incoming_headers = request.headers().clone();
+        let sessions = super::external_sessions::SessionGuard::new(
+            &self.identities,
+            service_name,
+            &req_ctx,
+            &target.headers,
+        );
+        if let Some(session) = incoming_headers.get("mcp-session-id")
+            && !sessions.accepts(session).await?
+        {
+            return Ok((
+                StatusCode::NOT_FOUND,
+                "MCP session expired; initialize again",
+            )
+                .into_response());
+        }
         let body = RequestBuilder::extract_body(request.into_body())
             .await
             .map_err(|source| ProxyError::BodyExtractionFailed { source })?;
 
+        super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
         let audit = build_audit(self.tool_usage_repo.as_ref(), &req_ctx, service_name, &body);
         let outbound = outbound_headers(&incoming_headers, target.headers);
 
@@ -83,6 +99,13 @@ impl ProxyEngine {
                 source,
             })?;
 
+        if method_str == "DELETE" {
+            if response.status().is_success() || response.status() == StatusCode::NOT_FOUND {
+                sessions.forget(&incoming_headers).await?;
+            }
+        } else if response.status().is_success() {
+            sessions.remember(response.headers()).await?;
+        }
         let to_invalid = |reason| ProxyError::InvalidResponse {
             service: service_name.to_owned(),
             reason,

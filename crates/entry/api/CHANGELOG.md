@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Enforce and audit the governance policy chain before forwarding external MCP tool calls.
+- Validate external MCP session ownership across replicas and preserve bindings when upstream deletion fails.
+
 ## [0.47.0] - 2026-09-06
 
 ### Added

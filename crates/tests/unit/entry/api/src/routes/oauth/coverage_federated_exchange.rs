@@ -87,7 +87,7 @@ async fn coverage_id_jag_issuance_binds_subject_client_resource_and_scope() {
         validation.set_audience(&[audience.unwrap_or(&config.jwt_issuer)]);
         validation.set_issuer(&[&config.jwt_issuer]);
         let decoded = decode::<Value>(
-            &response.access_token.to_string(),
+            &response.access_token,
             &DecodingKey::from_jwk(&jwk).unwrap(),
             &validation,
         )

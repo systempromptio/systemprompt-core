@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Persist external MCP session bindings in PostgreSQL with caller and credential checks, expiry, and primary-only reads.
+- Authenticate bearer-accessor requests with the optional credential broker secret.
+
 ## [0.47.0] - 2026-09-06
 
 ### Changed

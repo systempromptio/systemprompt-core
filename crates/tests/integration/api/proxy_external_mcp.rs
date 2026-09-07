@@ -138,7 +138,6 @@ fn proxied_post(service: &str, body: String, ctx: Option<RequestContext>) -> Req
         .method(http::Method::POST)
         .uri(format!("/{service}/mcp"))
         .header("content-type", "application/json")
-        .header("mcp-session-id", "sess-ext-1")
         .header("x-secret", "must-not-forward");
     if let Some(rc) = ctx {
         builder = builder.extension(rc);
@@ -189,7 +188,6 @@ async fn external_tools_call_mints_bearer_forwards_and_audits() -> anyhow::Resul
         .and(path("/provider/mcp"))
         .and(header("authorization", format!("Bearer {PROVIDER_BEARER}")))
         .and(header("x-provider-static", "static-val"))
-        .and(header("mcp-session-id", "sess-ext-1"))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/json")
@@ -428,6 +426,174 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
         Some("proxy-test-agent"),
         "the caller's agent name reaches the backend; the reverse proxy does not \
          substitute the callee server's name for it"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn external_secret_is_denied_before_provider_receives_call() -> anyhow::Result<()> {
+    let h = harness().await?;
+    mount_accessor(&h.server).await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&h.server)
+        .await;
+    let body = serde_json::json!({
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": "upload", "arguments": {"key": "AKIAIOSFODNN7EXAMPLE"}}
+    })
+    .to_string();
+    let response = h
+        .app
+        .oneshot(proxied_post(
+            &h.ext_name,
+            body,
+            Some(caller_context("secret-user")),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    Ok(())
+}
+
+#[tokio::test]
+async fn external_unknown_session_is_rejected_before_forwarding() -> anyhow::Result<()> {
+    let h = harness().await?;
+    mount_accessor(&h.server).await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&h.server)
+        .await;
+    let mut request = proxied_post(
+        &h.ext_name,
+        tool_call_body("read"),
+        Some(caller_context("session-user")),
+    );
+    request
+        .headers_mut()
+        .insert("mcp-session-id", "never-initialized".parse()?);
+    let response = h.app.oneshot(request).await?;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+#[tokio::test]
+async fn external_malformed_tool_call_is_not_forwarded() -> anyhow::Result<()> {
+    let h = harness().await?;
+    mount_accessor(&h.server).await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&h.server)
+        .await;
+    for body in ["{", "[]", r#"{"method":"tools/call","params":{}}"#] {
+        let response = h
+            .app
+            .clone()
+            .oneshot(proxied_post(
+                &h.ext_name,
+                body.to_owned(),
+                Some(caller_context("malformed-user")),
+            ))
+            .await?;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn external_initialized_session_survives_failed_delete_and_rejects_other_user()
+-> anyhow::Result<()> {
+    let h = harness().await?;
+    mount_accessor(&h.server).await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("mcp-session-id", "initialized-session")
+                .set_body_json(serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}})),
+        )
+        .mount(&h.server)
+        .await;
+    let body =
+        serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}).to_string();
+    let response = h
+        .app
+        .clone()
+        .oneshot(proxied_post(
+            &h.ext_name,
+            body,
+            Some(caller_context("session-owner")),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["mcp-session-id"], "initialized-session");
+    let followup = |user: &str, method: http::Method| {
+        let mut request = proxied_post(&h.ext_name, String::new(), Some(caller_context(user)));
+        *request.method_mut() = method;
+        request
+            .headers_mut()
+            .insert("mcp-session-id", "initialized-session".parse().unwrap());
+        request
+    };
+    let response = h
+        .app
+        .clone()
+        .oneshot(followup("other-user", http::Method::GET))
+        .await?;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    Mock::given(method("GET"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&h.server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount(&h.server)
+        .await;
+    let response = h
+        .app
+        .clone()
+        .oneshot(followup("session-owner", http::Method::DELETE))
+        .await?;
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let response = h
+        .app
+        .clone()
+        .oneshot(followup("session-owner", http::Method::GET))
+        .await?;
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "failed DELETE preserves ownership"
+    );
+    h.server.reset().await;
+    mount_accessor(&h.server).await;
+    Mock::given(method("DELETE"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&h.server)
+        .await;
+    let response = h
+        .app
+        .clone()
+        .oneshot(followup("session-owner", http::Method::DELETE))
+        .await?;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let response = h
+        .app
+        .clone()
+        .oneshot(followup("session-owner", http::Method::GET))
+        .await?;
+    assert_eq!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "successful DELETE invalidates the binding"
     );
     Ok(())
 }

@@ -248,7 +248,6 @@ fn a_reasoning_model_is_given_the_full_model_card_budget() {
         context_window: 100_000,
         max_output_tokens: 16_384,
         max_thinking_budget: Some(8_192),
-        ..Default::default()
     };
 
     let out = normalize(

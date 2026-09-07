@@ -35,8 +35,8 @@ async fn a_request_with_no_fingerprint_is_a_bad_request_not_an_unauthorized() {
         }),
     )
     .await
-    .err()
-    .expect("an empty fingerprint cannot authenticate anything");
+    .map(|_| ())
+    .expect_err("an empty fingerprint cannot authenticate anything");
 
     assert_eq!(
         error.into_response().status(),
@@ -62,8 +62,8 @@ async fn a_fingerprint_of_only_whitespace_is_refused_as_missing() {
         }),
     )
     .await
-    .err()
-    .expect("a blank fingerprint is not a fingerprint");
+    .map(|_| ())
+    .expect_err("a blank fingerprint is not a fingerprint");
 
     assert_eq!(
         error.into_response().status(),
@@ -89,8 +89,8 @@ async fn a_malformed_fingerprint_is_rejected_on_shape_before_any_lookup() {
         }),
     )
     .await
-    .err()
-    .expect("a fingerprint that is not a SHA-256 digest cannot identify a certificate");
+    .map(|_| ())
+    .expect_err("a fingerprint that is not a SHA-256 digest cannot identify a certificate");
 
     assert_eq!(
         error.into_response().status(),
@@ -122,8 +122,8 @@ async fn a_well_formed_fingerprint_that_was_never_enrolled_is_refused_as_unautho
         }),
     )
     .await
-    .err()
-    .expect("an unenrolled device certificate must not yield a bridge token");
+    .map(|_| ())
+    .expect_err("an unenrolled device certificate must not yield a bridge token");
 
     assert_eq!(
         error.into_response().status(),

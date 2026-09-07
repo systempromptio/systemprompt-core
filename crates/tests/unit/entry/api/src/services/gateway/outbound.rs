@@ -609,8 +609,8 @@ async fn anthropic_outbound_buffered_rejects_a_body_that_does_not_parse() {
 
     let err = send_via(&adapter, ctx)
         .await
-        .err()
-        .expect("unparsable body must fail");
+        .map(|_| ())
+        .expect_err("unparsable body must fail");
     let upstream = err
         .downcast_ref::<UpstreamError>()
         .expect("failure is an upstream error");

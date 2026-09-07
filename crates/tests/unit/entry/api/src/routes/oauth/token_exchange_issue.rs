@@ -51,7 +51,10 @@ fn config_with(issuer: TrustedIssuer) -> Config {
 }
 
 fn err(result: anyhow::Result<impl Sized>) -> String {
-    result.err().expect("expected rejection").to_string()
+    result
+        .map(|_| ())
+        .expect_err("expected rejection")
+        .to_string()
 }
 
 #[tokio::test]

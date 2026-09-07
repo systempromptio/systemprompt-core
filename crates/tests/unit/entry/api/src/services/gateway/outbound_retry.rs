@@ -161,7 +161,7 @@ async fn assert_not_retried(status: u16) {
 
     let (outcome, retries) = send_counting(&server.uri()).await;
 
-    let err = outcome.err().expect("upstream error");
+    let err = outcome.map(|_| ()).expect_err("upstream error");
     let upstream = err.downcast_ref::<UpstreamError>().expect("upstream kind");
     match upstream {
         UpstreamError::Status { status: got, .. } => assert_eq!(*got, status),
@@ -201,7 +201,7 @@ async fn exhausted_budget_relays_the_final_429_verbatim() {
 
     let (outcome, retries) = send_counting(&server.uri()).await;
 
-    let err = outcome.err().expect("upstream error");
+    let err = outcome.map(|_| ()).expect_err("upstream error");
     let upstream = err.downcast_ref::<UpstreamError>().expect("upstream kind");
     match upstream {
         UpstreamError::Status {

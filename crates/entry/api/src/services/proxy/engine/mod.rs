@@ -11,6 +11,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod external;
+mod external_governance;
+mod external_sessions;
 mod handlers;
 mod mcp_session;
 #[cfg(feature = "test-api")]

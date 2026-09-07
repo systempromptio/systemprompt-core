@@ -58,8 +58,8 @@ async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_s
 
     let error = resolver_test_api::resolve("anything", &ctx)
         .await
-        .err()
-        .expect("a closed pool cannot resolve a service");
+        .map(|_| ())
+        .expect_err("a closed pool cannot resolve a service");
 
     assert!(
         matches!(error, ProxyError::DatabaseError { .. }),
@@ -75,8 +75,8 @@ async fn a_service_no_row_names_is_reported_as_not_found() {
 
     let error = resolver_test_api::resolve(&unique_name("absent"), &ctx)
         .await
-        .err()
-        .expect("an unregistered service cannot resolve");
+        .map(|_| ())
+        .expect_err("an unregistered service cannot resolve");
 
     assert!(
         matches!(error, ProxyError::ServiceNotFound { .. }),
@@ -94,8 +94,8 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
 
     let error = resolver_test_api::resolve(&name, &ctx)
         .await
-        .err()
-        .expect("a stopped service cannot be proxied to");
+        .map(|_| ())
+        .expect_err("a stopped service cannot be proxied to");
 
     match error {
         ProxyError::ServiceNotRunning { service, status } => {
@@ -134,8 +134,8 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
     .expect("resolve must terminate; retrying a restart that starts nothing never converges");
 
     let error = outcome
-        .err()
-        .expect("a service that did not come back cannot be proxied to");
+        .map(|_| ())
+        .expect_err("a service that did not come back cannot be proxied to");
 
     match error {
         ProxyError::ServiceNotRunning { service, status } => {
@@ -224,8 +224,8 @@ async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error()
     closer.await.expect("the closing task does not panic");
 
     let error = outcome
-        .err()
-        .expect("a resolve whose re-read cannot run has nothing to return");
+        .map(|_| ())
+        .expect_err("a resolve whose re-read cannot run has nothing to return");
 
     assert!(
         matches!(error, ProxyError::DatabaseError { .. }),
