@@ -248,3 +248,24 @@ fn content_type_maps_known_extensions_and_defaults_to_octet_stream() {
     assert_eq!(content_type("a.bin"), "application/octet-stream");
     assert_eq!(content_type("no-extension"), "application/octet-stream");
 }
+
+#[tokio::test]
+async fn coverage_malformed_plugin_id_is_not_found_without_catalog_disclosure() -> anyhow::Result<()>
+{
+    let (app, pool) = router_and_pool().await?;
+    let cred = seed_bridge_credential(
+        &pool,
+        &format!("plugin-malformed-{}@example.invalid", uuid::Uuid::new_v4()),
+    )
+    .await?;
+    let response = app
+        .oneshot(authed_get(
+            "/bridge/plugins/invalid%20plugin/SKILL.md",
+            cred.jwt.as_str(),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = axum::body::to_bytes(response.into_body(), 4096).await?;
+    assert!(String::from_utf8_lossy(&body).contains("Plugin not found"));
+    Ok(())
+}

@@ -135,3 +135,14 @@ pub fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<D
         creds,
     })
 }
+
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub fn resolve_profile(
+        prompter: &dyn crate::interactive::Prompter,
+        name: Option<&str>,
+        config: &crate::CliConfig,
+    ) -> anyhow::Result<(systemprompt_models::Profile, std::path::PathBuf)> {
+        super::select::resolve_profile(prompter, name, config)
+    }
+}

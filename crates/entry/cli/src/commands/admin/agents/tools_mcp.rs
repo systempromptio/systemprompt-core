@@ -25,7 +25,12 @@ fn probe_context(server_name: &str) -> RequestContext {
     )
 }
 
-pub(super) struct ToolInfo {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(unreachable_pub, reason = "re-exported with test-api")
+)]
+#[derive(Debug)]
+pub struct ToolInfo {
     pub name: String,
     pub description: Option<String>,
     pub parameters_count: usize,
@@ -33,7 +38,11 @@ pub(super) struct ToolInfo {
     pub output_schema: Option<serde_json::Value>,
 }
 
-pub(super) async fn list_tools_unauthenticated(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(unreachable_pub, reason = "re-exported with test-api")
+)]
+pub async fn list_tools_unauthenticated(
     server_name: &str,
     port: u16,
     timeout_secs: u64,
@@ -73,7 +82,11 @@ pub(super) async fn list_tools_unauthenticated(
     Ok(tools)
 }
 
-pub(super) async fn list_tools_authenticated(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(unreachable_pub, reason = "re-exported with test-api")
+)]
+pub async fn list_tools_authenticated(
     server_name: &str,
     port: u16,
     token: &SessionToken,

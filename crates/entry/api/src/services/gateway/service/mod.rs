@@ -17,6 +17,7 @@ pub(super) use self::finalize::run_response_safety_scan;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
+    pub use super::credentials::test_api::{google_access_token, google_token_uri};
     pub use super::finalize::safety::blocks_at_phase;
     pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
     pub use super::resolve::{describe_route_match, enforce_route_requirements};

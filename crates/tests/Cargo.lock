@@ -7232,6 +7232,7 @@ name = "systemprompt-bridge-cli-subprocess-tests"
 version = "0.0.11"
 dependencies = [
  "serde_json",
+ "sha2 0.11.0",
  "tempfile",
  "tokio",
  "wiremock",
@@ -7682,6 +7683,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
+ "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-runtime",

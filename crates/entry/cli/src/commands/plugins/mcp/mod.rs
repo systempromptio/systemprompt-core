@@ -99,3 +99,8 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
         },
     }
 }
+
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::tools_client::{ToolInfo, list_tools_authenticated, list_tools_unauthenticated};
+}

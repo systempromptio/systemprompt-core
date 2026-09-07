@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-analytics = { workspace = true }
-systemprompt-cli = { workspace = true }
+systemprompt-cli = { workspace = true, features = ["test-api"] }
 systemprompt-cloud = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -44,6 +44,7 @@ systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-runtime = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 rmcp = { workspace = true }
 systemprompt-mcp = { workspace = true }

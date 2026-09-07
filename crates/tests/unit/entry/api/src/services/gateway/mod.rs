@@ -1,6 +1,7 @@
 mod audit_payload;
 mod canonical_request;
 mod canonical_response;
+mod google_credentials;
 mod image_fetch;
 mod inbound_anthropic;
 mod inbound_anthropic_deep;

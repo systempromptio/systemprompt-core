@@ -253,3 +253,79 @@ async fn the_argument_digest_ignores_key_order_but_not_values() {
         "different arguments must not share an approval"
     );
 }
+
+#[tokio::test]
+async fn coverage_recent_decisions_preserve_audit_fields_and_exclude_pending_calls() {
+    let repo = repo().await;
+    let approved = call_id();
+    let pending = call_id();
+    open_pending(&repo, &approved, 60).await;
+    open_pending(&repo, &pending, 60).await;
+    answer(&repo, &approved, ApprovalStatus::Approved).await;
+    let rows = repo.list_decided(100_000).await.expect("recent decisions");
+    let row = rows
+        .iter()
+        .find(|r| r.call_id == approved.as_str())
+        .expect("approved row");
+    assert_eq!(row.status, ApprovalStatus::Approved);
+    assert_eq!(row.tool_name, "email_send");
+    assert_eq!(row.server_name, "test-server");
+    assert_eq!(row.arguments, arguments());
+    assert_eq!(row.args_digest, args_digest(&arguments()));
+    assert_eq!(row.requested_by, "approval-test-user");
+    assert_eq!(row.session_id.as_deref(), Some("sess-approval-test"));
+    assert_eq!(row.trace_id.as_deref(), Some("trace-approval-test"));
+    assert_eq!(row.rule, "require_approval");
+    assert_eq!(row.approver_id.as_deref(), Some("approver-test-user"));
+    assert_eq!(row.approver_username.as_deref(), Some("approver"));
+    assert_eq!(row.decision_note.as_deref(), Some("test verdict"));
+    assert!(row.decided_at.is_some());
+    assert!(!rows.iter().any(|r| r.call_id == pending.as_str()));
+    assert!(repo.list_decided(0).await.unwrap().is_empty());
+    answer(&repo, &pending, ApprovalStatus::Denied).await;
+}
+
+#[tokio::test]
+async fn coverage_reopening_a_call_preserves_its_original_arguments_and_decision() {
+    let repo = repo().await;
+    let call = call_id();
+    open_pending(&repo, &call, 60).await;
+    answer(&repo, &call, ApprovalStatus::Denied).await;
+    let before = repo.find(call.as_str()).await.unwrap().unwrap();
+    open_pending(&repo, &call, 3600).await;
+    let after = repo.find(call.as_str()).await.unwrap().unwrap();
+    assert_eq!(after.status, ApprovalStatus::Denied);
+    assert_eq!(after.expires_at, before.expires_at);
+    assert_eq!(after.created_at, before.created_at);
+    assert_eq!(after.decided_at, before.decided_at);
+    assert_eq!(after.args_digest, before.args_digest);
+}
+
+#[tokio::test]
+async fn coverage_an_expired_or_already_decided_call_cannot_be_approved() {
+    let repo = repo().await;
+    for expired in [false, true] {
+        let call = call_id();
+        open_pending(&repo, &call, if expired { 0 } else { 60 }).await;
+        if !expired {
+            answer(&repo, &call, ApprovalStatus::Denied).await;
+        }
+        let approver = UserId::new("late-approver");
+        let changed = repo
+            .resolve(
+                call.as_str(),
+                &ApprovalVerdict {
+                    status: ApprovalStatus::Approved,
+                    approver_id: &approver,
+                    approver_username: "late-approver",
+                    note: None,
+                },
+            )
+            .await
+            .unwrap();
+        assert!(changed.is_none());
+        let row = repo.find(call.as_str()).await.unwrap().unwrap();
+        assert_ne!(row.status, ApprovalStatus::Approved);
+        assert_ne!(row.approver_id.as_deref(), Some("late-approver"));
+    }
+}
