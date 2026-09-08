@@ -5,6 +5,7 @@
 ### Added
 
 - `TeamsAppConfig.endpoints` (`TeamsEndpoints`) selects the Bot Framework OpenID and token endpoints; defaults to the public cloud.
+- `bridge_version_is_supported` refuses a version it cannot parse. It answered `true`, so a bridge reporting a non-semver string passed the `min_bridge_version` floor and the heartbeat `compatible` check on a parse failure nobody saw. Every cargo build carries a semver `CARGO_PKG_VERSION`, so no real build is affected.
 
 ## [0.47.0] - 2026-09-06
 
@@ -17,7 +18,6 @@
 
 ### Added
 
-- `bridge_version_is_supported` refuses a version it cannot parse. It answered `true`, so a bridge reporting a non-semver string passed the `min_bridge_version` floor and the heartbeat `compatible` check on a parse failure nobody saw. Every cargo build carries a semver `CARGO_PKG_VERSION`, so no real build is affected.
 - `CanonicalUsage.reasoning_tokens`, parsed on every wire, buffered and streamed: Gemini `usageMetadata.thoughtsTokenCount`, OpenAI responses `usage.output_tokens_details.reasoning_tokens`, OpenAI chat `usage.completion_tokens_details.reasoning_tokens`. Reasoning is a breakdown *of* `output_tokens`, never an addition, so cost needs no per-provider arithmetic. Anthropic `usage.output_tokens_details.thinking_tokens` (adaptive thinking on Claude 5 models) is read the same way, buffered and on the trailing `message_delta`; it is already inside `output_tokens`, so cost is unchanged. `AiResponse` and `StreamChunk::Usage` carry it too, so the internal path records what the gateway records.
 - `CanonicalUsage::normalise_reasoning` enforces that invariant at runtime rather than assuming it. A breakdown that exceeds its parent, or a wire total that overshoots `input + output` by exactly the reasoning count, folds the count into `output_tokens` and warns with the provider named — so an OpenAI-compatible third party that reports additively announces itself in the log rather than in the bill. `CanonicalUsageUpdate` carries the wire's own total when a frame states one, so the total-based clause fires on streams as well.
 - `buffered_body_defect` separates "nothing came back" from "the model legitimately produced no text". A JSON array or scalar, an error object delivered under a success status, or an object with neither a non-empty content array nor a usage object is a defect the gateway can reject, instead of defaulting into a well-formed empty turn the audit row records as completed.

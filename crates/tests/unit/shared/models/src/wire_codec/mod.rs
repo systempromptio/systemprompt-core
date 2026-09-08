@@ -34,8 +34,8 @@ fn tool_with_unsupported_keywords() -> CanonicalTool {
     }
 }
 
-/// The shape Claude Code sends: a tuple-typed `where` clause nested two levels
-/// down, a `format` hint, `const`, a nullable union and a `$comment`.
+// The shape Claude Code sends: a tuple-typed `where` clause nested two levels
+// down, a `format` hint, `const`, a nullable union and a `$comment`.
 fn claude_code_shaped_tool() -> CanonicalTool {
     CanonicalTool {
         name: "query_rows".to_owned(),

@@ -169,8 +169,16 @@ fn check_workspace_dir(report: &mut Report) {
 // Why: the Claude Desktop Code tab enforces this list as the only permitted
 // workspace roots; a brand-only list refuses every other folder.
 fn check_workspace_folders(report: &mut Report, store: &dyn crate::config::store::ConfigStore) {
-    let Ok(Some(raw)) = store.read_managed_policy("allowedWorkspaceFolders") else {
-        return;
+    let raw = match store.read_managed_policy("allowedWorkspaceFolders") {
+        Ok(Some(raw)) => raw,
+        Ok(None) => return,
+        Err(e) => {
+            report.warn(
+                "allowedWorkspaceFolders",
+                &format!("could not be read: {e}"),
+            );
+            return;
+        },
     };
     let paths: Vec<String> = serde_json::from_str::<serde_json::Value>(&raw)
         .ok()

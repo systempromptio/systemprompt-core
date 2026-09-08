@@ -76,14 +76,18 @@ fn sidecar_path() -> Option<PathBuf> {
     crate::config::paths::bridge_metadata_dir().map(|d| d.join(SIDECAR))
 }
 
-fn read_sidecar() -> Vec<String> {
+// Why: the sidecar is the only record of which picker rows the bridge wrote;
+// a read or parse failure must surface, or those rows are orphaned in the
+// user's settings rather than replaced.
+fn read_sidecar() -> Result<Vec<String>, MdmError> {
     let Some(path) = sidecar_path() else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+    let body = read_or_empty(&path)?;
+    if body.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    serde_json::from_str(&body).map_err(|source| MdmError::Json { path, source })
 }
 
 fn write_sidecar(ids: &[String]) -> Result<(), MdmError> {
@@ -134,7 +138,7 @@ fn splice_rows(
         .unwrap_or_default();
     kept.extend(
         rows.iter()
-            .map(|r| serde_json::to_value(r).unwrap_or(serde_json::Value::Null)),
+            .map(|r| serde_json::json!({ "id": r.id, "label": r.label })),
     );
     if kept.is_empty() {
         root.remove("modelPicker");
@@ -144,7 +148,7 @@ fn splice_rows(
 }
 
 pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmError> {
-    let previously = read_sidecar();
+    let previously = read_sidecar()?;
     let mut lines = Vec::new();
     let standalone =
         standalone_settings_path().ok_or(MdmError::Resolve("the user's config directory"))?;
@@ -169,12 +173,14 @@ pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmE
     Ok(lines)
 }
 
-pub(super) fn strip_owned_rows(root: &mut serde_json::Map<String, serde_json::Value>) {
-    let ours = read_sidecar();
-    if ours.is_empty() {
-        return;
+pub(super) fn strip_owned_rows(
+    root: &mut serde_json::Map<String, serde_json::Value>,
+) -> Result<(), MdmError> {
+    let ours = read_sidecar()?;
+    if !ours.is_empty() {
+        splice_rows(root, &ours, &[]);
     }
-    splice_rows(root, &ours, &[]);
+    Ok(())
 }
 
 pub(super) fn remove_sidecar() -> Result<(), MdmError> {

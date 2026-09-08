@@ -42,7 +42,9 @@ impl ContextRepository {
 
     // Why: a second call is a sign of life, not a rename — `updated_at` moves
     // and a missing session is filled, while `name` and `kind` stay whatever
-    // the row already says.
+    // the row already says. The context id derives from caller-supplied
+    // metadata, so the update is scoped to the owning user: another user's
+    // call on the same id is a no-op rather than a write into their row.
     pub async fn ensure_context(
         &self,
         params: &systemprompt_traits::EnsureContextParams<'_>,
@@ -60,7 +62,8 @@ impl ContextRepository {
              VALUES ($1, $2, $3, $4, $5, $6, $6)
              ON CONFLICT (context_id) DO UPDATE
              SET updated_at = EXCLUDED.updated_at,
-                 session_id = COALESCE(user_contexts.session_id, EXCLUDED.session_id)",
+                 session_id = COALESCE(user_contexts.session_id, EXCLUDED.session_id)
+             WHERE user_contexts.user_id = EXCLUDED.user_id",
             context_id.as_str(),
             user_id.as_str(),
             session_id.map(SessionId::as_str),

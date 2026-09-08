@@ -194,7 +194,7 @@ fn derive_conversation_prefers_header_value() {
     let header = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned()).expect("id");
     let request = canonical(vec![user_message("hello")]);
     let mut partial = RejectionPartial::default();
-    let (conv, ctx) =
+    let (conv, ctx, _client) =
         derive_conversation(Some(header), &request, &mut partial).expect("derived ok");
     assert_eq!(conv.as_str(), "ctx_00000000deadbeef");
     assert_eq!(
@@ -208,7 +208,8 @@ fn derive_conversation_prefers_header_value() {
 fn derive_conversation_derives_from_messages_when_header_absent() {
     let request = canonical(vec![user_message("derive me")]);
     let mut partial = RejectionPartial::default();
-    let (conv, _ctx) = derive_conversation(None, &request, &mut partial).expect("derived ok");
+    let (conv, _ctx, _client) =
+        derive_conversation(None, &request, &mut partial).expect("derived ok");
     assert!(!conv.as_str().is_empty());
 }
 

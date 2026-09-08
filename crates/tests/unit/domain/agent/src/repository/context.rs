@@ -416,17 +416,67 @@ async fn ensure_context_bumps_updated_at_and_fills_only_a_missing_session() {
         Some(session_id.as_str()),
         "an existing session is never overwritten"
     );
+    let third = repo.get_context(&context_id, &user_id).await.expect("get");
+    assert_eq!(third.name, "derived-name");
+    assert_eq!(third.kind, ContextKind::Session);
+}
+
+#[tokio::test]
+async fn ensure_context_by_another_user_never_writes_into_the_owners_row() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    let (owner, owner_session) = seed_user_and_session(&pool).await;
+    let (intruder, intruder_session) = seed_user_and_session(&pool).await;
+    let repo = ctx_repo(&pool).await;
+
+    let context_id = ContextId::derived_from_session(&owner_session);
+    let owned = systemprompt_traits::EnsureContextParams {
+        context_id: &context_id,
+        user_id: &owner,
+        session_id: None,
+        name: "owner-name",
+        kind: ContextKind::Session.as_str(),
+    };
+    repo.ensure_context(&owned, ContextKind::Session)
+        .await
+        .expect("owner ensure");
+    let before = repo.get_context(&context_id, &owner).await.expect("get");
+
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    let foreign = systemprompt_traits::EnsureContextParams {
+        user_id: &intruder,
+        session_id: Some(&intruder_session),
+        name: "intruder-name",
+        ..owned
+    };
+    repo.ensure_context(&foreign, ContextKind::Session)
+        .await
+        .expect("a foreign ensure is a no-op, not an error");
+
+    let after = repo.get_context(&context_id, &owner).await.expect("get");
+    assert_eq!(after.updated_at, before.updated_at);
+    assert_eq!(after.name, "owner-name");
+    assert!(
+        stored_session(&pool, &context_id).await.is_none(),
+        "another user must not fill the owner's missing session"
+    );
+    assert!(matches!(
+        repo.get_context(&context_id, &intruder).await.unwrap_err(),
+        systemprompt_traits::RepositoryError::NotFound(_)
+    ));
 }
 
 async fn stored_session(
     pool: &systemprompt_database::DbPool,
     context_id: &ContextId,
 ) -> Option<String> {
+    let pg = pool.pool_arc().expect("pg pool");
     sqlx::query_scalar::<_, Option<String>>(
         "SELECT session_id FROM user_contexts WHERE context_id = $1",
     )
     .bind(context_id.as_str())
-    .fetch_one(&**pool)
+    .fetch_one(pg.as_ref())
     .await
     .expect("read session")
 }

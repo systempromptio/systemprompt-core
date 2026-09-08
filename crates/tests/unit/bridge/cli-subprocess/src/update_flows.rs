@@ -26,6 +26,10 @@ impl Install {
                 .join("bin/bridge/target/debug/systemprompt-bridge")
         };
         if !source.is_file() {
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "bridge binary unavailable under CI; scripts/test-shard.sh must prebuild it"
+            );
             eprintln!("bridge binary unavailable; set SP_BRIDGE_BIN to run update flows");
             return None;
         }
