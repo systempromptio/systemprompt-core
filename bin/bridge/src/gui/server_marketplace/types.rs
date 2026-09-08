@@ -123,10 +123,39 @@ pub(crate) struct PluginManifest {
     pub(crate) description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "author_display",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub(crate) author: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) homepage: Option<String>,
+}
+
+// Why: `author` in a Claude `plugin.json` is either a bare string or an object
+// with `name`/`email`, and one object-form bundle failed the whole listing.
+fn author_display<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Author {
+        Name(String),
+        Object {
+            #[serde(default)]
+            name: Option<String>,
+            #[serde(default)]
+            email: Option<String>,
+        },
+    }
+
+    Ok(match Option::<Author>::deserialize(deserializer)? {
+        None => None,
+        Some(Author::Name(name)) => Some(name),
+        Some(Author::Object { name, email }) => name.or(email),
+    })
 }
 
 #[derive(Debug, Serialize)]

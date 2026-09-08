@@ -7,24 +7,33 @@
 
 use super::error::MdmError;
 use super::windows_policy;
-use crate::config::store::{PolicyHive, PolicyWrite, hive_for};
+use crate::config::store::{PolicyHive, PolicyWrite};
 
-pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, MdmError> {
+pub(super) fn write_managed_mcp_servers_value(
+    store: &crate::config::store::PolicyStore,
+    value: &str,
+) -> Result<String, MdmError> {
     let elevated = crate::winproc::is_elevated();
-    let hive = hive_for(elevated);
-    let key = policy_key(hive);
-    if current_value(hive).as_deref() == Some(value) {
-        return Ok(format!(
-            "{key} already holds this managedMcpServers value; nothing to write"
-        ));
-    }
     let entries = [("managedMcpServers".to_owned(), value.to_owned())];
-    let outcome = crate::config::store::write_managed_claude_policy(elevated, &entries)
-        .map_err(windows_policy::policy_err)?;
+    let outcome = crate::config::store::verified::apply(
+        store.backend(),
+        crate::config::store::hive_for(elevated),
+        &entries
+            .iter()
+            .map(|(n, v)| {
+                (
+                    n.clone(),
+                    crate::config::store::PolicyDocumentValue::Str(v.clone()),
+                )
+            })
+            .collect::<Vec<_>>(),
+    )
+    .map_err(windows_policy::policy_err)?;
     if elevated {
-        clear_stale_user_value("managedMcpServers");
+        clear_stale_user_value("managedMcpServers")?;
     }
-    Ok(match outcome {
+    Ok(match outcome.outcome() {
+        PolicyWrite::AlreadyVerified(hive) => format!("{} already verified", policy_key(hive)),
         PolicyWrite::Written(hive) => format!("{} ← managedMcpServers", policy_key(hive)),
         PolicyWrite::SatisfiedByMachine => format!(
             "{} already holds this managedMcpServers value; the per-user copy was not written",
@@ -40,118 +49,77 @@ const fn policy_key(hive: PolicyHive) -> &'static str {
     }
 }
 
-fn current_value(hive: PolicyHive) -> Option<String> {
-    match crate::config::store::managed_policy_store()
-        .read_policy_document(hive, &["managedMcpServers"])
-    {
-        Ok(doc) => doc
-            .get("managedMcpServers")
-            .and_then(|v| v.as_str())
-            .map(str::to_owned),
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::mdm",
-                hive = hive.label(),
-                error = %e,
-                "could not read the current managedMcpServers policy value"
-            );
-            None
-        },
-    }
+fn clear_stale_user_value(name: &str) -> Result<(), MdmError> {
+    crate::config::store::clear_managed_claude_policy(false, &[name])?;
+    Ok(())
 }
 
-// Why: an elevated write to HKLM leaves any older per-user copy behind, and a
-// stale HKCU value is what a later unelevated run would otherwise read back.
-fn clear_stale_user_value(name: &str) {
-    match crate::config::store::clear_managed_claude_policy(false, &[name]) {
-        Ok(0) => {},
-        Ok(n) => tracing::info!(
-            target: "bridge::install::mdm",
-            name,
-            removed = n,
-            "cleared stale HKCU policy value"
-        ),
-        Err(e) => tracing::warn!(
-            target: "bridge::install::mdm",
-            name,
-            error = %e,
-            "stale HKCU policy value could not be cleared"
-        ),
-    }
-}
-
-/// The one thing an ordinary process cannot do: `Program
-/// Files\Claude\org-plugins` is admin-write-only. Say so once, without blocking
-/// the policy write.
-fn org_plugins_note() -> Option<String> {
-    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
+fn require_org_plugins() -> Result<(), MdmError> {
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
+        .map_err(|e| MdmError::Windows(e.to_string()))?;
     if org.path.is_dir() {
-        return None;
+        return crate::windows_acl::verify_modify_tree(&org.path)
+            .map_err(|e| MdmError::Windows(e.to_string()));
     }
-    Some(format!(
-        "note: {} is not provisioned; run `{} install --apply` as Administrator once so Cowork \
-         can read org-plugins",
-        org.path.display(),
-        crate::brand::brand().binary_name
-    ))
+    Err(MdmError::Windows(format!(
+        "{} is not provisioned; run install --apply as Administrator before using Cowork",
+        org.path.display()
+    )))
 }
 
 pub(super) fn enforce_managed_policy(
     inputs: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, MdmError> {
-    ensure_workspace_dir();
-    let pubkey = crate::config::pinned_pubkey();
+    ensure_workspace_dir()?;
     let values = policy_values(inputs, &inputs.loopback.origin())?;
-    let bridge = super::bridge_policy_values(pubkey.as_ref().map(crate::ids::PinnedPubKey::as_str));
+    // Why no `manifestTrust` here: `HKLM\SOFTWARE\Policies\` is the
+    // administrator channel, and a value in it claims administrator authority —
+    // it outranks the operator's own `gateway_url`, and it deliberately
+    // survives every user-level state reset, since clearing user state must not
+    // clear machine policy.
+    //
+    // Writing the bridge's own pin there on every sync therefore made a pin no
+    // administrator had set both unclearable and un-overridable: pointing the
+    // bridge at a second gateway failed with "pinned for <first gateway>" even
+    // after a full state wipe, and the only remedy offered was an
+    // `install --apply --pubkey` the user had no reason to run. A pin the
+    // bridge derives for itself is operator trust, so it is persisted per
+    // gateway in the config file by the sync that learned it
+    // (`sync::manifest` -> `config::persist_pinned_pubkey`), where switching
+    // gateway simply finds no pin and trusts on first use again.
+    //
+    // `install --apply --pubkey` still writes the policy key: that one *is* an
+    // administrator pinning a key out of band, which is what this channel is for.
     let elevated = crate::winproc::is_elevated();
-    let plan = windows_policy::WritePlan::new(&values, &bridge, elevated);
-    if !plan.drifted() {
-        return Ok(format!(
-            "{} managed policy already in step; nothing to write",
-            plan.hive().label()
-        ));
-    }
-    let mut line = match plan.write()? {
-        PolicyWrite::Written(hive) => {
-            format!("{} ← full managed policy re-asserted", policy_key(hive))
-        },
-        PolicyWrite::SatisfiedByMachine => format!(
-            "{} already holds the full managed policy; per-user copy not written",
-            crate::cowork_compat::HKLM_POLICY_KEY
-        ),
-    };
-    if !elevated && let Some(note) = org_plugins_note() {
-        tracing::warn!(target: "bridge::install::mdm", "{note}");
-        line.push_str("; ");
-        line.push_str(&note);
+    let plan = windows_policy::WritePlan::new(&values, &[], elevated, inputs.policy_store);
+
+    let line = plan
+        .write()?
+        .iter()
+        .map(crate::config::store::verified::PolicyReceipt::describe)
+        .collect::<Vec<_>>()
+        .join("; ");
+    if !elevated {
+        require_org_plugins()?;
     }
     Ok(line)
 }
 
 // Why: Cowork pre-trusts allowedWorkspaceFolders only when the directory
 // already exists.
-fn ensure_workspace_dir() -> Option<String> {
+fn ensure_workspace_dir() -> Result<Option<String>, MdmError> {
     let workspace = crate::brand::brand().workspace_dir_name;
     if workspace.is_empty() {
-        return None;
+        return Ok(None);
     }
-    let home = std::env::var_os("USERPROFILE")?;
+    let home = std::env::var_os("USERPROFILE").ok_or(MdmError::Resolve("USERPROFILE"))?;
     let ws = std::path::Path::new(&home).join(workspace);
-    match std::fs::create_dir_all(&ws) {
-        Ok(()) => Some(format!("ensured workspace dir {}", ws.display())),
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::mdm",
-                error = %e,
-                path = %ws.display(),
-                "could not create pre-trusted workspace dir"
-            );
-            Some(format!(
-                "warning: could not create workspace dir {}: {e}",
-                ws.display()
-            ))
-        },
-    }
+    std::fs::create_dir_all(&ws).map_err(|source| MdmError::Io {
+        action: "create workspace",
+        path: ws.clone(),
+        source,
+    })?;
+    Ok(Some(format!("ensured workspace dir {}", ws.display())))
 }
 
 pub(super) fn remove_policy() -> Result<bool, MdmError> {
@@ -159,17 +127,11 @@ pub(super) fn remove_policy() -> Result<bool, MdmError> {
     let hkcu = store
         .delete_policy_key(PolicyHive::User)
         .map_err(windows_policy::policy_err)?;
-    let hklm = match store.delete_policy_values(PolicyHive::Machine, &["managedMcpServers"]) {
-        Ok(n) => n > 0,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::mdm",
-                error = %e,
-                "HKLM managedMcpServers value could not be removed"
-            );
-            false
-        },
-    };
+    let hklm = crate::config::store::verified::remove_values(
+        store.as_ref(),
+        PolicyHive::Machine,
+        &["managedMcpServers"],
+    )? > 0;
     Ok(hkcu || hklm)
 }
 
@@ -186,17 +148,15 @@ fn policy_values(
     let servers = super::policy::mcp_entries(inputs.loopback, inputs.registry).map_err(|e| {
         MdmError::Windows(format!("the MCP connector list could not be built: {e}"))
     })?;
-    let existing_models = crate::config::store::managed_policy_store()
-        .read_managed_policy("inferenceModels")
-        .ok()
-        .flatten();
+    let existing_models =
+        crate::config::store::managed_policy_store().read_managed_policy("inferenceModels")?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url,
         api_key: secret.as_str(),
         models: existing_models,
         headers: &std::collections::BTreeMap::new(),
         egress_allowed_hosts: inputs.egress_allowed_hosts,
-        org_uuid: crate::config::load()
+        org_uuid: crate::config::load()?
             .deployment_organization_uuid
             .as_deref(),
         mcp_servers: &servers,
@@ -208,45 +168,63 @@ pub(super) fn apply(
     inputs: &super::MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
-) -> Result<Vec<String>, MdmError> {
+) -> Result<super::MdmApplication, MdmError> {
     let elevated = crate::winproc::is_elevated();
     let values = policy_values(inputs, gateway)?;
-    let bridge = super::bridge_policy_values(pubkey);
-    let plan = windows_policy::WritePlan::new(&values, &bridge, elevated);
+    let bridge = super::bridge_policy_values(
+        pubkey,
+        &crate::config::gateway_url_or_default(&crate::config::load()?),
+    )?;
+    let plan = windows_policy::WritePlan::new(&values, &bridge, elevated, inputs.policy_store);
     let key = policy_key(plan.hive());
     let mut summary = Vec::with_capacity(values.len() + bridge.len() + 4);
     summary.push(format!("registry key: {key}"));
-    summary.extend(ensure_workspace_dir());
-    match plan.write()? {
-        PolicyWrite::Written(_) => {
-            for (name, kind, _) in values.iter().chain(&bridge) {
-                summary.push(format!("wrote {name} ({kind}) — verified by read-back"));
+    summary.extend(ensure_workspace_dir()?);
+    let policies = plan.write()?;
+    summary.extend(
+        policies
+            .iter()
+            .map(crate::config::store::verified::PolicyReceipt::describe),
+    );
+    let provisioning = (|| {
+        if elevated {
+            {
+                let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
+                    .map_err(|e| MdmError::Windows(e.to_string()))?;
+                crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
+                    .map_err(|e| {
+                        MdmError::Windows(format!("org-plugins provisioning failed: {e}"))
+                    })?;
+                crate::windows_acl::verify_modify_tree(&org.path)
+                    .map_err(|e| MdmError::Windows(e.to_string()))?;
+                summary.push(format!(
+                    "provisioned {} with a Modify grant for {}",
+                    org.path.display(),
+                    org.grant_user
+                ));
             }
-        },
-        PolicyWrite::SatisfiedByMachine => summary.push(format!(
-            "{} already holds these values; per-user copy not written",
-            crate::cowork_compat::HKLM_POLICY_KEY
-        )),
-    }
-    if elevated {
-        if let Some(org) = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-        {
-            crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
-                .map_err(|e| MdmError::Windows(format!("org-plugins provisioning failed: {e}")))?;
-            summary.push(format!(
-                "provisioned {} with a Modify grant for {}",
-                org.path.display(),
-                org.grant_user
-            ));
+        } else {
+            require_org_plugins()?;
         }
-    } else {
-        summary.extend(org_plugins_note());
-    }
+        Ok::<_, MdmError>(())
+    })();
+    provisioning.map_err(|source| MdmError::Partial {
+        completed: super::MdmApplication {
+            lines: summary.clone(),
+            policies: policies.clone(),
+            files: Vec::new(),
+        },
+        source: Box::new(source),
+    })?;
     if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
         summary.push(
             "warning: Bridge rejects http:// for non-127.0.0.1 hosts. Re-run --apply with http://127.0.0.1:<port> or switch to https://.".into(),
         );
     }
     summary.push("Fully quit Bridge (tray icon → Quit) and relaunch to pick up new policy.".into());
-    Ok(summary)
+    Ok(super::MdmApplication {
+        lines: summary,
+        policies,
+        files: Vec::new(),
+    })
 }
