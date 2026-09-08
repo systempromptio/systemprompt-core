@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-security = { workspace = true, features = ["test-jwks-insecure-scheme"] }
+systemprompt-security = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }

@@ -8,9 +8,8 @@
 //! allowlist rejection, missing `kid`, the non-ID-JAG-issuer rejection, and the
 //! JWKS-resolution failure (the JWKS URI points at a closed port so the fetch
 //! fails fast). The successful federated decode is a declared residual: it
-//! needs the `test-jwks-insecure-scheme` feature on `systemprompt-security`
-//! (JWKS is HTTPS-only otherwise) plus a live signing JWKS server, and this
-//! crate cannot enable that feature.
+//! needs a live signing JWKS server on a loopback address, which this crate
+//! does not stand up.
 
 use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};

@@ -1,7 +1,7 @@
 //! Behavioural tests for [`JwksClient`] fetch and resolution.
 //!
-//! A `wiremock` server stands in for the issuer's JWKS endpoint (HTTP, enabled
-//! via the `test-jwks-insecure-scheme` feature). The tests assert the real
+//! A `wiremock` server stands in for the issuer's JWKS endpoint (plain HTTP on
+//! a loopback address, which the client accepts). The tests assert the real
 //! resolution outcomes: a matching `kid` is fetched and returned, an absent
 //! `kid` yields [`JwksClientError::KeyNotFound`], a non-success status yields
 //! [`JwksClientError::Status`], a malformed body yields
@@ -266,6 +266,39 @@ async fn fetch_rejects_non_http_scheme() {
         matches!(err, JwksClientError::InsecureScheme(_)),
         "expected InsecureScheme, got {err:?}"
     );
+}
+
+#[tokio::test]
+async fn http_non_loopback_issuer_is_rejected() {
+    let client = JwksClient::new(vec!["trusted.example".to_owned()]);
+    let err = client
+        .fetch("http://trusted.example/keys", "kid")
+        .await
+        .expect_err("http non-loopback issuer");
+    assert!(
+        matches!(err, JwksClientError::InsecureScheme(_)),
+        "expected InsecureScheme, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn http_loopback_issuer_is_accepted() {
+    let server = MockServer::start().await;
+    let jwk = test_jwk("kid-loopback");
+    mount_jwks(
+        &server,
+        ResponseTemplate::new(200).set_body_json(Jwks {
+            keys: vec![jwk.clone()],
+        }),
+    )
+    .await;
+
+    let client = JwksClient::new(vec![host_of(&server.uri())]);
+    let resolved = client
+        .fetch(&server.uri(), "kid-loopback")
+        .await
+        .expect("loopback http fetch");
+    assert_eq!(resolved.kid, "kid-loopback");
 }
 
 #[test]

@@ -7,6 +7,14 @@
 - **Breaking:** `GovernancePolicy::prompt_secret_findings` returns `Option<Vec<SecretFinding>>`, `None` by default, so a policy that cannot locate its findings is never offered a prompt repair. Migrate by returning `Some(findings)` from a policy that supports recovery.
 - **Breaking:** `SecretPattern` gains `redact_whole_value`, marking the patterns whose match is only a credential prefix. Migrate by setting it on any hand-built `SecretPattern` literal.
 
+### Changed
+
+- JWKS fetches accept `http://` only for loopback hosts (RFC 8252 §8.3); all other issuers remain HTTPS-only.
+
+### Removed
+
+- The `test-jwks-insecure-scheme` Cargo feature.
+
 ### Added
 
 - `PolicyContext::with_input` borrows a context with a substituted input.

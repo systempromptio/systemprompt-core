@@ -5,7 +5,7 @@
 
 use std::time::{Duration, Instant};
 
-use url::Url;
+use url::{Host, Url};
 
 use super::cache::{CacheProbe, CachedJwks};
 use super::{JwksClient, JwksClientError, WELLKNOWN_JWKS_PATH, parse_max_age};
@@ -89,11 +89,7 @@ impl JwksClient {
             issuer: raw.to_owned(),
             source,
         })?;
-        #[cfg(feature = "test-jwks-insecure-scheme")]
-        let allowed_scheme = parsed.scheme() == "https" || parsed.scheme() == "http";
-        #[cfg(not(feature = "test-jwks-insecure-scheme"))]
-        let allowed_scheme = parsed.scheme() == "https";
-        if !allowed_scheme {
+        if !scheme_is_acceptable(&parsed) {
             return Err(JwksClientError::InsecureScheme(raw.to_owned()));
         }
         let host = parsed
@@ -147,5 +143,20 @@ impl JwksClient {
             })?;
 
         Ok((jwks, ttl))
+    }
+}
+
+// Why: RFC 8252 §8.3 treats loopback as a trusted transport; a local IdP
+// may serve JWKS over plain HTTP.
+fn scheme_is_acceptable(url: &Url) -> bool {
+    match url.scheme() {
+        "https" => true,
+        "http" => match url.host() {
+            Some(Host::Ipv4(ip)) => ip.is_loopback(),
+            Some(Host::Ipv6(ip)) => ip.is_loopback(),
+            Some(Host::Domain(d)) => d.eq_ignore_ascii_case("localhost"),
+            None => false,
+        },
+        _ => false,
     }
 }
