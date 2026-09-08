@@ -35,8 +35,6 @@ pub struct SchemaFeatures {
     pub const_values: bool,
     pub exclusive_bounds: bool,
     pub property_names: bool,
-    /// Draft 2020-12 tuple arrays: `prefixItems` (+ `additionalItems`,
-    /// `unevaluatedItems`). Providers without it get a plain `items` schema.
     pub tuple_items: bool,
 }
 

@@ -82,7 +82,7 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
 // family, so whatever list arrives — an installed policy, a future catalog
 // feed — is filtered to Claude ids here, at the one place the key is built.
 // Non-Claude gateway models are Claude Code's business (its `modelPicker`).
-fn anthropic_only(models: serde_json::Value) -> serde_json::Value {
+fn anthropic_only(models: &serde_json::Value) -> serde_json::Value {
     let Some(arr) = models.as_array() else {
         return json_of(&super::default_inference_models());
     };
@@ -105,7 +105,7 @@ fn anthropic_only(models: serde_json::Value) -> serde_json::Value {
 
 fn inference_entries(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
     let models = anthropic_only(
-        inputs
+        &inputs
             .models
             .as_deref()
             .filter(|m| !m.trim().is_empty())

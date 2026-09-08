@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod merge;
 pub mod model_picker;
 mod removal;
 
@@ -78,7 +79,7 @@ fn key_helper_body(key_path: &Path) -> String {
     )
 }
 
-fn bridge_env(gateway: &str) -> serde_json::Map<String, serde_json::Value> {
+pub(super) fn bridge_env(gateway: &str) -> serde_json::Map<String, serde_json::Value> {
     let mut env = serde_json::Map::new();
     env.insert(
         "ANTHROPIC_BASE_URL".to_owned(),
@@ -165,7 +166,7 @@ pub(crate) fn apply_managed_settings(
         let settings_path =
             managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
         let mut root = read_settings(&settings_path)?;
-        merge_bridge_keys(&mut root, &settings_path, gateway, &helper)?;
+        merge::merge_bridge_keys(&mut root, &settings_path, gateway, &helper)?;
         files.push(write_verified(
             &settings_path,
             &render(root, &settings_path)?,
@@ -191,32 +192,6 @@ pub(crate) fn apply_managed_settings(
     })
 }
 
-fn merge_bridge_keys(
-    root: &mut serde_json::Map<String, serde_json::Value>,
-    settings_path: &Path,
-    gateway: &str,
-    helper: &Path,
-) -> Result<(), MdmError> {
-    let conflicts = forced_login_conflicts(root);
-    if !conflicts.is_empty() {
-        return Err(MdmError::InvalidConfig(conflicts.join("; ")));
-    }
-    let env = root
-        .entry("env".to_owned())
-        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-    let Some(env) = env.as_object_mut() else {
-        return Err(MdmError::EnvNotObject {
-            path: settings_path.to_path_buf(),
-        });
-    };
-    env.extend(bridge_env(gateway));
-    root.insert(
-        "apiKeyHelper".to_owned(),
-        serde_json::Value::String(shell_command_for(helper)),
-    );
-    Ok(())
-}
-
 fn read_settings(path: &Path) -> Result<serde_json::Map<String, serde_json::Value>, MdmError> {
     let existing = read_or_empty(path)?;
     if existing.trim().is_empty() {
@@ -226,21 +201,6 @@ fn read_settings(path: &Path) -> Result<serde_json::Map<String, serde_json::Valu
         path: path.to_path_buf(),
         source: e,
     })
-}
-
-// Why: Claude Code v2.1.146+ forceLoginMethod/forceLoginOrgUUID block API keys
-// and apiKeyHelper.
-fn forced_login_conflicts(root: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
-    ["forceLoginMethod", "forceLoginOrgUUID"]
-        .into_iter()
-        .filter(|key| root.contains_key(*key))
-        .map(|key| {
-            format!(
-                "WARNING: managed settings already set \"{key}\", which blocks the gateway \
-                 credential at startup — remove it or Claude Code will refuse to run"
-            )
-        })
-        .collect()
 }
 
 pub(super) fn io_error(
@@ -271,7 +231,7 @@ pub(super) fn read_or_empty(path: &Path) -> Result<String, MdmError> {
 // Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so a path with
 // whitespace — every macOS `~/Library/Application Support/…` path — is split
 // into words. Quote only then, so the Linux value stays the bare path.
-fn shell_command_for(helper: &Path) -> String {
+pub(super) fn shell_command_for(helper: &Path) -> String {
     let raw = helper.display().to_string();
     if raw.chars().any(char::is_whitespace) {
         format!("'{}'", raw.replace('\'', "'\\''"))

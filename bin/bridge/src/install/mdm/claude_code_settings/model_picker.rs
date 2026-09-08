@@ -39,8 +39,6 @@ pub fn is_claude_family(id: &str) -> bool {
     lower.contains("claude") || lower.contains("anthropic")
 }
 
-/// The rows Claude Code needs: configured providers' models that discovery
-/// would drop, deduplicated and sorted by id.
 #[must_use]
 pub fn picker_rows(providers: &[ProviderHealth]) -> Vec<PickerRow> {
     let mut ids: Vec<&str> = providers
@@ -59,7 +57,6 @@ pub fn picker_rows(providers: &[ProviderHealth]) -> Vec<PickerRow> {
         .collect()
 }
 
-/// `vertex-gemini-2.5-pro` → `Vertex Gemini 2.5 Pro`.
 fn label_for(id: &str) -> String {
     let mut out = String::with_capacity(id.len());
     for (i, part) in id.split('-').filter(|p| !p.is_empty()).enumerate() {
@@ -113,8 +110,6 @@ fn read_json_object(
         })
 }
 
-/// Replaces the bridge-owned rows (those recorded in the sidecar) with `rows`,
-/// leaving any row the user added themselves in place.
 fn splice_rows(
     root: &mut serde_json::Map<String, serde_json::Value>,
     previously_ours: &[String],
@@ -148,9 +143,6 @@ fn splice_rows(
     }
 }
 
-/// Writes `rows` into the standalone fragment (when `install --apply` has
-/// created it) and into the user's settings file when the bridge's keys are
-/// already merged there — the same ownership rule as the env keys.
 pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmError> {
     let previously = read_sidecar();
     let mut lines = Vec::new();
@@ -177,7 +169,6 @@ pub(crate) fn apply_model_picker(rows: &[PickerRow]) -> Result<Vec<String>, MdmE
     Ok(lines)
 }
 
-/// Drops the bridge-owned rows from `root`; used by removal.
 pub(super) fn strip_owned_rows(root: &mut serde_json::Map<String, serde_json::Value>) {
     let ours = read_sidecar();
     if ours.is_empty() {
