@@ -94,15 +94,14 @@ pub trait McpToolHandler: Send + Sync {
     ) -> impl Future<Output = Result<(Self::Output, String), McpError>> + Send;
 }
 
-/// The MCP contract says a tool's `inputSchema` describes an object, and
-/// clients hold it to that: Claude Code validates `inputSchema.type ==
-/// "object"` for every tool and drops the whole server's tool list when one
-/// fails ("tools fetch failed — Invalid input (at tools.N.inputSchema.type)").
-/// schemars renders an internally tagged enum as a bare `oneOf` with no root
-/// `type`, which is exactly that failure; the root gets `type: object` here so
-/// no handler can ship it by accident.
+// Why: The MCP contract says a tool's `inputSchema` describes an object, and
+// clients hold it to that: Claude Code validates `inputSchema.type ==
+// "object"` for every tool and drops the whole server's tool list when one
+// fails ("tools fetch failed — Invalid input (at tools.N.inputSchema.type)").
+// schemars renders an internally tagged enum as a bare `oneOf` with no root
+// `type`, which is exactly that failure; the root gets `type: object` here so
+// no handler can ship it by accident.
 #[must_use]
-// Why:
 pub fn object_input_schema(schema: JsonValue) -> serde_json::Map<String, JsonValue> {
     let mut obj = schema.as_object().cloned().unwrap_or_default();
     if !obj.contains_key("type") {
