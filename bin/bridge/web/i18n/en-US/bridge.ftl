@@ -263,6 +263,7 @@ profile-refresh = Refresh
 profile-section-identity = Identity
 profile-section-usage = Token usage
 profile-section-models = Favorite models
+profile-section-connections = Connected accounts
 
 # Profile — labels and empty states --------------------------------------------
 profile-signed-out = Sign in to see your profile.
