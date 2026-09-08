@@ -20,3 +20,6 @@ mod wire_hosts;
 mod wire_ipc;
 #[cfg(test)]
 mod wire_payloads;
+
+#[cfg(test)]
+mod semantic_state;

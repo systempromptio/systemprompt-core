@@ -50,7 +50,7 @@ jobs:
     # The bridge's GUI, winproc, and keystore backends are cfg-gated to
     # Windows/macOS; the ubuntu lint job configures them out, so without this
     # job that code is first compiled on a bridge-v* release tag.
-    name: Bridge clippy (${{ matrix.os }})
+    name: Bridge native checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -65,6 +65,7 @@ jobs:
         with:
           workspaces: bin/bridge
       - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --manifest-path crates/tests/Cargo.toml --locked -p systemprompt-bridge-config-tests -p systemprompt-bridge-install-tests -p systemprompt-bridge-fsutil-tests -p systemprompt-bridge-gui-tests -p systemprompt-bridge-verdicts-tests
 
   docs:
     name: Rustdoc (warnings as errors)
@@ -146,6 +147,9 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-bridge-no-window
       - run: just lint-bridge-verdicts
+      - run: just lint-discarded-results
+      - run: just lint-fail-open
+      - run: cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
       - run: just lint-bridge-layers
       - run: just lint-bridge-globals
       - run: just lint-bridge-file-size

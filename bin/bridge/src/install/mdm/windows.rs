@@ -72,24 +72,12 @@ pub(super) fn enforce_managed_policy(
 ) -> Result<String, MdmError> {
     ensure_workspace_dir()?;
     let values = policy_values(inputs, &inputs.loopback.origin())?;
-    // Why no `manifestTrust` here: `HKLM\SOFTWARE\Policies\` is the
-    // administrator channel, and a value in it claims administrator authority —
-    // it outranks the operator's own `gateway_url`, and it deliberately
-    // survives every user-level state reset, since clearing user state must not
-    // clear machine policy.
-    //
-    // Writing the bridge's own pin there on every sync therefore made a pin no
-    // administrator had set both unclearable and un-overridable: pointing the
-    // bridge at a second gateway failed with "pinned for <first gateway>" even
-    // after a full state wipe, and the only remedy offered was an
-    // `install --apply --pubkey` the user had no reason to run. A pin the
-    // bridge derives for itself is operator trust, so it is persisted per
-    // gateway in the config file by the sync that learned it
-    // (`sync::manifest` -> `config::persist_pinned_pubkey`), where switching
-    // gateway simply finds no pin and trusts on first use again.
-    //
-    // `install --apply --pubkey` still writes the policy key: that one *is* an
-    // administrator pinning a key out of band, which is what this channel is for.
+    // Why: no `manifestTrust` is written here. HKLM policy is the administrator
+    // channel: it outranks the operator's `gateway_url` and survives every
+    // user-level reset, so a pin the bridge learned for itself became
+    // unclearable and blocked pointing at a second gateway. Self-learned trust
+    // is persisted per gateway in the config file; `install --apply --pubkey`
+    // is the administrator pinning a key out of band and still writes it.
     let elevated = crate::winproc::is_elevated();
     let plan = windows_policy::WritePlan::new(&values, &[], elevated, inputs.policy_store);
 

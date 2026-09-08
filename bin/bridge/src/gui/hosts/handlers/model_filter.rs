@@ -58,10 +58,14 @@ async fn push_model_filter(
     protocols: Option<&[String]>,
     http: reqwest::Client,
 ) -> GuiResult<()> {
-    let cfg = config::load();
+    let cfg = config::load()?;
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let bearer =
-        crate::auth::cache::read_valid(&gateway_base).ok_or_else(|| GuiError::Profile {
+    let bearer = crate::auth::cache::read_valid(&gateway_base)
+        .map_err(|e| GuiError::Profile {
+            context: "credential cache".into(),
+            source: e,
+        })?
+        .ok_or_else(|| GuiError::Profile {
             context: "model filter".into(),
             source: std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,

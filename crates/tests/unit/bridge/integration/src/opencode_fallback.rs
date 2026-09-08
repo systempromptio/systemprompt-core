@@ -26,7 +26,7 @@ const PROVIDER_BLOCK: &str = r#"{
   }
 }"#;
 
-/// Seeds the managed tier and/or the user tier, then probes.
+// Seeds the managed tier and/or the user tier, then probes.
 fn sandbox<R>(managed: Option<&str>, user: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
     let root = TempDir::new().expect("sandbox");
     let managed_dir = root.path().join("managed");

@@ -7,6 +7,18 @@ use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum InstallError {
+    #[error("installation partially completed {completed:?}; {source}")]
+    Partial {
+        completed: Vec<super::InstallStep>,
+        #[source]
+        source: Box<Self>,
+    },
+    #[error(transparent)]
+    Config(#[from] crate::config::ConfigWriteError),
+    #[error(transparent)]
+    ConfigRead(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
     #[error("cannot determine current executable path: {0}")]
     BinaryPath(std::io::Error),
     #[error("cannot resolve org-plugins directory for this OS")]

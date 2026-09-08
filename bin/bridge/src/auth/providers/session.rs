@@ -31,7 +31,7 @@ impl SessionProvider {
         let configured = config
             .session
             .as_ref()
-            .is_some_and(|s| s.enabled.unwrap_or(true));
+            .is_some_and(|s| s.enabled.unwrap_or(false));
         Self { configured }
     }
 }

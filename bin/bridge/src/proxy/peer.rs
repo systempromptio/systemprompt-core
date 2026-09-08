@@ -38,7 +38,7 @@ pub fn probe_identity(port: u16, ours: &InstallId) -> PeerIdentity {
     ) else {
         return PeerIdentity::Unknown;
     };
-    _ = stream.shutdown(std::net::Shutdown::Both);
+    drop(stream);
 
     let Ok(who) = serde_json::from_str::<WhoAmI>(&body) else {
         return PeerIdentity::Unknown;

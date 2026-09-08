@@ -18,26 +18,21 @@ use super::{
 
 const README_MAX_BYTES: usize = 32 * 1024;
 
-pub(super) fn plugin_dirs(root: &Path) -> Vec<PathBuf> {
-    let Ok(entries) = std::fs::read_dir(root) else {
-        return Vec::new();
-    };
-    let mut dirs: Vec<PathBuf> = entries
-        .flatten()
-        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
-        .filter(|e| e.file_name().to_str().is_some_and(|n| !n.starts_with('.')))
-        .map(|e| e.path())
-        .collect();
+pub(super) fn plugin_dirs(root: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut dirs = Vec::new();
+    for entry in super::read_dir_optional(root)? {
+        if entry.file_type()?.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+            dirs.push(entry.path());
+        }
+    }
     dirs.sort();
-    dirs
+    Ok(dirs)
 }
 
-pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
-    let Ok(rd) = std::fs::read_dir(root) else {
-        return Vec::new();
-    };
+pub(super) fn list_plugins(root: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
+    let rd = super::read_dir_optional(root)?;
     let mut out = Vec::new();
-    for entry in rd.flatten() {
+    for entry in rd {
         let name_os = entry.file_name();
         let Some(name) = name_os.to_str() else {
             continue;
@@ -46,17 +41,16 @@ pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             continue;
         }
         let path = entry.path();
-        if !entry.file_type().ok().is_some_and(|t| t.is_dir()) {
+        if !entry.file_type()?.is_dir() {
             continue;
         }
-        let manifest_path = first_existing(&[
+        let manifest: Option<PluginManifest> = read_first_existing(&[
             path.join(".claude-plugin").join("plugin.json"),
             path.join("claude-plugin").join("plugin.json"),
-        ]);
-        let manifest: Option<PluginManifest> = manifest_path
-            .as_ref()
-            .and_then(|p| std::fs::read(p).ok())
-            .and_then(|b| serde_json::from_slice(&b).ok());
+        ])?
+        .map(|body| serde_json::from_str(&body))
+        .transpose()
+        .map_err(std::io::Error::other)?;
         let summary = manifest.as_ref().and_then(|m| m.description.clone());
         let display_name = manifest
             .as_ref()
@@ -66,7 +60,7 @@ pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             path.join("README.md"),
             path.join("readme.md"),
             path.join("README.txt"),
-        ]);
+        ])?;
         let version = manifest.as_ref().and_then(|m| m.version.clone());
         let author = manifest.as_ref().and_then(|m| m.author.clone());
         let homepage = manifest.as_ref().and_then(|m| m.homepage.clone());
@@ -82,7 +76,7 @@ pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             author,
             homepage,
             change: None,
-            children: plugin_children(&path),
+            children: plugin_children(&path)?,
             plugins: Vec::new(),
             extra,
         });
@@ -96,7 +90,7 @@ pub(super) fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
         plugin.children = kids;
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
-    out
+    Ok(out)
 }
 
 #[derive(Deserialize)]
@@ -109,17 +103,18 @@ struct McpJsonFile {
     mcp_servers: BTreeMap<String, serde::de::IgnoredAny>,
 }
 
-pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
+pub fn plugin_children(plugin_dir: &Path) -> std::io::Result<Vec<PluginChild>> {
     let mut out = Vec::new();
-    if let Ok(rd) = std::fs::read_dir(plugin_dir.join("skills")) {
-        for entry in rd.flatten() {
+    {
+        let rd = super::read_dir_optional(&plugin_dir.join("skills"))?;
+        for entry in rd {
             let Some(id) = entry.file_name().to_str().map(str::to_owned) else {
                 continue;
             };
-            if id.starts_with('.') || !entry.file_type().ok().is_some_and(|t| t.is_dir()) {
+            if id.starts_with('.') || !entry.file_type()?.is_dir() {
                 continue;
             }
-            let body = std::fs::read_to_string(entry.path().join("SKILL.md")).ok();
+            let body = Some(super::read_text(&entry.path().join("SKILL.md"))?);
             let (name, _) = body
                 .as_deref()
                 .map_or((None, None), parse_skill_frontmatter);
@@ -131,8 +126,9 @@ pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
             });
         }
     }
-    if let Ok(rd) = std::fs::read_dir(plugin_dir.join("agents")) {
-        for entry in rd.flatten() {
+    {
+        let rd = super::read_dir_optional(&plugin_dir.join("agents"))?;
+        for entry in rd {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) != Some("md") {
                 continue;
@@ -140,7 +136,7 @@ pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
             let Some(id) = path.file_stem().and_then(|s| s.to_str()).map(str::to_owned) else {
                 continue;
             };
-            let body = std::fs::read_to_string(&path).ok();
+            let body = Some(super::read_text(&path)?);
             let (name, _) = body
                 .as_deref()
                 .map_or((None, None), parse_skill_frontmatter);
@@ -152,10 +148,9 @@ pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
             });
         }
     }
-    if let Ok(bytes) = std::fs::read(plugin_dir.join("hooks").join("hooks.json"))
-        && let Ok(file) =
-            serde_json::from_slice::<crate::sync::apply::hooks_schema::HooksFile>(&bytes)
-    {
+    if let Some(body) = super::read_optional_text(&plugin_dir.join("hooks").join("hooks.json"))? {
+        let file: crate::sync::apply::hooks_schema::HooksFile =
+            serde_json::from_str(&body).map_err(std::io::Error::other)?;
         for event in file.hooks.keys() {
             out.push(PluginChild {
                 kind: "hooks",
@@ -165,9 +160,8 @@ pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
             });
         }
     }
-    if let Ok(bytes) = std::fs::read(plugin_dir.join(".mcp.json"))
-        && let Ok(file) = serde_json::from_slice::<McpJsonFile>(&bytes)
-    {
+    if let Some(body) = super::read_optional_text(&plugin_dir.join(".mcp.json"))? {
+        let file: McpJsonFile = serde_json::from_str(&body).map_err(std::io::Error::other)?;
         for server in file.mcp_servers.keys() {
             out.push(PluginChild {
                 kind: "mcp",
@@ -177,7 +171,7 @@ pub fn plugin_children(plugin_dir: &Path) -> Vec<PluginChild> {
             });
         }
     }
-    out
+    Ok(out)
 }
 
 pub fn mark_shared_mcp(plugin_children: &mut [Vec<PluginChild>]) {
@@ -246,19 +240,17 @@ pub(super) fn annotate_plugins_with_diff(
     }
 }
 
-fn first_existing(candidates: &[PathBuf]) -> Option<PathBuf> {
-    candidates.iter().find(|c| c.is_file()).cloned()
-}
-
-fn read_first_existing(candidates: &[PathBuf]) -> Option<String> {
-    for c in candidates {
-        if let Ok(meta) = std::fs::metadata(c)
-            && meta.is_file()
-            && meta.len() <= README_MAX_BYTES as u64
-            && let Ok(text) = std::fs::read_to_string(c)
-        {
-            return Some(text);
+fn read_first_existing(candidates: &[PathBuf]) -> std::io::Result<Option<String>> {
+    for path in candidates {
+        if let Some(body) = super::read_optional_text(path)? {
+            if body.len() > README_MAX_BYTES {
+                return Err(std::io::Error::other(format!(
+                    "{} exceeds {README_MAX_BYTES} bytes",
+                    path.display()
+                )));
+            }
+            return Ok(Some(body));
         }
     }
-    None
+    Ok(None)
 }

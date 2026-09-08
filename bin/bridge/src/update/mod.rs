@@ -259,8 +259,14 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str, http: &reqwest:
 
 #[must_use]
 pub fn automatic_enabled() -> bool {
-    crate::config::load()
-        .update
+    let cfg = match crate::config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            tracing::error!(error = %e, "config unreadable; automatic update disabled");
+            return false;
+        },
+    };
+    cfg.update
         .as_ref()
         .and_then(|u| u.automatic)
         .unwrap_or(true)

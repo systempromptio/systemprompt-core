@@ -153,7 +153,7 @@ pub fn refresh(
     handles: &mut TrayHandles,
     snap: &AppStateSnapshot,
     schedule: &crate::schedule::status::ScheduleStatusCache,
-) {
+) -> Result<(), tray_icon::Error> {
     handles.identity_item.set_text(format_identity(snap));
     handles.last_sync_item.set_text(format_last_sync(snap));
     handles.sync_item.set_enabled(!snap.sync_in_flight);
@@ -170,7 +170,7 @@ pub fn refresh(
     handles
         .autostart_item
         .set_checked(autostart == ScheduleStatus::Installed);
-    _ = handles.tray.set_tooltip(Some(tooltip(snap)));
+    handles.tray.set_tooltip(Some(tooltip(snap)))?;
     let target = match snap.gateway_status {
         GatewayStatus::Unreachable { .. } => TrayStatus::Alert,
         _ => TrayStatus::Normal,
@@ -180,9 +180,10 @@ pub fn refresh(
             TrayStatus::Normal => handles.icon_normal.clone(),
             TrayStatus::Alert => handles.icon_alert.clone(),
         };
-        _ = handles.tray.set_icon(Some(icon));
+        handles.tray.set_icon(Some(icon))?;
         handles.status = target;
     }
+    Ok(())
 }
 
 pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {

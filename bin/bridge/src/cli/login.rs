@@ -193,7 +193,11 @@ fn code_after_flag(pasted: &str) -> Option<String> {
 
 fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
     gateway.map_or_else(
-        || Ok(crate::config::gateway_url_or_default(&crate::config::load())),
+        || {
+            crate::config::load()
+                .map(|cfg| crate::config::gateway_url_or_default(&cfg))
+                .map_err(|e| e.to_string())
+        },
         |raw| ValidatedUrl::try_new(raw.trim()).map_err(|e| format!("--gateway: {e}")),
     )
 }

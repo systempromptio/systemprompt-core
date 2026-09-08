@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
+cd "$(dirname "$0")/.."
+git rev-parse --is-inside-work-tree >/dev/null
 
 # Machete rule: inline `//` comments are banned in production crates.
 #
@@ -33,11 +35,14 @@ set -uo pipefail
 # file must not pass vacuously.
 
 MATCHES=""
+scanned=0
 while IFS= read -r file; do
     case "$file" in
         crates/tests/*) continue ;;
         */build.rs) continue ;;
     esac
+    [ -e "$file" ] || continue
+    scanned=$((scanned + 1))
     FOUND=$(awk -v MAX_WHY_LINES="${MAX_WHY_LINES:-6}" '
         /^[[:space:]]*\/\/\// { prev_allowed = 0; if (!in_doc) doc_line = FNR; in_doc = 1; next }
         /^[[:space:]]*\/\/!/ { prev_allowed = 0; next }
@@ -80,8 +85,10 @@ while IFS= read -r file; do
             prev_allowed = 0
         }
     ' "$file")
-    [ -n "$FOUND" ] && MATCHES+="${FOUND}"$'\n'
+    if [ -n "$FOUND" ]; then MATCHES+="${FOUND}"$'\n'; fi
 done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' | sort -u)
+
+if [ "$scanned" -eq 0 ]; then echo "lint-inline-comments: no production sources scanned" >&2; exit 1; fi
 
 if [ -z "$MATCHES" ]; then
     echo "lint-inline-comments: OK (no unlisted inline comments)"

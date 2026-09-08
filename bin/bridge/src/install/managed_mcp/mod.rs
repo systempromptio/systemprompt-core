@@ -25,33 +25,16 @@ pub(crate) fn policy_dir() -> PathBuf {
 
 // Why: Claude Code treats an empty managed MCP file as exclusive mode with no
 // servers.
-pub(crate) fn clear_policy() {
+pub(crate) fn clear_policy() -> std::io::Result<()> {
     let dir = policy_dir();
     let mcp_path = dir.join(MANAGED_MCP_FILE);
     let settings_path = dir.join(MANAGED_SETTINGS_FILE);
-
-    let stripped = match stripped_settings(&settings_path) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::managed-mcp",
-                path = %settings_path.display(),
-                error = %e,
-                "could not read managed-settings.json; leaving it in place"
-            );
-            None
+    let stripped = stripped_settings(&settings_path)?;
+    match write::clear_direct(&mcp_path, &settings_path, stripped.as_deref()) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            write::clear_elevated(&mcp_path, &settings_path, stripped.as_deref())
         },
-    };
-    let mcp_exists = mcp_path.exists();
-    if !mcp_exists && stripped.is_none() {
-        return;
+        Err(e) => Err(std::io::Error::other(format!("{}: {e}", dir.display()))),
     }
-    if write::clear_direct(&mcp_path, &settings_path, stripped.as_deref()) {
-        tracing::info!(
-            target: "bridge::install::managed-mcp",
-            "Claude Code MCP policy removed; plugin and user MCP servers are no longer shadowed"
-        );
-        return;
-    }
-    write::clear_elevated(&mcp_path, &settings_path, stripped.as_deref());
 }

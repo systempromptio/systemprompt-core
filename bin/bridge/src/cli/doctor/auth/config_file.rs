@@ -35,7 +35,11 @@ pub fn check_config_file() -> Check {
 }
 
 pub fn check_install_record(cfg: &config::Config) -> Check {
-    let Some(record) = crate::install::bootstrap::read_install_record() else {
+    let record = match crate::install::bootstrap::read_install_record() {
+        Ok(record) => record,
+        Err(e) => return Check::fail("install record", e.to_string()),
+    };
+    let Some(record) = record else {
         return Check::warn(
             "install record",
             format!(
@@ -95,15 +99,16 @@ pub fn check_install_record(cfg: &config::Config) -> Check {
 pub fn check_cached_gateway(cfg: &config::Config) -> Check {
     let configured = config::gateway_url_or_default(cfg);
     match auth::cache::cached_gateway() {
-        None => Check::ok(
+        Err(e) => Check::fail("cached token scope", e.to_string()),
+        Ok(None) => Check::ok(
             "cached token scope",
             "no cached token; the next call mints against the configured gateway",
         ),
-        Some(cached) if cached == configured => Check::ok(
+        Ok(Some(cached)) if cached == configured => Check::ok(
             "cached token scope",
             format!("cached token was minted for {configured}"),
         ),
-        Some(cached) => Check::warn(
+        Ok(Some(cached)) => Check::warn(
             "cached token scope",
             format!(
                 "cached token was minted for {cached} but the configured gateway is \

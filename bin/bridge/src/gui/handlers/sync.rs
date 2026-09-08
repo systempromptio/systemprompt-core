@@ -41,11 +41,9 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         }));
     }
     app.ctx.spawn(async move {
-        // Why: a config-file pin for another gateway must be re-learned, not
-        // enforced; only an in-force pin turns trust-on-first-use off.
-        let allow_tofu = !matches!(
+        let allow_tofu = matches!(
             config::pinned_pubkey_state(),
-            config::PinnedPubkeyState::Pinned { .. }
+            Ok(config::PinnedPubkeyState::Unpinned)
         );
         let result = tokio::select! {
             () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
@@ -108,6 +106,9 @@ pub(crate) fn on_sync_finished(
             Ok(json!({ "cancelled": true }))
         },
         Err(msg) => {
+            if let GuiError::Sync(sync::SyncError::Partial(summary)) = msg.as_ref() {
+                structured = Some(summary.as_ref().clone());
+            }
             let raw = format!("{msg:#}");
             tracing::error!(error = %raw, "sync failed");
             let sync_err = match msg.as_ref() {

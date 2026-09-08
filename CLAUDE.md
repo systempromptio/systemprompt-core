@@ -108,6 +108,10 @@ No new folders or process docs enter git without explicit user approval. Before 
 
 After changes, check what you touched — typically `cargo clippy -p <crate> --all-targets` and the crate's tests. Do **not** run the full gate cycle to land work — that is release work (see Branching & Release Flow), run deliberately with `just gate`. When you do need the whole cycle locally — preparing a release, or chasing a failed gate — it is `just format-check && cargo clippy --workspace --all-targets --all-features -- -D warnings && just doc-check && just file-size`, and `just doc-check` covers **both** workspaces (a bare `cargo doc --workspace` misses `crates/tests/`).
 
+## Bridge correctness
+
+Follow `internal/guides/rust.md` §6. Logging does not turn a failed operation into success. Verified writes, exact-scope reads, gateway-bound trust, typed partial outcomes, and owned background tasks are required. Run `just lint-discarded-results` and `just lint-fail-open` with the affected bridge tests.
+
 ## Extension Framework
 
 Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`metadata()`, `schemas()`, `router()`, `migrations()`). Key traits: `Extension`, `SchemaExtensionTyped`, `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`.

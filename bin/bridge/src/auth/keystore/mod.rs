@@ -5,7 +5,6 @@
 
 use crate::ids::{CertFingerprint, IdValidationError};
 use sha2::{Digest, Sha256};
-use std::fmt::Write;
 
 #[derive(Debug, thiserror::Error)]
 pub enum KeystoreError {
@@ -38,12 +37,8 @@ pub trait DeviceCertSource {
 pub type CertRef<'a> = Option<&'a str>;
 
 pub fn sha256_der(der: &[u8]) -> Result<CertFingerprint, KeystoreError> {
-    let digest = Sha256::digest(der);
-    let mut out = String::with_capacity(64);
-    for byte in digest {
-        _ = write!(out, "{byte:02x}");
-    }
-    Ok(CertFingerprint::try_new(out)?)
+    let hex = crate::hash::hex_encode(&Sha256::digest(der));
+    Ok(CertFingerprint::try_new(hex)?)
 }
 
 #[cfg(target_os = "macos")]

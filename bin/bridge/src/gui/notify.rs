@@ -26,6 +26,6 @@ impl GuiApp {
     }
 
     pub(crate) fn signal_cleared(&mut self, signal: Signal) {
-        _ = self.active_signals.remove(&signal);
+        self.active_signals.remove(&signal);
     }
 }

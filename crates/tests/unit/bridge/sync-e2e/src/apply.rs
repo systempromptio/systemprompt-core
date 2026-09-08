@@ -208,8 +208,10 @@ fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxD
     // a path here should copy the working form.
     toml.push_str(&format!("file = '{}'\n", pat_file.display()));
     if let Some(pk) = pubkey {
-        toml.push_str("[sync]\n");
-        toml.push_str(&format!("pinned_pubkey = \"{pk}\"\n"));
+        toml.push_str("[sync.trust]\n");
+        toml.push_str(&format!(
+            "gateway = \"{gateway_uri}\"\nsource = \"operator\"\nkey = \"{pk}\"\n"
+        ));
     }
     fs::write(&config_file, toml).unwrap();
 
@@ -292,6 +294,7 @@ fn run_once_applies_full_manifest_end_to_end() {
     let rt = setup_runtime();
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
 
         let m = SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -466,6 +469,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
     let rt = setup_runtime();
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
 
         let m = SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -523,6 +527,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
     let rt = setup_runtime();
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
 
         let m = SignedManifest {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -607,6 +612,7 @@ fn serve(m: &SignedManifest, label: &str) -> (MockServer, SandboxDirs, PathBuf) 
     let rt = setup_runtime();
     rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         pat_mock().mount(&server).await;
         Mock::given(method("GET"))
             .and(path("/v1/bridge/manifest"))
@@ -728,6 +734,7 @@ fn serve_plugins(m: &SignedManifest, files: &[(&str, &str, &[u8])], label: &str)
         .collect();
     rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         pat_mock().mount(&server).await;
         Mock::given(method("GET"))
             .and(path("/v1/bridge/manifest"))
@@ -840,10 +847,20 @@ fn the_comms_drain_hooks_are_installed_only_when_the_owner_opts_in() {
     for (label, entry, expected) in [
         (
             "pat-comms-off",
-            governance_plugin("acme-commons", vec![]),
+            governance_plugin(
+                "acme-commons",
+                vec![(".claude-plugin/plugin.json", COMMONS_FILE_BODY)],
+            ),
             false,
         ),
-        ("pat-comms-on", comms_plugin("acme-commons", vec![]), true),
+        (
+            "pat-comms-on",
+            comms_plugin(
+                "acme-commons",
+                vec![(".claude-plugin/plugin.json", COMMONS_FILE_BODY)],
+            ),
+            true,
+        ),
     ] {
         let m = manifest_of(vec![entry], vec![]);
         let b = serve_plugins(
@@ -996,15 +1013,14 @@ fn a_plugin_without_its_manifest_file_is_reported_as_malformed() {
         &[("acme-plugin", "README.md", PLUGIN_FILE_BODY)],
         "pat-malformed",
     );
-    let summary = run_sync(&b.dirs).expect("sync applies");
-    assert_eq!(
-        summary.malformed,
-        vec!["acme-plugin".to_owned()],
-        "a bundle with no claude-plugin/plugin.json is flagged"
+    let error = run_sync(&b.dirs).expect_err("malformed installation must be partial");
+    assert!(
+        error.contains("sync PARTIAL") && error.contains("acme-plugin"),
+        "{error}"
     );
     assert!(
-        summary.installed.contains(&"acme-plugin".to_owned()),
-        "it is still materialised so the operator can inspect it"
+        !b.dirs.metadata.join("last-sync.json").exists(),
+        "partial application must not advance replay state"
     );
     let _ = (&b.server, &b.pat_dir);
 }
@@ -1198,13 +1214,17 @@ fn seed_stale_cache(dirs: &SandboxDirs, gateway: &str) {
         ],
         || {
             let url = systemprompt_identifiers::ValidatedUrl::try_new(gateway).unwrap();
-            systemprompt_bridge::auth::cache::write(
+            let cfg = systemprompt_bridge::config::load().unwrap();
+            let binding =
+                systemprompt_bridge::auth::cache::CredentialBinding::capture(&cfg).unwrap();
+            systemprompt_bridge::auth::cache::write_bound(
                 &url,
                 &systemprompt_bridge::gateway::types::HelperOutput {
                     token: systemprompt_bridge::ids::BearerToken::new(STALE_TOKEN),
                     ttl: 3600,
                     headers: std::collections::HashMap::new(),
                 },
+                &binding,
             )
             .unwrap();
         },
@@ -1216,6 +1236,7 @@ fn a_rejected_cached_token_is_discarded_and_sync_recovers_on_a_fresh_mint() {
     let rt = setup_runtime();
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         let m = empty_manifest();
 
         pat_mock().mount(&server).await;
@@ -1268,6 +1289,7 @@ fn sync_fails_only_when_a_freshly_minted_token_is_also_rejected() {
     let rt = setup_runtime();
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
 
         pat_mock().mount(&server).await;
         Mock::given(method("GET"))

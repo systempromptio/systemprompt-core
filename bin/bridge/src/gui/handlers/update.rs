@@ -174,12 +174,15 @@ async fn install(
 async fn client_and_bearer(
     http: reqwest::Client,
 ) -> Result<(crate::gateway::GatewayClient, String), GuiError> {
-    let cfg = crate::config::load();
+    let cfg = crate::config::load()?;
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
     let bearer = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
         .await
         .map(|out| out.token.expose().to_owned())
-        .ok_or(GuiError::NotAuthenticated)?;
+        .map_err(|e| GuiError::Profile {
+            context: "update authentication".into(),
+            source: std::io::Error::other(e),
+        })?;
     Ok((
         crate::gateway::GatewayClient::new(gateway_url, http),
         bearer,

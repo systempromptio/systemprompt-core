@@ -96,6 +96,7 @@ fn ctx<'a>(
     plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
+        policy_store: &POLICY_STORE,
         manifest,
         org_plugins_root: root,
         plugin_mcp_servers,
@@ -106,6 +107,13 @@ fn ctx<'a>(
     }
 }
 
+
+static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::config::store::PolicyStore::new(
+            systemprompt_bridge::config::store::managed_policy_store(),
+        )
+    });
 
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);

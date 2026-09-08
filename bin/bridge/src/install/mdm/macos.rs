@@ -9,6 +9,7 @@
 use std::path::Path;
 
 pub use super::macos_payload::{build_bridge_prefs_plist, build_mobileconfig, build_prefs_plist};
+pub(crate) use super::macos_remove::remove_profile;
 use super::{MdmError, MdmPayloadInputs};
 
 pub(crate) const PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm";
@@ -17,7 +18,7 @@ pub(super) const BRIDGE_PAYLOAD_IDENTIFIER: &str = "io.systemprompt.bridge.mdm.p
 pub(crate) const MANAGED_PREFS_PATH: &str =
     "/Library/Managed Preferences/com.anthropic.claudefordesktop.plist";
 
-fn bridge_prefs_path() -> String {
+pub(super) fn bridge_prefs_path() -> String {
     format!(
         "/Library/Managed Preferences/{}.plist",
         crate::config::store::bridge_policy_domain()
@@ -25,10 +26,14 @@ fn bridge_prefs_path() -> String {
 }
 
 fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
-    if gateway.starts_with("http://")
-        && !gateway.contains("://127.0.0.1")
-        && !gateway.contains("://localhost")
-    {
+    let url = url::Url::parse(gateway).map_err(|e| MdmError::InvalidConfig(e.to_string()))?;
+    let loopback = match url.host() {
+        Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        None => false,
+    };
+    if url.scheme() != "https" && !(url.scheme() == "http" && loopback) {
         return Err(MdmError::InsecureGateway {
             gateway: gateway.to_owned(),
         });
@@ -40,85 +45,114 @@ pub(crate) fn apply(
     mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
-) -> Result<Vec<String>, MdmError> {
+) -> Result<super::MdmApplication, MdmError> {
     use std::fs;
 
     validate_gateway(gateway)?;
 
-    let plist = build_prefs_plist(mcp, gateway);
-    let tmp_path =
-        std::env::temp_dir().join(format!("{}.prefs.plist", crate::brand::brand().binary_name));
-    fs::write(&tmp_path, plist.as_bytes()).map_err(|e| MdmError::Io {
-        action: "write",
-        path: tmp_path.clone(),
-        source: e,
+    let plist = build_prefs_plist(mcp, gateway)?;
+    let staging = tempfile::tempdir().map_err(|source| MdmError::Io {
+        action: "create staging directory",
+        path: std::env::temp_dir(),
+        source,
     })?;
-    let bridge_plist = pubkey.map(build_bridge_prefs_plist);
-    let bridge_tmp = std::env::temp_dir().join(format!(
-        "{}.bridge-prefs.plist",
-        crate::brand::brand().binary_name
-    ));
+    let tmp_path = staging.path().join("claude.plist");
+    crate::fsutil::atomic_write_0600(&tmp_path, plist.as_bytes()).map_err(|source| {
+        MdmError::Io {
+            action: "stage policy",
+            path: tmp_path.clone(),
+            source,
+        }
+    })?;
+    let bridge_plist = pubkey.map(build_bridge_prefs_plist).transpose()?;
+    let bridge_tmp = staging.path().join("bridge.plist");
     if let Some(body) = &bridge_plist {
-        fs::write(&bridge_tmp, body.as_bytes()).map_err(|e| MdmError::Io {
-            action: "write",
-            path: bridge_tmp.clone(),
-            source: e,
+        crate::fsutil::atomic_write_0600(&bridge_tmp, body.as_bytes()).map_err(|source| {
+            MdmError::Io {
+                action: "stage trust",
+                path: bridge_tmp.clone(),
+                source,
+            }
         })?;
     }
-
-    let user = std::env::var("USER").unwrap_or_default();
-    let tmp_str = tmp_path.to_string_lossy();
-    let bridge_tmp_str = bridge_tmp.to_string_lossy();
+    let user = std::env::var("USER").map_err(|e| MdmError::InvalidConfig(format!("USER: {e}")))?;
+    if user.is_empty() || user.contains('/') || user == "." || user == ".." {
+        return Err(MdmError::InvalidConfig(
+            "USER cannot identify a managed-preferences directory".to_owned(),
+        ));
+    }
     let dest_system = MANAGED_PREFS_PATH;
     let dest_user =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
     let bridge_dest = bridge_prefs_path();
-    let existing_matches = fs::read(dest_system).is_ok_and(|b| b == plist.as_bytes())
-        && (user.is_empty() || fs::read(&dest_user).is_ok_and(|b| b == plist.as_bytes()))
-        && bridge_plist
-            .as_ref()
-            .is_none_or(|b| fs::read(&bridge_dest).is_ok_and(|on_disk| on_disk == b.as_bytes()));
-    let bridge_line = if bridge_plist.is_some() {
-        format!("/usr/bin/install -m 0644 \"{bridge_tmp_str}\" \"{bridge_dest}\"\n")
-    } else {
-        String::new()
-    };
-
-    let script = if user.is_empty() {
-        format!(
-            r#"set -e
-mkdir -p "/Library/Managed Preferences"
-/usr/bin/install -m 0644 "{tmp_str}" "{dest_system}"
-{bridge_line}/usr/bin/killall cfprefsd 2>/dev/null || true
-"#
-        )
-    } else {
-        format!(
-            r#"set -e
-mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
-/usr/bin/install -m 0644 "{tmp_str}" "{dest_system}"
-/usr/bin/install -m 0644 "{tmp_str}" "{dest_user}"
-{bridge_line}/usr/bin/killall cfprefsd 2>/dev/null || true
-"#
-        )
-    };
-
-    let result = if existing_matches {
-        Ok(())
-    } else {
+    let mut writes = vec![
+        (&tmp_path, Path::new(dest_system), plist.as_bytes()),
+        (&tmp_path, Path::new(&dest_user), plist.as_bytes()),
+    ];
+    if let Some(body) = &bridge_plist {
+        writes.push((&bridge_tmp, Path::new(&bridge_dest), body.as_bytes()));
+    }
+    let mut script = "set -e\n".to_owned();
+    let mut changed = false;
+    for (source, target, bytes) in &writes {
+        match fs::read(target) {
+            Ok(current) if current == *bytes => continue,
+            Ok(_) => {},
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
+                ) => {},
+            Err(source) => {
+                return Err(MdmError::Io {
+                    action: "read policy",
+                    path: target.to_path_buf(),
+                    source,
+                });
+            },
+        }
+        changed = true;
+        let quote = crate::install::elevation_script::shell_quote;
+        let parent = target
+            .parent()
+            .ok_or_else(|| MdmError::InvalidConfig("policy path has no parent".to_owned()))?;
+        script.push_str(&format!(
+            "mkdir -p {}\n/usr/bin/install -m 0644 {} {}\n",
+            quote(&parent.to_string_lossy()),
+            quote(&source.to_string_lossy()),
+            quote(&target.to_string_lossy())
+        ));
+    }
+    if changed {
+        script.push_str("/usr/bin/killall cfprefsd\n");
         crate::install::elevate::run_privileged(
             &script,
-            "Astound Bridge needs administrator privileges to install the Claude Desktop managed preferences.",
-        )
-    };
-    _ = fs::remove_file(&tmp_path);
-    _ = fs::remove_file(&bridge_tmp);
-    result.map_err(|e| MdmError::ApplyElevation {
-        binary: crate::brand::brand().binary_name,
-        source: e,
-    })?;
+            "Bridge needs administrator privileges to install the Claude Desktop managed preferences.",
+        )?;
+    }
+    let mut files = Vec::new();
+    for (_, target, bytes) in writes {
+        let receipt = crate::fsutil::FileReceipt::verify(target, bytes)
+            .map_err(|source| MdmError::Io {
+                action: "verify policy",
+                path: target.to_path_buf(),
+                source,
+            })
+            .map_err(|source| MdmError::Partial {
+                completed: super::MdmApplication {
+                    files: files.clone(),
+                    ..Default::default()
+                },
+                source: Box::new(source),
+            })?;
+        files.push(receipt);
+    }
 
-    Ok(apply_summary(dest_system, &dest_user, &user, gateway))
+    Ok(super::MdmApplication {
+        lines: apply_summary(dest_system, &dest_user, &user, gateway, changed),
+        files,
+        policies: Vec::new(),
+    })
 }
 
 fn apply_summary(
@@ -126,17 +160,20 @@ fn apply_summary(
     dest_user: &str,
     user: &str,
     inference_base_url: &str,
+    changed: bool,
 ) -> Vec<String> {
     let mut summary = Vec::with_capacity(16);
-    summary.push(format!("wrote: {dest_system}"));
+    summary.push(format!("verified: {dest_system}"));
     if !user.is_empty() {
-        summary.push(format!("wrote: {dest_user}"));
+        summary.push(format!("verified: {dest_user}"));
     }
     summary.push(format!(
         "inferenceGatewayBaseUrl: {inference_base_url}  (local proxy)"
     ));
     summary.push("auth: inferenceGatewayApiKey = loopback secret (proxy-bound)".into());
-    summary.push("restarted cfprefsd (managed prefs picked up on next app launch)".into());
+    if changed {
+        summary.push("restarted cfprefsd (managed prefs picked up on next app launch)".into());
+    }
     summary.push(
         "Verify: defaults read /Library/Managed\\ Preferences/com.anthropic.claudefordesktop"
             .into(),
@@ -165,20 +202,21 @@ pub(crate) fn apply_mobileconfig(
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
-    use std::fs;
     use std::process::Command;
 
     validate_gateway(gateway)?;
 
-    let mobileconfig = build_mobileconfig(mcp, gateway, pubkey);
+    let mobileconfig = build_mobileconfig(mcp, gateway, pubkey)?;
     let out_path = std::env::temp_dir().join(format!(
         "{}.mobileconfig",
         crate::brand::brand().binary_name
     ));
-    fs::write(&out_path, mobileconfig.as_bytes()).map_err(|e| MdmError::Io {
-        action: "write",
-        path: out_path.clone(),
-        source: e,
+    crate::fsutil::atomic_write_0600(&out_path, mobileconfig.as_bytes()).map_err(|e| {
+        MdmError::Io {
+            action: "write",
+            path: out_path.clone(),
+            source: e,
+        }
     })?;
 
     let opened = Command::new("open").arg("-g").arg(&out_path).status();
@@ -199,37 +237,4 @@ pub(crate) fn apply_mobileconfig(
     summary
         .push("For fleet deployment, distribute this file via Jamf/Intune/Mosyle instead.".into());
     Ok(summary)
-}
-
-pub(crate) fn remove_profile() -> Result<bool, MdmError> {
-    let user = std::env::var("USER").unwrap_or_default();
-    let user_path =
-        format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
-    let sys_exists = Path::new(MANAGED_PREFS_PATH).exists();
-    let user_exists = !user.is_empty() && Path::new(&user_path).exists();
-
-    if !sys_exists && !user_exists {
-        return Ok(false);
-    }
-
-    let script = format!(
-        r"set -e
-/usr/bin/profiles remove -identifier {PAYLOAD_IDENTIFIER} 2>/dev/null || true
-{rm_lines}
-/usr/bin/killall cfprefsd 2>/dev/null || true
-",
-        rm_lines = if user_exists {
-            format!(
-                r#"rm -f "{MANAGED_PREFS_PATH}" "{user_path}" "{}""#,
-                bridge_prefs_path()
-            )
-        } else {
-            format!(r#"rm -f "{MANAGED_PREFS_PATH}" "{}""#, bridge_prefs_path())
-        },
-    );
-    crate::install::elevate::run_privileged(
-        &script,
-        "Astound Bridge needs administrator privileges to remove the Claude Desktop managed preferences.",
-    )?;
-    Ok(true)
 }

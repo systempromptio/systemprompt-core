@@ -13,11 +13,25 @@ use crate::stdio::{diag, emit_json};
 use crate::{auth, config};
 
 pub(super) fn cmd_run(ctx: &BridgeContext) -> ExitCode {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            diag(&e.to_string());
+            return ExitCode::FAILURE;
+        },
+    };
     let session_id = SessionId::generate();
     let acquired = ctx.block_on(auth::acquire_bearer(&cfg, &session_id, &ctx.http));
     let out = match acquired {
         Ok(out) => out,
+        Err(e @ ChainError::Providers(_)) => {
+            diag(&format!("{e}"));
+            return ExitCode::FAILURE;
+        },
+        Err(ChainError::Cache(e)) => {
+            diag(&format!("credential cache: {e}"));
+            return ExitCode::FAILURE;
+        },
         Err(ChainError::PreferredTransient { provider, source }) => {
             diag(&format!(
                 "transient auth failure on preferred provider {provider}: {source}"

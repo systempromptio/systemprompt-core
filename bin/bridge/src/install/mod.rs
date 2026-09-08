@@ -10,6 +10,7 @@ mod builders;
 pub(crate) mod elevate;
 #[cfg(target_os = "windows")]
 pub(crate) mod elevated_job;
+pub mod elevated_protocol;
 pub mod elevation_script;
 mod error;
 pub mod managed_file;
@@ -68,37 +69,49 @@ impl InstallOptions {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum InstallStep {
+    Directory(PathBuf),
+    Sentinel(PathBuf),
+    GatewayConfigured,
+    TrustConfigured,
+    Policy { outcome: MdmDisplay },
+    Schedule { outcome: ScheduleDisplay },
+}
+
 #[derive(Debug)]
+#[must_use]
 pub struct InstallSummary {
+    pub completed: Vec<InstallStep>,
     pub location: paths::OrgPluginsLocation,
     pub binary: PathBuf,
     pub mdm: MdmDisplay,
     pub schedule: Option<ScheduleDisplay>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MdmDisplay {
     Snippet { os: Os, snippet: String },
-    Applied { os: Os, lines: Vec<String> },
-    MobileconfigApplied { lines: Vec<String> },
+    Applied { os: Os, report: mdm::MdmApplication },
+    MobileconfigPrepared { lines: Vec<String> },
 }
 
 /// What the install did about the periodic sync job: wrote a template for the
 /// user to install by hand, or registered it with the host scheduler.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScheduleDisplay {
     Template(ScheduleEmit),
     Applied(ScheduleApplied),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScheduleEmit {
     pub os: Os,
     pub path: PathBuf,
     pub install_hint: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScheduleApplied {
     pub os: Os,
     pub label: String,
@@ -170,31 +183,52 @@ pub fn uninstall(
         (None, Some(metadata))
     };
 
-    if let Some(staging) = paths::bridge_staging_dir()
-        && staging.exists()
-    {
-        _ = fs::remove_dir_all(&staging);
-    }
-
-    if let Ok(entries) = fs::read_dir(&location.path) {
-        for entry in entries.flatten() {
-            let is_plugin_dir = entry.file_type().is_ok_and(|t| t.is_dir())
-                && entry
-                    .file_name()
-                    .to_str()
-                    .is_some_and(|n| !n.starts_with('.'));
-            if is_plugin_dir {
-                _ = fs::remove_dir_all(entry.path());
-            }
+    if let Some(staging) = paths::bridge_staging_dir() {
+        match fs::remove_dir_all(&staging) {
+            Ok(()) => {},
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => {
+                return Err(InstallError::Bootstrap(format!(
+                    "remove {}: {e}",
+                    staging.display()
+                )));
+            },
         }
+    }
+    match fs::read_dir(&location.path) {
+        Ok(entries) => {
+            for entry in entries {
+                let entry = entry.map_err(|e| {
+                    InstallError::Bootstrap(format!("enumerate {}: {e}", location.path.display()))
+                })?;
+                let kind = entry.file_type().map_err(|e| {
+                    InstallError::Bootstrap(format!("inspect {}: {e}", entry.path().display()))
+                })?;
+                if kind.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+                    fs::remove_dir_all(entry.path()).map_err(|e| {
+                        InstallError::Bootstrap(format!("remove {}: {e}", entry.path().display()))
+                    })?;
+                }
+            }
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+        Err(e) => {
+            return Err(InstallError::Bootstrap(format!(
+                "enumerate {}: {e}",
+                location.path.display()
+            )));
+        },
     }
 
     let schedule = remove_schedule(&bridge.schedule);
     if let ScheduleRemoval::Failed(e) = &schedule {
-        diag(&format!("warning: scheduled sync job removal failed: {e}"));
+        return Err(InstallError::ScheduleApply(e.clone()));
     }
 
     let managed_profile = remove_managed_profile();
+    if let ManagedProfileOutcome::RemoveFailed(e) = &managed_profile {
+        return Err(InstallError::Bootstrap(e.clone()));
+    }
 
     let credentials = if purge {
         match crate::auth::setup::logout() {
@@ -202,7 +236,7 @@ pub fn uninstall(
             Err(e) => {
                 let msg = format!("credential purge failed: {e}");
                 diag(&msg);
-                CredentialsOutcome::PurgeFailed(msg)
+                return Err(InstallError::Bootstrap(msg));
             },
         }
     } else {
@@ -247,7 +281,10 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn remove_managed_profile() -> ManagedProfileOutcome {
-    let lines = mdm::linux::remove();
+    let lines = match mdm::linux::remove() {
+        Ok(lines) => lines,
+        Err(e) => return ManagedProfileOutcome::RemoveFailed(e.to_string()),
+    };
     if lines.is_empty() {
         return ManagedProfileOutcome::NotInstalled("Linux env configuration");
     }

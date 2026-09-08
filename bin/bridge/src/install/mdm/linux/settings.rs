@@ -60,66 +60,94 @@ fn key_helper_body(key_path: &Path) -> String {
 pub(super) fn apply_managed_settings(
     gateway: &str,
     key_path: &Path,
-) -> Result<Vec<String>, MdmError> {
+) -> Result<super::super::MdmApplication, MdmError> {
     let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    write_atomic(&helper, &key_helper_body(key_path))?;
+    let helper_body = key_helper_body(key_path);
+    write_atomic(&helper, &helper_body)?;
     set_executable(&helper)?;
 
-    let settings_path =
-        managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
-    let existing = read_or_empty(&settings_path)?;
-    let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
-        serde_json::Map::new()
-    } else {
-        serde_json::from_str(&existing).map_err(|e| MdmError::Json {
-            path: settings_path.clone(),
-            source: e,
-        })?
-    };
+    let mut files = vec![
+        crate::fsutil::FileReceipt::verify(&helper, helper_body.as_bytes())
+            .map_err(io_error("verify helper", &helper))?,
+    ];
+    let outcome = (|| {
+        let settings_path =
+            managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
+        let existing = read_or_empty(&settings_path)?;
+        let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
+            serde_json::Map::new()
+        } else {
+            serde_json::from_str(&existing).map_err(|e| MdmError::Json {
+                path: settings_path.clone(),
+                source: e,
+            })?
+        };
 
-    let mut lines = vec![format!("wrote: {} (apiKeyHelper)", helper.display())];
-    lines.extend(warn_on_forced_login(&root));
-
-    let env = root
-        .entry("env".to_owned())
-        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-    let Some(env) = env.as_object_mut() else {
-        return Err(MdmError::EnvNotObject {
-            path: settings_path,
-        });
-    };
-    env.insert(
-        "ANTHROPIC_BASE_URL".to_owned(),
-        serde_json::Value::String(gateway.to_owned()),
-    );
-    env.insert(
-        "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY".to_owned(),
-        serde_json::Value::String("1".to_owned()),
-    );
-    // Why: Claude Code's attribution header reaches non-Anthropic providers as
-    // system-prompt content.
-    env.insert(
-        "CLAUDE_CODE_ATTRIBUTION_HEADER".to_owned(),
-        serde_json::Value::String("0".to_owned()),
-    );
-
-    root.insert(
-        "apiKeyHelper".to_owned(),
-        serde_json::Value::String(helper.display().to_string()),
-    );
-
-    let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
-        MdmError::Json {
-            path: settings_path.clone(),
-            source: e,
+        let mut lines = vec![format!("wrote: {} (apiKeyHelper)", helper.display())];
+        let conflicts = warn_on_forced_login(&root);
+        if !conflicts.is_empty() {
+            return Err(MdmError::InvalidConfig(conflicts.join("; ")));
         }
+
+        let env = root
+            .entry("env".to_owned())
+            .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+        let Some(env) = env.as_object_mut() else {
+            return Err(MdmError::EnvNotObject {
+                path: settings_path,
+            });
+        };
+        env.insert(
+            "ANTHROPIC_BASE_URL".to_owned(),
+            serde_json::Value::String(gateway.to_owned()),
+        );
+        env.insert(
+            "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY".to_owned(),
+            serde_json::Value::String("1".to_owned()),
+        );
+        // Why: Claude Code's attribution header reaches non-Anthropic providers as
+        // system-prompt content.
+        env.insert(
+            "CLAUDE_CODE_ATTRIBUTION_HEADER".to_owned(),
+            serde_json::Value::String("0".to_owned()),
+        );
+
+        root.insert(
+            "apiKeyHelper".to_owned(),
+            serde_json::Value::String(helper.display().to_string()),
+        );
+
+        let rendered =
+            serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
+                MdmError::Json {
+                    path: settings_path.clone(),
+                    source: e,
+                }
+            })?;
+        let body = format!("{rendered}\n");
+        write_atomic(&settings_path, &body)?;
+        files.push(
+            crate::fsutil::FileReceipt::verify(&settings_path, body.as_bytes())
+                .map_err(io_error("verify settings", &settings_path))?,
+        );
+        lines.push(format!(
+            "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery)",
+            settings_path.display()
+        ));
+        Ok::<_, MdmError>(lines)
+    })();
+    let lines = outcome.map_err(|source| MdmError::Partial {
+        completed: super::super::MdmApplication {
+            files: files.clone(),
+            ..Default::default()
+        },
+        source: Box::new(source),
     })?;
-    write_atomic(&settings_path, &format!("{rendered}\n"))?;
-    lines.push(format!(
-        "wrote: {} (ANTHROPIC_BASE_URL, apiKeyHelper, model discovery)",
-        settings_path.display()
-    ));
-    Ok(lines)
+    Ok(super::super::MdmApplication {
+        lines,
+        files,
+        policies: Vec::new(),
+    })
 }
 
 // Why: Claude Code v2.1.146+ forceLoginMethod/forceLoginOrgUUID block API keys
@@ -137,16 +165,17 @@ fn warn_on_forced_login(root: &serde_json::Map<String, serde_json::Value>) -> Ve
         .collect()
 }
 
-pub(super) fn remove_managed_settings() -> Vec<String> {
-    let Some(path) = managed_settings_path() else {
-        return Vec::new();
+pub(super) fn remove_managed_settings() -> Result<Vec<String>, MdmError> {
+    let path = managed_settings_path().ok_or(MdmError::Resolve("managed settings path"))?;
+    let Some(existing) = crate::fsutil::read_optional(&path).map_err(io_error("read", &path))?
+    else {
+        return Ok(Vec::new());
     };
-    let Ok(existing) = fs::read_to_string(&path) else {
-        return Vec::new();
-    };
-    let Ok(serde_json::Value::Object(mut root)) = serde_json::from_str(&existing) else {
-        return vec![format!("left {} in place: not valid JSON", path.display())];
-    };
+    let mut root: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&existing)
+        .map_err(|source| MdmError::Json {
+            path: path.clone(),
+            source,
+        })?;
     root.remove("apiKeyHelper");
     if let Some(serde_json::Value::Object(env)) = root.get_mut("env") {
         for key in [
@@ -161,23 +190,37 @@ pub(super) fn remove_managed_settings() -> Vec<String> {
         }
     }
     if root.is_empty() {
-        return match fs::remove_file(&path) {
-            Ok(()) => vec![format!("removed: {}", path.display())],
-            Err(e) => vec![format!("could not remove {}: {e}", path.display())],
-        };
+        crate::fsutil::remove_verified(&path).map_err(io_error("remove", &path))?;
+        return Ok(vec![format!("removed: {}", path.display())]);
     }
-    let Ok(rendered) = serde_json::to_string_pretty(&serde_json::Value::Object(root)) else {
-        return Vec::new();
-    };
-    match write_atomic(&path, &format!("{rendered}\n")) {
-        Ok(()) => vec![format!("cleaned: {} (bridge keys)", path.display())],
-        Err(e) => vec![format!("could not clean {}: {e}", path.display())],
-    }
+    let rendered =
+        serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|source| {
+            MdmError::Json {
+                path: path.clone(),
+                source,
+            }
+        })?;
+    write_atomic(&path, &format!("{rendered}\n"))?;
+    Ok(vec![format!("cleaned: {} (bridge keys)", path.display())])
 }
 
 fn set_executable(path: &Path) -> Result<(), MdmError> {
     use std::os::unix::fs::PermissionsExt as _;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(io_error("chmod", path))
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+        .map_err(io_error("chmod", path))?;
+    if fs::metadata(path)
+        .map_err(io_error("verify chmod", path))?
+        .permissions()
+        .mode()
+        & 0o777
+        != 0o700
+    {
+        return Err(MdmError::InvalidConfig(format!(
+            "{}: expected mode 0700",
+            path.display()
+        )));
+    }
+    Ok(())
 }
 
 // Why: Claude Code stores the user's /model selection in this same settings

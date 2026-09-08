@@ -38,13 +38,13 @@ fn a_clean_sync_renders_ok_with_every_count() {
 }
 
 #[test]
-fn malformed_plugins_are_named_in_a_warning_suffix() {
+fn malformed_plugins_make_the_summary_partial() {
     let mut s = summary();
     s.malformed = vec!["ghost".into(), "husk".into()];
     let line = s.one_line();
     assert!(
-        line.starts_with("sync ok"),
-        "malformed is a warning, not a failure: {line}"
+        line.starts_with("sync PARTIAL"),
+        "malformed plugins cannot be reported as successfully installed: {line}"
     );
     assert!(
         line.contains(
@@ -113,7 +113,7 @@ fn the_unsafe_flag_warnings_run_without_a_pinned_pubkey() {
         },
     );
     assert!(
-        pinned.is_none(),
+        pinned.expect("read trust").is_none(),
         "the tofu warning path is the one exercised when nothing is pinned"
     );
 }

@@ -1,4 +1,5 @@
 use systemprompt_bridge::config::paths::{FallbackReason, OrgPluginsLocation, Scope};
+use systemprompt_bridge::install::mdm::MdmApplication;
 use systemprompt_bridge::install::{
     CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, ScheduleApplied,
     ScheduleDisplay, ScheduleEmit, ScheduleRemoval, UninstallSummary, render_install_summary,
@@ -9,6 +10,7 @@ use systemprompt_bridge::schedule::Os;
 #[test]
 fn install_summary_with_mdm_snippet_renders_all_parts() {
     let s = InstallSummary {
+        completed: Vec::new(),
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,
@@ -34,6 +36,7 @@ fn install_summary_with_mdm_snippet_renders_all_parts() {
 #[test]
 fn install_summary_with_applied_policy_renders_lines() {
     let s = InstallSummary {
+        completed: Vec::new(),
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,
@@ -42,18 +45,45 @@ fn install_summary_with_applied_policy_renders_lines() {
         binary: "/usr/bin/systemprompt-bridge".into(),
         mdm: MdmDisplay::Applied {
             os: Os::Windows,
-            lines: vec!["wrote HKCU".into()],
+            report: MdmApplication {
+                lines: vec!["wrote HKCU".into(), "wrote managed.json".into()],
+                policies: Vec::new(),
+                files: Vec::new(),
+            },
         },
         schedule: None,
     };
     let out = render_install_summary(&s);
-    assert!(out.contains("policy applied"));
-    assert!(out.contains("wrote HKCU"));
+    assert!(out.contains("--- policy applied (Windows) ---"));
+    assert!(out.contains("  wrote HKCU\n  wrote managed.json\n"));
+    assert!(!out.contains("mobileconfig prepared"));
+}
+
+#[test]
+fn install_summary_with_prepared_mobileconfig_renders_approval_notice() {
+    let s = InstallSummary {
+        completed: Vec::new(),
+        location: OrgPluginsLocation {
+            path: "/opt/plugins".into(),
+            scope: Scope::User,
+            reason: FallbackReason::Preferred,
+        },
+        binary: "/usr/bin/systemprompt-bridge".into(),
+        mdm: MdmDisplay::MobileconfigPrepared {
+            lines: vec!["profile: /tmp/bridge.mobileconfig".into()],
+        },
+        schedule: None,
+    };
+    let out = render_install_summary(&s);
+    assert!(out.contains("mobileconfig prepared; approval in System Settings required (macOS)"));
+    assert!(out.contains("  profile: /tmp/bridge.mobileconfig\n"));
+    assert!(!out.contains("policy applied"));
 }
 
 #[test]
 fn install_summary_with_schedule_renders_template() {
     let s = InstallSummary {
+        completed: Vec::new(),
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,
@@ -79,6 +109,7 @@ fn install_summary_with_schedule_renders_template() {
 #[test]
 fn install_summary_system_scope_renders_system_wide() {
     let s = InstallSummary {
+        completed: Vec::new(),
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::System,
@@ -129,6 +160,7 @@ fn uninstall_summary_purged_and_not_installed() {
 #[test]
 fn install_summary_with_applied_schedule_renders_registration() {
     let s = InstallSummary {
+        completed: Vec::new(),
         location: OrgPluginsLocation {
             path: "/opt/plugins".into(),
             scope: Scope::User,

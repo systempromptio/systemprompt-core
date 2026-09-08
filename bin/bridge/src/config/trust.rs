@@ -204,18 +204,11 @@ pub fn pinned_pubkey_state_for(
     };
     let validated = TrustRecord::new(gateway, record.key.as_str(), record.source)?;
     if record.gateway != current {
-        // A managed pin is an administrator naming a key *for* a gateway, so
-        // aiming the bridge at a different one is a conflict only they can
-        // resolve: refuse, and say which gateway it was pinned for.
-        //
-        // An operator pin is trust this bridge learned by first use, and that
-        // is per gateway by nature — a second gateway is a separate trust
-        // domain with no more claim on this key than one never seen before.
-        // Reporting it stale dead-ended every legitimate gateway switch: the
-        // pin could not be cleared by resetting user state, and the only
-        // remedy offered was an administrator command the operator had no
-        // reason to run. It trusts on first use instead, exactly as it would
-        // for a gateway it had never met.
+        // Why: a managed pin names a key for one gateway, so pointing at another
+        // is a conflict only the administrator can resolve. An operator pin is
+        // trust learned by first use, which is per gateway by nature: a second
+        // gateway is a new trust domain, and reporting it stale left every
+        // legitimate gateway switch with no remedy short of an admin command.
         if policy.is_some() {
             return Ok(PinnedPubkeyState::StaleForGateway {
                 pinned_for: record.gateway.0.clone(),

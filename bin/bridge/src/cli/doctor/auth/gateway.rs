@@ -27,6 +27,14 @@ pub async fn check_mint_jwt(
             ));
             Some(out)
         },
+        Err(e @ ChainError::Providers(_)) => {
+            checks.push(Check::fail("mint JWT", e.to_string()));
+            None
+        },
+        Err(ChainError::Cache(e)) => {
+            checks.push(Check::fail("mint JWT", format!("credential cache: {e}")));
+            None
+        },
         Err(ChainError::PreferredTransient { provider, source }) => {
             checks.push(Check::fail(
                 "mint JWT",
@@ -103,24 +111,25 @@ pub async fn check_whoami(
 
 pub fn check_pinned_pubkey() -> Check {
     match config::pinned_pubkey_state() {
-        config::PinnedPubkeyState::Pinned { source, .. } => Check::ok(
+        Err(e) => Check::fail("manifest pubkey", e.to_string()),
+        Ok(config::PinnedPubkeyState::Pinned { source, .. }) => Check::ok(
             "manifest pubkey pinned",
             format!(
                 "from the {}; signed-manifest verification will reject pubkey rotation",
                 source.label()
             ),
         ),
-        config::PinnedPubkeyState::StaleForGateway {
+        Ok(config::PinnedPubkeyState::StaleForGateway {
             pinned_for,
             current,
-        } => Check::warn(
+        }) => Check::fail(
             "manifest pubkey pinned",
             format!(
                 "config-file pin was learned for {pinned_for} but the gateway is {current}; it \
-                 is ignored and the next sync re-learns the key"
+                 blocks sync until explicitly replaced with `install --apply --pubkey <base64>`"
             ),
         ),
-        config::PinnedPubkeyState::Unpinned => Check::warn(
+        Ok(config::PinnedPubkeyState::Unpinned) => Check::warn(
             "manifest pubkey pinned",
             "no pinned pubkey — first sync needs `--allow-tofu` or `install --apply --pubkey \
              <b64>`",

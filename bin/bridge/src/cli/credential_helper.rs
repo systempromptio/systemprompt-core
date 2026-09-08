@@ -36,7 +36,13 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
 }
 
 fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            crate::stdio::diag(&e.to_string());
+            return ExitCode::FAILURE;
+        },
+    };
     let acquired = ctx.block_on(auth::acquire_bearer(
         &cfg,
         &SessionId::generate(),
@@ -44,6 +50,14 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     ));
     let out = match acquired {
         Ok(out) => out,
+        Err(e @ ChainError::Providers(_)) => {
+            crate::stdio::diag(&format!("{e}"));
+            return ExitCode::FAILURE;
+        },
+        Err(ChainError::Cache(e)) => {
+            crate::stdio::diag(&format!("credential cache: {e}"));
+            return ExitCode::FAILURE;
+        },
         Err(ChainError::PreferredTransient { provider, source }) => {
             eprintln!(
                 "{}",

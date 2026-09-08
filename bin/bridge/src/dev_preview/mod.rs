@@ -55,19 +55,21 @@ pub fn serve(opts: &Options) -> std::io::Result<()> {
     ));
     for conn in listener.incoming() {
         match conn {
-            Ok(stream) => handle(stream, opts),
+            Ok(stream) => {
+                if let Err(e) = handle(stream, opts) {
+                    diag(&format!("dev-web: response failed: {e}"));
+                }
+            },
             Err(e) => diag(&format!("dev-web: accept failed: {e}")),
         }
     }
     Ok(())
 }
 
-fn handle(mut stream: std::net::TcpStream, opts: &Options) {
+fn handle(mut stream: std::net::TcpStream, opts: &Options) -> std::io::Result<()> {
     let mut reader = BufReader::new(&stream);
     let mut line = String::new();
-    if reader.read_line(&mut line).is_err() {
-        return;
-    }
+    reader.read_line(&mut line)?;
     let target = line.split_whitespace().nth(1).unwrap_or("/");
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
 
@@ -78,15 +80,25 @@ fn handle(mut stream: std::net::TcpStream, opts: &Options) {
          no-store\r\nConnection: close\r\n\r\n",
         body.len()
     );
-    _ = stream.write_all(head.as_bytes());
-    _ = stream.write_all(&body);
-    _ = stream.flush();
+    stream.write_all(head.as_bytes())?;
+    stream.write_all(&body)?;
+    stream.flush()
 }
 
 fn route(path: &str, query: &str, opts: &Options) -> (&'static str, &'static str, Vec<u8>) {
     match path {
         "/" | "/index.html" => {
-            let disk = std::fs::read_to_string(opts.web_root.join("index.html")).ok();
+            let disk = match std::fs::read_to_string(opts.web_root.join("index.html")) {
+                Ok(body) => Some(body),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                Err(e) => {
+                    return (
+                        "500 Internal Server Error",
+                        "text/plain",
+                        format!("read {}/index.html: {e}", opts.web_root.display()).into_bytes(),
+                    );
+                },
+            };
             let shell = disk.map_or_else(crate::web_assets::render_index, |src| {
                 crate::web_assets::render_index_from(&src)
             });

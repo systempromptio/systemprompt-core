@@ -1,5 +1,5 @@
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::install::{InstallOptions, install};
+use systemprompt_bridge::install::{InstallError, InstallOptions, install};
 use tempfile::TempDir;
 
 struct Dirs {
@@ -80,7 +80,7 @@ fn options() -> InstallOptions {
 fn a_root_owned_sudo_user_marker_is_ignored() {
     let dirs = Dirs::new();
     dirs.run(Some("root"), || {
-        install(&options(), &bridge())
+        let _installed = install(&options(), &bridge())
             .expect("install succeeds under a user-scoped org-plugins root");
     });
     assert!(dirs.sentinel().is_file(), "sentinel written");
@@ -92,21 +92,35 @@ fn a_root_owned_sudo_user_marker_is_ignored() {
 fn an_empty_sudo_user_marker_is_ignored() {
     let dirs = Dirs::new();
     dirs.run(Some(""), || {
-        install(&options(), &bridge()).expect("install succeeds");
+        let _installed = install(&options(), &bridge()).expect("install succeeds");
     });
     assert!(dirs.sentinel().is_file());
 }
 
 #[cfg(unix)]
 #[test]
-fn an_unresolvable_sudo_user_does_not_abort_the_install() {
+fn an_unresolvable_sudo_user_fails_the_install_before_the_sentinel() {
     let dirs = Dirs::new();
-    dirs.run(Some("no-such-user-987654"), || {
-        install(&options(), &bridge()).expect("ownership fixups are best-effort");
+    let err = dirs.run(Some("no-such-user-987654"), || {
+        install(&options(), &bridge()).expect_err("an unresolvable SUDO_USER cannot be chowned to")
     });
+    let InstallError::Partial { completed, source } = err else {
+        panic!("directory bootstrap runs first and reports partial progress, got {err:?}");
+    };
     assert!(
-        dirs.sentinel().is_file(),
-        "a failed SUDO_USER lookup must not fail the install"
+        completed.is_empty(),
+        "nothing is recorded as done before ownership is verified, got {completed:?}"
+    );
+    let InstallError::Bootstrap(message) = *source else {
+        panic!("the failure is the bootstrap step, got {source:?}");
+    };
+    assert!(
+        message.contains("no-such-user-987654"),
+        "the error names the user that could not be resolved: {message}"
+    );
+    assert!(
+        !dirs.sentinel().exists(),
+        "an install whose ownership could not be restored must not look complete"
     );
 }
 
@@ -116,7 +130,7 @@ fn a_resolvable_sudo_user_still_completes_the_install() {
     let dirs = Dirs::new();
     let me = std::env::var("USER").unwrap_or_else(|_| "root".to_owned());
     dirs.run(Some(&me), || {
-        install(&options(), &bridge()).expect("install succeeds");
+        let _installed = install(&options(), &bridge()).expect("install succeeds");
     });
     assert!(dirs.sentinel().is_file());
     assert!(dirs.org_plugins().is_dir());

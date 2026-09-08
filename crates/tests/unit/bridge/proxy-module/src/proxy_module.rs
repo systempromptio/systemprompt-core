@@ -19,7 +19,9 @@ fn a_serving_context_binds_a_candidate_port_and_publishes_its_endpoint() {
         // Not pinned to DEFAULT_PROXY_PORT: a developer machine legitimately
         // has something else on it, and standing aside is now correct.
         assert!(
-            proxy::candidate_ports(ctx.install_id()).contains(&served.port),
+            proxy::candidate_ports(ctx.install_id())
+                .expect("the recorded port is readable")
+                .contains(&served.port),
             "bound {} which is not a candidate port",
             served.port
         );
@@ -54,7 +56,9 @@ fn a_serving_context_binds_a_candidate_port_and_publishes_its_endpoint() {
             "starting the proxy establishes an install id"
         );
 
-        let record = proxy::portfile::read(ctx.install_id()).expect("the bound port is recorded");
+        let record = proxy::portfile::read(ctx.install_id())
+            .expect("the record is readable")
+            .expect("the bound port is recorded");
         assert_eq!(
             record.port, served.port,
             "the recorded port is the one actually bound, so other processes can find it"
@@ -117,7 +121,9 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
             "the squatter still holds the default port"
         );
         assert!(
-            proxy::candidate_ports(ctx.install_id()).contains(&served.port),
+            proxy::candidate_ports(ctx.install_id())
+                .expect("the recorded port is readable")
+                .contains(&served.port),
             "fell outside the candidate range: {}",
             served.port
         );
@@ -127,8 +133,9 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
             ctx.proxy.loopback().origin(),
             format!("http://127.0.0.1:{}", served.port)
         );
-        let record =
-            proxy::portfile::read(ctx.install_id()).expect("the fallback port is recorded on disk");
+        let record = proxy::portfile::read(ctx.install_id())
+            .expect("the record is readable")
+            .expect("the fallback port is recorded on disk");
         assert_eq!(record.port, served.port);
     });
 
@@ -153,12 +160,18 @@ fn an_attached_context_without_a_record_names_the_default_port() {
 fn block_on_and_spawn_share_the_context_runtime() {
     let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
     assert_eq!(ctx.block_on(async { 40 + 2 }), 42);
-    let spawned = ctx.block_on(async {
-        ctx.spawn(async { "from the context runtime" })
-            .await
-            .expect("spawned task completes")
+    let (tx, rx) = std::sync::mpsc::channel();
+    ctx.spawn(async move {
+        let _ = tx.send(std::thread::current().name().map(str::to_owned));
     });
-    assert_eq!(spawned, "from the context runtime");
+    let spawned_on = rx
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("spawned task completes");
+    assert_eq!(
+        spawned_on.as_deref(),
+        Some("bridge-rt"),
+        "spawned tasks run on the context's own runtime threads"
+    );
 }
 
 #[test]
@@ -174,7 +187,7 @@ fn reloading_the_runtime_config_republishes_the_configured_gateway() {
 
     let gateway = temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
         let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
-        ctx.proxy.reload_runtime_config();
+        ctx.proxy.reload_runtime_config().expect("reload config");
         ctx.proxy
             .runtime_config()
             .load()

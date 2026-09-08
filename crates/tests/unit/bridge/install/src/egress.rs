@@ -67,8 +67,8 @@ fn explicit_hosts_are_split_and_trimmed() {
     );
 }
 
-/// An empty value must not render as an empty allowlist — that would block
-/// every host, the opposite of what clearing the variable reads as.
+// An empty value must not render as an empty allowlist — that would block
+// every host, the opposite of what clearing the variable reads as.
 #[test]
 fn empty_value_means_unrestricted() {
     assert_eq!(

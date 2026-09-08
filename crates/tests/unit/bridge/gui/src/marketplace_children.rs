@@ -34,7 +34,7 @@ fn plugin_children_scans_skills_agents_and_mcp() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = write_plugin(tmp.path(), "astound-salesforce-accounts", &["salesforce"]);
 
-    let children = plugin_children(&dir);
+    let children = plugin_children(&dir).expect("read plugin children");
 
     let skill = children.iter().find(|c| c.kind == "skills").unwrap();
     assert_eq!(skill.id, "draft_email");
@@ -52,7 +52,11 @@ fn plugin_children_empty_for_bare_dir() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = tmp.path().join("empty-plugin");
     fs::create_dir_all(&dir).unwrap();
-    assert!(plugin_children(&dir).is_empty());
+    assert!(
+        plugin_children(&dir)
+            .expect("read plugin children")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -61,7 +65,10 @@ fn mark_shared_mcp_flags_servers_used_by_multiple_plugins() {
     let a = write_plugin(tmp.path(), "plugin-a", &["salesforce", "only-a"]);
     let b = write_plugin(tmp.path(), "plugin-b", &["salesforce"]);
 
-    let mut sets = vec![plugin_children(&a), plugin_children(&b)];
+    let mut sets = vec![
+        plugin_children(&a).expect("read plugin children"),
+        plugin_children(&b).expect("read plugin children"),
+    ];
     mark_shared_mcp(&mut sets);
 
     let shared: Vec<(&str, bool)> = sets

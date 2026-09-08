@@ -75,7 +75,16 @@ pub(crate) fn on_profile_generate_finished(
     finish(app, bridge_result, reply_to);
 }
 
-fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
+fn needs_elevation_notice(
+    #[cfg_attr(
+        not(target_os = "windows"),
+        expect(
+            unused_variables,
+            reason = "only the registry-backed host needs elevation"
+        )
+    )]
+    host: &dyn crate::integration::HostApp,
+) -> bool {
     #[cfg(target_os = "windows")]
     {
         host.config_format() == crate::integration::ConfigFormat::Reg
@@ -83,7 +92,6 @@ fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = host;
         false
     }
 }

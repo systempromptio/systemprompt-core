@@ -19,7 +19,11 @@ fn runtime_config(uri: &str) -> SharedRuntimeConfig {
 
 fn empty_cache() -> Arc<TokenCache> {
     Arc::new(TokenCache::new(Arc::new(|_threshold| {
-        Box::pin(async { None })
+        Box::pin(async {
+            Err(systemprompt_bridge::proxy::forward::ForwardError::Auth(
+                "no credential provider produced a token".into(),
+            ))
+        })
     })))
 }
 
@@ -30,7 +34,8 @@ fn parts(uri: &str) -> ServerParts {
         token_cache: empty_cache(),
         session: Arc::new(SessionContext::new()),
         deps: systemprompt_bridge::proxy::ProxyDeps {
-            install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
+            install_id: systemprompt_bridge::proxy::identity::InstallId::establish()
+                .expect("the sandbox mints an install id"),
             mcp_registry: systemprompt_bridge::mcp_registry::empty_slot(),
             activity: systemprompt_bridge::activity::ActivityLog::new(),
             http: reqwest::Client::new(),

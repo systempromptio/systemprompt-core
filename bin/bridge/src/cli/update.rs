@@ -59,10 +59,24 @@ pub fn cmd_update(ctx: &BridgeContext, argv: &[String]) -> ExitCode {
 }
 
 async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            diag(&e.to_string());
+            return ExitCode::FAILURE;
+        },
+    };
     let gateway = config::gateway_url_or_default(&cfg);
     let bearer = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
         Ok(out) => out,
+        Err(e @ ChainError::Providers(_)) => {
+            diag(&format!("{e}"));
+            return ExitCode::FAILURE;
+        },
+        Err(ChainError::Cache(e)) => {
+            diag(&format!("credential cache: {e}"));
+            return ExitCode::FAILURE;
+        },
         Err(ChainError::PreferredTransient { provider, source }) => {
             diag(&format!(
                 "transient auth failure on preferred provider {provider}: {source}"
@@ -151,11 +165,11 @@ fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
             return;
         }
         let mut err = std::io::stderr();
-        _ = write!(err, "\rdownloading… {pct:>3}%");
-        if pct == 100 {
-            _ = writeln!(err);
+        let suffix = if pct == 100 { "\n" } else { "" };
+        if let Err(e) = write!(err, "\rdownloading… {pct:>3}%{suffix}").and_then(|()| err.flush())
+        {
+            diag(&format!("download progress could not be displayed: {e}"));
         }
-        _ = err.flush();
     })
 }
 
@@ -165,7 +179,10 @@ fn confirm(version: &str) -> bool {
         return false;
     }
     stdio::print_str(&format!("install {version}? [y/N] "));
-    _ = std::io::stdout().flush();
+    if let Err(e) = std::io::stdout().flush() {
+        diag(&format!("cannot display install confirmation: {e}"));
+        return false;
+    }
     let mut answer = String::new();
     if std::io::stdin().read_line(&mut answer).is_err() {
         return false;

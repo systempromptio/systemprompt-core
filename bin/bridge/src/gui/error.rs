@@ -7,6 +7,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum GuiError {
+    #[error(transparent)]
+    ConfigRead(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 

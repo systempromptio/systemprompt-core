@@ -53,7 +53,6 @@ pub struct ProxyHandle {
     role: ProxyRole,
     loopback: LoopbackEndpoint,
     deps: ProxyDeps,
-    runtime: Handle,
     runtime_config: SharedRuntimeConfig,
     token_cache: Option<Arc<TokenCache>>,
     session_id: Option<SessionId>,
@@ -88,20 +87,19 @@ impl std::fmt::Debug for ProxyHandle {
 }
 
 impl ProxyHandle {
-    #[must_use]
-    pub fn serve(rt: &Handle, deps: ProxyDeps) -> Self {
-        let runtime_config = config::shared_from_loaded();
+    pub fn serve(rt: &Handle, deps: ProxyDeps) -> std::io::Result<Self> {
+        let runtime_config = config::shared_from_loaded().map_err(std::io::Error::other)?;
         let mut tried = Vec::new();
         let mut last_error = "no candidate port could be bound".to_owned();
 
-        let listener = match bind_candidate(rt, &deps.install_id, &mut tried, &mut last_error) {
+        let listener = match bind_candidate(rt, &deps.install_id, &mut tried, &mut last_error)? {
             Bind::Listener(l) => l,
             Bind::Sibling {
                 port,
                 pid,
                 config_dir,
             } => {
-                return Self::not_serving(
+                return Ok(Self::not_serving(
                     rt,
                     deps,
                     runtime_config,
@@ -111,16 +109,16 @@ impl ProxyHandle {
                         pid,
                         config_dir,
                     },
-                );
+                ));
             },
             Bind::Exhausted => {
-                return Self::failed(rt, deps, runtime_config, tried, last_error);
+                return Ok(Self::failed(rt, deps, runtime_config, tried, last_error));
             },
         };
 
         let loopback_secret = match secret::proxy_init() {
             Ok(s) => s,
-            Err(e) => return Self::failed(rt, deps, runtime_config, tried, e.to_string()),
+            Err(e) => return Ok(Self::failed(rt, deps, runtime_config, tried, e.to_string())),
         };
         let session_context = Arc::new(SessionContext::new());
         let session_id = session_context.session_id().clone();
@@ -137,43 +135,41 @@ impl ProxyHandle {
         };
         let served = match server::start_with_listener(rt, listener, parts) {
             Ok(s) => s,
-            Err(e) => return Self::failed(rt, deps, runtime_config, tried, e.to_string()),
+            Err(e) => return Ok(Self::failed(rt, deps, runtime_config, tried, e.to_string())),
         };
 
-        persist_and_announce(served.port, &deps.install_id);
-        rt.spawn(refresh_loop(Arc::clone(&token_cache)));
+        persist_and_announce(served.port, &deps.install_id)?;
+        served.tasks.spawn(refresh_loop(Arc::clone(&token_cache)));
 
-        Self {
+        Ok(Self {
             loopback: LoopbackEndpoint::new(served.port, Some(loopback_secret)),
             role: ProxyRole::Serving(served),
             deps,
-            runtime: rt.clone(),
             runtime_config,
             token_cache: Some(token_cache),
             session_id: Some(session_id),
-        }
+        })
     }
 
-    #[must_use]
-    pub fn attach(rt: &Handle, deps: ProxyDeps) -> Self {
-        let port = portfile_port(&deps.install_id).unwrap_or(DEFAULT_PROXY_PORT);
-        Self::not_serving(
+    pub fn attach(rt: &Handle, deps: ProxyDeps) -> std::io::Result<Self> {
+        let port = portfile_port(&deps.install_id)?.unwrap_or(DEFAULT_PROXY_PORT);
+        Ok(Self::not_serving(
             rt,
             deps,
-            config::shared_from_loaded(),
+            config::shared_from_loaded().map_err(std::io::Error::other)?,
             port,
             ProxyRole::Attached,
-        )
+        ))
     }
 
-    fn failed(
+    const fn failed(
         rt: &Handle,
         deps: ProxyDeps,
         runtime_config: SharedRuntimeConfig,
         tried: Vec<u16>,
         last_error: String,
     ) -> Self {
-        let port = portfile_port(&deps.install_id).unwrap_or(DEFAULT_PROXY_PORT);
+        let port = DEFAULT_PROXY_PORT;
         Self::not_serving(
             rt,
             deps,
@@ -183,8 +179,8 @@ impl ProxyHandle {
         )
     }
 
-    fn not_serving(
-        rt: &Handle,
+    const fn not_serving(
+        _rt: &Handle,
         deps: ProxyDeps,
         runtime_config: SharedRuntimeConfig,
         port: u16,
@@ -194,7 +190,6 @@ impl ProxyHandle {
             role,
             loopback: LoopbackEndpoint::new(port, None),
             deps,
-            runtime: rt.clone(),
             runtime_config,
             token_cache: None,
             session_id: None,
@@ -211,8 +206,8 @@ impl ProxyHandle {
         peer::probe_identity(self.port(), &self.deps.install_id)
     }
 
-    pub fn forget_recorded_port(&self) {
-        portfile::clear(&self.deps.install_id);
+    pub fn forget_recorded_port(&self) -> std::io::Result<()> {
+        portfile::clear(&self.deps.install_id)
     }
 
     #[must_use]
@@ -250,14 +245,17 @@ impl ProxyHandle {
         &self.runtime_config
     }
 
-    pub fn reload_runtime_config(&self) {
+    pub fn reload_runtime_config(&self) -> Result<(), config::ConfigReadError> {
         self.runtime_config
-            .store(Arc::new(RuntimeConfig::from_loaded()));
+            .store(Arc::new(RuntimeConfig::from_loaded()?));
         if let Some(cache) = &self.token_cache {
             let cache = Arc::clone(cache);
-            self.runtime.spawn(async move { cache.reset().await });
+            if let ProxyRole::Serving(served) = &self.role {
+                served.tasks.spawn(async move { cache.reset().await });
+            }
         }
         tracing::info!(target: "bridge::config", "runtime config swapped");
+        Ok(())
     }
 
     #[must_use]

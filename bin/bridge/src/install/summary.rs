@@ -3,8 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fmt::Write as _;
-
 use super::{
     CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, ScheduleDisplay,
     ScheduleRemoval, UninstallSummary, os_label,
@@ -13,145 +11,149 @@ use crate::config::paths::{self, Scope};
 
 #[must_use]
 pub fn render_install_summary(s: &InstallSummary) -> String {
-    let mut out = String::new();
-    _ = writeln!(
-        out,
-        "Installed {} integration",
-        crate::brand::brand().binary_name
-    );
+    let binary_name = crate::brand::brand().binary_name;
     let scope_label = match s.location.scope {
         Scope::System => "system-wide",
         Scope::User => "per-user",
     };
-    _ = writeln!(
-        out,
-        "  org-plugins: {} ({scope_label})",
-        s.location.path.display()
-    );
+    let mut lines = vec![
+        format!("Installed {binary_name} integration"),
+        format!(
+            "  org-plugins: {} ({scope_label})",
+            s.location.path.display()
+        ),
+    ];
     if let Some(meta) = paths::bridge_metadata_dir() {
-        _ = writeln!(out, "  metadata:    {}", meta.display());
-        _ = writeln!(
-            out,
+        lines.push(format!("  metadata:    {}", meta.display()));
+        lines.push(format!(
             "    user.json:    {}",
             meta.join(paths::USER_FRAGMENT).display()
-        );
+        ));
     }
-    _ = writeln!(
-        out,
+    lines.push(format!(
         "  managed plugins: {}/<plugin-id>/",
         s.location.path.display()
-    );
-    _ = writeln!(out, "  binary:      {}", s.binary.display());
-    _ = writeln!(
-        out,
-        "  Run `{} sync` to populate user identity, skills, agents, and MCP servers.",
-        crate::brand::brand().binary_name
-    );
-
-    render_mdm(&mut out, &s.mdm);
-
+    ));
+    lines.push(format!("  binary:      {}", s.binary.display()));
+    lines.push(format!(
+        "  Run `{binary_name} sync` to populate user identity, skills, agents, and MCP servers."
+    ));
+    lines.extend(mdm_lines(&s.mdm));
     if let Some(sched) = &s.schedule {
-        render_schedule(&mut out, sched);
+        lines.extend(schedule_lines(sched));
     }
-    out
+    joined(&lines)
 }
 
-fn render_schedule(out: &mut String, sched: &ScheduleDisplay) {
+fn schedule_lines(sched: &ScheduleDisplay) -> Vec<String> {
     match sched {
         ScheduleDisplay::Template(emit) => {
-            out.push('\n');
-            _ = writeln!(out, "--- Schedule template ({}) ---", os_label(emit.os));
-            _ = writeln!(out, "wrote: {}", emit.path.display());
-            out.push_str(&emit.install_hint);
-            if !emit.install_hint.ends_with('\n') {
-                out.push('\n');
-            }
-            out.push_str("Tip: rerun with --apply-schedule to register it directly.\n");
+            let mut lines = vec![
+                String::new(),
+                format!("--- Schedule template ({}) ---", os_label(emit.os)),
+                format!("wrote: {}", emit.path.display()),
+            ];
+            lines.extend(emit.install_hint.lines().map(str::to_owned));
+            lines.push("Tip: rerun with --apply-schedule to register it directly.".to_owned());
+            lines
         },
         ScheduleDisplay::Applied(applied) => {
-            out.push('\n');
-            _ = writeln!(
-                out,
-                "--- sync schedule registered ({}) ---",
-                os_label(applied.os)
-            );
-            for line in &applied.lines {
-                _ = writeln!(out, "  {line}");
-            }
+            let mut lines = vec![
+                String::new(),
+                format!(
+                    "--- sync schedule registered ({}) ---",
+                    os_label(applied.os)
+                ),
+            ];
+            lines.extend(applied.lines.iter().map(|line| format!("  {line}")));
+            lines
         },
     }
 }
 
-fn render_mdm(out: &mut String, mdm: &MdmDisplay) {
+fn mdm_lines(mdm: &MdmDisplay) -> Vec<String> {
     match mdm {
         MdmDisplay::Snippet { os, snippet } => {
-            out.push('\n');
-            _ = writeln!(out, "--- MDM configuration ({}) ---", os_label(*os));
-            out.push_str(snippet);
-            if !snippet.ends_with('\n') {
-                out.push('\n');
-            }
-            out.push_str("Tip: rerun with --apply to write these keys directly.\n");
+            let mut lines = vec![
+                String::new(),
+                format!("--- MDM configuration ({}) ---", os_label(*os)),
+            ];
+            lines.extend(snippet.lines().map(str::to_owned));
+            lines.push("Tip: rerun with --apply to write these keys directly.".to_owned());
+            lines
         },
-        MdmDisplay::Applied { os, lines } => {
-            out.push('\n');
-            _ = writeln!(out, "--- policy applied ({}) ---", os_label(*os));
-            for line in lines {
-                _ = writeln!(out, "  {line}");
-            }
+        MdmDisplay::Applied { os, report } => {
+            let mut lines = vec![
+                String::new(),
+                format!("--- policy applied ({}) ---", os_label(*os)),
+            ];
+            lines.extend(report.lines.iter().map(|line| format!("  {line}")));
+            lines
         },
-        MdmDisplay::MobileconfigApplied { lines } => {
-            out.push('\n');
-            out.push_str("--- mobileconfig applied (macOS) ---\n");
-            for line in lines {
-                _ = writeln!(out, "  {line}");
-            }
+        MdmDisplay::MobileconfigPrepared { lines: applied } => {
+            let mut lines = vec![
+                String::new(),
+                "--- mobileconfig prepared; approval in System Settings required (macOS) ---"
+                    .to_owned(),
+            ];
+            lines.extend(applied.iter().map(|line| format!("  {line}")));
+            lines
         },
     }
 }
 
 #[must_use]
 pub fn render_uninstall_summary(s: &UninstallSummary) -> String {
-    let mut out = String::new();
+    let mut lines = Vec::new();
     if let Some(p) = &s.metadata_removed {
-        _ = writeln!(out, "Removed {}", p.display());
+        lines.push(format!("Removed {}", p.display()));
     }
     if let Some(p) = &s.metadata_already_clean {
-        _ = writeln!(out, "No metadata dir at {} (already clean)", p.display());
+        lines.push(format!(
+            "No metadata dir at {} (already clean)",
+            p.display()
+        ));
     }
     match &s.managed_profile {
         ManagedProfileOutcome::Removed(id) => {
-            _ = writeln!(out, "Removed managed profile {id}");
+            lines.push(format!("Removed managed profile {id}"));
         },
         ManagedProfileOutcome::NotInstalled(id) => {
-            _ = writeln!(out, "No managed profile {id} installed (nothing to remove)");
+            lines.push(format!(
+                "No managed profile {id} installed (nothing to remove)"
+            ));
         },
         ManagedProfileOutcome::RemoveFailed(_) | ManagedProfileOutcome::NotApplicable => {},
     }
     match &s.credentials {
         CredentialsOutcome::Purged(p) => {
-            _ = writeln!(out, "Purged credentials: {}", p.display());
+            lines.push(format!("Purged credentials: {}", p.display()));
         },
         CredentialsOutcome::Kept => {
-            _ = writeln!(
-                out,
+            lines.push(format!(
                 "Credentials left intact. Use `{} uninstall --purge` to also clear them.",
                 crate::brand::brand().binary_name
-            );
+            ));
         },
         CredentialsOutcome::PurgeFailed(_) => {},
     }
     match &s.schedule {
         ScheduleRemoval::Removed(label) => {
-            _ = writeln!(out, "Removed scheduled sync job {label}");
+            lines.push(format!("Removed scheduled sync job {label}"));
         },
         ScheduleRemoval::NotInstalled(label) if !label.is_empty() => {
-            _ = writeln!(
-                out,
+            lines.push(format!(
                 "No scheduled sync job {label} registered (nothing to remove)"
-            );
+            ));
         },
         ScheduleRemoval::NotInstalled(_) | ScheduleRemoval::Failed(_) => {},
     }
-    out
+    joined(&lines)
+}
+
+fn joined(lines: &[String]) -> String {
+    if lines.is_empty() {
+        return String::new();
+    }
+    lines.join("\n") + "\n"
 }

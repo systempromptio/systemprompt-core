@@ -7,6 +7,8 @@ mod builders;
 #[cfg(test)]
 mod egress;
 #[cfg(test)]
+mod elevated_protocol;
+#[cfg(test)]
 mod elevation_script;
 #[cfg(test)]
 mod linux_managed_settings;

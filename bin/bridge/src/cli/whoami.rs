@@ -14,10 +14,24 @@ use crate::{auth, config, stdio};
 
 pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
     ctx.block_on(async {
-        let cfg = config::load();
+        let cfg = match config::load() {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                diag(&e.to_string());
+                return ExitCode::FAILURE;
+            },
+        };
         let gateway = config::gateway_url_or_default(&cfg);
         let out = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
             Ok(out) => out,
+            Err(e @ ChainError::Providers(_)) => {
+                diag(&format!("{e}"));
+                return ExitCode::FAILURE;
+            },
+            Err(ChainError::Cache(e)) => {
+                diag(&format!("credential cache: {e}"));
+                return ExitCode::FAILURE;
+            },
             Err(ChainError::PreferredTransient { provider, source }) => {
                 diag(&format!(
                     "transient auth failure on preferred provider {provider}: {source}"

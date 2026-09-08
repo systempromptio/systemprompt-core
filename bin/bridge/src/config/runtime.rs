@@ -23,15 +23,15 @@ impl RuntimeConfig {
         }
     }
 
-    #[must_use]
-    pub fn from_loaded() -> Self {
-        Self::from_config(&config::load())
+    pub fn from_loaded() -> Result<Self, config::ConfigReadError> {
+        Ok(Self::from_config(&config::load()?))
     }
 }
 
 pub type SharedRuntimeConfig = Arc<ArcSwap<RuntimeConfig>>;
 
-#[must_use]
-pub fn shared_from_loaded() -> SharedRuntimeConfig {
-    Arc::new(ArcSwap::from_pointee(RuntimeConfig::from_loaded()))
+pub fn shared_from_loaded() -> Result<SharedRuntimeConfig, config::ConfigReadError> {
+    Ok(Arc::new(ArcSwap::from_pointee(
+        RuntimeConfig::from_loaded()?
+    )))
 }

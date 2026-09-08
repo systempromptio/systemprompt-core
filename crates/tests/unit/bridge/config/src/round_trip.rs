@@ -1,5 +1,5 @@
 use systemprompt_bridge::config::Config;
-use systemprompt_bridge::ids::{KeystoreRef, PinnedPubKey};
+use systemprompt_bridge::ids::KeystoreRef;
 use systemprompt_identifiers::ValidatedUrl;
 
 #[test]
@@ -36,13 +36,7 @@ organization_uuid = "abc-123"
             .map(KeystoreRef::as_str),
         Some("macos:my-cert-label"),
     );
-    assert_eq!(
-        cfg.sync
-            .as_ref()
-            .and_then(|s| s.pinned_pubkey.as_ref())
-            .map(PinnedPubKey::as_str),
-        Some("MCowBQYDK2VwAyEABase64Pubkey=="),
-    );
+    assert!(cfg.sync.as_ref().expect("sync").legacy_pin);
     assert_eq!(
         cfg.claude
             .as_ref()

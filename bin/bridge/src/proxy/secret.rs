@@ -26,13 +26,15 @@ pub fn secret_path() -> Option<PathBuf> {
 pub fn load(path: &std::path::Path) -> std::io::Result<Option<LoopbackSecret>> {
     match fs::read(path) {
         Ok(bytes) => {
-            let s = String::from_utf8_lossy(&bytes).trim().to_owned();
+            let s = String::from_utf8(bytes)
+                .map_err(std::io::Error::other)?
+                .trim()
+                .to_owned();
             if s.is_empty() {
-                tracing::warn!(
-                    path = %path.display(),
-                    "loopback secret file exists but is empty; treating as missing",
-                );
-                Ok(None)
+                Err(std::io::Error::other(format!(
+                    "{}: loopback secret is empty; re-apply enrollment",
+                    path.display()
+                )))
             } else {
                 Ok(Some(LoopbackSecret::new(s)))
             }
@@ -55,18 +57,7 @@ fn mint(path: &std::path::Path) -> std::io::Result<LoopbackSecret> {
     let mut buf = [0u8; 32];
     rand::rng().fill_bytes(&mut buf);
     let secret = URL_SAFE_NO_PAD.encode(buf);
-    fs::write(path, secret.as_bytes())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if let Err(e) = fs::set_permissions(path, fs::Permissions::from_mode(0o600)) {
-            tracing::warn!(
-                path = %path.display(),
-                error = %e,
-                "failed to lock down file permissions; cache may be world-readable",
-            );
-        }
-    }
+    crate::fsutil::atomic_write_0600(path, secret.as_bytes())?;
     Ok(LoopbackSecret::new(secret))
 }
 

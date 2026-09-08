@@ -14,7 +14,7 @@
 #![cfg(target_os = "windows")]
 
 use super::error::MdmError;
-use crate::config::store::{self, PolicyHive, PolicyWrite, hive_for, managed_policy_store};
+use crate::config::store::{self, PolicyHive, hive_for};
 
 type Values = [(&'static str, &'static str, String)];
 
@@ -22,21 +22,22 @@ pub(super) struct WritePlan<'a> {
     claude: &'a Values,
     bridge: &'a Values,
     hive: PolicyHive,
-    clear_legacy: bool,
+    store: &'a store::PolicyStore,
 }
 
 impl<'a> WritePlan<'a> {
-    pub(super) fn new(claude: &'a Values, bridge: &'a Values, elevated: bool) -> Self {
+    pub(super) const fn new(
+        claude: &'a Values,
+        bridge: &'a Values,
+        elevated: bool,
+        store: &'a store::PolicyStore,
+    ) -> Self {
         let hive = hive_for(elevated);
-        let clear_legacy = matches!(
-            managed_policy_store().read_policy_document(hive, &[super::LEGACY_PUBKEY_KEY]),
-            Ok(doc) if !doc.is_empty()
-        );
         Self {
             claude,
             bridge,
             hive,
-            clear_legacy,
+            store,
         }
     }
 
@@ -44,70 +45,53 @@ impl<'a> WritePlan<'a> {
         self.hive
     }
 
-    pub(super) fn drifted(&self) -> bool {
-        if self.clear_legacy {
-            return true;
-        }
-        let names: Vec<&str> = self.claude.iter().map(|(n, _, _)| *n).collect();
-        let current = match managed_policy_store().read_policy_document(self.hive, &names) {
-            Ok(doc) => doc,
-            Err(e) => {
-                tracing::warn!(
-                    target: "bridge::install::mdm",
-                    hive = self.hive.label(),
-                    error = %e,
-                    "could not read the current Claude policy; treating it as drifted"
-                );
-                return true;
-            },
-        };
-        self.claude
-            .iter()
-            .any(|(name, _, data)| current.get(*name).and_then(|v| v.as_str()) != Some(data.as_str()))
-            || self.bridge.iter().any(|(name, _, data)| {
-                !matches!(store::read_bridge_policy_in(self.hive, name), Ok(Some(v)) if &v == data)
-            })
-    }
-
-    /// Write the plan into its hive and read every value back. Returns what
-    /// happened to the Claude block, which is `SatisfiedByMachine` when a
-    /// per-user plan found identical values already in `HKLM`.
-    pub(super) fn write(&self) -> Result<PolicyWrite, MdmError> {
+    pub(super) fn write(&self) -> Result<Vec<store::verified::PolicyReceipt>, MdmError> {
         let claude: Vec<(String, String)> = self
             .claude
             .iter()
             .map(|(n, _, d)| ((*n).to_owned(), d.clone()))
             .collect();
         let elevated = self.hive == PolicyHive::Machine;
-        let outcome = store::write_managed_claude_policy(elevated, &claude).map_err(policy_err)?;
+        let mut completed = vec![
+            store::verified::apply(
+                self.store.backend(),
+                self.hive,
+                &claude
+                    .iter()
+                    .map(|(n, v)| (n.clone(), store::PolicyDocumentValue::Str(v.clone())))
+                    .collect::<Vec<_>>(),
+            )
+            .map_err(policy_err)?,
+        ];
         let bridge: Vec<(String, String)> = self
             .bridge
             .iter()
             .map(|(n, _, d)| ((*n).to_owned(), d.clone()))
             .collect();
         if !bridge.is_empty() {
-            store::write_bridge_policy(elevated, &bridge).map_err(policy_err)?;
+            let receipt = store::write_bridge_policy(elevated, &bridge).map_err(|source| {
+                policy_err(store::ConfigStoreError::Partial {
+                    completed: completed.clone(),
+                    source: Box::new(source),
+                })
+            })?;
+            completed.push(receipt);
         }
-        if self.clear_legacy {
-            match store::clear_managed_claude_policy(elevated, &[super::LEGACY_PUBKEY_KEY]) {
-                Ok(n) => tracing::info!(
-                    target: "bridge::install::mdm",
-                    hive = self.hive.label(),
-                    removed = n,
-                    "cleared legacy manifest pubkey value"
-                ),
-                Err(e) => tracing::warn!(
-                    target: "bridge::install::mdm",
-                    hive = self.hive.label(),
-                    error = %e,
-                    "legacy manifest pubkey value could not be cleared"
-                ),
-            }
-        }
-        Ok(outcome)
+        store::verified::remove_values(
+            self.store.backend(),
+            self.hive,
+            &[super::LEGACY_PUBKEY_KEY],
+        )
+        .map_err(|source| {
+            policy_err(store::ConfigStoreError::Partial {
+                completed: completed.clone(),
+                source: Box::new(source),
+            })
+        })?;
+        Ok(completed)
     }
 }
 
-pub(super) fn policy_err(e: store::ConfigStoreError) -> MdmError {
-    MdmError::Windows(e.to_string())
+pub(super) const fn policy_err(e: store::ConfigStoreError) -> MdmError {
+    MdmError::Store(e)
 }

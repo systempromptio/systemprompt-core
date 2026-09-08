@@ -24,6 +24,7 @@ use crate::proxy::{dispatch, heartbeat};
 /// the counters the Status pane reads.
 #[derive(Clone, Debug)]
 pub struct ServedProxy {
+    pub(crate) tasks: Arc<crate::tasks::TaskOwner>,
     pub port: u16,
     pub stats: Arc<ProxyStats>,
 }
@@ -111,21 +112,23 @@ pub fn start_with_listener(
         deps,
     };
 
-    rt.spawn(run_listener(listener, ctx));
-    rt.spawn(heartbeat::run_loop(
+    let tasks = Arc::new(crate::tasks::TaskOwner::new(rt, ctx.deps.activity.clone()));
+    tasks.spawn(run_listener(listener, ctx));
+    tasks.spawn(heartbeat::run_loop(
         Arc::clone(&runtime_config),
         Arc::clone(&token_cache),
         session,
         Arc::clone(&stats),
         client.clone(),
     ));
-    rt.spawn(crate::proxy::comms::run_loop(
+    tasks.spawn(crate::proxy::comms::run_loop(
         runtime_config,
         token_cache,
         client,
     ));
 
     Ok(ServedProxy {
+        tasks,
         port: bound_port,
         stats,
     })
@@ -143,8 +146,16 @@ fn build_upstream_client() -> std::io::Result<reqwest::Client> {
 }
 
 async fn run_listener(listener: TcpListener, ctx: ProxyContext) {
+    let mut connections = tokio::task::JoinSet::new();
     loop {
-        let (stream, peer) = match listener.accept().await {
+        let accepted = tokio::select! {
+            result = connections.join_next(), if !connections.is_empty() => {
+                if let Some(Err(e)) = result { ctx.deps.activity.append_error(format!("proxy connection task: {e}")); }
+                continue;
+            },
+            result = listener.accept() => result,
+        };
+        let (stream, peer) = match accepted {
             Ok(t) => t,
             Err(e) => {
                 tracing::warn!(
@@ -156,9 +167,12 @@ async fn run_listener(listener: TcpListener, ctx: ProxyContext) {
                 continue;
             },
         };
-        _ = stream.set_nodelay(true);
+        if let Err(e) = stream.set_nodelay(true) {
+            tracing::error!(error = %e, "proxy connection setup failed");
+            continue;
+        }
         let conn_ctx = ctx.clone();
-        tokio::spawn(async move {
+        connections.spawn(async move {
             let io = TokioIo::new(stream);
             let svc = service_fn(move |req| dispatch::handle_request(req, conn_ctx.clone(), peer));
             if let Err(e) = http1::Builder::new()

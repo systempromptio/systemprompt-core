@@ -13,6 +13,7 @@ pub mod first_run;
 pub mod hosts;
 pub mod ipc;
 pub mod payloads;
+mod semantic;
 
 use serde::Serialize;
 

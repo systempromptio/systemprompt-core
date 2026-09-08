@@ -9,7 +9,6 @@ use serde_json::json;
 
 use crate::auth::secret::Secret;
 use crate::auth::setup;
-use crate::config;
 use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::state::CancelScope;
@@ -41,19 +40,19 @@ pub(crate) fn on_login_requested(
     let token = app.state.install_cancel(CancelScope::Login);
     app.ctx.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
+            if token.is_cancelled() {
+                return Err(Arc::new(GuiError::Cancelled));
+            }
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
         });
-        let result = tokio::select! {
-            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
-            joined = task => match joined {
-                Ok(r) => r,
-                Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
-                    "login task join: {join_err}"
-                ))))),
-            },
+        let result = match task.await {
+            Ok(r) => r,
+            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
+                "login task join: {join_err}"
+            ))))),
         };
         proxy.send_event(UiEvent::LoginFinished { result, reply_to });
     });
@@ -68,7 +67,12 @@ pub(crate) fn on_login_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("login-pull-manifest"));
-            app.ctx.proxy.reload_runtime_config();
+            if let Err(e) = app.ctx.proxy.reload_runtime_config() {
+                let error = BridgeError::internal(e.to_string());
+                app.append_log_error(e.to_string());
+                finish_unit(app, Err(error), reply_to);
+                return;
+            }
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
@@ -121,19 +125,19 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
     let token = app.state.install_cancel(CancelScope::SetGateway);
     app.ctx.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
+            if token.is_cancelled() {
+                return Err(Arc::new(GuiError::Cancelled));
+            }
             setup::set_gateway_url(&trimmed)
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
         });
-        let result = tokio::select! {
-            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
-            joined = task => match joined {
-                Ok(r) => r,
-                Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
-                    "set-gateway task join: {join_err}"
-                ))))),
-            },
+        let result = match task.await {
+            Ok(r) => r,
+            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
+                "set-gateway task join: {join_err}"
+            ))))),
         };
         proxy.send_event(UiEvent::SetGatewayFinished { result, reply_to });
     });
@@ -148,7 +152,12 @@ pub(crate) fn on_set_gateway_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("gateway-saved"));
-            app.ctx.proxy.reload_runtime_config();
+            if let Err(e) = app.ctx.proxy.reload_runtime_config() {
+                let error = BridgeError::internal(e.to_string());
+                app.append_log_error(e.to_string());
+                finish_unit(app, Err(error), reply_to);
+                return;
+            }
             app.state.reload();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             Ok(())
@@ -217,7 +226,12 @@ pub(crate) fn on_logout_finished(
             ))
         },
     };
-    app.ctx.proxy.reload_runtime_config();
+    if let Err(e) = app.ctx.proxy.reload_runtime_config() {
+        let error = BridgeError::internal(e.to_string());
+        app.append_log_error(e.to_string());
+        finish_unit(app, Err(error), reply_to);
+        return;
+    }
     app.state.reload();
     app.refresh_ui();
     emit::emit_state(app);
@@ -225,7 +239,14 @@ pub(crate) fn on_logout_finished(
 }
 
 pub(crate) fn on_credential_rejected(app: &mut GuiApp, reason: &str) {
-    let gateway = config::gateway_url_or_default(&config::load());
+    let gateway = app
+        .ctx
+        .proxy
+        .runtime_config()
+        .load()
+        .gateway_base
+        .as_ref()
+        .clone();
     let line = i18n::t_args(
         "session-rejected",
         &[("gateway", gateway.as_str()), ("reason", reason)],

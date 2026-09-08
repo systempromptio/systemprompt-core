@@ -47,20 +47,20 @@ pub(super) struct TeeWriterImpl {
 impl Write for TeeWriterImpl {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.stderr || self.file.is_none() {
-            _ = io::stderr().write_all(buf);
+            io::stderr().write_all(buf)?;
         }
         if let Some(file) = self.file.as_mut() {
-            _ = file.write_all(buf);
+            file.write_all(buf)?;
         }
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
         if self.stderr || self.file.is_none() {
-            _ = io::stderr().flush();
+            io::stderr().flush()?;
         }
         if let Some(file) = self.file.as_mut() {
-            _ = file.flush();
+            file.flush()?;
         }
         Ok(())
     }
@@ -76,14 +76,13 @@ struct EventVisitor {
 
 impl EventVisitor {
     fn write_field(&mut self, name: &str, value: fmt::Arguments<'_>) {
-        use std::fmt::Write as _;
         if name == "message" {
-            _ = write!(self.message, "{value}");
+            self.message.push_str(&value.to_string());
         } else {
             if !self.fields.is_empty() {
                 self.fields.push(' ');
             }
-            _ = write!(self.fields, "{name}={value}");
+            self.fields.push_str(&format!("{name}={value}"));
         }
     }
 }

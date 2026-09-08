@@ -132,8 +132,20 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     });
 }
 
+fn unreachable_outcome(reason: String) -> GatewayProbeOutcome {
+    GatewayProbeOutcome {
+        status: GatewayStatus::Unreachable { reason },
+        identity: None,
+        at_unix: now_unix(),
+        provider_health: Vec::new(),
+    }
+}
+
 async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => return unreachable_outcome(e.to_string()),
+    };
     let gateway = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(gateway, http.clone());
 
@@ -150,22 +162,24 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
     let identity = if matches!(status, GatewayStatus::Reachable { .. })
         && crate::auth::has_credential_source(&cfg)
     {
-        obtain_live_token(&cfg, http)
-            .await
-            .and_then(|tok| decode_jwt_identity_unverified(tok.expose()))
+        match obtain_live_token(&cfg, http).await {
+            Ok(tok) => decode_jwt_identity_unverified(tok.expose()),
+            Err(e) => return unreachable_outcome(format!("authentication: {e}")),
+        }
     } else {
-        if !crate::auth::has_credential_source(&cfg) {
-            _ = crate::auth::cache::clear();
+        if !crate::auth::has_credential_source(&cfg)
+            && let Err(e) = crate::auth::cache::clear()
+        {
+            return unreachable_outcome(format!("clear credential cache: {e}"));
         }
         None
     };
 
     let provider_health = if matches!(status, GatewayStatus::Reachable { .. }) {
-        client
-            .fetch_bridge_profile()
-            .await
-            .map(|profile| profile.providers)
-            .unwrap_or_default()
+        match client.fetch_bridge_profile().await {
+            Ok(profile) => profile.providers,
+            Err(e) => return unreachable_outcome(format!("provider health: {e}")),
+        }
     } else {
         Vec::new()
     };
@@ -181,7 +195,7 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
 async fn obtain_live_token(
     cfg: &config::Config,
     http: &reqwest::Client,
-) -> Option<crate::auth::secret::Secret> {
+) -> Result<crate::auth::secret::Secret, crate::auth::ChainError> {
     crate::auth::obtain_live_token(cfg, &systemprompt_identifiers::SessionId::generate(), http)
         .await
         .map(|out| out.token)

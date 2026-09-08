@@ -203,15 +203,31 @@ pub async fn probe_endpoint(
         .get(SESSION_HEADER)
         .and_then(|v| v.to_str().ok())
         .map(crate::ids::McpSessionId::new);
-    _ = resp.text().await;
+    drop(resp);
 
-    let tools = list_tools(
+    let tools = match list_tools(
         client,
         url,
         bearer,
         session.as_ref().map(crate::ids::McpSessionId::as_str),
     )
-    .await;
+    .await
+    {
+        Ok(tools) => tools,
+        Err(error) => {
+            return result(
+                slug,
+                url,
+                probed_at_unix,
+                ProbeOutcome {
+                    state: McpAuthState::ProtocolError,
+                    http_status: Some(http),
+                    latency_ms: Some(latency),
+                    error: Some(error.to_string()),
+                },
+            );
+        },
+    };
 
     McpServerAuth {
         id: slug.to_owned(),

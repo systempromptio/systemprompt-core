@@ -12,16 +12,34 @@ use systemprompt_bridge::install::{
 use systemprompt_bridge::schedule::Os;
 use systemprompt_bridge::schedule::status::ScheduleStatusCache;
 
+// Why: activation now fails the apply, and the test host has no systemd user
+// bus; a recording `systemctl` on PATH keeps the activation calls observable.
 fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
     let home = tempfile::TempDir::new().expect("home tempdir");
     let path = home.path().to_path_buf();
+    let bin = path.join("bin");
+    std::fs::create_dir_all(&bin).expect("stub bin dir");
+    let stub = bin.join("systemctl");
+    std::fs::write(&stub, "#!/bin/sh\necho \"$@\" >> \"$HOME/systemctl.log\"\n").expect("stub");
+    std::fs::set_permissions(&stub, std::os::unix::fs::PermissionsExt::from_mode(0o755))
+        .expect("stub mode");
+    let path_var = format!(
+        "{}:{}",
+        bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
     temp_env::with_vars(
         [
             ("HOME", Some(path.to_string_lossy().into_owned())),
+            ("PATH", Some(path_var)),
             ("SUDO_USER", None),
         ],
         || f(&path),
     )
+}
+
+fn systemctl_calls(home: &Path) -> String {
+    std::fs::read_to_string(home.join("systemctl.log")).unwrap_or_default()
 }
 
 fn units_dir(home: &Path) -> PathBuf {
@@ -56,6 +74,12 @@ fn applying_the_linux_schedule_writes_the_timer_service_and_proxy_units() {
         let applied = apply_schedule(&cache, Os::Linux, &binary()).expect("units are written");
 
         let unit = schedule_label();
+        let calls = systemctl_calls(home);
+        assert!(
+            calls.contains("--user daemon-reload")
+                && calls.contains(&format!("enable --now {unit}.timer")),
+            "activation runs through systemctl --user: {calls}"
+        );
         assert_eq!(applied.label, unit);
         assert_eq!(applied.path, units_dir(home).join(format!("{unit}.timer")));
 

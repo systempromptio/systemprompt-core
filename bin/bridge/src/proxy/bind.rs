@@ -26,16 +26,16 @@ pub(super) fn bind_candidate(
     ours: &InstallId,
     tried: &mut Vec<u16>,
     last_error: &mut String,
-) -> Bind {
-    for port in candidate_ports(ours) {
+) -> std::io::Result<Bind> {
+    for port in candidate_ports(ours)? {
         if port != 0 {
             match peer::probe_identity(port, ours) {
                 PeerIdentity::Ours(who) => {
-                    return Bind::Sibling {
+                    return Ok(Bind::Sibling {
                         port: who.port,
                         pid: who.pid,
                         config_dir: who.config_dir,
-                    };
+                    });
                 },
                 PeerIdentity::Foreign(who) => {
                     diag(&format!(
@@ -60,32 +60,27 @@ pub(super) fn bind_candidate(
         }
 
         match rt.block_on(server::try_bind(port)) {
-            Ok(l) => return Bind::Listener(l),
+            Ok(l) => return Ok(Bind::Listener(l)),
             Err(e) => {
                 *last_error = e.to_string();
                 tried.push(port);
             },
         }
     }
-    Bind::Exhausted
+    Ok(Bind::Exhausted)
 }
 
-pub(super) fn persist_and_announce(port: u16, ours: &InstallId) {
-    if (DEFAULT_PROXY_PORT..=MAX_CANDIDATE_PORT).contains(&port) {
-        if let Err(e) = portfile::write(port, ours) {
-            tracing::warn!(error = %e, port, "could not record the bound proxy port");
-        }
-    } else {
-        tracing::error!(
-            port,
-            "bound an ephemeral proxy port; it will change on every restart and client config \
-             cannot track it",
-        );
+pub(super) fn persist_and_announce(port: u16, ours: &InstallId) -> std::io::Result<()> {
+    if !(DEFAULT_PROXY_PORT..=MAX_CANDIDATE_PORT).contains(&port) {
+        return Err(std::io::Error::other(
+            "cannot publish an unstable proxy port",
+        ));
     }
+    portfile::write(port, ours)?;
 
     if port == DEFAULT_PROXY_PORT {
         diag(&format!("proxy: listening on localhost:{port}"));
-        return;
+        return Ok(());
     }
 
     let bin = crate::brand::brand().binary_name;
@@ -94,24 +89,26 @@ pub(super) fn persist_and_announce(port: u16, ours: &InstallId) {
          instead.\n       Client configs written for port {DEFAULT_PROXY_PORT} will be rejected \
          with 403 — run `{bin} install --apply` to repoint them, then restart the client."
     ));
-    if port == 0 || !(DEFAULT_PROXY_PORT..=MAX_CANDIDATE_PORT).contains(&port) {
-        diag("       this port is ephemeral and will change on every restart.");
-    }
+    Ok(())
 }
 
-pub(super) fn portfile_port(ours: &InstallId) -> Option<u16> {
-    let record = portfile::read(ours)?;
+pub(super) fn portfile_port(ours: &InstallId) -> std::io::Result<Option<u16>> {
+    let Some(record) = portfile::read(ours)? else {
+        return Ok(None);
+    };
     match peer::probe_identity(record.port, ours) {
-        PeerIdentity::Ours(_) | PeerIdentity::Unreachable | PeerIdentity::Unknown => {
-            Some(record.port)
-        },
+        PeerIdentity::Unknown => Err(std::io::Error::other(format!(
+            "recorded proxy port {} belongs to an unidentified listener",
+            record.port
+        ))),
+        PeerIdentity::Ours(_) | PeerIdentity::Unreachable => Ok(Some(record.port)),
         PeerIdentity::Foreign(who) => {
             tracing::warn!(
                 port = record.port,
                 other = %who.config_dir,
                 "our recorded proxy port is now held by another install",
             );
-            None
+            Ok(None)
         },
     }
 }

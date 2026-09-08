@@ -44,7 +44,7 @@ pub async fn build_profile_inputs(
     host: &'static dyn HostApp,
     overrides: &ModelProtocolOverrides,
 ) -> std::io::Result<ProfileGenInputs> {
-    let cfg = config::load();
+    let cfg = config::load().map_err(std::io::Error::other)?;
     let loopback = bridge.proxy.loopback();
     let gateway_base_url = loopback.origin();
 

@@ -34,17 +34,7 @@ pub(super) fn register(
         format!("wrote: {}", proxy_path.display()),
     ];
 
-    // Why: Activation requires a systemd user bus, which containers and
-    // systemd-less WSL may lack.
-    if let Err(e) = activate(unit, &proxy_unit) {
-        crate::stdio::diag(&format!(
-            "warning: units written but not activated: {e}. Activate them yourself with: \
-             systemctl --user daemon-reload && systemctl --user enable --now {unit}.timer \
-             {proxy_unit}.service"
-        ));
-        lines.push(format!("not activated: {e}"));
-        return Ok((timer_path, lines));
-    }
+    activate(unit, &proxy_unit)?;
 
     lines.push(format!(
         "systemd user timer: {unit}.timer (enabled, every 30m)"
@@ -105,18 +95,31 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     if !timer_path.exists() && !proxy_path.exists() {
         return ScheduleRemoval::NotInstalled(unit.to_owned());
     }
-    _ = systemctl(&["disable", "--now", &format!("{unit}.timer")]);
-    _ = systemctl(&["disable", "--now", &format!("{proxy_unit}.service")]);
+    if let Err(e) = stop_if_present(&timer_path, &format!("{unit}.timer"))
+        .and_then(|()| stop_if_present(&proxy_path, &format!("{proxy_unit}.service")))
+    {
+        return ScheduleRemoval::Failed(e);
+    }
     let removed = remove_if_present(&timer_path)
         .and_then(|()| remove_if_present(&dir.join(format!("{unit}.service"))))
         .and_then(|()| remove_if_present(&proxy_path));
-    match removed {
-        Ok(()) => {
-            _ = systemctl(&["daemon-reload"]);
-            ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
-        },
-        Err(e) => ScheduleRemoval::Failed(format!("remove under {}: {e}", dir.display())),
+    if let Err(e) = removed {
+        return ScheduleRemoval::Failed(format!("remove under {}: {e}", dir.display()));
     }
+    if let Err(e) = systemctl(&["daemon-reload"]) {
+        return ScheduleRemoval::Failed(format!("reload systemd: {e}"));
+    }
+    ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
+}
+
+fn stop_if_present(path: &Path, unit: &str) -> Result<(), String> {
+    let present = path
+        .try_exists()
+        .map_err(|e| format!("read {}: {e}", path.display()))?;
+    if present {
+        systemctl(&["disable", "--now", unit]).map_err(|e| format!("stop {unit}: {e}"))?;
+    }
+    Ok(())
 }
 
 fn remove_if_present(path: &Path) -> std::io::Result<()> {

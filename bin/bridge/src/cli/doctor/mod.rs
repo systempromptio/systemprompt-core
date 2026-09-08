@@ -16,6 +16,7 @@ pub mod cowork;
 pub mod filesystem;
 pub mod marketplace;
 pub mod proxy;
+#[cfg(target_os = "windows")]
 pub mod registry;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,7 +68,12 @@ pub(super) fn cmd_doctor(ctx: &BridgeContext) -> ExitCode {
 }
 
 pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            return (vec![Check::fail("config", e.to_string())], true);
+        },
+    };
     let proxy = &bridge.proxy;
     let env = ProbeEnv::new(proxy.loopback(), Arc::clone(&bridge.start_menu));
     let mut checks: Vec<Check> = vec![
@@ -89,7 +95,8 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
         checks.push(check);
     }
     checks.push(auth::check_pinned_pubkey());
-    checks.extend(registry::check_policy_hives());
+    #[cfg(target_os = "windows")]
+    checks.push(registry::check_policy_hives());
     checks.push(check_version_agreement());
     checks.push(marketplace::check_marketplace());
     checks.extend(cowork::check_cowork_scope());

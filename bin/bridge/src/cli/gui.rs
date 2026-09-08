@@ -46,7 +46,10 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
         },
     };
     let exit = crate::gui::run(ctx);
-    crate::single_instance::clear_running_port();
+    if let Err(e) = crate::single_instance::clear_running_port() {
+        crate::stdio::diag(&format!("clear bridge sidecar: {e}"));
+        return ExitCode::FAILURE;
+    }
     exit
 }
 

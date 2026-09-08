@@ -7,7 +7,16 @@ use tempfile::TempDir;
 fn home_sandbox<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     let home = TempDir::new().expect("home tempdir");
     let path = home.path().to_path_buf();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let stub = path.join("systemctl");
+        std::fs::write(&stub, "#!/bin/sh\nexit 0\n").expect("systemctl stub");
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o700))
+            .expect("executable stub");
+    }
     let vars: Vec<(&str, Option<String>)> = vec![
+        ("PATH", Some(path.display().to_string())),
         ("HOME", Some(path.display().to_string())),
         ("SUDO_USER", None),
     ];

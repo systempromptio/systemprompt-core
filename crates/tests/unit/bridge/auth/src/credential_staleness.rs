@@ -1,9 +1,12 @@
+use systemprompt_bridge::auth::cache::CredentialBinding;
 use systemprompt_bridge::auth::{cache, setup};
+use systemprompt_bridge::config;
 use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_identifiers::ValidatedUrl;
 use tempfile::TempDir;
 
 const GOOD: &str = "sp-live-testprefix.secretsecretsecretsecretsecret012345";
+const OTHER: &str = "sp-live-otherprefix.secretsecretsecretsecretsecret012345";
 
 fn sandbox<R>(f: impl FnOnce() -> R) -> (R, [TempDir; 3]) {
     let config = TempDir::new().expect("config tempdir");
@@ -31,13 +34,26 @@ fn token(ttl: u64) -> HelperOutput {
     }
 }
 
+fn write_token(gateway: &ValidatedUrl, ttl: u64) {
+    let cfg = config::load().expect("config");
+    let binding = CredentialBinding::capture(&cfg).expect("binding");
+    cache::write_bound(gateway, &token(ttl), &binding).expect("write_bound");
+}
+
+fn cache_file() -> std::path::PathBuf {
+    std::path::PathBuf::from(std::env::var_os("XDG_CACHE_HOME").expect("XDG_CACHE_HOME"))
+        .join(systemprompt_bridge::brand::brand().working_dir_name)
+        .join("cache.json")
+}
+
 #[test]
 fn a_token_minted_for_another_gateway_is_refused_and_discarded() {
     let ((first, second), _dirs) = sandbox(|| {
         let issuer = url("http://gw-a.invalid:8080");
-        cache::write(&issuer, &token(3600)).expect("write");
-        let other = cache::read_valid(&url("http://gw-b.invalid:8080"));
-        let same = cache::read_valid(&issuer);
+        setup::login(GOOD, Some(issuer.as_str())).expect("login");
+        write_token(&issuer, 3600);
+        let other = cache::read_valid(&url("http://gw-b.invalid:8080")).expect("read");
+        let same = cache::read_valid(&issuer).expect("read");
         (other, same)
     });
     assert!(
@@ -54,19 +70,146 @@ fn a_token_minted_for_another_gateway_is_refused_and_discarded() {
 fn a_token_is_returned_for_the_gateway_that_minted_it() {
     let (found, _dirs) = sandbox(|| {
         let issuer = url("http://gw-a.invalid:8080");
-        cache::write(&issuer, &token(3600)).expect("write");
-        cache::read_valid(&issuer)
+        setup::login(GOOD, Some(issuer.as_str())).expect("login");
+        write_token(&issuer, 3600);
+        cache::read_valid(&issuer).expect("read")
     });
-    assert!(found.is_some(), "the issuing gateway still reads its token");
+    let found = found.expect("the issuing gateway still reads its token");
+    assert_eq!(found.token.as_str(), "header.payload.signature");
+}
+
+#[test]
+fn a_token_bound_to_a_replaced_credential_is_refused_and_discarded() {
+    let ((swapped, after), _dirs) = sandbox(|| {
+        let gateway = url("http://gw.invalid:8080");
+        let paths = setup::login(GOOD, Some(gateway.as_str())).expect("login");
+        write_token(&gateway, 3600);
+        std::fs::write(&paths.pat_file, OTHER).expect("swap PAT");
+        let swapped = cache::read_valid(&gateway).expect("read");
+        let after = cache_file().exists();
+        (swapped, after)
+    });
+    assert!(
+        swapped.is_none(),
+        "a token minted from one PAT must not be replayed once the PAT changes underneath it"
+    );
+    assert!(
+        !after,
+        "the entry bound to the old credential is deleted, not merely skipped"
+    );
+}
+
+#[test]
+fn a_binding_captured_before_the_credential_changed_cannot_be_written() {
+    let (err, _dirs) = sandbox(|| {
+        let gateway = url("http://gw.invalid:8080");
+        let paths = setup::login(GOOD, Some(gateway.as_str())).expect("login");
+        let binding =
+            CredentialBinding::capture(&config::load().expect("config")).expect("binding");
+        std::fs::write(&paths.pat_file, OTHER).expect("swap PAT");
+        let err = cache::write_bound(&gateway, &token(3600), &binding).expect_err("refused");
+        assert!(
+            !cache_file().exists(),
+            "a refused write leaves no entry behind"
+        );
+        err
+    });
+    assert!(
+        err.to_string().contains("credentials changed"),
+        "the write names the race it refuses: {err}"
+    );
+}
+
+#[test]
+fn a_binding_captured_for_another_gateway_cannot_be_written() {
+    let (err, _dirs) = sandbox(|| {
+        let issuer = url("http://gw-a.invalid:8080");
+        setup::login(GOOD, Some(issuer.as_str())).expect("login");
+        let binding =
+            CredentialBinding::capture(&config::load().expect("config")).expect("binding");
+        cache::write_bound(&url("http://gw-b.invalid:8080"), &token(3600), &binding)
+            .expect_err("refused")
+    });
+    assert!(
+        err.to_string().contains("gateway or credentials changed"),
+        "a binding for gateway A must not vouch for a token stored under gateway B: {err}"
+    );
+}
+
+#[test]
+fn a_binding_cannot_be_captured_without_a_credential() {
+    let (err, _dirs) = sandbox(|| {
+        CredentialBinding::capture(&config::load().expect("config")).expect_err("no credential")
+    });
+    assert!(
+        err.to_string()
+            .contains("no credential identity configured"),
+        "an unbound token would survive any later sign-in: {err}"
+    );
+}
+
+#[test]
+fn a_legacy_session_without_a_generation_cannot_bind_a_token() {
+    let (err, _dirs) = sandbox(|| {
+        let cfg = config::Config {
+            gateway_url: Some(url("http://gw.invalid:8080")),
+            session: Some(config::SessionConfig {
+                generation: None,
+                enabled: Some(true),
+            }),
+            ..config::Config::default()
+        };
+        CredentialBinding::capture(&cfg).expect_err("legacy session")
+    });
+    assert!(
+        err.to_string().contains("sign in again"),
+        "a pre-generation session has no identity to bind to: {err}"
+    );
+}
+
+#[test]
+fn a_malformed_cache_is_an_error_not_a_miss() {
+    let ((read, gateway), _dirs) = sandbox(|| {
+        let gateway = url("http://gw.invalid:8080");
+        setup::login(GOOD, Some(gateway.as_str())).expect("login");
+        let path = cache_file();
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("cache dir");
+        std::fs::write(&path, b"{not json").expect("corrupt cache");
+        (cache::read_valid(&gateway), cache::cached_gateway())
+    });
+    let err = read.expect_err("a corrupt cache must not be mistaken for an empty one");
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    assert!(
+        err.to_string().contains("sign in again"),
+        "the error tells the operator how to recover: {err}"
+    );
+    assert_eq!(
+        gateway
+            .expect_err("cached_gateway reads the same file")
+            .kind(),
+        std::io::ErrorKind::InvalidData
+    );
+}
+
+#[test]
+fn a_missing_cache_is_a_miss_not_an_error() {
+    let ((read, gateway), _dirs) = sandbox(|| {
+        let gateway = url("http://gw.invalid:8080");
+        setup::login(GOOD, Some(gateway.as_str())).expect("login");
+        (cache::read_valid(&gateway), cache::cached_gateway())
+    });
+    assert!(read.expect("read").is_none());
+    assert!(gateway.expect("cached_gateway").is_none());
 }
 
 #[test]
 fn login_discards_a_cached_token_so_the_new_credential_takes_effect() {
     let (cached, _dirs) = sandbox(|| {
         let gateway = url("http://gw.invalid:8080");
-        cache::write(&gateway, &token(3600)).expect("write");
         setup::login(GOOD, Some(gateway.as_str())).expect("login");
-        cache::read_valid(&gateway)
+        write_token(&gateway, 3600);
+        setup::login(GOOD, Some(gateway.as_str())).expect("login");
+        cache::read_valid(&gateway).expect("read")
     });
     assert!(
         cached.is_none(),
@@ -78,9 +221,10 @@ fn login_discards_a_cached_token_so_the_new_credential_takes_effect() {
 fn set_gateway_url_discards_a_cached_token() {
     let (cached, _dirs) = sandbox(|| {
         let gateway = url("http://gw-a.invalid:8080");
-        cache::write(&gateway, &token(3600)).expect("write");
+        setup::login(GOOD, Some(gateway.as_str())).expect("login");
+        write_token(&gateway, 3600);
         setup::set_gateway_url("http://gw-b.invalid:8080").expect("set gateway");
-        cache::read_valid(&gateway)
+        cache::read_valid(&gateway).expect("read")
     });
     assert!(
         cached.is_none(),

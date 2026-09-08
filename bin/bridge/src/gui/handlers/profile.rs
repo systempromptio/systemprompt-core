@@ -84,11 +84,16 @@ async fn build_profile(
     use crate::config;
     use crate::gateway::GatewayClient;
 
-    let cfg = config::load();
+    let cfg = config::load()?;
     let gateway_url = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(gateway_url.clone(), http);
 
-    let bearer_value = crate::auth::cache::read_valid(&gateway_url).map(|out| out.token);
+    let bearer_value = crate::auth::cache::read_valid(&gateway_url)
+        .map_err(|e| GuiError::Profile {
+            context: "credential cache".into(),
+            source: e,
+        })?
+        .map(|out| out.token);
     let bearer = bearer_value
         .as_ref()
         .map(|s| s.expose().to_owned())
@@ -102,9 +107,9 @@ async fn build_profile(
         },
     };
 
-    let bridge_profile = client.fetch_bridge_profile().await.ok();
+    let bridge_profile = Some(client.fetch_bridge_profile().await?);
 
-    let usage = client.fetch_profile_usage(&bearer).await.ok();
+    let usage = Some(client.fetch_profile_usage(&bearer).await?);
 
     let identity = identity_value(&snapshot, whoami.as_ref());
 

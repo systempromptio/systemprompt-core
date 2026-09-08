@@ -110,26 +110,28 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             tracing::error!(error = %e, path, "managed Claude policy write failed");
             std::io::Error::other(e.to_string())
         })?;
-    match outcome {
-        PolicyWrite::Written(hive) => {
-            tracing::info!(hive = hive.label(), "policy written and read back")
+    match outcome.outcome() {
+        PolicyWrite::Written(hive) | PolicyWrite::AlreadyVerified(hive) => {
+            tracing::info!(hive = hive.label(), "policy written and read back");
         },
         PolicyWrite::SatisfiedByMachine => {
             tracing::info!("HKLM already holds this policy; per-user copy not written");
         },
     }
-    if let Some(org) = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user() {
+    {
+        let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
         if elevated {
             crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
                 .map_err(|e| {
                     tracing::error!(error = %e, "org-plugins provisioning failed");
                     std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
                 })?;
+            crate::windows_acl::verify_modify_tree(&org.path)?;
         } else if !org.path.is_dir() {
-            tracing::warn!(
-                path = %org.path.display(),
-                "org-plugins is not provisioned; run `install --apply` as Administrator once"
-            );
+            return Err(std::io::Error::other(format!(
+                "{} is not provisioned; run install --apply as Administrator",
+                org.path.display()
+            )));
         }
     }
     tracing::info!(

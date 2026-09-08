@@ -6,7 +6,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 use systemprompt_identifiers::ValidatedUrl;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
 pub const LOOPBACK_PORT: u16 = 8767;
@@ -118,9 +118,8 @@ async fn handle_connection(stream: TcpStream) -> Result<Captured> {
         Err(_) => ("400 Bad Request", ERROR_HTML),
     };
     write_response(&mut write_half, status, body).await?;
-    _ = write_half.shutdown().await;
-    let mut sink = [0u8; 16];
-    _ = reader.read(&mut sink).await;
+    write_half.shutdown().await?;
+    drop(reader);
     outcome.map(|code| Captured { code })
 }
 

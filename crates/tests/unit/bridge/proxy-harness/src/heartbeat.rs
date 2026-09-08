@@ -28,7 +28,7 @@ fn counting_cache(refresh_calls: Arc<AtomicU32>) -> Arc<TokenCache> {
         let refresh_calls = Arc::clone(&refresh_calls);
         Box::pin(async move {
             refresh_calls.fetch_add(1, Ordering::SeqCst);
-            Some(HelperOutput {
+            Ok(HelperOutput {
                 token: BearerToken::new("heartbeat-bearer"),
                 ttl: 3600,
                 headers: std::collections::HashMap::new(),
@@ -39,8 +39,35 @@ fn counting_cache(refresh_calls: Arc<AtomicU32>) -> Arc<TokenCache> {
 
 fn empty_cache() -> Arc<TokenCache> {
     Arc::new(TokenCache::new(Arc::new(|_threshold| {
-        Box::pin(async { None })
+        Box::pin(async {
+            Err(systemprompt_bridge::proxy::forward::ForwardError::Auth(
+                "no credential provider produced a token".into(),
+            ))
+        })
     })))
+}
+
+
+// Why: the token cache binds every minted JWT to the credential identity on
+// disk, so a heartbeat with no credentials configured never mints. Each test
+// runs in a sandboxed config dir with a PAT supplied through the environment,
+// on a paused-clock runtime so the 30s tick is stepped, not waited for.
+fn with_credentials<F: std::future::Future>(fut: F) -> F::Output {
+    let temp = tempfile::tempdir().expect("config tempdir");
+    temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            ("SP_BRIDGE_PAT", Some("sp-live-a.b".into())),
+        ],
+        || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .start_paused(true)
+                .build()
+                .expect("runtime")
+                .block_on(fut)
+        },
+    )
 }
 
 async fn wait_for_requests(server: &MockServer, at_least: usize) -> Vec<Request> {
@@ -56,39 +83,41 @@ async fn wait_for_requests(server: &MockServer, at_least: usize) -> Vec<Request>
     panic!("gateway never received {at_least} heartbeat(s)");
 }
 
-#[tokio::test(start_paused = true)]
-async fn heartbeat_posts_payload_with_bearer() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/bridge/heartbeat"))
-        .and(header("authorization", "Bearer heartbeat-bearer"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&server)
-        .await;
+#[test]
+fn heartbeat_posts_payload_with_bearer() {
+    with_credentials(async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/bridge/heartbeat"))
+            .and(header("authorization", "Bearer heartbeat-bearer"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
 
-    let refresh_calls = Arc::new(AtomicU32::new(0));
-    let session = Arc::new(SessionContext::new());
-    session.touch_activity();
-    let stats = Arc::new(ProxyStats::default());
-    stats.forwarded_total.store(7, Ordering::Relaxed);
+        let refresh_calls = Arc::new(AtomicU32::new(0));
+        let session = Arc::new(SessionContext::new());
+        session.touch_activity();
+        let stats = Arc::new(ProxyStats::default());
+        stats.forwarded_total.store(7, Ordering::Relaxed);
 
-    let handle = tokio::spawn(run_loop(
-        runtime_config(&server.uri()),
-        counting_cache(Arc::clone(&refresh_calls)),
-        Arc::clone(&session),
-        Arc::clone(&stats),
-        reqwest::Client::new(),
-    ));
+        let handle = tokio::spawn(run_loop(
+            runtime_config(&server.uri()),
+            counting_cache(Arc::clone(&refresh_calls)),
+            Arc::clone(&session),
+            Arc::clone(&stats),
+            reqwest::Client::new(),
+        ));
 
-    let received = wait_for_requests(&server, 1).await;
-    handle.abort();
+        let received = wait_for_requests(&server, 1).await;
+        handle.abort();
 
-    let body: serde_json::Value = serde_json::from_slice(&received[0].body).unwrap();
-    assert_eq!(body["session_id"], session.session_id().as_str());
-    assert_eq!(body["forwarded_total"], 7);
-    assert_eq!(body["os"], std::env::consts::OS);
-    assert!(body["last_activity_at"].is_string());
-    assert!(refresh_calls.load(Ordering::SeqCst) >= 1);
+        let body: serde_json::Value = serde_json::from_slice(&received[0].body).unwrap();
+        assert_eq!(body["session_id"], session.session_id().as_str());
+        assert_eq!(body["forwarded_total"], 7);
+        assert_eq!(body["os"], std::env::consts::OS);
+        assert!(body["last_activity_at"].is_string());
+        assert!(refresh_calls.load(Ordering::SeqCst) >= 1);
+    });
 }
 
 struct UnauthorizedOnce {
@@ -105,100 +134,106 @@ impl Respond for UnauthorizedOnce {
     }
 }
 
-#[tokio::test(start_paused = true)]
-async fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/bridge/heartbeat"))
-        .respond_with(UnauthorizedOnce {
-            calls: AtomicU32::new(0),
-        })
-        .mount(&server)
-        .await;
+#[test]
+fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
+    with_credentials(async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/bridge/heartbeat"))
+            .respond_with(UnauthorizedOnce {
+                calls: AtomicU32::new(0),
+            })
+            .mount(&server)
+            .await;
 
-    let refresh_calls = Arc::new(AtomicU32::new(0));
-    let cache = counting_cache(Arc::clone(&refresh_calls));
-    let handle = tokio::spawn(run_loop(
-        runtime_config(&server.uri()),
-        Arc::clone(&cache),
-        Arc::new(SessionContext::new()),
-        Arc::new(ProxyStats::default()),
-        reqwest::Client::new(),
-    ));
+        let refresh_calls = Arc::new(AtomicU32::new(0));
+        let cache = counting_cache(Arc::clone(&refresh_calls));
+        let handle = tokio::spawn(run_loop(
+            runtime_config(&server.uri()),
+            Arc::clone(&cache),
+            Arc::new(SessionContext::new()),
+            Arc::new(ProxyStats::default()),
+            reqwest::Client::new(),
+        ));
 
-    wait_for_requests(&server, 1).await;
-    for _ in 0..5 {
-        tokio::time::sleep(std::time::Duration::from_secs(31)).await;
-        tokio::task::yield_now().await;
-    }
-    handle.abort();
+        wait_for_requests(&server, 1).await;
+        for _ in 0..5 {
+            tokio::time::sleep(std::time::Duration::from_secs(31)).await;
+            tokio::task::yield_now().await;
+        }
+        handle.abort();
 
-    assert!(
-        cache.sign_in_required(),
-        "a heartbeat 401 against a freshly minted token latches sign-in"
-    );
-    assert_eq!(
-        refresh_calls.load(Ordering::SeqCst),
-        1,
-        "the latched loop idles instead of minting on every tick (refresh calls: {})",
-        refresh_calls.load(Ordering::SeqCst)
-    );
-    let sent = server.received_requests().await.unwrap_or_default();
-    assert_eq!(
-        sent.len(),
-        1,
-        "no further heartbeats are sent while latched"
-    );
+        assert!(
+            cache.sign_in_required(),
+            "a heartbeat 401 against a freshly minted token latches sign-in"
+        );
+        assert_eq!(
+            refresh_calls.load(Ordering::SeqCst),
+            1,
+            "the latched loop idles instead of minting on every tick (refresh calls: {})",
+            refresh_calls.load(Ordering::SeqCst)
+        );
+        let sent = server.received_requests().await.unwrap_or_default();
+        assert_eq!(
+            sent.len(),
+            1,
+            "no further heartbeats are sent while latched"
+        );
+    });
 }
 
-#[tokio::test(start_paused = true)]
-async fn heartbeat_server_error_keeps_looping() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/bridge/heartbeat"))
-        .respond_with(ResponseTemplate::new(503))
-        .mount(&server)
-        .await;
+#[test]
+fn heartbeat_server_error_keeps_looping() {
+    with_credentials(async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/bridge/heartbeat"))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
 
-    let refresh_calls = Arc::new(AtomicU32::new(0));
-    let handle = tokio::spawn(run_loop(
-        runtime_config(&server.uri()),
-        counting_cache(refresh_calls),
-        Arc::new(SessionContext::new()),
-        Arc::new(ProxyStats::default()),
-        reqwest::Client::new(),
-    ));
+        let refresh_calls = Arc::new(AtomicU32::new(0));
+        let handle = tokio::spawn(run_loop(
+            runtime_config(&server.uri()),
+            counting_cache(refresh_calls),
+            Arc::new(SessionContext::new()),
+            Arc::new(ProxyStats::default()),
+            reqwest::Client::new(),
+        ));
 
-    let received = wait_for_requests(&server, 2).await;
-    handle.abort();
-    assert!(received.len() >= 2, "loop must survive upstream errors");
+        let received = wait_for_requests(&server, 2).await;
+        handle.abort();
+        assert!(received.len() >= 2, "loop must survive upstream errors");
+    });
 }
 
-#[tokio::test(start_paused = true)]
-async fn heartbeat_without_credentials_sends_nothing() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/bridge/heartbeat"))
-        .respond_with(ResponseTemplate::new(200))
-        .mount(&server)
-        .await;
+#[test]
+fn heartbeat_without_credentials_sends_nothing() {
+    with_credentials(async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/bridge/heartbeat"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
 
-    let handle = tokio::spawn(run_loop(
-        runtime_config(&server.uri()),
-        empty_cache(),
-        Arc::new(SessionContext::new()),
-        Arc::new(ProxyStats::default()),
-        reqwest::Client::new(),
-    ));
+        let handle = tokio::spawn(run_loop(
+            runtime_config(&server.uri()),
+            empty_cache(),
+            Arc::new(SessionContext::new()),
+            Arc::new(ProxyStats::default()),
+            reqwest::Client::new(),
+        ));
 
-    for _ in 0..5 {
-        tokio::time::sleep(std::time::Duration::from_secs(31)).await;
-    }
-    handle.abort();
+        for _ in 0..5 {
+            tokio::time::sleep(std::time::Duration::from_secs(31)).await;
+        }
+        handle.abort();
 
-    let received = server.received_requests().await.unwrap_or_default();
-    assert!(
-        received.is_empty(),
-        "auth-unavailable ticks must not POST heartbeats"
-    );
+        let received = server.received_requests().await.unwrap_or_default();
+        assert!(
+            received.is_empty(),
+            "auth-unavailable ticks must not POST heartbeats"
+        );
+    });
 }

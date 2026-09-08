@@ -161,7 +161,7 @@ pub(crate) struct GuiApp {
     pub(crate) last_proxy_stats_tick: Instant,
     pub(crate) last_event_loop_pass: Instant,
     pub(crate) last_saved_geometry: Option<crate::window_state::WindowGeometry>,
-    pub(crate) last_state_hash: Option<u64>,
+    pub(crate) last_semantic_state: Option<serde_json::Value>,
     pub(crate) did_initial_sync: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
 }
@@ -186,7 +186,7 @@ impl GuiApp {
             last_proxy_stats_tick: Instant::now(),
             last_event_loop_pass: Instant::now(),
             last_saved_geometry: None,
-            last_state_hash: None,
+            last_semantic_state: None,
             did_initial_sync: false,
             active_signals: HashSet::new(),
         }
@@ -201,8 +201,12 @@ impl GuiApp {
 
     pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
-        if let Some(handles) = &mut self.tray {
-            tray::refresh(handles, &snap, &self.ctx.schedule);
+        if let Some(handles) = &mut self.tray
+            && let Err(e) = tray::refresh(handles, &snap, &self.ctx.schedule)
+        {
+            self.ctx
+                .activity
+                .append_error(format!("tray update failed: {e}"));
         }
     }
 

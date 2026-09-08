@@ -43,8 +43,16 @@ pub(crate) fn on_probe_requested(
     let proxy = app.proxy.clone();
     let env = app.probe_env();
     app.ctx.spawn(async move {
-        let Ok(snap) = tokio::task::spawn_blocking(move || Box::new(host.probe(&env))).await else {
-            return;
+        let snap = match tokio::task::spawn_blocking(move || Box::new(host.probe(&env))).await {
+            Ok(snap) => snap,
+            Err(e) => {
+                proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFailed {
+                    host_id: Some(host_id_owned),
+                    error: format!("host probe task failed: {e}"),
+                    reply_to,
+                }));
+                return;
+            },
         };
         proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
             host_id: host_id_owned,
@@ -159,11 +167,20 @@ pub(crate) fn on_proxy_probe_requested(app: &GuiApp, reply_to: ReplyId) {
     }
     let proxy = app.proxy.clone();
     app.ctx.spawn(async move {
-        let Ok(health) =
-            tokio::task::spawn_blocking(move || Box::new(proxy_probe::probe(url.as_deref()))).await
-        else {
-            return;
-        };
+        let health =
+            match tokio::task::spawn_blocking(move || Box::new(proxy_probe::probe(url.as_deref())))
+                .await
+            {
+                Ok(health) => health,
+                Err(e) => {
+                    proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFailed {
+                        host_id: None,
+                        error: format!("proxy probe task failed: {e}"),
+                        reply_to,
+                    }));
+                    return;
+                },
+            };
         proxy.send_event(UiEvent::Host(HostUiEvent::ProxyProbeFinished {
             health,
             reply_to,
@@ -178,4 +195,18 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::local_proxy_value(&snap);
     finish(app, Ok(json!({ "health": value })), reply_to);
+}
+
+pub(crate) fn on_probe_failed(
+    app: &mut GuiApp,
+    host_id: Option<&HostId>,
+    error: &str,
+    reply_to: ReplyId,
+) {
+    app.state.finish_failed_probe(host_id.map(HostId::as_str));
+    app.append_log_error(error);
+    if let Some(id) = reply_to {
+        emit::send_reply_payload(app, id, &IpcReplyPayload::err(BridgeError::internal(error)));
+    }
+    app.refresh_ui();
 }

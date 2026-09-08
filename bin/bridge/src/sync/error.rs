@@ -7,6 +7,20 @@ use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
+    #[error("credential cache: {0}")]
+    CredentialCache(std::io::Error),
+    #[error("{}", .0.one_line())]
+    Partial(Box<super::SyncSummary>),
+    #[error("persist sync state at {path}: {source}")]
+    Persistence {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error(transparent)]
+    Config(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
     #[error("no valid credential available; run `{bin} login` first")]
     NoCredential { bin: &'static str },
     #[error(transparent)]
@@ -51,7 +65,7 @@ pub enum SyncError {
     },
     #[error(
         "manifest signing pubkey on file was pinned for {pinned_for}, but the gateway is now \
-         {current}; run `sync --allow-tofu` to re-learn it, or pin it out of band with `install \
+         {current}; explicitly pin the intended gateway key with `install \
          --apply --pubkey <base64>`"
     )]
     PubkeyStale { pinned_for: String, current: String },
@@ -100,6 +114,11 @@ impl SyncError {
     #[must_use]
     pub fn exit_code(&self) -> ExitCode {
         match self {
+            Self::CredentialCache(_)
+            | Self::Partial(_)
+            | Self::Persistence { .. }
+            | Self::Config(_)
+            | Self::Trust(_) => ExitCode::FAILURE,
             Self::NoCredential { .. } => ExitCode::from(5),
             Self::GatewayUnauthorized(_) => ExitCode::from(10),
             Self::Network(_) => ExitCode::from(3),

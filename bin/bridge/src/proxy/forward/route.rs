@@ -15,6 +15,7 @@ pub(super) struct Route {
 }
 
 pub(super) enum RouteResolution {
+    Unavailable(String),
     Gateway(String),
     Mcp(Route),
     UnknownMcp(String),
@@ -36,7 +37,9 @@ pub(super) fn resolve_route(
                 extra_headers: entry.headers.clone(),
             });
         }
-        mcp_registry::rehydrate_from_disk(registry);
+        if let Err(e) = mcp_registry::rehydrate_from_disk(registry) {
+            return RouteResolution::Unavailable(e.to_string());
+        }
         return mcp_registry::snapshot(registry).get(name).map_or_else(
             || RouteResolution::UnknownMcp(name.to_owned()),
             |entry| {

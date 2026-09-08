@@ -41,8 +41,12 @@ pub(crate) fn http_get_body(
     path: &str,
 ) -> Result<String, ProbeError> {
     use std::io::{Read, Write};
-    _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
-    _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(1500)));
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_millis(1500)))
+        .map_err(ProbeError::Read)?;
+    stream
+        .set_write_timeout(Some(std::time::Duration::from_millis(1500)))
+        .map_err(ProbeError::Write)?;
     let req = format!(
         "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nAccept: \
          application/json\r\nUser-Agent: systemprompt-bridge-probe\r\n\r\n",
@@ -79,8 +83,12 @@ pub(super) fn http_head_status(
     host: &str,
 ) -> Result<u16, ProbeError> {
     use std::io::{Read, Write};
-    _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
-    _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(1500)));
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_millis(1500)))
+        .map_err(ProbeError::Read)?;
+    stream
+        .set_write_timeout(Some(std::time::Duration::from_millis(1500)))
+        .map_err(ProbeError::Write)?;
     let req = format!(
         "HEAD /healthz HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: \
          systemprompt-bridge-probe\r\n\r\n",

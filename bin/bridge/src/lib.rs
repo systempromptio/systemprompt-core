@@ -188,7 +188,10 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     #[cfg(target_os = "windows")]
     winproc::attach_parent_console_if_present();
     obs::install_panic_hook();
-    obs::tracing_init::init();
+    if let Err(e) = obs::tracing_init::init() {
+        stdio::eprint_str(&format!("bridge startup failed: {e}\n"));
+        return ExitCode::FAILURE;
+    }
     brand::warn_if_version_drifts();
     purge_legacy_agents_state();
     update::sweep_leftovers();
@@ -208,3 +211,8 @@ fn purge_legacy_agents_state() {
         },
     }
 }
+
+pub mod tasks;
+
+#[cfg(target_os = "windows")]
+pub mod windows_acl;

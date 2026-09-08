@@ -7,6 +7,20 @@ use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MdmError {
+    #[error("policy partially completed {completed:?}; {source}")]
+    Partial {
+        completed: super::MdmApplication,
+        #[source]
+        source: Box<Self>,
+    },
+    #[error("invalid policy configuration: {0}")]
+    InvalidConfig(String),
+    #[error(transparent)]
+    Config(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
+    #[error(transparent)]
+    Store(#[from] crate::config::store::ConfigStoreError),
     #[error("{action} {path}: {source}")]
     Io {
         action: &'static str,

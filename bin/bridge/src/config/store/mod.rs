@@ -11,14 +11,28 @@ mod macos_managed_prefs;
 #[cfg(target_os = "macos")]
 mod macos_plist_store;
 pub mod plist;
+pub mod verified;
+#[cfg(target_os = "windows")]
+mod windows_policy;
 #[cfg(target_os = "windows")]
 mod windows_registry;
 mod windows_registry_write;
 
 pub use document::{PolicyDocument, PolicyDocumentValue, PolicyHive};
+#[cfg(target_os = "windows")]
+pub(crate) use windows_policy::{
+    clear_managed_claude_policy, read_registry_string, write_bridge_policy,
+    write_managed_claude_policy,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigStoreError {
+    #[error("policy partially applied ({completed:?}); {source}")]
+    Partial {
+        completed: Vec<verified::PolicyReceipt>,
+        #[source]
+        source: Box<Self>,
+    },
     #[error("config store: {0}")]
     Backend(String),
 
@@ -43,12 +57,12 @@ pub enum ConfigStoreError {
     },
 }
 
-/// What a managed-policy write actually did, so a caller never reports a
-/// write that was skipped.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Verified policy disposition, including the scope that supplies the effective
+/// value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PolicyWrite {
     Written(PolicyHive),
-    /// HKLM already holds identical values; the per-user copy would be ignored.
+    AlreadyVerified(PolicyHive),
     SatisfiedByMachine,
 }
 
@@ -73,6 +87,7 @@ pub struct ManagedPolicyRead {
 /// the only way the bridge writes policy, so a fake store can stand in for the
 /// registry or the plist in tests.
 pub trait ConfigStore: Send + Sync {
+    fn policy_key_exists(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError>;
     fn read_managed_policy(&self, key: &str) -> Result<Option<String>, ConfigStoreError>;
 
     fn read_managed_policy_keys(
@@ -101,6 +116,24 @@ pub trait ConfigStore: Send + Sync {
     fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError>;
 }
 
+#[derive(Clone)]
+pub struct PolicyStore(std::sync::Arc<dyn ConfigStore>);
+impl PolicyStore {
+    pub fn new(store: Box<dyn ConfigStore>) -> Self {
+        Self(store.into())
+    }
+    pub fn backend(&self) -> &dyn ConfigStore {
+        self.0.as_ref()
+    }
+}
+impl std::fmt::Debug for PolicyStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PolicyStore").finish_non_exhaustive()
+    }
+}
+
+pub const MANIFEST_TRUST_KEY: &str = "manifestTrust";
+
 pub const MANIFEST_PUBKEY_KEY: &str = "manifestPubkey";
 
 pub const LEGACY_MANIFEST_PUBKEY_KEY: &str = "inferenceManifestPubkey";
@@ -118,36 +151,28 @@ pub fn bridge_policy_domain() -> String {
 }
 
 #[cfg(target_os = "windows")]
-#[must_use]
-pub fn read_bridge_policy(key: &str) -> Option<String> {
-    use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+pub fn read_bridge_policy(key: &str) -> Result<Option<String>, ConfigStoreError> {
     let subkey = bridge_policy_subkey();
-    for hive in [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER] {
-        if let Ok(Some(v)) = windows_registry::read_string(hive, &subkey, key) {
-            return Some(v);
+    for hive in [PolicyHive::Machine, PolicyHive::User] {
+        if windows_registry::key_exists(hive, &subkey)? {
+            return windows_registry::read_string(windows_registry::hkey(hive), &subkey, key);
         }
     }
-    None
-}
-
-#[cfg(target_os = "windows")]
-pub(crate) fn read_bridge_policy_in(
-    hive: PolicyHive,
-    key: &str,
-) -> Result<Option<String>, ConfigStoreError> {
-    windows_registry::read_string(windows_registry::hkey(hive), &bridge_policy_subkey(), key)
+    Ok(None)
 }
 
 #[cfg(target_os = "macos")]
-#[must_use]
-pub fn read_bridge_policy(key: &str) -> Option<String> {
+pub fn read_bridge_policy(key: &str) -> Result<Option<String>, ConfigStoreError> {
     macos_plist_store::read_string_at(&macos_plist_store::bridge_plist_path(), key)
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-#[must_use]
-pub const fn read_bridge_policy(_key: &str) -> Option<String> {
-    None
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the signature matches the Windows and macOS stores"
+)]
+pub const fn read_bridge_policy(_key: &str) -> Result<Option<String>, ConfigStoreError> {
+    Ok(None)
 }
 
 #[must_use]
@@ -166,91 +191,14 @@ pub fn managed_policy_store() -> Box<dyn ConfigStore> {
     }
 }
 
-#[cfg(target_os = "windows")]
-pub(crate) fn write_managed_claude_policy(
-    elevated: bool,
-    entries: &[(String, String)],
-) -> Result<PolicyWrite, ConfigStoreError> {
-    let hive = hive_for(elevated);
-    if hive == PolicyHive::User && machine_policy_satisfies(entries)? {
-        tracing::info!(
-            subkey = crate::cowork_compat::POLICY_SUBKEY,
-            "HKLM already holds these Claude policy values; leaving the machine policy in force"
-        );
-        return Ok(PolicyWrite::SatisfiedByMachine);
-    }
-    let typed = typed_strings(entries);
-    windows_registry_write::write_policy_values(hive, &typed)?;
-    Ok(PolicyWrite::Written(hive))
-}
-
-/// Cowork ignores HKCU once `HKLM\SOFTWARE\Policies\Claude` exists, so a
-/// per-user write is only honest when the machine key is absent or already
-/// says the same thing.
-#[cfg(target_os = "windows")]
-fn machine_policy_satisfies(entries: &[(String, String)]) -> Result<bool, ConfigStoreError> {
-    let names: Vec<&str> = entries.iter().map(|(n, _)| n.as_str()).collect();
-    let machine =
-        windows_registry::WindowsRegistryStore.read_policy_document(PolicyHive::Machine, &names)?;
-    if machine.is_empty() {
-        return Ok(false);
-    }
-    let differing: Vec<String> = entries
-        .iter()
-        .filter(|(name, value)| {
-            machine.get(name).and_then(PolicyDocumentValue::as_str) != Some(value.as_str())
-        })
-        .map(|(name, _)| name.clone())
-        .collect();
-    if differing.is_empty() {
-        Ok(true)
-    } else {
-        Err(ConfigStoreError::HiveConflict {
-            subkey: crate::cowork_compat::POLICY_SUBKEY.to_owned(),
-            differing,
-        })
-    }
-}
-
-#[cfg(target_os = "windows")]
-pub(crate) fn write_bridge_policy(
-    elevated: bool,
-    entries: &[(String, String)],
-) -> Result<(), ConfigStoreError> {
-    let typed = typed_strings(entries);
-    windows_registry_write::write_values_at(hive_for(elevated), &bridge_policy_subkey(), &typed)
-}
-
-#[cfg(target_os = "windows")]
-fn typed_strings(entries: &[(String, String)]) -> Vec<(String, PolicyDocumentValue)> {
-    entries
-        .iter()
-        .map(|(n, v)| (n.clone(), PolicyDocumentValue::Str(v.clone())))
-        .collect()
-}
-
-#[cfg(target_os = "windows")]
-pub(crate) fn clear_managed_claude_policy(
-    elevated: bool,
-    names: &[&str],
-) -> Result<usize, ConfigStoreError> {
-    windows_registry_write::delete_policy_values(hive_for(elevated), names)
-}
-
-#[cfg(target_os = "windows")]
-pub(crate) fn read_registry_string(
-    hive: windows_sys::Win32::System::Registry::HKEY,
-    subkey: &str,
-    name: &str,
-) -> Result<Option<String>, ConfigStoreError> {
-    windows_registry::read_string(hive, subkey, name)
-}
-
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 struct NoopStore;
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 impl ConfigStore for NoopStore {
+    fn policy_key_exists(&self, _hive: PolicyHive) -> Result<bool, ConfigStoreError> {
+        Ok(false)
+    }
     fn read_managed_policy(&self, _key: &str) -> Result<Option<String>, ConfigStoreError> {
         Ok(None)
     }
@@ -275,7 +223,9 @@ impl ConfigStore for NoopStore {
         _hive: PolicyHive,
         _entries: &[(String, PolicyDocumentValue)],
     ) -> Result<(), ConfigStoreError> {
-        Ok(())
+        Err(ConfigStoreError::Backend(
+            "managed policy writes are unsupported on this platform".to_owned(),
+        ))
     }
 
     fn delete_policy_values(

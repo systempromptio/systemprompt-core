@@ -15,23 +15,12 @@ use systemprompt_identifiers::{SessionId, ValidatedUrl};
 #[derive(Debug)]
 pub struct PatProvider {
     base_url: ValidatedUrl,
-    pat_source: Option<PatToken>,
+    pat_source: Result<Option<PatToken>, std::io::Error>,
 }
 
 impl PatProvider {
     pub fn new(config: &Config) -> Self {
-        let pat_source = env::var(crate::brand::brand().env("PAT"))
-            .ok()
-            .or_else(|| {
-                config
-                    .pat
-                    .as_ref()
-                    .and_then(|p| p.file.as_ref())
-                    .and_then(|path| fs::read_to_string(crate::fsutil::expand_tilde(path)).ok())
-                    .map(|s| s.trim().to_owned())
-            })
-            .filter(|s| !s.is_empty())
-            .map(PatToken::new);
+        let pat_source = read_source(config);
         Self {
             base_url: crate::config::gateway_url_or_default(config),
             pat_source,
@@ -50,7 +39,18 @@ impl AuthProvider for PatProvider {
         session_id: &SessionId,
         http: &reqwest::Client,
     ) -> Result<HelperOutput, AuthError> {
-        let pat = self.pat_source.as_ref().ok_or(AuthError::NotConfigured)?;
+        let pat = self
+            .pat_source
+            .as_ref()
+            .map_err(|e| AuthError::Failed {
+                provider: "pat",
+                source: AuthFailedSource::Custom(Box::new(std::io::Error::new(
+                    e.kind(),
+                    e.to_string(),
+                ))),
+            })?
+            .as_ref()
+            .ok_or(AuthError::NotConfigured)?;
         let client = GatewayClient::new(self.base_url.clone(), http.clone());
         let resp = client
             .pat_exchange(pat, session_id)
@@ -61,4 +61,27 @@ impl AuthProvider for PatProvider {
             })?;
         Ok(resp.into())
     }
+}
+
+pub(crate) fn read_source(config: &Config) -> std::io::Result<Option<PatToken>> {
+    let value = match env::var(crate::brand::brand().env("PAT")) {
+        Ok(value) => Some(value),
+        Err(env::VarError::NotPresent) => match config.pat.as_ref().and_then(|p| p.file.as_ref()) {
+            Some(path) => Some(
+                fs::read_to_string(crate::fsutil::expand_tilde(path))
+                    .map_err(|e| std::io::Error::new(e.kind(), format!("read PAT {path}: {e}")))?,
+            ),
+            None => None,
+        },
+        Err(e) => return Err(std::io::Error::other(e)),
+    };
+    value
+        .map(|s| {
+            if s.trim().is_empty() {
+                Err(std::io::Error::other("configured PAT is empty"))
+            } else {
+                Ok(PatToken::new(s.trim()))
+            }
+        })
+        .transpose()
 }

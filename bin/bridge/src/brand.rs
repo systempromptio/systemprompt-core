@@ -20,6 +20,13 @@
 //! signed manifest, so changing them is a coordinated gateway+bridge change,
 //! not a per-client cosmetic swap.
 //!
+//! [`COMPAT_VERSION`] is the wire version: the version of this bridge library,
+//! which tracks the core release it ships with. The gateway's
+//! `min_bridge_version` floor and the heartbeat report both use it, whereas a
+//! white-label brand may display its own number. [`warn_if_version_drifts`]
+//! runs once at start-up so a build that shows one number and reports another
+//! is visible in the log rather than discovered on the admin Devices page.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -35,15 +42,8 @@ pub struct BrandAssets {
     pub theme_css: &'static str,
 }
 
-/// The wire/compatibility version: the version of this bridge library, which
-/// tracks the core release it ships with. The gateway's `min_bridge_version`
-/// floor and the heartbeat report both use it.
 pub const COMPAT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// A white-label build whose displayed version differs from the wire version
-/// shows one number to the user and reports another to the gateway. Called
-/// once at start-up so the drift is visible in the log rather than discovered
-/// on the admin Devices page.
 pub fn warn_if_version_drifts() {
     let brand = brand();
     if brand.version != COMPAT_VERSION {

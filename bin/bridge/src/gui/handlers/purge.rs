@@ -58,7 +58,12 @@ pub(crate) fn on_purge_finished(
             ))
         },
     };
-    app.ctx.proxy.reload_runtime_config();
+    if let Err(e) = app.ctx.proxy.reload_runtime_config() {
+        let error = BridgeError::internal(e.to_string());
+        app.append_log_error(e.to_string());
+        finish_unit(app, Err(error), reply_to);
+        return;
+    }
     app.state.reload();
     app.state.set_agents_onboarded(false);
     app.refresh_ui();

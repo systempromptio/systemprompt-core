@@ -167,3 +167,8 @@ Screenshot*.png
 
 # rustc internal compiler error dumps
 rustc-ice-*.txt
+
+!scripts/check-discarded-results.sh
+!scripts/check-fail-open.sh
+!scripts/rust-contracts/
+scripts/rust-contracts/target/

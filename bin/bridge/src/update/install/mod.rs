@@ -18,7 +18,13 @@ mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub(crate) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
+pub(crate) fn apply(
+    #[cfg_attr(
+        not(any(target_os = "macos", target_os = "windows", target_os = "linux")),
+        expect(unused_variables, reason = "no installer exists for other platforms")
+    )]
+    staged: &Path,
+) -> Result<PathBuf, UpdateError> {
     #[cfg(target_os = "macos")]
     {
         macos::apply(staged)
@@ -33,7 +39,6 @@ pub(crate) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
-        _ = staged;
         Err(UpdateError::UnsupportedPlatform)
     }
 }

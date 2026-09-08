@@ -18,6 +18,7 @@ pub use error::{ApplyError, TomlError};
 
 #[derive(Debug)]
 pub struct HostSyncCtx<'a> {
+    pub policy_store: &'a crate::config::store::PolicyStore,
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,
     pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,

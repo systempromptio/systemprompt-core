@@ -23,3 +23,16 @@ mod hosts;
 mod manifest_verify;
 #[cfg(test)]
 mod replay_gate;
+
+#[cfg(test)]
+async fn mount_profile(server: &wiremock::MockServer) {
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/v1/bridge/profile"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "inference_gateway_base_url": server.uri(), "auth_scheme": "bearer", "models": []
+            })),
+        )
+        .mount(server)
+        .await;
+}

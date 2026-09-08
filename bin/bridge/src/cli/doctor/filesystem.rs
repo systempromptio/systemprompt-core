@@ -37,6 +37,7 @@ pub fn check_bridge_working_dir() -> Check {
                 ),
             );
         }
+        // Why: discard-ok: temporary cleanup cannot change the installed result.
         _ = std::fs::remove_file(&probe);
     }
     Check::ok(
@@ -66,6 +67,7 @@ pub fn check_org_plugins_writable() -> Check {
     let probe = loc.path.join(".sp-bridge-writeprobe");
     match std::fs::write(&probe, b"") {
         Ok(()) => {
+            // Why: discard-ok: temporary cleanup cannot change the installed result.
             _ = std::fs::remove_file(&probe);
             Check::ok(
                 "org-plugins writable",

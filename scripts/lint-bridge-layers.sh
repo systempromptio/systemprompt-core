@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 
 src="bin/bridge/src"
 
-order="brand ids basedirs fsutil hash i18n sysproc winproc verdict user_alert stdio obs activity progress web_assets ipc_types cowork_compat single_instance schedule probe_cache
+order="brand ids basedirs windows_acl fsutil hash i18n sysproc winproc verdict user_alert stdio obs activity tasks progress web_assets ipc_types cowork_compat single_instance schedule probe_cache
 config
 claude_policy
 buildinfo window_state

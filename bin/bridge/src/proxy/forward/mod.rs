@@ -30,6 +30,8 @@ pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>
 
 #[derive(Debug, Error)]
 pub enum ForwardError {
+    #[error("routing unavailable: {0}")]
+    Routing(String),
     #[error("authentication unavailable: {0}")]
     Auth(String),
     #[error("authentication timed out after 10s")]
@@ -55,7 +57,7 @@ pub enum ForwardError {
 impl ForwardError {
     pub const fn status(&self) -> StatusCode {
         match self {
-            Self::Auth(_) | Self::AuthTimeout => StatusCode::SERVICE_UNAVAILABLE,
+            Self::Auth(_) | Self::AuthTimeout | Self::Routing(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::BodyTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Self::BadMethod { .. } | Self::BadHeader(_) => StatusCode::BAD_REQUEST,
             Self::Upstream(_) | Self::BuildResponse(_) | Self::ReadBody(_) => {
@@ -119,6 +121,7 @@ pub(crate) async fn forward(
 
     let mut hook_plugin = None;
     let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
+        RouteResolution::Unavailable(reason) => return Err(ForwardError::Routing(reason)),
         RouteResolution::Gateway(url) => (
             Route {
                 url,

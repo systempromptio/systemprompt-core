@@ -78,11 +78,19 @@ pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
 
     let (tx, rx) = channel::<()>();
     match ctrlc::set_handler(move || {
-        _ = tx.send(());
+        if let Err(e) = tx.send(()) {
+            diag(&format!("proxy shutdown delivery failed: {e}"));
+        }
     }) {
         Ok(()) => {
-            _ = rx.recv();
-            ctx.proxy.forget_recorded_port();
+            if let Err(e) = rx.recv() {
+                diag(&format!("proxy shutdown channel failed: {e}"));
+                return ExitCode::FAILURE;
+            }
+            if let Err(e) = ctx.proxy.forget_recorded_port() {
+                diag(&format!("remove proxy port record: {e}"));
+                return ExitCode::FAILURE;
+            }
             stdio::print_str(&format!(
                 "\n{} proxy stopped.\n",
                 crate::brand::brand().binary_name

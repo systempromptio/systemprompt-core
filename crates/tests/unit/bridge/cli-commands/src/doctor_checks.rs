@@ -74,7 +74,7 @@ fn find<'a>(checks: &'a [Check], name: &str) -> &'a Check {
 #[test]
 fn mint_jwt_fails_with_a_login_hint_when_no_provider_is_configured() {
     sandbox(|_| {
-        let cfg = config::load();
+        let cfg = config::load().expect("valid config");
         let mut checks = Vec::new();
         let bearer = block_on(check_mint_jwt(&cfg, &mut checks, &reqwest::Client::new()));
         assert!(bearer.is_none(), "no provider can mint a bearer");
@@ -97,7 +97,7 @@ fn gateway_reachable_passes_on_health_200_and_fails_on_a_closed_port() {
         let cfg_file = root.join("systemprompt").join("systemprompt-bridge.toml");
         std::fs::create_dir_all(cfg_file.parent().unwrap()).expect("config dir");
         std::fs::write(&cfg_file, format!("gateway_url = \"{}\"\n", server.uri())).expect("config");
-        let cfg = config::load();
+        let cfg = config::load().expect("valid config");
         let mut checks = Vec::new();
         block_on(check_gateway_reachable(
             &cfg,
@@ -109,7 +109,7 @@ fn gateway_reachable_passes_on_health_200_and_fails_on_a_closed_port() {
         assert!(check.detail.contains("/health"), "{}", check.detail);
 
         std::fs::write(&cfg_file, "gateway_url = \"http://127.0.0.1:1\"\n").expect("config");
-        let cfg = config::load();
+        let cfg = config::load().expect("valid config");
         let mut checks = Vec::new();
         block_on(check_gateway_reachable(
             &cfg,

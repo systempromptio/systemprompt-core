@@ -32,19 +32,26 @@ const POLICY_DOMAIN: &str = "com.anthropic.claudefordesktop";
 pub(super) struct MacOsManagedPrefsStore;
 
 impl ConfigStore for MacOsManagedPrefsStore {
+    fn policy_key_exists(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
+        let path = super::macos_plist_store::plist_path(hive).ok_or_else(|| {
+            ConfigStoreError::Backend("per-user policy path unresolvable".to_owned())
+        })?;
+        path.try_exists()
+            .map_err(|e| ConfigStoreError::Backend(format!("{}: {e}", path.display())))
+    }
     fn read_managed_policy(&self, key: &str) -> Result<Option<String>, ConfigStoreError> {
-        synchronize_domain();
-        Ok(copy_app_string(key))
+        synchronize_domain()?;
+        copy_app_string(key)
     }
 
     fn read_managed_policy_keys(
         &self,
         keys: &[&str],
     ) -> Result<ManagedPolicyRead, ConfigStoreError> {
-        synchronize_domain();
+        synchronize_domain()?;
         let mut values: BTreeMap<String, String> = BTreeMap::new();
         for key in keys {
-            if let Some(v) = copy_app_string(key) {
+            if let Some(v) = copy_app_string(key)? {
                 values.insert((*key).to_owned(), v);
             }
         }
@@ -87,14 +94,19 @@ impl ConfigStore for MacOsManagedPrefsStore {
     }
 }
 
-fn synchronize_domain() {
+fn synchronize_domain() -> Result<(), ConfigStoreError> {
     let domain = CFString::new(POLICY_DOMAIN);
     // SAFETY: `domain` is a live `CFString` whose ref is valid for the call's
     // duration.
-    unsafe { CFPreferencesAppSynchronize(domain.as_concrete_TypeRef()) };
+    if unsafe { CFPreferencesAppSynchronize(domain.as_concrete_TypeRef()) } == 0 {
+        return Err(ConfigStoreError::Backend(format!(
+            "synchronize managed preferences {POLICY_DOMAIN} failed"
+        )));
+    }
+    Ok(())
 }
 
-fn copy_app_string(key: &str) -> Option<String> {
+fn copy_app_string(key: &str) -> Result<Option<String>, ConfigStoreError> {
     let key_cf = CFString::new(key);
     let domain_cf = CFString::new(POLICY_DOMAIN);
     // SAFETY: `key_cf` and `domain_cf` are live `CFString`s; the returned ref
@@ -106,15 +118,20 @@ fn copy_app_string(key: &str) -> Option<String> {
         )
     };
     if raw.is_null() {
-        return None;
+        return Ok(None);
     }
     // SAFETY: `raw` is non-null and a valid CoreFoundation type ref obtained
     // under the Copy rule, so ownership transfers to the wrapper.
     let value: CFType = unsafe { TCFType::wrap_under_create_rule(raw.cast()) };
-    match cf_to_json(&value)? {
-        serde_json::Value::String(s) => Some(s),
-        other => Some(other.to_string()),
-    }
+    let json = cf_to_json(&value).ok_or_else(|| {
+        ConfigStoreError::Backend(format!(
+            "{POLICY_DOMAIN}: unsupported policy value at {key}"
+        ))
+    })?;
+    Ok(Some(match json {
+        serde_json::Value::String(s) => s,
+        other => other.to_string(),
+    }))
 }
 
 fn cf_to_json(value: &CFType) -> Option<serde_json::Value> {

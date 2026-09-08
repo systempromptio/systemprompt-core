@@ -46,7 +46,7 @@ fn load_surfaces_an_unreadable_secret_path_as_an_error() {
 }
 
 #[test]
-fn load_treats_missing_and_blank_files_as_unminted() {
+fn load_treats_a_missing_file_as_unminted() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("bridge-loopback.key");
     assert!(
@@ -54,18 +54,27 @@ fn load_treats_missing_and_blank_files_as_unminted() {
             .expect("missing is not an error")
             .is_none()
     );
+}
+
+#[test]
+fn load_reports_a_blank_file_instead_of_silently_re_minting() {
+    // Why: a blank secret file is a half-written enrollment, not a fresh
+    // install; minting over it would hide the failure that produced it.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("bridge-loopback.key");
     std::fs::write(&path, "  \n").unwrap();
+    let err = secret::load(&path).expect_err("blank is an error");
+    let msg = err.to_string();
     assert!(
-        secret::load(&path)
-            .expect("blank is not an error")
-            .is_none()
+        msg.contains("loopback secret is empty") && msg.contains(&path.display().to_string()),
+        "the error names the file and the remedy: {msg}"
     );
 }
 
-/// The before and after of minting, in one test on purpose.
-///
-/// `proxy_init` caches the secret in a process-global `OnceLock`, so a separate
-/// "not minted yet" test only passes while it happens to be scheduled first.
+// The before and after of minting, in one test on purpose.
+//
+// `proxy_init` caches the secret in a process-global `OnceLock`, so a separate
+// "not minted yet" test only passes while it happens to be scheduled first.
 #[cfg(unix)]
 #[test]
 fn proxy_init_mints_a_private_secret_that_for_profile_then_serves() {

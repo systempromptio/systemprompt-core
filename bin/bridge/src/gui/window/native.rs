@@ -199,10 +199,8 @@ impl SettingsWindow {
         })
     }
 
-    pub fn evaluate_script(&self, script: &str) {
-        if let Err(e) = self.webview.evaluate_script(script) {
-            tracing::warn!(error = %e, "evaluate_script failed");
-        }
+    pub fn evaluate_script(&self, script: &str) -> Result<(), wry::Error> {
+        self.webview.evaluate_script(script)
     }
 }
 

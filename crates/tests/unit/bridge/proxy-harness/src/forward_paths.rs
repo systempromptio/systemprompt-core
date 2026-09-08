@@ -34,7 +34,7 @@ fn counting_refresh(mints: &Arc<AtomicUsize>) -> RefreshFn {
     Arc::new(move |_threshold| {
         let n = mints.fetch_add(1, Ordering::Relaxed) + 1;
         Box::pin(async move {
-            Some(HelperOutput {
+            Ok(HelperOutput {
                 token: BearerToken::new(format!("upstream-jwt-{n}")),
                 ttl: 3600,
                 headers: Default::default(),
@@ -132,6 +132,29 @@ impl Harness {
     }
 }
 
+
+// Why: the token cache binds every minted JWT to the credential identity on
+// disk, so a proxy with no credentials configured answers 503 before the
+// refresh closure ever runs. Each test runs in a sandboxed config dir with a
+// PAT supplied through the environment.
+fn with_credentials<F: std::future::Future>(fut: F) -> F::Output {
+    let temp = tempfile::tempdir().expect("config tempdir");
+    temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            ("SP_BRIDGE_PAT", Some("sp-live-a.b".into())),
+        ],
+        || {
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(fut)
+        },
+    )
+}
+
 fn bearer_of(req: &wiremock::Request) -> String {
     req.headers
         .get("authorization")
@@ -140,481 +163,526 @@ fn bearer_of(req: &wiremock::Request) -> String {
         .to_owned()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(401).set_body_string("nope"))
-        .mount(&h.gateway)
-        .await;
+#[test]
+fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(401).set_body_string("nope"))
+            .mount(&h.gateway)
+            .await;
 
-    let first = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
-    assert_eq!(
-        first.status().as_u16(),
-        401,
-        "the upstream status is relayed to the caller"
-    );
+        let first = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
+        assert_eq!(
+            first.status().as_u16(),
+            401,
+            "the upstream status is relayed to the caller"
+        );
 
-    let second = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
-    assert_eq!(
-        second.status().as_u16(),
-        503,
-        "the latch answers locally rather than forwarding again"
-    );
+        let second = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
+        assert_eq!(
+            second.status().as_u16(),
+            503,
+            "the latch answers locally rather than forwarding again"
+        );
 
-    assert_eq!(
-        h.mints.load(Ordering::Relaxed),
-        1,
-        "a credential refused moments after minting cannot be fixed by re-minting"
-    );
-    let requests = h.upstream_requests().await;
-    assert_eq!(
-        requests.len(),
-        1,
-        "the second request never reaches upstream"
-    );
-    assert_eq!(bearer_of(&requests[0]), "Bearer upstream-jwt-1");
+        assert_eq!(
+            h.mints.load(Ordering::Relaxed),
+            1,
+            "a credential refused moments after minting cannot be fixed by re-minting"
+        );
+        let requests = h.upstream_requests().await;
+        assert_eq!(
+            requests.len(),
+            1,
+            "the second request never reaches upstream"
+        );
+        assert_eq!(bearer_of(&requests[0]), "Bearer upstream-jwt-1");
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_successful_response_keeps_the_cached_jwt() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "application/json")
-                .set_body_raw(br#"{"ok":true}"#.to_vec(), "application/json"),
-        )
-        .mount(&h.gateway)
-        .await;
+#[test]
+fn a_successful_response_keeps_the_cached_jwt() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "application/json")
+                    .set_body_raw(br#"{"ok":true}"#.to_vec(), "application/json"),
+            )
+            .mount(&h.gateway)
+            .await;
 
-    h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
-    h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
+        h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
+        h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
 
-    assert_eq!(
-        h.mints.load(Ordering::Relaxed),
-        1,
-        "a healthy upstream leaves the cached token in place"
-    );
+        assert_eq!(
+            h.mints.load(Ordering::Relaxed),
+            1,
+            "a healthy upstream leaves the cached token in place"
+        );
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_json_messages_response_is_tapped_for_usage() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(
-            br#"{"usage":{"input_tokens":21,"output_tokens":4}}"#.to_vec(),
-            "application/json",
-        ))
-        .mount(&h.gateway)
-        .await;
+#[test]
+fn a_json_messages_response_is_tapped_for_usage() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(
+                br#"{"usage":{"input_tokens":21,"output_tokens":4}}"#.to_vec(),
+                "application/json",
+            ))
+            .mount(&h.gateway)
+            .await;
 
-    let resp = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
-    assert_eq!(resp.status().as_u16(), 200);
-    resp.text().await.expect("drain body");
+        let resp = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
+        assert_eq!(resp.status().as_u16(), 200);
+        resp.text().await.expect("drain body");
 
-    for _ in 0..200 {
-        if h.stats.messages_total.load(Ordering::Relaxed) > 0 {
-            break;
+        for _ in 0..200 {
+            if h.stats.messages_total.load(Ordering::Relaxed) > 0 {
+                break;
+            }
+            tokio::task::yield_now().await;
         }
-        tokio::task::yield_now().await;
-    }
-    assert_eq!(h.stats.tokens_in_total.load(Ordering::Relaxed), 21);
-    assert_eq!(h.stats.tokens_out_total.load(Ordering::Relaxed), 4);
-    assert_eq!(h.stats.messages_total.load(Ordering::Relaxed), 1);
+        assert_eq!(h.stats.tokens_in_total.load(Ordering::Relaxed), 21);
+        assert_eq!(h.stats.tokens_out_total.load(Ordering::Relaxed), 4);
+        assert_eq!(h.stats.messages_total.load(Ordering::Relaxed), 1);
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_json_response_off_the_messages_path_is_not_tapped() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/complete"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(
-            br#"{"usage":{"input_tokens":21,"output_tokens":4}}"#.to_vec(),
-            "application/json",
-        ))
-        .mount(&h.gateway)
-        .await;
+#[test]
+fn a_json_response_off_the_messages_path_is_not_tapped() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/complete"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(
+                br#"{"usage":{"input_tokens":21,"output_tokens":4}}"#.to_vec(),
+                "application/json",
+            ))
+            .mount(&h.gateway)
+            .await;
 
-    let resp = h.authed_post("/v1/complete", "{}").await;
-    resp.text().await.expect("drain body");
+        let resp = h.authed_post("/v1/complete", "{}").await;
+        resp.text().await.expect("drain body");
 
-    assert_eq!(
-        h.stats.messages_total.load(Ordering::Relaxed),
-        0,
-        "only the messages path feeds the usage counters"
-    );
-    assert_eq!(h.stats.tokens_in_total.load(Ordering::Relaxed), 0);
-    assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            h.stats.messages_total.load(Ordering::Relaxed),
+            0,
+            "only the messages path feeds the usage counters"
+        );
+        assert_eq!(h.stats.tokens_in_total.load(Ordering::Relaxed), 0);
+        assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_non_json_messages_response_records_no_tokens() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(b"plain".to_vec(), "text/plain"))
-        .mount(&h.gateway)
-        .await;
+#[test]
+fn a_non_json_messages_response_records_no_tokens() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(b"plain".to_vec(), "text/plain"))
+            .mount(&h.gateway)
+            .await;
 
-    let resp = h.authed_post("/v1/messages", "{}").await;
-    assert_eq!(resp.text().await.expect("body"), "plain");
-    assert_eq!(
-        h.stats.messages_total.load(Ordering::Relaxed),
-        0,
-        "the tap only understands JSON and SSE bodies"
-    );
+        let resp = h.authed_post("/v1/messages", "{}").await;
+        assert_eq!(resp.text().await.expect("body"), "plain");
+        assert_eq!(
+            h.stats.messages_total.load(Ordering::Relaxed),
+            0,
+            "the tap only understands JSON and SSE bodies"
+        );
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn hop_by_hop_headers_are_stripped_and_bridge_headers_injected() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"))
-        .mount(&h.gateway)
-        .await;
+#[test]
+fn hop_by_hop_headers_are_stripped_and_bridge_headers_injected() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"),
+            )
+            .mount(&h.gateway)
+            .await;
 
-    Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("authorization", format!("Bearer {SECRET}"))
-        .header("x-api-key", "client-side-key")
-        .header("x-keep-me", "kept")
-        .header("content-type", "application/json")
-        .body(r#"{"messages":[{"role":"user","content":"hi"}]}"#)
-        .send()
-        .await
-        .expect("request to proxy");
+        Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .header("x-api-key", "client-side-key")
+            .header("x-keep-me", "kept")
+            .header("content-type", "application/json")
+            .body(r#"{"messages":[{"role":"user","content":"hi"}]}"#)
+            .send()
+            .await
+            .expect("request to proxy");
 
-    let requests = h.upstream_requests().await;
-    let req = &requests[0];
-    assert_eq!(
-        bearer_of(req),
-        "Bearer upstream-jwt-1",
-        "the client's loopback secret is replaced by the gateway JWT"
-    );
-    assert!(
-        req.headers.get("x-api-key").is_none(),
-        "x-api-key is hop-by-hop and never reaches the gateway"
-    );
-    assert_eq!(
-        req.headers.get("x-keep-me").and_then(|v| v.to_str().ok()),
-        Some("kept"),
-        "unrelated client headers are passed through"
-    );
-    assert!(
-        req.headers
-            .get("x-session-id")
-            .and_then(|v| v.to_str().ok())
-            .is_some_and(|s| !s.is_empty()),
-        "the proxy stamps its session id"
-    );
-    assert!(
-        req.headers
-            .get("x-gateway-conversation-id")
-            .and_then(|v| v.to_str().ok())
-            .is_some_and(|s| !s.is_empty()),
-        "a messages body derives a gateway conversation id"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn the_same_conversation_body_prefix_maps_to_a_stable_conversation_id() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"))
-        .mount(&h.gateway)
-        .await;
-
-    let body = r#"{"messages":[{"role":"user","content":"first turn"}]}"#;
-    h.authed_post("/v1/messages", body).await;
-    h.authed_post("/v1/messages", body).await;
-
-    let requests = h.upstream_requests().await;
-    let ids: Vec<String> = requests
-        .iter()
-        .map(|r| {
-            r.headers
+        let requests = h.upstream_requests().await;
+        let req = &requests[0];
+        assert_eq!(
+            bearer_of(req),
+            "Bearer upstream-jwt-1",
+            "the client's loopback secret is replaced by the gateway JWT"
+        );
+        assert!(
+            req.headers.get("x-api-key").is_none(),
+            "x-api-key is hop-by-hop and never reaches the gateway"
+        );
+        assert_eq!(
+            req.headers.get("x-keep-me").and_then(|v| v.to_str().ok()),
+            Some("kept"),
+            "unrelated client headers are passed through"
+        );
+        assert!(
+            req.headers
+                .get("x-session-id")
+                .and_then(|v| v.to_str().ok())
+                .is_some_and(|s| !s.is_empty()),
+            "the proxy stamps its session id"
+        );
+        assert!(
+            req.headers
                 .get("x-gateway-conversation-id")
                 .and_then(|v| v.to_str().ok())
-                .unwrap_or_default()
-                .to_owned()
-        })
-        .collect();
-    assert_eq!(
-        ids[0], ids[1],
-        "the same conversation prefix must resolve to one gateway conversation"
-    );
-    assert!(!ids[0].is_empty());
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn healthz_is_served_locally_without_a_loopback_secret() {
-    let h = spawn_harness().await;
-
-    let get = Harness::client()
-        .get(h.url("/healthz"))
-        .send()
-        .await
-        .expect("GET /healthz");
-    assert_eq!(get.status().as_u16(), 200);
-    assert_eq!(get.text().await.expect("body"), "ok\n");
-
-    let head = Harness::client()
-        .head(h.url("/healthz"))
-        .send()
-        .await
-        .expect("HEAD /healthz");
-    assert_eq!(head.status().as_u16(), 200);
-
-    assert!(
-        h.upstream_requests().await.is_empty(),
-        "/healthz never reaches the gateway"
-    );
-    assert_eq!(
-        h.stats.forwarded_total.load(Ordering::Relaxed),
-        0,
-        "a locally served health check is not a forward"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn whoami_identifies_the_install_without_leaking_the_secret() {
-    let h = spawn_harness().await;
-
-    let resp = Harness::client()
-        .get(h.url("/__bridge/whoami"))
-        .send()
-        .await
-        .expect("GET /__bridge/whoami");
-    assert_eq!(
-        resp.status().as_u16(),
-        200,
-        "identity is unauthenticated on purpose — the caller asking is one that could not \
-         authenticate"
-    );
-    assert_eq!(
-        resp.headers()
-            .get("content-type")
-            .and_then(|v| v.to_str().ok()),
-        Some("application/json")
-    );
-    let body = resp.text().await.expect("body");
-
-    let parsed: serde_json::Value = serde_json::from_str(&body).expect("whoami is JSON");
-    assert_eq!(parsed["product"], "systemprompt-bridge");
-    assert_eq!(parsed["port"], h.port);
-    assert!(parsed["install_id"].as_str().is_some_and(|s| !s.is_empty()));
-
-    // The anti-oracle guard. If any of these ever appear, a loopback caller can
-    // confirm a guessed loopback secret and this endpoint becomes an attack.
-    for forbidden in [SECRET, "fingerprint", "bridge-loopback.key", "secret"] {
-        assert!(
-            !body.contains(forbidden),
-            "whoami leaked `{forbidden}`: {body}"
+                .is_some_and(|s| !s.is_empty()),
+            "a messages body derives a gateway conversation id"
         );
-    }
-
-    assert!(
-        h.upstream_requests().await.is_empty(),
-        "/__bridge/whoami never reaches the gateway"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
-    let h = spawn_harness().await;
-
-    let wrong = Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("authorization", "Bearer not-the-secret")
-        .body("{}")
-        .send()
-        .await
-        .expect("POST with a wrong secret");
-    assert_eq!(wrong.status().as_u16(), 403);
-    assert_eq!(
-        wrong
-            .headers()
-            .get("x-systemprompt-bridge-reason")
-            .and_then(|v| v.to_str().ok()),
-        Some("secret-mismatch"),
-        "a host UI must be able to classify this without parsing prose"
-    );
-    let mismatch_body = wrong.text().await.expect("body");
-    // Why: the old four-word body was rendered by host UIs as "expired key or
-    // wrong region", sending operators to audit gateway credentials for a fault
-    // that is entirely local.
-    assert!(
-        mismatch_body.contains("not an\nexpired or wrong gateway API key"),
-        "the mismatch body must rule out the gateway: {mismatch_body}"
-    );
-    assert!(mismatch_body.contains("WSL2"), "{mismatch_body}");
-
-    let none = Harness::client()
-        .post(h.url("/v1/messages"))
-        .body("{}")
-        .send()
-        .await
-        .expect("POST with no credential");
-    assert_eq!(none.status().as_u16(), 403);
-    assert_eq!(
-        none.headers()
-            .get("x-systemprompt-bridge-reason")
-            .and_then(|v| v.to_str().ok()),
-        Some("no-credential")
-    );
-    let none_body = none.text().await.expect("body");
-    assert_ne!(
-        none_body, mismatch_body,
-        "an absent credential and a wrong one are different faults"
-    );
-
-    for body in [&mismatch_body, &none_body] {
-        assert!(
-            !body.contains(SECRET),
-            "a rejection must never echo the real secret: {body}"
-        );
-    }
-
-    assert!(
-        h.upstream_requests().await.is_empty(),
-        "a rejected request never reaches the gateway"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn otel_posts_are_unauthenticated_and_rewritten_under_v1() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path_regex(r"^/v1/otel.*"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"))
-        .mount(&h.gateway)
-        .await;
-
-    let resp = Harness::client()
-        .post(h.url("/otel/v1/traces?compression=gzip"))
-        .body("payload")
-        .send()
-        .await
-        .expect("otel post");
-    assert_eq!(
-        resp.status().as_u16(),
-        200,
-        "no loopback secret is required on the OTLP path"
-    );
-
-    let requests = h.upstream_requests().await;
-    assert_eq!(requests[0].url.path(), "/v1/otel/v1/traces");
-    assert_eq!(
-        requests[0].url.query(),
-        Some("compression=gzip"),
-        "the query string survives the rewrite"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_bare_otel_post_is_rewritten_to_v1_otel() {
-    let h = spawn_harness().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/otel"))
-        .respond_with(ResponseTemplate::new(202))
-        .mount(&h.gateway)
-        .await;
-
-    let resp = Harness::client()
-        .post(h.url("/otel"))
-        .body("payload")
-        .send()
-        .await
-        .expect("otel post");
-    assert_eq!(resp.status().as_u16(), 202);
-    assert_eq!(h.upstream_requests().await[0].url.path(), "/v1/otel");
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn an_unreachable_gateway_yields_502_and_is_recorded() {
-    let dead = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
-        .await
-        .expect("reserve a port");
-    let dead_port = dead.local_addr().expect("addr").port();
-    drop(dead);
-
-    let h = spawn_with_base(
-        MockServer::start().await,
-        Some(format!("http://127.0.0.1:{dead_port}")),
-    )
-    .await;
-
-    let resp = h.authed_post("/v1/messages", "{}").await;
-    assert_eq!(resp.status().as_u16(), 502);
-    let body = resp.text().await.expect("body");
-    assert!(
-        body.starts_with("upstream request failed:") && body.contains(&dead_port.to_string()),
-        "the body names the upstream that failed, not a bare `bad gateway` the caller \
-         cannot act on: {body}"
-    );
-    assert_eq!(h.stats.last_status.load(Ordering::Relaxed), 502);
-    assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_request_that_cannot_mint_a_token_is_reported_as_service_unavailable() {
-    let gateway = MockServer::start().await;
-    let stats = Arc::new(ProxyStats::default());
-    let refresh: RefreshFn = Arc::new(|_| Box::pin(async { None }));
-    let ctx = ProxyContext {
-        runtime_config: shared_runtime_config(&gateway.uri()),
-        secret: Arc::new(ProxySecret::new(SECRET)),
-        stats: Arc::clone(&stats),
-        client: reqwest::Client::new(),
-        token_cache: Arc::new(TokenCache::new(refresh)),
-        session: Arc::new(SessionContext::new()),
-        port: 0,
-        started_at_unix: 0,
-        deps: test_deps(),
-    };
-    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
-        .await
-        .expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-    tokio::spawn(async move {
-        while let Ok((stream, peer)) = listener.accept().await {
-            let conn_ctx = ctx.clone();
-            tokio::spawn(async move {
-                let io = TokioIo::new(stream);
-                let svc = service_fn(move |req| handle_request(req, conn_ctx.clone(), peer));
-                let _ = http1::Builder::new()
-                    .keep_alive(false)
-                    .serve_connection(io, svc)
-                    .await;
-            });
-        }
     });
+}
 
-    let resp = reqwest::Client::new()
-        .post(format!("http://127.0.0.1:{port}/v1/messages"))
-        .header("authorization", format!("Bearer {SECRET}"))
-        .body("{}")
-        .send()
-        .await
-        .expect("request to proxy");
-    // The bridge's own inability to obtain a credential is local and retryable,
-    // so it must not masquerade as an upstream fault.
-    assert_eq!(resp.status().as_u16(), 503);
-    assert!(
-        gateway
-            .received_requests()
+#[test]
+fn the_same_conversation_body_prefix_maps_to_a_stable_conversation_id() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"),
+            )
+            .mount(&h.gateway)
+            .await;
+
+        let body = r#"{"messages":[{"role":"user","content":"first turn"}]}"#;
+        h.authed_post("/v1/messages", body).await;
+        h.authed_post("/v1/messages", body).await;
+
+        let requests = h.upstream_requests().await;
+        let ids: Vec<String> = requests
+            .iter()
+            .map(|r| {
+                r.headers
+                    .get("x-gateway-conversation-id")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or_default()
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(
+            ids[0], ids[1],
+            "the same conversation prefix must resolve to one gateway conversation"
+        );
+        assert!(!ids[0].is_empty());
+    });
+}
+
+#[test]
+fn healthz_is_served_locally_without_a_loopback_secret() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+
+        let get = Harness::client()
+            .get(h.url("/healthz"))
+            .send()
             .await
-            .expect("requests")
-            .is_empty(),
-        "no JWT means the request never leaves the machine"
-    );
-    assert_eq!(stats.last_status.load(Ordering::Relaxed), 502);
+            .expect("GET /healthz");
+        assert_eq!(get.status().as_u16(), 200);
+        assert_eq!(get.text().await.expect("body"), "ok\n");
+
+        let head = Harness::client()
+            .head(h.url("/healthz"))
+            .send()
+            .await
+            .expect("HEAD /healthz");
+        assert_eq!(head.status().as_u16(), 200);
+
+        assert!(
+            h.upstream_requests().await.is_empty(),
+            "/healthz never reaches the gateway"
+        );
+        assert_eq!(
+            h.stats.forwarded_total.load(Ordering::Relaxed),
+            0,
+            "a locally served health check is not a forward"
+        );
+    });
+}
+
+#[test]
+fn whoami_identifies_the_install_without_leaking_the_secret() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+
+        let resp = Harness::client()
+            .get(h.url("/__bridge/whoami"))
+            .send()
+            .await
+            .expect("GET /__bridge/whoami");
+        assert_eq!(
+            resp.status().as_u16(),
+            200,
+            "identity is unauthenticated on purpose — the caller asking is one that could not \
+         authenticate"
+        );
+        assert_eq!(
+            resp.headers()
+                .get("content-type")
+                .and_then(|v| v.to_str().ok()),
+            Some("application/json")
+        );
+        let body = resp.text().await.expect("body");
+
+        let parsed: serde_json::Value = serde_json::from_str(&body).expect("whoami is JSON");
+        assert_eq!(parsed["product"], "systemprompt-bridge");
+        assert_eq!(parsed["port"], h.port);
+        assert!(parsed["install_id"].as_str().is_some_and(|s| !s.is_empty()));
+
+        // The anti-oracle guard. If any of these ever appear, a loopback caller can
+        // confirm a guessed loopback secret and this endpoint becomes an attack.
+        for forbidden in [SECRET, "fingerprint", "bridge-loopback.key", "secret"] {
+            assert!(
+                !body.contains(forbidden),
+                "whoami leaked `{forbidden}`: {body}"
+            );
+        }
+
+        assert!(
+            h.upstream_requests().await.is_empty(),
+            "/__bridge/whoami never reaches the gateway"
+        );
+    });
+}
+
+#[test]
+fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+
+        let wrong = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", "Bearer not-the-secret")
+            .body("{}")
+            .send()
+            .await
+            .expect("POST with a wrong secret");
+        assert_eq!(wrong.status().as_u16(), 403);
+        assert_eq!(
+            wrong
+                .headers()
+                .get("x-systemprompt-bridge-reason")
+                .and_then(|v| v.to_str().ok()),
+            Some("secret-mismatch"),
+            "a host UI must be able to classify this without parsing prose"
+        );
+        let mismatch_body = wrong.text().await.expect("body");
+        // Why: the old four-word body was rendered by host UIs as "expired key or
+        // wrong region", sending operators to audit gateway credentials for a fault
+        // that is entirely local.
+        assert!(
+            mismatch_body.contains("not an\nexpired or wrong gateway API key"),
+            "the mismatch body must rule out the gateway: {mismatch_body}"
+        );
+        assert!(mismatch_body.contains("WSL2"), "{mismatch_body}");
+
+        let none = Harness::client()
+            .post(h.url("/v1/messages"))
+            .body("{}")
+            .send()
+            .await
+            .expect("POST with no credential");
+        assert_eq!(none.status().as_u16(), 403);
+        assert_eq!(
+            none.headers()
+                .get("x-systemprompt-bridge-reason")
+                .and_then(|v| v.to_str().ok()),
+            Some("no-credential")
+        );
+        let none_body = none.text().await.expect("body");
+        assert_ne!(
+            none_body, mismatch_body,
+            "an absent credential and a wrong one are different faults"
+        );
+
+        for body in [&mismatch_body, &none_body] {
+            assert!(
+                !body.contains(SECRET),
+                "a rejection must never echo the real secret: {body}"
+            );
+        }
+
+        assert!(
+            h.upstream_requests().await.is_empty(),
+            "a rejected request never reaches the gateway"
+        );
+    });
+}
+
+#[test]
+fn otel_posts_are_unauthenticated_and_rewritten_under_v1() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path_regex(r"^/v1/otel.*"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_raw(b"{}".to_vec(), "application/json"),
+            )
+            .mount(&h.gateway)
+            .await;
+
+        let resp = Harness::client()
+            .post(h.url("/otel/v1/traces?compression=gzip"))
+            .body("payload")
+            .send()
+            .await
+            .expect("otel post");
+        assert_eq!(
+            resp.status().as_u16(),
+            200,
+            "no loopback secret is required on the OTLP path"
+        );
+
+        let requests = h.upstream_requests().await;
+        assert_eq!(requests[0].url.path(), "/v1/otel/v1/traces");
+        assert_eq!(
+            requests[0].url.query(),
+            Some("compression=gzip"),
+            "the query string survives the rewrite"
+        );
+    });
+}
+
+#[test]
+fn a_bare_otel_post_is_rewritten_to_v1_otel() {
+    with_credentials(async {
+        let h = spawn_harness().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/otel"))
+            .respond_with(ResponseTemplate::new(202))
+            .mount(&h.gateway)
+            .await;
+
+        let resp = Harness::client()
+            .post(h.url("/otel"))
+            .body("payload")
+            .send()
+            .await
+            .expect("otel post");
+        assert_eq!(resp.status().as_u16(), 202);
+        assert_eq!(h.upstream_requests().await[0].url.path(), "/v1/otel");
+    });
+}
+
+#[test]
+fn an_unreachable_gateway_yields_502_and_is_recorded() {
+    with_credentials(async {
+        let dead = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+            .await
+            .expect("reserve a port");
+        let dead_port = dead.local_addr().expect("addr").port();
+        drop(dead);
+
+        let h = spawn_with_base(
+            MockServer::start().await,
+            Some(format!("http://127.0.0.1:{dead_port}")),
+        )
+        .await;
+
+        let resp = h.authed_post("/v1/messages", "{}").await;
+        assert_eq!(resp.status().as_u16(), 502);
+        let body = resp.text().await.expect("body");
+        assert!(
+            body.starts_with("upstream request failed:") && body.contains(&dead_port.to_string()),
+            "the body names the upstream that failed, not a bare `bad gateway` the caller \
+         cannot act on: {body}"
+        );
+        assert_eq!(h.stats.last_status.load(Ordering::Relaxed), 502);
+        assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
+    });
+}
+
+#[test]
+fn a_request_that_cannot_mint_a_token_is_reported_as_service_unavailable() {
+    with_credentials(async {
+        let gateway = MockServer::start().await;
+        let stats = Arc::new(ProxyStats::default());
+        let refresh: RefreshFn = Arc::new(|_| {
+            Box::pin(async {
+                Err(systemprompt_bridge::proxy::forward::ForwardError::Auth(
+                    "no credential provider produced a token".into(),
+                ))
+            })
+        });
+        let ctx = ProxyContext {
+            runtime_config: shared_runtime_config(&gateway.uri()),
+            secret: Arc::new(ProxySecret::new(SECRET)),
+            stats: Arc::clone(&stats),
+            client: reqwest::Client::new(),
+            token_cache: Arc::new(TokenCache::new(refresh)),
+            session: Arc::new(SessionContext::new()),
+            port: 0,
+            started_at_unix: 0,
+            deps: test_deps(),
+        };
+        let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+            .await
+            .expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        tokio::spawn(async move {
+            while let Ok((stream, peer)) = listener.accept().await {
+                let conn_ctx = ctx.clone();
+                tokio::spawn(async move {
+                    let io = TokioIo::new(stream);
+                    let svc = service_fn(move |req| handle_request(req, conn_ctx.clone(), peer));
+                    let _ = http1::Builder::new()
+                        .keep_alive(false)
+                        .serve_connection(io, svc)
+                        .await;
+                });
+            }
+        });
+
+        let resp = reqwest::Client::new()
+            .post(format!("http://127.0.0.1:{port}/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .body("{}")
+            .send()
+            .await
+            .expect("request to proxy");
+        // The bridge's own inability to obtain a credential is local and retryable,
+        // so it must not masquerade as an upstream fault.
+        assert_eq!(resp.status().as_u16(), 503);
+        assert_eq!(
+            resp.text().await.expect("body"),
+            "authentication unavailable: no credential provider produced a token\n",
+            "the body carries the provider's reason so the caller can act on it"
+        );
+        assert!(
+            gateway
+                .received_requests()
+                .await
+                .expect("requests")
+                .is_empty(),
+            "no JWT means the request never leaves the machine"
+        );
+        assert_eq!(stats.last_status.load(Ordering::Relaxed), 502);
+    });
 }
 
 
@@ -635,6 +703,7 @@ fn state_sandbox<R>(state: &tempfile::TempDir, f: impl FnOnce() -> R) -> R {
             ("XDG_CACHE_HOME", Some(root.clone())),
             ("XDG_CONFIG_HOME", Some(root.clone())),
             ("HOME", Some(root)),
+            ("SP_BRIDGE_PAT", Some("sp-live-a.b".to_owned())),
         ],
         f,
     )
@@ -691,7 +760,8 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
                 .to_string(),
             )
             .expect("mcp fragment");
-            systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY);
+            systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY)
+                .expect("the seeded fragment rehydrates");
 
             let h = spawn_harness().await;
             let resp = h.authed_post("/mcp/salesforce-mcp", "{}").await;
@@ -787,7 +857,8 @@ static REGISTRY: std::sync::LazyLock<Arc<systemprompt_bridge::mcp_registry::McpR
 
 fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
     systemprompt_bridge::proxy::ProxyDeps {
-        install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
+        install_id: systemprompt_bridge::proxy::identity::InstallId::establish()
+            .expect("the sandbox mints an install id"),
         mcp_registry: Arc::clone(&REGISTRY),
         activity: systemprompt_bridge::activity::ActivityLog::new(),
         http: reqwest::Client::new(),

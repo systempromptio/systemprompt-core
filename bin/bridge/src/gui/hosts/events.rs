@@ -18,6 +18,11 @@ pub enum ProbeCause {
 
 #[derive(Debug, Clone)]
 pub enum HostUiEvent {
+    ProbeFailed {
+        host_id: Option<HostId>,
+        error: String,
+        reply_to: ReplyId,
+    },
     ProbeRequested {
         host_id: HostId,
         cause: ProbeCause,

@@ -57,7 +57,7 @@ fn the_credential_source_check_mirrors_the_configured_providers() {
 }
 
 #[test]
-fn the_loopback_secret_check_warns_when_unminted_and_passes_once_present() {
+fn the_loopback_secret_check_warns_when_unminted_passes_once_present_and_fails_when_blank() {
     let dir = TempDir::new().expect("config home");
     let brand_dir = dir.path().join("systemprompt");
     std::fs::create_dir_all(&brand_dir).expect("brand dir");
@@ -80,10 +80,11 @@ fn the_loopback_secret_check_warns_when_unminted_and_passes_once_present() {
     assert_eq!(after.status, Status::Ok, "{}", after.detail);
     assert_eq!(
         empty.status,
-        Status::Warn,
-        "a blank secret file reads as unminted: {}",
+        Status::Fail,
+        "a blank secret file is corrupt state, not an unminted secret: {}",
         empty.detail
     );
+    assert!(empty.detail.contains("re-apply"), "{}", empty.detail);
 }
 
 #[test]
@@ -96,8 +97,17 @@ fn the_pinned_pubkey_check_warns_until_a_key_is_pinned() {
         unpinned.detail
     );
 
-    let pinned = with_config(
+    let legacy = with_config(
         Some("[sync]\npinned_pubkey = \"dGVzdC1wdWJrZXk\"\n"),
+        check_pinned_pubkey,
+    );
+    assert_eq!(legacy.status, Status::Fail, "{}", legacy.detail);
+    assert!(legacy.detail.contains("explicitly replaced"));
+
+    let pinned = with_config(
+        Some(
+            "gateway_url = 'http://localhost:8080'\n[sync.trust]\ngateway = 'http://localhost:8080'\nkey = '11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo='\nsource = 'operator'\n",
+        ),
         check_pinned_pubkey,
     );
     assert_eq!(pinned.status, Status::Ok, "{}", pinned.detail);

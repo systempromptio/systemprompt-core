@@ -160,7 +160,7 @@ check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check: lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -1751,3 +1751,9 @@ promote SHA="":
     echo
     echo "Opened https://github.com/$REPO/pull/$NUM"
     echo "Review it, then merge when you are ready:  gh pr merge $NUM --merge"
+
+lint-discarded-results:
+    ./scripts/check-discarded-results.sh
+
+lint-fail-open:
+    ./scripts/check-fail-open.sh

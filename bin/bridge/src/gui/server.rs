@@ -25,7 +25,7 @@ impl Server {
         let port = listener.local_addr()?.port();
         let csrf_token = mint_csrf_token();
         tracing::info!(port, "single-instance focus server listening");
-        crate::single_instance::write_running_port(port, &csrf_token);
+        crate::single_instance::write_running_port(port, &csrf_token)?;
 
         std::thread::spawn(move || {
             for conn in listener.incoming() {
@@ -38,7 +38,11 @@ impl Server {
                 };
                 let tx = tx.clone();
                 let token = csrf_token.clone();
-                std::thread::spawn(move || handle_focus(stream, &tx, &token));
+                std::thread::spawn(move || {
+                    if let Err(e) = handle_focus(stream, &tx, &token) {
+                        tracing::error!(error = %e, "focus request failed");
+                    }
+                });
             }
         });
 
@@ -54,12 +58,16 @@ impl Server {
     }
 }
 
-fn handle_focus(mut stream: std::net::TcpStream, tx: &Sender<UiEvent>, csrf: &str) {
-    _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
+fn handle_focus(
+    mut stream: std::net::TcpStream,
+    tx: &Sender<UiEvent>,
+    csrf: &str,
+) -> std::io::Result<()> {
+    stream.set_read_timeout(Some(std::time::Duration::from_secs(2)))?;
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
     if reader.read_line(&mut request_line).is_err() {
-        return;
+        return Ok(());
     }
     let path_with_query = request_line.split_whitespace().nth(1).unwrap_or("");
     let (path, query) = path_with_query
@@ -73,18 +81,20 @@ fn handle_focus(mut stream: std::net::TcpStream, tx: &Sender<UiEvent>, csrf: &st
         || path != "/api/focus_window"
         || !constant_time_eq(supplied_token.as_bytes(), csrf.as_bytes())
     {
-        _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
-        return;
+        stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")?;
+        return Ok(());
     }
     loop {
         let mut header = String::new();
         if reader.read_line(&mut header).is_err() {
-            return;
+            return Ok(());
         }
         if header == "\r\n" || header.is_empty() {
             break;
         }
     }
-    _ = tx.send(UiEvent::FocusWindow);
-    _ = stream.write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n");
+    tx.send(UiEvent::FocusWindow)
+        .map_err(std::io::Error::other)?;
+    stream.write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")?;
+    Ok(())
 }

@@ -140,6 +140,14 @@ impl AppState {
     }
 
 
+    pub fn finish_failed_probe(&self, host_id: Option<&str>) {
+        let mut guard = self.snap_mut();
+        match host_id {
+            Some(id) => guard.hosts.entry(id).probe_in_flight = false,
+            None => guard.hosts.proxy_probe_in_flight = false,
+        }
+    }
+
     pub fn mark_host_probing(&self, host_id: &str) -> bool {
         let mut guard = self.snap_mut();
         let entry = guard.hosts.entry(host_id);

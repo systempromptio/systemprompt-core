@@ -29,7 +29,7 @@ pub struct SyncSummary {
 impl SyncSummary {
     #[must_use]
     pub fn one_line(&self) -> String {
-        let status = if self.host_failures.is_empty() {
+        let status = if self.host_failures.is_empty() && self.malformed.is_empty() {
             "sync ok"
         } else {
             "sync PARTIAL"

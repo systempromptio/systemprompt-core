@@ -6,6 +6,7 @@ use std::time::Duration;
 use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::proxy::comms;
+use systemprompt_bridge::proxy::forward::ForwardError;
 use systemprompt_bridge::proxy::token_cache::{RefreshFn, TokenCache};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -16,7 +17,7 @@ fn counting_refresh(counter: &Arc<AtomicUsize>) -> RefreshFn {
         let counter = Arc::clone(&counter);
         Box::pin(async move {
             counter.fetch_add(1, Ordering::SeqCst);
-            Some(HelperOutput {
+            Ok(HelperOutput {
                 token: BearerToken::new("test-jwt"),
                 ttl: 3600,
                 headers: Default::default(),
@@ -89,32 +90,41 @@ impl Sandbox {
         let requests = Arc::new(AtomicUsize::new(0));
         let seen = Arc::clone(&requests);
         let root = self.temp.path().to_path_buf();
-        temp_env::with_var("XDG_CONFIG_HOME", Some(root.as_os_str()), || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("test runtime");
-            rt.block_on(async {
-                let server = MockServer::start().await;
-                setup(&server).await;
-                let dir = root.join("systemprompt");
-                std::fs::create_dir_all(&dir).expect("config dir");
-                std::fs::write(
-                    dir.join("systemprompt-bridge.toml"),
-                    format!("gateway_url = \"{}\"\n", server.uri()),
-                )
-                .expect("seed gateway url");
+        // Why: the token cache refuses to mint without a credential identity
+        // on disk, so the sandbox carries a PAT through the environment.
+        temp_env::with_vars(
+            [
+                ("XDG_CONFIG_HOME", Some(root.as_os_str().to_owned())),
+                ("SP_BRIDGE_PAT", Some("sp-live-a.b".into())),
+            ],
+            || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("test runtime");
+                rt.block_on(async {
+                    let server = MockServer::start().await;
+                    setup(&server).await;
+                    let dir = root.join("systemprompt");
+                    std::fs::create_dir_all(&dir).expect("config dir");
+                    std::fs::write(
+                        dir.join("systemprompt-bridge.toml"),
+                        format!("gateway_url = \"{}\"\n", server.uri()),
+                    )
+                    .expect("seed gateway url");
 
-                let cfg = systemprompt_bridge::config::shared_from_loaded();
-                let cache = Arc::new(TokenCache::new(Arc::clone(&refresh)));
-                let client = reqwest::Client::new();
-                let _ = tokio::time::timeout(budget, comms::run_loop(cfg, cache, client)).await;
-                seen.store(
-                    server.received_requests().await.map_or(0, |r| r.len()),
-                    Ordering::SeqCst,
-                );
-            });
-        });
+                    let cfg = systemprompt_bridge::config::shared_from_loaded()
+                        .expect("valid runtime config");
+                    let cache = Arc::new(TokenCache::new(Arc::clone(&refresh)));
+                    let client = reqwest::Client::new();
+                    let _ = tokio::time::timeout(budget, comms::run_loop(cfg, cache, client)).await;
+                    seen.store(
+                        server.received_requests().await.map_or(0, |r| r.len()),
+                        Ordering::SeqCst,
+                    );
+                });
+            },
+        );
         requests.load(Ordering::SeqCst)
     }
 }
@@ -344,7 +354,13 @@ fn a_server_error_retries_on_the_token_already_cached() {
 #[test]
 fn without_a_token_the_gateway_is_never_contacted() {
     let sb = Sandbox::new();
-    let refresh: RefreshFn = Arc::new(|_| Box::pin(async { None }));
+    let refresh: RefreshFn = Arc::new(|_| {
+        Box::pin(async {
+            Err(ForwardError::Auth(
+                "no credential provider produced a token".into(),
+            ))
+        })
+    });
     let requests = sb.drive(Duration::from_millis(600), status_only(200), refresh);
     assert_eq!(
         requests, 0,

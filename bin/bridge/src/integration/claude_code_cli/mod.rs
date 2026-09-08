@@ -183,7 +183,10 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         return clear_install();
     }
 
-    crate::install::managed_mcp::clear_policy();
+    crate::install::managed_mcp::clear_policy().map_err(|source| ApplyError::Io {
+        context: "remove managed MCP policy".to_owned(),
+        source,
+    })?;
 
     let mut mirrored = Vec::with_capacity(marketplaces.len());
     for marketplace in &marketplaces {
@@ -281,7 +284,10 @@ fn purge_marketplace(plugins: &Path, marketplace: &MarketplaceId) -> Result<(), 
 }
 
 pub(crate) fn clear_install() -> Result<(), ApplyError> {
-    crate::install::managed_mcp::clear_policy();
+    crate::install::managed_mcp::clear_policy().map_err(|source| ApplyError::Io {
+        context: "remove managed MCP policy".to_owned(),
+        source,
+    })?;
     let Some(plugins) = paths::claude_cli_plugins_dir() else {
         tracing::warn!(
             target: "bridge::claude-code-cli",

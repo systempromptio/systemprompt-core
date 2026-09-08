@@ -1,6 +1,4 @@
-//! Doctor check for the Windows managed-policy hives: which of `HKLM` and
-//! `HKCU` hold `SOFTWARE\Policies\Claude`, and whether the machine key is
-//! shadowing a per-user copy that an unelevated bridge wrote.
+//! Windows policy scope and shadowing diagnostics.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,7 +6,7 @@
 use crate::cli::doctor::Check;
 
 #[cfg(target_os = "windows")]
-pub fn check_policy_hives() -> Option<Check> {
+pub fn check_policy_hives() -> Check {
     use crate::config::store::{PolicyHive, managed_policy_store};
 
     const PROBE_KEYS: &[&str] = &["inferenceGatewayBaseUrl", "managedMcpServers"];
@@ -20,14 +18,11 @@ pub fn check_policy_hives() -> Option<Check> {
     let (machine, user) = match (read(PolicyHive::Machine), read(PolicyHive::User)) {
         (Ok(m), Ok(u)) => (m, u),
         (Err(e), _) | (_, Err(e)) => {
-            return Some(Check::fail(
-                "claude policy hive",
-                format!("registry unreadable: {e}"),
-            ));
+            return Check::fail("claude policy hive", format!("registry unreadable: {e}"));
         },
     };
     let elevated = crate::winproc::is_elevated();
-    Some(match (machine.is_empty(), user.is_empty()) {
+    match (machine.is_empty(), user.is_empty()) {
         (true, true) => Check::warn(
             "claude policy hive",
             "no Claude policy in HKLM or HKCU — sync has not written one yet",
@@ -54,10 +49,5 @@ pub fn check_policy_hives() -> Option<Check> {
             "HKLM shadows a different HKCU policy — Claude reads HKLM only; remove the stale \
              key or re-run `install --apply` as Administrator",
         ),
-    })
-}
-
-#[cfg(not(target_os = "windows"))]
-pub const fn check_policy_hives() -> Option<Check> {
-    None
+    }
 }

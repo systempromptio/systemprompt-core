@@ -92,9 +92,14 @@ pub fn resolve_target() -> Option<CoworkTarget> {
 }
 
 fn configured_session_org_dir() -> Option<CoworkTarget> {
-    let raw = crate::config::Config::load()
-        .cowork
-        .and_then(|c| c.session_org_dir)?;
+    let cfg = match crate::config::Config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            tracing::warn!(error = %e, "config unreadable; session org dir not resolved");
+            return None;
+        },
+    };
+    let raw = cfg.cowork.and_then(|c| c.session_org_dir)?;
     let path = PathBuf::from(fsutil::expand_tilde(raw.trim()));
 
     if !usable_org_dir(&path) {

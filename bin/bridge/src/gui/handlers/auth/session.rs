@@ -54,7 +54,7 @@ async fn run_session_login(
     {
         tokio::task::spawn_blocking(move || setup::set_gateway_url(&g)).await??;
     }
-    let cfg = crate::config::load();
+    let cfg = crate::config::load().map_err(|e| setup::SetupError::Io(e.to_string()))?;
     let base = crate::config::gateway_url_or_default(&cfg);
 
     let code = tokio::select! {
@@ -76,13 +76,20 @@ async fn run_session_login(
         let gw = gateway.clone();
         tokio::task::spawn_blocking(move || setup::login(pat.as_str(), gw.as_deref())).await??;
     } else {
-        let req = SessionExchangeRequest { code };
-        let out: HelperOutput = client.session_exchange(&req, &session_id).await?.into();
         let gw = gateway.clone();
         tokio::task::spawn_blocking(move || setup::session_setup(gw.as_deref())).await??;
-        if let Err(e) = crate::auth::cache::write(&base, &out) {
-            crate::stdio::diag(&format!("session cache write failed (continuing): {e}"));
+        let cfg = crate::config::load().map_err(|e| setup::SetupError::Io(e.to_string()))?;
+        let binding = crate::auth::cache::CredentialBinding::capture(&cfg)
+            .map_err(|e| setup::SetupError::Io(e.to_string()))?;
+        if crate::config::gateway_url_or_default(&cfg) != base {
+            return Err(setup::SetupError::Io(
+                "gateway changed during session sign-in".into(),
+            ));
         }
+        let req = SessionExchangeRequest { code };
+        let out: HelperOutput = client.session_exchange(&req, &session_id).await?.into();
+        crate::auth::cache::write_bound(&base, &out, &binding)
+            .map_err(|e| setup::SetupError::Io(format!("persist session cache: {e}")))?;
     }
     Ok(())
 }

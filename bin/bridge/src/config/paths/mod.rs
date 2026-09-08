@@ -227,6 +227,7 @@ fn can_create_in(dir: &std::path::Path) -> bool {
     let probe = dir.join(format!(".sp-bridge-writeprobe-{}", std::process::id()));
     match std::fs::File::create(&probe) {
         Ok(_) => {
+            // Why: discard-ok: temporary cleanup cannot change the installed result.
             _ = std::fs::remove_file(&probe);
             true
         },

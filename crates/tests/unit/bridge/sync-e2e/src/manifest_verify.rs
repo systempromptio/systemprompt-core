@@ -174,7 +174,9 @@ fn sandbox(gateway_uri: &str, pinned_pubkey: Option<&str>) -> VerifySandbox {
         pat_file.display()
     );
     if let Some(pk) = pinned_pubkey {
-        toml.push_str(&format!("[sync]\npinned_pubkey = \"{pk}\"\n"));
+        toml.push_str(&format!(
+            "[sync.trust]\ngateway = \"{gateway_uri}\"\nsource = \"operator\"\nkey = \"{pk}\"\n"
+        ));
     }
     let config_file = config_home.join("systemprompt-bridge.toml");
     fs::write(&config_file, toml).unwrap();
@@ -263,6 +265,7 @@ fn run_once_verifies_against_pinned_pubkey() {
     let env = signed_envelope(&key);
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &env, None).await;
         let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
         (server, dirs)
@@ -278,6 +281,7 @@ fn run_once_without_pin_or_tofu_refuses_to_sync() {
     let env = signed_envelope(&key);
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &env, None).await;
         let dirs = sandbox(&server.uri(), None);
         (server, dirs)
@@ -298,6 +302,7 @@ fn run_once_tofu_fetches_and_persists_pubkey() {
     let pk = pubkey_b64(&key);
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &env, Some(&pk)).await;
         let dirs = sandbox(&server.uri(), None);
         (server, dirs)
@@ -319,6 +324,7 @@ fn run_once_tofu_rejects_wrong_key_signature() {
     let wrong = pubkey_b64(&SigningKey::from_bytes(&[9u8; 32]));
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &env, Some(&wrong)).await;
         let dirs = sandbox(&server.uri(), None);
         (server, dirs)
@@ -407,4 +413,47 @@ fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_versio
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+}
+
+#[test]
+fn tofu_persistence_failure_stops_before_applying_manifest() {
+    let key = signing_key();
+    let env = signed_envelope(&key);
+    let pk = pubkey_b64(&key);
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &env, None).await;
+        let dirs = sandbox(&server.uri(), None);
+        let config_file = dirs.config_file.clone();
+        Mock::given(method("GET"))
+            .and(path("/v1/bridge/pubkey"))
+            .respond_with(move |_: &wiremock::Request| {
+                let body = fs::read_to_string(&config_file).unwrap();
+                fs::write(&config_file, format!("sync = 1\n{body}")).unwrap();
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"pubkey": pk}))
+            })
+            .mount(&server)
+            .await;
+        (server, dirs)
+    });
+    let error =
+        run_verified_sync(&dirs, true).expect_err("a trust write failure cannot become success");
+    assert!(
+        error.contains("sync") && error.contains("TOML tables"),
+        "{error}"
+    );
+    assert!(
+        !fs::read_to_string(&dirs.config_file)
+            .unwrap()
+            .contains("[sync.trust]")
+    );
+    assert!(
+        !dirs
+            ._temp
+            .path()
+            .join("state/systemprompt-bridge/metadata/last-sync.json")
+            .exists()
+    );
+    drop(server);
 }

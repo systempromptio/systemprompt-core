@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use tokio::runtime::{Handle, Runtime};
-use tokio::task::JoinHandle;
+
 
 use crate::activity::ActivityLog;
 use crate::auth::plugin_oauth::PluginTokenCache;
@@ -35,6 +35,7 @@ pub enum ProxyMode {
 
 /// Everything a command or the GUI needs that outlives a single call.
 pub struct BridgeContext {
+    tasks: crate::tasks::TaskOwner,
     runtime: OwnedRuntime,
     pub proxy: ProxyHandle,
     pub mcp_registry: Arc<McpRegistrySlot>,
@@ -44,7 +45,8 @@ pub struct BridgeContext {
     pub schedule: ScheduleStatusCache,
     pub start_menu: Arc<StartMenuCache>,
     pub sync_progress: crate::progress::SyncProgressSink,
-    pub unpersisted_tofu_pubkey: AtomicBool,
+    pub policy_store: crate::config::store::PolicyStore,
+    pub sync_lock: Arc<tokio::sync::Mutex<()>>,
     pub elevation_attempted: AtomicBool,
 }
 
@@ -58,25 +60,40 @@ impl std::fmt::Debug for BridgeContext {
 
 impl BridgeContext {
     pub fn start(mode: ProxyMode) -> std::io::Result<Arc<Self>> {
+        Self::start_with_policy_store(
+            mode,
+            crate::config::store::PolicyStore::new(crate::config::store::managed_policy_store()),
+        )
+    }
+
+    pub fn start_with_policy_store(
+        mode: ProxyMode,
+        policy_store: crate::config::store::PolicyStore,
+    ) -> std::io::Result<Arc<Self>> {
         let runtime = OwnedRuntime::build()?;
         let activity = ActivityLog::new();
-        crate::activity::install_persistent_writer(&activity);
+        crate::activity::install_persistent_writer(&activity)?;
         let mcp_registry = mcp_registry::empty_slot();
-        mcp_registry::rehydrate_from_disk(&mcp_registry);
+        mcp_registry::rehydrate_from_disk(&mcp_registry)?;
         let http = crate::gateway::build_http_client();
         let plugin_tokens = Arc::new(PluginTokenCache::default());
         let deps = ProxyDeps {
-            install_id: InstallId::establish(),
+            install_id: InstallId::establish()?,
             mcp_registry: Arc::clone(&mcp_registry),
             activity: activity.clone(),
             http: http.clone(),
             plugin_tokens: Arc::clone(&plugin_tokens),
         };
         let proxy = match mode {
-            ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps),
-            ProxyMode::Attach => ProxyHandle::attach(runtime.handle(), deps),
+            ProxyMode::Serve => {
+                ProxyHandle::serve(runtime.handle(), deps).map_err(std::io::Error::other)?
+            },
+            ProxyMode::Attach => {
+                ProxyHandle::attach(runtime.handle(), deps).map_err(std::io::Error::other)?
+            },
         };
         Ok(Arc::new(Self {
+            tasks: crate::tasks::TaskOwner::new(runtime.handle(), activity.clone()),
             runtime,
             proxy,
             mcp_registry,
@@ -86,7 +103,8 @@ impl BridgeContext {
             schedule: ScheduleStatusCache::default(),
             start_menu: Arc::new(StartMenuCache::default()),
             sync_progress: crate::progress::SyncProgressSink::default(),
-            unpersisted_tofu_pubkey: AtomicBool::new(false),
+            policy_store,
+            sync_lock: Arc::new(tokio::sync::Mutex::new(())),
             elevation_attempted: AtomicBool::new(false),
         }))
     }
@@ -118,12 +136,9 @@ impl BridgeContext {
         self.runtime.handle().block_on(fut)
     }
 
-    pub fn spawn<F>(&self, fut: F) -> JoinHandle<F::Output>
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        self.runtime.handle().spawn(fut)
+    #[track_caller]
+    pub fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) {
+        self.tasks.spawn(fut);
     }
 }
 

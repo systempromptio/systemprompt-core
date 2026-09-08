@@ -35,10 +35,9 @@ pub use forward::REFRESH_THRESHOLD_SECS;
 
 pub const MAX_CANDIDATE_PORT: u16 = DEFAULT_PROXY_PORT + 9;
 
-#[must_use]
-pub fn candidate_ports(ours: &InstallId) -> Vec<u16> {
+pub fn candidate_ports(ours: &InstallId) -> std::io::Result<Vec<u16>> {
     let mut ports = Vec::with_capacity(11);
-    if let Some(preferred) = portfile::preferred_port(ours) {
+    if let Some(preferred) = portfile::preferred_port(ours)? {
         ports.push(preferred);
     }
     for p in DEFAULT_PROXY_PORT..=MAX_CANDIDATE_PORT {
@@ -46,6 +45,5 @@ pub fn candidate_ports(ours: &InstallId) -> Vec<u16> {
             ports.push(p);
         }
     }
-    ports.push(0);
-    ports
+    Ok(ports)
 }

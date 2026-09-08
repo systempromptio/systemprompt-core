@@ -22,6 +22,7 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 
     let workdir = staged.with_extension("unpack");
     if workdir.exists() {
+        // Why: discard-ok: temporary cleanup cannot change the installed result.
         _ = std::fs::remove_dir_all(&workdir);
     }
     std::fs::create_dir_all(&workdir).map_err(|e| UpdateError::io(&workdir, e))?;
@@ -137,13 +138,22 @@ fn swap(new_bundle: &Path, target: &Path) -> Result<(), UpdateError> {
             Ok(())
         },
         Err(e) => {
-            _ = std::fs::remove_dir_all(target);
+            match std::fs::remove_dir_all(target) {
+                Ok(()) => {},
+                Err(cleanup) if cleanup.kind() == std::io::ErrorKind::NotFound => {},
+                Err(cleanup) => {
+                    return Err(UpdateError::Unpack(format!(
+                        "{e}; rollback cannot remove {}: {cleanup}; previous app remains at {}",
+                        target.display(),
+                        backup.display()
+                    )));
+                },
+            }
             if let Err(restore) = std::fs::rename(&backup, target) {
-                tracing::error!(
-                    error = %restore,
-                    backup = %backup.display(),
-                    "update: install failed AND rollback failed; the previous app is at the backup path"
-                );
+                return Err(UpdateError::Unpack(format!(
+                    "{e}; rollback failed: {restore}; previous app remains at {}",
+                    backup.display()
+                )));
             }
             Err(e)
         },

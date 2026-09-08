@@ -9,6 +9,11 @@ use crate::gui::hosts::handlers;
 
 pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
     match event {
+        HostUiEvent::ProbeFailed {
+            host_id,
+            error,
+            reply_to,
+        } => handlers::on_probe_failed(app, host_id.as_ref(), &error, reply_to),
         HostUiEvent::ProbeRequested {
             host_id,
             cause,

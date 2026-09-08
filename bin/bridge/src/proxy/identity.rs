@@ -34,12 +34,8 @@ const UNKNOWN: &str = "unknown";
 pub struct InstallId(String);
 
 impl InstallId {
-    #[must_use]
-    pub fn establish() -> Self {
-        Self(load_or_mint().unwrap_or_else(|e| {
-            tracing::warn!(error = %e, install_id = UNKNOWN, "could not establish an install id");
-            UNKNOWN.to_owned()
-        }))
+    pub fn establish() -> std::io::Result<Self> {
+        load_or_mint().map(Self)
     }
 
     #[must_use]
@@ -136,8 +132,18 @@ fn load_or_mint() -> std::io::Result<String> {
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
     match fs::read(&path) {
         Ok(bytes) => {
-            let s = String::from_utf8_lossy(&bytes).trim().to_owned();
-            if s.is_empty() { mint(&path) } else { Ok(s) }
+            let s = String::from_utf8(bytes)
+                .map_err(std::io::Error::other)?
+                .trim()
+                .to_owned();
+            if is_known(&s) {
+                Ok(s)
+            } else {
+                Err(std::io::Error::other(format!(
+                    "{}: invalid install identity",
+                    path.display()
+                )))
+            }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => mint(&path),
         Err(e) => Err(e),
@@ -151,18 +157,7 @@ fn mint(path: &std::path::Path) -> std::io::Result<String> {
     let mut buf = [0u8; 8];
     rand::rng().fill_bytes(&mut buf);
     let id = URL_SAFE_NO_PAD.encode(buf);
-    fs::write(path, id.as_bytes())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if let Err(e) = fs::set_permissions(path, fs::Permissions::from_mode(0o600)) {
-            tracing::warn!(
-                path = %path.display(),
-                error = %e,
-                "failed to lock down install id permissions",
-            );
-        }
-    }
+    crate::fsutil::atomic_write_0600(path, id.as_bytes())?;
     tracing::info!(path = %path.display(), install_id = %id, "minted install id");
     Ok(id)
 }

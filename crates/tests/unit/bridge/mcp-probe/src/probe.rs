@@ -193,7 +193,7 @@ async fn proxy_unreachable_on_closed_port() {
 }
 
 #[tokio::test]
-async fn tools_list_failure_does_not_downgrade() {
+async fn tools_list_failure_reports_protocol_error() {
     let server = MockServer::start().await;
 
     Mock::given(method("POST"))
@@ -226,7 +226,7 @@ async fn tools_list_failure_does_not_downgrade() {
         .await;
 
     let auth = probe(&server).await;
-    assert_eq!(auth.state, McpAuthState::Authenticated);
+    assert_eq!(auth.state, McpAuthState::ProtocolError);
     assert!(auth.tools.is_empty());
 }
 

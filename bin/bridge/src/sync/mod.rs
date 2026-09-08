@@ -8,8 +8,10 @@ mod error;
 mod manifest;
 mod provision;
 mod replay;
+mod sentinel;
 mod summary;
 
+use self::sentinel::persist_last_sync;
 pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use replay::{
@@ -21,7 +23,6 @@ use summary::build_summary;
 
 use crate::config::{self, paths};
 use crate::gateway::manifest::SignedManifest;
-use serde::Serialize;
 use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
@@ -33,7 +34,12 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
     if force_replay {
         tracing::warn!("--force-replay bypasses manifest version + skew checks");
     }
-    if allow_tofu && config::pinned_pubkey_state() == config::PinnedPubkeyState::Unpinned {
+    if allow_tofu
+        && matches!(
+            config::pinned_pubkey_state(),
+            Ok(config::PinnedPubkeyState::Unpinned)
+        )
+    {
         tracing::warn!(
             "--allow-tofu enables trust-on-first-use pubkey fetch over the gateway channel; this \
              is insecure if the gateway is not authenticated yet"
@@ -48,13 +54,24 @@ pub async fn run_once(
     force_replay: bool,
     allow_tofu: bool,
 ) -> Result<SyncSummary, SyncError> {
+    let operation =
+        std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
+    bridge
+        .activity
+        .ensure_persistence()
+        .map_err(|source| SyncError::Persistence {
+            path: crate::obs::log_dir()
+                .unwrap_or_default()
+                .join("activity.jsonl"),
+            source,
+        })?;
     bridge
         .sync_progress
         .report(&crate::progress::SyncProgress::new(
             "manifest", "manifest", 1, 1,
         ));
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
-    let synced = manifest::verify_and_decode(bridge, &fetch, allow_unsigned, allow_tofu).await?;
+    let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
 
     #[cfg_attr(
         not(target_os = "windows"),
@@ -63,7 +80,7 @@ pub async fn run_once(
     let mut location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
     #[cfg(target_os = "windows")]
     if let Err(err) = check_org_plugins_scope(&synced, &location) {
-        match heal_org_plugins_scope(bridge).await {
+        match heal_org_plugins_scope(bridge, std::sync::Arc::clone(&operation)).await? {
             Some(healed) => location = healed,
             None => return Err(err),
         }
@@ -82,7 +99,12 @@ pub async fn run_once(
                 tracing::info!(path = %location.path.display(), "provisioned per-user org-plugins directory");
             },
             paths::Scope::System => {
-                provision::provision_system_org_plugins(bridge, &location.path).await?;
+                provision::provision_system_org_plugins(
+                    bridge,
+                    &location.path,
+                    std::sync::Arc::clone(&operation),
+                )
+                .await?;
             },
         }
     }
@@ -113,26 +135,47 @@ pub async fn run_once(
     .await
     .map_err(SyncError::ApplyFailed)?;
 
-    seed_default_model_from_profile(&fetch.client).await;
+    if !report.host_failures.is_empty() || !report.malformed.is_empty() {
+        return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
+    }
+    persist_last_sync(&last_sync_path, &synced, &report, now)?;
+    seed_default_model_from_profile(&fetch.client).await?;
 
-    persist_last_sync(&last_sync_path, &synced, &report, now);
-
+    bridge
+        .activity
+        .ensure_persistence()
+        .map_err(|source| SyncError::Persistence {
+            path: crate::obs::log_dir()
+                .unwrap_or_default()
+                .join("activity.jsonl"),
+            source,
+        })?;
     Ok(build_summary(&synced, report))
 }
 
 #[cfg(target_os = "linux")]
-async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient) {
-    let Ok(profile) = client.fetch_bridge_profile().await else {
-        return;
+async fn seed_default_model_from_profile(
+    client: &crate::gateway::GatewayClient,
+) -> Result<(), SyncError> {
+    let profile = match client.fetch_bridge_profile().await {
+        Ok(profile) => profile,
+        // Why: a gateway older than the profile endpoint has no default model
+        // to seed; the sync itself completed and its checkpoint is written.
+        Err(crate::gateway::GatewayError::HttpStatus {
+            status: reqwest::StatusCode::NOT_FOUND,
+            ..
+        }) => return Ok(()),
+        Err(e) => return Err(SyncError::Network(e.to_string())),
     };
     let Some(model) = profile.default_model.as_deref() else {
-        return;
+        return Ok(());
     };
     match crate::install::mdm::linux::seed_default_model(model) {
         Ok(true) => tracing::info!(model, "seeded the default model from the bridge profile"),
         Ok(false) => tracing::debug!("settings already name a model; leaving the user's choice"),
-        Err(e) => tracing::warn!(error = %e, "could not seed the default model"),
+        Err(e) => return Err(SyncError::Network(format!("seed default model: {e}"))),
     }
+    Ok(())
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -140,7 +183,11 @@ async fn seed_default_model_from_profile(client: &crate::gateway::GatewayClient)
     clippy::unused_async,
     reason = "matches the Linux arm's signature, which the shared call site awaits"
 )]
-async fn seed_default_model_from_profile(_client: &crate::gateway::GatewayClient) {}
+async fn seed_default_model_from_profile(
+    _client: &crate::gateway::GatewayClient,
+) -> Result<(), SyncError> {
+    Ok(())
+}
 
 #[cfg(target_os = "windows")]
 fn check_org_plugins_scope(
@@ -161,19 +208,19 @@ fn check_org_plugins_scope(
 #[cfg(target_os = "windows")]
 async fn heal_org_plugins_scope(
     bridge: &crate::context::BridgeContext,
-) -> Option<paths::OrgPluginsLocation> {
+    operation: std::sync::Arc<tokio::sync::OwnedMutexGuard<()>>,
+) -> Result<Option<paths::OrgPluginsLocation>, SyncError> {
     if bridge
         .elevation_attempted
         .swap(true, std::sync::atomic::Ordering::SeqCst)
     {
-        return None;
+        return Ok(None);
     }
-    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
+        .map_err(|e| SyncError::Network(format!("org-plugins provisioning: {e}")))?;
     let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    if let Err(e) = fs::create_dir_all(&stage_dir) {
-        tracing::warn!(error = %e, "could not create staging dir for org-plugins provisioning");
-        return None;
-    }
+    fs::create_dir_all(&stage_dir)
+        .map_err(|e| SyncError::Network(format!("create {}: {e}", stage_dir.display())))?;
     tracing::info!(
         path = %org.path.display(),
         "requesting one-time administrator approval to provision org-plugins for Cowork"
@@ -187,20 +234,19 @@ async fn heal_org_plugins_scope(
         org_plugins: Some(org),
     };
     let outcome = tokio::task::spawn_blocking(move || {
+        let _operation = operation;
         crate::install::elevated_job::elevate_and_run(&stage_dir, &job)
     })
     .await;
-    match outcome {
-        Ok(Ok(())) => paths::org_plugins_effective().filter(|l| l.scope == paths::Scope::System),
-        Ok(Err(e)) => {
-            tracing::warn!(error = %e, "org-plugins provisioning was not completed");
-            None
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "org-plugins provisioning task failed");
-            None
-        },
+    let receipt = outcome
+        .map_err(|e| SyncError::Network(format!("org-plugins provisioning task: {e}")))?
+        .map_err(|e| SyncError::Network(format!("org-plugins provisioning: {e}")))?;
+    for step in receipt.steps() {
+        bridge
+            .activity
+            .append(format!("verified {} {}", step.operation, step.target));
     }
+    Ok(paths::org_plugins_effective().filter(|l| l.scope == paths::Scope::System))
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -213,67 +259,4 @@ const fn check_org_plugins_scope(
     _location: &paths::OrgPluginsLocation,
 ) -> Result<(), SyncError> {
     Ok(())
-}
-
-fn persist_last_sync(
-    path: &std::path::Path,
-    manifest: &SignedManifest,
-    report: &apply::ApplyReport,
-    now: chrono::DateTime<chrono::Utc>,
-) {
-    if let Some(parent) = path.parent()
-        && let Err(e) = fs::create_dir_all(parent)
-    {
-        tracing::warn!(error = %e, dir = %parent.display(), "sync: sentinel parent mkdir failed");
-        return;
-    }
-    let sentinel = LastSyncSentinel {
-        synced_at: current_iso8601(),
-        manifest_version: manifest.manifest_version.as_str(),
-        last_applied_manifest_version: manifest.manifest_version.as_str(),
-        last_applied_at: now.to_rfc3339(),
-        installed_plugins: &report.installed,
-        updated_plugins: &report.updated,
-        removed_plugins: &report.removed,
-        mcp_server_count: manifest.managed_mcp_servers.len(),
-        skill_count: manifest.skills.len(),
-        agent_count: manifest.agents.len(),
-        hook_count: manifest.hooks.len(),
-        user: manifest.user.as_ref().map(|u| u.email.as_str()),
-        enabled_hosts: &manifest.enabled_hosts,
-        host_model_protocols: &manifest.host_model_protocols,
-    };
-    let bytes = match serde_json::to_vec_pretty(&sentinel) {
-        Ok(b) => b,
-        Err(e) => {
-            tracing::warn!(error = %e, "sync: sentinel serialize failed");
-            return;
-        },
-    };
-    if let Err(e) = fs::write(path, bytes) {
-        tracing::warn!(error = %e, path = %path.display(), "sync: sentinel write failed");
-    }
-}
-
-
-#[derive(Serialize)]
-struct LastSyncSentinel<'a> {
-    synced_at: String,
-    manifest_version: &'a str,
-    last_applied_manifest_version: &'a str,
-    last_applied_at: String,
-    installed_plugins: &'a [String],
-    updated_plugins: &'a [String],
-    removed_plugins: &'a [String],
-    mcp_server_count: usize,
-    skill_count: usize,
-    agent_count: usize,
-    hook_count: usize,
-    user: Option<&'a str>,
-    enabled_hosts: &'a [String],
-    host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
-}
-
-fn current_iso8601() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
 }

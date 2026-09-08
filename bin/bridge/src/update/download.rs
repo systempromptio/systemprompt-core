@@ -113,9 +113,5 @@ async fn stream_to_file(
 
 #[doc(hidden)]
 pub fn hex_lower(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    bytes.iter().fold(String::new(), |mut acc, b| {
-        _ = write!(acc, "{b:02x}");
-        acc
-    })
+    crate::hash::hex_encode(bytes)
 }

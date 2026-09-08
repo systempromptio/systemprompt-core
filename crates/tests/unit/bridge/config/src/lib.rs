@@ -9,4 +9,10 @@ mod redaction;
 #[cfg(test)]
 mod round_trip;
 #[cfg(test)]
+mod trust;
+#[cfg(test)]
+mod verified_policy;
+#[cfg(test)]
 mod writer;
+
+mod release_parity;

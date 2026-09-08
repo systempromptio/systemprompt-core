@@ -21,7 +21,8 @@ fn setting_pinned_pubkey_keeps_sections_that_follow_sync() {
     );
 
     write::edit_file(&path, |doc| {
-        write::set(doc, &["sync", "pinned_pubkey"], "new");
+        write::set(doc, &["sync", "pinned_pubkey"], "new")?;
+        Ok(())
     })
     .expect("write pubkey");
 
@@ -51,7 +52,8 @@ fn editing_preserves_comments_and_unknown_keys() {
     );
 
     write::edit_file(&path, |doc| {
-        write::set(doc, &["update", "automatic"], true);
+        write::set(doc, &["update", "automatic"], true)?;
+        Ok(())
     })
     .expect("write toggle");
 
@@ -75,7 +77,8 @@ fn editing_a_malformed_file_reports_rather_than_overwriting() {
     let path = write_file(&dir, body);
 
     let err = write::edit_file(&path, |doc| {
-        write::set(doc, &["update", "automatic"], true);
+        write::set(doc, &["update", "automatic"], true)?;
+        Ok(())
     })
     .expect_err("malformed config must not be silently rewritten");
 
@@ -92,7 +95,8 @@ fn set_if_absent_leaves_an_existing_value_alone() {
     let path = write_file(&dir, "gateway_url = \"https://operator.example.com\"\n");
 
     write::edit_file(&path, |doc| {
-        write::set_if_absent(doc, &["gateway_url"], "https://installer.example.com");
+        write::set_if_absent(doc, &["gateway_url"], "https://installer.example.com")?;
+        Ok(())
     })
     .expect("write");
 
@@ -107,7 +111,8 @@ fn set_if_absent_writes_into_an_empty_file() {
     let path = write_file(&dir, "");
 
     write::edit_file(&path, |doc| {
-        write::set_if_absent(doc, &["gateway_url"], "https://installer.example.com");
+        write::set_if_absent(doc, &["gateway_url"], "https://installer.example.com")?;
+        Ok(())
     })
     .expect("write");
 
@@ -126,8 +131,9 @@ fn removing_a_credential_section_leaves_the_rest_intact() {
     );
 
     write::edit_file(&path, |doc| {
-        write::remove(doc, &["pat"]);
-        write::set(doc, &["session", "enabled"], true);
+        write::remove(doc, &["pat"])?;
+        write::set(doc, &["session", "enabled"], true)?;
+        Ok(())
     })
     .expect("swap credential section");
 
@@ -135,4 +141,47 @@ fn removing_a_credential_section_leaves_the_rest_intact() {
     assert!(!after.contains("[pat]"), "pat section survived: {after}");
     assert!(after.contains("enabled = true"), "{after}");
     assert!(after.contains("pinned_pubkey = \"abc\""), "{after}");
+}
+
+#[test]
+fn incompatible_parent_is_an_error_and_preserves_the_file() {
+    let dir = TempDir::new().unwrap();
+    let path = write_file(&dir, "sync = 42\n");
+    let error = write::edit_file(&path, |doc| {
+        write::set(doc, &["sync", "trust", "key"], "key")
+    })
+    .unwrap_err();
+    assert!(matches!(error, write::ConfigWriteError::InvalidPath { .. }));
+    assert_eq!(fs::read_to_string(path).unwrap(), "sync = 42\n");
+}
+
+#[test]
+fn external_change_during_edit_is_not_overwritten() {
+    let dir = TempDir::new().unwrap();
+    let path = write_file(&dir, "value = 1\n");
+    let error = write::edit_file(&path, |doc| {
+        write::set(doc, &["value"], 2)?;
+        fs::write(&path, "value = 3\n").unwrap();
+        Ok(())
+    })
+    .unwrap_err();
+    assert!(matches!(
+        error,
+        write::ConfigWriteError::ConcurrentEdit { .. }
+    ));
+    assert_eq!(fs::read_to_string(path).unwrap(), "value = 3\n");
+}
+
+#[test]
+fn failed_mutation_does_not_commit_earlier_mutations() {
+    let dir = TempDir::new().unwrap();
+    let path = write_file(&dir, "sync = false\n");
+    assert!(
+        write::edit_file(&path, |doc| {
+            write::set(doc, &["gateway_url"], "https://example.com")?;
+            write::set(doc, &["sync", "key"], "key")
+        })
+        .is_err()
+    );
+    assert_eq!(fs::read_to_string(path).unwrap(), "sync = false\n");
 }

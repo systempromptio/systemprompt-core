@@ -24,7 +24,17 @@ struct LastSyncRecord {
 }
 
 pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            snap.gateway_status = super::GatewayStatus::Unreachable {
+                reason: e.to_string(),
+            };
+            snap.cached_token = None;
+            snap.verified_identity = None;
+            return;
+        },
+    };
     snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
     snap.gateway_configured = cfg.gateway_url.is_some();
 
@@ -54,12 +64,24 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     snap.host_model_protocols.clear();
     if crate::auth::has_credential_source(&cfg) {
         let gateway = config::gateway_url_or_default(&cfg);
-        snap.cached_token = cache::read_valid(&gateway).map(|out| CachedToken {
-            ttl_seconds: out.ttl,
-            length: out.token.len(),
-        });
+        snap.cached_token = match cache::read_valid(&gateway) {
+            Ok(token) => token.map(|out| CachedToken {
+                ttl_seconds: out.ttl,
+                length: out.token.len(),
+            }),
+            Err(e) => {
+                snap.gateway_status = super::GatewayStatus::Unreachable {
+                    reason: format!("credential cache: {e}"),
+                };
+                None
+            },
+        };
     } else {
-        _ = cache::clear();
+        if let Err(e) = cache::clear() {
+            snap.gateway_status = super::GatewayStatus::Unreachable {
+                reason: format!("clear credential cache: {e}"),
+            };
+        }
         snap.cached_token = None;
         snap.verified_identity = None;
     }

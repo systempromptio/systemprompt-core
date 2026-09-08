@@ -15,7 +15,6 @@ pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
 
 use crate::config::paths::{self, OrgPluginsLocation};
-use crate::config::{self as config};
 use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
@@ -49,10 +48,11 @@ pub(crate) async fn apply_manifest(
     };
     let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
 
+    // Why: discard-ok: temporary cleanup cannot change the installed result.
     _ = fs::remove_dir_all(&staging_root);
     prune_legacy_state();
 
-    let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
+    let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let manifest_for_write = manifest_with_servers(manifest, mcp_servers.clone());
     write_user(&meta_dir, manifest.user.as_ref())?;
     write_mcp_servers(&meta_dir, &mcp_servers)?;
@@ -62,6 +62,7 @@ pub(crate) async fn apply_manifest(
 
     let plugin_mcp_servers = report.mcp_servers_by_plugin.clone();
     let ctx = HostSyncCtx {
+        policy_store: &bridge.policy_store,
         manifest: &manifest_for_write,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -135,11 +136,10 @@ fn remove_legacy_dir(path: &Path, what: &str) {
     }
 }
 
-fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> {
-    let cfg = config::load();
-    let Some(gateway) = cfg.gateway_url.as_ref() else {
-        return servers.to_vec();
-    };
+fn rewrite_loopback_urls(
+    servers: &[ManagedMcpServer],
+    gateway: &ValidatedUrl,
+) -> Vec<ManagedMcpServer> {
     let Ok(gateway_url) = Url::parse(gateway.as_str()) else {
         return servers.to_vec();
     };
@@ -237,6 +237,7 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
         context: "resolve bridge staging dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
     })?;
+    // Why: discard-ok: temporary cleanup cannot change the installed result.
     _ = fs::remove_dir_all(&staging_root);
     fs::create_dir_all(&staging_root).map_err(|e| ApplyError::Io {
         context: format!("create staging at {}", staging_root.display()),

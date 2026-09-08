@@ -12,6 +12,7 @@ pub mod linux;
 pub(super) mod macos;
 #[cfg(target_os = "macos")]
 mod macos_payload;
+mod macos_remove;
 pub mod policy;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;
@@ -25,6 +26,7 @@ pub use error::MdmError;
 pub use inference::default_inference_models;
 
 use crate::schedule::Os;
+use systemprompt_identifiers::ValidatedUrl;
 
 const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("../templates/mdm_macos_snippet.tmpl");
 
@@ -45,6 +47,7 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
 
 #[derive(Debug, Clone, Copy)]
 pub struct MdmPayloadInputs<'a> {
+    pub policy_store: &'a crate::config::store::PolicyStore,
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
     pub registry: &'a crate::mcp_registry::McpRegistry,
     pub egress_allowed_hosts: Option<&'a [String]>,
@@ -55,22 +58,36 @@ pub(crate) fn remove_windows_policy() -> Result<bool, MdmError> {
     windows::remove_policy()
 }
 
+#[derive(Debug, Clone, Default)]
+#[must_use]
+pub struct MdmApplication {
+    pub lines: Vec<String>,
+    pub policies: Vec<crate::config::store::verified::PolicyReceipt>,
+    pub files: Vec<crate::fsutil::FileReceipt>,
+}
+
 pub(crate) fn apply_mdm(
     os: Os,
+    #[cfg_attr(
+        not(any(target_os = "macos", target_os = "windows")),
+        expect(
+            unused_variables,
+            reason = "only the desktop hosts take managed MCP inputs"
+        )
+    )]
     mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
+    #[cfg_attr(
+        not(any(target_os = "macos", target_os = "windows")),
+        expect(unused_variables, reason = "only the desktop hosts carry a policy pin")
+    )]
     pubkey: Option<&str>,
-) -> Result<Vec<String>, MdmError> {
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let _ = mcp;
+) -> Result<MdmApplication, MdmError> {
     match os {
         #[cfg(target_os = "windows")]
         Os::Windows => windows::apply(mcp, gateway, pubkey),
         #[cfg(not(target_os = "windows"))]
-        Os::Windows => {
-            _ = (gateway, pubkey);
-            Err(MdmError::WrongHostOs { os: "Windows" })
-        },
+        Os::Windows => Err(MdmError::WrongHostOs { os: "Windows" }),
         #[cfg(target_os = "macos")]
         Os::Mac => macos::apply(mcp, gateway, pubkey),
         #[cfg(not(target_os = "macos"))]
@@ -82,17 +99,22 @@ pub(crate) fn apply_mdm(
     }
 }
 
-#[must_use]
-pub fn bridge_policy_values(pubkey: Option<&str>) -> Vec<(&'static str, &'static str, String)> {
-    pubkey
-        .map(|pk| {
-            vec![(
-                crate::config::store::MANIFEST_PUBKEY_KEY,
-                "REG_SZ",
-                pk.to_owned(),
-            )]
-        })
-        .unwrap_or_default()
+pub fn bridge_policy_values(
+    pubkey: Option<&str>,
+    gateway: &ValidatedUrl,
+) -> Result<Vec<(&'static str, &'static str, String)>, MdmError> {
+    let Some(key) = pubkey else {
+        return Ok(Vec::new());
+    };
+    let record =
+        crate::config::trust::TrustRecord::new(gateway, key, crate::config::PinSource::Policy)?;
+    let value = serde_json::to_string(&record)
+        .map_err(|e| crate::config::TrustError::InvalidPolicy(e.to_string()))?;
+    Ok(vec![(
+        crate::config::store::MANIFEST_TRUST_KEY,
+        "REG_SZ",
+        value,
+    )])
 }
 
 pub use crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY as LEGACY_PUBKEY_KEY;

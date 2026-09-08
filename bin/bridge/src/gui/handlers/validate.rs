@@ -16,7 +16,7 @@ pub(crate) fn on_validate_requested(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let ctx = std::sync::Arc::clone(&app.ctx);
     app.ctx.spawn(async move {
-        let report = validate::run(&ctx.http, &ctx.unpersisted_tofu_pubkey).await;
+        let report = validate::run(&ctx.http).await;
         proxy.send_event(UiEvent::ValidateFinished { report, reply_to });
     });
 }
