@@ -133,6 +133,12 @@ pub async fn enrol_hosts(
     let mut reports = Vec::with_capacity(targets.len());
     for target in targets {
         reports.push(match target {
+            Target::SyncOnly(agent) if agent.id == CLAUDE_CODE_ID => Report {
+                host_id: agent.id.to_owned(),
+                display_name: agent.display_name,
+                install_action_label: CLAUDE_CODE_LABEL,
+                outcome: enrol_claude_code(bridge),
+            },
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
                 display_name: agent.display_name,
@@ -158,6 +164,50 @@ pub async fn enrol_hosts(
         });
     }
     Ok(reports)
+}
+
+const CLAUDE_CODE_ID: &str = "claude-code";
+const CLAUDE_CODE_LABEL: &str = "gateway keys merged into Claude Code's settings file";
+
+// Why: Claude Code has no HostApp — the gateway governs it — but its inference
+// only reaches the gateway if its settings file names the loopback proxy.
+// Before this arm the enrolment reported "governed" while `claude` kept
+// talking to Anthropic directly on macOS; Linux merged the same keys from
+// `install --apply` and still does.
+#[cfg(unix)]
+fn enrol_claude_code(bridge: &BridgeContext) -> Outcome {
+    let Some(key_path) = crate::proxy::secret::secret_path() else {
+        return Outcome::Failed("the loopback secret path could not be resolved".to_owned());
+    };
+    let gateway = bridge.proxy.loopback().origin();
+    match crate::install::mdm::claude_code_settings::apply_managed_settings(&gateway, &key_path) {
+        Ok(lines) => {
+            for line in lines {
+                tracing::info!(target: "bridge::install", detail = %line, "claude code settings");
+            }
+            Outcome::Installed
+        },
+        Err(e) => Outcome::Failed(e.to_string()),
+    }
+}
+
+#[cfg(not(unix))]
+fn enrol_claude_code(_bridge: &BridgeContext) -> Outcome {
+    Outcome::SyncOnly
+}
+
+#[cfg(unix)]
+fn remove_claude_code() -> Outcome {
+    if crate::install::mdm::claude_code_settings::remove_managed_settings().is_empty() {
+        Outcome::NothingToRemove
+    } else {
+        Outcome::Removed
+    }
+}
+
+#[cfg(not(unix))]
+fn remove_claude_code() -> Outcome {
+    Outcome::SyncOnly
 }
 
 async fn enrol_one(
@@ -242,6 +292,12 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String
     Ok(targets
         .into_iter()
         .map(|target| match target {
+            Target::SyncOnly(agent) if agent.id == CLAUDE_CODE_ID => Report {
+                host_id: agent.id.to_owned(),
+                display_name: agent.display_name,
+                install_action_label: CLAUDE_CODE_LABEL,
+                outcome: remove_claude_code(),
+            },
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
                 display_name: agent.display_name,

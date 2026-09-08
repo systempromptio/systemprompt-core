@@ -63,37 +63,20 @@ fn key_helper_body(key_path: &Path) -> String {
     )
 }
 
-pub(super) fn apply_managed_settings(
-    gateway: &str,
-    key_path: &Path,
-) -> Result<Vec<String>, MdmError> {
-    let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    write_atomic(&helper, &key_helper_body(key_path))?;
-    set_executable(&helper)?;
+/// The bridge-owned Claude Code keys as a settings file of their own, next to
+/// the key helper. `claude --settings <this file>` routes one session through
+/// the gateway without touching `~/.claude/settings.json`, so a developer who
+/// keeps their own Anthropic login can switch per terminal.
+pub(super) fn standalone_settings_path() -> Option<PathBuf> {
+    Some(
+        crate::basedirs::config_dir()?
+            .join(crate::brand::brand().config_dir)
+            .join("claude-code-settings.json"),
+    )
+}
 
-    let settings_path =
-        managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
-    let existing = read_or_empty(&settings_path)?;
-    let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
-        serde_json::Map::new()
-    } else {
-        serde_json::from_str(&existing).map_err(|e| MdmError::Json {
-            path: settings_path.clone(),
-            source: e,
-        })?
-    };
-
-    let mut lines = vec![format!("wrote: {} (apiKeyHelper)", helper.display())];
-    lines.extend(warn_on_forced_login(&root));
-
-    let env = root
-        .entry("env".to_owned())
-        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-    let Some(env) = env.as_object_mut() else {
-        return Err(MdmError::EnvNotObject {
-            path: settings_path,
-        });
-    };
+fn bridge_env(gateway: &str) -> serde_json::Map<String, serde_json::Value> {
+    let mut env = serde_json::Map::new();
     env.insert(
         "ANTHROPIC_BASE_URL".to_owned(),
         serde_json::Value::String(gateway.to_owned()),
@@ -108,6 +91,77 @@ pub(super) fn apply_managed_settings(
         "CLAUDE_CODE_ATTRIBUTION_HEADER".to_owned(),
         serde_json::Value::String("0".to_owned()),
     );
+    env
+}
+
+/// Writes the key helper and the standalone settings fragment. Every apply
+/// path calls this, whether or not the user also asked for the merge into
+/// their own settings file.
+pub(super) fn write_standalone_settings(
+    gateway: &str,
+    key_path: &Path,
+) -> Result<Vec<String>, MdmError> {
+    let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
+    write_atomic(&helper, &key_helper_body(key_path))?;
+    set_executable(&helper)?;
+    let standalone =
+        standalone_settings_path().ok_or(MdmError::Resolve("the user's config directory"))?;
+    let mut root = serde_json::Map::new();
+    root.insert(
+        "env".to_owned(),
+        serde_json::Value::Object(bridge_env(gateway)),
+    );
+    root.insert(
+        "apiKeyHelper".to_owned(),
+        serde_json::Value::String(shell_command_for(&helper)),
+    );
+    let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
+        MdmError::Json {
+            path: standalone.clone(),
+            source: e,
+        }
+    })?;
+    write_atomic(&standalone, &format!("{rendered}\n"))?;
+    Ok(vec![
+        format!("wrote: {} (apiKeyHelper)", helper.display()),
+        format!(
+            "wrote: {} (pass to `claude --settings` to route one session without editing \
+             ~/.claude/settings.json)",
+            standalone.display()
+        ),
+    ])
+}
+
+pub(crate) fn apply_managed_settings(
+    gateway: &str,
+    key_path: &Path,
+) -> Result<Vec<String>, MdmError> {
+    let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
+    let mut lines = write_standalone_settings(gateway, key_path)?;
+
+    let settings_path =
+        managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
+    let existing = read_or_empty(&settings_path)?;
+    let mut root: serde_json::Map<String, serde_json::Value> = if existing.trim().is_empty() {
+        serde_json::Map::new()
+    } else {
+        serde_json::from_str(&existing).map_err(|e| MdmError::Json {
+            path: settings_path.clone(),
+            source: e,
+        })?
+    };
+
+    lines.extend(warn_on_forced_login(&root));
+
+    let env = root
+        .entry("env".to_owned())
+        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+    let Some(env) = env.as_object_mut() else {
+        return Err(MdmError::EnvNotObject {
+            path: settings_path,
+        });
+    };
+    env.extend(bridge_env(gateway));
 
     root.insert(
         "apiKeyHelper".to_owned(),
@@ -143,7 +197,7 @@ fn warn_on_forced_login(root: &serde_json::Map<String, serde_json::Value>) -> Ve
         .collect()
 }
 
-pub(super) fn remove_managed_settings() -> Vec<String> {
+pub(crate) fn remove_managed_settings() -> Vec<String> {
     let Some(path) = managed_settings_path() else {
         return Vec::new();
     };
@@ -185,11 +239,14 @@ pub(super) fn remove_managed_settings() -> Vec<String> {
 /// keys in the settings file. One line per action, empty when nothing was ours.
 pub(super) fn remove_all() -> Vec<String> {
     let mut lines = Vec::new();
-    if let Some(helper) = key_helper_path() {
-        match fs::remove_file(&helper) {
-            Ok(()) => lines.push(format!("removed: {}", helper.display())),
+    for path in [key_helper_path(), standalone_settings_path()]
+        .into_iter()
+        .flatten()
+    {
+        match fs::remove_file(&path) {
+            Ok(()) => lines.push(format!("removed: {}", path.display())),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-            Err(e) => lines.push(format!("could not remove {}: {e}", helper.display())),
+            Err(e) => lines.push(format!("could not remove {}: {e}", path.display())),
         }
     }
     lines.extend(remove_managed_settings());
