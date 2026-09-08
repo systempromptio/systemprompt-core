@@ -1,8 +1,15 @@
-//! Claude Code settings on Linux.
+//! Claude Code (terminal CLI) settings on macOS and Linux.
 //!
 //! The `apiKeyHelper` script plus the `env` keys the bridge owns inside the
-//! settings file: `/etc/claude-code/managed-settings.json` when running as
-//! root, otherwise the per-user `~/.claude/settings.json`.
+//! settings file: the machine policy file under
+//! [`crate::config::paths::claude_code_policy_dir`] when it is writable
+//! (root), otherwise the per-user `~/.claude/settings.json`.
+//!
+//! Why this is not Linux-only: Claude Desktop is configured through managed
+//! preferences, but the Claude Code CLI reads none of them. Before this module
+//! was shared, `install --apply` on macOS wrote the Desktop plist and reported
+//! Claude Code as governed, while every `claude` model call still went straight
+//! to Anthropic and never reached the audit trail.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,13 +17,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{io_error, read_or_empty, write_atomic};
 use crate::install::mdm::MdmError;
 
 // Why: Claude Code reads ~/.claude/settings.json, not
 // ~/.claude/managed-settings.json.
 fn managed_settings_path() -> Option<PathBuf> {
-    let system = PathBuf::from("/etc/claude-code/managed-settings.json");
+    let system = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
     if can_write(&system) {
         return Some(system);
     }
@@ -105,7 +111,7 @@ pub(super) fn apply_managed_settings(
 
     root.insert(
         "apiKeyHelper".to_owned(),
-        serde_json::Value::String(helper.display().to_string()),
+        serde_json::Value::String(shell_command_for(&helper)),
     );
 
     let rendered = serde_json::to_string_pretty(&serde_json::Value::Object(root)).map_err(|e| {
@@ -175,6 +181,66 @@ pub(super) fn remove_managed_settings() -> Vec<String> {
     }
 }
 
+/// Removes everything this module wrote: the key helper and the bridge-owned
+/// keys in the settings file. One line per action, empty when nothing was ours.
+pub(super) fn remove_all() -> Vec<String> {
+    let mut lines = Vec::new();
+    if let Some(helper) = key_helper_path() {
+        match fs::remove_file(&helper) {
+            Ok(()) => lines.push(format!("removed: {}", helper.display())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => lines.push(format!("could not remove {}: {e}", helper.display())),
+        }
+    }
+    lines.extend(remove_managed_settings());
+    lines
+}
+
+pub(super) fn io_error(
+    action: &'static str,
+    path: &Path,
+) -> impl FnOnce(std::io::Error) -> MdmError {
+    let path = path.to_path_buf();
+    move |source| MdmError::Io {
+        action,
+        path,
+        source,
+    }
+}
+
+pub(super) fn write_atomic(path: &Path, contents: &str) -> Result<(), MdmError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(io_error("create", parent))?;
+    }
+    let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
+    fs::write(&tmp, contents).map_err(io_error("write", &tmp))?;
+    fs::rename(&tmp, path).map_err(|e| {
+        _ = fs::remove_file(&tmp);
+        io_error("rename onto", path)(e)
+    })
+}
+
+pub(super) fn read_or_empty(path: &Path) -> Result<String, MdmError> {
+    match fs::read_to_string(path) {
+        Ok(s) => Ok(s),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(e) => Err(io_error("read", path)(e)),
+    }
+}
+
+// Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so a path with
+// whitespace — every macOS `~/Library/Application Support/…` path — is split
+// into words and fails with "No such file or directory". Quote only then, so
+// the Linux value stays the bare path existing installs and tests expect.
+fn shell_command_for(helper: &Path) -> String {
+    let raw = helper.display().to_string();
+    if raw.chars().any(char::is_whitespace) {
+        format!("'{}'", raw.replace('\'', "'\\''"))
+    } else {
+        raw
+    }
+}
+
 fn set_executable(path: &Path) -> Result<(), MdmError> {
     use std::os::unix::fs::PermissionsExt as _;
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(io_error("chmod", path))
@@ -211,5 +277,5 @@ pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     Ok(true)
 }
 
-#[path = "settings_test_api.rs"]
+#[path = "claude_code_settings_test_api.rs"]
 pub mod test_api;

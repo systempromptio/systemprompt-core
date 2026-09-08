@@ -13,12 +13,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub mod settings;
-
-use settings::{apply_managed_settings, key_helper_path, remove_managed_settings};
-
-pub(crate) use settings::seed_default_model;
-
+use super::claude_code_settings::{apply_managed_settings, read_or_empty, write_atomic};
 use super::MdmError;
 
 fn markers() -> (String, String) {
@@ -86,35 +81,6 @@ fn splice(existing: &str, block: &str) -> Option<String> {
     (replaced != existing).then_some(replaced)
 }
 
-fn io_error(action: &'static str, path: &Path) -> impl FnOnce(std::io::Error) -> MdmError {
-    let path = path.to_path_buf();
-    move |source| MdmError::Io {
-        action,
-        path,
-        source,
-    }
-}
-
-fn write_atomic(path: &Path, contents: &str) -> Result<(), MdmError> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(io_error("create", parent))?;
-    }
-    let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
-    fs::write(&tmp, contents).map_err(io_error("write", &tmp))?;
-    fs::rename(&tmp, path).map_err(|e| {
-        _ = fs::remove_file(&tmp);
-        io_error("rename onto", path)(e)
-    })
-}
-
-fn read_or_empty(path: &Path) -> Result<String, MdmError> {
-    match fs::read_to_string(path) {
-        Ok(s) => Ok(s),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
-        Err(e) => Err(io_error("read", path)(e)),
-    }
-}
-
 pub(super) fn apply(gateway: &str) -> Result<Vec<String>, MdmError> {
     let env_file = env_file_path().ok_or(MdmError::Resolve("the user's config directory"))?;
     let key_path =
@@ -150,14 +116,14 @@ pub(super) fn apply(gateway: &str) -> Result<Vec<String>, MdmError> {
 
 pub(crate) fn remove() -> Vec<String> {
     let mut lines = Vec::new();
-    for path in [env_file_path(), key_helper_path()].into_iter().flatten() {
+    if let Some(path) = env_file_path() {
         match fs::remove_file(&path) {
             Ok(()) => lines.push(format!("removed: {}", path.display())),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
             Err(e) => lines.push(format!("could not remove {}: {e}", path.display())),
         }
     }
-    lines.extend(remove_managed_settings());
+    lines.extend(super::claude_code_settings::remove_all());
     let Some(profile) = profile_path() else {
         return lines;
     };

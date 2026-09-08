@@ -118,7 +118,18 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
         source: e,
     })?;
 
-    Ok(apply_summary(dest_system, &dest_user, &user, gateway))
+    let mut summary = apply_summary(dest_system, &dest_user, &user, gateway);
+    let key_path =
+        crate::proxy::secret::secret_path().ok_or(MdmError::Resolve("the loopback secret path"))?;
+    summary.extend(super::claude_code_settings::apply_managed_settings(
+        gateway, &key_path,
+    )?);
+    summary.push(
+        "Claude Code (terminal) reads ~/.claude/settings.json on every run; no shell restart \
+         needed."
+            .into(),
+    );
+    Ok(summary)
 }
 
 fn apply_summary(
@@ -202,6 +213,7 @@ pub(crate) fn apply_mobileconfig(
 }
 
 pub(crate) fn remove_profile() -> Result<bool, MdmError> {
+    let cli_removed = !super::claude_code_settings::remove_all().is_empty();
     let user = std::env::var("USER").unwrap_or_default();
     let user_path =
         format!("/Library/Managed Preferences/{user}/com.anthropic.claudefordesktop.plist");
@@ -209,7 +221,7 @@ pub(crate) fn remove_profile() -> Result<bool, MdmError> {
     let user_exists = !user.is_empty() && Path::new(&user_path).exists();
 
     if !sys_exists && !user_exists {
-        return Ok(false);
+        return Ok(cli_removed);
     }
 
     let script = format!(
