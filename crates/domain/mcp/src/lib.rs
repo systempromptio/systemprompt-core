@@ -73,7 +73,7 @@ pub use schema::McpOutputSchema;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use systemprompt_models::mcp::ClientProfile;
-pub use tool::{McpToolExecutor, McpToolHandler, build_tool_list_result};
+pub use tool::{McpToolExecutor, McpToolHandler, build_tool_list_result, object_input_schema};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, ERROR, McpAuthState, McpServerConfig, OAuthRequirement, RUNNING,
