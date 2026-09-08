@@ -39,20 +39,7 @@ pub async fn smart_fallback_handler(
         .into_response()
 }
 
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    #[must_use]
-    pub fn is_api_path(path: &str) -> bool {
-        super::is_api_path(path)
-    }
-
-    #[must_use]
-    pub fn get_api_suggestions(path: &str) -> Vec<String> {
-        super::get_api_suggestions(path)
-    }
-}
-
-fn is_api_path(path: &str) -> bool {
+pub fn is_api_path(path: &str) -> bool {
     path.starts_with(ApiPaths::API_BASE)
         || path.starts_with(ApiPaths::WELLKNOWN_BASE)
         || path.starts_with("/server/")
@@ -66,7 +53,7 @@ fn is_api_path(path: &str) -> bool {
         || path.starts_with("/oauth/")
 }
 
-fn get_api_suggestions(path: &str) -> Vec<String> {
+pub fn get_api_suggestions(path: &str) -> Vec<String> {
     if path.starts_with(ApiPaths::API_BASE) {
         vec![
             format!("{} - API discovery endpoint", ApiPaths::DISCOVERY),

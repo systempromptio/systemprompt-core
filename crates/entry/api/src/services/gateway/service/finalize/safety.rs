@@ -10,13 +10,6 @@ use systemprompt_ai::{
     SafetyHistoryMode,
 };
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported by the feature-gated `test_api` module"
-    )
-)]
 pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
     match phase {
         PHASE_REQUEST => true,
@@ -68,13 +61,6 @@ pub(in crate::services::gateway) fn request_finding_blocks(
         && blocks_at_phase(finding.phase, safety.history)
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn dedupe_findings(findings: &mut Vec<Finding>) {
     let mut seen = std::collections::HashSet::new();
     findings.retain(|f| seen.insert((f.phase, f.category.clone(), f.scanner)));

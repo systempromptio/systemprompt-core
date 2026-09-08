@@ -8,7 +8,7 @@
 use chrono::Utc;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
-use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::validate_id_jag_subject;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::id_jag_subject::validate_id_jag_subject;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;

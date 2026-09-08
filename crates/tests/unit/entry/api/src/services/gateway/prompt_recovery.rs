@@ -4,7 +4,9 @@ use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_api::services::gateway::protocol::outbound::PreparedBody;
-use systemprompt_api::services::gateway::service::test_api::{PromptRecovery, govern_prompt};
+use systemprompt_api::services::gateway::service::stages::recovery::{
+    PromptRecovery, govern_prompt,
+};
 use systemprompt_identifiers::{CallId, SessionId, UserId};
 use systemprompt_security::authz::types::Decision;
 use systemprompt_security::policy::secrets::REDACTION_MARKER;
@@ -223,7 +225,7 @@ fn gemini_signed_function_arguments_are_not_rewritten() {
 async fn recovery_header_preserves_buffered_and_streaming_bodies() {
     use axum::body::Body;
     use axum::response::Response;
-    use systemprompt_api::services::gateway::service::test_api::attach_recovery_count;
+    use systemprompt_api::services::gateway::service::stages::recovery::attach_recovery_count;
     for streaming in [false, true] {
         let body = if streaming {
             Body::from_stream(futures_util::stream::iter([Ok::<_, std::io::Error>(

@@ -13,10 +13,11 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::messages::test_api::{
-    RejectionPartial, build_error_response, derive_conversation, optional_gateway_conversation_id,
-    read_gateway_body, require_session_id,
+use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
+use systemprompt_api::routes::gateway::messages::extract::headers::{
+    optional_gateway_conversation_id, read_gateway_body, require_session_id,
 };
+use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };

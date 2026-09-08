@@ -95,7 +95,7 @@ async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<
               (`events.error(...)`); clippy's `collection_is_never_read` heuristic does not \
               recognise those calls as reads of the `Option`"
 )]
-async fn handle_missing_servers(
+pub async fn handle_missing_servers(
     required_servers: &[systemprompt_mcp::McpServerConfig],
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpOrchestrator>,
     events: Option<&StartupEventSender>,
@@ -134,7 +134,7 @@ async fn handle_missing_servers(
     reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
               recognise as reads"
 )]
-async fn verify_database_registration(
+pub async fn verify_database_registration(
     required_servers: &[systemprompt_mcp::McpServerConfig],
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
@@ -189,7 +189,7 @@ async fn verify_database_registration(
     reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
               recognise as reads"
 )]
-async fn cleanup_stale_service_entries(
+pub async fn cleanup_stale_service_entries(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
@@ -247,11 +247,7 @@ async fn cleanup_stale_service_entries(
     Ok(deleted_count)
 }
 
-#[cfg(feature = "test-api")]
-#[path = "reconciliation_test_api.rs"]
-pub mod test_api;
-
-fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name: &str) -> bool {
+pub fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name: &str) -> bool {
     use systemprompt_scheduler::ProcessCleanup;
 
     match status {

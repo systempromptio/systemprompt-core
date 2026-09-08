@@ -204,16 +204,6 @@ impl ThoughtSignatureCache {
         }
     }
 
-    #[cfg(feature = "test-api")]
-    #[expect(
-        clippy::panic,
-        reason = "test-only seam, compiled out unless `test-api` is enabled"
-    )]
-    pub fn poison_lock(&self) {
-        let _guard = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
-        panic!("poisoning the signature cache lock");
-    }
-
     #[must_use]
     pub fn signed_tool_use_count(response: &CanonicalResponse) -> usize {
         response

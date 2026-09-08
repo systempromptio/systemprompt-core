@@ -9,7 +9,7 @@
 
 use systemprompt_api::routes::oauth::OAuthHttpError;
 use systemprompt_api::routes::oauth::endpoints::token::TokenError;
-use systemprompt_api::routes::oauth::endpoints::token::handler_test_api::map_exchange_error;
+use systemprompt_api::routes::oauth::endpoints::token::handler::map_exchange_error;
 
 fn round_trip(error: TokenError) -> TokenError {
     map_exchange_error(&anyhow::Error::new(error))

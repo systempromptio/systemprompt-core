@@ -14,7 +14,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_api::services::gateway::protocol::outbound::OutboundCtx;
-use systemprompt_api::services::gateway::protocol::outbound::openai_chat::test_api::normalize_raw_body;
+use systemprompt_api::services::gateway::protocol::outbound::openai_chat::raw::normalize_raw_body;
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;

@@ -22,13 +22,6 @@ use super::super::super::canonical_response::{
 
 pub(super) const STREAM_CHUNK_ID: &str = "chatcmpl-systemprompt-stream";
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut text = String::new();
     let mut tool_calls: Vec<Value> = Vec::new();
@@ -104,13 +97,6 @@ pub(super) fn current_unix_ts() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let delta: Value = match event {
         CanonicalEvent::MessageStart { .. } => json!({ "role": "assistant", "content": "" }),

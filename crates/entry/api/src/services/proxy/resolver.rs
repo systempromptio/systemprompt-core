@@ -11,25 +11,11 @@ use systemprompt_runtime::AppContext;
 
 use super::backend::ProxyError;
 
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use systemprompt_database::ServiceConfig;
-    use systemprompt_runtime::AppContext;
-
-    use super::super::backend::ProxyError;
-
-    pub async fn resolve(
-        service_name: &str,
-        ctx: &AppContext,
-    ) -> Result<ServiceConfig, ProxyError> {
-        super::ServiceResolver::resolve(service_name, ctx).await
-    }
-}
-
-pub(super) struct ServiceResolver;
+#[derive(Debug, Clone, Copy)]
+pub struct ServiceResolver;
 
 impl ServiceResolver {
-    pub(super) async fn resolve(
+    pub async fn resolve(
         service_name: &str,
         ctx: &AppContext,
     ) -> Result<ServiceConfig, ProxyError> {

@@ -35,13 +35,6 @@ const AUDIT_LOG_QUERY: DatabaseQuery = DatabaseQuery::new(
 );
 
 #[cfg(target_os = "linux")]
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {
     content
         .lines()
@@ -73,13 +66,6 @@ pub(super) const fn get_process_memory() -> Option<serde_json::Value> {
     None
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn human_bytes(bytes: i64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
     let mut size: f64 = bytes as f64;
@@ -148,13 +134,6 @@ pub(super) async fn get_system_stats(
     }))
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn database_stats(
     size_row: &JsonRow,
     tables: &[JsonRow],
@@ -184,13 +163,6 @@ pub fn database_stats(
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn table_stats(row: &JsonRow) -> serde_json::Value {
     let name = row
         .get("table_name")
@@ -212,13 +184,6 @@ pub fn table_stats(row: &JsonRow) -> serde_json::Value {
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
     let row_count = row
         .get("row_count")

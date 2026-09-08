@@ -5,13 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod abort;
-mod accumulator;
+pub mod accumulator;
 mod finalize;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
-}
 
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};

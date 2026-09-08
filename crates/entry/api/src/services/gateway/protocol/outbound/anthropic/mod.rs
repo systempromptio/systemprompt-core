@@ -14,18 +14,10 @@ use systemprompt_models::wire::anthropic;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
-mod request;
-mod response;
-pub(in crate::services::gateway) mod streaming;
+pub mod request;
+pub mod response;
+pub mod streaming;
 mod terminal;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::request::build_request_body;
-    pub use super::response::parse_response;
-    pub use super::streaming::sse_to_canonical_events;
-    pub use systemprompt_models::wire::anthropic::buffered_defect;
-}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnthropicOutbound;

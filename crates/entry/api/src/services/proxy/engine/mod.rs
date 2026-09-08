@@ -10,13 +10,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod external;
+pub mod external;
 mod external_governance;
 mod external_sessions;
 mod handlers;
-mod mcp_session;
-#[cfg(feature = "test-api")]
-pub mod test_api;
+pub mod mcp_session;
 
 use axum::body::Body;
 use axum::extract::Request;

@@ -1,12 +1,13 @@
 use serde_json::json;
-use systemprompt_api::services::proxy::test_api::{
+use systemprompt_api::services::proxy::audit::jsonrpc::{
     extract_sse_data, parse_response_frame, parse_tool_call,
 };
 
 #[test]
 fn parse_tool_call_extracts_name_and_arguments() {
     let body = br#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"lookup","arguments":{"q":"acme"}}}"#;
-    let (id, name, args) = parse_tool_call(body).expect("tools/call parses");
+    let call = parse_tool_call(body).expect("tools/call parses");
+    let (id, name, args) = (call.id, call.tool_name, call.arguments);
     assert_eq!(id, json!(7));
     assert_eq!(name, "lookup");
     assert_eq!(args, json!({"q": "acme"}));
@@ -27,7 +28,8 @@ fn parse_tool_call_rejects_malformed_body() {
 fn parse_response_frame_matches_id_and_extracts_structured_output() {
     let data =
         r#"{"jsonrpc":"2.0","id":7,"result":{"structuredContent":{"rows":3},"isError":false}}"#;
-    let (output, error) = parse_response_frame(data, &json!(7)).expect("result parses");
+    let outcome = parse_response_frame(data, &json!(7)).expect("result parses");
+    let (output, error) = (outcome.output, outcome.error_message);
     assert_eq!(output, Some(json!({"rows": 3})));
     assert!(error.is_none());
 }
@@ -35,14 +37,18 @@ fn parse_response_frame_matches_id_and_extracts_structured_output() {
 #[test]
 fn parse_response_frame_reports_tool_error() {
     let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"boom"}],"isError":true}}"#;
-    let (_, error) = parse_response_frame(data, &json!(7)).expect("result parses");
+    let error = parse_response_frame(data, &json!(7))
+        .expect("result parses")
+        .error_message;
     assert_eq!(error.as_deref(), Some("MCP tool call returned isError"));
 }
 
 #[test]
 fn parse_response_frame_surfaces_jsonrpc_error() {
     let data = r#"{"jsonrpc":"2.0","id":7,"error":{"code":-32000,"message":"denied"}}"#;
-    let (_, error) = parse_response_frame(data, &json!(7)).expect("error frame parses");
+    let error = parse_response_frame(data, &json!(7))
+        .expect("error frame parses")
+        .error_message;
     let error = error.expect("jsonrpc error surfaces as error_message");
     assert!(
         error.contains("denied"),

@@ -13,7 +13,7 @@
 
 mod governance;
 mod outbound;
-pub(super) mod recovery;
+pub mod recovery;
 
 use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;

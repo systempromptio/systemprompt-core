@@ -16,16 +16,9 @@ use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
 use super::{InboundAdapter, InboundParseError};
 
 mod input;
-mod parse;
-mod render;
-mod render_terminal;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::parse::parse as parse_request;
-    pub use super::render::{render_event_frame, render_response_object};
-    pub use super::render_terminal::render_terminal_event_frame;
-}
+pub mod parse;
+pub mod render;
+pub mod render_terminal;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenAiResponsesInbound;

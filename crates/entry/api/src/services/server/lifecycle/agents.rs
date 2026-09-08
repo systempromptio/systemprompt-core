@@ -19,7 +19,7 @@ use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
 
-pub(in crate::services::server) async fn reconcile_agents(
+pub async fn reconcile_agents(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {

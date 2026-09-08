@@ -11,13 +11,12 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use std::time::Duration;
-use systemprompt_api::services::server::reconciliation_test_api::{
+use systemprompt_api::services::server::health::human_bytes;
+use systemprompt_api::services::server::health_detail::handle_health_detail;
+use systemprompt_api::services::server::lifecycle::reconciliation::{
     cleanup_stale_service_entries, service_row_is_stale,
 };
-use systemprompt_api::services::server::test_api::{handle_health_detail, human_bytes};
-use systemprompt_api::services::server::{
-    handle_health, readiness, scheduler_health, shutdown_test_api,
-};
+use systemprompt_api::services::server::{handle_health, readiness, scheduler_health, shutdown};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
 use systemprompt_runtime::AppContext;
@@ -144,7 +143,7 @@ async fn cleanup_removes_stale_mcp_rows() -> anyhow::Result<()> {
     let name = format!("stale-mcp-{}", Uuid::new_v4().simple());
     seed_mcp_service(&ctx, &name, "error", None).await?;
 
-    let deleted = cleanup_stale_service_entries(&ctx).await?;
+    let deleted = cleanup_stale_service_entries(&ctx, None).await?;
     assert!(deleted >= 1, "the error-status row must be swept");
 
     let repo = ServiceRepository::new(
@@ -166,7 +165,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     seed_mcp_service(&ctx, &dead, "running", Some(dead_pid())).await?;
     seed_mcp_service(&ctx, &recycled, "running", Some(std::process::id() as i32)).await?;
 
-    shutdown_test_api::terminate_children(&ctx).await;
+    shutdown::terminate_children(&ctx).await;
 
     let repo = ServiceRepository::new(
         ctx.db_pool(),
@@ -181,7 +180,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
         "a live non-child pid is cleared, not signalled"
     );
 
-    shutdown_test_api::drain(&ctx).await;
+    shutdown::drain(&ctx, None).await;
     Ok(())
 }
 
@@ -190,12 +189,12 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
 /// the other's grace window and make the pair flaky.
 #[tokio::test(start_paused = true)]
 async fn drain_grace_bounds_the_drain_and_not_the_server() {
-    let grace = Duration::from_millis(shutdown_test_api::AXUM_DRAIN_GRACE_MS);
+    let grace = Duration::from_millis(shutdown::AXUM_DRAIN_GRACE_MS);
 
     // Never signalled: the guard must not be a deadline on healthy serving.
     let unsignalled = tokio::time::timeout(
         grace * 3,
-        shutdown_test_api::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>()),
+        shutdown::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>()),
     )
     .await;
     assert!(
@@ -207,8 +206,7 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     // The signal is spawned rather than sent inline because the guard
     // subscribes on first poll, and a broadcast delivers nothing sent earlier.
     let wedged = tokio::spawn(async {
-        shutdown_test_api::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>())
-            .await
+        shutdown::join_within_drain_grace(std::future::pending::<anyhow::Result<()>>()).await
     });
     tokio::time::sleep(Duration::from_millis(50)).await;
     readiness::signal_shutdown();
@@ -226,11 +224,11 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
 #[tokio::test(start_paused = true)]
 async fn drain_grace_leaves_room_for_child_termination() {
     assert!(
-        shutdown_test_api::AXUM_DRAIN_GRACE_MS > shutdown_test_api::CHILD_SHUTDOWN_GRACE_MS,
+        shutdown::AXUM_DRAIN_GRACE_MS > shutdown::CHILD_SHUTDOWN_GRACE_MS,
         "a drain that consumes the whole budget would strand every child"
     );
 
-    let served = shutdown_test_api::join_within_drain_grace(async { Ok(()) }).await;
+    let served = shutdown::join_within_drain_grace(async { Ok(()) }).await;
     assert!(served.is_ok(), "a clean drain returns the serve result");
 }
 
@@ -242,7 +240,7 @@ async fn cleanup_sweeps_stale_agent_row_and_keeps_non_stale_mcp() -> anyhow::Res
     seed_agent_service(&ctx, &stale_agent, "error", None).await?;
     seed_mcp_service(&ctx, &live_mcp, "unknown", None).await?;
 
-    let deleted = cleanup_stale_service_entries(&ctx).await?;
+    let deleted = cleanup_stale_service_entries(&ctx, None).await?;
     assert!(deleted >= 1, "the stale agent row must be swept");
 
     let repo = ServiceRepository::new(

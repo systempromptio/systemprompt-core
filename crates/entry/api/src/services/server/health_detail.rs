@@ -32,13 +32,6 @@ fn check_static_content(ctx: &AppContext) -> (bool, bool) {
     )
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn handle_health_detail(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {

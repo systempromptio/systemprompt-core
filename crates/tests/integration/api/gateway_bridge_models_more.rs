@@ -16,7 +16,7 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
 use systemprompt_api::services::gateway::GatewayRequestContext;
 use systemprompt_api::services::gateway::audit::GatewayAudit;
-use systemprompt_api::services::gateway::audit::test_api::flatten_message_content;
+use systemprompt_api::services::gateway::audit::message_text::flatten_message_content;
 use systemprompt_api::services::gateway::protocol::{CanonicalContent, ImageSource};
 use systemprompt_api::services::gateway::registry::{
     GatewayUpstreamRegistry, SafetyScannerRegistry,

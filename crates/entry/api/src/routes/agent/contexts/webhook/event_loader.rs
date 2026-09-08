@@ -168,13 +168,6 @@ async fn load_context_updated(
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData, LoadEventError> {
     let step_data = request
         .step_data
@@ -207,13 +200,6 @@ struct TaskCreatedData {
     task: systemprompt_agent::models::a2a::Task,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, LoadEventError> {
     let task_data = request
         .task_data

@@ -17,13 +17,6 @@ use systemprompt_models::wire::gemini;
 use super::super::canonical_response::CanonicalResponse;
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use systemprompt_models::wire::gemini::{
-        buffered_defect, build_request_body, parse_response, sse_to_canonical_events,
-    };
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GeminiOutbound;
 

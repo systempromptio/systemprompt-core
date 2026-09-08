@@ -7,8 +7,8 @@
 //! here.
 
 use axum::http::{HeaderName, HeaderValue};
-use systemprompt_api::services::proxy::engine_test_api::{map_resolve_error, outbound_headers};
-use systemprompt_api::services::proxy::resolver_test_api::resolve;
+use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
+use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::McpDomainError;
 use uuid::Uuid;
@@ -41,7 +41,7 @@ async fn resolve_returns_running_service() -> anyhow::Result<()> {
     let name = format!("run-{}", Uuid::new_v4().simple());
     seed(&ctx, &name, "running").await?;
 
-    let config = resolve(&name, &ctx)
+    let config = ServiceResolver::resolve(&name, &ctx)
         .await
         .map_err(|e| anyhow::anyhow!("resolve failed: {e}"))?;
     assert_eq!(config.name, name);
@@ -52,7 +52,7 @@ async fn resolve_returns_running_service() -> anyhow::Result<()> {
 #[tokio::test]
 async fn resolve_missing_service_is_not_found() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let err = resolve(&format!("absent-{}", Uuid::new_v4().simple()), &ctx)
+    let err = ServiceResolver::resolve(&format!("absent-{}", Uuid::new_v4().simple()), &ctx)
         .await
         .expect_err("missing service must error");
     assert!(matches!(
@@ -68,7 +68,9 @@ async fn resolve_stopped_service_is_not_running() -> anyhow::Result<()> {
     let name = format!("stop-{}", Uuid::new_v4().simple());
     seed(&ctx, &name, "stopped").await?;
 
-    let err = resolve(&name, &ctx).await.expect_err("stopped must error");
+    let err = ServiceResolver::resolve(&name, &ctx)
+        .await
+        .expect_err("stopped must error");
     assert!(matches!(
         err,
         systemprompt_api::services::proxy::ProxyError::ServiceNotRunning { .. }
@@ -83,10 +85,10 @@ fn outbound_headers_forwards_passthrough_and_provider() {
     incoming.insert("mcp-session-id", HeaderValue::from_static("sess-1"));
     incoming.insert("x-secret", HeaderValue::from_static("nope"));
 
-    let provider = vec![(
+    let provider = std::collections::HashMap::from([(
         HeaderName::from_static("authorization"),
         HeaderValue::from_static("Bearer provider-token"),
-    )];
+    )]);
 
     let out = outbound_headers(&incoming, provider);
     assert_eq!(out.get("content-type").unwrap(), "application/json");
@@ -100,7 +102,8 @@ fn outbound_headers_forwards_passthrough_and_provider() {
 
 #[test]
 fn map_resolve_error_classifies_domain_errors() {
-    let auth = map_resolve_error("svc", McpDomainError::AuthRequired("need".to_owned()));
+    let auth =
+        map_resolve_error("svc", McpDomainError::AuthRequired("need".to_owned())).to_string();
     assert!(auth.contains("Authentication required"));
 
     let unavailable = map_resolve_error(
@@ -109,6 +112,7 @@ fn map_resolve_error_classifies_domain_errors() {
             server: "svc".to_owned(),
             message: "vault down".to_owned(),
         },
-    );
+    )
+    .to_string();
     assert!(unavailable.contains("not running") || unavailable.contains("vault down"));
 }

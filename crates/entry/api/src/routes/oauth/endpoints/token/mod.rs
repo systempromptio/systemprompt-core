@@ -9,13 +9,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod generation;
-mod handler;
+pub mod handler;
 pub mod validation;
 
 pub use handler::handle_token;
-
-#[cfg(feature = "test-api")]
-pub use handler::test_api as handler_test_api;
 
 use serde::{Deserialize, Serialize};
 

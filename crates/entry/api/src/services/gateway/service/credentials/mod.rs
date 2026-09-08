@@ -19,21 +19,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod google;
-
-#[cfg(feature = "test-api")]
-pub(super) mod test_api {
-    pub async fn google_access_token(name: &str, secret: &str) -> anyhow::Result<Option<String>> {
-        match super::google::ServiceAccountKey::parse(secret)? {
-            Some(key) => super::google::access_token(name, &key).await.map(Some),
-            None => Ok(None),
-        }
-    }
-
-    pub fn google_token_uri(secret: &str) -> anyhow::Result<Option<String>> {
-        Ok(super::google::ServiceAccountKey::parse(secret)?.map(|key| key.token_uri))
-    }
-}
+pub mod google;
 
 use anyhow::anyhow;
 use systemprompt_models::services::ProviderEntry;

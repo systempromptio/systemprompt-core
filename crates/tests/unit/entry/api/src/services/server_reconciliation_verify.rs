@@ -8,7 +8,7 @@
 //! that failed and why, because that message is the whole diagnosis an
 //! operator gets from a refused boot.
 
-use systemprompt_api::services::server::reconciliation_test_api::{
+use systemprompt_api::services::server::lifecycle::reconciliation::{
     handle_missing_servers, verify_database_registration,
 };
 use systemprompt_database::DbPool;
@@ -19,6 +19,20 @@ use systemprompt_models::mcp::{McpServerConfig, McpServerType};
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
 };
+
+fn orchestrator(
+    ctx: &systemprompt_runtime::AppContext,
+) -> std::sync::Arc<systemprompt_mcp::services::McpOrchestrator> {
+    std::sync::Arc::new(
+        systemprompt_mcp::services::McpOrchestrator::new(
+            std::sync::Arc::clone(ctx.db_pool()),
+            (**ctx.service_repository()).clone(),
+            std::sync::Arc::clone(ctx.app_paths_arc()),
+            ctx.mcp_registry().clone(),
+        )
+        .expect("orchestrator"),
+    )
+}
 
 fn unique_name(prefix: &str) -> String {
     format!(
@@ -100,7 +114,7 @@ async fn a_required_server_with_a_running_row_passes_verification() {
     let name = unique_name("verified");
     seed(&pool, &name, "running").await;
 
-    let outcome = verify_database_registration(&[required(&name)], &ctx).await;
+    let outcome = verify_database_registration(&[required(&name)], &ctx, None).await;
 
     assert!(
         outcome.is_ok(),
@@ -117,7 +131,7 @@ async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
     let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
     let name = unique_name("unregistered");
 
-    let error = verify_database_registration(&[required(&name)], &ctx)
+    let error = verify_database_registration(&[required(&name)], &ctx, None)
         .await
         .map(|_| ())
         .expect_err("an unregistered required server must not be allowed through");
@@ -137,7 +151,7 @@ async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_
     let name = unique_name("halfup");
     seed(&pool, &name, "starting").await;
 
-    let error = verify_database_registration(&[required(&name)], &ctx)
+    let error = verify_database_registration(&[required(&name)], &ctx, None)
         .await
         .map(|_| ())
         .expect_err("a row that is not `running` is not a started server");
@@ -160,7 +174,7 @@ async fn every_failing_server_is_reported_not_just_the_first() {
     let stopped = unique_name("stopped");
     seed(&pool, &stopped, "stopped").await;
 
-    let error = verify_database_registration(&[required(&missing), required(&stopped)], &ctx)
+    let error = verify_database_registration(&[required(&missing), required(&stopped)], &ctx, None)
         .await
         .map(|_| ())
         .expect_err("two failing servers is still a failure");
@@ -181,7 +195,7 @@ async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
     let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
     let name = unique_name("unreachable");
 
-    let error = verify_database_registration(&[required(&name)], &ctx)
+    let error = verify_database_registration(&[required(&name)], &ctx, None)
         .await
         .map(|_| ())
         .expect_err("a database that cannot be read cannot confirm anything");
@@ -204,7 +218,7 @@ async fn a_required_server_that_never_started_is_named_in_the_refusal() {
     let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
     let name = unique_name("neverstarted");
 
-    let error = handle_missing_servers(&[required(&name)], &ctx)
+    let error = handle_missing_servers(&[required(&name)], &orchestrator(&ctx), None)
         .await
         .map(|_| ())
         .expect_err("a required server that is not running must fail startup");
@@ -228,10 +242,14 @@ async fn several_servers_that_never_started_are_all_named() {
     let first = unique_name("absent_one");
     let second = unique_name("absent_two");
 
-    let error = handle_missing_servers(&[required(&first), required(&second)], &ctx)
-        .await
-        .map(|_| ())
-        .expect_err("two missing servers is still a failure");
+    let error = handle_missing_servers(
+        &[required(&first), required(&second)],
+        &orchestrator(&ctx),
+        None,
+    )
+    .await
+    .map(|_| ())
+    .expect_err("two missing servers is still a failure");
 
     let message = error.to_string();
     assert!(

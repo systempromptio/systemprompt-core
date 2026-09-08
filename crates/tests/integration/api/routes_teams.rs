@@ -3,9 +3,9 @@
 //! Drives the real `teams_router` via `tower::ServiceExt::oneshot`. The
 //! config-free edges (malformed body, unknown tenant, missing/bad bearer) need
 //! no backend; the signed happy-path mints an RS256 activity token, serves the
-//! Bot Connector `OpenID`/JWKS + token endpoints from a loopback wiremock (via
-//! the `test-api` env overrides), runs the spawned dispatch, and asserts the
-//! Adaptive Card reply reaches the Bot Connector.
+//! Bot Connector `OpenID`/JWKS + token endpoints from a loopback wiremock
+//! declared in the app's `endpoints:` config, runs the spawned dispatch, and
+//! asserts the Adaptive Card reply reaches the Bot Connector.
 
 use std::time::Duration;
 
@@ -18,7 +18,8 @@ use rsa::traits::PublicKeyParts;
 use systemprompt_security::keys::RsaSigningKey;
 use systemprompt_test_fixtures::{
     TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
-    fixture_app_context, fixture_db_pool, install_test_signing_key, seed_agent_backend,
+    fixture_app_context, fixture_db_pool, init_services_bootstrap, install_test_signing_key,
+    messaging_config_yaml_with_teams_endpoints, seed_agent_backend,
 };
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
@@ -131,7 +132,14 @@ fn jwk(signing: &RsaSigningKey) -> serde_json::Value {
 
 #[tokio::test]
 async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
-    let b = ensure_messaging_bootstrap();
+    // Bot Connector: serves OpenID metadata, JWKS, the outbound token, and the
+    // reply endpoint. `serviceUrl` points here. It has to exist before the
+    // bootstrap because its origin is written into the app's `endpoints:`.
+    let connector = MockServer::start().await;
+    let b = init_services_bootstrap(&messaging_config_yaml_with_teams_endpoints(Some((
+        &format!("{}/openid", connector.uri()),
+        &format!("{}/token", connector.uri()),
+    ))));
     install_test_signing_key();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
@@ -146,9 +154,6 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         .await;
     seed_agent_backend(&pool, &agent).await?;
 
-    // Bot Connector: serves OpenID metadata, JWKS, the outbound token, and the
-    // reply endpoint. `serviceUrl` points here.
-    let connector = MockServer::start().await;
     let signing = systemprompt_test_fixtures::next_test_key();
     Mock::given(method("GET"))
         .and(path("/openid"))
@@ -181,20 +186,6 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         .expect(1)
         .mount(&connector)
         .await;
-
-    // SAFETY: the test-api env overrides redirect the inbound JWKS fetch and
-    // outbound token mint to the loopback connector. Under nextest each test is
-    // its own process, so this does not leak into sibling tests.
-    unsafe {
-        std::env::set_var(
-            "SYSTEMPROMPT_TEST_TEAMS_OPENID_URL",
-            format!("{}/openid", connector.uri()),
-        );
-        std::env::set_var(
-            "SYSTEMPROMPT_TEST_TEAMS_TOKEN_URL",
-            format!("{}/token", connector.uri()),
-        );
-    }
 
     let token = mint(&signing, &connector.uri());
     let body = activity_json(TEST_TEAMS_TENANT_ID, &connector.uri());

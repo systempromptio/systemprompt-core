@@ -8,7 +8,7 @@
 //! arm is pinned here.
 
 use axum::http::StatusCode;
-use systemprompt_api::routes::gateway::messages::test_api::{
+use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     classify_dispatch_error, map_dispatch_error,
 };
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
@@ -370,7 +370,7 @@ async fn a_nonstandard_but_representable_status_is_still_relayed() {
 
 #[tokio::test]
 async fn coverage_gateway_error_envelopes_round_trip_control_characters_and_unicode() {
-    use systemprompt_api::routes::gateway::messages::test_api::build_error_response;
+    use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
     for message in [
         "line one\nline two",
         "tab\tcarriage\rreturn",

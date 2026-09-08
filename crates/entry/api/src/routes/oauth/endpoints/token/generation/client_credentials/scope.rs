@@ -9,13 +9,6 @@ use systemprompt_models::auth::{JwtAudience, Permission, permissions_to_string};
 
 use super::ClientCredentialsError;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
     scopes
         .iter()
@@ -23,13 +16,6 @@ pub fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
         .collect()
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn authorize_client_grant(
     requested: &[Permission],
     client_scopes: &[String],
@@ -85,13 +71,6 @@ pub fn authorize_client_grant(
     Ok(granted)
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn resolve_audience(
     requested: Option<&str>,
     global_config: &Config,

@@ -25,13 +25,6 @@ const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
 const PROMPT_REPAIR_ACTION: &str = "Remove secret-bearing content, correct system instructions, \
                                     or shorten the conversation before retrying";
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_policy_denial(message: &str) -> Response<Body> {
     build_error_response(
         StatusCode::BAD_REQUEST,
@@ -41,13 +34,6 @@ pub fn build_policy_denial(message: &str) -> Response<Body> {
 }
 
 #[must_use]
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn policy_denial_message(message: &str) -> String {
     if message.starts_with(POLICY_DENIAL_PREFIX) {
         return message.to_owned();
@@ -56,13 +42,6 @@ pub fn policy_denial_message(message: &str) -> String {
 }
 
 #[must_use]
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn error_type_for(status: StatusCode) -> &'static str {
     match status {
         StatusCode::UNAUTHORIZED => "authentication_error",
@@ -74,13 +53,6 @@ pub fn error_type_for(status: StatusCode) -> &'static str {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionError> {
     let (persist, inner) = match e {
         DispatchError::PreAudit(inner) => (true, inner),
@@ -137,13 +109,6 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
     if let Some(repair) = e.downcast_ref::<PromptRepairRequired>() {
         return (
@@ -225,13 +190,6 @@ pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_error_response(status: StatusCode, error_type: &str, message: &str) -> Response<Body> {
     (
         status,

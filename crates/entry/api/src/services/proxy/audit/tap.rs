@@ -24,7 +24,7 @@ use super::super::backend::{ResponseHandler, SSE_KEEPALIVE_INTERVAL, SseKeepaliv
 use super::McpAudit;
 use super::jsonrpc::{ToolCallOutcome, extract_sse_data, parse_response_frame};
 
-pub(crate) async fn record(
+pub async fn record(
     response: reqwest::Response,
     audit: McpAudit,
 ) -> Result<Response<Body>, String> {

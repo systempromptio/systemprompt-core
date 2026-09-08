@@ -7070,6 +7070,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-runtime",
@@ -7086,7 +7087,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.38.0"
+version = "0.47.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",

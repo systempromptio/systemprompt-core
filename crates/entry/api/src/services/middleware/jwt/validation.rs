@@ -17,25 +17,11 @@ use crate::services::middleware::session::{SessionAttestationError, attest_sessi
 
 const USER_CACHE_TTL: Duration = Duration::from_secs(30);
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct ValidatedUser {
     pub user: AuthUser,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct UserCache {
     entries: Mutex<HashMap<UserId, (AuthUser, Instant)>>,
@@ -48,13 +34,6 @@ impl Default for UserCache {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 impl UserCache {
     pub fn new() -> Arc<Self> {
         Arc::new(Self::default())
@@ -83,13 +62,6 @@ impl UserCache {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn validate_user_exists(
     user_provider: &Arc<dyn UserProvider>,
     cache: &Arc<UserCache>,
@@ -143,13 +115,6 @@ fn require_active(
     Ok(ValidatedUser { user })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn user_is_admin(user: &AuthUser) -> bool {
     user.roles
         .iter()

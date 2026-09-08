@@ -20,18 +20,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod client_credentials;
-mod token_exchange;
+pub mod client_credentials;
+pub mod token_exchange;
 
 pub use client_credentials::{ClientCredentialsError, ClientTokenOptions, generate_client_tokens};
 pub use token_exchange::{
     TokenExchangeRequest, build_act_chain, handle_token_exchange, intersect_scopes, peek_issuer,
 };
-
-#[cfg(feature = "test-api")]
-pub use client_credentials::test_api as client_credentials_test_api;
-#[cfg(feature = "test-api")]
-pub use token_exchange::test_api;
 
 use super::TokenResponse;
 use anyhow::Result;

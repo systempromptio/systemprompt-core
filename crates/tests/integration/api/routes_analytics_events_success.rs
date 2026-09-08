@@ -87,8 +87,7 @@ async fn record_event_created_with_seeded_session() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app =
-        analytics::test_api::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let app = analytics::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
 
     let body = serde_json::json!({ "event_type": "page_view", "page_url": page_url });
     let resp = app.oneshot(json_post("/events", body)).await?;
@@ -105,8 +104,7 @@ async fn page_exit_fanout_created_with_seeded_session() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app =
-        analytics::test_api::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let app = analytics::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -141,7 +139,7 @@ async fn page_exit_fanout_created_with_seeded_session() -> anyhow::Result<()> {
 async fn page_exit_with_zero_time_on_page_skips_fanout() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let app = analytics::test_api::router_with_routing(&ctx, None).layer(Extension(req_ctx));
+    let app = analytics::router_with_routing(&ctx, None).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -157,7 +155,7 @@ async fn page_exit_with_zero_time_on_page_skips_fanout() -> anyhow::Result<()> {
 async fn page_exit_without_data_skips_fanout() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let req_ctx = seed_session_ctx(&db).await?;
-    let app = analytics::test_api::router_with_routing(&ctx, None).layer(Extension(req_ctx));
+    let app = analytics::router_with_routing(&ctx, None).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "event_type": "page_exit",
@@ -177,8 +175,7 @@ async fn batch_created_with_seeded_session_and_fanout() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app =
-        analytics::test_api::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
+    let app = analytics::router_with_routing(&ctx, Some(routing)).layer(Extension(req_ctx));
 
     let body = serde_json::json!({
         "events": [

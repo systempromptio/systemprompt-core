@@ -1,9 +1,10 @@
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde_json::{Value, json};
 use systemprompt_api::routes::oauth::endpoints::token::generation::TokenExchangeRequest;
-use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::{
-    ID_TOKEN_TYPE, issue_id_jag, validate_oidc_subject, validate_subject_token,
-};
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::ID_TOKEN_TYPE;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::issue::issue_id_jag;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::oidc::validate_oidc_subject;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::validate_subject_token;
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;
 use systemprompt_models::profile::TrustedIssuer;

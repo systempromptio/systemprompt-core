@@ -8,7 +8,7 @@
 //! narrowing are pinned here.
 
 use systemprompt_api::routes::oauth::endpoints::token::generation::ClientCredentialsError;
-use systemprompt_api::routes::oauth::endpoints::token::generation::client_credentials_test_api::{
+use systemprompt_api::routes::oauth::endpoints::token::generation::client_credentials::{
     authorize_client_grant, resolve_audience, scope_permissions,
 };
 use systemprompt_models::Config;

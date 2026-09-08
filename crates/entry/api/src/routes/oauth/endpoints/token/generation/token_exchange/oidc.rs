@@ -14,13 +14,6 @@ use systemprompt_security::keys::JwksClient;
 use super::super::super::TokenError;
 use super::subject::{jwks_host_allowlist, peek_issuer};
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct OidcSubject {
     pub(super) sub: String,
@@ -34,13 +27,6 @@ struct OidcIdTokenClaims {
     email: Option<String>,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn validate_oidc_subject(token: &str, global: &Config) -> Result<OidcSubject> {
     let header = decode_header(token).map_err(|e| {
         anyhow!(TokenError::InvalidRequest {

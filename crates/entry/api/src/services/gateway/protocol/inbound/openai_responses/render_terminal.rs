@@ -21,13 +21,6 @@ use super::super::super::canonical_response::{
 };
 use super::render::current_unix_ts;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_terminal_event_frame(
     event: &CanonicalEvent,
     snapshot: &CanonicalResponse,

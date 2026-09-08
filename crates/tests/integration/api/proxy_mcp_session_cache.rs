@@ -1,13 +1,9 @@
 //! Proxy MCP session-identity store — drives `enrich_with_cached_identity` and
-//! `handle_mcp_response` through the engine `test-api` seam, with wiremock
-//! providing real backend responses. Also covers the external-MCP outbound
-//! header filter and resolve-error mapping.
+//! `handle_mcp_response` with wiremock providing real backend responses. Also
+//! covers the external-MCP outbound header filter and resolve-error mapping.
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
-use systemprompt_api::services::proxy::engine_test_api::{
-    ResponseArgs, TestSessionCache, enrich_with_cached_identity, handle_mcp_response,
-    map_resolve_error, outbound_headers,
-};
+use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
 use systemprompt_identifiers::SessionId;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
@@ -17,6 +13,9 @@ use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::{request_context, setup_ctx};
+use super::proxy_support::{
+    ResponseArgs, TestSessionCache, enrich_with_cached_identity, handle_mcp_response,
+};
 
 async fn cache() -> TestSessionCache {
     let (pool, _ctx) = setup_ctx().await.expect("test db");
@@ -223,7 +222,7 @@ fn outbound_headers_filters_to_mcp_passthrough_set() {
     incoming.insert("authorization", HeaderValue::from_static("Bearer leak-me"));
     incoming.insert("cookie", HeaderValue::from_static("secret=1"));
 
-    let out = outbound_headers(&incoming, Vec::new());
+    let out = outbound_headers(&incoming, std::collections::HashMap::new());
     assert!(
         out.get("authorization").is_none(),
         "client bearer must not leak"
@@ -236,10 +235,10 @@ fn outbound_headers_filters_to_mcp_passthrough_set() {
 fn outbound_headers_provider_credential_wins() {
     let mut incoming = HeaderMap::new();
     incoming.insert("content-type", HeaderValue::from_static("application/json"));
-    let provider = vec![(
+    let provider = std::collections::HashMap::from([(
         HeaderName::from_static("authorization"),
         HeaderValue::from_static("Bearer provider-token"),
-    )];
+    )]);
     let out = outbound_headers(&incoming, provider);
     assert_eq!(
         out.get("authorization").and_then(|v| v.to_str().ok()),
@@ -249,7 +248,8 @@ fn outbound_headers_provider_credential_wins() {
 
 #[test]
 fn resolve_error_mapping_covers_auth_and_availability() {
-    let auth = map_resolve_error("ext", McpDomainError::AuthRequired("login".to_owned()));
+    let auth =
+        map_resolve_error("ext", McpDomainError::AuthRequired("login".to_owned())).to_string();
     assert!(auth.contains("Authentication required"), "{auth}");
 
     let unavailable = map_resolve_error(
@@ -258,9 +258,10 @@ fn resolve_error_mapping_covers_auth_and_availability() {
             server: "ext".to_owned(),
             message: "vault down".to_owned(),
         },
-    );
+    )
+    .to_string();
     assert!(unavailable.contains("vault down"), "{unavailable}");
 
-    let other = map_resolve_error("ext", McpDomainError::Transport("boom".to_owned()));
+    let other = map_resolve_error("ext", McpDomainError::Transport("boom".to_owned())).to_string();
     assert!(other.contains("Invalid response"), "{other}");
 }

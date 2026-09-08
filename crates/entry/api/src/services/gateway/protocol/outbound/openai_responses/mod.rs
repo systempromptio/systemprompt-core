@@ -15,13 +15,6 @@ use systemprompt_models::wire::openai_responses as codec;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use systemprompt_models::wire::openai_responses::{
-        buffered_defect, build_request_body, parse_response_object, sse_to_canonical_events,
-    };
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenAiResponsesOutbound;
 

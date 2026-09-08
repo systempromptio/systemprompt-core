@@ -6,13 +6,6 @@
 use serde_json::{Value, json};
 use systemprompt_logging::LogLevel;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn hex_lower(bytes: &[u8]) -> String {
     let mut out = String::with_capacity(bytes.len() * 2);
     for b in bytes {
@@ -21,13 +14,6 @@ pub fn hex_lower(bytes: &[u8]) -> String {
     out
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub const fn severity_to_level(severity_number: i32) -> LogLevel {
     match severity_number {
         ..=4 => LogLevel::Trace,
@@ -38,13 +24,6 @@ pub const fn severity_to_level(severity_number: i32) -> LogLevel {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn any_value_to_string(
     value: Option<&opentelemetry_proto::tonic::common::v1::AnyValue>,
 ) -> String {
@@ -64,13 +43,6 @@ pub fn any_value_to_string(
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn attrs_to_json(attrs: &[opentelemetry_proto::tonic::common::v1::KeyValue]) -> Value {
     let mut map = serde_json::Map::new();
     for kv in attrs {

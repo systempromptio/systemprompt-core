@@ -7,23 +7,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod audit;
+pub mod audit;
 pub mod auth;
 mod backend;
 mod client;
-mod engine;
+pub mod engine;
 mod errors;
-mod resolver;
+pub mod resolver;
 
 pub use engine::{ProxyEngine, ProxyKind, ProxyTarget};
-
-#[cfg(feature = "test-api")]
-pub use audit::test_api;
-#[cfg(feature = "test-api")]
-pub use auth::test_api as auth_test_api;
-#[cfg(feature = "test-api")]
-pub use engine::test_api as engine_test_api;
-#[cfg(feature = "test-api")]
 pub use errors::ProxyError;
-#[cfg(feature = "test-api")]
-pub use resolver::test_api as resolver_test_api;

@@ -18,13 +18,6 @@ use serde_json::json;
 use super::super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
 use super::render::{finish_reason, render_chunk, usage_object};
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_terminal_event_frame(
     event: &CanonicalEvent,
     snapshot: &CanonicalResponse,

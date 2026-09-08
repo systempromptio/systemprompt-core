@@ -19,13 +19,6 @@ use super::super::InboundParseError;
 use content::{parse_message, parse_system};
 use tools::{parse_thinking, parse_tool, parse_tool_choice};
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")

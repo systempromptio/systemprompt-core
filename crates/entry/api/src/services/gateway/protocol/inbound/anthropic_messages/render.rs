@@ -13,13 +13,6 @@ use super::super::super::canonical_response::{
     ContentBlockKind,
 };
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_response_value(response: &CanonicalResponse) -> Value {
     let content: Vec<Value> = response
         .content
@@ -43,13 +36,6 @@ pub fn render_response_value(response: &CanonicalResponse) -> Value {
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let value = match event {
         CanonicalEvent::MessageStart {
@@ -192,13 +178,6 @@ fn render_message_stop(stop_reason: Option<CanonicalStopReason>) -> Bytes {
     render_message_stop_with_usage(stop_reason, None)
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_terminal_frames(snapshot: &CanonicalResponse) -> Bytes {
     render_message_stop_with_usage(snapshot.stop_reason, Some(&snapshot.usage))
 }

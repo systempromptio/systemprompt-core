@@ -24,13 +24,6 @@ struct IssOnly {
     iss: String,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
@@ -39,13 +32,6 @@ pub struct SubjectIdentity {
     pub bound_resource: Option<String>,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn validate_subject_token(
     token: &str,
     token_type: &str,
@@ -207,13 +193,6 @@ fn validate_self_issued(
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {
     trusted
         .iter()

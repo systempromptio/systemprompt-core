@@ -276,13 +276,13 @@ fn non_empty(text: String) -> String {
     }
 }
 
-fn parse_form(body: &[u8]) -> HashMap<String, String> {
+pub fn parse_form(body: &[u8]) -> HashMap<String, String> {
     url::form_urlencoded::parse(body)
         .map(|(k, v)| (k.into_owned(), v.into_owned()))
         .collect()
 }
 
-fn slash_command_from_form<S: std::hash::BuildHasher>(
+pub fn slash_command_from_form<S: std::hash::BuildHasher>(
     form: &HashMap<String, String, S>,
 ) -> Option<SlashCommand> {
     let json = serde_json::json!({
@@ -294,23 +294,4 @@ fn slash_command_from_form<S: std::hash::BuildHasher>(
         "response_url": form.get("response_url")?,
     });
     serde_json::from_value(json).ok()
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use std::collections::HashMap;
-
-    use systemprompt_slack::events::SlashCommand;
-
-    #[must_use]
-    pub fn parse_form(body: &[u8]) -> HashMap<String, String> {
-        super::parse_form(body)
-    }
-
-    #[must_use]
-    pub fn slash_command_from_form<S: std::hash::BuildHasher>(
-        form: &HashMap<String, String, S>,
-    ) -> Option<SlashCommand> {
-        super::slash_command_from_form(form)
-    }
 }

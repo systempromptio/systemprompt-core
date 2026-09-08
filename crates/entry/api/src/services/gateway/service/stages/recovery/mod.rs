@@ -14,7 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod canonical;
-mod repair;
+pub mod repair;
 
 use std::borrow::Cow;
 
@@ -33,10 +33,6 @@ use systemprompt_security::policy::{
     PolicyContext, SECRET_SCAN_ID,
 };
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "Re-exported for recovery regression tests")
-)]
 pub use self::repair::repair_prompt;
 use crate::services::gateway::protocol::outbound::PreparedBody;
 use crate::services::gateway::service::RECOVERY_COUNT_HEADER;
@@ -49,10 +45,6 @@ const UNSAFE_REPAIR_DETAIL: &str =
 const FALLBACK_LOCATION: &str = "provider_payload";
 
 #[derive(Debug)]
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "Re-exported for recovery regression tests")
-)]
 pub struct PromptRecovery {
     pub evaluation: Evaluation,
     pub recovery_count: usize,
@@ -75,10 +67,6 @@ pub(super) fn governed_input(surface: &ForwardedSurface) -> GovernedInput {
     )
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "Re-exported for recovery regression tests")
-)]
 pub fn govern_prompt(
     engine: &GovernanceEngine,
     ctx: &PolicyContext<'_>,
@@ -187,10 +175,6 @@ fn safe_locations(input: &GovernedInput, findings: &[SecretFinding]) -> Vec<Stri
     locations
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "Re-exported for recovery regression tests")
-)]
 pub fn attach_recovery_count(response: &mut Response, count: usize) {
     if count > 0 {
         response

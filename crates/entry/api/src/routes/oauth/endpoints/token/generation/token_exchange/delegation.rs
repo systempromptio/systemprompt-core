@@ -20,13 +20,6 @@ use super::super::RequestOrigin;
 use super::claims::intersect_scopes;
 use super::subject::SubjectIdentity;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn validate_resource<'a>(
     resource: Option<&'a str>,
     global: &Config,

@@ -14,15 +14,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod convert;
+pub mod convert;
 
-mod ingest;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::convert::{any_value_to_string, attrs_to_json, hex_lower, severity_to_level};
-    pub use super::ingest::{ingest_logs, ingest_metrics, ingest_traces};
-}
+pub mod ingest;
 
 use axum::body::Body;
 use axum::extract::Request;

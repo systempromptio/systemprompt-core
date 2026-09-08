@@ -1,34 +1,22 @@
-//! Test-only seams over the proxy session identity store and external MCP
-//! helpers.
-//!
-//! Copyright (c) systemprompt.io — Business Source License 1.1.
-//! See <https://systemprompt.io> for licensing details.
+//! Test-side wrappers over the proxy MCP session-identity store, seeding and
+//! reading rows directly so the suites can assert on cache state.
 
-use std::collections::HashMap;
-
-use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use axum::http::HeaderMap;
+use systemprompt_api::services::proxy::engine::mcp_session::{self, McpResponseCtx};
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
-use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, UserType};
 use uuid::Uuid;
 
-use super::mcp_session::McpResponseCtx;
-
 #[derive(Clone, Debug)]
 pub struct TestSessionCache(McpProxyIdentityRepository);
 
 impl TestSessionCache {
-    #[must_use]
     pub const fn new(identities: McpProxyIdentityRepository) -> Self {
         Self(identities)
     }
 
-    #[expect(
-        clippy::expect_used,
-        reason = "test-only seam, compiled out unless `test-api` is enabled"
-    )]
     pub async fn seed(
         &self,
         session_id: &SessionId,
@@ -50,10 +38,6 @@ impl TestSessionCache {
             .expect("seed proxy identity");
     }
 
-    #[expect(
-        clippy::expect_used,
-        reason = "test-only seam, compiled out unless `test-api` is enabled"
-    )]
     pub async fn cached_user(&self, session_id: &SessionId) -> Option<Uuid> {
         self.0
             .find(session_id)
@@ -69,13 +53,8 @@ pub async fn enrich_with_cached_identity(
     req_context: RequestContext,
     service_name: &str,
 ) -> RequestContext {
-    super::mcp_session::enrich_with_cached_identity(
-        &cache.0,
-        request_headers,
-        req_context,
-        service_name,
-    )
-    .await
+    mcp_session::enrich_with_cached_identity(&cache.0, request_headers, req_context, service_name)
+        .await
 }
 
 #[derive(Debug)]
@@ -90,7 +69,7 @@ pub struct ResponseArgs<'a> {
 }
 
 pub async fn handle_mcp_response(args: ResponseArgs<'_>) {
-    super::mcp_session::handle_mcp_response(McpResponseCtx {
+    mcp_session::handle_mcp_response(McpResponseCtx {
         identities: &args.cache.0,
         response: args.response,
         request_headers: args.request_headers,
@@ -100,17 +79,4 @@ pub async fn handle_mcp_response(args: ResponseArgs<'_>) {
         method_str: args.method_str,
     })
     .await;
-}
-
-#[must_use]
-pub fn outbound_headers(
-    incoming: &HeaderMap,
-    provider: Vec<(HeaderName, HeaderValue)>,
-) -> HeaderMap {
-    super::external::outbound_headers(incoming, provider.into_iter().collect::<HashMap<_, _>>())
-}
-
-#[must_use]
-pub fn map_resolve_error(service_name: &str, error: McpDomainError) -> String {
-    super::external::map_resolve_error(service_name, error).to_string()
 }

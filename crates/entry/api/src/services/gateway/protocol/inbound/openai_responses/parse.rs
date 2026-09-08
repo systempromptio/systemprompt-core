@@ -31,13 +31,6 @@ const HOSTED_TOOL_TYPES: &[&str] = &[
     "web_search_preview_2025_03_11",
 ];
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")

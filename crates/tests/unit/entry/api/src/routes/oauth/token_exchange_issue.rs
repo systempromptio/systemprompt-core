@@ -11,8 +11,10 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use systemprompt_api::routes::oauth::endpoints::token::generation::TokenExchangeRequest;
-use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::{
-    ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE, issue_id_jag, validate_oidc_subject,
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::issue::issue_id_jag;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::oidc::validate_oidc_subject;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::{
+    ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE,
 };
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::Config;

@@ -1,6 +1,8 @@
-//! The A2A backend leg of the messaging pipeline: mint a per-user bearer, build
-//! the blocking `message/send` request the proxy forwards to the agent service,
-//! run it through [`ProxyEngine`], and extract the agent's reply text.
+//! The A2A backend leg of the messaging pipeline.
+//!
+//! Mints a per-user bearer, builds the blocking `message/send` request the
+//! proxy forwards to the agent service, runs it through [`ProxyEngine`], and
+//! extracts the agent's reply text.
 //!
 //! This is the only part of dispatch that speaks the A2A wire protocol; the
 //! orchestration in [`super`] stays platform- and protocol-agnostic.
@@ -30,7 +32,7 @@ use super::{MessagingError, MessagingInbound};
 
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
-pub(super) fn permissions_for(roles: &[String]) -> Vec<Permission> {
+pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
     let held = if roles.iter().any(|role| role == BaseRoles::ADMIN) {
         Permission::Admin
     } else {
@@ -168,7 +170,7 @@ pub(super) async fn run_agent(
     Ok(reply_text(parsed.result.as_ref()))
 }
 
-pub(super) fn reply_text(task: Option<&Task>) -> String {
+pub fn reply_text(task: Option<&Task>) -> String {
     let Some(task) = task else {
         return String::new();
     };

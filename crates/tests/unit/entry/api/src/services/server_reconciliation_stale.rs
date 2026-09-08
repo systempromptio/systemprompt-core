@@ -3,11 +3,8 @@
 //! Wrong in one direction it deletes the row of a live service and stops
 //! tracking a running process; wrong in the other it adopts a PID the OS has
 //! since handed to something else, and the next reap signals a stranger.
-//!
-//! The seam for this was already exported as `reconciliation_test_api` and had
-//! no callers.
 
-use systemprompt_api::services::server::reconciliation_test_api::service_row_is_stale;
+use systemprompt_api::services::server::lifecycle::reconciliation::service_row_is_stale;
 
 const KEY: &str = "mcp_server";
 const NAME: &str = "some-service";

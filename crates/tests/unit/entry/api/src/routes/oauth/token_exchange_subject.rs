@@ -8,7 +8,7 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::{
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::{
     jwks_host_allowlist, validate_subject_token,
 };
 use systemprompt_identifiers::UserId;

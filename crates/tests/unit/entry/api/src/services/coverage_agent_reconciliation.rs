@@ -1,4 +1,4 @@
-use systemprompt_api::services::server::reconciliation_test_api::reconcile_agents;
+use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
 use systemprompt_test_fixtures::{
     fixture_app_context, fixture_db_pool, init_services_bootstrap, install_test_signing_key,
 };
@@ -59,7 +59,7 @@ async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
     install_test_signing_key();
     let pool = fixture_db_pool(&boot.database_url).await.unwrap();
     let ctx = fixture_app_context(&pool, &boot.database_url).unwrap();
-    let err = reconcile_agents(&ctx).await.unwrap_err();
+    let err = reconcile_agents(&ctx, None).await.unwrap_err();
     let message = err.to_string();
     assert!(message.contains("failed to start after retry"), "{message}");
     assert!(message.contains(&name), "{message}");
@@ -78,6 +78,6 @@ async fn coverage_disabled_agent_does_not_block_api_startup_on_an_occupied_port(
     install_test_signing_key();
     let pool = fixture_db_pool(&boot.database_url).await.unwrap();
     let ctx = fixture_app_context(&pool, &boot.database_url).unwrap();
-    assert_eq!(reconcile_agents(&ctx).await.unwrap(), 0);
+    assert_eq!(reconcile_agents(&ctx, None).await.unwrap(), 0);
     assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
 }

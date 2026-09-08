@@ -2,6 +2,16 @@
 
 ## [0.48.0] - 2026-09-08
 
+### Changed
+
+- Teams inbound resolves Bot Framework endpoints from `TeamsAppConfig.endpoints`; `MessagingError::user_message` is always the opaque sentence (detail remains on `Display`).
+
+### Removed
+
+- The `test-api` Cargo feature; route helpers (gateway messages auth/dispatch/extract, OTel convert/ingest, OAuth token-exchange and client-credentials internals, webhook payload helpers) are public in their own modules.
+- The `test-api` service seams; gateway protocol codecs, gateway service stages, stream tap accumulator, proxy engine/auth/resolver, server lifecycle/shutdown/health, and middleware helpers are public in their own modules, and the delegating `*_test_api` wrappers are gone.
+- `ThoughtSignatureCache::poison_lock`.
+
 ### Fixed
 
 - Recover gateway conversations by sanitizing detected secrets in the exact provider-bound payload, including resent system prompts and history. Preserve tool-call pairing and signed payloads, recheck repaired content before forwarding, audit sanitization, and report `x-systemprompt-recovery-count` on buffered and streaming responses. Unsafe repairs and incomplete inspection return `prompt_repair_required` guidance. Enforced MCP actions remain blocked; warn-only and disabled policies retain their behavior.

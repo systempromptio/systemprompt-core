@@ -25,10 +25,6 @@ use super::canonical::replace_canonical;
 use super::{governed_input, inspection_budget};
 use crate::services::gateway::protocol::outbound::PreparedBody;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "Re-exported for recovery regression tests")
-)]
 pub fn repair_prompt(
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,

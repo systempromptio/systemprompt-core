@@ -20,13 +20,9 @@ use thiserror::Error;
 use super::super::TokenResponse;
 use super::RequestOrigin;
 
-mod scope;
+pub mod scope;
 
-#[cfg(feature = "test-api")]
 pub use self::scope::{authorize_client_grant, resolve_audience, scope_permissions};
-
-#[cfg(not(feature = "test-api"))]
-use self::scope::{authorize_client_grant, resolve_audience, scope_permissions};
 
 #[derive(Debug, Default)]
 pub struct ClientTokenOptions<'a> {
@@ -66,11 +62,6 @@ pub enum ClientCredentialsError {
     JwtSign(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("Config unavailable: {0}")]
     ConfigUnavailable(#[source] Box<dyn std::error::Error + Send + Sync>),
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::{authorize_client_grant, resolve_audience, scope_permissions};
 }
 
 struct OwnerProfile {

@@ -30,11 +30,11 @@ const EXPIRY_SKEW: Duration = Duration::from_secs(120);
 const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 
 #[derive(Debug, Deserialize)]
-pub(super) struct ServiceAccountKey {
+pub struct ServiceAccountKey {
     pub(super) client_email: String,
     pub(super) private_key: String,
     #[serde(default = "default_token_uri")]
-    pub(super) token_uri: String,
+    pub token_uri: String,
 }
 
 fn default_token_uri() -> String {
@@ -42,7 +42,7 @@ fn default_token_uri() -> String {
 }
 
 impl ServiceAccountKey {
-    pub(super) fn parse(secret: &str) -> Result<Option<Self>> {
+    pub fn parse(secret: &str) -> Result<Option<Self>> {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(secret) else {
             return Ok(None);
         };
@@ -82,7 +82,7 @@ fn cache() -> &'static RwLock<HashMap<String, CachedToken>> {
     CACHE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
-pub(super) async fn access_token(secret_name: &str, key: &ServiceAccountKey) -> Result<String> {
+pub async fn access_token(secret_name: &str, key: &ServiceAccountKey) -> Result<String> {
     if let Some(token) = cached(secret_name) {
         return Ok(token);
     }

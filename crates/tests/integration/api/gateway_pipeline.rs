@@ -1074,7 +1074,8 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
     .await
     .unwrap_err();
     let response =
-        systemprompt_api::routes::gateway::messages::test_api::map_dispatch_error(error).unwrap();
+        systemprompt_api::routes::gateway::messages::dispatch::errors::map_dispatch_error(error)
+            .unwrap();
     assert_eq!(response.status(), status);
     if status == http::StatusCode::TOO_MANY_REQUESTS {
         assert_eq!(response.headers()["retry-after"], "42");

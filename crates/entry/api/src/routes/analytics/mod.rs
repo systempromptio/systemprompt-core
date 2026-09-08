@@ -18,7 +18,14 @@ use systemprompt_runtime::AppContext;
 pub use events::AnalyticsState;
 
 pub fn router(ctx: &AppContext) -> Router {
-    routes().with_state(state(ctx, ctx.content_routing()))
+    router_with_routing(ctx, ctx.content_routing())
+}
+
+pub fn router_with_routing(
+    ctx: &AppContext,
+    content_routing: Option<Arc<dyn ContentRouting>>,
+) -> Router {
+    routes().with_state(state(ctx, content_routing))
 }
 
 fn state(ctx: &AppContext, content_routing: Option<Arc<dyn ContentRouting>>) -> AnalyticsState {
@@ -36,19 +43,4 @@ fn routes() -> Router<AnalyticsState> {
         .route("/events", post(events::record_event))
         .route("/events/batch", post(events::record_events_batch))
         .route("/stream", get(stream::analytics_stream))
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use super::{Router, routes, state};
-    use std::sync::Arc;
-    use systemprompt_models::ContentRouting;
-    use systemprompt_runtime::AppContext;
-
-    pub fn router_with_routing(
-        ctx: &AppContext,
-        content_routing: Option<Arc<dyn ContentRouting>>,
-    ) -> Router {
-        routes().with_state(state(ctx, content_routing))
-    }
 }

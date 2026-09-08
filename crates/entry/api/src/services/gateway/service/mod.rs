@@ -8,28 +8,17 @@
     reason = "Arc::clone usage is intentional and ergonomic in this gateway dispatch path"
 )]
 
-mod credentials;
+pub mod credentials;
 mod error;
-mod finalize;
-mod resolve;
-mod stages;
+pub mod finalize;
+pub mod resolve;
+pub mod stages;
 
 pub use self::error::{
     DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
     QuotaExceeded, SafetyBlocked,
 };
 pub(super) use self::finalize::run_response_safety_scan;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::credentials::test_api::{google_access_token, google_token_uri};
-    pub use super::finalize::safety::blocks_at_phase;
-    pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
-    pub use super::resolve::{describe_route_match, enforce_route_requirements};
-    pub use super::stages::recovery::{
-        PromptRecovery, attach_recovery_count, govern_prompt, repair_prompt,
-    };
-}
 
 use std::sync::Arc;
 

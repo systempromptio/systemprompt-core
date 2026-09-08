@@ -14,13 +14,6 @@ use systemprompt_identifiers::AiRequestId;
 
 use super::extract::RejectionPartial;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn persist_rejection(
     repos: &crate::services::gateway::GatewayRepositories,
     ai_request_id: &AiRequestId,
@@ -38,13 +31,6 @@ pub async fn persist_rejection(
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_rejection_record(
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,

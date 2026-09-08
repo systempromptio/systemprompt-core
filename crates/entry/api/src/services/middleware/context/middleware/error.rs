@@ -8,7 +8,7 @@ use systemprompt_identifiers::TraceId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::ContextExtractionError;
 
-pub(crate) fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError {
+pub fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError {
     match error {
         ContextExtractionError::MissingAuthHeader => {
             ApiError::unauthorized("Missing Authorization header")
