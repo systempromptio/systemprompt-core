@@ -164,8 +164,8 @@ pub fn model_entries(registry: &ProviderRegistry, surfaces: &[ApiSurface]) -> Ve
             ModelEntry {
                 kind: "model",
                 display_name: humanize_model_id(&id),
-                id,
                 created_at: model_created_at(&id),
+                id,
             },
         );
     }
