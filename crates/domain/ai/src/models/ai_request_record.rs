@@ -6,8 +6,8 @@
 use systemprompt_models::wire::canonical::CanonicalUsage;
 
 use systemprompt_identifiers::{
-    Actor, AiRequestId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
-    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
+    Actor, AiRequestId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
+    McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -44,6 +44,35 @@ impl RequestStatus {
     }
 }
 
+/// What a request was for. A `probe` never carries a reply worth reading:
+/// clients send `max_tokens: 1` calls to count tokens or warm a prompt cache.
+/// `utility` is reserved for a consumer that can tell a title-generation
+/// side call from a real turn; the gateway itself only distinguishes probes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RequestKind {
+    #[default]
+    Turn,
+    Probe,
+    Utility,
+}
+
+impl RequestKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Turn => "turn",
+            Self::Probe => "probe",
+            Self::Utility => "utility",
+        }
+    }
+
+    pub const fn classify(max_tokens: Option<u32>) -> Self {
+        match max_tokens {
+            Some(n) if n <= 1 => Self::Probe,
+            _ => Self::Turn,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AiRequestRecord {
     pub request_id: AiRequestId,
@@ -53,6 +82,8 @@ pub struct AiRequestRecord {
     pub task_id: Option<TaskId>,
     pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub client_session_id: Option<ClientSessionId>,
+    pub request_kind: RequestKind,
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
@@ -89,6 +120,8 @@ pub struct AiRequestRecordBuilder {
     task_id: Option<TaskId>,
     context_id: ContextId,
     gateway_conversation_id: Option<GatewayConversationId>,
+    client_session_id: Option<ClientSessionId>,
+    request_kind: RequestKind,
     provider_request_id: Option<ProviderRequestId>,
     trace_id: Option<TraceId>,
     mcp_execution_id: Option<McpExecutionId>,
@@ -116,6 +149,8 @@ impl AiRequestRecordBuilder {
             task_id: None,
             context_id,
             gateway_conversation_id: None,
+            client_session_id: None,
+            request_kind: RequestKind::Turn,
             provider_request_id: None,
             trace_id: None,
             mcp_execution_id: None,
@@ -158,6 +193,18 @@ impl AiRequestRecordBuilder {
 
     pub fn gateway_conversation_id(mut self, id: GatewayConversationId) -> Self {
         self.gateway_conversation_id = Some(id);
+        self
+    }
+
+    #[must_use]
+    pub fn client_session_id(mut self, id: ClientSessionId) -> Self {
+        self.client_session_id = Some(id);
+        self
+    }
+
+    #[must_use]
+    pub const fn request_kind(mut self, kind: RequestKind) -> Self {
+        self.request_kind = kind;
         self
     }
 
@@ -259,6 +306,8 @@ impl AiRequestRecordBuilder {
             task_id: self.task_id,
             context_id: self.context_id,
             gateway_conversation_id: self.gateway_conversation_id,
+            client_session_id: self.client_session_id,
+            request_kind: self.request_kind,
             provider_request_id: self.provider_request_id,
             trace_id: self.trace_id,
             mcp_execution_id: self.mcp_execution_id,

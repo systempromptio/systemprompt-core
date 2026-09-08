@@ -47,6 +47,7 @@ pub(super) async fn dispatch_to_provider(
         session_id,
         context_id,
         gateway_conversation_id,
+        client_session_id,
     } = prepared;
 
     let max_tokens = gateway_request.max_tokens;
@@ -58,6 +59,7 @@ pub(super) async fn dispatch_to_provider(
         session_id: Some(session_id),
         context_id,
         gateway_conversation_id: Some(gateway_conversation_id),
+        client_session_id,
         trace_id: Some(principal.trace_id().clone()),
         access_scope: principal.access_scope(),
         client_id: principal.client_id().cloned(),

@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::IdValidationError;
-use crate::{EvalRunId, GatewayConversationId, SessionId, TaskId};
+use crate::{ClientSessionId, EvalRunId, GatewayConversationId, SessionId, TaskId};
 
 crate::define_id!(ContextId, validated, schema, validate_uuid_v4);
 
@@ -57,6 +57,16 @@ impl ContextId {
     pub fn derived_from_session(session_id: &SessionId) -> Self {
         Self::new_unchecked(
             uuid::Uuid::new_v5(&SESSION_NAMESPACE, session_id.as_str().as_bytes()).to_string(),
+        )
+    }
+
+    // Why: same namespace and bytes as `derived_from_session` over the bare
+    // UUID, so a gateway request and the hook events of one Claude Code run
+    // resolve to the same context row.
+    #[must_use]
+    pub fn derived_from_client_session(session: &ClientSessionId) -> Self {
+        Self::new_unchecked(
+            uuid::Uuid::new_v5(&SESSION_NAMESPACE, session.as_str().as_bytes()).to_string(),
         )
     }
 

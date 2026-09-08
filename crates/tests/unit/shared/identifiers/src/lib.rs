@@ -27,6 +27,9 @@ mod ai_tests;
 mod auth_tests;
 
 #[cfg(test)]
+mod client_session_tests;
+
+#[cfg(test)]
 mod client_tests;
 
 #[cfg(test)]

@@ -22,7 +22,8 @@ use anyhow::Result;
 use systemprompt_ai::models::RequestStatus;
 use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_identifiers::{
-    AiRequestId, ClientId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
+    AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
+    UserId,
 };
 use systemprompt_security::policy::types::AccessScope;
 
@@ -43,6 +44,7 @@ pub struct GatewayRequestContext {
     pub session_id: Option<SessionId>,
     pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub client_session_id: Option<ClientSessionId>,
     pub trace_id: Option<TraceId>,
     pub access_scope: AccessScope,
     pub client_id: Option<ClientId>,

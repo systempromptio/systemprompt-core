@@ -192,6 +192,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         gateway_conversation_id: Some(
             GatewayConversationId::try_new("ctx_00112233aabbccdd".to_owned()).expect("id"),
         ),
+        client_session_id: None,
         trace_id: Some(TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,

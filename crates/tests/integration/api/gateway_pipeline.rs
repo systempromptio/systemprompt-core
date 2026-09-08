@@ -164,6 +164,7 @@ pub(super) fn dispatch_ctx(
             ))
             .expect("valid conversation id"),
         ),
+        client_session_id: None,
         trace_id: Some(TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,

@@ -17,7 +17,9 @@ use axum::extract::Request;
 use axum::http::StatusCode;
 use bytes::Bytes;
 use std::sync::Arc;
-use systemprompt_identifiers::{ContextId, GatewayConversationId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
+};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
@@ -39,6 +41,7 @@ pub struct RejectionPartial {
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
     pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub client_session_id: Option<ClientSessionId>,
     pub trace_id: Option<TraceId>,
     pub provider: Option<String>,
     pub model: Option<String>,
@@ -57,6 +60,7 @@ pub(super) struct PreparedRequest {
     pub session_id: SessionId,
     pub context_id: ContextId,
     pub gateway_conversation_id: GatewayConversationId,
+    pub client_session_id: Option<ClientSessionId>,
 }
 
 pub(super) async fn extract_request_context(
@@ -92,7 +96,7 @@ pub(super) async fn extract_request_context(
 
     let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
-    let (gateway_conversation_id, context_id) =
+    let (gateway_conversation_id, context_id, client_session_id) =
         derive_conversation(header_gateway_conversation, &gateway_request, partial)?;
     let route = gateway_config
         .resolve_route(&rc.services.providers, &gateway_request)
@@ -134,14 +138,21 @@ pub(super) async fn extract_request_context(
         session_id,
         context_id,
         gateway_conversation_id,
+        client_session_id,
     })
 }
 
+// Why: the gateway conversation id stays the per-thread prefix hash (it keys
+// thought-signature hydration, and subagents inside one run have different
+// prefixes), but the *context* a request lands in follows the caller's own
+// session when it names one, so every thread of one Claude Code run shares
+// the context its hook events already write to. An explicit header pins both.
 pub fn derive_conversation(
     header_gateway_conversation: Option<GatewayConversationId>,
     gateway_request: &CanonicalRequest,
     partial: &mut RejectionPartial,
-) -> Result<(GatewayConversationId, ContextId), (StatusCode, String)> {
+) -> Result<(GatewayConversationId, ContextId, Option<ClientSessionId>), (StatusCode, String)> {
+    let header_supplied = header_gateway_conversation.is_some();
     let gateway_conversation_id = match header_gateway_conversation {
         Some(c) => c,
         None => gateway_request
@@ -154,10 +165,15 @@ pub fn derive_conversation(
                 )
             })?,
     };
-    let context_id = ContextId::derived_from_gateway_conversation(&gateway_conversation_id);
+    let client_session_id = gateway_request.client_session_id();
+    let context_id = match (&client_session_id, header_supplied) {
+        (Some(session), false) => ContextId::derived_from_client_session(session),
+        _ => ContextId::derived_from_gateway_conversation(&gateway_conversation_id),
+    };
     partial.context_id = Some(context_id.clone());
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
-    Ok((gateway_conversation_id, context_id))
+    partial.client_session_id.clone_from(&client_session_id);
+    Ok((gateway_conversation_id, context_id, client_session_id))
 }
 
 fn upstream_model_for(

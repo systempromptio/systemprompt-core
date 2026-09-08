@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use bytes::Bytes;
-use systemprompt_ai::models::ai_request_record::AiRequestRecord;
+use systemprompt_ai::models::ai_request_record::{AiRequestRecord, RequestKind};
 use systemprompt_ai::repository::UpsertPayloadParams;
 
 use super::GatewayAudit;
@@ -23,7 +23,8 @@ impl GatewayAudit {
         )
         .provider(self.ctx.provider.clone())
         .model(self.ctx.model.clone())
-        .streaming(self.ctx.is_streaming);
+        .streaming(self.ctx.is_streaming)
+        .request_kind(RequestKind::classify(self.ctx.max_tokens));
         if let Some(instance_id) = systemprompt_logging::instance_id() {
             record = record.instance_id(instance_id.clone());
         }
@@ -35,6 +36,9 @@ impl GatewayAudit {
         }
         if let Some(g) = &self.ctx.gateway_conversation_id {
             record = record.gateway_conversation_id(g.clone());
+        }
+        if let Some(cs) = &self.ctx.client_session_id {
+            record = record.client_session_id(cs.clone());
         }
         if let Some(t) = &self.ctx.trace_id {
             record = record.trace_id(t.clone());

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use systemprompt_identifiers::{
-    ContextId, DbValue, EvalRunId, GatewayConversationId, SessionId, TaskId, ToDbValue,
+    ClientSessionId, ContextId, DbValue, EvalRunId, GatewayConversationId, SessionId, TaskId,
+    ToDbValue,
 };
 
 #[test]
@@ -71,6 +72,17 @@ fn serde_round_trip() {
 fn serde_rejects_malformed_string() {
     let result: Result<ContextId, _> = serde_json::from_str("\"not-a-uuid\"");
     assert!(result.is_err());
+}
+
+#[test]
+fn derived_from_client_session_equals_the_hook_pipelines_session_derivation() {
+    let raw = "9d2c4e6f-1a3b-4c5d-8e7f-0a1b2c3d4e5f";
+    let client = ClientSessionId::try_new(raw).expect("valid uuid");
+    assert_eq!(
+        ContextId::derived_from_client_session(&client),
+        ContextId::derived_from_session(&SessionId::new(raw)),
+        "a gateway request and the hook events of one run must share a context"
+    );
 }
 
 #[test]

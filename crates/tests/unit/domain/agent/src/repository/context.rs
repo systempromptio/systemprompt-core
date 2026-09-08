@@ -362,3 +362,71 @@ async fn ensure_context_is_idempotent_and_never_clobbers_an_existing_row() {
         "ensure_context must never overwrite an existing row"
     );
 }
+
+#[tokio::test]
+async fn ensure_context_bumps_updated_at_and_fills_only_a_missing_session() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let repo = ctx_repo(&pool).await;
+
+    let context_id = ContextId::derived_from_session(&session_id);
+    let without_session = systemprompt_traits::EnsureContextParams {
+        context_id: &context_id,
+        user_id: &user_id,
+        session_id: None,
+        name: "derived-name",
+        kind: ContextKind::Session.as_str(),
+    };
+    repo.ensure_context(&without_session, ContextKind::Session)
+        .await
+        .expect("first ensure");
+    let first = repo.get_context(&context_id, &user_id).await.expect("get");
+    assert!(stored_session(&pool, &context_id).await.is_none());
+
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    let with_session = systemprompt_traits::EnsureContextParams {
+        session_id: Some(&session_id),
+        ..without_session
+    };
+    repo.ensure_context(&with_session, ContextKind::Session)
+        .await
+        .expect("second ensure");
+    let second = repo.get_context(&context_id, &user_id).await.expect("get");
+    assert!(
+        second.updated_at > first.updated_at,
+        "a repeat ensure is activity and must move updated_at"
+    );
+    assert_eq!(
+        stored_session(&pool, &context_id).await.as_deref(),
+        Some(session_id.as_str())
+    );
+
+    let (_, other_session) = seed_user_and_session(&pool).await;
+    let other = systemprompt_traits::EnsureContextParams {
+        session_id: Some(&other_session),
+        ..without_session
+    };
+    repo.ensure_context(&other, ContextKind::Session)
+        .await
+        .expect("third ensure");
+    assert_eq!(
+        stored_session(&pool, &context_id).await.as_deref(),
+        Some(session_id.as_str()),
+        "an existing session is never overwritten"
+    );
+}
+
+async fn stored_session(
+    pool: &systemprompt_database::DbPool,
+    context_id: &ContextId,
+) -> Option<String> {
+    sqlx::query_scalar::<_, Option<String>>(
+        "SELECT session_id FROM user_contexts WHERE context_id = $1",
+    )
+    .bind(context_id.as_str())
+    .fetch_one(&**pool)
+    .await
+    .expect("read session")
+}

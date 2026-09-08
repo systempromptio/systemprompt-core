@@ -30,7 +30,7 @@ pub mod image_generation;
 pub mod providers;
 
 pub use ai_request_record::{
-    AiRequestRecord, AiRequestRecordBuilder, CacheInfo, RequestStatus, TokenInfo,
+    AiRequestRecord, AiRequestRecordBuilder, CacheInfo, RequestKind, RequestStatus, TokenInfo,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

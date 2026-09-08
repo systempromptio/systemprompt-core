@@ -12,11 +12,14 @@ test conveniences live in the test workspace.
 
 ### Added
 
+- **Gateway:** a `/v1/messages` request whose `metadata.user_id` names a Claude Code session (`…_session_<uuid>`) lands in the context that session's hook events already write to (`ContextId::derived_from_client_session`, equal to `derived_from_session` over the bare uuid). The gateway conversation id is unchanged, so thought-signature hydration stays per thread. New `ClientSessionId` identifier and `CanonicalRequest::client_session_id()`.
+- **AI:** `ai_requests.client_session_id` and `ai_requests.request_kind` (`turn` | `probe` | `utility`; `probe` when `max_tokens <= 1`) with migration 021, on `AiRequestRecord` as `client_session_id` and `request_kind: RequestKind`.
 - **Models:** `TeamsAppConfig.endpoints` (`TeamsEndpoints`) selects the Bot Framework OpenID-configuration and token endpoints, defaulting to the public cloud, so a sovereign-cloud tenant can point a Teams app at its own login host.
 - **Slack / Teams:** `SlackClient::with_base_url`, `SlackClient::with_users_info_url`, `TeamsClient::with_endpoints`, `ActivityTokenVerifier::with_openid_url` and `TokenProvider::with_token_url` are ordinary constructors.
 
 ### Changed
 
+- **Agent:** `ContextRepository::ensure_context` bumps `updated_at` and fills a missing `session_id` on a repeat call instead of `DO NOTHING`; `name` and `kind` are still never overwritten.
 - **Security:** JWKS fetches accept `http://` only for loopback hosts (RFC 8252 §8.3); every other issuer stays HTTPS-only.
 - **API:** Teams inbound resolves Bot Framework endpoints from `TeamsAppConfig.endpoints` instead of a feature-gated environment read. `MessagingError::user_message` is always the opaque sentence; the detail remains on `Display`.
 - **CLI:** `admin agents tools` and `plugins mcp tools` share one `commands::shared::mcp_tools` probe module; `runner::{routing, profile_routing}` are public.

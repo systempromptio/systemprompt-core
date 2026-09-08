@@ -6,7 +6,7 @@
 use axum::http::StatusCode;
 use bytes::Bytes;
 use systemprompt_ai::models::RequestStatus;
-use systemprompt_ai::models::ai_request_record::AiRequestRecord;
+use systemprompt_ai::models::ai_request_record::{AiRequestRecord, RequestKind};
 use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
 };
@@ -51,7 +51,11 @@ pub fn build_rejection_record(
     });
     let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id)
         .streaming(partial.is_streaming)
+        .request_kind(RequestKind::classify(partial.max_tokens))
         .rejected();
+    if let Some(cs) = &partial.client_session_id {
+        builder = builder.client_session_id(cs.clone());
+    }
     if let Some(instance_id) = systemprompt_logging::instance_id() {
         builder = builder.instance_id(instance_id.clone());
     }
