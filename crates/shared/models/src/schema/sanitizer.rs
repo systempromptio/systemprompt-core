@@ -123,6 +123,31 @@ impl SchemaSanitizer {
             obj.remove("propertyNames");
             obj.remove("patternProperties");
         }
+        if !self.capabilities.features.tuple_items {
+            Self::flatten_tuple_items(obj);
+        }
+    }
+
+    // Why: Gemini's function_declarations reject `prefixItems` outright
+    // ("Unknown name"), and Claude Code's tool schemas use tuple arrays such as
+    // a `[field, operator, value]` triple. The array survives as a plain
+    // `items` schema — the shared prefix schema when every position agrees,
+    // otherwise an untyped item — instead of the whole request failing.
+    fn flatten_tuple_items(obj: &mut Map<String, Value>) {
+        let prefix = obj.remove("prefixItems");
+        obj.remove("additionalItems");
+        obj.remove("unevaluatedItems");
+        let Some(Value::Array(prefix)) = prefix else {
+            return;
+        };
+        if obj.contains_key("items") {
+            return;
+        }
+        let items = match prefix.split_first() {
+            Some((first, rest)) if rest.iter().all(|s| s == first) => first.clone(),
+            _ => Value::Object(Map::new()),
+        };
+        obj.insert("items".to_owned(), items);
     }
 
     fn remove_metadata_fields(obj: &mut Map<String, Value>) {
@@ -136,6 +161,7 @@ impl SchemaSanitizer {
             "contentMediaType",
             "contentEncoding",
             "outputSchema",
+            "$comment",
         ] {
             obj.remove(field);
         }
@@ -163,6 +189,7 @@ impl SchemaSanitizer {
     fn sanitize_nested_schemas(&self, obj: &mut Map<String, Value>) {
         self.sanitize_properties(obj);
         self.sanitize_items(obj);
+        self.sanitize_prefix_items(obj);
         self.sanitize_composition_keywords(obj);
         self.sanitize_additional_properties(obj);
     }
@@ -173,6 +200,14 @@ impl SchemaSanitizer {
         {
             for value in props_obj.values_mut() {
                 *value = self.sanitize(value.clone());
+            }
+        }
+    }
+
+    fn sanitize_prefix_items(&self, obj: &mut Map<String, Value>) {
+        if let Some(Value::Array(prefix)) = obj.get_mut("prefixItems") {
+            for item in prefix.iter_mut() {
+                *item = self.sanitize(item.clone());
             }
         }
     }

@@ -23,6 +23,7 @@ pub(crate) fn remove_managed_settings() -> Result<Vec<String>, MdmError> {
             source,
         })?;
     root.remove("apiKeyHelper");
+    super::model_picker::strip_owned_rows(&mut root);
     if let Some(serde_json::Value::Object(env)) = root.get_mut("env") {
         for key in [
             "ANTHROPIC_BASE_URL",
@@ -55,5 +56,6 @@ pub(crate) fn remove_all() -> Result<Vec<String>, MdmError> {
         }
     }
     lines.extend(remove_managed_settings()?);
+    super::model_picker::remove_sidecar()?;
     Ok(lines)
 }

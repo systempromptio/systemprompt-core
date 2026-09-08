@@ -78,13 +78,40 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
     out
 }
 
+// Why: Claude Desktop breaks when `inferenceModels` names a non-Anthropic
+// family, so whatever list arrives — an installed policy, a future catalog
+// feed — is filtered to Claude ids here, at the one place the key is built.
+// Non-Claude gateway models are Claude Code's business (its `modelPicker`).
+fn anthropic_only(models: serde_json::Value) -> serde_json::Value {
+    let Some(arr) = models.as_array() else {
+        return json_of(&super::default_inference_models());
+    };
+    let kept: Vec<serde_json::Value> = arr
+        .iter()
+        .filter(|m| {
+            m.as_str().is_some_and(|id| {
+                let lower = id.to_ascii_lowercase();
+                lower.contains("claude") || lower.contains("anthropic")
+            })
+        })
+        .cloned()
+        .collect();
+    if kept.is_empty() {
+        json_of(&super::default_inference_models())
+    } else {
+        serde_json::Value::Array(kept)
+    }
+}
+
 fn inference_entries(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
-    let models = inputs
-        .models
-        .as_deref()
-        .filter(|m| !m.trim().is_empty())
-        .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
-        .unwrap_or_else(|| json_of(&super::default_inference_models()));
+    let models = anthropic_only(
+        inputs
+            .models
+            .as_deref()
+            .filter(|m| !m.trim().is_empty())
+            .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
+            .unwrap_or_else(|| json_of(&super::default_inference_models())),
+    );
     vec![
         ("inferenceProvider", PolicyValue::Str("gateway".into())),
         (

@@ -167,6 +167,16 @@ async fn seed_default_model_from_profile(
         }) => return Ok(()),
         Err(e) => return Err(SyncError::Network(e.to_string())),
     };
+    let rows =
+        crate::install::mdm::claude_code_settings::model_picker::picker_rows(&profile.providers);
+    match crate::install::mdm::claude_code_settings::apply_model_picker(&rows) {
+        Ok(lines) => {
+            for line in lines {
+                tracing::info!(target: "bridge::install", detail = %line, "claude code model picker");
+            }
+        },
+        Err(e) => return Err(SyncError::Network(format!("claude code model picker: {e}"))),
+    }
     let Some(model) = profile.default_model.as_deref() else {
         return Ok(());
     };

@@ -19,6 +19,7 @@ fn all_disabled() -> ProviderCapabilities {
             const_values: false,
             exclusive_bounds: false,
             property_names: false,
+            tuple_items: false,
         },
     }
 }
@@ -39,6 +40,7 @@ fn all_enabled() -> ProviderCapabilities {
             const_values: true,
             exclusive_bounds: true,
             property_names: true,
+            tuple_items: true,
         },
     }
 }
@@ -434,5 +436,88 @@ mod sanitize_edge_cases {
         let once = s.sanitize(clean.clone());
         let twice = s.sanitize(once.clone());
         assert_eq!(once, twice);
+    }
+}
+
+mod tuple_items {
+    use super::*;
+
+    fn where_clause_tool() -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "object",
+                    "properties": {
+                        "where": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "prefixItems": [
+                                    {"type": "string"},
+                                    {"type": "string", "enum": ["eq", "lt"]},
+                                    {}
+                                ],
+                                "additionalItems": false
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    #[test]
+    fn gemini_flattens_nested_prefix_items_to_untyped_items() {
+        let out =
+            SchemaSanitizer::new(ProviderCapabilities::gemini()).sanitize(where_clause_tool());
+        let inner = &out["properties"]["query"]["properties"]["where"]["items"];
+        assert!(inner.get("prefixItems").is_none(), "{inner}");
+        assert!(inner.get("additionalItems").is_none(), "{inner}");
+        assert_eq!(inner["type"], json!("array"));
+        assert_eq!(
+            inner["items"],
+            json!({}),
+            "mixed positions collapse to an untyped item"
+        );
+    }
+
+    #[test]
+    fn uniform_prefix_items_become_that_item_schema() {
+        let out = SchemaSanitizer::new(all_disabled()).sanitize(json!({
+            "type": "array",
+            "prefixItems": [{"type": "number"}, {"type": "number"}]
+        }));
+        assert_eq!(out["items"], json!({"type": "number"}));
+        assert!(out.get("prefixItems").is_none());
+    }
+
+    #[test]
+    fn existing_items_win_over_prefix_items() {
+        let out = SchemaSanitizer::new(all_disabled()).sanitize(json!({
+            "type": "array",
+            "items": {"type": "string"},
+            "prefixItems": [{"type": "integer"}]
+        }));
+        assert_eq!(out["items"], json!({"type": "string"}));
+    }
+
+    #[test]
+    fn anthropic_keeps_and_sanitizes_prefix_items() {
+        let caps = ProviderCapabilities::anthropic();
+        assert!(caps.features.tuple_items);
+        let out = SchemaSanitizer::new(caps).sanitize(json!({
+            "type": "array",
+            "prefixItems": [{"type": "string", "$comment": "drop me"}]
+        }));
+        let prefix = out["prefixItems"].as_array().expect("kept");
+        assert_eq!(prefix.len(), 1);
+        assert!(prefix[0].get("$comment").is_none());
+    }
+
+    #[test]
+    fn gemini_capabilities_exclude_tuple_items() {
+        assert!(!ProviderCapabilities::gemini().features.tuple_items);
+        assert!(ProviderCapabilities::openai().features.tuple_items);
     }
 }

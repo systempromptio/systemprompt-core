@@ -249,3 +249,51 @@ fn a_valid_org_uuid_is_carried_and_a_malformed_one_is_dropped() {
     assert!(value_of(&with(Some("garbage")), "deploymentOrganizationUuid").is_none());
     assert!(value_of(&with(None), "deploymentOrganizationUuid").is_none());
 }
+
+// Why: Claude Desktop breaks on non-Anthropic model families. The gateway
+// serves Gemini for Claude Code's benefit; it must never reach this key.
+#[test]
+fn desktop_inference_models_never_carry_non_anthropic_ids() {
+    let headers = BTreeMap::new();
+    let policy = claude_desktop_policy(&PolicyInputs {
+        base_url: "http://127.0.0.1:48217",
+        api_key: "s",
+        models: Some(
+            r#"["gemini-2.5-flash", "claude-sonnet-5", "vertex-gemini-2.5-pro"]"#.to_owned(),
+        ),
+        headers: &headers,
+        egress_allowed_hosts: None,
+        org_uuid: None,
+        mcp_servers: &[],
+    });
+    let PolicyValue::Json(models) = value_of(&policy, "inferenceModels").expect("models present")
+    else {
+        panic!("inferenceModels must be a JSON value");
+    };
+    assert_eq!(models, &serde_json::json!(["claude-sonnet-5"]));
+}
+
+#[test]
+fn an_all_gemini_list_falls_back_to_the_default_claude_models() {
+    let headers = BTreeMap::new();
+    let policy = claude_desktop_policy(&PolicyInputs {
+        base_url: "http://127.0.0.1:48217",
+        api_key: "s",
+        models: Some(r#"["gemini-2.5-flash"]"#.to_owned()),
+        headers: &headers,
+        egress_allowed_hosts: None,
+        org_uuid: None,
+        mcp_servers: &[],
+    });
+    let PolicyValue::Json(models) = value_of(&policy, "inferenceModels").expect("models present")
+    else {
+        panic!("inferenceModels must be a JSON value");
+    };
+    let ids = models.as_array().expect("array");
+    assert!(!ids.is_empty());
+    assert!(
+        ids.iter()
+            .all(|m| m.as_str().is_some_and(|s| s.contains("claude"))),
+        "{models}"
+    );
+}

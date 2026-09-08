@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod model_picker;
 mod removal;
 
 use std::fs;
@@ -22,6 +23,7 @@ use std::path::{Path, PathBuf};
 use crate::fsutil::FileReceipt;
 use crate::install::mdm::{MdmApplication, MdmError};
 
+pub(crate) use self::model_picker::apply_model_picker;
 pub(crate) use self::removal::{remove_all, remove_managed_settings};
 
 // Why: Claude Code reads ~/.claude/settings.json, not
@@ -58,7 +60,7 @@ pub(super) fn key_helper_path() -> Option<PathBuf> {
     )
 }
 
-pub(super) fn standalone_settings_path() -> Option<PathBuf> {
+pub fn standalone_settings_path() -> Option<PathBuf> {
     Some(
         crate::basedirs::config_dir()?
             .join(crate::brand::brand().config_dir)

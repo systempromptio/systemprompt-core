@@ -35,6 +35,9 @@ pub struct SchemaFeatures {
     pub const_values: bool,
     pub exclusive_bounds: bool,
     pub property_names: bool,
+    /// Draft 2020-12 tuple arrays: `prefixItems` (+ `additionalItems`,
+    /// `unevaluatedItems`). Providers without it get a plain `items` schema.
+    pub tuple_items: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +63,7 @@ impl ProviderCapabilities {
                 const_values: true,
                 exclusive_bounds: true,
                 property_names: true,
+                tuple_items: true,
             },
         }
     }
@@ -80,6 +84,7 @@ impl ProviderCapabilities {
                 const_values: true,
                 exclusive_bounds: true,
                 property_names: true,
+                tuple_items: true,
             },
         }
     }
@@ -100,6 +105,7 @@ impl ProviderCapabilities {
                 const_values: false,
                 exclusive_bounds: false,
                 property_names: false,
+                tuple_items: false,
             },
         }
     }
