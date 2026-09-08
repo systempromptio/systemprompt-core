@@ -29,7 +29,7 @@ pub enum ExecutionTarget {
     },
 }
 
-pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
+pub fn determine_execution_target() -> Result<ExecutionTarget> {
     let Ok(profile) = ProfileBootstrap::get() else {
         tracing::debug!("No profile loaded, routing to local execution");
         return Ok(ExecutionTarget::Local);
@@ -80,7 +80,7 @@ pub(super) fn determine_execution_target() -> Result<ExecutionTarget> {
     })
 }
 
-pub(super) fn resolve_tenant(
+pub fn resolve_tenant(
     profile: &systemprompt_models::Profile,
     tenant: &systemprompt_identifiers::TenantId,
 ) -> Result<StoredTenant> {
@@ -99,7 +99,7 @@ pub(super) fn resolve_tenant(
         .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant))
 }
 
-pub(super) fn load_session_for_key(
+pub fn load_session_for_key(
     profile: &systemprompt_models::Profile,
     session_key: &SessionKey,
     issuer: &str,
@@ -135,7 +135,7 @@ impl OutputSink for StdioSink {
     }
 }
 
-pub(in crate::runner) async fn execute_remote(
+pub async fn execute_remote(
     hostname: &str,
     token: &str,
     context: &str,

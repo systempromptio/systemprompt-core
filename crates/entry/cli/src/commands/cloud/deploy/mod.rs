@@ -15,7 +15,7 @@
 
 pub mod pipeline;
 pub mod progress;
-mod select;
+pub mod select;
 
 pub(in crate::commands::cloud) use progress::CliDeployProgress;
 pub(in crate::commands::cloud) use select::resolve_profile;
@@ -134,15 +134,4 @@ pub fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<D
         hostname: tenant.hostname.clone(),
         creds,
     })
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub fn resolve_profile(
-        prompter: &dyn crate::interactive::Prompter,
-        name: Option<&str>,
-        config: &crate::CliConfig,
-    ) -> anyhow::Result<(systemprompt_models::Profile, std::path::PathBuf)> {
-        super::select::resolve_profile(prompter, name, config)
-    }
 }

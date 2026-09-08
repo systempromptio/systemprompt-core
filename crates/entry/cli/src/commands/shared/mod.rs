@@ -8,4 +8,6 @@
 
 mod validation;
 
+pub mod mcp_tools;
+
 pub use validation::{ValidationIssue, ValidationOutput};

@@ -1,4 +1,4 @@
-//! MCP tool probing for `admin agents tools`.
+//! MCP tool probing shared by `admin agents tools` and `plugins mcp tools`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,10 +25,6 @@ fn probe_context(server_name: &str) -> RequestContext {
     )
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "re-exported with test-api")
-)]
 #[derive(Debug)]
 pub struct ToolInfo {
     pub name: String,
@@ -38,10 +34,6 @@ pub struct ToolInfo {
     pub output_schema: Option<serde_json::Value>,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "re-exported with test-api")
-)]
 pub async fn list_tools_unauthenticated(
     server_name: &str,
     port: u16,
@@ -82,10 +74,6 @@ pub async fn list_tools_unauthenticated(
     Ok(tools)
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(unreachable_pub, reason = "re-exported with test-api")
-)]
 pub async fn list_tools_authenticated(
     server_name: &str,
     port: u16,

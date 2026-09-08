@@ -8,9 +8,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
-use super::tools_client::{list_tools_authenticated, list_tools_unauthenticated};
 use super::tools_schema::print_schema_view;
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
+use crate::commands::shared::mcp_tools::{list_tools_authenticated, list_tools_unauthenticated};
 use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;

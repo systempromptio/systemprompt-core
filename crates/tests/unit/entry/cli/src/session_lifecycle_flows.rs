@@ -264,7 +264,7 @@ fn coverage_manifest_plugins_are_listed_by_type_and_shown_case_insensitively() {
 #[test]
 fn coverage_deploy_selection_excludes_local_profiles_and_resolves_named_profiles() {
     use systemprompt_cli::ScriptedPrompter;
-    use systemprompt_cli::cloud::deploy::test_api::resolve_profile;
+    use systemprompt_cli::cloud::deploy::select::resolve_profile;
     let project = Project::new("unused", true);
     let config = CliConfig::new()
         .with_interactive(true)

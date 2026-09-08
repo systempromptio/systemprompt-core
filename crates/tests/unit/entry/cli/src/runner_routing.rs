@@ -1,19 +1,22 @@
 //! The routing plane: which command may bypass cloud routing, what a profile
 //! that cannot reach its tenant is allowed to do, and what the failure advises.
 //!
-//! These decisions live behind `run` and are reachable only through
-//! `systemprompt_cli::test_api`, the runner's delegating seam. The read paths
-//! resolve against the checkout's own `.systemprompt` directory, so they are
-//! driven only where the outcome is a refusal — nothing here writes.
+//! These decisions live in `systemprompt_cli::runner::routing` and
+//! `systemprompt_cli::runner::profile_routing`. The read paths resolve against
+//! the checkout's own `.systemprompt` directory, so they are driven only where
+//! the outcome is a refusal — nothing here writes.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
 use systemprompt_cli::args::Cli;
 use systemprompt_cli::descriptor::RoutingClass;
-use systemprompt_cli::test_api::{
-    ExecutionTarget, allow_local_execution, confirm_remote_job_run, determine_execution_target,
-    execute_remote, is_cloud_bypass_command, load_session_for_key, remediation_for, resolve_tenant,
+use systemprompt_cli::runner::profile_routing::{
+    allow_local_execution, confirm_remote_job_run, is_cloud_bypass_command, remediation_for,
+};
+use systemprompt_cli::runner::routing::{
+    ExecutionTarget, determine_execution_target, execute_remote, load_session_for_key,
+    resolve_tenant,
 };
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_cloud::SessionKey;

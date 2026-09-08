@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Changed
+
+- MCP tool probing for `admin agents tools` and `plugins mcp tools` shares one `commands::shared::mcp_tools` module.
+
+### Removed
+
+- The `test-api` Cargo feature and the `runner::test_api` delegating module; routing helpers are public in `runner::{routing, profile_routing}`.
+
 ## [0.47.0] - 2026-09-06
 
 ### Added

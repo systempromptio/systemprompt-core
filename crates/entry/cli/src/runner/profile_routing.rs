@@ -78,7 +78,7 @@ async fn enforce_routing_policy(
     Ok(())
 }
 
-pub(super) const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {
+pub const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {
     matches!(
         command,
         Some(args::Commands::Cloud(_) | args::Commands::Admin(admin::AdminCommands::Session(_)))
@@ -156,7 +156,7 @@ async fn try_remote_routing(
     Ok(())
 }
 
-pub(super) fn confirm_remote_job_run(
+pub fn confirm_remote_job_run(
     cli: &args::Cli,
     cli_config: &CliConfig,
     profile_name: &str,
@@ -190,7 +190,7 @@ pub(super) fn confirm_remote_job_run(
     )
 }
 
-pub(super) fn allow_local_execution(
+pub fn allow_local_execution(
     profile: &systemprompt_models::Profile,
     class: RoutingClass,
     reason: &str,
@@ -221,7 +221,7 @@ pub(super) fn allow_local_execution(
     )
 }
 
-pub(super) fn remediation_for(reason: &str) -> &'static str {
+pub fn remediation_for(reason: &str) -> &'static str {
     if reason.contains("load tenants") || reason.contains("tenant") {
         "Run 'systemprompt cloud tenant list' to sync the tenant store, and check you are in the \
          project directory this profile belongs to."

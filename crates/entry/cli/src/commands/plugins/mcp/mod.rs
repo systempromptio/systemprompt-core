@@ -12,7 +12,6 @@ pub mod logs_db;
 mod logs_disk;
 mod status;
 mod tools;
-mod tools_client;
 mod tools_schema;
 pub mod types;
 pub mod validate;
@@ -98,9 +97,4 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
     }
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::tools_client::{ToolInfo, list_tools_authenticated, list_tools_unauthenticated};
 }

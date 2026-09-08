@@ -3,7 +3,7 @@
 //! Each submodule owns one command domain — [`admin`], [`analytics`],
 //! [`cloud`], [`core`], [`infrastructure`], [`plugins`], [`web`], and the
 //! build tooling in [`build`] — and exposes its own clap subcommand tree.
-//! The private `shared` module holds helpers used across those groups.
+//! The [`shared`] module holds helpers used across those groups.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,5 +15,5 @@ pub mod cloud;
 pub mod core;
 pub mod infrastructure;
 pub mod plugins;
-mod shared;
+pub mod shared;
 pub mod web;

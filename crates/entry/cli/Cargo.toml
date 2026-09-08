@@ -93,9 +93,6 @@ regex = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
 
-[features]
-test-api = []
-
 [dev-dependencies]
 futures = { workspace = true }
 jsonwebtoken = { workspace = true }

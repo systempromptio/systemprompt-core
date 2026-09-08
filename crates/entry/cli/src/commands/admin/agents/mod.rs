@@ -30,7 +30,6 @@ pub mod show;
 mod status;
 mod task;
 mod tools;
-mod tools_mcp;
 pub mod validate;
 
 use anyhow::{Context, Result};
@@ -125,9 +124,4 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
     };
     render_result(&result, &ctx.cli);
     Ok(())
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::tools_mcp::{ToolInfo, list_tools_authenticated, list_tools_unauthenticated};
 }

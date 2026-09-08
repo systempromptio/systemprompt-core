@@ -74,7 +74,7 @@ fn select_profile_interactive(
         .context("Failed to select profile")
 }
 
-pub(in crate::commands::cloud) fn resolve_profile(
+pub fn resolve_profile(
     prompter: &dyn Prompter,
     profile_name: Option<&str>,
     config: &CliConfig,
