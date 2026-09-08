@@ -521,3 +521,49 @@ mod tuple_items {
         assert!(ProviderCapabilities::openai().features.tuple_items);
     }
 }
+
+mod enum_type_inference {
+    use super::*;
+
+    // Why: Vertex AI rejected Claude Code's `mode: {const: "fast"}` after the
+    // const→enum conversion left the node without a `type`.
+    #[test]
+    fn const_conversion_infers_the_type_for_gemini() {
+        let out = SchemaSanitizer::new(ProviderCapabilities::gemini())
+            .sanitize(json!({"type": "object", "properties": {"mode": {"const": "fast"}}}));
+        assert_eq!(out["properties"]["mode"]["enum"], json!(["fast"]));
+        assert_eq!(out["properties"]["mode"]["type"], json!("string"));
+    }
+
+    #[test]
+    fn bare_enum_gets_a_type_when_values_agree() {
+        let s = SchemaSanitizer::new(ProviderCapabilities::gemini());
+        assert_eq!(
+            s.sanitize(json!({"enum": [1, 2, 3]}))["type"],
+            json!("integer")
+        );
+        assert_eq!(
+            s.sanitize(json!({"enum": [true]}))["type"],
+            json!("boolean")
+        );
+        assert!(
+            s.sanitize(json!({"enum": ["a", 1]})).get("type").is_none(),
+            "mixed kinds stay untyped rather than guessing"
+        );
+    }
+
+    #[test]
+    fn declared_type_is_left_alone() {
+        let out = SchemaSanitizer::new(ProviderCapabilities::gemini())
+            .sanitize(json!({"type": "string", "const": "x"}));
+        assert_eq!(out["type"], json!("string"));
+        assert_eq!(out["enum"], json!(["x"]));
+    }
+
+    #[test]
+    fn anthropic_keeps_const_and_adds_nothing() {
+        let out =
+            SchemaSanitizer::new(ProviderCapabilities::anthropic()).sanitize(json!({"const": "x"}));
+        assert_eq!(out, json!({"const": "x"}));
+    }
+}
