@@ -1,8 +1,8 @@
 //! Graceful shutdown: signal wait, child termination, forced-exit backstop.
 //!
 //! Ordering matters. Axum starts draining connections only once
-//! [`shutdown_signal`] resolves, so the run loop bounds that drain with
-//! [`join_within_drain_grace`] and arms the hard [`arm_forced_exit`] deadline
+//! `shutdown_signal` resolves, so the run loop bounds that drain with
+//! [`join_within_drain_grace`] and arms the hard `arm_forced_exit` deadline
 //! only afterwards — a single deadline spanning both would let a wedged SSE
 //! stream consume the whole budget and kill the process before any child was
 //! signalled.

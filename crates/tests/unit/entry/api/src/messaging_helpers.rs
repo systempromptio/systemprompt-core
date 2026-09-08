@@ -1,8 +1,9 @@
 //! Unit coverage for the messaging route's pure helpers.
 //!
 //! `parse_form`, `slash_command_from_form`, and `reply_text` are public in
-//! their own modules, as are the surrounding dispatch types. None of this touches the network or the database — the router-driven
-//! handlers are covered by the integration suite.
+//! their own modules, as are the surrounding dispatch types. None of this
+//! touches the network or the database — the router-driven handlers are covered
+//! by the integration suite.
 
 use systemprompt_api::routes::messaging::a2a::{permissions_for, reply_text};
 use systemprompt_api::routes::messaging::{

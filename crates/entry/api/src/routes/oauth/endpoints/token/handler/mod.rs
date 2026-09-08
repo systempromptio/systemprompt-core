@@ -1,5 +1,5 @@
 //! `/oauth/token` endpoint: dispatches by `grant_type` to the per-grant
-//! handlers in [`grants`] and normalizes token-exchange errors back into the
+//! handlers in `grants` and normalizes token-exchange errors back into the
 //! endpoint's `TokenError` wire type.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

@@ -7,7 +7,9 @@
 //! wrong one into an incident report is how a start that "succeeded" gets
 //! mistaken for a start that validated.
 
-use systemprompt_mcp::services::orchestrator::schema_sync::{validate_and_migrate_schemas, validate_schemas};
+use systemprompt_mcp::services::orchestrator::schema_sync::{
+    validate_and_migrate_schemas, validate_schemas,
+};
 use systemprompt_models::mcp::deployment::SchemaDefinition;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap};
 

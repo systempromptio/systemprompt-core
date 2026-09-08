@@ -1,6 +1,6 @@
 //! MCP service reconciliation during server startup.
 //!
-//! [`reconcile_system_services`] cleans stale service rows, reconciles the MCP
+//! `reconcile_system_services` cleans stale service rows, reconciles the MCP
 //! orchestrator to the required set of enabled servers, and verifies each is
 //! registered and running in the database — failing server startup loudly if
 //! any required MCP server is missing, since agents depend on their tools.

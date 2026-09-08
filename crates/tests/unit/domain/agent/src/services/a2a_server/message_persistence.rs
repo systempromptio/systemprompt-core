@@ -9,7 +9,9 @@
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Message, MessageRole, Part, TaskState, TextPart,
 };
-use systemprompt_agent::services::a2a_server::processing::message::persistence::{PersistCompletedTaskParams, persist_completed_task};
+use systemprompt_agent::services::a2a_server::processing::message::persistence::{
+    PersistCompletedTaskParams, persist_completed_task,
+};
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };

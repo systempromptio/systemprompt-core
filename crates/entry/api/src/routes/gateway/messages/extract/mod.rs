@@ -1,6 +1,6 @@
 //! Gateway request extraction and pre-dispatch authorization.
 //!
-//! Turns an inbound HTTP request into a validated [`PreparedRequest`]:
+//! Turns an inbound HTTP request into a validated `PreparedRequest`:
 //! extracts the credential and required headers (see [`headers`]),
 //! authenticates the principal, enforces session binding, parses the canonical
 //! body, resolves the gateway route, and runs the pre-dispatch authz check (see

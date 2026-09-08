@@ -1,8 +1,8 @@
 //! Deterministic coverage for the behavioural-detection input collection.
 //!
 //! `middleware_analytics_detection` drives the fire-and-forget middleware task;
-//! this suite calls `collect_analysis_input` directly so the fingerprint-stats and
-//! session-timeline query branches execute without racing a spawned task:
+//! this suite calls `collect_analysis_input` directly so the fingerprint-stats
+//! and session-timeline query branches execute without racing a spawned task:
 //! one call with a seeded session and a fingerprint (the populated paths), one
 //! with an unknown session and no fingerprint (the early-return / fallback
 //! paths).
