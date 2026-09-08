@@ -157,7 +157,15 @@ fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
         ));
 
         wait_for_requests(&server, 1).await;
-        for _ in 0..5 {
+        // Why: wiremock records the request before the loop has read the 401,
+        // so the latch is awaited on its own; under load a fixed number of
+        // stepped ticks left this assertion racing the response.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while !cache.sign_in_required() && std::time::Instant::now() < deadline {
+            tokio::time::sleep(std::time::Duration::from_secs(31)).await;
+            tokio::task::yield_now().await;
+        }
+        for _ in 0..3 {
             tokio::time::sleep(std::time::Duration::from_secs(31)).await;
             tokio::task::yield_now().await;
         }

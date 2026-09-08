@@ -1,6 +1,6 @@
-use systemprompt_bridge::install::{
-    InstallError, ScheduleRemoval, apply_schedule, emit_schedule, remove_schedule,
-};
+use systemprompt_bridge::install::{InstallError, apply_schedule, emit_schedule};
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+use systemprompt_bridge::install::{ScheduleRemoval, remove_schedule};
 use systemprompt_bridge::schedule::Os;
 use tempfile::TempDir;
 

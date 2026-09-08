@@ -6,9 +6,9 @@ use std::collections::BTreeMap;
 
 use systemprompt_bridge::config::store::document::PolicyDocumentValue;
 use systemprompt_bridge::config::store::plist::render_plist;
-use systemprompt_bridge::config::store::{
-    PolicyDocument, PolicyHive, PolicyTarget, bridge_policy_domain, managed_policy_store,
-};
+use systemprompt_bridge::config::store::{PolicyDocument, PolicyHive, bridge_policy_domain};
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+use systemprompt_bridge::config::store::{PolicyTarget, managed_policy_store};
 
 fn doc(entries: Vec<(&str, PolicyDocumentValue)>) -> PolicyDocument {
     entries
