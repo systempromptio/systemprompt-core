@@ -13,10 +13,10 @@ use std::sync::RwLock;
 
 use serde::Deserialize;
 use systemprompt_models::net::validate_outbound_url;
+use systemprompt_models::services::teams::BOT_FRAMEWORK_TOKEN_URL;
 
 use crate::error::{TeamsError, TeamsResult};
 
-const LOGIN_URL: &str = "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token";
 const SCOPE: &str = "https://api.botframework.com/.default";
 
 const REFRESH_SKEW_SECS: i64 = 60;
@@ -68,12 +68,11 @@ impl TokenProvider {
             http,
             app_id: app_id.into(),
             app_password: app_password.into(),
-            token_url: LOGIN_URL.to_owned(),
+            token_url: BOT_FRAMEWORK_TOKEN_URL.to_owned(),
             cache: RwLock::new(None),
         }
     }
 
-    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_token_url(
         http: reqwest::Client,

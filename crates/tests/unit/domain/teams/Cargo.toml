@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-teams = { workspace = true, features = ["test"] }
+systemprompt-teams = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 

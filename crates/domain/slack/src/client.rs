@@ -47,7 +47,6 @@ impl SlackClient {
         }
     }
 
-    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_base_url(
         http: reqwest::Client,
@@ -62,7 +61,6 @@ impl SlackClient {
         }
     }
 
-    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_users_info_url(mut self, users_info_url: impl Into<String>) -> Self {
         self.users_info_url = users_info_url.into();

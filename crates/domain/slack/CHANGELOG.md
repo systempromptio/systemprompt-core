@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Added
+
+- `SlackClient::with_base_url` and `with_users_info_url` are unconditional constructors.
+
+### Removed
+
+- The `test` Cargo feature.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

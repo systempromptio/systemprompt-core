@@ -72,7 +72,7 @@ pub use skills::{
 pub use slack::{SlackAppConfig, SlackAuthzConfig};
 pub use system_admin::{SystemAdmin, SystemAdminConfig};
 pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
-pub use teams::{TeamsAppConfig, TeamsAuthzConfig};
+pub use teams::{TeamsAppConfig, TeamsAuthzConfig, TeamsEndpoints};
 
 use crate::errors::ConfigValidationError;
 use crate::mcp::{Deployment, McpServerType};

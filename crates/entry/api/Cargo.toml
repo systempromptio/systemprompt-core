@@ -120,7 +120,7 @@ default = []
 # endpoint redirection so a full router happy-path can intercept outbound and
 # inbound HTTP with a loopback mock server. Production builds leave the feature
 # off; the modules stay private and all endpoints stay hardcoded.
-test-api = ["systemprompt-slack/test", "systemprompt-teams/test"]
+test-api = []
 
 [lints]
 workspace = true

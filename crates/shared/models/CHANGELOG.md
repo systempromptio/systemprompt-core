@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Added
+
+- `TeamsAppConfig.endpoints` (`TeamsEndpoints`) selects the Bot Framework OpenID and token endpoints; defaults to the public cloud.
+
 ## [0.47.0] - 2026-09-06
 
 ### Breaking
