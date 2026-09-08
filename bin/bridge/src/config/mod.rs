@@ -22,7 +22,8 @@ use systemprompt_identifiers::ValidatedUrl;
 use crate::ids::{KeystoreRef, PinnedPubKey};
 
 pub use self::profile::{
-    ClaudeConfig, gateway_url_or_default, persist_pinned_pubkey, pinned_pubkey, policy_pubkey,
+    ClaudeConfig, PinSource, PinnedPubkeyState, gateway_origin, gateway_url_or_default,
+    persist_pinned_pubkey, pinned_pubkey, pinned_pubkey_state, policy_pubkey,
 };
 pub use self::write::ConfigWriteError;
 
@@ -89,6 +90,8 @@ pub struct MtlsConfig {
 pub struct SyncConfig {
     #[serde(default)]
     pub pinned_pubkey: Option<PinnedPubKey>,
+    #[serde(default)]
+    pub pinned_pubkey_gateway: Option<String>,
 }
 
 impl Config {

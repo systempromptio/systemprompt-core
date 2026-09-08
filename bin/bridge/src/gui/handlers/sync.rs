@@ -41,7 +41,12 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         }));
     }
     app.ctx.spawn(async move {
-        let allow_tofu = config::pinned_pubkey().is_none();
+        // Why: a config-file pin for another gateway must be re-learned, not
+        // enforced; only an in-force pin turns trust-on-first-use off.
+        let allow_tofu = !matches!(
+            config::pinned_pubkey_state(),
+            config::PinnedPubkeyState::Pinned { .. }
+        );
         let result = tokio::select! {
             () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
             outcome = sync::run_once(&bridge, false, false, allow_tofu) => {
@@ -75,16 +80,22 @@ pub(crate) fn on_sync_finished(
             tracing::info!(summary = %line, "sync completed");
             app.append_log(&line);
             if !summary.host_failures.is_empty() {
-                let hosts: Vec<&str> = summary
+                // Why: a host id alone ("claude-desktop") told the user nothing
+                // about a registry write that did not land; the failure text
+                // names the hive, key and value.
+                let failures: Vec<String> = summary
                     .host_failures
                     .iter()
-                    .map(|f| f.host_id.as_str())
+                    .map(|f| format!("{}: {}", f.host_id, f.error.lines().next().unwrap_or("")))
                     .collect();
                 crate::gui::window::notify_user(
                     &format!("{} synced with failures", crate::brand::brand().app_name),
-                    &format!("These agents did not update: {}", hosts.join(", ")),
+                    &format!("These agents did not update — {}", failures.join("; ")),
                 );
-                app.append_log_warn(format!("These agents did not update: {}", hosts.join(", ")));
+                app.append_log_warn(format!(
+                    "These agents did not update — {}",
+                    failures.join("; ")
+                ));
             }
             emit::emit_sync_progress(app, "completed", Some(&line));
             structured = Some(summary);

@@ -198,18 +198,28 @@ fn check_cached_token(report: &mut Report) {
 }
 
 fn check_pinned_pubkey(report: &mut Report, unpersisted_tofu_pubkey: &AtomicBool) {
-    match config::pinned_pubkey() {
-        Some(k) => report.ok(
+    match config::pinned_pubkey_state() {
+        config::PinnedPubkeyState::Pinned { key, source } => report.ok(
             "pinned manifest pubkey",
-            &format!("{} chars", k.as_str().len()),
+            &format!("{} chars, from the {}", key.as_str().len(), source.label()),
         ),
-        None if unpersisted_tofu_pubkey.load(Ordering::Relaxed) => report.fail(
+        config::PinnedPubkeyState::StaleForGateway {
+            pinned_for,
+            current,
+        } => report.fail(
+            "pinned manifest pubkey",
+            &format!(
+                "pinned for {pinned_for} but the gateway is {current} — the pin is not in effect; \
+                 rerun `sync --allow-tofu` to re-learn it for this gateway"
+            ),
+        ),
+        config::PinnedPubkeyState::Unpinned if unpersisted_tofu_pubkey.load(Ordering::Relaxed) => report.fail(
             "pinned manifest pubkey",
             "fetched over the wire but not written to the config — the pin is not in effect and \
              the next sync will trust any key. Fix the config write (see the activity log for the \
              underlying error), then rerun `sync`",
         ),
-        None => report.fail(
+        config::PinnedPubkeyState::Unpinned => report.fail(
             "pinned manifest pubkey",
             "not pinned — provide it out of band via MDM (`install --apply --pubkey <base64>`) or \
              rerun `sync --allow-tofu`",

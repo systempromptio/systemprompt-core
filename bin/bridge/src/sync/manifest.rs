@@ -100,7 +100,37 @@ fn map_manifest_error(err: ManifestError) -> SyncError {
             SyncError::BridgeTooOld { local, required }
         },
         ManifestError::PayloadParse(e) => SyncError::ManifestShape(e.to_string()),
-        other => SyncError::SignatureFailed(other.to_string()),
+        other => SyncError::ManifestShape(other.to_string()),
+    }
+}
+
+/// A verification failure names where the pin came from and what to do about
+/// it: a policy pin can only be fixed out of band, a config-file pin is
+/// re-learned once it is removed.
+fn signature_failure(
+    err: ManifestError,
+    client: &GatewayClient,
+    source: config::PinSource,
+) -> SyncError {
+    match err {
+        ManifestError::SchemaTooNew { .. }
+        | ManifestError::BridgeTooOld { .. }
+        | ManifestError::PayloadParse(_) => map_manifest_error(err),
+        other => SyncError::SignatureFailed {
+            detail: other.to_string(),
+            gateway: client.base_url().to_string(),
+            pin_source: source.label(),
+            fix: match source {
+                config::PinSource::Policy => {
+                    "Update the policy-supplied key (env var or managed policy) to the key this \
+                     gateway serves at /v1/bridge/pubkey."
+                },
+                config::PinSource::Operator => {
+                    "Remove `pinned_pubkey` from the [sync] section of the config file, or run \
+                     `install --apply --pubkey <base64>`, then sync again."
+                },
+            },
+        },
     }
 }
 
@@ -182,8 +212,9 @@ pub(super) async fn verify_and_decode(
     allow_tofu: bool,
 ) -> Result<SignedManifest, SyncError> {
     if !allow_unsigned {
-        let pubkey = resolve_pubkey(bridge, &fetch.client, allow_tofu).await?;
-        verify_envelope(&fetch.envelope, pubkey.as_str()).map_err(map_manifest_error)?;
+        let (pubkey, source) = resolve_pubkey(bridge, &fetch.client, allow_tofu).await?;
+        verify_envelope(&fetch.envelope, pubkey.as_str())
+            .map_err(|e| signature_failure(e, &fetch.client, source))?;
     }
     decode_payload(&fetch.envelope).map_err(map_manifest_error)
 }
@@ -192,14 +223,30 @@ async fn resolve_pubkey(
     bridge: &crate::context::BridgeContext,
     client: &GatewayClient,
     allow_tofu: bool,
-) -> Result<PinnedPubKey, SyncError> {
-    if let Some(k) = config::pinned_pubkey() {
-        return Ok(k);
+) -> Result<(PinnedPubKey, config::PinSource), SyncError> {
+    match config::pinned_pubkey_state() {
+        config::PinnedPubkeyState::Pinned { key, source } => return Ok((key, source)),
+        config::PinnedPubkeyState::StaleForGateway {
+            pinned_for,
+            current,
+        } => {
+            if !allow_tofu {
+                return Err(SyncError::PubkeyStale {
+                    pinned_for,
+                    current,
+                });
+            }
+            bridge.activity.append(format!(
+                "manifest pubkey on file was pinned for {pinned_for}; re-learning it for {current}"
+            ));
+        },
+        config::PinnedPubkeyState::Unpinned => {
+            if !allow_tofu {
+                return Err(SyncError::PubkeyNotPinned);
+            }
+        },
     }
-    if !allow_tofu {
-        return Err(SyncError::PubkeyNotPinned);
-    }
-    tracing::info!("first-run trust-on-first-use: fetching manifest pubkey from gateway");
+    tracing::info!("trust-on-first-use: fetching manifest pubkey from gateway");
     let fetched = client.fetch_pubkey().await.map_err(|e| {
         map_gateway_error(
             e,
@@ -228,7 +275,7 @@ async fn resolve_pubkey(
             "pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation"
         );
     }
-    Ok(PinnedPubKey::new(fetched))
+    Ok((PinnedPubKey::new(fetched), config::PinSource::Operator))
 }
 
 async fn fetch_fresh_token(http: &reqwest::Client) -> Option<Secret> {

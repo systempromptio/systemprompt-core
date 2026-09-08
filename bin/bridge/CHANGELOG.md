@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.47.0] - 2026-09-08
+
+### Changed
+
+- **Breaking:** the bridge crate version tracks the core release. It had its own numbering (0.38.0) while the white-label brand crate carried a third (0.1.1), so the footer, the heartbeat and the admin Devices page each showed a different number. The wire version stays `brand::COMPAT_VERSION`; `warn_if_version_drifts` logs once at start-up and `doctor` reports a `bridge version` check when a brand build displays a number it does not report.
+- **Operator-visible:** the manifest pubkey pin is bound to the gateway it was learned from. `[sync] pinned_pubkey` is written together with `pinned_pubkey_gateway` (the scheme, host and port), a pin for another gateway is ignored and re-learned on the next sync, and a pin with no gateway recorded is treated the same way. A bridge that first synced against the staging gateway and was then pointed at a local instance failed every sync with a signature error and no way out short of editing the config file. `doctor` and `validate` say which gateway a pin belongs to; `sync --allow-tofu` is still required on the CLI. Policy-supplied keys (env var, managed policy) are unchanged and always authoritative.
+- **Operator-visible (Windows):** the Claude Desktop / Cowork policy and the bridge's own policy key are written to `HKCU\SOFTWARE\Policies` when the bridge is not elevated, and to HKLM when it is. Every caller passed `elevated = true`, so an ordinary user's sync staged a UAC job whose outcome could be reported as success without a single value landing. The elevated job is now reserved for `Program Files\Claude\org-plugins` and admin-owned files; an unelevated run notes that provisioning is pending instead of prompting. An HKCU write that a differing HKLM key would shadow is refused with `HiveConflict` (Cowork ignores HKCU once HKLM exists); identical HKLM values count as already in step.
+- The Windows policy write goes through the FFI store rather than `reg.exe`, so the loopback secret no longer appears on a command line.
+
+### Fixed
+
+- Every registry write is read back and compared; a value that did not land is `VerifyMismatch { hive, subkey, name }`, never a silent success. `WritePlan::drifted()` and `current_value()` read the hive they would write, not the HKLM-then-HKCU union that let a stale HKCU copy suppress the HKLM write. The elevated child writes a `started` result before any work and exits non-zero if it cannot write its result file; `finish()` treats a missing or unparseable result file as an error naming the path. Discarded `reg delete` statuses are logged with their outcome.
+- The sync toast and log carry the first line of each host failure beside the host id, so a registry failure reads as "claude-desktop: HKCU\…\Claude value inferenceGatewayBaseUrl did not land" rather than "claude-desktop".
+- A signature failure names where the pin came from (config file or policy), which gateway served the manifest, and the fix for that source. The old text blamed tampering for what was almost always a pin for a different gateway.
+- `doctor` gains a `claude policy hive` check on Windows: which hive holds the policy, FAIL when HKLM shadows a differing HKCU copy, WARN when elevated with only an HKCU policy.
+- The Library pane no longer repaints on every state snapshot after a failed sync. The refetch marker was keyed on `state == "ok"`, so an `error` state refetched — and painted `loading` over an existing listing — on each 30 s host probe.
+
 ## [0.38.0] - 2026-09-06
 
 ### Changed

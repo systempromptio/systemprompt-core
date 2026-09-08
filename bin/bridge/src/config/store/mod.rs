@@ -24,6 +24,41 @@ pub enum ConfigStoreError {
 
     #[error("administrator rights required to write {subkey} under {hive}")]
     AccessDenied { hive: String, subkey: String },
+
+    #[error(
+        "HKLM\\{subkey} already holds different values for {} — Claude ignores HKCU while that \
+         machine policy exists; remove it or re-run `install --apply` as Administrator",
+        differing.join(", ")
+    )]
+    HiveConflict {
+        subkey: String,
+        differing: Vec<String>,
+    },
+
+    #[error("{hive}\\{subkey}\\{name} did not read back with the value just written")]
+    VerifyMismatch {
+        hive: String,
+        subkey: String,
+        name: String,
+    },
+}
+
+/// What a managed-policy write actually did, so a caller never reports a
+/// write that was skipped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyWrite {
+    Written(PolicyHive),
+    /// HKLM already holds identical values; the per-user copy would be ignored.
+    SatisfiedByMachine,
+}
+
+#[must_use]
+pub const fn hive_for(elevated: bool) -> PolicyHive {
+    if elevated {
+        PolicyHive::Machine
+    } else {
+        PolicyHive::User
+    }
 }
 
 #[derive(Debug, Default)]
@@ -95,6 +130,14 @@ pub fn read_bridge_policy(key: &str) -> Option<String> {
     None
 }
 
+#[cfg(target_os = "windows")]
+pub(crate) fn read_bridge_policy_in(
+    hive: PolicyHive,
+    key: &str,
+) -> Result<Option<String>, ConfigStoreError> {
+    windows_registry::read_string(windows_registry::hkey(hive), &bridge_policy_subkey(), key)
+}
+
 #[cfg(target_os = "macos")]
 #[must_use]
 pub fn read_bridge_policy(key: &str) -> Option<String> {
@@ -127,17 +170,46 @@ pub fn managed_policy_store() -> Box<dyn ConfigStore> {
 pub(crate) fn write_managed_claude_policy(
     elevated: bool,
     entries: &[(String, String)],
-) -> Result<(), ConfigStoreError> {
-    let hive = if elevated {
-        PolicyHive::Machine
-    } else {
-        PolicyHive::User
-    };
-    let typed: Vec<(String, PolicyDocumentValue)> = entries
+) -> Result<PolicyWrite, ConfigStoreError> {
+    let hive = hive_for(elevated);
+    if hive == PolicyHive::User && machine_policy_satisfies(entries)? {
+        tracing::info!(
+            subkey = crate::cowork_compat::POLICY_SUBKEY,
+            "HKLM already holds these Claude policy values; leaving the machine policy in force"
+        );
+        return Ok(PolicyWrite::SatisfiedByMachine);
+    }
+    let typed = typed_strings(entries);
+    windows_registry_write::write_policy_values(hive, &typed)?;
+    Ok(PolicyWrite::Written(hive))
+}
+
+/// Cowork ignores HKCU once `HKLM\SOFTWARE\Policies\Claude` exists, so a
+/// per-user write is only honest when the machine key is absent or already
+/// says the same thing.
+#[cfg(target_os = "windows")]
+fn machine_policy_satisfies(entries: &[(String, String)]) -> Result<bool, ConfigStoreError> {
+    let names: Vec<&str> = entries.iter().map(|(n, _)| n.as_str()).collect();
+    let machine =
+        windows_registry::WindowsRegistryStore.read_policy_document(PolicyHive::Machine, &names)?;
+    if machine.is_empty() {
+        return Ok(false);
+    }
+    let differing: Vec<String> = entries
         .iter()
-        .map(|(n, v)| (n.clone(), PolicyDocumentValue::Str(v.clone())))
+        .filter(|(name, value)| {
+            machine.get(name).and_then(PolicyDocumentValue::as_str) != Some(value.as_str())
+        })
+        .map(|(name, _)| name.clone())
         .collect();
-    windows_registry_write::write_policy_values(hive, &typed)
+    if differing.is_empty() {
+        Ok(true)
+    } else {
+        Err(ConfigStoreError::HiveConflict {
+            subkey: crate::cowork_compat::POLICY_SUBKEY.to_owned(),
+            differing,
+        })
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -145,16 +217,16 @@ pub(crate) fn write_bridge_policy(
     elevated: bool,
     entries: &[(String, String)],
 ) -> Result<(), ConfigStoreError> {
-    let hive = if elevated {
-        PolicyHive::Machine
-    } else {
-        PolicyHive::User
-    };
-    let typed: Vec<(String, PolicyDocumentValue)> = entries
+    let typed = typed_strings(entries);
+    windows_registry_write::write_values_at(hive_for(elevated), &bridge_policy_subkey(), &typed)
+}
+
+#[cfg(target_os = "windows")]
+fn typed_strings(entries: &[(String, String)]) -> Vec<(String, PolicyDocumentValue)> {
+    entries
         .iter()
         .map(|(n, v)| (n.clone(), PolicyDocumentValue::Str(v.clone())))
-        .collect();
-    windows_registry_write::write_values_at(hive, &bridge_policy_subkey(), &typed)
+        .collect()
 }
 
 #[cfg(target_os = "windows")]
@@ -162,12 +234,7 @@ pub(crate) fn clear_managed_claude_policy(
     elevated: bool,
     names: &[&str],
 ) -> Result<usize, ConfigStoreError> {
-    let hive = if elevated {
-        PolicyHive::Machine
-    } else {
-        PolicyHive::User
-    };
-    windows_registry_write::delete_policy_values(hive, names)
+    windows_registry_write::delete_policy_values(hive_for(elevated), names)
 }
 
 #[cfg(target_os = "windows")]

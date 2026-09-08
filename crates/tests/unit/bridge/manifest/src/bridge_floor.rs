@@ -62,9 +62,10 @@ fn the_floor_comparison_orders_numerically_not_lexically() {
 }
 
 #[test]
-fn an_unparseable_version_is_allowed_through() {
+fn an_unparseable_version_is_refused() {
     assert!(
-        bridge_version_is_supported("dev-build", "1.0.0"),
-        "refusing dev builds would make the gateway untestable against a work tree"
+        !bridge_version_is_supported("dev-build", "1.0.0"),
+        "a version that cannot be parsed cannot be shown to meet the floor; every cargo build \
+         carries a semver CARGO_PKG_VERSION, so a work tree is never refused by this"
     );
 }

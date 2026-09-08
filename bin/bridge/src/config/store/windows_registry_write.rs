@@ -51,6 +51,28 @@ pub(super) fn write_values_at(
         };
         set_string_value(key.0, hive_label, subkey, name, text)?;
     }
+    drop(key);
+    verify_written(hive, subkey, entries)
+}
+
+/// Read every value back through the read path and fail on any difference, so
+/// a write that the registry accepted but did not persist as sent is an error
+/// rather than a reported success.
+fn verify_written(
+    hive: PolicyHive,
+    subkey: &str,
+    entries: &[(String, PolicyDocumentValue)],
+) -> Result<(), ConfigStoreError> {
+    for (name, value) in entries {
+        let stored = super::windows_registry::read_string(hkey(hive), subkey, name)?;
+        if stored.as_deref() != value.as_str() {
+            return Err(ConfigStoreError::VerifyMismatch {
+                hive: hive.label().to_owned(),
+                subkey: subkey.to_owned(),
+                name: name.clone(),
+            });
+        }
+    }
     Ok(())
 }
 

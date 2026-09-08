@@ -14,10 +14,16 @@ pub enum SyncError {
     #[error("{0}")]
     Network(String),
     #[error(
-        "manifest signature verification failed: {0}. The payload does not match the pinned \
-         pubkey — the manifest was tampered with, or the pinned pubkey is wrong."
+        "manifest signature verification failed: {detail}. The manifest served by {gateway} \
+         does not match the pubkey pinned from the {pin_source} — either the gateway rotated \
+         its signing key, or the pin belongs to a different gateway. {fix}"
     )]
-    SignatureFailed(String),
+    SignatureFailed {
+        detail: String,
+        gateway: String,
+        pin_source: &'static str,
+        fix: &'static str,
+    },
     #[error(
         "manifest requires schema {required} but this bridge supports up to {supported} — \
          upgrade the bridge to sync against this gateway"
@@ -43,6 +49,12 @@ pub enum SyncError {
         bin: &'static str,
         system_path: String,
     },
+    #[error(
+        "manifest signing pubkey on file was pinned for {pinned_for}, but the gateway is now \
+         {current}; run `sync --allow-tofu` to re-learn it, or pin it out of band with `install \
+         --apply --pubkey <base64>`"
+    )]
+    PubkeyStale { pinned_for: String, current: String },
     #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
     #[error(
@@ -91,13 +103,13 @@ impl SyncError {
             Self::NoCredential { .. } => ExitCode::from(5),
             Self::GatewayUnauthorized(_) => ExitCode::from(10),
             Self::Network(_) => ExitCode::from(3),
-            Self::SignatureFailed(_) => ExitCode::from(4),
+            Self::SignatureFailed { .. } => ExitCode::from(4),
             Self::PathUnresolvable | Self::PathMissing { .. } | Self::ApplyFailed(_) => {
                 ExitCode::from(1)
             },
             Self::ReplayedManifest { .. } => ExitCode::from(6),
             Self::ManifestSkew { .. } => ExitCode::from(7),
-            Self::PubkeyNotPinned => ExitCode::from(8),
+            Self::PubkeyNotPinned | Self::PubkeyStale { .. } => ExitCode::from(8),
             Self::ReplayStateCorrupt(_) => ExitCode::from(9),
             Self::SchemaTooNew { .. } | Self::ManifestShape(_) | Self::BridgeTooOld { .. } => {
                 ExitCode::from(11)

@@ -47,7 +47,10 @@ pub fn bridge_version_is_supported(reported: &str, floor: &str) -> bool {
         semver::Version::parse(floor),
     ) {
         (Ok(reported), Ok(floor)) => reported >= floor,
-        _ => true,
+        // Why: a version that cannot be parsed cannot be shown to meet the
+        // floor. Answering "supported" here let a mis-built bridge through the
+        // gate and hid the defect until the admin Devices page disagreed.
+        _ => false,
     }
 }
 

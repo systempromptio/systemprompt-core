@@ -102,17 +102,29 @@ pub async fn check_whoami(
 }
 
 pub fn check_pinned_pubkey() -> Check {
-    if config::pinned_pubkey().is_some() {
-        Check::ok(
+    match config::pinned_pubkey_state() {
+        config::PinnedPubkeyState::Pinned { source, .. } => Check::ok(
             "manifest pubkey pinned",
-            "signed-manifest verification will reject pubkey rotation",
-        )
-    } else {
-        Check::warn(
+            format!(
+                "from the {}; signed-manifest verification will reject pubkey rotation",
+                source.label()
+            ),
+        ),
+        config::PinnedPubkeyState::StaleForGateway {
+            pinned_for,
+            current,
+        } => Check::warn(
+            "manifest pubkey pinned",
+            format!(
+                "config-file pin was learned for {pinned_for} but the gateway is {current}; it \
+                 is ignored and the next sync re-learns the key"
+            ),
+        ),
+        config::PinnedPubkeyState::Unpinned => Check::warn(
             "manifest pubkey pinned",
             "no pinned pubkey — first sync needs `--allow-tofu` or `install --apply --pubkey \
              <b64>`",
-        )
+        ),
     }
 }
 

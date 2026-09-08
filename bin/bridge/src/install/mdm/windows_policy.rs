@@ -2,127 +2,112 @@
 //! goes into the bridge's own key, which stale value to clear, and whether any
 //! of it has drifted from the registry.
 //!
+//! The plan is addressed to one hive. An elevated process manages the machine
+//! policy (`HKLM`); an ordinary one manages the per-user policy (`HKCU`),
+//! which Claude honours as long as no machine policy exists. Drift is judged
+//! against that hive alone — a value present in the *other* hive is not
+//! evidence that this one is in step.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 #![cfg(target_os = "windows")]
 
 use super::error::MdmError;
+use crate::config::store::{self, PolicyHive, PolicyWrite, hive_for, managed_policy_store};
 
 type Values = [(&'static str, &'static str, String)];
 
 pub(super) struct WritePlan<'a> {
     claude: &'a Values,
     bridge: &'a Values,
+    hive: PolicyHive,
     clear_legacy: bool,
 }
 
 impl<'a> WritePlan<'a> {
-    pub(super) fn new(claude: &'a Values, bridge: &'a Values) -> Self {
+    pub(super) fn new(claude: &'a Values, bridge: &'a Values, elevated: bool) -> Self {
+        let hive = hive_for(elevated);
         let clear_legacy = matches!(
-            crate::config::store::managed_policy_store()
-                .read_managed_policy(super::LEGACY_PUBKEY_KEY),
-            Ok(Some(_))
+            managed_policy_store().read_policy_document(hive, &[super::LEGACY_PUBKEY_KEY]),
+            Ok(doc) if !doc.is_empty()
         );
         Self {
             claude,
             bridge,
+            hive,
             clear_legacy,
         }
     }
 
+    pub(super) const fn hive(&self) -> PolicyHive {
+        self.hive
+    }
+
     pub(super) fn drifted(&self) -> bool {
-        let store = crate::config::store::managed_policy_store();
-        self.clear_legacy
-            || self.claude.iter().any(|(name, _, data)| {
-                !matches!(store.read_managed_policy(name), Ok(Some(current)) if &current == data)
-            })
-            || self.bridge.iter().any(|(name, _, data)| {
-                crate::config::store::read_bridge_policy(name).as_ref() != Some(data)
-            })
-    }
-
-    pub(super) fn write_in_process(&self) -> Result<(), MdmError> {
-        reg_add_all(crate::cowork_compat::HKLM_POLICY_KEY, self.claude)?;
-        let bridge_key = format!(r"HKLM\{}", crate::config::store::bridge_policy_subkey());
-        reg_add_all(&bridge_key, self.bridge)?;
         if self.clear_legacy {
-            _ = crate::winproc::reg_command()
-                .args([
-                    "delete",
-                    crate::cowork_compat::HKLM_POLICY_KEY,
-                    "/v",
-                    super::LEGACY_PUBKEY_KEY,
-                    "/f",
-                ])
-                .status();
+            return true;
         }
-        Ok(())
+        let names: Vec<&str> = self.claude.iter().map(|(n, _, _)| *n).collect();
+        let current = match managed_policy_store().read_policy_document(self.hive, &names) {
+            Ok(doc) => doc,
+            Err(e) => {
+                tracing::warn!(
+                    target: "bridge::install::mdm",
+                    hive = self.hive.label(),
+                    error = %e,
+                    "could not read the current Claude policy; treating it as drifted"
+                );
+                return true;
+            },
+        };
+        self.claude
+            .iter()
+            .any(|(name, _, data)| current.get(*name).and_then(|v| v.as_str()) != Some(data.as_str()))
+            || self.bridge.iter().any(|(name, _, data)| {
+                !matches!(store::read_bridge_policy_in(self.hive, name), Ok(Some(v)) if &v == data)
+            })
     }
 
-    pub(super) fn stage_elevated(
-        &self,
-        org_plugins: Option<crate::install::elevated_job::OrgPluginsJob>,
-    ) -> Result<String, MdmError> {
-        let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-        std::fs::create_dir_all(&dir).map_err(|source| MdmError::Io {
-            action: "create staging dir",
-            path: dir.clone(),
-            source,
-        })?;
-        let entries: Vec<(&str, String)> = self
+    /// Write the plan into its hive and read every value back. Returns what
+    /// happened to the Claude block, which is `SatisfiedByMachine` when a
+    /// per-user plan found identical values already in `HKLM`.
+    pub(super) fn write(&self) -> Result<PolicyWrite, MdmError> {
+        let claude: Vec<(String, String)> = self
             .claude
             .iter()
-            .map(|(n, _, d)| (*n, d.clone()))
+            .map(|(n, _, d)| ((*n).to_owned(), d.clone()))
             .collect();
-        let body = crate::install::reg_values::render_reg_values(true, &entries);
-        let path = dir.join("bridge-policy-apply.reg");
-        std::fs::write(&path, body).map_err(|source| MdmError::Io {
-            action: "stage policy profile",
-            path: path.clone(),
-            source,
-        })?;
-        let job = crate::install::elevated_job::ElevatedJob {
-            clear_values: if self.clear_legacy {
-                vec![super::LEGACY_PUBKEY_KEY.to_owned()]
-            } else {
-                Vec::new()
-            },
-            bridge_values: self
-                .bridge
-                .iter()
-                .map(|(n, _, d)| ((*n).to_owned(), d.clone()))
-                .collect(),
-            managed_files: Vec::new(),
-            remove_files: Vec::new(),
-            reg_path: Some(path.to_string_lossy().into_owned()),
-            org_plugins,
-        };
-        crate::install::elevated_job::elevate_and_run(&dir, &job)
-            .map(|()| {
-                "elevated step complete: HKLM policy written and org-plugins provisioned".to_owned()
-            })
-            .map_err(|e| {
-                MdmError::Windows(format!(
-                    "elevated step did not complete ({e}); the machine policy was not written and \
-                     org-plugins was not provisioned — Cowork stays unmanaged"
-                ))
-            })
+        let elevated = self.hive == PolicyHive::Machine;
+        let outcome = store::write_managed_claude_policy(elevated, &claude).map_err(policy_err)?;
+        let bridge: Vec<(String, String)> = self
+            .bridge
+            .iter()
+            .map(|(n, _, d)| ((*n).to_owned(), d.clone()))
+            .collect();
+        if !bridge.is_empty() {
+            store::write_bridge_policy(elevated, &bridge).map_err(policy_err)?;
+        }
+        if self.clear_legacy {
+            match store::clear_managed_claude_policy(elevated, &[super::LEGACY_PUBKEY_KEY]) {
+                Ok(n) => tracing::info!(
+                    target: "bridge::install::mdm",
+                    hive = self.hive.label(),
+                    removed = n,
+                    "cleared legacy manifest pubkey value"
+                ),
+                Err(e) => tracing::warn!(
+                    target: "bridge::install::mdm",
+                    hive = self.hive.label(),
+                    error = %e,
+                    "legacy manifest pubkey value could not be cleared"
+                ),
+            }
+        }
+        Ok(outcome)
     }
 }
 
-fn reg_add_all(key: &str, values: &Values) -> Result<(), MdmError> {
-    for (name, kind, data) in values {
-        let status = crate::winproc::reg_command()
-            .args(["add", key, "/v", name, "/t", kind, "/d", data, "/f"])
-            .status()
-            .map_err(|e| MdmError::Windows(format!("reg add {name}: {e}")))?;
-        if !status.success() {
-            return Err(MdmError::Windows(format!(
-                "reg add {name} exited with {}",
-                status.code().unwrap_or(-1)
-            )));
-        }
-    }
-    Ok(())
+pub(super) fn policy_err(e: store::ConfigStoreError) -> MdmError {
+    MdmError::Windows(e.to_string())
 }

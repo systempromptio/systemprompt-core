@@ -71,6 +71,17 @@ pub(crate) struct ElevatedResult {
 }
 
 pub(crate) fn perform_elevated_write(job_path: &str, result_path: &str) -> ExitCode {
+    // Why: the parent treats a missing result as failure, so the file must
+    // exist before any work starts — a child killed mid-job then reads as
+    // "started", not as a clean run.
+    let started = ElevatedResult {
+        ok: false,
+        error: Some("elevated step started but did not finish".to_owned()),
+    };
+    if let Err(e) = write_result(result_path, &started) {
+        tracing::error!(error = %e, result_path, "cannot write the elevated result file");
+        return ExitCode::FAILURE;
+    }
     let outcome = run_job(job_path);
     let result = match &outcome {
         Ok(()) => ElevatedResult {
@@ -82,19 +93,20 @@ pub(crate) fn perform_elevated_write(job_path: &str, result_path: &str) -> ExitC
             error: Some(e.to_string()),
         },
     };
-    match serde_json::to_string(&result) {
-        Ok(json) => {
-            if let Err(e) = std::fs::write(result_path, &json) {
-                tracing::warn!(error = %e, result_path, "failed to write elevated result file");
-            }
-        },
-        Err(e) => tracing::warn!(error = %e, "failed to encode elevated result"),
+    if let Err(e) = write_result(result_path, &result) {
+        tracing::error!(error = %e, result_path, "failed to write elevated result file");
+        return ExitCode::FAILURE;
     }
     if outcome.is_ok() {
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE
     }
+}
+
+fn write_result(result_path: &str, result: &ElevatedResult) -> std::io::Result<()> {
+    let json = serde_json::to_string(result).map_err(std::io::Error::other)?;
+    std::fs::write(result_path, json)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -168,7 +180,9 @@ fn write_from_reg(reg_path: &str) -> Result<(), ElevateError> {
     if entries.is_empty() {
         return Err(ElevateError::NoPolicyValues);
     }
-    write_managed_claude_policy(true, &entries).map_err(ElevateError::Policy)
+    write_managed_claude_policy(true, &entries)
+        .map(|_| ())
+        .map_err(ElevateError::Policy)
 }
 
 pub(crate) fn provision_org_plugins(path: &Path, grant_user: &str) -> Result<(), ElevateError> {
@@ -224,17 +238,29 @@ pub(crate) fn elevate_and_run(stage_dir: &Path, job: &ElevatedJob) -> std::io::R
 }
 
 fn finish(result_path: &str, exit_code: u32) -> std::io::Result<()> {
-    let detail = read_result(result_path);
-    if exit_code == 0 && detail.as_ref().is_none_or(|r| r.ok) {
+    let detail = read_result(result_path)?;
+    if exit_code == 0 && detail.ok {
         return Ok(());
     }
     let message = detail
-        .and_then(|r| r.error)
+        .error
         .unwrap_or_else(|| format!("elevated install step failed (exit code {exit_code})"));
     Err(std::io::Error::other(message))
 }
 
-fn read_result(result_path: &str) -> Option<ElevatedResult> {
-    let body = std::fs::read_to_string(result_path).ok()?;
-    serde_json::from_str(&body).ok()
+// Why: a result the child never wrote is not a success. Exit code 0 with no
+// readable result is exactly the shape a wrong-session temp dir or a killed
+// child leaves behind.
+fn read_result(result_path: &str) -> std::io::Result<ElevatedResult> {
+    let body = std::fs::read_to_string(result_path).map_err(|e| {
+        std::io::Error::other(format!(
+            "elevated step left no result at {result_path} ({e}); the registry write cannot be \
+             confirmed and is treated as not done"
+        ))
+    })?;
+    serde_json::from_str(&body).map_err(|e| {
+        std::io::Error::other(format!(
+            "elevated result at {result_path} is unreadable: {e}"
+        ))
+    })
 }

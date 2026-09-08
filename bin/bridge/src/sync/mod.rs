@@ -33,7 +33,7 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
     if force_replay {
         tracing::warn!("--force-replay bypasses manifest version + skew checks");
     }
-    if allow_tofu && config::pinned_pubkey().is_none() {
+    if allow_tofu && config::pinned_pubkey_state() == config::PinnedPubkeyState::Unpinned {
         tracing::warn!(
             "--allow-tofu enables trust-on-first-use pubkey fetch over the gateway channel; this \
              is insecure if the gateway is not authenticated yet"

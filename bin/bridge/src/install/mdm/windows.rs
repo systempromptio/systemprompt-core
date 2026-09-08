@@ -7,54 +7,51 @@
 
 use super::error::MdmError;
 use super::windows_policy;
+use crate::config::store::{PolicyHive, PolicyWrite, hive_for};
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, MdmError> {
-    let hkcu = crate::cowork_compat::HKCU_POLICY_KEY;
-    let key = crate::cowork_compat::HKLM_POLICY_KEY;
-    if !crate::winproc::is_elevated() {
-        _ = crate::winproc::reg_command()
-            .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
-            .status();
-        if current_value().as_deref() == Some(value) {
-            return Ok(format!(
-                "{key} already holds this managedMcpServers value; skipping (cleared \
-                 ignored {hkcu} copy)."
-            ));
-        }
-        return elevated_write(value).map(|()| format!("{key} ← managedMcpServers (elevated)"));
+    let elevated = crate::winproc::is_elevated();
+    let hive = hive_for(elevated);
+    let key = policy_key(hive);
+    if current_value(hive).as_deref() == Some(value) {
+        return Ok(format!(
+            "{key} already holds this managedMcpServers value; nothing to write"
+        ));
     }
-    let status = crate::winproc::reg_command()
-        .args([
-            "add",
-            key,
-            "/v",
-            "managedMcpServers",
-            "/t",
-            "REG_SZ",
-            "/d",
-            value,
-            "/f",
-        ])
-        .status()
-        .map_err(|e| MdmError::Windows(format!("reg add managedMcpServers: {e}")))?;
-    if !status.success() {
-        return Err(MdmError::Windows(format!(
-            "reg add managedMcpServers exited with {}",
-            status.code().unwrap_or(-1)
-        )));
+    let entries = [("managedMcpServers".to_owned(), value.to_owned())];
+    let outcome = crate::config::store::write_managed_claude_policy(elevated, &entries)
+        .map_err(windows_policy::policy_err)?;
+    if elevated {
+        clear_stale_user_value("managedMcpServers");
     }
-    _ = crate::winproc::reg_command()
-        .args(["delete", hkcu, "/v", "managedMcpServers", "/f"])
-        .status();
-    Ok(format!("{key} ← managedMcpServers (cleared stale {hkcu})"))
+    Ok(match outcome {
+        PolicyWrite::Written(hive) => format!("{} ← managedMcpServers", policy_key(hive)),
+        PolicyWrite::SatisfiedByMachine => format!(
+            "{} already holds this managedMcpServers value; the per-user copy was not written",
+            crate::cowork_compat::HKLM_POLICY_KEY
+        ),
+    })
 }
 
-fn current_value() -> Option<String> {
-    match crate::config::store::managed_policy_store().read_managed_policy("managedMcpServers") {
-        Ok(v) => v,
+const fn policy_key(hive: PolicyHive) -> &'static str {
+    match hive {
+        PolicyHive::Machine => crate::cowork_compat::HKLM_POLICY_KEY,
+        PolicyHive::User => crate::cowork_compat::HKCU_POLICY_KEY,
+    }
+}
+
+fn current_value(hive: PolicyHive) -> Option<String> {
+    match crate::config::store::managed_policy_store()
+        .read_policy_document(hive, &["managedMcpServers"])
+    {
+        Ok(doc) => doc
+            .get("managedMcpServers")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned),
         Err(e) => {
             tracing::warn!(
                 target: "bridge::install::mdm",
+                hive = hive.label(),
                 error = %e,
                 "could not read the current managedMcpServers policy value"
             );
@@ -63,42 +60,40 @@ fn current_value() -> Option<String> {
     }
 }
 
-fn elevated_write(value: &str) -> Result<(), MdmError> {
-    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&dir).map_err(|source| MdmError::Io {
-        action: "create staging dir",
-        path: dir.clone(),
-        source,
-    })?;
-    let path = dir.join("managed-mcp-servers.reg");
-    let body = crate::install::reg_values::render_reg_values(
-        true,
-        &[("managedMcpServers", value.to_owned())],
-    );
-    std::fs::write(&path, body).map_err(|source| MdmError::Io {
-        action: "stage managedMcpServers profile",
-        path: path.clone(),
-        source,
-    })?;
-    tracing::info!(
-        target: "bridge::install::mdm",
-        path = %path.display(),
-        "managed MCP server list drifted; requesting elevation to update HKLM policy"
-    );
-    let job = crate::install::elevated_job::ElevatedJob {
-        clear_values: Vec::new(),
-        bridge_values: Vec::new(),
-        managed_files: Vec::new(),
-        remove_files: Vec::new(),
-        reg_path: Some(path.to_string_lossy().into_owned()),
-        org_plugins: crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user(),
-    };
-    crate::install::elevated_job::elevate_and_run(&dir, &job).map_err(|e| {
-        MdmError::Windows(format!(
-            "the MCP connector list could not be updated: {e}. Re-run the Bridge as \
-                 Administrator to apply it."
-        ))
-    })
+// Why: an elevated write to HKLM leaves any older per-user copy behind, and a
+// stale HKCU value is what a later unelevated run would otherwise read back.
+fn clear_stale_user_value(name: &str) {
+    match crate::config::store::clear_managed_claude_policy(false, &[name]) {
+        Ok(0) => {},
+        Ok(n) => tracing::info!(
+            target: "bridge::install::mdm",
+            name,
+            removed = n,
+            "cleared stale HKCU policy value"
+        ),
+        Err(e) => tracing::warn!(
+            target: "bridge::install::mdm",
+            name,
+            error = %e,
+            "stale HKCU policy value could not be cleared"
+        ),
+    }
+}
+
+/// The one thing an ordinary process cannot do: `Program
+/// Files\Claude\org-plugins` is admin-write-only. Say so once, without blocking
+/// the policy write.
+fn org_plugins_note() -> Option<String> {
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
+    if org.path.is_dir() {
+        return None;
+    }
+    Some(format!(
+        "note: {} is not provisioned; run `{} install --apply` as Administrator once so Cowork \
+         can read org-plugins",
+        org.path.display(),
+        crate::brand::brand().binary_name
+    ))
 }
 
 pub(super) fn enforce_managed_policy(
@@ -108,19 +103,29 @@ pub(super) fn enforce_managed_policy(
     let pubkey = crate::config::pinned_pubkey();
     let values = policy_values(inputs, &inputs.loopback.origin())?;
     let bridge = super::bridge_policy_values(pubkey.as_ref().map(crate::ids::PinnedPubKey::as_str));
-    let plan = windows_policy::WritePlan::new(&values, &bridge);
+    let elevated = crate::winproc::is_elevated();
+    let plan = windows_policy::WritePlan::new(&values, &bridge, elevated);
     if !plan.drifted() {
-        return Ok("managed policy already in step; nothing to write".into());
-    }
-    if crate::winproc::is_elevated() {
-        plan.write_in_process()?;
         return Ok(format!(
-            "{} ← full managed policy re-asserted (elevated)",
-            crate::cowork_compat::HKLM_POLICY_KEY
+            "{} managed policy already in step; nothing to write",
+            plan.hive().label()
         ));
     }
-    let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
-    plan.stage_elevated(org_job)
+    let mut line = match plan.write()? {
+        PolicyWrite::Written(hive) => {
+            format!("{} ← full managed policy re-asserted", policy_key(hive))
+        },
+        PolicyWrite::SatisfiedByMachine => format!(
+            "{} already holds the full managed policy; per-user copy not written",
+            crate::cowork_compat::HKLM_POLICY_KEY
+        ),
+    };
+    if !elevated && let Some(note) = org_plugins_note() {
+        tracing::warn!(target: "bridge::install::mdm", "{note}");
+        line.push_str("; ");
+        line.push_str(&note);
+    }
+    Ok(line)
 }
 
 // Why: Cowork pre-trusts allowedWorkspaceFolders only when the directory
@@ -150,21 +155,21 @@ fn ensure_workspace_dir() -> Option<String> {
 }
 
 pub(super) fn remove_policy() -> Result<bool, MdmError> {
-    let hkcu = crate::winproc::reg_command()
-        .args(["delete", crate::cowork_compat::HKCU_POLICY_KEY, "/f"])
-        .status()
-        .map(|s| s.success())
-        .map_err(|e| MdmError::Windows(format!("reg delete HKCU Policies\\Claude: {e}")))?;
-    let hklm = crate::winproc::reg_command()
-        .args([
-            "delete",
-            crate::cowork_compat::HKLM_POLICY_KEY,
-            "/v",
-            "managedMcpServers",
-            "/f",
-        ])
-        .status()
-        .is_ok_and(|s| s.success());
+    let store = crate::config::store::managed_policy_store();
+    let hkcu = store
+        .delete_policy_key(PolicyHive::User)
+        .map_err(windows_policy::policy_err)?;
+    let hklm = match store.delete_policy_values(PolicyHive::Machine, &["managedMcpServers"]) {
+        Ok(n) => n > 0,
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::install::mdm",
+                error = %e,
+                "HKLM managedMcpServers value could not be removed"
+            );
+            false
+        },
+    };
     Ok(hkcu || hklm)
 }
 
@@ -205,20 +210,27 @@ pub(super) fn apply(
     pubkey: Option<&str>,
 ) -> Result<Vec<String>, MdmError> {
     let elevated = crate::winproc::is_elevated();
-    let key = crate::cowork_compat::HKLM_POLICY_KEY;
     let values = policy_values(inputs, gateway)?;
     let bridge = super::bridge_policy_values(pubkey);
-    let plan = windows_policy::WritePlan::new(&values, &bridge);
+    let plan = windows_policy::WritePlan::new(&values, &bridge, elevated);
+    let key = policy_key(plan.hive());
     let mut summary = Vec::with_capacity(values.len() + bridge.len() + 4);
     summary.push(format!("registry key: {key}"));
     summary.extend(ensure_workspace_dir());
-    let org_job = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user();
+    match plan.write()? {
+        PolicyWrite::Written(_) => {
+            for (name, kind, _) in values.iter().chain(&bridge) {
+                summary.push(format!("wrote {name} ({kind}) — verified by read-back"));
+            }
+        },
+        PolicyWrite::SatisfiedByMachine => summary.push(format!(
+            "{} already holds these values; per-user copy not written",
+            crate::cowork_compat::HKLM_POLICY_KEY
+        )),
+    }
     if elevated {
-        plan.write_in_process()?;
-        for (name, kind, _) in values.iter().chain(&bridge) {
-            summary.push(format!("wrote {name} ({kind})"));
-        }
-        if let Some(org) = org_job {
+        if let Some(org) = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
+        {
             crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
                 .map_err(|e| MdmError::Windows(format!("org-plugins provisioning failed: {e}")))?;
             summary.push(format!(
@@ -228,7 +240,7 @@ pub(super) fn apply(
             ));
         }
     } else {
-        summary.push(plan.stage_elevated(org_job)?);
+        summary.extend(org_plugins_note());
     }
     if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
         summary.push(

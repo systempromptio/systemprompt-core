@@ -189,6 +189,7 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     winproc::attach_parent_console_if_present();
     obs::install_panic_hook();
     obs::tracing_init::init();
+    brand::warn_if_version_drifts();
     purge_legacy_agents_state();
     update::sweep_leftovers();
     cli::run()

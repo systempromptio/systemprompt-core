@@ -11,7 +11,7 @@ use super::shared::{
     API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids,
     redact_if_sensitive, unique_stem,
 };
-use crate::config::store::{clear_managed_claude_policy, managed_policy_store};
+use crate::config::store::{PolicyWrite, clear_managed_claude_policy, managed_policy_store};
 use crate::integration::host_app::{GeneratedProfile, ProfileRemoval};
 use crate::winproc;
 
@@ -75,7 +75,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let (payload_uuid, profile_uuid) = make_uuids();
     let path = dir.join(format!("claude-bridge-{}.reg", unique_stem()));
 
-    let body = super::reg_profile::render_reg(true, inputs);
+    let body = super::reg_profile::render_reg(winproc::is_elevated(), inputs);
     std::fs::File::create(&path)?.write_all(body.as_bytes())?;
 
     Ok(GeneratedProfile {
@@ -102,32 +102,35 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             "staged registry profile contained no policy values",
         ));
     }
-    if elevated {
-        crate::config::store::write_managed_claude_policy(true, &entries).map_err(|e| {
+    // Why: an ordinary process writes the per-user policy, which Claude honours
+    // while no machine policy exists; only org-plugins genuinely needs UAC and
+    // is left to `install --apply` run as Administrator.
+    let outcome =
+        crate::config::store::write_managed_claude_policy(elevated, &entries).map_err(|e| {
             tracing::error!(error = %e, path, "managed Claude policy write failed");
             std::io::Error::other(e.to_string())
         })?;
-        if let Some(org) = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-        {
+    match outcome {
+        PolicyWrite::Written(hive) => {
+            tracing::info!(hive = hive.label(), "policy written and read back")
+        },
+        PolicyWrite::SatisfiedByMachine => {
+            tracing::info!("HKLM already holds this policy; per-user copy not written");
+        },
+    }
+    if let Some(org) = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user() {
+        if elevated {
             crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
                 .map_err(|e| {
                     tracing::error!(error = %e, "org-plugins provisioning failed");
                     std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
                 })?;
+        } else if !org.path.is_dir() {
+            tracing::warn!(
+                path = %org.path.display(),
+                "org-plugins is not provisioned; run `install --apply` as Administrator once"
+            );
         }
-    } else {
-        let stage_dir = std::path::Path::new(path)
-            .parent()
-            .map_or_else(std::env::temp_dir, std::path::Path::to_path_buf);
-        let job = crate::install::elevated_job::ElevatedJob {
-            reg_path: Some(path.to_owned()),
-            org_plugins: crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user(),
-            clear_values: Vec::new(),
-            bridge_values: Vec::new(),
-            managed_files: Vec::new(),
-            remove_files: Vec::new(),
-        };
-        crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
     }
     tracing::info!(
         value_count = entries.len(),
@@ -137,28 +140,18 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
 }
 
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
-    if winproc::is_elevated() {
-        let removed = clear_managed_claude_policy(true, KEYS_OF_INTEREST)
-            .map_err(|e| std::io::Error::other(e.to_string()))?;
-        return Ok(if removed == 0 {
-            ProfileRemoval::NothingToRemove
-        } else {
-            ProfileRemoval::Removed {
-                path: Some(crate::cowork_compat::POLICY_SUBKEY.to_owned()),
-            }
-        });
-    }
-    let stage_dir = std::env::temp_dir();
-    let job = crate::install::elevated_job::ElevatedJob {
-        reg_path: None,
-        org_plugins: None,
-        clear_values: KEYS_OF_INTEREST.iter().map(|k| (*k).to_owned()).collect(),
-        bridge_values: Vec::new(),
-        managed_files: Vec::new(),
-        remove_files: Vec::new(),
-    };
-    crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
-    Ok(ProfileRemoval::Removed {
-        path: Some(crate::cowork_compat::POLICY_SUBKEY.to_owned()),
+    let elevated = winproc::is_elevated();
+    let removed = clear_managed_claude_policy(elevated, KEYS_OF_INTEREST)
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
+    Ok(if removed == 0 {
+        ProfileRemoval::NothingToRemove
+    } else {
+        ProfileRemoval::Removed {
+            path: Some(format!(
+                r"{}\{}",
+                crate::config::store::hive_for(elevated).label(),
+                crate::cowork_compat::POLICY_SUBKEY
+            )),
+        }
     })
 }

@@ -16,6 +16,7 @@ pub mod cowork;
 pub mod filesystem;
 pub mod marketplace;
 pub mod proxy;
+pub mod registry;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -88,6 +89,8 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
         checks.push(check);
     }
     checks.push(auth::check_pinned_pubkey());
+    checks.extend(registry::check_policy_hives());
+    checks.push(check_version_agreement());
     checks.push(marketplace::check_marketplace());
     checks.extend(cowork::check_cowork_scope());
     checks.extend(cowork::check_cowork_enable());
@@ -124,4 +127,21 @@ fn render(checks: &[Check]) {
         checks.len() - fails - warns
     ));
     stdio::print_str(&buf);
+}
+
+fn check_version_agreement() -> Check {
+    let brand = crate::brand::brand();
+    if brand.version == crate::brand::COMPAT_VERSION {
+        Check::ok("bridge version", brand.version)
+    } else {
+        Check::warn(
+            "bridge version",
+            format!(
+                "displayed {} but reported to the gateway as {}; pin the brand crate to the core \
+                 release",
+                brand.version,
+                crate::brand::COMPAT_VERSION
+            ),
+        )
+    }
 }
