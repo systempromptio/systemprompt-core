@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Removed
+
+- The hidden `test_api` module; the message-handler, persistence and stream-processor helpers are public in their own modules.
+
 ## [0.47.0] - 2026-09-06
 
 ### Fixed

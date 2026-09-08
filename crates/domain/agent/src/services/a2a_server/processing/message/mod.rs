@@ -9,9 +9,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub(crate) mod message_handler;
-pub(crate) mod persistence;
-pub(crate) mod stream_processor;
+pub mod message_handler;
+pub mod persistence;
+pub mod stream_processor;
 
 pub use stream_processor::StreamProcessor;
 

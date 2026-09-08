@@ -7,7 +7,7 @@
 //! durable, user-visible record of a result.
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
-use systemprompt_agent::test_api::build_artifacts_from_results;
+use systemprompt_agent::services::a2a_server::processing::message::stream_processor::helpers::build_artifacts_from_results;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpServerId, TaskId};
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::{McpTool, ToolCall};

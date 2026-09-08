@@ -52,30 +52,6 @@ pub(crate) mod tool;
 
 pub use extension::McpExtension;
 
-/// Internal seams exposed for the out-of-tree test workspace.
-///
-/// Not part of the semver-stable surface — the orchestrator's cleanup passes
-/// are crate-private because callers must go through
-/// [`services::McpOrchestrator::reconcile`], which sequences them against the
-/// database prune and the start phase.
-#[doc(hidden)]
-pub mod test_api {
-    pub use crate::middleware::rbac::jwt::{
-        validate_and_extract_claims, validate_audience, validate_scopes_for_permissions,
-    };
-    pub use crate::services::client::handle_elicitation;
-    pub use crate::services::client::http_client_with_context::metadata::stamp_request_metadata;
-    pub use crate::services::orchestrator::process_cleanup::{
-        detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
-    };
-    pub use crate::services::orchestrator::schema_sync::{
-        validate_and_migrate_schemas, validate_schemas,
-    };
-    pub use crate::services::ui_renderer::templates::chart_svg::scale::{
-        Scale, ScaleKind, for_axis, format_value, linear,
-    };
-}
-
 pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
 

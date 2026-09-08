@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use rmcp::model::{ElicitRequestParams, ElicitResult, ElicitationAction, ElicitationSchema};
 use systemprompt_mcp::services::client::{ElicitationDelegate, SharedElicitationDelegate};
-use systemprompt_mcp::test_api::handle_elicitation;
+use systemprompt_mcp::services::client::handle_elicitation;
 
 #[derive(Debug)]
 struct RecordingDelegate {

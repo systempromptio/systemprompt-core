@@ -14,7 +14,7 @@ use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::process::pid::get_process_name_by_pid;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_mcp::test_api::{
+use systemprompt_mcp::services::orchestrator::process_cleanup::{
     detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
 };
 use systemprompt_models::AppPaths;
