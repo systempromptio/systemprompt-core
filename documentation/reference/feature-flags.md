@@ -34,7 +34,6 @@ systemprompt = { version = "0.47", default-features = false, features = ["databa
 | `events` | `systemprompt-events` | — | Event bus and SSE. |
 | `client` | `systemprompt-client` | — | HTTP API client. |
 | `security` | `systemprompt-security` | — | JWT, auth, manifest signing. |
-| `test-utils` | — | `cloud` | Credential fixtures and other test helpers. |
 | `cli` | `systemprompt-cli` | — | CLI entry point for product binaries (standalone). |
 | `runtime` | `systemprompt-extension` | `cli` | Runtime builder for embedding systemprompt as a library. |
 | `full` | all domain crates + `systemprompt-files`, `systemprompt-generator` (with `image-processing`), `systemprompt-scheduler` | `api`, `mcp`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security`, plus `systemprompt-logging/cli` | Everything: all domain modules, all infrastructure layers, and the CLI. |
@@ -50,7 +49,6 @@ These implications are encoded directly in `[features]`; enabling the left bring
 | `default` | `core` |
 | `api` | `core`, `database` (and therefore `systemprompt-traits`, `systemprompt-models`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-template-provider`, `systemprompt-database`, `sqlx`) |
 | `runtime` | `cli` |
-| `test-utils` | `cloud` |
 | `full` | `api`, `mcp`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security` (and everything those imply) |
 
 `full` is the only flag that aggregates the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `marketplace`, `scheduler`, `generator`, `files`). There is no narrower flag that selects an individual domain crate through the facade.

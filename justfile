@@ -134,6 +134,10 @@ lint-extensions:
 lint-comments:
     ./scripts/lint-inline-comments.sh
 
+# Reject test-only seams (test features, test_api modules, unreachable_pub) in production crates
+lint-test-seams:
+    ./scripts/lint-test-seams.sh
+
 # Reject tests that return early on a missing prerequisite without saying so
 lint-silent-skips:
     ./scripts/lint-silent-skips.sh crates/tests
@@ -160,7 +164,7 @@ check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)

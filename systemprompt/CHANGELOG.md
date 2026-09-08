@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Removed
+
+- The `test-utils` Cargo feature; it only implied `cloud` and nothing consumed it.
+
 ## [0.29.0] - 2026-08-05
 
 ### Added

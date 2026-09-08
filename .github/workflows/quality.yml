@@ -120,6 +120,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-comments
         if: ${{ !cancelled() }}
+      - run: just lint-test-seams
+        if: ${{ !cancelled() }}
       - run: just lint-inline-tests
         if: ${{ !cancelled() }}
       - run: just lint-raw-ids
