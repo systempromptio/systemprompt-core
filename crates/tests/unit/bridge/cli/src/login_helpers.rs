@@ -1,7 +1,7 @@
 //! Parsing what a user pastes back from the device-link page, and resolving
 //! the gateway and device name a redeemed token is bound to.
 
-use systemprompt_bridge::cli::login::test_api::{
+use systemprompt_bridge::cli::login::{
     code_after_flag, default_device_name, extract_code, resolve_gateway, strip_terminal_noise,
 };
 use tempfile::TempDir;

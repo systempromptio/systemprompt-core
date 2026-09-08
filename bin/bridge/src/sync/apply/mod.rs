@@ -220,7 +220,7 @@ fn manifest_with_servers(base: &SignedManifest, servers: Vec<ManagedMcpServer>) 
     next
 }
 
-fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
+pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
     fs::create_dir_all(root).map_err(|e| ApplyError::Io {
         context: format!("create {}", root.display()),
         source: e,
@@ -254,7 +254,7 @@ fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
         .find(|path| path.is_file())
 }
 
-fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError> {
+pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError> {
     let path = meta_dir.join(paths::USER_FRAGMENT);
     let bytes = match user {
         Some(u) => serde_json::to_vec_pretty(u).map_err(|e| ApplyError::Serialize {
@@ -269,7 +269,7 @@ fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError
     })
 }
 
-fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+pub fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
     let path = meta_dir.join(paths::MCP_SERVERS_FRAGMENT);
     let bytes = serde_json::to_vec_pretty(servers).map_err(|e| ApplyError::Serialize {
         what: "managed MCP servers".into(),
@@ -280,6 +280,3 @@ fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<()
         source: e,
     })
 }
-
-#[path = "apply_test_api.rs"]
-pub mod test_api;

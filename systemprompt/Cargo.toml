@@ -57,9 +57,6 @@ storage = ["dep:systemprompt-storage"]
 client = ["dep:systemprompt-client"]
 security = ["dep:systemprompt-security"]
 
-# Test utilities (credential fixtures, etc.)
-test-utils = ["cloud"]
-
 # CLI entry point for product binaries (standalone, use 'full' for everything)
 cli = ["dep:systemprompt-cli"]
 

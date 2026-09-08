@@ -17,6 +17,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod claude_code;
+
 use crate::context::BridgeContext;
 use crate::integration::host_app::{HostApp, ProbeEnv, ProfileRemoval};
 use crate::integration::profile_state::ProfileState;
@@ -133,6 +135,12 @@ pub async fn enrol_hosts(
     let mut reports = Vec::with_capacity(targets.len());
     for target in targets {
         reports.push(match target {
+            Target::SyncOnly(agent) if agent.id == claude_code::ID => Report {
+                host_id: agent.id.to_owned(),
+                display_name: agent.display_name,
+                install_action_label: claude_code::LABEL,
+                outcome: claude_code::enrol(bridge),
+            },
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
                 display_name: agent.display_name,
@@ -242,6 +250,12 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String
     Ok(targets
         .into_iter()
         .map(|target| match target {
+            Target::SyncOnly(agent) if agent.id == claude_code::ID => Report {
+                host_id: agent.id.to_owned(),
+                display_name: agent.display_name,
+                install_action_label: claude_code::LABEL,
+                outcome: claude_code::remove(),
+            },
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
                 display_name: agent.display_name,

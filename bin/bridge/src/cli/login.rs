@@ -120,7 +120,7 @@ fn sso_code(
     extract_code(line.trim())
 }
 
-fn extract_code(pasted: &str) -> Result<String, String> {
+pub fn extract_code(pasted: &str) -> Result<String, String> {
     let pasted = strip_terminal_noise(pasted);
     let pasted = pasted.trim();
     if pasted.is_empty() {
@@ -157,7 +157,7 @@ fn extract_code(pasted: &str) -> Result<String, String> {
 
 // Why: raw stdin retains terminal bracketed-paste escapes (ESC[200~ /
 // ESC[201~).
-fn strip_terminal_noise(pasted: &str) -> String {
+pub fn strip_terminal_noise(pasted: &str) -> String {
     let mut out = String::with_capacity(pasted.len());
     let mut chars = pasted.chars();
     while let Some(c) = chars.next() {
@@ -178,7 +178,7 @@ fn strip_terminal_noise(pasted: &str) -> String {
     out
 }
 
-fn code_after_flag(pasted: &str) -> Option<String> {
+pub fn code_after_flag(pasted: &str) -> Option<String> {
     let mut tokens = pasted.split_whitespace();
     while let Some(token) = tokens.next() {
         if let Some(code) = token.strip_prefix("--code=") {
@@ -191,7 +191,7 @@ fn code_after_flag(pasted: &str) -> Option<String> {
     None
 }
 
-fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
+pub fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
     gateway.map_or_else(
         || {
             crate::config::load()
@@ -222,7 +222,7 @@ fn redeem_code(
     .map_err(|e| e.to_string())
 }
 
-fn default_device_name() -> Option<String> {
+pub fn default_device_name() -> Option<String> {
     std::env::var("HOSTNAME")
         .ok()
         .map(|h| h.trim().to_owned())
@@ -256,6 +256,3 @@ fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
         stdio::print_str(&crate::integration::reapply::render(&reports));
     }
 }
-
-#[path = "login_test_api.rs"]
-pub mod test_api;

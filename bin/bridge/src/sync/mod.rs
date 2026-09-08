@@ -153,7 +153,7 @@ pub async fn run_once(
     Ok(build_summary(&synced, report))
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 async fn seed_default_model_from_profile(
     client: &crate::gateway::GatewayClient,
 ) -> Result<(), SyncError> {
@@ -170,7 +170,7 @@ async fn seed_default_model_from_profile(
     let Some(model) = profile.default_model.as_deref() else {
         return Ok(());
     };
-    match crate::install::mdm::linux::seed_default_model(model) {
+    match crate::install::mdm::claude_code_settings::seed_default_model(model) {
         Ok(true) => tracing::info!(model, "seeded the default model from the bridge profile"),
         Ok(false) => tracing::debug!("settings already name a model; leaving the user's choice"),
         Err(e) => return Err(SyncError::Network(format!("seed default model: {e}"))),
@@ -178,7 +178,7 @@ async fn seed_default_model_from_profile(
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(unix))]
 #[expect(
     clippy::unused_async,
     reason = "matches the Linux arm's signature, which the shared call site awaits"

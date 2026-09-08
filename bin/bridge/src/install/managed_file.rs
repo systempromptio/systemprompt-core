@@ -20,11 +20,7 @@ pub enum ManagedWrite {
     Unchanged,
 }
 
-pub(crate) fn write_managed_file(
-    path: &Path,
-    bytes: &[u8],
-    prompt: &str,
-) -> io::Result<ManagedWrite> {
+pub fn write_managed_file(path: &Path, bytes: &[u8], prompt: &str) -> io::Result<ManagedWrite> {
     match std::fs::read(path) {
         Ok(existing) if existing == bytes => return Ok(ManagedWrite::Unchanged),
         Ok(_) => {},
@@ -46,7 +42,7 @@ pub(crate) fn write_managed_file(
     }
 }
 
-pub(crate) fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool> {
+pub fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool> {
     match std::fs::remove_file(path) {
         Ok(()) => {
             verify_absent(path)?;
@@ -158,9 +154,6 @@ fn root_required(path: &Path) -> io::Error {
         ),
     )
 }
-
-#[path = "managed_file_test_api.rs"]
-pub mod test_api;
 
 fn verify_absent(path: &Path) -> io::Result<()> {
     match std::fs::symlink_metadata(path) {

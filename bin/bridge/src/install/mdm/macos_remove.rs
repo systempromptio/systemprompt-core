@@ -10,6 +10,7 @@ use super::MdmError;
 use super::macos::{MANAGED_PREFS_PATH, PAYLOAD_IDENTIFIER, bridge_prefs_path};
 
 pub(crate) fn remove_profile() -> Result<bool, MdmError> {
+    let cli_removed = !super::claude_code_settings::remove_all()?.is_empty();
     let user = std::env::var("USER").map_err(|e| MdmError::InvalidConfig(format!("USER: {e}")))?;
     if user.is_empty() || user.contains('/') || user == "." || user == ".." {
         return Err(MdmError::InvalidConfig(
@@ -79,7 +80,7 @@ pub(crate) fn remove_profile() -> Result<bool, MdmError> {
         )));
     }
     if existing.is_empty() {
-        return Ok(was_installed);
+        return Ok(was_installed || cli_removed);
     }
     let mut script = "set -e\n".to_owned();
     for path in &existing {

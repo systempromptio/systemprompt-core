@@ -2,7 +2,7 @@
 //!
 //! Resolves the active profile, enforces whether a command may run locally or
 //! must route to a remote tenant, and initialises credentials, secrets, and
-//! paths accordingly. The single entry point is [`bootstrap_profile`]; it
+//! paths accordingly. The single entry point is `bootstrap_profile`; it
 //! returns an external database URL when the command should reconnect against
 //! a cloud-issued database instead of continuing the local boot.
 //!

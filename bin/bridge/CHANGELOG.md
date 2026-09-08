@@ -37,6 +37,10 @@
 - `doctor` gains a `claude policy hive` check on Windows: which hive holds the policy, FAIL when HKLM shadows a differing HKCU copy, WARN when elevated with only an HKCU policy.
 - The Library pane no longer repaints on every state snapshot after a failed sync. The refetch marker was keyed on `state == "ok"`, so an `error` state refetched — and painted `loading` over an existing listing — on each 30 s host probe.
 
+### Removed
+
+- The `test_api` modules; login, proxy, update, managed-file, Claude Code managed-settings and sync-apply helpers are public in their own modules.
+
 ## [0.38.0] - 2026-09-06
 
 ### Changed

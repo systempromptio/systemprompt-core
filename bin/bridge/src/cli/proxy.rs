@@ -107,6 +107,3 @@ pub fn cmd_proxy(ctx: &BridgeContext) -> ExitCode {
         },
     }
 }
-
-#[path = "proxy_test_api.rs"]
-pub mod test_api;

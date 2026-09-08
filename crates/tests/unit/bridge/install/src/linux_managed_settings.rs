@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_bridge::install::mdm::linux::settings::test_api::{
+use systemprompt_bridge::install::mdm::claude_code_settings::{
     managed_settings_path, seed_default_model,
 };
 

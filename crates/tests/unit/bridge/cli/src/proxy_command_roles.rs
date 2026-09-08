@@ -5,7 +5,7 @@
 
 use std::process::ExitCode;
 
-use systemprompt_bridge::cli::proxy::test_api::cmd_proxy;
+use systemprompt_bridge::cli::proxy::cmd_proxy;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use tempfile::TempDir;
 
