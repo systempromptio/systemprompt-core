@@ -136,8 +136,8 @@ fn map_dispatch_error_preserves_the_classified_status() {
 async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operator() {
     let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
         GovernanceDenied {
-            policy: "secret_scan".to_owned(),
-            message: "secret detected: High-entropy token at prompt.text".to_owned(),
+            policy: "tool_blocklist".to_owned(),
+            message: "tool blocked: send_email".to_owned(),
         },
     )))
     .expect("a governance denial renders a response");
@@ -159,16 +159,29 @@ async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operat
         message.starts_with("blocked by systemprompt governance:"),
         "{message}"
     );
-    assert!(message.contains("prompt.text"), "{message}");
-    assert_eq!(
-        parsed["error"]["recovery"]["code"],
-        "prompt_repair_required"
+    assert!(message.contains("send_email"), "{message}");
+    assert!(
+        parsed["error"].get("recovery").is_none(),
+        "only PromptRepairRequired carries repair guidance: {parsed}"
     );
-    assert_eq!(parsed["error"]["recovery"]["retryable"], false);
-    assert_eq!(
-        parsed["error"]["recovery"]["locations"],
-        serde_json::json!(["provider_payload"])
-    );
+}
+
+#[tokio::test]
+async fn a_secret_scan_governance_denial_is_not_promoted_to_repair_guidance() {
+    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+        GovernanceDenied {
+            policy: "secret_scan".to_owned(),
+            message: "secret detected: High-entropy token at prompt.text".to_owned(),
+        },
+    )))
+    .expect("a governance denial renders a response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+        .await
+        .expect("the error body is small and fully buffered");
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON envelope");
+    assert!(parsed["error"].get("recovery").is_none(), "{parsed}");
 }
 
 #[test]

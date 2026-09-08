@@ -74,10 +74,9 @@ fn scan_patterns(s: &str) -> Option<(&'static SecretPattern, String)> {
 
 fn scan_str(s: &str, entropy: &EntropyConfig) -> Option<(&'static SecretPattern, String)> {
     scan_patterns(s).or_else(|| {
-        find_high_entropy_token(s, entropy).map(|token| {
-            let start = token.as_ptr() as usize - s.as_ptr() as usize;
-            (&HIGH_ENTROPY_PATTERN, redacted_snippet(s, start))
-        })
+        entropy::high_entropy_spans(s, entropy)
+            .next()
+            .map(|(span, _)| (&HIGH_ENTROPY_PATTERN, redacted_snippet(s, span.start)))
     })
 }
 

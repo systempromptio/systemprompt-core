@@ -22,6 +22,8 @@ const ERROR_TYPE_PERMISSION: &str = "permission_error";
 const ERROR_TYPE_INVALID_REQUEST: &str = "invalid_request_error";
 
 const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
+const PROMPT_REPAIR_ACTION: &str = "Remove secret-bearing content, correct system instructions, \
+                                    or shorten the conversation before retrying";
 
 #[cfg_attr(
     not(feature = "test-api"),
@@ -106,12 +108,6 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
         return Ok(build_prompt_repair(&repair.message, &repair.locations));
     }
     if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
-        if denied.policy == "secret_scan" {
-            return Ok(build_prompt_repair(
-                &denied.message,
-                &["provider_payload".to_owned()],
-            ));
-        }
         return Ok(build_policy_denial(&denied.message));
     }
     if let Some(image) = inner.downcast_ref::<ImageFetchFailed>() {
@@ -248,7 +244,7 @@ pub fn build_error_response(status: StatusCode, error_type: &str, message: &str)
 }
 
 fn build_prompt_repair(message: &str, locations: &[String]) -> Response<Body> {
-    (StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({
+    let body = serde_json::json!({
         "type": "error",
         "error": {
             "type": ERROR_TYPE_INVALID_REQUEST,
@@ -257,8 +253,9 @@ fn build_prompt_repair(message: &str, locations: &[String]) -> Response<Body> {
                 "code": "prompt_repair_required",
                 "locations": locations,
                 "retryable": false,
-                "action": "Remove secret-bearing content, correct system instructions, or shorten the conversation before retrying"
+                "action": PROMPT_REPAIR_ACTION,
             }
         }
-    }))).into_response()
+    });
+    (StatusCode::BAD_REQUEST, axum::Json(body)).into_response()
 }

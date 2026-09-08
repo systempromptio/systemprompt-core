@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
 
 use super::governed::{GovernedInput, GovernedTarget};
+use super::secrets::SecretFinding;
 use crate::authz::error::AuthzError;
 use crate::authz::types::Decision;
 
@@ -154,6 +155,21 @@ pub struct PolicyContext<'a> {
     pub call_id: &'a CallId,
 }
 
+impl PolicyContext<'_> {
+    #[must_use]
+    pub fn with_input<'b>(&'b self, input: &'b GovernedInput) -> PolicyContext<'b> {
+        PolicyContext {
+            target: self.target.clone(),
+            agent_scope: self.agent_scope.clone(),
+            access_scope: self.access_scope,
+            session_id: self.session_id,
+            user_id: self.user_id,
+            input,
+            call_id: self.call_id,
+        }
+    }
+}
+
 /// A unit of governance evaluation for one governed call — an MCP tool call or
 /// a submitted prompt, per [`PolicyContext::target`].
 ///
@@ -165,12 +181,17 @@ pub struct PolicyContext<'a> {
 /// one call twice yields the same [`Decision`] and leaves the same state behind
 /// as evaluating it once. A policy that counts calls therefore counts calls,
 /// not evaluations — the two diverge wherever enforcement points nest.
+///
+/// `prompt_secret_findings` returns `None` unless the policy can locate the
+/// credentials behind its own
+/// [`DenyReason::SecretLeak`][crate::authz::types::DenyReason::SecretLeak];
+/// only a policy that returns `Some` takes part in prompt recovery.
 pub trait GovernancePolicy: Send + Sync + fmt::Debug {
     fn id(&self) -> PolicyId;
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision;
-    fn prompt_secret_findings(&self, _input: &GovernedInput) -> Vec<super::secrets::SecretFinding> {
-        Vec::new()
+    fn prompt_secret_findings(&self, _input: &GovernedInput) -> Option<Vec<SecretFinding>> {
+        None
     }
 }

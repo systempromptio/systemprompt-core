@@ -9,10 +9,15 @@
 )]
 
 mod credentials;
+mod error;
 mod finalize;
 mod resolve;
 mod stages;
 
+pub use self::error::{
+    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
+    QuotaExceeded, SafetyBlocked,
+};
 pub(super) use self::finalize::run_response_safety_scan;
 
 #[cfg(feature = "test-api")]
@@ -61,54 +66,6 @@ pub struct DispatchInputs {
     pub inbound: Arc<dyn InboundAdapter>,
     pub forward_headers: Vec<(String, String)>,
     pub identity_headers: Vec<(String, String)>,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum DispatchError {
-    #[error(transparent)]
-    PreAudit(anyhow::Error),
-    #[error(transparent)]
-    Recorded(anyhow::Error),
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct PolicyDenied(pub String);
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct QuotaExceeded {
-    pub message: String,
-    pub retry_after_seconds: i32,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct GuardForbidden {
-    pub message: String,
-}
-
-/// A denial from the typed four-stage governance chain — the same engine and
-/// the same operator-configured policies that govern MCP tool calls.
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct GovernanceDenied {
-    pub policy: String,
-    pub message: String,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct PromptRepairRequired {
-    pub message: String,
-    pub locations: Vec<String>,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct SafetyBlocked {
-    pub category: String,
-    pub message: String,
 }
 
 impl GatewayService {

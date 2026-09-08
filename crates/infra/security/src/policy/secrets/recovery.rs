@@ -1,5 +1,12 @@
 //! Located secret findings for repairing provider-bound prompt text.
 //!
+//! [`secret_findings`] reports every credential the scanner would deny on, as
+//! byte spans into the governed strings, and [`redact_spans`] applies them.
+//! A finding never carries the credential itself, so the list is safe to log
+//! and to render into a deny message. Collection stops one past
+//! [`MAX_RECOVERY_FINDINGS`]: a prompt with more credentials than that is
+//! not repaired, and the caller only needs to know the cap was exceeded.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -8,7 +15,8 @@ use std::ops::Range;
 use systemprompt_identifiers::SecretPatternId;
 
 use super::super::GovernedInput;
-use super::{COMPILED, EntropyConfig, SignatureExemptions};
+use super::patterns::HIGH_ENTROPY_PATTERN;
+use super::{COMPILED, EntropyConfig, SECRET_PATTERNS, SignatureExemptions};
 
 pub const REDACTION_MARKER: &str = "[REDACTED_BY_GOVERNANCE]";
 pub const MAX_RECOVERY_FINDINGS: usize = 4096;
@@ -28,58 +36,47 @@ pub struct SecretFinding {
     pub pattern_id: SecretPatternId,
 }
 
+#[must_use]
 pub fn secret_findings(input: &GovernedInput, entropy: &EntropyConfig) -> Vec<SecretFinding> {
     let strings = input.strings();
     let exemptions = SignatureExemptions::from_strings(&strings);
-    let mut findings = Vec::new();
-    for (part_index, found) in strings.iter().enumerate() {
-        for (index, regex) in COMPILED.iter() {
-            let pattern = &super::SECRET_PATTERNS[*index];
-            for hit in regex.find_iter(found.value) {
-                let span = if whole_value_pattern(pattern.id) {
-                    0..found.value.len()
-                } else {
-                    hit.range()
-                };
-                findings.push(SecretFinding {
-                    source: SecretSource { part_index },
-                    span,
+    strings
+        .iter()
+        .enumerate()
+        .flat_map(|(part_index, found)| {
+            let source = SecretSource { part_index };
+            let value = found.value;
+            let patterns = COMPILED.iter().flat_map(move |(index, regex)| {
+                let pattern = &SECRET_PATTERNS[*index];
+                regex.find_iter(value).map(move |hit| SecretFinding {
+                    source,
+                    span: if pattern.redact_whole_value {
+                        0..value.len()
+                    } else {
+                        hit.range()
+                    },
                     pattern_id: SecretPatternId::new(pattern.id),
-                });
-                if findings.len() > MAX_RECOVERY_FINDINGS {
-                    return findings;
-                }
-            }
-        }
-        if !exemptions.exempts_entropy(&found.path) {
-            for token in super::entropy::high_entropy_tokens(found.value, entropy) {
-                let start = token.as_ptr() as usize - found.value.as_ptr() as usize;
-                findings.push(SecretFinding {
-                    source: SecretSource { part_index },
-                    span: start..start + token.len(),
-                    pattern_id: SecretPatternId::new("high-entropy-token"),
-                });
-                if findings.len() > MAX_RECOVERY_FINDINGS {
-                    return findings;
-                }
-            }
-        }
-    }
-    findings
+                })
+            });
+            let tokens = (!exemptions.exempts_entropy(&found.path))
+                .then(|| {
+                    super::entropy::high_entropy_spans(value, entropy).map(move |(span, _)| {
+                        SecretFinding {
+                            source,
+                            span,
+                            pattern_id: SecretPatternId::new(HIGH_ENTROPY_PATTERN.id),
+                        }
+                    })
+                })
+                .into_iter()
+                .flatten();
+            patterns.chain(tokens)
+        })
+        .take(MAX_RECOVERY_FINDINGS + 1)
+        .collect()
 }
 
-fn whole_value_pattern(id: &str) -> bool {
-    id.starts_with("pem-private-key")
-        || matches!(
-            id,
-            "aws-secret-key"
-                | "twilio-auth-token"
-                | "heroku-api-key"
-                | "bearer-token-jwt"
-                | "jwt-raw"
-        )
-}
-
+#[must_use]
 pub fn redact_spans(value: &str, spans: impl IntoIterator<Item = Range<usize>>) -> Option<String> {
     let mut spans: Vec<_> = spans.into_iter().collect();
     spans.sort_unstable_by_key(|span| (span.start, span.end));

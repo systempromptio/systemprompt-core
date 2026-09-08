@@ -154,3 +154,63 @@ fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
     assert_eq!(evaluation.chain[1].result, ChainEntryResult::Warn);
     assert_eq!(evaluation.chain[2].result, ChainEntryResult::Fail);
 }
+
+#[derive(Debug)]
+struct LeaksWithoutFindings;
+
+impl systemprompt_security::policy::GovernancePolicy for LeaksWithoutFindings {
+    fn id(&self) -> systemprompt_identifiers::PolicyId {
+        systemprompt_identifiers::PolicyId::new("recovery_leak_without_findings")
+    }
+    fn name(&self) -> &'static str {
+        "leak without findings"
+    }
+    fn description(&self) -> &'static str {
+        "denies with a secret leak but cannot locate it"
+    }
+    fn evaluate(&self, _: &PolicyContext<'_>) -> Decision {
+        Decision::Deny {
+            reason: systemprompt_security::authz::types::DenyReason::SecretLeak {
+                pattern_id: systemprompt_identifiers::SecretPatternId::new("opaque"),
+                pattern_name: std::borrow::Cow::Borrowed("opaque"),
+                location: systemprompt_security::policy::SecretLocation::new(
+                    "prompt",
+                    "text",
+                    "[REDACTED]",
+                ),
+            },
+        }
+    }
+}
+systemprompt_security::register_governance_policy!("recovery_leak_without_findings", |_| Box::new(
+    LeaksWithoutFindings
+));
+
+#[test]
+fn a_policy_without_located_findings_never_offers_recovery() {
+    let config = GovernanceConfig::parse(
+        "governance:\n  policies:\n    - id: recovery_leak_without_findings\n",
+    )
+    .unwrap();
+    let engine = GovernanceEngine::from_config(&config).unwrap();
+    let input = GovernedInput::prompt_text(KEY.to_owned());
+    let session = SessionId::generate();
+    let user = UserId::new("recovery-opaque-user");
+    let call = CallId::generate();
+    let ctx = PolicyContext {
+        target: GovernedTarget::Prompt,
+        agent_scope: AgentScope::User {
+            user_id: user.clone(),
+        },
+        access_scope: AccessScope::User,
+        session_id: &session,
+        user_id: &user,
+        input: &input,
+        call_id: &call,
+    };
+    let evaluation = engine.evaluate_with_prompt_recovery(&ctx, |_| {
+        panic!("a policy that returns no findings must not be offered a repair")
+    });
+    assert!(matches!(evaluation.decision, Decision::Deny { .. }));
+    assert_eq!(evaluation.chain[0].result, ChainEntryResult::Fail);
+}

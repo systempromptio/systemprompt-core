@@ -14,7 +14,6 @@
 mod governance;
 mod outbound;
 pub(super) mod recovery;
-mod recovery_canonical;
 
 use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;
@@ -22,8 +21,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::ChainEntryResult;
+use systemprompt_security::authz::types::{Decision, DenyReason};
+use systemprompt_security::policy::{ChainEntryResult, SECRET_SCAN_ID};
 
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
@@ -39,6 +38,11 @@ use super::finalize::{
 };
 use super::resolve::ResolvedUpstream;
 use super::{DispatchError, GovernanceDenied, PromptRepairRequired, SafetyBlocked};
+
+const UNSANITIZABLE_SECRET_MESSAGE: &str = "Secret content could not be safely sanitized; remove \
+                                            the affected content or restart with a corrected \
+                                            system prompt";
+const FALLBACK_REPAIR_LOCATION: &str = "provider_payload";
 
 pub(super) struct UpstreamRelay<'a> {
     pub raw_body: &'a Bytes,
@@ -136,8 +140,12 @@ impl GovernedDispatch {
         prepared.recovery_count = recovery_count;
         if recovery_count > 0 {
             audit.set_prepared_body_digest(&prepared.body.bytes).await;
-            tracing::warn!(ai_request_id = %ctx.ai_request_id, recovery_count, locations = ?recovery_locations,
-                "Gateway sanitized secret-bearing prompt content");
+            tracing::warn!(
+                ai_request_id = %ctx.ai_request_id,
+                recovery_count,
+                locations = ?recovery_locations,
+                "Gateway sanitized secret-bearing prompt content"
+            );
         }
 
         #[expect(
@@ -148,8 +156,9 @@ impl GovernedDispatch {
         let denied = match &evaluation.decision {
             Decision::Allow { .. } => None,
             Decision::Warn { .. } => None,
-            Decision::Deny { reason: systemprompt_security::authz::types::DenyReason::SecretLeak { .. } } =>
-                Some("Secret content could not be safely sanitized; remove the affected content or restart with a corrected system prompt".to_owned()),
+            Decision::Deny {
+                reason: DenyReason::SecretLeak { .. },
+            } => Some(UNSANITIZABLE_SECRET_MESSAGE.to_owned()),
             Decision::Deny { reason } => Some(reason.to_string()),
             Decision::Pending { reason } => Some(reason.to_string()),
         };
@@ -177,27 +186,18 @@ impl GovernedDispatch {
         if let Err(e) = audit.fail(&reason).await {
             tracing::warn!(error = %e, "governance-deny audit fail failed");
         }
-        if policy == "secret_scan" {
-            return Err(DispatchError::Recorded(
-                PromptRepairRequired {
-                    message: reason,
-                    locations: if recovery_locations.is_empty() {
-                        vec!["provider_payload".to_owned()]
-                    } else {
-                        recovery_locations
-                    },
-                }
-                .into(),
-            ));
-        }
-        Err(DispatchError::Recorded(
-            GovernanceDenied {
-                policy,
-                message: reason,
-            }
-            .into(),
-        ))
+        Err(governance_denial(policy, reason, recovery_locations))
     }
+}
+
+fn governance_denial(policy: String, message: String, mut locations: Vec<String>) -> DispatchError {
+    if policy != SECRET_SCAN_ID {
+        return DispatchError::Recorded(GovernanceDenied { policy, message }.into());
+    }
+    if locations.is_empty() {
+        locations.push(FALLBACK_REPAIR_LOCATION.to_owned());
+    }
+    DispatchError::Recorded(PromptRepairRequired { message, locations }.into())
 }
 
 impl ScannedDispatch {

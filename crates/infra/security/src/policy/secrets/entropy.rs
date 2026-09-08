@@ -19,6 +19,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::ops::Range;
+
 use base64::Engine as _;
 use base64::engine::general_purpose::{STANDARD_NO_PAD, URL_SAFE_NO_PAD};
 use regex::Regex;
@@ -64,19 +66,36 @@ impl Default for EntropyConfig {
 
 #[must_use]
 pub fn find_high_entropy_token<'a>(text: &'a str, config: &EntropyConfig) -> Option<&'a str> {
-    if !config.enabled {
-        return None;
-    }
-    text.split(|c: char| c.is_whitespace() || TOKEN_DELIMITERS.contains(c))
-        .find(|token| is_credential_shaped(token, config))
+    high_entropy_spans(text, config)
+        .next()
+        .map(|(_, token)| token)
 }
 
-pub(super) fn high_entropy_tokens<'a>(
+pub(super) fn high_entropy_spans<'a, 'c>(
     text: &'a str,
-    config: &'a EntropyConfig,
-) -> impl Iterator<Item = &'a str> {
-    text.split(|c: char| c.is_whitespace() || TOKEN_DELIMITERS.contains(c))
-        .filter(move |token| config.enabled && is_credential_shaped(token, config))
+    config: &'c EntropyConfig,
+) -> impl Iterator<Item = (Range<usize>, &'a str)> + use<'a, 'c> {
+    config
+        .enabled
+        .then(|| token_spans(text).filter(move |(_, token)| is_credential_shaped(token, config)))
+        .into_iter()
+        .flatten()
+}
+
+fn is_token_delimiter(c: char) -> bool {
+    c.is_whitespace() || TOKEN_DELIMITERS.contains(c)
+}
+
+fn token_spans(text: &str) -> impl Iterator<Item = (Range<usize>, &str)> {
+    let mut cursor = 0;
+    std::iter::from_fn(move || {
+        let start = cursor + text[cursor..].find(|c| !is_token_delimiter(c))?;
+        let end = text[start..]
+            .find(is_token_delimiter)
+            .map_or(text.len(), |len| start + len);
+        cursor = end;
+        Some((start..end, &text[start..end]))
+    })
 }
 
 fn is_credential_shaped(token: &str, config: &EntropyConfig) -> bool {

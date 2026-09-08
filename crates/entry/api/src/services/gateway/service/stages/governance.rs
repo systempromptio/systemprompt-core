@@ -10,14 +10,16 @@ use systemprompt_identifiers::{CallId, PolicyId, SessionId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
-    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
-    record_decision,
+    Evaluation, GovernanceEngine, GovernanceEngineError, GovernedInput, GovernedTarget,
+    PolicyContext, PrincipalSnapshot, record_decision,
 };
 
 pub(in crate::services::gateway::service) const QUOTA_POLICY_LABEL: &str = "quota";
 
-use super::super::super::audit::GatewayRequestContext;
-use super::super::super::protocol::canonical::CanonicalRequest;
+use super::recovery::{PromptRecovery, govern_prompt};
+use crate::services::gateway::audit::GatewayRequestContext;
+use crate::services::gateway::protocol::canonical::CanonicalRequest;
+use crate::services::gateway::protocol::outbound::PreparedBody;
 
 pub(super) async fn record_governance_decision(
     db: &DbPool,
@@ -104,8 +106,8 @@ pub(super) struct PromptEvaluation {
 pub(super) fn evaluate_prompt(
     ctx: &GatewayRequestContext,
     request: &mut CanonicalRequest,
-    body: &mut super::super::super::protocol::outbound::PreparedBody,
-) -> Result<PromptEvaluation, systemprompt_security::policy::GovernanceEngineError> {
+    body: &mut PreparedBody,
+) -> Result<PromptEvaluation, GovernanceEngineError> {
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let input = GovernedInput::prompt_parts([]);
@@ -120,11 +122,11 @@ pub(super) fn evaluate_prompt(
         input: &input,
         call_id: &call_id,
     };
-    let super::recovery::PromptRecovery {
+    let PromptRecovery {
         evaluation,
         recovery_count,
         recovery_locations,
-    } = super::recovery::govern_prompt(GovernanceEngine::global()?, &policy_ctx, request, body);
+    } = govern_prompt(GovernanceEngine::global()?, &policy_ctx, request, body);
 
     Ok(PromptEvaluation {
         evaluation,

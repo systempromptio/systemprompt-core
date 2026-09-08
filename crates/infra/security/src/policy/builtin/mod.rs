@@ -25,3 +25,5 @@ mod secret_scan;
 mod tool_blocklist;
 
 pub use require_approval::ApprovalSettings;
+
+pub const SECRET_SCAN_ID: &str = "secret_scan";
