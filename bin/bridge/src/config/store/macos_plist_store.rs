@@ -62,7 +62,7 @@ fn read_document_at(
     path: &std::path::Path,
     keys: &[&str],
 ) -> Result<PolicyDocument, ConfigStoreError> {
-    if !path.try_exists().map_err(|e| map_io(path, &e))? {
+    if !path.try_exists().map_err(|e| map_io(&path, &e))? {
         return Ok(PolicyDocument::new());
     }
     let output = Command::new("/usr/bin/plutil")
@@ -118,7 +118,7 @@ pub(super) fn write_values(
 pub(super) fn delete_values(hive: PolicyHive, names: &[&str]) -> Result<usize, ConfigStoreError> {
     let path = plist_path(hive)
         .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
-    if !path.try_exists().map_err(|e| map_io(path, &e))? {
+    if !path.try_exists().map_err(|e| map_io(&path, &e))? {
         return Ok(0);
     }
     let mut doc = read_all(hive)?;
@@ -164,7 +164,7 @@ pub(super) fn delete_key(hive: PolicyHive) -> Result<bool, ConfigStoreError> {
 fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
     let path = plist_path(hive)
         .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
-    if !path.try_exists().map_err(|e| map_io(path, &e))? {
+    if !path.try_exists().map_err(|e| map_io(&path, &e))? {
         return Ok(PolicyDocument::new());
     }
     let output = Command::new("/usr/bin/plutil")
@@ -199,14 +199,14 @@ fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
 
 fn write_document(path: &std::path::Path, doc: &PolicyDocument) -> Result<(), ConfigStoreError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| map_io(path, &e))?;
+        std::fs::create_dir_all(parent).map_err(|e| map_io(&path, &e))?;
     }
     crate::fsutil::atomic_write_0644(path, render_plist(doc).as_bytes())
-        .map_err(|e| map_io(path, &e))?;
+        .map_err(|e| map_io(&path, &e))?;
     let output = Command::new("/usr/bin/killall")
         .arg("cfprefsd")
         .output()
-        .map_err(|e| map_io(path, &e))?;
+        .map_err(|e| map_io(&path, &e))?;
     if !output.status.success() && !cfprefsd_was_not_running(&output) {
         return Err(ConfigStoreError::Backend(format!(
             "refresh managed preferences {}: {}: {}",
