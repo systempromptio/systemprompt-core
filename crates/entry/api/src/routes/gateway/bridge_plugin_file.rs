@@ -17,8 +17,9 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::JwtToken;
-use systemprompt_marketplace::{CatalogContent, ManifestService, plugin_bundles_cached};
+use systemprompt_marketplace::{CatalogContent, ManifestService, NoopTrace, plugin_bundles_cached};
 use systemprompt_models::bridge::ids::PluginId;
+use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
 
 use super::bridge_data;
@@ -49,7 +50,16 @@ pub async fn handle(
         (StatusCode::NOT_FOUND, "Plugin not found".to_owned())
     })?;
 
-    if !plugin_is_granted(&ctx, &id, &user.id).await? {
+    let services = bridge_data::load_services_config().map_err(|e| internal("services", &e))?;
+    let profile = ProfileBootstrap::get().map_err(|e| internal("profile", &e))?;
+    let catalog = CatalogContent::load_cached(
+        &services,
+        ctx.app_paths().system().services(),
+        &profile.server.api_external_url,
+    )
+    .map_err(|e| internal("catalog", &e))?;
+
+    if !plugin_is_granted(&ctx, &services, &catalog, &id, &user.id).await? {
         tracing::warn!(
             plugin_id = %plugin_id,
             user_id = %user.id,
@@ -58,7 +68,8 @@ pub async fn handle(
         return Err((StatusCode::NOT_FOUND, "Plugin not found".to_owned()));
     }
 
-    let bundles = build_bundles(&ctx)?;
+    let bundles = plugin_bundles_cached(&services, &catalog.as_content())
+        .map_err(|e| internal("bundle", &e))?;
     let bundle = bundles
         .get(&id)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Plugin not found".to_owned()))?;
@@ -72,6 +83,14 @@ pub async fn handle(
         header::HeaderValue::from_static(content_type(&relative_path)),
     );
     Ok(response)
+}
+
+fn internal(stage: &'static str, e: &dyn std::fmt::Display) -> HttpError {
+    tracing::error!(error = %e, stage, "bridge: plugin bundle assembly failed");
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Plugin bundle unavailable".to_owned(),
+    )
 }
 
 async fn authenticate(
@@ -93,67 +112,23 @@ async fn authenticate(
 
 async fn plugin_is_granted(
     ctx: &AppContext,
+    services: &ServicesConfig,
+    catalog: &CatalogContent,
     plugin_id: &PluginId,
     user_id: &systemprompt_identifiers::UserId,
 ) -> Result<bool, HttpError> {
-    let services = bridge_data::load_services_config().map_err(|e| {
-        tracing::error!(error = %e, "bridge: services load failed while authorizing a plugin file");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Plugin bundle unavailable".to_owned(),
-        )
-    })?;
-    let profile = ProfileBootstrap::get().map_err(|e| {
-        tracing::error!(error = %e, "bridge: profile load failed while authorizing a plugin file");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Plugin bundle unavailable".to_owned(),
-        )
-    })?;
-
-    let candidate = ManifestService::assemble_candidate(
-        &services,
+    let candidate = ManifestService::assemble_candidate_from_catalog(
+        catalog.clone(),
+        services,
         ctx.app_paths().system().services(),
-        &profile.server.api_external_url,
         ctx.marketplace_filter().as_ref(),
         user_id,
+        &mut NoopTrace,
     )
     .await
-    .map_err(|e| {
-        tracing::error!(error = %e, "bridge: candidate assembly failed while authorizing a plugin file");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Plugin bundle unavailable".to_owned(),
-        )
-    })?;
+    .map_err(|e| internal("candidate", &e))?;
 
     Ok(candidate.plugins.iter().any(|p| &p.id == plugin_id))
-}
-
-fn build_bundles(
-    ctx: &AppContext,
-) -> Result<
-    Arc<std::collections::BTreeMap<PluginId, systemprompt_marketplace::PluginBundle>>,
-    HttpError,
-> {
-    let internal = |stage: &'static str, e: &dyn std::fmt::Display| -> HttpError {
-        tracing::error!(error = %e, stage, "bridge: plugin bundle assembly failed");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Plugin bundle unavailable".to_owned(),
-        )
-    };
-
-    let services = bridge_data::load_services_config().map_err(|e| internal("services", &e))?;
-    let profile = ProfileBootstrap::get().map_err(|e| internal("profile", &e))?;
-    let catalog = CatalogContent::load(
-        &services,
-        ctx.app_paths().system().services(),
-        &profile.server.api_external_url,
-    )
-    .map_err(|e| internal("catalog", &e))?;
-
-    plugin_bundles_cached(&services, &catalog.as_content()).map_err(|e| internal("bundle", &e))
 }
 
 pub fn relative_path_is_safe(relative: &str) -> bool {

@@ -53,7 +53,7 @@ pub fn build_http_client() -> reqwest::Client {
         .unwrap_or_else(|_| reqwest::Client::new())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GatewayClient {
     base_url: ValidatedUrl,
     http: reqwest::Client,

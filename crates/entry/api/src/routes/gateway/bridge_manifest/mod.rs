@@ -14,7 +14,7 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, UserId};
-use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
+use systemprompt_marketplace::{CatalogContent, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
 };
@@ -105,12 +105,20 @@ async fn assemble_candidate(
         .bridge_policy
         .is_some_and(|p| p.allow_claude_ai_connectors);
 
-    ManifestService::assemble_candidate(
+    let services_root = ctx.app_paths().system().services();
+    let catalog =
+        CatalogContent::load_cached(&services, services_root, &profile.server.api_external_url)
+            .map_err(|e| {
+                tracing::warn!(error = %e, "manifest: catalog load failed");
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
+            })?;
+    ManifestService::assemble_candidate_from_catalog(
+        (*catalog).clone(),
         &services,
-        ctx.app_paths().system().services(),
-        &profile.server.api_external_url,
+        services_root,
         ctx.marketplace_filter().as_ref(),
         user_id,
+        &mut NoopTrace,
     )
     .await
     .map(|candidate| (candidate, allow_claude_ai_connectors))

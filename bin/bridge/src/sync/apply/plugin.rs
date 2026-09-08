@@ -1,13 +1,11 @@
 //! Per-plugin sync application: change detection and materialisation.
 //!
-//! Plugin files are fetched serially rather than concurrently. A buffered
-//! variant of the fetch loop tips rustc's "Send is not general enough" limit:
-//! awaiting the resulting stream deep inside the sync chain leaves borrows
-//! (`&GatewayClient`, the `&str` bearer) held across the await, and the spawned
-//! sync task then fails to prove `Send` for all lifetimes. Serial keeps those
-//! borrows out of a combinator's higher-ranked bound. Staging is into a
-//! temporary directory that only becomes the plugin on success either way, so a
-//! failure part-way leaves the installed plugin untouched.
+//! Plugin files are fetched with bounded concurrency. Each per-file future owns
+//! its inputs (a cloned [`GatewayClient`], the bearer, the file entry) rather
+//! than borrowing them: a borrow held across the buffered await trips rustc's
+//! higher-ranked `Send` check once the sync future is spawned. Staging is into
+//! a temporary directory that only becomes the plugin on success, so a failure
+//! part-way leaves the installed plugin untouched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,13 +13,16 @@
 use super::hooks::{ensure_plugin_json_managed_fields, write_hooks_json};
 use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::{HookEntry, PluginEntry, SignedManifest};
+use crate::gateway::manifest::{HookEntry, PluginEntry, PluginFile, SignedManifest};
 use crate::hash::{normalise_relative, safe_plugin_id, sha256_hex};
 use crate::ids::Sha256Digest;
 use crate::proxy::LoopbackEndpoint;
+use futures_util::StreamExt;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+const PLUGIN_FILE_FETCH_CONCURRENCY: usize = 8;
 
 pub(crate) struct PluginApplyOutcome {
     pub installed: Vec<String>,
@@ -197,25 +198,44 @@ async fn fetch_plugin_into_staging(
         }
     }
 
-    for file in &plugin.files {
-        let out = stage.join(normalise_relative(&file.path));
-        let bytes = client
-            .fetch_plugin_file(bearer, plugin.id.as_str(), &file.path)
-            .await?;
-        let actual = sha256_hex(&bytes);
-        if !sha256_matches(&actual, &file.sha256) {
-            return Err(super::ApplyError::HashMismatch {
-                what: format!("file {}/{}", plugin.id, file.path),
-                expected: file.sha256.clone(),
-                actual,
-            });
-        }
-        fs::write(&out, &bytes).map_err(|e| super::ApplyError::Io {
-            context: format!("write {}", out.display()),
-            source: e,
-        })?;
+    let mut fetches = futures_util::stream::iter(plugin.files.iter().map(|file| {
+        fetch_one_file(
+            client.clone(),
+            bearer.to_owned(),
+            plugin.id.to_string(),
+            file.clone(),
+            stage.join(normalise_relative(&file.path)),
+        )
+    }))
+    .buffer_unordered(PLUGIN_FILE_FETCH_CONCURRENCY);
+    while let Some(fetched) = fetches.next().await {
+        fetched?;
     }
     Ok(())
+}
+
+async fn fetch_one_file(
+    client: GatewayClient,
+    bearer: String,
+    plugin_id: String,
+    file: PluginFile,
+    out: PathBuf,
+) -> Result<(), super::ApplyError> {
+    let bytes = client
+        .fetch_plugin_file(&bearer, &plugin_id, &file.path)
+        .await?;
+    let actual = sha256_hex(&bytes);
+    if !sha256_matches(&actual, &file.sha256) {
+        return Err(super::ApplyError::HashMismatch {
+            what: format!("file {plugin_id}/{}", file.path),
+            expected: file.sha256.clone(),
+            actual,
+        });
+    }
+    fs::write(&out, &bytes).map_err(|e| super::ApplyError::Io {
+        context: format!("write {}", out.display()),
+        source: e,
+    })
 }
 
 fn sha256_matches(actual: &str, expected: &Sha256Digest) -> bool {

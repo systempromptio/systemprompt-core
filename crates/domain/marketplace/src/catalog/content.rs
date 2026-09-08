@@ -27,7 +27,7 @@ use crate::catalog::{
 };
 use crate::error::MarketplaceError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CatalogContent {
     skills: Vec<SkillEntry>,
     agents: Vec<AgentEntry>,

@@ -172,6 +172,28 @@ async fn plugin_file_serves_skill_bytes_with_markdown_content_type() -> anyhow::
 }
 
 #[tokio::test]
+async fn plugin_file_repeat_fetch_serves_identical_bytes_from_the_cached_catalog()
+-> anyhow::Result<()> {
+    let (app, pool) = bundle_router_and_pool().await?;
+    let cred = seed_bridge_credential(&pool, "plugin-repeat@example.invalid").await?;
+    let mut bodies = Vec::new();
+    for _ in 0..2 {
+        let resp = app
+            .clone()
+            .oneshot(authed_get(
+                "/bridge/plugins/cov-plugin/skills/covskill/SKILL.md",
+                cred.jwt.as_str(),
+            ))
+            .await?;
+        assert_eq!(resp.status(), StatusCode::OK);
+        bodies.push(axum::body::to_bytes(resp.into_body(), 1024 * 1024).await?);
+    }
+    assert_eq!(bodies[0], bodies[1]);
+    assert!(!bodies[0].is_empty());
+    Ok(())
+}
+
+#[tokio::test]
 async fn plugin_manifest_serves_json_with_plugin_identity() -> anyhow::Result<()> {
     let (app, pool) = bundle_router_and_pool().await?;
     let cred = seed_bridge_credential(&pool, "plugin-manifest@example.invalid").await?;

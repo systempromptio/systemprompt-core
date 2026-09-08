@@ -17,6 +17,7 @@
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
@@ -727,6 +728,15 @@ struct Bundle {
 }
 
 fn serve_plugins(m: &SignedManifest, files: &[(&str, &str, &[u8])], label: &str) -> Bundle {
+    serve_plugins_delayed(m, files, label, Duration::ZERO)
+}
+
+fn serve_plugins_delayed(
+    m: &SignedManifest,
+    files: &[(&str, &str, &[u8])],
+    label: &str,
+    per_file_delay: Duration,
+) -> Bundle {
     let rt = setup_runtime();
     let owned: Vec<(String, String, Vec<u8>)> = files
         .iter()
@@ -744,7 +754,11 @@ fn serve_plugins(m: &SignedManifest, files: &[(&str, &str, &[u8])], label: &str)
         for (plugin_id, file_path, bytes) in owned {
             Mock::given(method("GET"))
                 .and(path(format!("/v1/bridge/plugins/{plugin_id}/{file_path}")))
-                .respond_with(ResponseTemplate::new(200).set_body_bytes(bytes))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_body_bytes(bytes)
+                        .set_delay(per_file_delay),
+                )
                 .mount(&server)
                 .await;
         }
@@ -1084,6 +1098,42 @@ fn a_file_whose_body_does_not_match_its_digest_fails_the_sync() {
         err.contains("acme-plugin/.claude-plugin/plugin.json"),
         "the failing file is named: {err}"
     );
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn a_plugin_with_many_files_is_fetched_concurrently_not_serially() {
+    const FILES: usize = 8;
+    const PER_FILE: Duration = Duration::from_millis(300);
+    let bodies: Vec<(String, Vec<u8>)> = (0..FILES)
+        .map(|i| {
+            (
+                format!("skills/s{i}/SKILL.md"),
+                format!("body {i}").into_bytes(),
+            )
+        })
+        .collect();
+    let mut files: Vec<(&str, &[u8])> = vec![(".claude-plugin/plugin.json", PLUGIN_FILE_BODY)];
+    files.extend(bodies.iter().map(|(p, b)| (p.as_str(), b.as_slice())));
+    let m = manifest_of(vec![plugin("acme-plugin", files.clone())], vec![]);
+    let served: Vec<(&str, &str, &[u8])> =
+        files.iter().map(|(p, b)| ("acme-plugin", *p, *b)).collect();
+    let b = serve_plugins_delayed(&m, &served, "pat-concurrent", PER_FILE);
+
+    let started = std::time::Instant::now();
+    let summary = run_sync(&b.dirs).expect("sync succeeds");
+    let elapsed = started.elapsed();
+
+    let serial_floor = PER_FILE * (FILES as u32 + 1);
+    assert!(
+        elapsed < serial_floor / 2,
+        "{FILES} files at {PER_FILE:?} each took {elapsed:?}; serial would be >= {serial_floor:?}"
+    );
+    assert_eq!(summary.installed, vec!["acme-plugin".to_owned()]);
+    for (rel, body) in &bodies {
+        let on_disk = fs::read(b.dirs.org_plugins.join("acme-plugin").join(rel)).unwrap();
+        assert_eq!(&on_disk, body, "{rel}");
+    }
     let _ = (&b.server, &b.pat_dir);
 }
 
