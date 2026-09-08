@@ -5,8 +5,7 @@
 
 use axum::http::StatusCode;
 use bytes::Bytes;
-use systemprompt_ai::models::RequestStatus;
-use systemprompt_ai::models::ai_request_record::{AiRequestRecord, RequestKind};
+use systemprompt_ai::models::{AiRequestRecord, RequestKind, RequestStatus};
 use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
 };

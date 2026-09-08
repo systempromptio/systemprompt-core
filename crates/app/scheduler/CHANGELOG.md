@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Changed
+
+- No functional change; the crate's `why` comments were re-cut by the comment-standards pass and the sqlx offline cache was regenerated.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

@@ -258,9 +258,9 @@ fn tagged_enum_input_still_declares_an_object_root() {
 #[test]
 fn object_input_schema_leaves_declared_types_alone() {
     let out = systemprompt_mcp::object_input_schema(
-        serde_json::json!({"type": "object", "properties": {}}),
+        &serde_json::json!({"type": "object", "properties": {}}),
     );
     assert_eq!(out.get("type"), Some(&serde_json::json!("object")));
-    let out = systemprompt_mcp::object_input_schema(serde_json::json!({"type": "string"}));
+    let out = systemprompt_mcp::object_input_schema(&serde_json::json!({"type": "string"}));
     assert_eq!(out.get("type"), Some(&serde_json::json!("string")));
 }

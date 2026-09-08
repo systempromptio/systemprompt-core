@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Added
+
+- `ManifestService::assemble_candidate_from_catalog` assembles a candidate from a `CatalogContent` the caller already holds, so a caller that loads the catalogue once can reuse it across users instead of re-reading the services tree per request.
+
+### Changed
+
+- `CatalogContent` is `Clone`.
+
 ## [0.47.0] - 2026-09-06
 
 ### Added
