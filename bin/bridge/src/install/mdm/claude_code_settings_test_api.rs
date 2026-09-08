@@ -1,5 +1,5 @@
-//! Delegating seam over the Linux managed-settings writer so the separate
-//! test workspace can drive its seeding and error arms.
+//! Delegating seam over the Claude Code managed-settings writer so the
+//! separate test workspace can drive its seeding and error arms.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
