@@ -25,6 +25,11 @@ use crate::{auth, config};
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
+// Why: the credential stamp reads the config file, hashes the PAT and opens
+// the keystore. Doing that on every forwarded request put a disk read and a
+// keychain call on the hot path; once per interval catches a rotated
+// credential within seconds without paying for it per request.
+const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum AuthState {
@@ -57,6 +62,10 @@ struct CachedEntry {
     token: HelperOutput,
     minted_at: Instant,
     stamp: CredentialStamp,
+    // Why: tokio's clock, not std's, so a paused test clock drives the
+    // interval; `minted_at` stays on std time because the rejection window
+    // measures real elapsed time against the gateway.
+    stamp_checked_at: tokio::time::Instant,
 }
 
 #[expect(
@@ -191,6 +200,7 @@ impl TokenCache {
             token: token.clone(),
             minted_at: Instant::now(),
             stamp,
+            stamp_checked_at: tokio::time::Instant::now(),
         });
         Ok(token)
     }
@@ -226,27 +236,50 @@ impl TokenCache {
 
     #[expect(
         clippy::significant_drop_tightening,
-        reason = "guard scope is the whole function; entry borrows from it"
+        reason = "the guard is released before the blocking stamp capture and re-taken after; \
+                  the scopes are the point"
     )]
     async fn peek_fresh(&self, refresh_threshold_secs: u64) -> ForwardResult<Option<HelperOutput>> {
+        let (token, age_secs) = {
+            let mut guard = self.cached.lock().await;
+            let Some(entry) = guard.as_mut() else {
+                return Ok(None);
+            };
+            let age_secs = entry.minted_at.elapsed().as_secs();
+            if age_secs.saturating_add(refresh_threshold_secs) >= entry.token.ttl {
+                return Ok(None);
+            }
+            if entry.stamp_checked_at.elapsed() < STAMP_CHECK_INTERVAL {
+                tracing::debug!(cached_age_secs = age_secs, "token cache hit");
+                return Ok(Some(entry.token.clone()));
+            }
+            (entry.token.clone(), age_secs)
+        };
+        let current = tokio::task::spawn_blocking(capture_stamp)
+            .await
+            .map_err(|e| ForwardError::Auth(format!("credential stamp task: {e}")))?;
         let mut guard = self.cached.lock().await;
         let Some(entry) = guard.as_mut() else {
             return Ok(None);
         };
-        let age_secs = entry.minted_at.elapsed().as_secs();
-        if age_secs.saturating_add(refresh_threshold_secs) >= entry.token.ttl {
-            return Ok(None);
-        }
-        {
-            let current = capture_stamp()?;
-            if current != entry.stamp {
+        match current {
+            Ok(current) if current == entry.stamp => {
+                entry.stamp_checked_at = tokio::time::Instant::now();
+                drop(guard);
+                tracing::debug!(cached_age_secs = age_secs, "token cache hit");
+                Ok(Some(token))
+            },
+            Ok(_) => {
                 tracing::info!("credentials changed on disk; discarding cached token");
                 *guard = None;
-                return Ok(None);
-            }
+                Ok(None)
+            },
+            Err(e) => {
+                tracing::warn!(error = %e, "credential identity unreadable; cached token discarded");
+                *guard = None;
+                Ok(None)
+            },
         }
-        tracing::debug!(cached_age_secs = age_secs, "token cache hit");
-        Ok(Some(entry.token.clone()))
     }
 }
 

@@ -44,41 +44,9 @@ pub(super) fn list_plugins(root: &Path) -> std::io::Result<Vec<MarketplaceItem>>
         if !entry.file_type()?.is_dir() {
             continue;
         }
-        let manifest: Option<PluginManifest> = read_first_existing(&[
-            path.join(".claude-plugin").join("plugin.json"),
-            path.join("claude-plugin").join("plugin.json"),
-        ])?
-        .map(|body| serde_json::from_str(&body))
-        .transpose()
-        .map_err(std::io::Error::other)?;
-        let summary = manifest.as_ref().and_then(|m| m.description.clone());
-        let display_name = manifest
-            .as_ref()
-            .and_then(|m| m.name.clone())
-            .unwrap_or_else(|| name.to_owned());
-        let readme = read_first_existing(&[
-            path.join("README.md"),
-            path.join("readme.md"),
-            path.join("README.txt"),
-        ])?;
-        let version = manifest.as_ref().and_then(|m| m.version.clone());
-        let author = manifest.as_ref().and_then(|m| m.author.clone());
-        let homepage = manifest.as_ref().and_then(|m| m.homepage.clone());
-        let extra = manifest.map_or(MarketplaceExtra::None, MarketplaceExtra::Plugin);
-        out.push(MarketplaceItem {
-            id: name.to_owned(),
-            name: display_name,
-            source: "tenant",
-            path: path.display().to_string(),
-            summary,
-            readme,
-            version,
-            author,
-            homepage,
-            change: None,
-            children: plugin_children(&path)?,
-            plugins: Vec::new(),
-            extra,
+        out.push(match read_plugin(name, &path) {
+            Ok(item) => item,
+            Err(e) => MarketplaceItem::failed(name, &path, &e),
         });
     }
     let mut children: Vec<Vec<PluginChild>> = out
@@ -91,6 +59,46 @@ pub(super) fn list_plugins(root: &Path) -> std::io::Result<Vec<MarketplaceItem>>
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
+}
+
+fn read_plugin(name: &str, path: &Path) -> std::io::Result<MarketplaceItem> {
+    let manifest: Option<PluginManifest> = read_first_existing(&[
+        path.join(".claude-plugin").join("plugin.json"),
+        path.join("claude-plugin").join("plugin.json"),
+    ])?
+    .map(|body| serde_json::from_str(&body))
+    .transpose()
+    .map_err(std::io::Error::other)?;
+    let summary = manifest.as_ref().and_then(|m| m.description.clone());
+    let display_name = manifest
+        .as_ref()
+        .and_then(|m| m.name.clone())
+        .unwrap_or_else(|| name.to_owned());
+    let readme = read_first_existing(&[
+        path.join("README.md"),
+        path.join("readme.md"),
+        path.join("README.txt"),
+    ])?;
+    let version = manifest.as_ref().and_then(|m| m.version.clone());
+    let author = manifest.as_ref().and_then(|m| m.author.clone());
+    let homepage = manifest.as_ref().and_then(|m| m.homepage.clone());
+    let extra = manifest.map_or(MarketplaceExtra::None, MarketplaceExtra::Plugin);
+    Ok(MarketplaceItem {
+        id: name.to_owned(),
+        name: display_name,
+        source: "tenant",
+        path: path.display().to_string(),
+        summary,
+        readme,
+        version,
+        author,
+        homepage,
+        change: None,
+        children: plugin_children(path)?,
+        plugins: Vec::new(),
+        extra,
+        error: None,
+    })
 }
 
 #[derive(Deserialize)]
@@ -226,6 +234,7 @@ pub(super) fn annotate_plugins_with_diff(
                 children: Vec::new(),
                 plugins: Vec::new(),
                 extra: MarketplaceExtra::None,
+                error: None,
             });
         }
     }

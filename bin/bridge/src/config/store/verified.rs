@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{ConfigStore, ConfigStoreError, PolicyDocumentValue, PolicyHive, PolicyWrite};
+use super::{
+    ConfigStore, ConfigStoreError, PolicyDocumentValue, PolicyHive, PolicyTarget, PolicyWrite,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[must_use]
@@ -45,16 +47,18 @@ impl PolicyReceipt {
 pub fn apply(
     store: &dyn ConfigStore,
     hive: PolicyHive,
+    target: PolicyTarget,
     entries: &[(String, PolicyDocumentValue)],
 ) -> Result<PolicyReceipt, ConfigStoreError> {
+    let subkey = target.subkey();
     let names: Vec<&str> = entries.iter().map(|(name, _)| name.as_str()).collect();
     let authoritative =
-        if hive == PolicyHive::User && store.policy_key_exists(PolicyHive::Machine)? {
+        if hive == PolicyHive::User && store.policy_key_exists(PolicyHive::Machine, target)? {
             PolicyHive::Machine
         } else {
             hive
         };
-    let current = store.read_policy_document(authoritative, &names)?;
+    let current = store.read_policy_document(authoritative, target, &names)?;
     let differing: Vec<String> = entries
         .iter()
         .filter(|(name, value)| current.get(name) != Some(value))
@@ -62,13 +66,10 @@ pub fn apply(
         .collect();
     if authoritative != hive {
         if !differing.is_empty() {
-            return Err(ConfigStoreError::HiveConflict {
-                subkey: crate::cowork_compat::POLICY_SUBKEY.to_owned(),
-                differing,
-            });
+            return Err(ConfigStoreError::HiveConflict { subkey, differing });
         }
         return Ok(PolicyReceipt {
-            location: crate::cowork_compat::POLICY_SUBKEY.to_owned(),
+            location: subkey,
             outcome: PolicyWrite::SatisfiedByMachine,
             names: names.into_iter().map(str::to_owned).collect(),
         });
@@ -76,31 +77,31 @@ pub fn apply(
     let outcome = if differing.is_empty() {
         PolicyWrite::AlreadyVerified(hive)
     } else {
-        store.write_policy_values(hive, entries)?;
-        let observed = store.read_policy_document(hive, &names)?;
+        store.write_policy_values(hive, target, entries)?;
+        let observed = store.read_policy_document(hive, target, &names)?;
         for (name, value) in entries {
             if observed.get(name) != Some(value) {
-                return Err(mismatch(hive, name));
+                return Err(mismatch(hive, target, name));
             }
         }
         PolicyWrite::Written(hive)
     };
-    if hive == PolicyHive::User && store.policy_key_exists(PolicyHive::Machine)? {
-        let machine = store.read_policy_document(PolicyHive::Machine, &names)?;
+    // Why: a machine key that appeared between the first check and the write
+    // shadows the per-user value just written, so the write must not report
+    // success.
+    if hive == PolicyHive::User && store.policy_key_exists(PolicyHive::Machine, target)? {
+        let machine = store.read_policy_document(PolicyHive::Machine, target, &names)?;
         let differing: Vec<String> = entries
             .iter()
             .filter(|(name, value)| machine.get(name) != Some(value))
             .map(|(name, _)| name.clone())
             .collect();
         if !differing.is_empty() {
-            return Err(ConfigStoreError::HiveConflict {
-                subkey: crate::cowork_compat::POLICY_SUBKEY.to_owned(),
-                differing,
-            });
+            return Err(ConfigStoreError::HiveConflict { subkey, differing });
         }
     }
     Ok(PolicyReceipt {
-        location: crate::cowork_compat::POLICY_SUBKEY.to_owned(),
+        location: subkey,
         outcome,
         names: names.into_iter().map(str::to_owned).collect(),
     })
@@ -109,20 +110,21 @@ pub fn apply(
 pub fn remove_values(
     store: &dyn ConfigStore,
     hive: PolicyHive,
+    target: PolicyTarget,
     names: &[&str],
 ) -> Result<usize, ConfigStoreError> {
-    let removed = store.delete_policy_values(hive, names)?;
-    let observed = store.read_policy_document(hive, names)?;
+    let removed = store.delete_policy_values(hive, target, names)?;
+    let observed = store.read_policy_document(hive, target, names)?;
     if let Some(name) = names.iter().find(|name| observed.contains_key(**name)) {
-        return Err(mismatch(hive, name));
+        return Err(mismatch(hive, target, name));
     }
     Ok(removed)
 }
 
-fn mismatch(hive: PolicyHive, name: &str) -> ConfigStoreError {
+fn mismatch(hive: PolicyHive, target: PolicyTarget, name: &str) -> ConfigStoreError {
     ConfigStoreError::VerifyMismatch {
         hive: hive.label().to_owned(),
-        subkey: crate::cowork_compat::POLICY_SUBKEY.to_owned(),
+        subkey: target.subkey(),
         name: name.to_owned(),
     }
 }

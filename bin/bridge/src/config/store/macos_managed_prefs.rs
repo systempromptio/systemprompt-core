@@ -24,7 +24,7 @@ use core_foundation_sys::propertylist::CFPropertyListRef;
 
 use super::{
     ConfigStore, ConfigStoreError, ManagedPolicyRead, PolicyDocument, PolicyDocumentValue,
-    PolicyHive,
+    PolicyHive, PolicyTarget,
 };
 
 const POLICY_DOMAIN: &str = "com.anthropic.claudefordesktop";
@@ -32,7 +32,12 @@ const POLICY_DOMAIN: &str = "com.anthropic.claudefordesktop";
 pub(super) struct MacOsManagedPrefsStore;
 
 impl ConfigStore for MacOsManagedPrefsStore {
-    fn policy_key_exists(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
+    fn policy_key_exists(
+        &self,
+        hive: PolicyHive,
+        target: PolicyTarget,
+    ) -> Result<bool, ConfigStoreError> {
+        claude_only(target)?;
         let path = super::macos_plist_store::plist_path(hive).ok_or_else(|| {
             ConfigStoreError::Backend("per-user policy path unresolvable".to_owned())
         })?;
@@ -68,29 +73,46 @@ impl ConfigStore for MacOsManagedPrefsStore {
     fn read_policy_document(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         keys: &[&str],
     ) -> Result<PolicyDocument, ConfigStoreError> {
+        claude_only(target)?;
         super::macos_plist_store::read_document(hive, keys)
     }
 
     fn write_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         entries: &[(String, PolicyDocumentValue)],
     ) -> Result<(), ConfigStoreError> {
+        claude_only(target)?;
         super::macos_plist_store::write_values(hive, entries)
     }
 
     fn delete_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         names: &[&str],
     ) -> Result<usize, ConfigStoreError> {
+        claude_only(target)?;
         super::macos_plist_store::delete_values(hive, names)
     }
 
     fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
         super::macos_plist_store::delete_key(hive)
+    }
+}
+
+// Why: on macOS the bridge's signing trust is a managed profile installed
+// through `install --apply`, not a value in the Claude preferences domain.
+fn claude_only(target: PolicyTarget) -> Result<(), ConfigStoreError> {
+    match target {
+        PolicyTarget::Claude => Ok(()),
+        PolicyTarget::Bridge => Err(ConfigStoreError::Backend(
+            "the bridge signing-trust key is a managed profile on macOS".to_owned(),
+        )),
     }
 }
 

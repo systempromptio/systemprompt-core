@@ -88,7 +88,7 @@ async fn run_session_login(
         }
         let req = SessionExchangeRequest { code };
         let out: HelperOutput = client.session_exchange(&req, &session_id).await?.into();
-        crate::auth::cache::write_bound(&base, &out, &binding)
+        crate::auth::cache::write_bound(&cfg, &base, &out, &binding)
             .map_err(|e| setup::SetupError::Io(format!("persist session cache: {e}")))?;
     }
     Ok(())

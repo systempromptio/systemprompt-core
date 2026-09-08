@@ -138,6 +138,7 @@ fn unreachable_outcome(reason: String) -> GatewayProbeOutcome {
         identity: None,
         at_unix: now_unix(),
         provider_health: Vec::new(),
+        credential_error: None,
     }
 }
 
@@ -159,18 +160,26 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
         },
     };
 
+    // Why: `status` answers "is the gateway there"; a credential that cannot
+    // be minted, a cache that cannot be cleared, or a profile that cannot be
+    // fetched are local faults reported beside it, not a reason to tell the
+    // user the gateway is down.
+    let mut credential_error = None;
     let identity = if matches!(status, GatewayStatus::Reachable { .. })
         && crate::auth::has_credential_source(&cfg)
     {
         match obtain_live_token(&cfg, http).await {
             Ok(tok) => decode_jwt_identity_unverified(tok.expose()),
-            Err(e) => return unreachable_outcome(format!("authentication: {e}")),
+            Err(e) => {
+                credential_error = Some(format!("authentication: {e}"));
+                None
+            },
         }
     } else {
         if !crate::auth::has_credential_source(&cfg)
             && let Err(e) = crate::auth::cache::clear()
         {
-            return unreachable_outcome(format!("clear credential cache: {e}"));
+            credential_error = Some(format!("clear credential cache: {e}"));
         }
         None
     };
@@ -178,7 +187,12 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
     let provider_health = if matches!(status, GatewayStatus::Reachable { .. }) {
         match client.fetch_bridge_profile().await {
             Ok(profile) => profile.providers,
-            Err(e) => return unreachable_outcome(format!("provider health: {e}")),
+            Err(e) => {
+                if credential_error.is_none() {
+                    credential_error = Some(format!("provider health: {e}"));
+                }
+                Vec::new()
+            },
         }
     } else {
         Vec::new()
@@ -189,6 +203,7 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
         identity,
         at_unix: now_unix(),
         provider_health,
+        credential_error,
     }
 }
 

@@ -53,7 +53,6 @@ pub fn install(
     })?;
 
     Ok(InstallSummary {
-        completed,
         location,
         binary,
         mdm,

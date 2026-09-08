@@ -118,27 +118,41 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             tracing::info!("HKLM already holds this policy; per-user copy not written");
         },
     }
-    {
-        let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
-        if elevated {
-            crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user)
-                .map_err(|e| {
-                    tracing::error!(error = %e, "org-plugins provisioning failed");
-                    std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
-                })?;
-            crate::windows_acl::verify_modify_tree(&org.path)?;
-        } else if !org.path.is_dir() {
-            return Err(std::io::Error::other(format!(
-                "{} is not provisioned; run install --apply as Administrator",
-                org.path.display()
-            )));
-        }
+    // Why: the policy is already written and verified above. A missing
+    // org-plugins directory is a distinct, later failure; reporting it as
+    // the profile install failing would send the operator to re-run a step
+    // that succeeded.
+    if let Err(e) = require_org_plugins_provisioned(elevated) {
+        return Err(std::io::Error::other(format!(
+            "policy written to {} and read back, but org-plugins is not usable: {e}",
+            crate::config::store::hive_for(elevated).label()
+        )));
     }
     tracing::info!(
         value_count = entries.len(),
         "Claude Desktop profile installed"
     );
     Ok(())
+}
+
+fn require_org_plugins_provisioned(elevated: bool) -> std::io::Result<()> {
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
+    if elevated {
+        crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user).map_err(
+            |e| {
+                tracing::error!(error = %e, "org-plugins provisioning failed");
+                std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
+            },
+        )?;
+        crate::windows_acl::verify_modify_tree(&org.path)
+    } else if org.path.is_dir() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "{} is not provisioned; run install --apply as Administrator",
+            org.path.display()
+        )))
+    }
 }
 
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {

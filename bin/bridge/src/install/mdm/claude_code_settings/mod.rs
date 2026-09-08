@@ -163,23 +163,7 @@ pub(crate) fn apply_managed_settings(
         let settings_path =
             managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
         let mut root = read_settings(&settings_path)?;
-        let conflicts = warn_on_forced_login(&root);
-        if !conflicts.is_empty() {
-            return Err(MdmError::InvalidConfig(conflicts.join("; ")));
-        }
-        let env = root
-            .entry("env".to_owned())
-            .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-        let Some(env) = env.as_object_mut() else {
-            return Err(MdmError::EnvNotObject {
-                path: settings_path,
-            });
-        };
-        env.extend(bridge_env(gateway));
-        root.insert(
-            "apiKeyHelper".to_owned(),
-            serde_json::Value::String(shell_command_for(&helper)),
-        );
+        merge_bridge_keys(&mut root, &settings_path, gateway, &helper)?;
         files.push(write_verified(
             &settings_path,
             &render(root, &settings_path)?,
@@ -205,6 +189,32 @@ pub(crate) fn apply_managed_settings(
     })
 }
 
+fn merge_bridge_keys(
+    root: &mut serde_json::Map<String, serde_json::Value>,
+    settings_path: &Path,
+    gateway: &str,
+    helper: &Path,
+) -> Result<(), MdmError> {
+    let conflicts = forced_login_conflicts(root);
+    if !conflicts.is_empty() {
+        return Err(MdmError::InvalidConfig(conflicts.join("; ")));
+    }
+    let env = root
+        .entry("env".to_owned())
+        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+    let Some(env) = env.as_object_mut() else {
+        return Err(MdmError::EnvNotObject {
+            path: settings_path.to_path_buf(),
+        });
+    };
+    env.extend(bridge_env(gateway));
+    root.insert(
+        "apiKeyHelper".to_owned(),
+        serde_json::Value::String(shell_command_for(helper)),
+    );
+    Ok(())
+}
+
 fn read_settings(path: &Path) -> Result<serde_json::Map<String, serde_json::Value>, MdmError> {
     let existing = read_or_empty(path)?;
     if existing.trim().is_empty() {
@@ -218,7 +228,7 @@ fn read_settings(path: &Path) -> Result<serde_json::Map<String, serde_json::Valu
 
 // Why: Claude Code v2.1.146+ forceLoginMethod/forceLoginOrgUUID block API keys
 // and apiKeyHelper.
-fn warn_on_forced_login(root: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
+fn forced_login_conflicts(root: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
     ["forceLoginMethod", "forceLoginOrgUUID"]
         .into_iter()
         .filter(|key| root.contains_key(*key))

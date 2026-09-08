@@ -46,30 +46,25 @@ impl<'a> WritePlan<'a> {
     }
 
     pub(super) fn write(&self) -> Result<Vec<store::verified::PolicyReceipt>, MdmError> {
-        let claude: Vec<(String, String)> = self
-            .claude
-            .iter()
-            .map(|(n, _, d)| ((*n).to_owned(), d.clone()))
-            .collect();
-        let elevated = self.hive == PolicyHive::Machine;
+        let claude = typed(self.claude);
+        let bridge = typed(self.bridge);
         let mut completed = vec![
             store::verified::apply(
                 self.store.backend(),
                 self.hive,
-                &claude
-                    .iter()
-                    .map(|(n, v)| (n.clone(), store::PolicyDocumentValue::Str(v.clone())))
-                    .collect::<Vec<_>>(),
+                store::PolicyTarget::Claude,
+                &claude,
             )
             .map_err(policy_err)?,
         ];
-        let bridge: Vec<(String, String)> = self
-            .bridge
-            .iter()
-            .map(|(n, _, d)| ((*n).to_owned(), d.clone()))
-            .collect();
         if !bridge.is_empty() {
-            let receipt = store::write_bridge_policy(elevated, &bridge).map_err(|source| {
+            let receipt = store::verified::apply(
+                self.store.backend(),
+                self.hive,
+                store::PolicyTarget::Bridge,
+                &bridge,
+            )
+            .map_err(|source| {
                 policy_err(store::ConfigStoreError::Partial {
                     completed: completed.clone(),
                     source: Box::new(source),
@@ -80,7 +75,8 @@ impl<'a> WritePlan<'a> {
         store::verified::remove_values(
             self.store.backend(),
             self.hive,
-            &[super::LEGACY_PUBKEY_KEY],
+            store::PolicyTarget::Claude,
+            &[store::LEGACY_MANIFEST_PUBKEY_KEY],
         )
         .map_err(|source| {
             policy_err(store::ConfigStoreError::Partial {
@@ -90,6 +86,18 @@ impl<'a> WritePlan<'a> {
         })?;
         Ok(completed)
     }
+}
+
+fn typed(values: &Values) -> Vec<(String, store::PolicyDocumentValue)> {
+    values
+        .iter()
+        .map(|(name, _, data)| {
+            (
+                (*name).to_owned(),
+                store::PolicyDocumentValue::Str(data.clone()),
+            )
+        })
+        .collect()
 }
 
 pub(super) const fn policy_err(e: store::ConfigStoreError) -> MdmError {

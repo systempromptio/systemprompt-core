@@ -45,24 +45,27 @@ pub(super) struct TeeWriterImpl {
 }
 
 impl Write for TeeWriterImpl {
+    // Why: a closed stderr (a detached GUI, a parent that went away) must
+    // not stop the line reaching the log file, and vice versa; both legs run
+    // and the first failure is reported after.
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.stderr || self.file.is_none() {
-            io::stderr().write_all(buf)?;
-        }
-        if let Some(file) = self.file.as_mut() {
-            file.write_all(buf)?;
-        }
-        Ok(buf.len())
+        let stderr = if self.stderr || self.file.is_none() {
+            io::stderr().write_all(buf)
+        } else {
+            Ok(())
+        };
+        let file = self.file.as_mut().map_or(Ok(()), |f| f.write_all(buf));
+        stderr.and(file).map(|()| buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        if self.stderr || self.file.is_none() {
-            io::stderr().flush()?;
-        }
-        if let Some(file) = self.file.as_mut() {
-            file.flush()?;
-        }
-        Ok(())
+        let stderr = if self.stderr || self.file.is_none() {
+            io::stderr().flush()
+        } else {
+            Ok(())
+        };
+        let file = self.file.as_mut().map_or(Ok(()), Write::flush);
+        stderr.and(file)
     }
 }
 

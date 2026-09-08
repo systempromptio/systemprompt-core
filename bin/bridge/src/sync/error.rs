@@ -23,6 +23,12 @@ pub enum SyncError {
     Trust(#[from] crate::config::TrustError),
     #[error("no valid credential available; run `{bin} login` first")]
     NoCredential { bin: &'static str },
+    #[error("authentication: {0}")]
+    Authentication(crate::auth::ChainError),
+    #[error("{0}")]
+    Provision(std::io::Error),
+    #[error("{0}")]
+    Elevation(String),
     #[error(transparent)]
     GatewayUnauthorized(Box<CredentialRejection>),
     #[error("{0}")]
@@ -118,8 +124,11 @@ impl SyncError {
             | Self::Partial(_)
             | Self::Persistence { .. }
             | Self::Config(_)
-            | Self::Trust(_) => ExitCode::FAILURE,
+            | Self::Trust(_)
+            | Self::Provision(_)
+            | Self::Elevation(_) => ExitCode::FAILURE,
             Self::NoCredential { .. } => ExitCode::from(5),
+            Self::Authentication(e) => e.exit_report().0,
             Self::GatewayUnauthorized(_) => ExitCode::from(10),
             Self::Network(_) => ExitCode::from(3),
             Self::SignatureFailed { .. } => ExitCode::from(4),

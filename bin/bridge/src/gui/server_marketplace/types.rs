@@ -44,6 +44,8 @@ pub struct MarketplaceItem {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) plugins: Vec<String>,
     pub(crate) extra: MarketplaceExtra,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
 }
 
 impl MarketplaceItem {
@@ -69,7 +71,15 @@ impl MarketplaceItem {
             children: Vec::new(),
             plugins: Vec::new(),
             extra: MarketplaceExtra::None,
+            error: None,
         }
+    }
+
+    #[must_use]
+    pub(crate) fn failed(id: &str, path: &std::path::Path, error: &std::io::Error) -> Self {
+        let mut item = Self::new(id, id, None, path.display().to_string(), "tenant");
+        item.error = Some(error.to_string());
+        item
     }
 
     #[must_use]
@@ -113,6 +123,8 @@ pub struct MarketplaceListing {
     pub(crate) artifacts: Vec<MarketplaceItem>,
     pub(crate) plugins_dir: Option<String>,
     pub(crate) last_sync_diff: MarketplaceDiff,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) last_sync_error: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]

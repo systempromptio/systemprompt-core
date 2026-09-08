@@ -84,7 +84,9 @@ export class SpMarketplaceList extends SpElement {
       ? `<span class="sp-mkt-chip">${escapeHtml(it.source)}</span>`
       : "";
     const changeChip = changeBadge(it.change);
-    const meta = it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
+    const meta = it.error
+      ? `<div class="sp-mkt-item__meta sp-mkt-item__meta--error">${escapeHtml(it.error)}</div>`
+      : it.summary ? `<div class="sp-mkt-item__meta">${escapeHtml(it.summary)}</div>` : "";
     const chipsRow = sourceChip ? `<div class="sp-mkt-item__chips">${sourceChip}</div>` : "";
     const removedClass = it.change === "removed" ? " sp-mkt-item--removed" : "";
     // The DOM id must stay unique: an item shipped by two plugins renders once

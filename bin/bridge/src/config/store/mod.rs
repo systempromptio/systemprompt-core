@@ -18,11 +18,10 @@ mod windows_policy;
 mod windows_registry;
 mod windows_registry_write;
 
-pub use document::{PolicyDocument, PolicyDocumentValue, PolicyHive};
+pub use document::{PolicyDocument, PolicyDocumentValue, PolicyHive, PolicyTarget};
 #[cfg(target_os = "windows")]
 pub(crate) use windows_policy::{
-    clear_managed_claude_policy, read_registry_string, write_bridge_policy,
-    write_managed_claude_policy,
+    clear_managed_claude_policy, read_registry_string, write_managed_claude_policy,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -87,7 +86,11 @@ pub struct ManagedPolicyRead {
 /// the only way the bridge writes policy, so a fake store can stand in for the
 /// registry or the plist in tests.
 pub trait ConfigStore: Send + Sync {
-    fn policy_key_exists(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError>;
+    fn policy_key_exists(
+        &self,
+        hive: PolicyHive,
+        target: PolicyTarget,
+    ) -> Result<bool, ConfigStoreError>;
     fn read_managed_policy(&self, key: &str) -> Result<Option<String>, ConfigStoreError>;
 
     fn read_managed_policy_keys(
@@ -98,18 +101,21 @@ pub trait ConfigStore: Send + Sync {
     fn read_policy_document(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         keys: &[&str],
     ) -> Result<PolicyDocument, ConfigStoreError>;
 
     fn write_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         entries: &[(String, PolicyDocumentValue)],
     ) -> Result<(), ConfigStoreError>;
 
     fn delete_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         names: &[&str],
     ) -> Result<usize, ConfigStoreError>;
 
@@ -196,7 +202,11 @@ struct NoopStore;
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 impl ConfigStore for NoopStore {
-    fn policy_key_exists(&self, _hive: PolicyHive) -> Result<bool, ConfigStoreError> {
+    fn policy_key_exists(
+        &self,
+        _hive: PolicyHive,
+        _target: PolicyTarget,
+    ) -> Result<bool, ConfigStoreError> {
         Ok(false)
     }
     fn read_managed_policy(&self, _key: &str) -> Result<Option<String>, ConfigStoreError> {
@@ -213,6 +223,7 @@ impl ConfigStore for NoopStore {
     fn read_policy_document(
         &self,
         _hive: PolicyHive,
+        _target: PolicyTarget,
         _keys: &[&str],
     ) -> Result<PolicyDocument, ConfigStoreError> {
         Ok(PolicyDocument::new())
@@ -221,6 +232,7 @@ impl ConfigStore for NoopStore {
     fn write_policy_values(
         &self,
         _hive: PolicyHive,
+        _target: PolicyTarget,
         _entries: &[(String, PolicyDocumentValue)],
     ) -> Result<(), ConfigStoreError> {
         Err(ConfigStoreError::Backend(
@@ -231,6 +243,7 @@ impl ConfigStore for NoopStore {
     fn delete_policy_values(
         &self,
         _hive: PolicyHive,
+        _target: PolicyTarget,
         _names: &[&str],
     ) -> Result<usize, ConfigStoreError> {
         Ok(0)

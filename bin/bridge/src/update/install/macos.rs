@@ -22,8 +22,7 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 
     let workdir = staged.with_extension("unpack");
     if workdir.exists() {
-        // Why: discard-ok: temporary cleanup cannot change the installed result.
-        _ = std::fs::remove_dir_all(&workdir);
+        crate::fsutil::remove_leftover_dir(&workdir);
     }
     std::fs::create_dir_all(&workdir).map_err(|e| UpdateError::io(&workdir, e))?;
 

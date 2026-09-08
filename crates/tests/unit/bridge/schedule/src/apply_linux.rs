@@ -6,11 +6,11 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::install::{
-    ScheduleRemoval, ScheduleStatus, apply_gui_autostart, apply_schedule, gui_autostart_status,
-    remove_gui_autostart, remove_schedule, schedule_label, schedule_status,
+    InstallError, ScheduleRemoval, ScheduleStatus, apply_gui_autostart, apply_schedule,
+    gui_autostart_status, remove_gui_autostart, remove_schedule, schedule_label, schedule_status,
 };
-use systemprompt_bridge::schedule::Os;
 use systemprompt_bridge::schedule::status::ScheduleStatusCache;
+use systemprompt_bridge::schedule::{Os, proxy_unit_name};
 
 // Why: activation now fails the apply, and the test host has no systemd user
 // bus; a recording `systemctl` on PATH keeps the activation calls observable.
@@ -21,6 +21,36 @@ fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
     std::fs::create_dir_all(&bin).expect("stub bin dir");
     let stub = bin.join("systemctl");
     std::fs::write(&stub, "#!/bin/sh\necho \"$@\" >> \"$HOME/systemctl.log\"\n").expect("stub");
+    std::fs::set_permissions(&stub, std::os::unix::fs::PermissionsExt::from_mode(0o755))
+        .expect("stub mode");
+    let path_var = format!(
+        "{}:{}",
+        bin.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    temp_env::with_vars(
+        [
+            ("HOME", Some(path.to_string_lossy().into_owned())),
+            ("PATH", Some(path_var)),
+            ("SUDO_USER", None),
+        ],
+        || f(&path),
+    )
+}
+
+// Why: activation failure is a *partial* outcome, so a stub that refuses is
+// the only way to reach the branch that keeps the written units.
+fn failing_sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
+    let home = tempfile::TempDir::new().expect("home tempdir");
+    let path = home.path().to_path_buf();
+    let bin = path.join("bin");
+    std::fs::create_dir_all(&bin).expect("stub bin dir");
+    let stub = bin.join("systemctl");
+    std::fs::write(
+        &stub,
+        "#!/bin/sh\necho \"Failed to connect to bus\" >&2\nexit 1\n",
+    )
+    .expect("stub");
     std::fs::set_permissions(&stub, std::os::unix::fs::PermissionsExt::from_mode(0o755))
         .expect("stub mode");
     let path_var = format!(
@@ -210,4 +240,71 @@ fn the_schedule_label_is_brand_scoped_so_two_brands_do_not_collide() {
         !label.contains(' ') && !label.contains('/'),
         "a systemd unit name cannot carry spaces or slashes, got {label}"
     );
+}
+
+#[test]
+fn a_refusing_systemctl_keeps_the_written_units_and_names_them_in_a_typed_error() {
+    failing_sandbox(|home| {
+        let cache = ScheduleStatusCache::default();
+        let err = apply_schedule(&cache, Os::Linux, &binary())
+            .expect_err("activation failed, so the apply cannot report success");
+
+        let InstallError::ScheduleActivation { units, reason } = err else {
+            panic!("an activation failure is its own variant, got {err:?}");
+        };
+
+        let unit = schedule_label();
+        let dir = units_dir(home);
+        assert_eq!(
+            units,
+            vec![
+                dir.join(format!("{unit}.service")),
+                dir.join(format!("{unit}.timer")),
+                dir.join(format!("{}.service", proxy_unit_name())),
+            ],
+            "the error lists exactly the three units that were written"
+        );
+        for path in &units {
+            assert!(
+                path.is_file(),
+                "the receipt must match the disk: {} is missing",
+                path.display()
+            );
+        }
+        assert!(
+            reason.contains("systemctl"),
+            "the reason names the tool that refused: {reason}"
+        );
+    });
+}
+
+#[test]
+fn an_activation_failure_tells_the_operator_the_units_exist_but_are_inert() {
+    failing_sandbox(|_| {
+        let err = apply_schedule(&ScheduleStatusCache::default(), Os::Linux, &binary())
+            .expect_err("activation fails");
+        let rendered = err.to_string();
+        assert!(
+            rendered.contains("written") && rendered.contains("not activated"),
+            "the operator is told what happened and what did not: {rendered}"
+        );
+        assert!(
+            rendered.contains(schedule_label()),
+            "the units are named in the message: {rendered}"
+        );
+    });
+}
+
+#[test]
+fn an_unactivated_schedule_is_not_recorded_as_installed_in_the_cache() {
+    failing_sandbox(|_| {
+        let cache = ScheduleStatusCache::default();
+        let _ = apply_schedule(&cache, Os::Linux, &binary());
+
+        assert_eq!(
+            cache.schedule(|| ScheduleStatus::Unknown),
+            ScheduleStatus::Unknown,
+            "a failed apply must not seed the cache with Installed"
+        );
+    });
 }

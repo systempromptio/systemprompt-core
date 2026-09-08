@@ -48,8 +48,7 @@ pub(crate) async fn apply_manifest(
     };
     let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
 
-    // Why: discard-ok: temporary cleanup cannot change the installed result.
-    _ = fs::remove_dir_all(&staging_root);
+    crate::fsutil::remove_leftover_dir(&staging_root);
     prune_legacy_state();
 
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
@@ -237,8 +236,7 @@ pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathB
         context: "resolve bridge staging dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
     })?;
-    // Why: discard-ok: temporary cleanup cannot change the installed result.
-    _ = fs::remove_dir_all(&staging_root);
+    crate::fsutil::remove_leftover_dir(&staging_root);
     fs::create_dir_all(&staging_root).map_err(|e| ApplyError::Io {
         context: format!("create staging at {}", staging_root.display()),
         source: e,

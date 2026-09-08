@@ -275,3 +275,90 @@ fn proxy_headless_starts_and_stops_on_sigint() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
+
+fn corrupt_portfile(sb: &Sandbox) {
+    let root = sb
+        .vars
+        .iter()
+        .find(|(k, _)| *k == "XDG_CONFIG_HOME")
+        .map(|(_, v)| v.clone())
+        .expect("the sandbox pins a config home");
+    let dir = std::path::Path::new(&root).join("systemprompt");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("bridge-proxy.json"), "{ this is not json").unwrap();
+}
+
+#[test]
+fn a_corrupt_port_file_still_lets_the_binary_report_its_version() {
+    let sb = sandbox(None);
+    corrupt_portfile(&sb);
+    let out = require_bin!(run_bridge(&sb, &["--version"]));
+
+    assert!(
+        out.status.success(),
+        "--version is answerable whatever the port file says; stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&out.stdout).starts_with("systemprompt-bridge "),
+        "got: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+#[test]
+fn a_corrupt_port_file_is_not_a_runtime_init_failure_for_whoami() {
+    let sb = sandbox(None);
+    corrupt_portfile(&sb);
+    let out = require_bin!(run_bridge(&sb, &["whoami"]));
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_ne!(
+        out.status.code(),
+        Some(70),
+        "70 means the context could not be built at all; stderr: {stderr}"
+    );
+    assert!(
+        !stderr.contains("runtime init failed"),
+        "the fault is recorded, not fatal: {stderr}"
+    );
+}
+
+#[test]
+fn doctor_fails_with_11_and_names_the_corrupt_port_file() {
+    let sb = sandbox(None);
+    corrupt_portfile(&sb);
+    let out = require_bin!(run_bridge(&sb, &["doctor"]));
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(
+        out.status.code(),
+        Some(11),
+        "a failing check exits 11; stdout: {stdout}"
+    );
+    assert!(
+        stdout.contains("[FAIL] startup"),
+        "the startup fault is rendered as a failing check: {stdout}"
+    );
+    assert!(
+        stdout.contains("proxy port file"),
+        "the check names the component that faulted: {stdout}"
+    );
+}
+
+#[test]
+fn sync_without_any_credential_exits_5_and_points_at_login() {
+    let sb = sandbox(Some("http://127.0.0.1:1"));
+    let out = require_bin!(run_bridge(&sb, &["sync"]));
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(
+        out.status.code(),
+        Some(5),
+        "a missing credential is exit 5, not the network's 3; stderr: {stderr}"
+    );
+    assert!(
+        stderr.contains("login"),
+        "the operator is told what to do about it: {stderr}"
+    );
+}

@@ -8,9 +8,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::{ElevateError, ElevatedJob, StagedJob, io, step};
-use crate::config::store::{
-    clear_managed_claude_policy, write_bridge_policy, write_managed_claude_policy,
-};
+use crate::config::store::{clear_managed_claude_policy, write_managed_claude_policy};
 use crate::install::elevated_protocol::{
     CompletedStep, ElevatedResult, ElevatedState, PROTOCOL_VERSION,
 };
@@ -68,8 +66,13 @@ fn run_job(job: &ElevatedJob, steps: &mut Vec<CompletedStep>) -> Result<(), Elev
         steps.push(step("clear_policy", crate::cowork_compat::HKLM_POLICY_KEY));
     }
     if !job.bridge_values.is_empty() {
-        let receipt =
-            write_bridge_policy(true, &job.bridge_values).map_err(ElevateError::Policy)?;
+        let receipt = crate::config::store::verified::apply(
+            crate::config::store::managed_policy_store().as_ref(),
+            crate::config::store::PolicyHive::Machine,
+            crate::config::store::PolicyTarget::Bridge,
+            &crate::config::store::PolicyDocumentValue::strings(&job.bridge_values),
+        )
+        .map_err(ElevateError::Policy)?;
         let mut completed = step(
             "bridge_policy",
             crate::config::store::bridge_policy_subkey(),

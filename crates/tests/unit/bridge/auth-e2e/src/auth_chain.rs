@@ -152,7 +152,11 @@ fn pat_provider_happy_path_yields_bearer_and_binds_the_cache_entry() {
 }
 
 #[test]
-fn acquire_bearer_refuses_to_cache_when_the_on_disk_credential_differs() {
+fn acquire_bearer_caches_against_the_config_it_was_given_not_the_one_on_disk() {
+    // Why: the GUI and the proxy mint against an in-memory config; binding the
+    // cache to a fresh `config::load()` instead reported "credentials changed"
+    // for a credential that never changed, so nothing minted that way was
+    // ever cached.
     let home = TempDir::new().unwrap();
     temp_env::with_vars(sandbox_vars(&home), || {
         block_on(async {
@@ -165,26 +169,31 @@ fn acquire_bearer_refuses_to_cache_when_the_on_disk_credential_differs() {
 
             let pat_path = home.path().join("pat.txt");
             std::fs::write(&pat_path, "sp-live-secret-pat").unwrap();
+            let gateway = ValidatedUrl::try_new(server.uri()).unwrap();
             let cfg = Config {
-                gateway_url: Some(ValidatedUrl::try_new(server.uri()).unwrap()),
+                gateway_url: Some(gateway.clone()),
                 pat: Some(PatConfig {
                     file: Some(pat_path.to_string_lossy().into_owned()),
                 }),
                 ..Config::default()
             };
 
-            let err = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
+            let out = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
-                .expect_err(
-                    "an in-memory credential the on-disk config does not know is not cached",
-                );
-            match err {
-                ChainError::Cache(e) => assert!(
-                    e.to_string().contains("no credential identity configured"),
-                    "{e}"
-                ),
-                other => panic!("expected ChainError::Cache, got {other:?}"),
-            }
+                .expect("an in-memory config mints and caches like a loaded one");
+            let cached = cache::read_for(&cfg, &gateway, 30)
+                .expect("cache readable")
+                .expect("the token is cached under the config that minted it");
+            assert_eq!(cached.token.expose(), out.token.expose());
+
+            let on_disk = Config::default();
+            let err = cache::read_for(&on_disk, &gateway, 30)
+                .expect_err("a config with no credential cannot claim the entry");
+            assert!(
+                err.to_string()
+                    .contains("no credential identity configured"),
+                "{err}"
+            );
         });
     });
 }

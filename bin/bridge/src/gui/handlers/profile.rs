@@ -88,7 +88,7 @@ async fn build_profile(
     let gateway_url = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(gateway_url.clone(), http);
 
-    let bearer_value = crate::auth::cache::read_valid(&gateway_url)
+    let bearer_value = crate::auth::cache::read_for(&cfg, &gateway_url, 30)
         .map_err(|e| GuiError::Profile {
             context: "credential cache".into(),
             source: e,

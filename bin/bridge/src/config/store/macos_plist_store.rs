@@ -207,7 +207,7 @@ fn write_document(path: &std::path::Path, doc: &PolicyDocument) -> Result<(), Co
         .arg("cfprefsd")
         .output()
         .map_err(|e| map_io(path, &e))?;
-    if !output.status.success() {
+    if !output.status.success() && !cfprefsd_was_not_running(&output) {
         return Err(ConfigStoreError::Backend(format!(
             "refresh managed preferences {}: {}: {}",
             path.display(),
@@ -216,6 +216,13 @@ fn write_document(path: &std::path::Path, doc: &PolicyDocument) -> Result<(), Co
         )));
     }
     Ok(())
+}
+
+// Why: `killall` exits 1 when there is nothing to kill. A cfprefsd that is
+// not running holds no stale cache, so the write is complete.
+fn cfprefsd_was_not_running(output: &std::process::Output) -> bool {
+    output.status.code() == Some(1)
+        && String::from_utf8_lossy(&output.stderr).contains("No matching processes")
 }
 
 fn map_io(path: &std::path::Path, e: &std::io::Error) -> ConfigStoreError {

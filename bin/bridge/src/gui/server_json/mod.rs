@@ -72,6 +72,12 @@ pub fn state_payload<'a>(
             last_validation_at_unix: snap.last_validation_at_unix,
             health: snap.health_verdict(),
             provider_health: &snap.provider_health,
+            credential_error: snap.credential_error.as_deref(),
+            startup_faults: snap
+                .startup_faults
+                .iter()
+                .map(crate::wire::payloads::StartupFaultPayload::from)
+                .collect(),
             sync_in_flight: snap.sync_in_flight,
             cached_token: snap.cached_token.as_ref().map(cached_token_payload),
             token: snap.token_verdict(),

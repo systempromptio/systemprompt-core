@@ -9,6 +9,7 @@ use tokio::runtime::Handle;
 use super::identity::InstallId;
 use super::peer::{self, PeerIdentity};
 use super::{DEFAULT_PROXY_PORT, MAX_CANDIDATE_PORT, candidate_ports, portfile, server};
+use crate::obs::StartupFault;
 use crate::stdio::diag;
 
 pub(super) enum Bind {
@@ -26,16 +27,24 @@ pub(super) fn bind_candidate(
     ours: &InstallId,
     tried: &mut Vec<u16>,
     last_error: &mut String,
-) -> std::io::Result<Bind> {
-    for port in candidate_ports(ours)? {
+    faults: &mut Vec<StartupFault>,
+) -> Bind {
+    let ports = match candidate_ports(ours) {
+        Ok(ports) => ports,
+        Err(e) => {
+            faults.push(StartupFault::new("proxy port file", e));
+            super::candidate_ports_from(None)
+        },
+    };
+    for port in ports {
         if port != 0 {
             match peer::probe_identity(port, ours) {
                 PeerIdentity::Ours(who) => {
-                    return Ok(Bind::Sibling {
+                    return Bind::Sibling {
                         port: who.port,
                         pid: who.pid,
                         config_dir: who.config_dir,
-                    });
+                    };
                 },
                 PeerIdentity::Foreign(who) => {
                     diag(&format!(
@@ -60,14 +69,14 @@ pub(super) fn bind_candidate(
         }
 
         match rt.block_on(server::try_bind(port)) {
-            Ok(l) => return Ok(Bind::Listener(l)),
+            Ok(l) => return Bind::Listener(l),
             Err(e) => {
                 *last_error = e.to_string();
                 tried.push(port);
             },
         }
     }
-    Ok(Bind::Exhausted)
+    Bind::Exhausted
 }
 
 pub(super) fn persist_and_announce(port: u16, ours: &InstallId) -> std::io::Result<()> {

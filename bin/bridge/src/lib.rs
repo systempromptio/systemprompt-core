@@ -212,7 +212,7 @@ fn purge_legacy_agents_state() {
     }
 }
 
-pub mod tasks;
+pub(crate) mod tasks;
 
 #[cfg(target_os = "windows")]
-pub mod windows_acl;
+pub(crate) mod windows_acl;

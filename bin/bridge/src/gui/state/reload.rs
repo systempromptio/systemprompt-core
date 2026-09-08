@@ -64,7 +64,7 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     snap.host_model_protocols.clear();
     if crate::auth::has_credential_source(&cfg) {
         let gateway = config::gateway_url_or_default(&cfg);
-        snap.cached_token = match cache::read_valid(&gateway) {
+        snap.cached_token = match cache::read_for(&cfg, &gateway, 30) {
             Ok(token) => token.map(|out| CachedToken {
                 ttl_seconds: out.ttl,
                 length: out.token.len(),

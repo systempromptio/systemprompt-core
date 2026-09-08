@@ -40,15 +40,14 @@ pub fn build_listing(
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
     let plugins_root: Option<PathBuf> = loc.as_ref().map(|l| l.path.clone());
 
-    let last_sync = match paths::bridge_metadata_dir() {
-        Some(meta) => {
-            read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL)).map_err(std::io::Error::other)?
-        },
-        None => {
-            return Err(std::io::Error::other(
-                "marketplace metadata path unresolvable",
-            ));
-        },
+    let meta = paths::bridge_metadata_dir()
+        .ok_or_else(|| std::io::Error::other("marketplace metadata path unresolvable"))?;
+    // Why: the sentinel only annotates the listing with what the last sync
+    // changed. A corrupt one is reported on the listing; the plugins on
+    // disk are still there to browse.
+    let (last_sync, last_sync_error) = match read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL)) {
+        Ok(state) => (state, None),
+        Err(e) => (None, Some(e.to_string())),
     };
 
     let (mut plugins, skills, hooks, mcp, agents) = match loc {
@@ -120,6 +119,7 @@ pub fn build_listing(
         ),
         plugins_dir,
         last_sync_diff,
+        last_sync_error,
     })
 }
 

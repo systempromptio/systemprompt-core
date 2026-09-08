@@ -211,3 +211,23 @@ pub(crate) fn verify_directory_write(path: &Path) -> io::Result<()> {
         ))),
     }
 }
+
+// Why: temporary probes and staging trees are cleaned up on a best-effort
+// basis; a leftover cannot change the installed result, but it must not be
+// silent either, because a directory that cannot be removed is usually the
+// first sign of a permission problem the next step will hit.
+pub fn remove_leftover_file(path: &Path) {
+    if let Err(e) = fs::remove_file(path)
+        && e.kind() != io::ErrorKind::NotFound
+    {
+        tracing::warn!(error = %e, path = %path.display(), "leftover file was not removed");
+    }
+}
+
+pub fn remove_leftover_dir(path: &Path) {
+    if let Err(e) = fs::remove_dir_all(path)
+        && e.kind() != io::ErrorKind::NotFound
+    {
+        tracing::warn!(error = %e, path = %path.display(), "leftover directory was not removed");
+    }
+}

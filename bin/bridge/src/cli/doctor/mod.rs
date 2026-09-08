@@ -76,12 +76,17 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     };
     let proxy = &bridge.proxy;
     let env = ProbeEnv::new(proxy.loopback(), Arc::clone(&bridge.start_menu));
-    let mut checks: Vec<Check> = vec![
+    let mut checks: Vec<Check> = bridge
+        .startup_faults
+        .iter()
+        .map(|fault| Check::fail("startup", fault.to_string()))
+        .collect();
+    checks.extend([
         auth::check_config_file(),
         auth::check_credential_source(&cfg),
         auth::check_cached_gateway(&cfg),
         auth::check_install_record(&cfg),
-    ];
+    ]);
     let bearer = auth::check_mint_jwt(&cfg, &mut checks, &bridge.http).await;
     let client = auth::check_gateway_reachable(&cfg, &mut checks, &bridge.http).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;

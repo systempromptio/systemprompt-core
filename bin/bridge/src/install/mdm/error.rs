@@ -46,16 +46,6 @@ pub enum MdmError {
     #[error("--apply on {os} must be run from a {os} binary")]
     WrongHostOs { os: &'static str },
     #[cfg(target_os = "macos")]
-    #[error(
-        "{source} — re-run `{binary} install --apply` and approve the authorization prompt, or \
-         use `--apply-mobileconfig` for the System-Settings/MDM path."
-    )]
-    ApplyElevation {
-        binary: &'static str,
-        #[source]
-        source: crate::install::elevate::ElevationError,
-    },
-    #[cfg(target_os = "macos")]
     #[error(transparent)]
     Elevation(#[from] crate::install::elevate::ElevationError),
     #[cfg(target_os = "windows")]

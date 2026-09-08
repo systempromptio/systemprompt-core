@@ -33,29 +33,32 @@ fn an_install_id_is_minted_once_and_then_read_back() {
 }
 
 #[test]
-fn an_invalid_on_disk_identity_is_an_error_not_an_unknown_install() {
-    // Why: an install that silently ran as "unknown" would never match its own
-    // port record or whoami, so every start would look like a foreign proxy.
+fn a_placeholder_on_disk_identity_is_re_minted_not_refused() {
+    // Why: a placeholder was never durable state; refusing to start over it
+    // bricked every command, including the ones that would have repaired it.
     let temp = tempfile::tempdir().expect("config tempdir");
     let path = temp.path().join("systemprompt").join("bridge-install.id");
     std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     std::fs::write(&path, "unknown\n").expect("seed placeholder id");
-    let err = in_sandbox(&temp, || {
-        identity::InstallId::establish().expect_err("a placeholder id is refused")
+    let minted = in_sandbox(&temp, || {
+        identity::InstallId::establish().expect("a placeholder id is replaced")
     });
-    let msg = err.to_string();
-    assert!(
-        msg.contains("invalid install identity") && msg.contains(&path.display().to_string()),
-        "the error names the file to repair: {msg}"
+    assert!(minted.is_known(), "the replacement is a real id: {minted}");
+    assert_eq!(
+        std::fs::read_to_string(&path).expect("read").trim(),
+        minted.as_str(),
+        "the replacement is persisted over the placeholder"
     );
 
     std::fs::write(&path, "").expect("seed empty id");
-    let err = in_sandbox(&temp, || {
-        identity::InstallId::establish().expect_err("an empty id is refused, not re-minted")
+    let again = in_sandbox(&temp, || {
+        identity::InstallId::establish().expect("an empty id is re-minted")
     });
-    assert!(
-        err.to_string().contains("invalid install identity"),
-        "{err}"
+    assert!(again.is_known());
+    assert_ne!(
+        again.as_str(),
+        minted.as_str(),
+        "a fresh nonce, not the old one"
     );
 }
 
@@ -93,4 +96,25 @@ fn the_whoami_payload_carries_no_secret_material() {
             "whoami leaked `{forbidden}`: {json}"
         );
     }
+}
+
+#[test]
+fn an_ephemeral_identity_is_real_but_never_shared() {
+    // Why: a process that cannot read or write the durable id still needs an
+    // identity. It must be a real one — an unknown id matches nothing, so a
+    // sibling could never be recognised — and it must differ per process, so
+    // two identity-less installs never mistake each other for one another.
+    let first = identity::InstallId::ephemeral();
+    let second = identity::InstallId::ephemeral();
+    assert!(first.is_known(), "an ephemeral id is a real nonce: {first}");
+    assert!(second.is_known());
+    assert_ne!(first.as_str(), second.as_str());
+    assert!(
+        !first.same_install(&second),
+        "two identity-less processes must not read as the same install"
+    );
+    assert!(
+        first.same_install(&first.clone()),
+        "an ephemeral id still matches itself within the process"
+    );
 }

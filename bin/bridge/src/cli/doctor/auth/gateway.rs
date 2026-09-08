@@ -5,7 +5,7 @@
 
 use systemprompt_identifiers::{PluginId, SessionId};
 
-use crate::auth::{self, ChainError, plugin_oauth};
+use crate::auth::{self, plugin_oauth};
 use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gateway::errors::GatewayError;
@@ -27,29 +27,9 @@ pub async fn check_mint_jwt(
             ));
             Some(out)
         },
-        Err(e @ ChainError::Providers(_)) => {
-            checks.push(Check::fail("mint JWT", e.to_string()));
-            None
-        },
-        Err(ChainError::Cache(e)) => {
-            checks.push(Check::fail("mint JWT", format!("credential cache: {e}")));
-            None
-        },
-        Err(ChainError::PreferredTransient { provider, source }) => {
-            checks.push(Check::fail(
-                "mint JWT",
-                format!("preferred provider `{provider}` failed transiently: {source}"),
-            ));
-            None
-        },
-        Err(ChainError::NoneSucceeded) => {
-            checks.push(Check::fail(
-                "mint JWT",
-                format!(
-                    "no provider in the chain succeeded — run `{} login`",
-                    crate::brand::brand().binary_name
-                ),
-            ));
+        Err(e) => {
+            checks.push(Check::fail("mint JWT", e.exit_report().1));
+
             None
         },
     }

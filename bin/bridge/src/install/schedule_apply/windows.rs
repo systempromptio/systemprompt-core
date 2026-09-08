@@ -28,8 +28,7 @@ pub(super) fn register(
         .arg("/F")
         .status()
         .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
-    // Why: discard-ok: temporary cleanup cannot change the installed result.
-    _ = fs::remove_file(&path);
+    crate::fsutil::remove_leftover_file(&path);
     if !status.success() {
         return Err(InstallError::ScheduleApply(format!(
             "schtasks /Create exited with {}",
@@ -63,8 +62,7 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
         .arg("/F")
         .status()
         .map_err(|e| InstallError::ScheduleApply(format!("schtasks /Create: {e}")))?;
-    // Why: discard-ok: temporary cleanup cannot change the installed result.
-    _ = fs::remove_file(&path);
+    crate::fsutil::remove_leftover_file(&path);
     if !status.success() {
         return Err(InstallError::ScheduleApply(format!(
             "schtasks /Create exited with {}",

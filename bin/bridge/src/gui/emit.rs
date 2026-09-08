@@ -10,13 +10,21 @@ use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
 use crate::wire::ipc::{self, BridgeError, IpcReplyPayload};
 
-pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
-    let script = ipc::emit_script(channel, payload);
-    if let Some(win) = &app.settings_window
-        && let Err(e) = win.evaluate_script(&script)
-    {
-        app.append_log_error(format!("webview delivery failed: {e}"));
+pub(crate) fn deliver(app: &GuiApp, script: &str) -> bool {
+    let Some(win) = &app.settings_window else {
+        return false;
+    };
+    match win.evaluate_script(script) {
+        Ok(()) => true,
+        Err(e) => {
+            app.append_log_error(format!("webview delivery failed: {e}"));
+            false
+        },
     }
+}
+
+pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
+    deliver(app, &ipc::emit_script(channel, payload));
 }
 
 pub(crate) fn send_reply(app: &GuiApp, id: u64, payload: Value, ok: bool) {
@@ -29,12 +37,7 @@ pub(crate) fn send_reply(app: &GuiApp, id: u64, payload: Value, ok: bool) {
 }
 
 pub(crate) fn send_reply_payload(app: &GuiApp, id: u64, payload: &IpcReplyPayload) {
-    let script = ipc::reply_script(id, payload);
-    if let Some(win) = &app.settings_window
-        && let Err(e) = win.evaluate_script(&script)
-    {
-        app.append_log_error(format!("webview delivery failed: {e}"));
-    }
+    deliver(app, &ipc::reply_script(id, payload));
 }
 
 pub(crate) fn emit_proxy_stats(app: &GuiApp) {
@@ -121,12 +124,8 @@ pub(crate) fn emit_state(app: &mut GuiApp) {
     if app.last_semantic_state.as_ref() == Some(&semantic) {
         return;
     }
-    let Some(window) = &app.settings_window else {
-        return;
-    };
-    match window.evaluate_script(&ipc::emit_script("state.changed", &value)) {
-        Ok(()) => app.last_semantic_state = Some(semantic),
-        Err(e) => app.append_log_error(format!("emit state.changed: {e}")),
+    if deliver(app, &ipc::emit_script("state.changed", &value)) {
+        app.last_semantic_state = Some(semantic);
     }
 }
 

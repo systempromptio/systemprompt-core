@@ -119,8 +119,6 @@ pub fn bridge_policy_values(
     )])
 }
 
-pub use crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY as LEGACY_PUBKEY_KEY;
-
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "{gateway} is a template placeholder consumed by str::replace, not a fmt arg"

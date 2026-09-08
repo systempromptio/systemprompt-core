@@ -76,25 +76,24 @@ fn cache_path() -> io::Result<PathBuf> {
         .join("cache.json"))
 }
 
-pub fn read_valid(gateway: &ValidatedUrl) -> io::Result<Option<HelperOutput>> {
-    read_with_threshold(gateway, 30)
-}
-
-pub fn read_with_threshold(
-    gateway: &ValidatedUrl,
-    min_remaining_secs: u64,
-) -> io::Result<Option<HelperOutput>> {
-    let cfg = config::load().map_err(io::Error::other)?;
-    read_for(&cfg, gateway, min_remaining_secs)
-}
-
 pub fn read_for(
     cfg: &config::Config,
     gateway: &ValidatedUrl,
     min_remaining_secs: u64,
 ) -> io::Result<Option<HelperOutput>> {
-    let Some(entry) = read_entry()? else {
-        return Ok(None);
+    let entry = match read_entry() {
+        Ok(Some(entry)) => entry,
+        Ok(None) => return Ok(None),
+        // Why: a cache that cannot be parsed is not evidence of anything;
+        // the next mint replaces it. Refusing every request until someone
+        // deletes the file by hand would make the file more durable than
+        // the credential it caches.
+        Err(e) if e.kind() == io::ErrorKind::InvalidData => {
+            tracing::warn!(error = %e, "discarding unreadable credential cache");
+            clear()?;
+            return Ok(None);
+        },
+        Err(e) => return Err(e),
     };
     let binding = CredentialBinding::capture(cfg)?;
     if &entry.gateway != gateway || entry.binding.as_ref() != Some(&binding) {
@@ -147,11 +146,12 @@ fn now() -> io::Result<u64> {
 }
 
 pub fn write_bound(
+    cfg: &config::Config,
     gateway: &ValidatedUrl,
     output: &HelperOutput,
     binding: &CredentialBinding,
 ) -> io::Result<()> {
-    let current = CredentialBinding::capture(&config::load().map_err(io::Error::other)?)?;
+    let current = CredentialBinding::capture(cfg)?;
     let origin = config::trust::GatewayIdentity::new(gateway).map_err(io::Error::other)?;
     if &current != binding || origin.as_str() != binding.gateway {
         return Err(io::Error::other(

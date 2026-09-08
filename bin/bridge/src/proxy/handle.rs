@@ -22,6 +22,7 @@ use systemprompt_identifiers::SessionId;
 use crate::activity::ActivityLog;
 use crate::config::{self, RuntimeConfig, SharedRuntimeConfig};
 use crate::mcp_registry::McpRegistrySlot;
+use crate::obs::StartupFault;
 
 /// What this process's relationship to the loopback port turned out to be.
 ///
@@ -87,38 +88,38 @@ impl std::fmt::Debug for ProxyHandle {
 }
 
 impl ProxyHandle {
-    pub fn serve(rt: &Handle, deps: ProxyDeps) -> std::io::Result<Self> {
-        let runtime_config = config::shared_from_loaded().map_err(std::io::Error::other)?;
+    pub fn serve(rt: &Handle, deps: ProxyDeps, faults: &mut Vec<StartupFault>) -> Self {
+        let runtime_config = runtime_config_or_default(faults);
         let mut tried = Vec::new();
         let mut last_error = "no candidate port could be bound".to_owned();
 
-        let listener = match bind_candidate(rt, &deps.install_id, &mut tried, &mut last_error)? {
-            Bind::Listener(l) => l,
-            Bind::Sibling {
-                port,
-                pid,
-                config_dir,
-            } => {
-                return Ok(Self::not_serving(
-                    rt,
-                    deps,
-                    runtime_config,
+        let listener =
+            match bind_candidate(rt, &deps.install_id, &mut tried, &mut last_error, faults) {
+                Bind::Listener(l) => l,
+                Bind::Sibling {
                     port,
-                    ProxyRole::AlreadyRunning {
+                    pid,
+                    config_dir,
+                } => {
+                    return Self::not_serving(
+                        deps,
+                        runtime_config,
                         port,
-                        pid,
-                        config_dir,
-                    },
-                ));
-            },
-            Bind::Exhausted => {
-                return Ok(Self::failed(rt, deps, runtime_config, tried, last_error));
-            },
-        };
+                        ProxyRole::AlreadyRunning {
+                            port,
+                            pid,
+                            config_dir,
+                        },
+                    );
+                },
+                Bind::Exhausted => {
+                    return Self::failed(deps, runtime_config, tried, last_error);
+                },
+            };
 
         let loopback_secret = match secret::proxy_init() {
             Ok(s) => s,
-            Err(e) => return Ok(Self::failed(rt, deps, runtime_config, tried, e.to_string())),
+            Err(e) => return Self::failed(deps, runtime_config, tried, e.to_string()),
         };
         let session_context = Arc::new(SessionContext::new());
         let session_id = session_context.session_id().clone();
@@ -135,35 +136,41 @@ impl ProxyHandle {
         };
         let served = match server::start_with_listener(rt, listener, parts) {
             Ok(s) => s,
-            Err(e) => return Ok(Self::failed(rt, deps, runtime_config, tried, e.to_string())),
+            Err(e) => return Self::failed(deps, runtime_config, tried, e.to_string()),
         };
 
-        persist_and_announce(served.port, &deps.install_id)?;
+        // Why: the listener is already serving. An unwritable port file
+        // means the other processes cannot find it, which `doctor` reports;
+        // it does not make the bound port any less real.
+        if let Err(e) = persist_and_announce(served.port, &deps.install_id) {
+            tracing::error!(port = served.port, error = %e, "proxy port could not be published");
+            faults.push(StartupFault::new("proxy port file", e));
+        }
         served.tasks.spawn(refresh_loop(Arc::clone(&token_cache)));
 
-        Ok(Self {
+        Self {
             loopback: LoopbackEndpoint::new(served.port, Some(loopback_secret)),
             role: ProxyRole::Serving(served),
             deps,
             runtime_config,
             token_cache: Some(token_cache),
             session_id: Some(session_id),
-        })
+        }
     }
 
-    pub fn attach(rt: &Handle, deps: ProxyDeps) -> std::io::Result<Self> {
-        let port = portfile_port(&deps.install_id)?.unwrap_or(DEFAULT_PROXY_PORT);
-        Ok(Self::not_serving(
-            rt,
-            deps,
-            config::shared_from_loaded().map_err(std::io::Error::other)?,
-            port,
-            ProxyRole::Attached,
-        ))
+    pub fn attach(deps: ProxyDeps, faults: &mut Vec<StartupFault>) -> Self {
+        let port = match portfile_port(&deps.install_id) {
+            Ok(port) => port.unwrap_or(DEFAULT_PROXY_PORT),
+            Err(e) => {
+                faults.push(StartupFault::new("proxy port file", e));
+                DEFAULT_PROXY_PORT
+            },
+        };
+        let runtime_config = runtime_config_or_default(faults);
+        Self::not_serving(deps, runtime_config, port, ProxyRole::Attached)
     }
 
     const fn failed(
-        rt: &Handle,
         deps: ProxyDeps,
         runtime_config: SharedRuntimeConfig,
         tried: Vec<u16>,
@@ -171,7 +178,6 @@ impl ProxyHandle {
     ) -> Self {
         let port = DEFAULT_PROXY_PORT;
         Self::not_serving(
-            rt,
             deps,
             runtime_config,
             port,
@@ -180,7 +186,6 @@ impl ProxyHandle {
     }
 
     const fn not_serving(
-        _rt: &Handle,
         deps: ProxyDeps,
         runtime_config: SharedRuntimeConfig,
         port: u16,
@@ -266,6 +271,16 @@ impl ProxyHandle {
     #[must_use]
     pub fn auth_state(&self) -> Option<tokio::sync::watch::Receiver<AuthState>> {
         self.token_cache.as_ref().map(|cache| cache.auth_state())
+    }
+}
+
+fn runtime_config_or_default(faults: &mut Vec<StartupFault>) -> SharedRuntimeConfig {
+    match config::shared_from_loaded() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            faults.push(StartupFault::new("config", e));
+            config::shared_from_config(&config::Config::default())
+        },
     }
 }
 

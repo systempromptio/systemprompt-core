@@ -18,8 +18,7 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 
     let workdir = staged.with_extension("unpack");
     if workdir.exists() {
-        // Why: discard-ok: temporary cleanup cannot change the installed result.
-        _ = std::fs::remove_dir_all(&workdir);
+        crate::fsutil::remove_leftover_dir(&workdir);
     }
     std::fs::create_dir_all(&workdir).map_err(|e| UpdateError::io(&workdir, e))?;
 
@@ -81,8 +80,7 @@ fn swap(new_binary: &Path, target: &Path) -> Result<(), UpdateError> {
     }
 
     std::fs::rename(&staged_next, target).map_err(|e| {
-        // Why: discard-ok: temporary cleanup cannot change the installed result.
-        _ = std::fs::remove_file(&staged_next);
+        crate::fsutil::remove_leftover_file(&staged_next);
         UpdateError::io(target, e)
     })?;
     tracing::info!(path = %target.display(), "update: binary replaced");

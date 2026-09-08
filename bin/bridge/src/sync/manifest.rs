@@ -20,13 +20,14 @@ struct RejectedCredential<'a> {
 }
 
 fn map_gateway_error(
+    cfg: &config::Config,
     err: GatewayError,
     endpoint: &'static str,
     rejected: &RejectedCredential<'_>,
 ) -> SyncError {
     match err {
         GatewayError::HttpStatus { status, .. } if matches!(status.as_u16(), 401 | 403) => {
-            unauthorized(endpoint, status.as_u16(), rejected)
+            unauthorized(cfg, endpoint, status.as_u16(), rejected)
         },
         GatewayError::ManifestDecode(e) if e.is_decode() => SyncError::ManifestShape(e.to_string()),
         e @ GatewayError::ManifestEnvelopeShape { .. } => SyncError::ManifestShape(e.to_string()),
@@ -35,14 +36,11 @@ fn map_gateway_error(
 }
 
 fn unauthorized(
+    cfg: &config::Config,
     endpoint: &'static str,
     status: u16,
     rejected: &RejectedCredential<'_>,
 ) -> SyncError {
-    let cfg = match config::load() {
-        Ok(cfg) => cfg,
-        Err(e) => return SyncError::Config(e),
-    };
     let identity = rejected
         .token
         .and_then(|t| crate::auth::jwt::decode_unverified(t.expose()))
@@ -60,7 +58,7 @@ fn unauthorized(
         bin: crate::brand::brand().binary_name,
         endpoint,
         status,
-        gateway: config::gateway_url_or_default(&cfg).to_string(),
+        gateway: config::gateway_url_or_default(cfg).to_string(),
         credential: rejected.credential,
         identity,
         config_file,
@@ -147,19 +145,13 @@ pub(super) async fn fetch_authenticated_manifest(
     let gateway = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(gateway.clone(), http.clone());
 
-    let no_credential = || SyncError::NoCredential {
-        bin: crate::brand::brand().binary_name,
-    };
-
     let cached = crate::auth::cache::read_for(&cfg, &gateway, 30)
         .map_err(SyncError::CredentialCache)?
         .map(|out| out.token);
     let was_cached = cached.is_some();
     let mut bearer = match cached {
         Some(token) => token,
-        None => fetch_fresh_token(http, &cfg)
-            .await?
-            .ok_or_else(no_credential)?,
+        None => fetch_fresh_token(http, &cfg).await?,
     };
 
     let mut envelope = client.fetch_manifest(bearer.expose()).await;
@@ -167,9 +159,7 @@ pub(super) async fn fetch_authenticated_manifest(
     if is_unauthorized(&envelope) && was_cached {
         tracing::warn!("gateway refused the cached token; discarding it and re-authenticating");
         crate::auth::cache::clear().map_err(SyncError::CredentialCache)?;
-        bearer = fetch_fresh_token(http, &cfg)
-            .await?
-            .ok_or_else(no_credential)?;
+        bearer = fetch_fresh_token(http, &cfg).await?;
         envelope = client.fetch_manifest(bearer.expose()).await;
     }
 
@@ -184,6 +174,7 @@ pub(super) async fn fetch_authenticated_manifest(
     };
     let envelope = envelope.map_err(|e| {
         map_gateway_error(
+            &cfg,
             e,
             "manifest",
             &RejectedCredential {
@@ -231,6 +222,7 @@ pub(super) async fn verify_and_decode(
         config::PinnedPubkeyState::Unpinned if allow_tofu => {
             let key = fetch.client.fetch_pubkey().await.map_err(|e| {
                 map_gateway_error(
+                    &fetch.config,
                     e,
                     "pubkey",
                     &RejectedCredential {
@@ -255,9 +247,14 @@ pub(super) async fn verify_and_decode(
 async fn fetch_fresh_token(
     http: &reqwest::Client,
     cfg: &config::Config,
-) -> Result<Option<Secret>, SyncError> {
+) -> Result<Secret, SyncError> {
     let out = crate::auth::mint_fresh(cfg, &systemprompt_identifiers::SessionId::generate(), http)
         .await
-        .map_err(|e| SyncError::Network(format!("authentication: {e}")))?;
-    Ok(Some(out.token))
+        .map_err(|e| match e {
+            crate::auth::ChainError::NoneSucceeded => SyncError::NoCredential {
+                bin: crate::brand::brand().binary_name,
+            },
+            other => SyncError::Authentication(other),
+        })?;
+    Ok(out.token)
 }

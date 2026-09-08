@@ -7,14 +7,16 @@ use crate::cli::doctor::Check;
 
 #[cfg(target_os = "windows")]
 pub fn check_policy_hives() -> Check {
-    use crate::config::store::{PolicyHive, managed_policy_store};
+    use crate::config::store::{PolicyHive, PolicyTarget, managed_policy_store};
 
     const PROBE_KEYS: &[&str] = &["inferenceGatewayBaseUrl", "managedMcpServers"];
     let store = managed_policy_store();
-    let read = |hive: PolicyHive| match store.read_policy_document(hive, PROBE_KEYS) {
-        Ok(doc) => Ok(doc),
-        Err(e) => Err(format!("{}: {e}", hive.label())),
-    };
+    let read =
+        |hive: PolicyHive| match store.read_policy_document(hive, PolicyTarget::Claude, PROBE_KEYS)
+        {
+            Ok(doc) => Ok(doc),
+            Err(e) => Err(format!("{}: {e}", hive.label())),
+        };
     let (machine, user) = match (read(PolicyHive::Machine), read(PolicyHive::User)) {
         (Ok(m), Ok(u)) => (m, u),
         (Err(e), _) | (_, Err(e)) => {

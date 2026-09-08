@@ -26,6 +26,8 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
         last_validation_at_unix: None,
         health: Verdict::new(Tone::Unknown, HealthCode::NotChecked),
         provider_health: &[],
+        credential_error: None,
+        startup_faults: Vec::new(),
         sync_in_flight: false,
         cached_token: Some(CachedTokenPayload {
             ttl_seconds: 300,
@@ -108,5 +110,70 @@ fn gateway_identity_and_verdict_changes_remain_visible() {
     assert_ne!(first, next.semantic_value().unwrap());
     let mut next = payload(&proxy, &update);
     next.token = Verdict::new(Tone::Warn, TokenCode::Expiring);
+    assert_ne!(first, next.semantic_value().unwrap());
+}
+
+#[test]
+fn startup_faults_and_a_credential_error_reach_the_webview_as_named_fields() {
+    let proxy = ProxyHealth::default();
+    let update = UpdateUiState::default();
+    let mut next = payload(&proxy, &update);
+    next.credential_error = Some("authentication: token rejected");
+    next.startup_faults = vec![StartupFaultPayload {
+        component: "proxy port file",
+        error: "parse bridge-proxy.json: expected value",
+    }];
+
+    let json = serde_json::to_value(&next).expect("the state payload serialises");
+    assert_eq!(
+        json["startup_faults"][0]["component"],
+        serde_json::json!("proxy port file")
+    );
+    assert_eq!(
+        json["startup_faults"][0]["error"],
+        serde_json::json!("parse bridge-proxy.json: expected value")
+    );
+    assert_eq!(
+        json["credential_error"],
+        serde_json::json!("authentication: token rejected")
+    );
+}
+
+#[test]
+fn a_healthy_state_omits_credential_error_and_carries_an_empty_fault_list() {
+    let proxy = ProxyHealth::default();
+    let update = UpdateUiState::default();
+    let json = serde_json::to_value(payload(&proxy, &update)).expect("serialises");
+
+    assert!(
+        json.get("credential_error").is_none(),
+        "no error means the key is absent, not null: {json}"
+    );
+    assert_eq!(
+        json["startup_faults"],
+        serde_json::json!([]),
+        "the fault list is always present so the webview can render it unconditionally"
+    );
+}
+
+#[test]
+fn a_startup_fault_is_semantic_state_rather_than_telemetry() {
+    let proxy = ProxyHealth::default();
+    let update = UpdateUiState::default();
+    let first = payload(&proxy, &update).semantic_value().unwrap();
+
+    let mut next = payload(&proxy, &update);
+    next.startup_faults = vec![StartupFaultPayload {
+        component: "log file",
+        error: "permission denied",
+    }];
+    assert_ne!(
+        first,
+        next.semantic_value().unwrap(),
+        "a new start-up fault must wake the webview up"
+    );
+
+    let mut next = payload(&proxy, &update);
+    next.credential_error = Some("authentication: token rejected");
     assert_ne!(first, next.semantic_value().unwrap());
 }

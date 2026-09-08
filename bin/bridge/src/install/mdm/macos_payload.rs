@@ -66,9 +66,7 @@ pub fn build_bridge_prefs_plist(pubkey: &str) -> Result<String, super::MdmError>
         Some(pubkey),
         &crate::config::gateway_url_or_default(&crate::config::load()?),
     )?;
-    Ok(BRIDGE_PREFS_PLIST_TMPL
-        .replace("{pubkey}", &xml::escape(&values[0].2))
-        .replace("manifestPubkey", "manifestTrust"))
+    Ok(BRIDGE_PREFS_PLIST_TMPL.replace("{pubkey}", &xml::escape(&values[0].2)))
 }
 
 #[expect(
@@ -94,8 +92,7 @@ pub fn build_mobileconfig(
                     "{bridge_uuid}",
                     &xml::stable_uuid(BRIDGE_PAYLOAD_IDENTIFIER),
                 )
-                .replace("{pubkey}", &xml::escape(&values[0].2))
-                .replace("manifestPubkey", "manifestTrust"))
+                .replace("{pubkey}", &xml::escape(&values[0].2)))
         })
         .transpose()?
         .unwrap_or_default();

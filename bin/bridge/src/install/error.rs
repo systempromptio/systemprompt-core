@@ -35,6 +35,15 @@ pub enum InstallError {
     MobileconfigUnsupported,
     #[error("registering the scheduled sync job failed: {0}")]
     ScheduleApply(String),
+    #[error(
+        "scheduler units written ({}) but not activated: {reason}; activate them by hand or \
+         re-run --apply-schedule where systemd --user is available",
+        units.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")
+    )]
+    ScheduleActivation {
+        units: Vec<std::path::PathBuf>,
+        reason: String,
+    },
     #[error("--apply-schedule can only register a job for the OS it runs on")]
     ScheduleOsMismatch,
     #[error("failed to write {path}: {source}")]

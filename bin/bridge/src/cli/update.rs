@@ -11,7 +11,6 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::SessionId;
 
-use crate::auth::ChainError;
 use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::stdio::diag;
@@ -69,26 +68,12 @@ async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
     let gateway = config::gateway_url_or_default(&cfg);
     let bearer = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
         Ok(out) => out,
-        Err(e @ ChainError::Providers(_)) => {
-            diag(&format!("{e}"));
-            return ExitCode::FAILURE;
-        },
-        Err(ChainError::Cache(e)) => {
-            diag(&format!("credential cache: {e}"));
-            return ExitCode::FAILURE;
-        },
-        Err(ChainError::PreferredTransient { provider, source }) => {
-            diag(&format!(
-                "transient auth failure on preferred provider {provider}: {source}"
-            ));
-            return ExitCode::from(10);
-        },
-        Err(ChainError::NoneSucceeded) => {
-            diag(&format!(
-                "no credential available; run `{} login` first",
-                crate::brand::brand().binary_name
-            ));
-            return ExitCode::from(5);
+        Err(e) => {
+            let (code, message) = e.exit_report();
+
+            diag(&message);
+
+            return code;
         },
     };
 

@@ -11,7 +11,7 @@ pub mod store;
 pub mod trust;
 pub mod write;
 
-pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_loaded};
+pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_config, shared_from_loaded};
 
 use serde::Deserialize;
 use std::env;

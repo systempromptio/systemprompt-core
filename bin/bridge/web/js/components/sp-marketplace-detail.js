@@ -49,6 +49,7 @@ export class SpMarketplaceDetail extends SpElement {
     if (!selected) { return renderMarketplaceDetailEmpty(); }
     const sourceChip = selected.source ? `<span class="sp-mkt-chip">${escapeHtml(selected.source)}</span>` : "";
     const versionChip = selected.version ? `<span class="sp-mkt-chip sp-mkt-chip--mono">v${escapeHtml(selected.version)}</span>` : "";
+    const error = selected.error ? `<p class="sp-mkt-detail__summary sp-mkt-detail__summary--error">${escapeHtml(selected.error)}</p>` : "";
     const summary = selected.summary ? `<p class="sp-mkt-detail__summary">${escapeHtml(selected.summary)}</p>` : "";
     const readme = selected.readme ? `<section class="sp-mkt-detail__section"><h3>${escapeHtml(t("marketplace-detail-readme") || "README")}</h3><div class="sp-mkt-detail__readme">${escapeHtml(selected.readme)}</div></section>` : "";
     const mcpSection = this.kind === "mcp" ? renderMarketplaceMcp(this, selected) : "";
@@ -61,6 +62,7 @@ export class SpMarketplaceDetail extends SpElement {
         ${sourceChip}
         ${versionChip}
       </div>
+      ${error}
       ${summary}
       ${renderMarketplaceChildren(this, selected)}
       ${readme}

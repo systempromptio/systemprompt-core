@@ -16,3 +16,4 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+temp-env = { workspace = true }

@@ -35,6 +35,9 @@ pub(crate) fn clear_policy() -> std::io::Result<()> {
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
             write::clear_elevated(&mcp_path, &settings_path, stripped.as_deref())
         },
-        Err(e) => Err(std::io::Error::other(format!("{}: {e}", dir.display()))),
+        Err(e) => Err(std::io::Error::new(
+            e.kind(),
+            format!("{}: {e}", dir.display()),
+        )),
     }
 }

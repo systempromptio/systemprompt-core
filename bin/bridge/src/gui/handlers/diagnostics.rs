@@ -60,10 +60,13 @@ pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
     });
     if let Ok(path) = result.as_ref() {
         app.append_log(format!("diagnostic bundle written to {}", path.display()));
+        // Why: the bundle exists and its path is the answer; a file manager
+        // that will not open is worth a log line, not a failed export.
         if let Err(e) = opener::reveal(path) {
-            let message = format!("bundle saved at {}, but reveal failed: {e}", path.display());
-            finish(app, Err(BridgeError::internal(message)), reply_to);
-            return;
+            app.append_log_error(format!(
+                "bundle saved at {}, but reveal failed: {e}",
+                path.display()
+            ));
         }
     }
     let value = result.map(|p| json!({ "path": p.display().to_string() }));

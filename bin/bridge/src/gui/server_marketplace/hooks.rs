@@ -65,6 +65,7 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
                             children: Vec::new(),
                             plugins: Vec::new(),
                             extra: MarketplaceExtra::None,
+                            error: None,
                         });
                     },
                 }
@@ -114,6 +115,7 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
             children: Vec::new(),
             plugins: Vec::new(),
             extra: MarketplaceExtra::None,
+            error: None,
         });
     }
 

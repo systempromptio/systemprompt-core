@@ -15,7 +15,6 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::SessionId;
 
-use crate::auth::ChainError;
 use crate::context::BridgeContext;
 use crate::{auth, config};
 
@@ -50,30 +49,12 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     ));
     let out = match acquired {
         Ok(out) => out,
-        Err(e @ ChainError::Providers(_)) => {
-            crate::stdio::diag(&format!("{e}"));
-            return ExitCode::FAILURE;
-        },
-        Err(ChainError::Cache(e)) => {
-            crate::stdio::diag(&format!("credential cache: {e}"));
-            return ExitCode::FAILURE;
-        },
-        Err(ChainError::PreferredTransient { provider, source }) => {
-            eprintln!(
-                "{}",
-                error_json(&format!("transient auth failure on {provider}: {source}"))
-            );
-            return ExitCode::from(10);
-        },
-        Err(ChainError::NoneSucceeded) => {
-            eprintln!(
-                "{}",
-                error_json(&format!(
-                    "no credential available; run `{} login`",
-                    crate::brand::brand().binary_name
-                ))
-            );
-            return ExitCode::from(5);
+        Err(e) => {
+            let (code, message) = e.exit_report();
+
+            eprintln!("{}", error_json(&message));
+
+            return code;
         },
     };
     emit_claude(&out)

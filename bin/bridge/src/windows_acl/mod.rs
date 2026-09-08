@@ -7,7 +7,7 @@
 
 mod access;
 
-pub use self::access::verify_modify_tree;
+pub(crate) use self::access::verify_modify_tree;
 
 use std::fs::File;
 use std::io;
@@ -77,7 +77,7 @@ pub(super) fn process_token() -> io::Result<OwnedHandle> {
         Ok(OwnedHandle::from_raw_handle(token))
     }
 }
-pub fn current_sid() -> io::Result<String> {
+pub(crate) fn current_sid() -> io::Result<String> {
     let token = process_token()?;
     let mut length = 0;
     // SAFETY: the first query asks for the required size with no output buffer.
@@ -146,7 +146,7 @@ fn private_descriptor(reader: &str) -> io::Result<Descriptor> {
     }
     Ok(Descriptor(descriptor))
 }
-pub fn create_private(path: &Path, reader: &str) -> io::Result<File> {
+pub(crate) fn create_private(path: &Path, reader: &str) -> io::Result<File> {
     let descriptor = private_descriptor(reader)?;
     let attributes = SECURITY_ATTRIBUTES {
         nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
@@ -174,7 +174,7 @@ pub fn create_private(path: &Path, reader: &str) -> io::Result<File> {
         Ok(file)
     }
 }
-pub fn verify_private(file: &File, reader: &str) -> io::Result<()> {
+pub(crate) fn verify_private(file: &File, reader: &str) -> io::Result<()> {
     let expected = private_descriptor(reader)?;
     let mut actual = null_mut();
     let mut actual_acl = null_mut();
@@ -191,42 +191,54 @@ pub fn verify_private(file: &File, reader: &str) -> io::Result<()> {
             null_mut(),
             &raw mut actual,
         ))?;
-        let actual = Descriptor(actual);
-        let mut expected_acl = null_mut();
-        let (mut present, mut defaulted) = (0, 0);
+    }
+    let actual = Descriptor(actual);
+    let mut expected_acl = null_mut();
+    let (mut present, mut defaulted) = (0, 0);
+    // SAFETY: `expected` is a live self-relative descriptor built above and
+    // the out-params are live locals.
+    unsafe {
         checked(GetSecurityDescriptorDacl(
             expected.0,
             &raw mut present,
             &raw mut expected_acl,
             &raw mut defaulted,
         ))?;
-        let (mut control, mut revision) = (0, 0);
+    }
+    let (mut control, mut revision) = (0, 0);
+    // SAFETY: `actual` owns the descriptor GetSecurityInfo allocated.
+    unsafe {
         checked(GetSecurityDescriptorControl(
             actual.0,
             &raw mut control,
             &raw mut revision,
         ))?;
-        if actual_acl.is_null() || expected_acl.is_null() || control & SE_DACL_PROTECTED == 0 {
-            return Err(io::Error::other(
-                "private file has absent or inheritable DACL",
-            ));
-        }
-        let actual_bytes =
-            std::slice::from_raw_parts(actual_acl.cast::<u8>(), usize::from((*actual_acl).AclSize));
-        let expected_bytes = std::slice::from_raw_parts(
-            expected_acl.cast::<u8>(),
-            usize::from((*expected_acl).AclSize),
-        );
-        if actual_bytes != expected_bytes {
-            return Err(io::Error::other(
-                "private file DACL did not match requested reader, SYSTEM and Administrators",
-            ));
-        }
+    }
+    if actual_acl.is_null() || expected_acl.is_null() || control & SE_DACL_PROTECTED == 0 {
+        return Err(io::Error::other(
+            "private file has absent or inheritable DACL",
+        ));
+    }
+    // SAFETY: both ACL pointers were checked non-null above and each points
+    // at an ACL whose header carries its own byte length.
+    let (actual_bytes, expected_bytes) = unsafe {
+        (
+            std::slice::from_raw_parts(actual_acl.cast::<u8>(), usize::from((*actual_acl).AclSize)),
+            std::slice::from_raw_parts(
+                expected_acl.cast::<u8>(),
+                usize::from((*expected_acl).AclSize),
+            ),
+        )
+    };
+    if actual_bytes != expected_bytes {
+        return Err(io::Error::other(
+            "private file DACL did not match requested reader, SYSTEM and Administrators",
+        ));
     }
     Ok(())
 }
 
-pub fn protect_directory(path: &Path) -> io::Result<()> {
+pub(crate) fn protect_directory(path: &Path) -> io::Result<()> {
     use std::os::windows::fs::OpenOptionsExt;
     if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
         return Err(io::Error::other(format!(

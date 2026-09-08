@@ -59,7 +59,7 @@ fn unelevated_token() -> io::Result<OwnedHandle> {
         Ok(OwnedHandle::from_raw_handle(impersonation))
     }
 }
-pub fn verify_modify_tree(path: &Path) -> io::Result<()> {
+pub(crate) fn verify_modify_tree(path: &Path) -> io::Result<()> {
     let token = unelevated_token()?;
     verify_modify(path, &token)?;
     if std::fs::symlink_metadata(path)?.file_type().is_symlink() {

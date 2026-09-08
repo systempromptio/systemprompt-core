@@ -26,7 +26,13 @@ pub(super) fn list_skills(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
             continue;
         }
         let skill_md = entry.path().join("SKILL.md");
-        let body = Some(super::read_text(&skill_md)?);
+        let body = match super::read_text(&skill_md) {
+            Ok(body) => Some(body),
+            Err(e) => {
+                out.push(MarketplaceItem::failed(id, &entry.path(), &e));
+                continue;
+            },
+        };
         let (frontmatter_name, summary) = body
             .as_deref()
             .map_or((None, None), parse_skill_frontmatter);
@@ -49,6 +55,7 @@ pub(super) fn list_skills(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
             children: Vec::new(),
             plugins: Vec::new(),
             extra,
+            error: None,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -69,7 +76,13 @@ pub(super) fn list_agents(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
         if path.extension().and_then(|e| e.to_str()) != Some("md") {
             continue;
         }
-        let body = Some(super::read_text(&path)?);
+        let body = match super::read_text(&path) {
+            Ok(body) => Some(body),
+            Err(e) => {
+                out.push(MarketplaceItem::failed(stem, &path, &e));
+                continue;
+            },
+        };
         let (frontmatter_name, summary) = body
             .as_deref()
             .map_or((None, None), parse_skill_frontmatter);
@@ -92,6 +105,7 @@ pub(super) fn list_agents(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
             children: Vec::new(),
             plugins: Vec::new(),
             extra,
+            error: None,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -127,6 +141,7 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
                 children: Vec::new(),
                 plugins: record.plugins,
                 extra: MarketplaceExtra::None,
+                error: None,
             }
         })
         .collect();
@@ -165,6 +180,7 @@ pub(super) fn list_registry_mcp(
                     .clone()
                     .or_else(|| Some("http".to_owned())),
             }),
+            error: None,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));

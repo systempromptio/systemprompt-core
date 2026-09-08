@@ -18,15 +18,8 @@ pub(super) fn write_managed_mcp_servers_value(
     let outcome = crate::config::store::verified::apply(
         store.backend(),
         crate::config::store::hive_for(elevated),
-        &entries
-            .iter()
-            .map(|(n, v)| {
-                (
-                    n.clone(),
-                    crate::config::store::PolicyDocumentValue::Str(v.clone()),
-                )
-            })
-            .collect::<Vec<_>>(),
+        crate::config::store::PolicyTarget::Claude,
+        &crate::config::store::PolicyDocumentValue::strings(&entries),
     )
     .map_err(windows_policy::policy_err)?;
     if elevated {
@@ -118,6 +111,7 @@ pub(super) fn remove_policy() -> Result<bool, MdmError> {
     let hklm = crate::config::store::verified::remove_values(
         store.as_ref(),
         PolicyHive::Machine,
+        crate::config::store::PolicyTarget::Claude,
         &["managedMcpServers"],
     )? > 0;
     Ok(hkcu || hklm)
@@ -136,8 +130,10 @@ fn policy_values(
     let servers = super::policy::mcp_entries(inputs.loopback, inputs.registry).map_err(|e| {
         MdmError::Windows(format!("the MCP connector list could not be built: {e}"))
     })?;
-    let existing_models =
-        crate::config::store::managed_policy_store().read_managed_policy("inferenceModels")?;
+    let existing_models = inputs
+        .policy_store
+        .backend()
+        .read_managed_policy("inferenceModels")?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url,
         api_key: secret.as_str(),
@@ -152,11 +148,28 @@ fn policy_values(
     Ok(super::policy::reg_values(&policy))
 }
 
+fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
+    let url = url::Url::parse(gateway).map_err(|e| MdmError::InvalidConfig(e.to_string()))?;
+    let loopback = match url.host() {
+        Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        None => false,
+    };
+    if url.scheme() != "https" && !(url.scheme() == "http" && loopback) {
+        return Err(MdmError::InsecureGateway {
+            gateway: gateway.to_owned(),
+        });
+    }
+    Ok(())
+}
+
 pub(super) fn apply(
     inputs: &super::MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<super::MdmApplication, MdmError> {
+    validate_gateway(gateway)?;
     let elevated = crate::winproc::is_elevated();
     let values = policy_values(inputs, gateway)?;
     let bridge = super::bridge_policy_values(
@@ -204,11 +217,6 @@ pub(super) fn apply(
         },
         source: Box::new(source),
     })?;
-    if gateway.starts_with("http://") && !gateway.contains("://127.0.0.1") {
-        summary.push(
-            "warning: Bridge rejects http:// for non-127.0.0.1 hosts. Re-run --apply with http://127.0.0.1:<port> or switch to https://.".into(),
-        );
-    }
     summary.push("Fully quit Bridge (tray icon → Quit) and relaunch to pick up new policy.".into());
     Ok(super::MdmApplication {
         lines: summary,

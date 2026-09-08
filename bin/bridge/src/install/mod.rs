@@ -26,9 +26,8 @@ pub use apply::install;
 pub use builders::{InstallOptionsBuilder, UninstallSummaryBuilder};
 pub use error::InstallError;
 pub use mdm::{
-    LEGACY_PUBKEY_KEY, MdmError, MdmPayloadInputs, bridge_policy_values,
-    cowork_egress_allowed_hosts, default_inference_models, is_uuid_like,
-    parse_egress_allowed_hosts, snippet as mdm_snippet,
+    MdmError, MdmPayloadInputs, bridge_policy_values, cowork_egress_allowed_hosts,
+    default_inference_models, is_uuid_like, parse_egress_allowed_hosts, snippet as mdm_snippet,
 };
 pub use schedule_apply::{
     ScheduleStatus, apply_gui_autostart, apply_schedule, gui_autostart_status,
@@ -82,7 +81,6 @@ pub enum InstallStep {
 #[derive(Debug)]
 #[must_use]
 pub struct InstallSummary {
-    pub completed: Vec<InstallStep>,
     pub location: paths::OrgPluginsLocation,
     pub binary: PathBuf,
     pub mdm: MdmDisplay,
@@ -154,7 +152,6 @@ pub enum ManagedProfileOutcome {
 pub enum CredentialsOutcome {
     Purged(PathBuf),
     Kept,
-    PurgeFailed(String),
 }
 
 #[must_use]
@@ -195,30 +192,7 @@ pub fn uninstall(
             },
         }
     }
-    match fs::read_dir(&location.path) {
-        Ok(entries) => {
-            for entry in entries {
-                let entry = entry.map_err(|e| {
-                    InstallError::Bootstrap(format!("enumerate {}: {e}", location.path.display()))
-                })?;
-                let kind = entry.file_type().map_err(|e| {
-                    InstallError::Bootstrap(format!("inspect {}: {e}", entry.path().display()))
-                })?;
-                if kind.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
-                    fs::remove_dir_all(entry.path()).map_err(|e| {
-                        InstallError::Bootstrap(format!("remove {}: {e}", entry.path().display()))
-                    })?;
-                }
-            }
-        },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-        Err(e) => {
-            return Err(InstallError::Bootstrap(format!(
-                "enumerate {}: {e}",
-                location.path.display()
-            )));
-        },
-    }
+    purge_plugin_dirs(&location.path)?;
 
     let schedule = remove_schedule(&bridge.schedule);
     if let ScheduleRemoval::Failed(e) = &schedule {
@@ -250,6 +224,32 @@ pub fn uninstall(
         credentials,
         schedule,
     })
+}
+
+fn purge_plugin_dirs(root: &std::path::Path) -> Result<(), InstallError> {
+    let entries = match fs::read_dir(root) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            return Err(InstallError::Bootstrap(format!(
+                "enumerate {}: {e}",
+                root.display()
+            )));
+        },
+    };
+    for entry in entries {
+        let entry = entry
+            .map_err(|e| InstallError::Bootstrap(format!("enumerate {}: {e}", root.display())))?;
+        let kind = entry.file_type().map_err(|e| {
+            InstallError::Bootstrap(format!("inspect {}: {e}", entry.path().display()))
+        })?;
+        if kind.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+            fs::remove_dir_all(entry.path()).map_err(|e| {
+                InstallError::Bootstrap(format!("remove {}: {e}", entry.path().display()))
+            })?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]

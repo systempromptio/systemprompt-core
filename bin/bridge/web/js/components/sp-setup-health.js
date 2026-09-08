@@ -24,6 +24,12 @@ export function healthRows(snapshot) {
       value: p.config_issue || (t("setup-health-provider-unconfigured") || "not configured"),
     });
   }
+  for (const f of (snapshot && snapshot.startup_faults) || []) {
+    rows.push({ tone: "err", label: `${t("setup-health-startup") || "startup"}: ${f.component}`, value: f.error });
+  }
+  if (snapshot && snapshot.credential_error) {
+    rows.push({ tone: "err", label: t("setup-health-credential") || "credential", value: snapshot.credential_error });
+  }
   const malformed = snapshot && snapshot.malformed_plugin_count;
   if (malformed) {
     rows.push({

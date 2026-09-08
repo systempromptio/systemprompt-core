@@ -35,6 +35,26 @@ pub enum ChainError {
     },
 }
 
+impl ChainError {
+    #[must_use]
+    pub fn exit_report(&self) -> (std::process::ExitCode, String) {
+        let bin = crate::brand::brand().binary_name;
+        match self {
+            Self::Providers(_) | Self::Cache(_) => {
+                (std::process::ExitCode::FAILURE, self.to_string())
+            },
+            Self::PreferredTransient { provider, source } => (
+                std::process::ExitCode::from(10),
+                format!("transient auth failure on preferred provider {provider}: {source}"),
+            ),
+            Self::NoneSucceeded => (
+                std::process::ExitCode::from(5),
+                format!("no credential available; run `{bin} login <sp-live-...>` first"),
+            ),
+        }
+    }
+}
+
 pub async fn acquire_bearer(
     cfg: &config::Config,
     session_id: &SessionId,
@@ -176,7 +196,7 @@ async fn run_chain(
     let providers: Vec<&dyn AuthProvider> = chain.iter().map(AsRef::as_ref).collect();
     let output = evaluate_chain(&providers, preferred, session_id, http).await?;
     if write_cache {
-        cache::write_bound(&config::gateway_url_or_default(cfg), &output, &binding)?;
+        cache::write_bound(cfg, &config::gateway_url_or_default(cfg), &output, &binding)?;
     }
     Ok(output)
 }

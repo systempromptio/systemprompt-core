@@ -449,6 +449,7 @@ setup-finalizing-body = Signing you in and preparing { $app }. This only takes a
 setup-health-all = All checks
 setup-health-all-passed = All checks passed.
 setup-health-checked = checked { $ago }
+setup-health-credential = credential
 setup-health-diagnostic = gateway diagnostic
 setup-health-failures-only = Failures only
 setup-health-label-attention = attention
@@ -459,6 +460,7 @@ setup-health-never = not checked yet
 setup-health-provider-unconfigured = not configured
 setup-health-ran-failed = Check finished — some checks did not pass.
 setup-health-ran-ok = All checks passed.
+setup-health-startup = startup
 setup-health-run = Re-check
 toast-gateway-saved = Gateway saved.
 

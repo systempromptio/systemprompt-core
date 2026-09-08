@@ -46,6 +46,7 @@ pub struct AppState {
 impl AppState {
     pub fn new_loaded(ctx: Arc<crate::context::BridgeContext>) -> Arc<Self> {
         let mut snap = AppStateSnapshot::default();
+        snap.startup_faults.clone_from(&ctx.startup_faults);
         reload::reload_into(&mut snap);
         Arc::new(Self {
             inner: RwLock::new(Inner {
@@ -117,6 +118,7 @@ impl AppState {
             inner.snapshot.verified_identity = outcome.identity;
             inner.snapshot.provider_health = outcome.provider_health;
         }
+        inner.snapshot.credential_error = outcome.credential_error;
     }
 
     pub fn gateway_probe_in_flight(&self) -> bool {

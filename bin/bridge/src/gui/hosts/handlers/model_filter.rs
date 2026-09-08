@@ -60,7 +60,7 @@ async fn push_model_filter(
 ) -> GuiResult<()> {
     let cfg = config::load()?;
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let bearer = crate::auth::cache::read_valid(&gateway_base)
+    let bearer = crate::auth::cache::read_for(&cfg, &gateway_base, 30)
         .map_err(|e| GuiError::Profile {
             context: "credential cache".into(),
             source: e,

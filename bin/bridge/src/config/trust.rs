@@ -202,7 +202,9 @@ pub fn pinned_pubkey_state_for(
         }
         return Ok(PinnedPubkeyState::Unpinned);
     };
-    let validated = TrustRecord::new(gateway, record.key.as_str(), record.source)?;
+    // Why: a record for another gateway is stale whatever its key looks
+    // like; validating the key first turned "pinned for a different
+    // gateway" into a decoding error the operator could not act on.
     if record.gateway != current {
         // Why: a managed pin names a key for one gateway, so pointing at another
         // is a conflict only the administrator can resolve. An operator pin is
@@ -217,6 +219,7 @@ pub fn pinned_pubkey_state_for(
         }
         return Ok(PinnedPubkeyState::Unpinned);
     }
+    let validated = TrustRecord::new(gateway, record.key.as_str(), record.source)?;
     Ok(PinnedPubkeyState::Pinned {
         key: validated.key,
         source: if policy.is_some() {
@@ -235,7 +238,13 @@ pub fn pinned_pubkey() -> Result<Option<PinnedPubKey>, TrustError> {
 }
 
 pub fn policy_pubkey() -> Result<Option<PinnedPubKey>, TrustError> {
-    Ok(policy_trust()?.map(|record| record.key))
+    policy_trust()?
+        .map(|record| {
+            let gateway = ValidatedUrl::try_new(record.gateway.as_str())
+                .map_err(|e| TrustError::InvalidPolicy(format!("gateway: {e}")))?;
+            Ok(TrustRecord::new(&gateway, record.key.as_str(), PinSource::Policy)?.key)
+        })
+        .transpose()
 }
 
 fn policy_trust() -> Result<Option<TrustRecord>, TrustError> {
@@ -248,16 +257,18 @@ fn policy_trust() -> Result<Option<TrustRecord>, TrustError> {
         Err(e) => return Err(TrustError::InvalidPolicy(format!("{env_name}: {e}"))),
     };
     if let Some(raw) = raw {
-        let mut record: TrustRecord =
+        let record: TrustRecord =
             serde_json::from_str(&raw).map_err(|e| TrustError::InvalidPolicy(e.to_string()))?;
-        record.source = PinSource::Policy;
         let gateway = ValidatedUrl::try_new(record.gateway.as_str())
             .map_err(|e| TrustError::InvalidPolicy(format!("gateway: {e}")))?;
-        return Ok(Some(TrustRecord::new(
-            &gateway,
-            record.key.as_str(),
-            PinSource::Policy,
-        )?));
+        // Why: the key is validated by the caller only after the gateway
+        // comparison, so a policy pinned for another gateway reports stale
+        // rather than a key-decoding error the operator cannot act on.
+        return Ok(Some(TrustRecord {
+            gateway: GatewayIdentity::new(&gateway)?,
+            key: PinnedPubKey::new(record.key.as_str()),
+            source: PinSource::Policy,
+        }));
     }
     Ok(None)
 }

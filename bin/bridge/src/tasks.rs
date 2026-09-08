@@ -12,14 +12,14 @@ type Work = (
     Pin<Box<dyn Future<Output = ()> + Send>>,
 );
 
-pub struct TaskOwner {
+pub(crate) struct TaskOwner {
     sender: mpsc::UnboundedSender<Work>,
     supervisor: JoinHandle<()>,
     activity: ActivityLog,
 }
 
 impl TaskOwner {
-    pub fn new(runtime: &Handle, activity: ActivityLog) -> Self {
+    pub(crate) fn new(runtime: &Handle, activity: ActivityLog) -> Self {
         let (sender, mut receiver) = mpsc::unbounded_channel::<Work>();
         let log = activity.clone();
         let supervisor = runtime.spawn(async move {
@@ -52,7 +52,7 @@ impl TaskOwner {
     }
 
     #[track_caller]
-    pub fn spawn(&self, future: impl Future<Output = ()> + Send + 'static) {
+    pub(crate) fn spawn(&self, future: impl Future<Output = ()> + Send + 'static) {
         if self
             .sender
             .send((std::panic::Location::caller(), Box::pin(future)))

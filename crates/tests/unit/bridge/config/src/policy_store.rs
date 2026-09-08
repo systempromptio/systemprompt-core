@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use systemprompt_bridge::config::store::document::PolicyDocumentValue;
 use systemprompt_bridge::config::store::plist::render_plist;
 use systemprompt_bridge::config::store::{
-    PolicyDocument, PolicyHive, bridge_policy_domain, managed_policy_store,
+    PolicyDocument, PolicyHive, PolicyTarget, bridge_policy_domain, managed_policy_store,
 };
 
 fn doc(entries: Vec<(&str, PolicyDocumentValue)>) -> PolicyDocument {
@@ -200,7 +200,7 @@ fn unsupported_policy_backend_reports_absence_but_rejects_writes() {
 
     assert!(
         store
-            .read_policy_document(PolicyHive::Machine, &["a"])
+            .read_policy_document(PolicyHive::Machine, PolicyTarget::Claude, &["a"])
             .expect("read")
             .is_empty()
     );
@@ -208,13 +208,14 @@ fn unsupported_policy_backend_reports_absence_but_rejects_writes() {
         store
             .write_policy_values(
                 PolicyHive::User,
+                PolicyTarget::Claude,
                 &[("k".to_owned(), PolicyDocumentValue::Str("v".to_owned()))]
             )
             .is_err()
     );
     assert_eq!(
         store
-            .delete_policy_values(PolicyHive::User, &["k"])
+            .delete_policy_values(PolicyHive::User, PolicyTarget::Claude, &["k"])
             .expect("delete"),
         0
     );

@@ -151,3 +151,49 @@ fn install_is_idempotent() {
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }
+
+#[cfg(unix)]
+#[test]
+fn a_sudo_user_install_leaves_the_tree_owned_by_that_user_root_and_children_alike() {
+    use std::os::unix::fs::MetadataExt;
+
+    let me = String::from_utf8(
+        std::process::Command::new("/usr/bin/id")
+            .arg("-un")
+            .output()
+            .expect("id -un")
+            .stdout,
+    )
+    .expect("utf-8 user name");
+    let me = me.trim().to_owned();
+    if me == "root" {
+        panic!("this test needs a non-root user so SUDO_USER is honoured rather than ignored");
+    }
+
+    let dirs = Dirs::new();
+    let root = dirs.org_plugins();
+    dirs.run(Some(&me), || {
+        install(&options(), &bridge()).expect("install completes for a resolvable SUDO_USER");
+        // Why: ownership is verified on the root *and* a sampled child; an
+        // empty tree would pass that check without ever reading a child.
+        std::fs::create_dir_all(root.join("an-existing-plugin")).expect("seed a child");
+        install(&options(), &bridge()).expect("a second install re-verifies the populated tree");
+    });
+
+    let expected = std::fs::metadata(dirs.data.path()).expect("data dir metadata");
+    let actual = std::fs::metadata(&root).expect("org-plugins metadata");
+    assert_eq!(
+        (actual.uid(), actual.gid()),
+        (expected.uid(), expected.gid()),
+        "the provisioned root belongs to the invoking user, not to root"
+    );
+
+    let child = root.join("an-existing-plugin");
+    let child_meta = std::fs::metadata(&child).expect("child metadata");
+    assert_eq!(
+        (child_meta.uid(), child_meta.gid()),
+        (expected.uid(), expected.gid()),
+        "ownership is verified recursively, so {} must match too",
+        child.display()
+    );
+}

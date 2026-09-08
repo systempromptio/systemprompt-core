@@ -23,13 +23,6 @@ use super::windows_registry::{OwnedKey, hkey};
 use super::{ConfigStoreError, PolicyDocumentValue, PolicyHive};
 use crate::cowork_compat::POLICY_SUBKEY;
 
-pub(super) fn write_policy_values(
-    hive: PolicyHive,
-    entries: &[(String, PolicyDocumentValue)],
-) -> Result<(), ConfigStoreError> {
-    write_values_at(hive, POLICY_SUBKEY, entries)
-}
-
 pub(super) fn write_values_at(
     hive: PolicyHive,
     subkey: &str,
@@ -89,9 +82,7 @@ pub(super) fn delete_policy_key(hive: PolicyHive) -> Result<bool, ConfigStoreErr
     if !super::windows_registry::key_exists(hive, POLICY_SUBKEY)? {
         return Ok(false);
     }
-    let parent = open_policy_parent_for_delete(hive)?.ok_or_else(|| {
-        ConfigStoreError::Backend(format!("{} registry root unavailable", hive.label()))
-    })?;
+    let parent = open_policy_parent_for_delete(hive)?;
     let subkey: Vec<u16> = "Claude".encode_utf16().chain(std::iter::once(0)).collect();
     // SAFETY: `hive` is a predefined HKEY and `subkey` is NUL-terminated.
     let status = unsafe { RegDeleteTreeW(parent.0, subkey.as_ptr()) };
@@ -113,8 +104,9 @@ pub(super) fn delete_policy_key(hive: PolicyHive) -> Result<bool, ConfigStoreErr
     }
 }
 
-pub(super) fn delete_policy_values(
+pub(super) fn delete_values_at(
     hive: PolicyHive,
+    subkey: &str,
     names: &[&str],
 ) -> Result<usize, ConfigStoreError> {
     let hive_label = hive.label();
@@ -122,11 +114,11 @@ pub(super) fn delete_policy_values(
     let hive = hkey(hive);
     tracing::info!(
         hive = hive_label,
-        subkey = POLICY_SUBKEY,
+        subkey,
         value_count = names.len(),
-        "deleting managed Claude policy values via in-process registry FFI"
+        "deleting managed policy values via in-process registry FFI"
     );
-    let Some(key) = open_policy_key_for_write(hive, hive_label)? else {
+    let Some(key) = open_key_for_write(hive, hive_label, subkey)? else {
         return Ok(0);
     };
     let mut removed = 0;
@@ -137,7 +129,7 @@ pub(super) fn delete_policy_values(
         if status == ERROR_SUCCESS {
             removed += 1;
         } else if status == ERROR_ACCESS_DENIED {
-            return Err(access_denied(hive_label));
+            return Err(access_denied_at(hive_label, subkey));
         } else if status != ERROR_FILE_NOT_FOUND {
             return Err(ConfigStoreError::Backend(format!(
                 "RegDeleteValueW({name}) failed with status {status}"
@@ -146,10 +138,10 @@ pub(super) fn delete_policy_values(
     }
     drop(key);
     for name in names {
-        if super::windows_registry::read_string(hive, POLICY_SUBKEY, name)?.is_some() {
+        if super::windows_registry::read_string(hive, subkey, name)?.is_some() {
             return Err(ConfigStoreError::VerifyMismatch {
                 hive: target_hive.label().to_owned(),
-                subkey: POLICY_SUBKEY.to_owned(),
+                subkey: subkey.to_owned(),
                 name: (*name).to_owned(),
             });
         }
@@ -157,7 +149,7 @@ pub(super) fn delete_policy_values(
     Ok(removed)
 }
 
-fn open_policy_parent_for_delete(hive: PolicyHive) -> Result<Option<OwnedKey>, ConfigStoreError> {
+fn open_policy_parent_for_delete(hive: PolicyHive) -> Result<OwnedKey, ConfigStoreError> {
     let mut handle: HKEY = std::ptr::null_mut();
     let parent: Vec<u16> = r"SOFTWARE\Policies"
         .encode_utf16()
@@ -180,24 +172,22 @@ fn open_policy_parent_for_delete(hive: PolicyHive) -> Result<Option<OwnedKey>, C
             hive.label()
         )));
     }
-    Ok(Some(OwnedKey(handle)))
+    Ok(OwnedKey(handle))
 }
 
-fn open_policy_key_for_write(
+fn open_key_for_write(
     hive: HKEY,
     hive_label: &str,
+    subkey: &str,
 ) -> Result<Option<OwnedKey>, ConfigStoreError> {
-    let subkey: Vec<u16> = POLICY_SUBKEY
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect();
+    let subkey_w: Vec<u16> = subkey.encode_utf16().chain(std::iter::once(0)).collect();
     let mut handle: HKEY = std::ptr::null_mut();
-    // SAFETY: `hive` is a predefined HKEY, `subkey` is NUL-terminated, and
+    // SAFETY: `hive` is a predefined HKEY, `subkey_w` is NUL-terminated, and
     // `handle` is a live out-param.
     let status = unsafe {
         RegOpenKeyExW(
             hive,
-            subkey.as_ptr(),
+            subkey_w.as_ptr(),
             0,
             KEY_WRITE | KEY_WOW64_64KEY,
             &raw mut handle,
@@ -208,10 +198,10 @@ fn open_policy_key_for_write(
     } else if status == ERROR_FILE_NOT_FOUND {
         Ok(None)
     } else if status == ERROR_ACCESS_DENIED {
-        Err(access_denied(hive_label))
+        Err(access_denied_at(hive_label, subkey))
     } else {
         Err(ConfigStoreError::Backend(format!(
-            "RegOpenKeyExW({POLICY_SUBKEY}) failed with status {status}"
+            "RegOpenKeyExW({subkey}) failed with status {status}"
         )))
     }
 }

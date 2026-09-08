@@ -5,7 +5,6 @@
 
 use std::sync::Arc;
 
-use serde_json::json;
 
 use crate::auth::secret::Secret;
 use crate::auth::setup;
@@ -15,9 +14,11 @@ use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, emit};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
+mod finish;
 mod session;
 
 use crate::i18n;
+pub(crate) use finish::finish_unit;
 pub(crate) use session::on_session_login_requested;
 
 #[tracing::instrument(level = "info", skip(app, token), fields(has_gateway = gateway.is_some()))]
@@ -40,19 +41,22 @@ pub(crate) fn on_login_requested(
     let token = app.state.install_cancel(CancelScope::Login);
     app.ctx.spawn(async move {
         let task = tokio::task::spawn_blocking(move || {
-            if token.is_cancelled() {
-                return Err(Arc::new(GuiError::Cancelled));
-            }
             setup::login(trimmed.expose(), gateway.as_deref())
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
         });
-        let result = match task.await {
-            Ok(r) => r,
-            Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
-                "login task join: {join_err}"
-            ))))),
+        // Why: the blocking login runs to completion on its own thread; the
+        // select is what lets the user's cancel interrupt the wait instead
+        // of only refusing a login that has not started yet.
+        let result = tokio::select! {
+            () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
+            joined = task => match joined {
+                Ok(r) => r,
+                Err(join_err) => Err(Arc::new(GuiError::from(setup::SetupError::Io(format!(
+                    "login task join: {join_err}"
+                ))))),
+            },
         };
         proxy.send_event(UiEvent::LoginFinished { result, reply_to });
     });
@@ -67,10 +71,7 @@ pub(crate) fn on_login_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("login-pull-manifest"));
-            if let Err(e) = app.ctx.proxy.reload_runtime_config() {
-                let error = BridgeError::internal(e.to_string());
-                app.append_log_error(e.to_string());
-                finish_unit(app, Err(error), reply_to);
+            if !app.reload_runtime_or_fail(reply_to) {
                 return;
             }
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
@@ -152,10 +153,7 @@ pub(crate) fn on_set_gateway_finished(
     let bridge_result = match result {
         Ok(()) => {
             app.append_log(i18n::t("gateway-saved"));
-            if let Err(e) = app.ctx.proxy.reload_runtime_config() {
-                let error = BridgeError::internal(e.to_string());
-                app.append_log_error(e.to_string());
-                finish_unit(app, Err(error), reply_to);
+            if !app.reload_runtime_or_fail(reply_to) {
                 return;
             }
             app.state.reload();
@@ -226,10 +224,7 @@ pub(crate) fn on_logout_finished(
             ))
         },
     };
-    if let Err(e) = app.ctx.proxy.reload_runtime_config() {
-        let error = BridgeError::internal(e.to_string());
-        app.append_log_error(e.to_string());
-        finish_unit(app, Err(error), reply_to);
+    if !app.reload_runtime_or_fail(reply_to) {
         return;
     }
     app.state.reload();
@@ -278,21 +273,4 @@ pub(crate) fn watch_credential_state(app: &GuiApp) {
             }
         }
     });
-}
-
-pub(crate) fn finish_unit(app: &GuiApp, result: Result<(), BridgeError>, reply_to: ReplyId) {
-    let Some(id) = reply_to else {
-        if let Err(err) = result {
-            emit::emit_error(app, &err);
-        }
-        return;
-    };
-    let payload = match result {
-        Ok(()) => crate::wire::ipc::IpcReplyPayload::ok(json!({})),
-        Err(err) => {
-            emit::emit_error(app, &err);
-            crate::wire::ipc::IpcReplyPayload::err(err)
-        },
-    };
-    emit::send_reply_payload(app, id, &payload);
 }

@@ -145,6 +145,25 @@ pub struct CachedTokenPayload {
     pub length: usize,
 }
 
+/// A start-up step that failed without stopping the bridge; the GUI lists
+/// these under health so the operator learns what `doctor` would say.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub struct StartupFaultPayload<'a> {
+    pub component: &'a str,
+    pub error: &'a str,
+}
+
+impl<'a> From<&'a crate::obs::StartupFault> for StartupFaultPayload<'a> {
+    fn from(fault: &'a crate::obs::StartupFault) -> Self {
+        Self {
+            component: fault.component,
+            error: fault.error.as_str(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]

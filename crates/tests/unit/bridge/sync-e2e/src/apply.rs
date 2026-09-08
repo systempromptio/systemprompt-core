@@ -1218,6 +1218,7 @@ fn seed_stale_cache(dirs: &SandboxDirs, gateway: &str) {
             let binding =
                 systemprompt_bridge::auth::cache::CredentialBinding::capture(&cfg).unwrap();
             systemprompt_bridge::auth::cache::write_bound(
+                &cfg,
                 &url,
                 &systemprompt_bridge::gateway::types::HelperOutput {
                     token: systemprompt_bridge::ids::BearerToken::new(STALE_TOKEN),

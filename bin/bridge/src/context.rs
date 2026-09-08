@@ -20,6 +20,7 @@ use crate::activity::ActivityLog;
 use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::mcp_registry::{self, McpRegistrySlot};
+pub use crate::obs::StartupFault;
 use crate::probe_cache::StartMenuCache;
 use crate::proxy::identity::InstallId;
 use crate::proxy::{ProxyDeps, ProxyHandle};
@@ -48,6 +49,7 @@ pub struct BridgeContext {
     pub policy_store: crate::config::store::PolicyStore,
     pub sync_lock: Arc<tokio::sync::Mutex<()>>,
     pub elevation_attempted: AtomicBool,
+    pub startup_faults: Vec<StartupFault>,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -71,26 +73,37 @@ impl BridgeContext {
         policy_store: crate::config::store::PolicyStore,
     ) -> std::io::Result<Arc<Self>> {
         let runtime = OwnedRuntime::build()?;
+        let mut faults = Vec::new();
+        if let Some(error) = crate::obs::logging_fault() {
+            faults.push(StartupFault::new("log file", error));
+        }
         let activity = ActivityLog::new();
-        crate::activity::install_persistent_writer(&activity)?;
+        if let Err(e) = crate::activity::install_persistent_writer(&activity) {
+            faults.push(StartupFault::new("activity log", e));
+        }
         let mcp_registry = mcp_registry::empty_slot();
-        mcp_registry::rehydrate_from_disk(&mcp_registry)?;
+        if let Err(e) = mcp_registry::rehydrate_from_disk(&mcp_registry) {
+            faults.push(StartupFault::new("mcp registry cache", e));
+        }
         let http = crate::gateway::build_http_client();
         let plugin_tokens = Arc::new(PluginTokenCache::default());
+        let install_id = match InstallId::establish() {
+            Ok(id) => id,
+            Err(e) => {
+                faults.push(StartupFault::new("install identity", e));
+                InstallId::ephemeral()
+            },
+        };
         let deps = ProxyDeps {
-            install_id: InstallId::establish()?,
+            install_id,
             mcp_registry: Arc::clone(&mcp_registry),
             activity: activity.clone(),
             http: http.clone(),
             plugin_tokens: Arc::clone(&plugin_tokens),
         };
         let proxy = match mode {
-            ProxyMode::Serve => {
-                ProxyHandle::serve(runtime.handle(), deps).map_err(std::io::Error::other)?
-            },
-            ProxyMode::Attach => {
-                ProxyHandle::attach(runtime.handle(), deps).map_err(std::io::Error::other)?
-            },
+            ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps, &mut faults),
+            ProxyMode::Attach => ProxyHandle::attach(deps, &mut faults),
         };
         Ok(Arc::new(Self {
             tasks: crate::tasks::TaskOwner::new(runtime.handle(), activity.clone()),
@@ -106,6 +119,7 @@ impl BridgeContext {
             policy_store,
             sync_lock: Arc::new(tokio::sync::Mutex::new(())),
             elevation_attempted: AtomicBool::new(false),
+            startup_faults: faults,
         }))
     }
 

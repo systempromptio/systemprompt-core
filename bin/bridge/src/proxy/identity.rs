@@ -38,6 +38,14 @@ impl InstallId {
         load_or_mint().map(Self)
     }
 
+    // Why: when the durable identity cannot be read or written, a
+    // process-only one makes siblings and port records never match, which
+    // is the correct answer for an install whose identity is unknown.
+    #[must_use]
+    pub fn ephemeral() -> Self {
+        Self(fresh_id())
+    }
+
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -139,10 +147,11 @@ fn load_or_mint() -> std::io::Result<String> {
             if is_known(&s) {
                 Ok(s)
             } else {
-                Err(std::io::Error::other(format!(
-                    "{}: invalid install identity",
-                    path.display()
-                )))
+                tracing::warn!(
+                    path = %path.display(),
+                    "install identity file holds a placeholder; re-minting"
+                );
+                mint(&path)
             }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => mint(&path),
@@ -154,12 +163,16 @@ fn mint(path: &std::path::Path) -> std::io::Result<String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut buf = [0u8; 8];
-    rand::rng().fill_bytes(&mut buf);
-    let id = URL_SAFE_NO_PAD.encode(buf);
+    let id = fresh_id();
     crate::fsutil::atomic_write_0600(path, id.as_bytes())?;
     tracing::info!(path = %path.display(), install_id = %id, "minted install id");
     Ok(id)
+}
+
+fn fresh_id() -> String {
+    let mut buf = [0u8; 8];
+    rand::rng().fill_bytes(&mut buf);
+    URL_SAFE_NO_PAD.encode(buf)
 }
 
 #[must_use]

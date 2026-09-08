@@ -34,7 +34,16 @@ pub(super) fn register(
         format!("wrote: {}", proxy_path.display()),
     ];
 
-    activate(unit, &proxy_unit)?;
+    // Why: containers and WSL distributions without a user manager can
+    // still hold the unit files; the operator activates them once systemd
+    // --user exists. The receipts for what was written must survive the
+    // activation failure.
+    if let Err(e) = activate(unit, &proxy_unit) {
+        return Err(InstallError::ScheduleActivation {
+            units: vec![service_path, timer_path, proxy_path],
+            reason: e.to_string(),
+        });
+    }
 
     lines.push(format!(
         "systemd user timer: {unit}.timer (enabled, every 30m)"

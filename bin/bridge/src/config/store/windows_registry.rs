@@ -19,7 +19,7 @@ use windows_sys::Win32::System::Registry::{
 
 use super::{
     ConfigStore, ConfigStoreError, ManagedPolicyRead, PolicyDocument, PolicyDocumentValue,
-    PolicyHive,
+    PolicyHive, PolicyTarget,
 };
 
 use crate::cowork_compat::POLICY_SUBKEY;
@@ -27,8 +27,12 @@ use crate::cowork_compat::POLICY_SUBKEY;
 pub(super) struct WindowsRegistryStore;
 
 impl ConfigStore for WindowsRegistryStore {
-    fn policy_key_exists(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
-        key_exists(hive, POLICY_SUBKEY)
+    fn policy_key_exists(
+        &self,
+        hive: PolicyHive,
+        target: PolicyTarget,
+    ) -> Result<bool, ConfigStoreError> {
+        key_exists(hive, &target.subkey())
     }
     fn read_managed_policy(&self, key: &str) -> Result<Option<String>, ConfigStoreError> {
         for hive in [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER] {
@@ -64,10 +68,11 @@ impl ConfigStore for WindowsRegistryStore {
     fn read_policy_document(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         keys: &[&str],
     ) -> Result<PolicyDocument, ConfigStoreError> {
         let mut doc = PolicyDocument::new();
-        let Some(handle) = open_policy_key(hkey(hive))? else {
+        let Some(handle) = open_key_for_read(hkey(hive), &target.subkey())? else {
             return Ok(doc);
         };
         for key in keys {
@@ -81,17 +86,19 @@ impl ConfigStore for WindowsRegistryStore {
     fn write_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         entries: &[(String, PolicyDocumentValue)],
     ) -> Result<(), ConfigStoreError> {
-        super::windows_registry_write::write_policy_values(hive, entries)
+        super::windows_registry_write::write_values_at(hive, &target.subkey(), entries)
     }
 
     fn delete_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         names: &[&str],
     ) -> Result<usize, ConfigStoreError> {
-        super::windows_registry_write::delete_policy_values(hive, names)
+        super::windows_registry_write::delete_values_at(hive, &target.subkey(), names)
     }
 
     fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {

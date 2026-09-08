@@ -118,7 +118,7 @@ fn check_cached_token(report: &mut Report) {
         return;
     };
     let gateway = config::gateway_url_or_default(&cfg);
-    match cache::read_valid(&gateway) {
+    match cache::read_for(&cfg, &gateway, 30) {
         Err(e) => report.fail("cached token", &e.to_string()),
         Ok(Some(out)) => report.ok(
             "cached token",

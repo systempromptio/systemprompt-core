@@ -135,7 +135,6 @@ pub fn render_uninstall_summary(s: &UninstallSummary) -> String {
                 crate::brand::brand().binary_name
             ));
         },
-        CredentialsOutcome::PurgeFailed(_) => {},
     }
     match &s.schedule {
         ScheduleRemoval::Removed(label) => {

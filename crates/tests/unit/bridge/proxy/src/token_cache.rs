@@ -436,6 +436,10 @@ fn external_credential_change_invalidates_the_cached_token() {
                 );
 
                 std::fs::write(&paths.pat_file, "sp-live-c.d").expect("replace pat");
+                // Why: the stamp is re-read at most once per interval, so a
+                // change lands on the next check rather than the next request.
+                tokio::time::pause();
+                tokio::time::advance(std::time::Duration::from_secs(6)).await;
                 cache
                     .current(300)
                     .await
@@ -511,4 +515,104 @@ fn a_latched_cache_releases_when_the_credentials_change_on_disk() {
             });
         },
     );
+}
+
+// Why: the stamp capture reads the config, hashes the PAT and opens the
+// keystore, so it runs at most once per interval on tokio's clock. These two
+// tests pin both sides of that interval; without them the interval could be
+// removed and every other test here would still pass.
+fn with_pat_on_disk<F, T>(f: impl FnOnce(systemprompt_bridge::auth::setup::PathLayout) -> F) -> T
+where
+    F: std::future::Future<Output = T>,
+{
+    let temp = tempfile::tempdir().expect("temp config dir");
+    temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            (PAT_ENV, None),
+        ],
+        || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(async {
+                    let paths = systemprompt_bridge::auth::setup::resolve_paths().expect("paths");
+                    std::fs::create_dir_all(&paths.config_dir).expect("config dir");
+                    std::fs::write(&paths.pat_file, "sp-live-a.b").expect("write pat");
+                    std::fs::write(
+                        &paths.config_file,
+                        format!("[pat]\nfile = {:?}\n", paths.pat_file.display().to_string()),
+                    )
+                    .expect("point the config at the pat");
+                    f(paths).await
+                })
+        },
+    )
+}
+
+#[test]
+fn a_credential_replaced_inside_the_interval_is_not_noticed_until_it_elapses() {
+    with_pat_on_disk(|paths| async move {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
+
+        tokio::time::pause();
+        cache.current(300).await.expect("first mint");
+        assert_eq!(counter.load(Ordering::SeqCst), 1);
+
+        std::fs::write(&paths.pat_file, "sp-live-c.d").expect("replace pat");
+        tokio::time::advance(std::time::Duration::from_secs(4)).await;
+        cache
+            .current(300)
+            .await
+            .expect("a cached token is still served inside the interval");
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            1,
+            "the stamp is not re-read on every request; that is the point of the interval"
+        );
+
+        tokio::time::advance(std::time::Duration::from_secs(2)).await;
+        cache
+            .current(300)
+            .await
+            .expect("the changed credential re-mints once the interval elapses");
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            2,
+            "a rotated credential is caught within seconds, not never"
+        );
+    })
+}
+
+#[test]
+fn a_credential_that_becomes_unreadable_is_never_served_from_the_cache() {
+    with_pat_on_disk(|paths| async move {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
+
+        tokio::time::pause();
+        cache.current(300).await.expect("first mint");
+
+        std::fs::remove_file(&paths.pat_file).expect("the credential disappears");
+        tokio::time::advance(std::time::Duration::from_secs(6)).await;
+
+        let err = cache
+            .current(300)
+            .await
+            .expect_err("a token whose credential can no longer be identified is not served");
+        let ForwardError::Auth(detail) = &err else {
+            panic!("an unbindable credential is an auth failure: {err:?}");
+        };
+        assert!(
+            detail.contains("read PAT") && detail.contains("systemprompt-bridge.pat"),
+            "the failure names the credential file that went missing: {detail}"
+        );
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            1,
+            "the cached token is discarded rather than replayed against the gateway"
+        );
+    })
 }

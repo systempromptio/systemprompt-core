@@ -6,7 +6,7 @@
 
 #![cfg(target_os = "macos")]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub use super::macos_payload::{build_bridge_prefs_plist, build_mobileconfig, build_prefs_plist};
 pub(crate) use super::macos_remove::remove_profile;
@@ -41,13 +41,48 @@ fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
     Ok(())
 }
 
+type StagedWrite<'a> = (&'a PathBuf, &'a Path, &'a [u8]);
+
+fn stage_writes(writes: &[StagedWrite<'_>]) -> Result<(String, bool), MdmError> {
+    let quote = crate::install::elevation_script::shell_quote;
+    let mut script = "set -e\n".to_owned();
+    let mut changed = false;
+    for (source, target, bytes) in writes {
+        match std::fs::read(target) {
+            Ok(current) if current == *bytes => continue,
+            Ok(_) => {},
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
+                ) => {},
+            Err(source) => {
+                return Err(MdmError::Io {
+                    action: "read policy",
+                    path: target.to_path_buf(),
+                    source,
+                });
+            },
+        }
+        changed = true;
+        let parent = target
+            .parent()
+            .ok_or_else(|| MdmError::InvalidConfig("policy path has no parent".to_owned()))?;
+        script.push_str(&format!(
+            "mkdir -p {}\n/usr/bin/install -m 0644 {} {}\n",
+            quote(&parent.to_string_lossy()),
+            quote(&source.to_string_lossy()),
+            quote(&target.to_string_lossy())
+        ));
+    }
+    Ok((script, changed))
+}
+
 pub(crate) fn apply(
     mcp: &MdmPayloadInputs<'_>,
     gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<super::MdmApplication, MdmError> {
-    use std::fs;
-
     validate_gateway(gateway)?;
 
     let plist = build_prefs_plist(mcp, gateway)?;
@@ -92,37 +127,7 @@ pub(crate) fn apply(
     if let Some(body) = &bridge_plist {
         writes.push((&bridge_tmp, Path::new(&bridge_dest), body.as_bytes()));
     }
-    let mut script = "set -e\n".to_owned();
-    let mut changed = false;
-    for (source, target, bytes) in &writes {
-        match fs::read(target) {
-            Ok(current) if current == *bytes => continue,
-            Ok(_) => {},
-            Err(e)
-                if matches!(
-                    e.kind(),
-                    std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
-                ) => {},
-            Err(source) => {
-                return Err(MdmError::Io {
-                    action: "read policy",
-                    path: target.to_path_buf(),
-                    source,
-                });
-            },
-        }
-        changed = true;
-        let quote = crate::install::elevation_script::shell_quote;
-        let parent = target
-            .parent()
-            .ok_or_else(|| MdmError::InvalidConfig("policy path has no parent".to_owned()))?;
-        script.push_str(&format!(
-            "mkdir -p {}\n/usr/bin/install -m 0644 {} {}\n",
-            quote(&parent.to_string_lossy()),
-            quote(&source.to_string_lossy()),
-            quote(&target.to_string_lossy())
-        ));
-    }
+    let (mut script, changed) = stage_writes(&writes)?;
     if changed {
         script.push_str("/usr/bin/killall cfprefsd\n");
         crate::install::elevate::run_privileged(
@@ -158,7 +163,7 @@ pub(crate) fn apply(
             },
             source: Box::new(source),
         })?;
-    let mut lines = apply_summary(dest_system, &dest_user, &user, gateway, changed);
+    let mut lines = apply_summary(dest_system, &dest_user, gateway, changed);
     lines.extend(standalone.lines);
     files.extend(standalone.files);
     lines.push(
@@ -176,15 +181,12 @@ pub(crate) fn apply(
 fn apply_summary(
     dest_system: &str,
     dest_user: &str,
-    user: &str,
     inference_base_url: &str,
     changed: bool,
 ) -> Vec<String> {
     let mut summary = Vec::with_capacity(16);
     summary.push(format!("verified: {dest_system}"));
-    if !user.is_empty() {
-        summary.push(format!("verified: {dest_user}"));
-    }
+    summary.push(format!("verified: {dest_user}"));
     summary.push(format!(
         "inferenceGatewayBaseUrl: {inference_base_url}  (local proxy)"
     ));
