@@ -181,14 +181,16 @@ async fn evict_on_error_response(
     );
 
     if resp_status == StatusCode::NOT_FOUND
-        && method_str == "GET"
+        && (method_str == "GET" || method_str == "POST")
         && let Some(session_id) = session_id_header(request_headers)
     {
         evict(identities, &session_id, "stale_session").await;
         tracing::info!(
             service = %service_name,
             session_id = %session_id,
-            "Evicted stale proxy session identity on 404 GET"
+            method = %method_str,
+            reason = "stale_session",
+            "Evicted stale proxy session identity on 404; the backend no longer knows this session (restarted child?) and the client must re-initialise"
         );
     }
 }
