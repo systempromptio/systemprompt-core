@@ -6,7 +6,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use systemprompt_bridge::install::managed_file::test_api::{
+use systemprompt_bridge::install::managed_file::{
     ManagedWrite, remove_managed_file, write_managed_file,
 };
 use tempfile::TempDir;

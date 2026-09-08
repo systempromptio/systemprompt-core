@@ -135,7 +135,7 @@ async fn install(
     }
 }
 
-fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
+pub fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
     if !std::io::stderr().is_terminal() {
         return Box::new(|_| {});
     }
@@ -159,7 +159,7 @@ fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
     })
 }
 
-fn confirm(version: &str) -> bool {
+pub fn confirm(version: &str) -> bool {
     if !std::io::stdin().is_terminal() {
         diag("not a terminal; re-run with --yes to install unattended");
         return false;
@@ -172,6 +172,3 @@ fn confirm(version: &str) -> bool {
     }
     matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes")
 }
-
-#[path = "update_test_api.rs"]
-pub mod test_api;

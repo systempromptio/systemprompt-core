@@ -21,7 +21,7 @@ use crate::install::mdm::MdmError;
 
 // Why: Claude Code reads ~/.claude/settings.json, not
 // ~/.claude/managed-settings.json.
-fn managed_settings_path() -> Option<PathBuf> {
+pub fn managed_settings_path() -> Option<PathBuf> {
     let system = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
     if can_write(&system) {
         return Some(system);
@@ -248,7 +248,7 @@ fn set_executable(path: &Path) -> Result<(), MdmError> {
 
 // Why: Claude Code stores the user's /model selection in this same settings
 // file.
-pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
+pub fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     let settings_path =
         managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     let existing = read_or_empty(&settings_path)?;
@@ -276,6 +276,3 @@ pub(crate) fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     write_atomic(&settings_path, &format!("{rendered}\n"))?;
     Ok(true)
 }
-
-#[path = "claude_code_settings_test_api.rs"]
-pub mod test_api;

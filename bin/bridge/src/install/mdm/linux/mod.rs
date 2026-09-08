@@ -13,8 +13,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::claude_code_settings::{apply_managed_settings, read_or_empty, write_atomic};
 use super::MdmError;
+use super::claude_code_settings::{apply_managed_settings, read_or_empty, write_atomic};
 
 fn markers() -> (String, String) {
     let bin = crate::brand::brand().binary_name;
