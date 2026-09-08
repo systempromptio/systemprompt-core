@@ -1,7 +1,7 @@
 //! `db` CLI command group: schema inspection, queries, and migration tooling.
 //!
 //! [`execute`] runs commands against the invocation's
-//! [`CommandContext`](crate::context::CommandContext): migration variants are
+//! [`CommandContext`]: migration variants are
 //! routed to the profile or standalone dispatcher depending on whether the
 //! invocation is database-scoped, and the remaining subcommands share the
 //! context's pool. Subcommands cover ad-hoc queries, schema introspection,
