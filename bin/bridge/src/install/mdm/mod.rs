@@ -120,7 +120,7 @@ Windows Registry Editor Version 5.00
 "disableAutoUpdates"="true"
 "disableDeploymentModeChooser"="true"
 "isLocalDevMcpEnabled"="false"
-"allowedWorkspaceFolders"="[{\"path\":\"~/{workspace}\",\"isDefaultSelected\":true}]"
+"allowedWorkspaceFolders"="[{\"path\":\"~/{workspace}\",\"isDefaultSelected\":true},{\"path\":\"~\",\"isDefaultSelected\":false}]"
 ; Optional: restrict which hosts Cowork may reach. Omit for unrestricted egress
 ; (the default). Loopback-only is the air-gapped/regulated posture; apply it with
 ; `install --apply --egress-allowed-hosts loopback` so the Bridge keeps the value

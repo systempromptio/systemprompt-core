@@ -90,6 +90,29 @@ fn the_policy_carries_every_key_the_setup_health_checks_require() {
     }
 }
 
+// Why: the Claude Desktop Code tab treats this list as the only permitted
+// workspace roots. A single brand entry blocked every folder outside it
+// ("Directory C:\\Users\\x is not within the allowed workspace roots") while
+// the presence-only assertion above stayed green.
+#[test]
+fn the_workspace_folders_pre_trust_the_brand_dir_and_allow_home() {
+    let policy = policy_with(&[]);
+    let Some(PolicyValue::Json(value)) = value_of(&policy, "allowedWorkspaceFolders") else {
+        panic!("allowedWorkspaceFolders must be a JSON value");
+    };
+    let folders = value.as_array().expect("array");
+    assert_ne!(
+        folders.len(),
+        1,
+        "a single brand-only entry locks the Code tab out of home"
+    );
+    assert_eq!(folders.len(), 2);
+    assert_eq!(folders[0]["path"], "~/Systemprompt");
+    assert_eq!(folders[0]["isDefaultSelected"], true);
+    assert_eq!(folders[1]["path"], "~");
+    assert_eq!(folders[1]["isDefaultSelected"], false);
+}
+
 #[test]
 fn the_plist_renders_arrays_and_dicts_as_native_elements() {
     let servers = vec![entry("odoo")];

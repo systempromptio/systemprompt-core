@@ -61,9 +61,7 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
             PolicyValue::Json(json_of(&hosts)),
         ));
     }
-    if let Some(entry) = workspace_entry() {
-        out.push(entry);
-    }
+    out.push(workspace_entry());
     if !inputs.headers.is_empty() {
         out.push((
             "inferenceCustomHeaders",
@@ -119,17 +117,27 @@ fn hardening_entries() -> Vec<PolicyEntry> {
 }
 
 // Why: Cowork's isDefaultSelected pre-trusts the workspace and avoids
-// request_cowork_directory.
-fn workspace_entry() -> Option<PolicyEntry> {
+// request_cowork_directory, but the Claude Desktop Code tab enforces the
+// same list as the only permitted workspace roots, so the home directory
+// must be listed too or every folder outside the brand workspace is refused.
+fn workspace_entry() -> PolicyEntry {
+    (
+        "allowedWorkspaceFolders",
+        PolicyValue::Json(workspace_folders()),
+    )
+}
+
+#[must_use]
+pub fn workspace_folders() -> serde_json::Value {
     let workspace = crate::brand::brand().workspace_dir_name;
-    (!workspace.is_empty()).then(|| {
-        (
-            "allowedWorkspaceFolders",
-            PolicyValue::Json(
-                serde_json::json!([{ "path": format!("~/{workspace}"), "isDefaultSelected": true }]),
-            ),
-        )
-    })
+    let mut folders = Vec::new();
+    if !workspace.is_empty() {
+        folders.push(
+            serde_json::json!({ "path": format!("~/{workspace}"), "isDefaultSelected": true }),
+        );
+    }
+    folders.push(serde_json::json!({ "path": "~", "isDefaultSelected": false }));
+    serde_json::Value::Array(folders)
 }
 
 fn mcp_value(servers: &[McpServerEntry]) -> PolicyValue {

@@ -39,6 +39,10 @@ fn windows_snippet_embeds_brand_default_workspace_folder() {
         !text.contains("{workspace}"),
         "the {{workspace}} placeholder must be substituted, not left literal: {text}"
     );
+    assert!(
+        text.contains(r#"{\"path\":\"~\",\"isDefaultSelected\":false}"#),
+        "the snippet must allow home as well, or the Code tab refuses every other folder: {text}"
+    );
 }
 
 #[test]

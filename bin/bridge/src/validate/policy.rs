@@ -45,6 +45,7 @@ pub(super) fn check_managed_policy(report: &mut Report) {
             Err(e) => report.fail(&format!("policy {key}"), &format!("unreadable: {e}")),
         }
     }
+    check_workspace_folders(report, store.as_ref());
     match store.read_managed_policy("managedMcpServers") {
         Ok(Some(v)) if v.trim() == "[]" => {
             report.info("policy managedMcpServers", "none in manifest");
@@ -160,6 +161,32 @@ fn check_workspace_dir(report: &mut Report) {
             &format!(
                 "{} missing — Cowork will prompt for it. Sync.",
                 ws.display()
+            ),
+        );
+    }
+}
+
+// Why: the Claude Desktop Code tab enforces this list as the only permitted
+// workspace roots; a brand-only list refuses every other folder.
+fn check_workspace_folders(report: &mut Report, store: &dyn crate::config::store::ConfigStore) {
+    let Ok(Some(raw)) = store.read_managed_policy("allowedWorkspaceFolders") else {
+        return;
+    };
+    let paths: Vec<String> = serde_json::from_str::<serde_json::Value>(&raw)
+        .ok()
+        .and_then(|v| v.as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|f| f["path"].as_str().map(str::to_owned))
+        .collect();
+    if paths.iter().any(|p| p == "~") {
+        report.info("policy workspace roots", &paths.join(", "));
+    } else {
+        report.warn(
+            "policy workspace roots",
+            &format!(
+                "{} — home is not allowed, so the Claude Code tab refuses every folder outside it. Sync.",
+                paths.join(", ")
             ),
         );
     }
