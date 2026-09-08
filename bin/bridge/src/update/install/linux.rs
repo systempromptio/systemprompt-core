@@ -18,7 +18,7 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 
     let workdir = staged.with_extension("unpack");
     if workdir.exists() {
-        _ = std::fs::remove_dir_all(&workdir);
+        crate::fsutil::remove_leftover_dir(&workdir);
     }
     std::fs::create_dir_all(&workdir).map_err(|e| UpdateError::io(&workdir, e))?;
 
@@ -30,9 +30,6 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
     result.map(|()| target)
 }
 
-// Why: shells out to `tar` rather than linking an archive crate — it is present
-// on every supported distribution, and this mirrors
-// `scripts/install-bridge.sh`.
 fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
     let out = Command::new("tar")
         .arg("-xzf")
@@ -69,9 +66,8 @@ fn find_binary(dir: &Path, name: &str) -> Option<PathBuf> {
     subdirs.iter().find_map(|d| find_binary(d, name))
 }
 
-// Why: writes beside the target then renames over it — overwriting a running
-// binary in place fails with `ETXTBSY`, which is exactly the upgrade case. The
-// rename is atomic and the running process keeps its original inode.
+// Why: overwriting a running executable fails with ETXTBSY; renaming preserves
+// its live inode.
 fn swap(new_binary: &Path, target: &Path) -> Result<(), UpdateError> {
     let staged_next = crate::fsutil::temp_path_for(target);
     std::fs::copy(new_binary, &staged_next).map_err(|e| UpdateError::io(&staged_next, e))?;
@@ -84,7 +80,7 @@ fn swap(new_binary: &Path, target: &Path) -> Result<(), UpdateError> {
     }
 
     std::fs::rename(&staged_next, target).map_err(|e| {
-        _ = std::fs::remove_file(&staged_next);
+        crate::fsutil::remove_leftover_file(&staged_next);
         UpdateError::io(target, e)
     })?;
     tracing::info!(path = %target.display(), "update: binary replaced");

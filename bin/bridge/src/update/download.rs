@@ -14,8 +14,6 @@ use crate::gateway::GatewayClient;
 use crate::gateway::types::ReleaseManifest;
 use crate::update::error::UpdateError;
 
-// Why: a binary is tens of megabytes and the shared gateway client caps
-// requests at 30s, which a slow link exceeds long before the transfer stalls.
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_mins(15);
 
 #[derive(Debug, Clone, Copy)]
@@ -115,9 +113,5 @@ async fn stream_to_file(
 
 #[doc(hidden)]
 pub fn hex_lower(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    bytes.iter().fold(String::new(), |mut acc, b| {
-        _ = write!(acc, "{b:02x}");
-        acc
-    })
+    crate::hash::hex_encode(bytes)
 }

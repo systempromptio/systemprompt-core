@@ -193,7 +193,7 @@ async fn proxy_unreachable_on_closed_port() {
 }
 
 #[tokio::test]
-async fn tools_list_failure_does_not_downgrade() {
+async fn tools_list_failure_reports_protocol_error() {
     let server = MockServer::start().await;
 
     Mock::given(method("POST"))
@@ -226,7 +226,7 @@ async fn tools_list_failure_does_not_downgrade() {
         .await;
 
     let auth = probe(&server).await;
-    assert_eq!(auth.state, McpAuthState::Authenticated);
+    assert_eq!(auth.state, McpAuthState::ProtocolError);
     assert!(auth.tools.is_empty());
 }
 
@@ -332,4 +332,99 @@ static REGISTRY: std::sync::LazyLock<
 
 fn loopback() -> LoopbackEndpoint {
     LoopbackEndpoint::new(DEFAULT_PROXY_PORT, None)
+}
+
+#[tokio::test]
+async fn coverage_probe_slug_only_contacts_registered_servers_and_forwards_the_secret() {
+    use systemprompt_bridge::ids::LoopbackSecret;
+    use systemprompt_bridge::proxy::mcp_probe::probe_slug;
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(401))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let endpoint = LoopbackEndpoint::new(
+        server.address().port(),
+        Some(LoopbackSecret::new("sandbox-secret")),
+    );
+    let mut registry = systemprompt_bridge::mcp_registry::McpRegistry::new();
+    assert!(probe_slug(&endpoint, &registry, "absent").await.is_none());
+    registry.insert(
+        "present".into(),
+        systemprompt_bridge::mcp_registry::McpUpstream {
+            url: server.uri().parse().unwrap(),
+            headers: Default::default(),
+            display_name: "Present".into(),
+            transport: None,
+        },
+    );
+    let result = probe_slug(&endpoint, &registry, "present").await.unwrap();
+    assert_eq!(result.id, "present");
+    assert_eq!(result.state, McpAuthState::GatewayUnauthorized);
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(
+        requests[0].headers["authorization"],
+        "Bearer sandbox-secret"
+    );
+    assert_eq!(requests[0].url.path(), "/mcp/present");
+}
+
+#[tokio::test]
+async fn coverage_probe_timeout_is_distinct_from_an_authentication_rejection() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(1)))
+        .mount(&server)
+        .await;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(20))
+        .build()
+        .unwrap();
+    let result = probe_endpoint(&client, SLUG, &target(&server), BEARER).await;
+    assert_eq!(result.state, McpAuthState::ProbeTimeout);
+    assert!(!result.state.is_conclusive());
+    assert!(result.http_status.is_none());
+}
+
+#[tokio::test]
+async fn coverage_probe_invalid_url_is_a_protocol_error() {
+    let result = probe_endpoint(&build_client().unwrap(), SLUG, "not a URL", BEARER).await;
+    assert_eq!(result.state, McpAuthState::ProtocolError);
+    assert!(result.error.is_some());
+}
+
+#[tokio::test]
+async fn coverage_probe_error_snippet_preserves_multibyte_characters() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(502).set_body_string(format!(" {} ", "€".repeat(100))))
+        .mount(&server)
+        .await;
+    let result = probe(&server).await;
+    assert_eq!(result.error.unwrap(), format!("{}…", "€".repeat(66)));
+}
+
+#[test]
+fn coverage_probe_unwritable_secret_is_a_local_error_without_a_network_attempt() {
+    let state = tempfile::tempdir().unwrap();
+    state_sandbox(&state, || {
+        std::fs::write(state.path().join("systemprompt"), "blocks config directory").unwrap();
+        seed_registry(state.path(), &["one"]);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let registry = systemprompt_bridge::mcp_registry::snapshot(&REGISTRY);
+        let results = runtime.block_on(probe_all(&loopback(), &registry));
+        assert_eq!(results[0].state, McpAuthState::LocalError);
+        assert!(
+            results[0]
+                .error
+                .as_deref()
+                .unwrap()
+                .contains("loopback secret unavailable")
+        );
+        assert!(results[0].latency_ms.is_none());
+    });
 }

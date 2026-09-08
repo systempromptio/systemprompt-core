@@ -24,22 +24,13 @@ use chrono::{DateTime, Utc};
 
 use super::UpstreamError;
 
-// Why: one series for every transient upstream retry, labelled by provider and
-// by the status that triggered it, so a capacity blip is visible in Prometheus
-// without reading logs.
 const RETRIES_TOTAL: &str = "gateway_upstream_retries_total";
 
-// Why: four attempts spends at most ~7s of backoff before giving up, which
-// rides out a Vertex MaaS capacity blip without outliving a client's patience.
 pub const MAX_ATTEMPTS: u32 = 4;
 
-// Why: the backoff shape inherited from the proxy this gateway replaced —
-// 1s doubling to a 30s ceiling — kept `deepseek.v3.2` alive under load.
 const BASE_DELAY_MS: u64 = 1_000;
 const MAX_DELAY_MS: u64 = 30_000;
 
-// Why: without spread, every client that got a 429 from one overloaded
-// upstream retries in the same millisecond and reproduces the overload.
 const JITTER_RATIO: f64 = 0.25;
 
 /// How hard, and how patiently, a transient upstream failure is retried.
@@ -85,9 +76,6 @@ impl RetryPolicy {
     }
 }
 
-// Why: only capacity signals are safe to repeat. A 4xx other than 429 is a
-// verdict on the request itself, and a 500 may already have had an effect
-// upstream, so replaying either would be wrong rather than merely wasteful.
 #[must_use]
 pub const fn is_retryable(status: u16) -> bool {
     status == 429 || status == 503
@@ -118,10 +106,6 @@ fn apply_jitter(millis: u64, ratio: f64) -> u64 {
     rand::random_range(low..=high)
 }
 
-// Why: RFC 9110 allows `retry-after` to be either a count of seconds or an
-// HTTP-date, and providers use both. A date already in the past yields
-// `Duration::ZERO` rather than `None` — the provider answered, it simply
-// answered "now".
 #[must_use]
 pub fn parse_retry_after(value: &str, now: DateTime<Utc>) -> Option<Duration> {
     let trimmed = value.trim();
@@ -135,10 +119,6 @@ pub fn parse_retry_after(value: &str, now: DateTime<Utc>) -> Option<Duration> {
     Some(delta.to_std().unwrap_or(Duration::ZERO))
 }
 
-// Why: the provider knows its own recovery window better than our curve does,
-// but only in one direction — a longer `retry-after` is obeyed, a shorter one
-// would let us hammer an upstream that is already shedding load. The result is
-// still clamped to `max_delay` so one hostile header cannot stall a request.
 #[must_use]
 pub fn effective_delay(
     attempt: u32,
@@ -154,9 +134,6 @@ pub fn effective_delay(
 }
 
 tokio::task_local! {
-    // Why: scoping the policy to the task lets a caller — a route with its own
-    // patience budget, or a test that cannot afford real seconds — override it
-    // without threading a parameter through every adapter's `send`.
     static POLICY: RetryPolicy;
 
     static OBSERVED: Cell<u32>;
@@ -179,12 +156,7 @@ pub fn current_policy() -> RetryPolicy {
     POLICY.try_with(|p| *p).unwrap_or_default()
 }
 
-// Why: counted as each retry is decided, not from the loop's return value —
-// a request that exhausts its budget still retried, and an error path that
-// forgot to report those would make the worst outages look retry-free.
 fn record_retry() {
-    // Why: an absent scope means nobody asked for the count, which is the
-    // production default rather than a failure — so it is traced, not raised.
     if OBSERVED
         .try_with(|c| c.set(c.get().saturating_add(1)))
         .is_err()
@@ -201,8 +173,6 @@ pub async fn send_with_retry(
     let mut attempt = 1;
     loop {
         let Some(this_try) = req.try_clone() else {
-            // Why: a streaming request body cannot be replayed, so the only
-            // honest thing left is a single attempt with no retry.
             return match send_once(provider, req).await {
                 Ok(response) => Ok((response, attempt - 1)),
                 Err(failure) => Err(into_error(provider, failure).await),
@@ -263,8 +233,6 @@ enum SendFailure {
     Upstream(reqwest::Response),
 }
 
-// Why: a retryable status must stay an unread `Response` so the next loop turn
-// can read its `retry-after`, and the final one can still be relayed verbatim.
 async fn send_once(
     provider: &str,
     req: reqwest::RequestBuilder,

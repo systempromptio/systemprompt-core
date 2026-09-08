@@ -34,11 +34,7 @@ const UPDATE_CHECKSUM_SQL: &str =
 #[derive(Debug, Default, Clone)]
 pub struct RepairResult {
     pub repaired: Vec<ChecksumDrift>,
-    // Why: drifted migrations whose SQL was actually re-executed. Zero for
-    // reconcile_drift, which only rewrites bookkeeping.
     pub reapplied: usize,
-    // Why: previously-unapplied migrations run as part of the repair — a
-    // different number, and reporting it as re-applied is what hid the bug.
     pub migrations_run: usize,
 }
 
@@ -100,10 +96,6 @@ impl MigrationService<'_> {
         })
     }
 
-    // Why: matching a recorded row on (extension_id, version) alone cannot
-    // tell an edited migration from a reused slot. Reconciling a collision
-    // stamps one migration's checksum onto a row describing another, which
-    // silences that row's drift detector permanently. Refuse instead.
     pub fn refuse_slot_collisions(status: &ExtensionMigrationStatus) -> Result<(), LoaderError> {
         let Some(collision) = status.slot_collisions.first() else {
             return Ok(());

@@ -35,7 +35,7 @@ fn install_with_a_gateway_persists_it_to_config_and_sentinel() {
             "--gateway",
             "http://gateway.invalid:9100",
             "--pubkey",
-            "dGVzdC1wdWJrZXk",
+            "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=",
         ]));
     });
 
@@ -58,8 +58,10 @@ fn install_with_a_gateway_persists_it_to_config_and_sentinel() {
         "gateway_url persisted: {cfg}"
     );
     assert!(
-        cfg.contains("dGVzdC1wdWJrZXk"),
-        "pinned pubkey persisted: {cfg}"
+        cfg.contains("[sync.trust]")
+            && cfg.contains("key = \"11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=\"")
+            && cfg.contains("gateway = \"http://gateway.invalid:9100\""),
+        "pinned pubkey persisted as gateway-bound trust: {cfg}"
     );
 }
 

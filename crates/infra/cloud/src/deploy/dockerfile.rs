@@ -202,10 +202,6 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         format!("\n# Copy MCP server binaries\n{}\n", lines.join("\n"))
     }
 
-    // Why: without this a cloud-profile command inside the container routes to the
-    // host it is already on. Fly happened to supply `FLY_APP_NAME`; other
-    // platforms supply nothing. The profile name is the most specific value
-    // known before the image is placed.
     fn deployment_host_env(&self) -> String {
         format!(
             "    {}={} \\",

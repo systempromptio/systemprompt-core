@@ -10,13 +10,6 @@ use systemprompt_ai::{
     SafetyHistoryMode,
 };
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported by the feature-gated `test_api` module"
-    )
-)]
 pub fn blocks_at_phase(phase: &str, history: SafetyHistoryMode) -> bool {
     match phase {
         PHASE_REQUEST => true,
@@ -59,9 +52,6 @@ pub(in crate::services::gateway) async fn run_request_safety_scan(
     findings
 }
 
-// Why: one predicate decides both the `blocked` column and the refusal itself,
-// so the report can never disagree with what the gateway actually did. It is
-// false throughout under `safety.mode: warn`.
 pub(in crate::services::gateway) fn request_finding_blocks(
     finding: &Finding,
     safety: &SafetyConfig,
@@ -71,13 +61,6 @@ pub(in crate::services::gateway) fn request_finding_blocks(
         && blocks_at_phase(finding.phase, safety.history)
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn dedupe_findings(findings: &mut Vec<Finding>) {
     let mut seen = std::collections::HashSet::new();
     findings.retain(|f| seen.insert((f.phase, f.category.clone(), f.scanner)));
@@ -112,9 +95,6 @@ async fn persist_findings(
     repo: &AiSafetyFindingRepository,
     ai_request_id: &AiRequestId,
     findings: &[Finding],
-    // Why: `Sync`, not just `Fn`. The persisted findings are handed to
-    // `tokio::spawn` on the buffered path, and `&dyn Fn` is only `Send` when
-    // the closure behind it is `Sync`.
     blocks: &(dyn Fn(&Finding) -> bool + Sync),
 ) {
     for f in findings {

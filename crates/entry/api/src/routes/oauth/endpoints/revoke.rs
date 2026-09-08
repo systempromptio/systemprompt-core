@@ -131,12 +131,6 @@ async fn revoke_access_token_jti(repo: &OAuthRepository, token: &str) {
     }
 }
 
-// Why: RFC 7009 token revocation already authenticates the *client*; the
-// signature on the token itself is irrelevant for the revocation decision
-// (we only need to know which session to mark revoked). A forged token
-// produces a session_id that either doesn't exist or belongs to a different
-// principal — either way the revoke_session query is a no-op or rejected
-// downstream, and we have not accepted the token for authentication.
 fn extract_session_id_unverified(token: &str) -> Option<SessionId> {
     let data = insecure_decode::<JwtClaims>(token).ok()?;
     data.claims.session_id

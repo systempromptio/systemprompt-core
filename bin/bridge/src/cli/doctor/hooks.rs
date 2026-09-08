@@ -84,8 +84,6 @@ fn hook_files() -> Option<Vec<PathBuf>> {
     Some(files)
 }
 
-// Why: the host's schema nests `url` at varying depths, so this walks the
-// whole value rather than reading a fixed path.
 #[must_use]
 pub fn hook_urls_in(text: &str) -> Vec<String> {
     let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {

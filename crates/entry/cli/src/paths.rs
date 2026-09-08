@@ -15,9 +15,6 @@ pub struct ResolvedPaths {
 }
 
 impl ResolvedPaths {
-    // Why: preferred once a profile is resolved, so the tenant and session stores
-    // depend on the profile rather than on the directory the process started
-    // in.
     pub fn for_root(root: &Path) -> Self {
         let project_ctx = ProjectContext::discover_from(root);
         let has_local_dir = project_ctx.systemprompt_dir().exists();
@@ -31,9 +28,6 @@ impl ResolvedPaths {
         Self::for_root(Path::new(&profile.paths.system))
     }
 
-    // Why: only correct before a profile is resolved; afterwards use
-    // `from_profile`, or the same command answers differently depending on the
-    // caller's cwd.
     pub fn discover() -> Self {
         let project_ctx = ProjectContext::discover();
         let has_local_dir = project_ctx.systemprompt_dir().exists();

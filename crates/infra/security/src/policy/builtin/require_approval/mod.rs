@@ -106,8 +106,6 @@ impl ApprovalSettings {
     }
 }
 
-// Why: a zero here would mean "hold for no time at all" / "expire instantly",
-// which is a config typo rather than an intent worth honouring.
 fn positive_u64(v: &YamlValue, key: &str) -> Option<u64> {
     v.get(key).and_then(YamlValue::as_u64).filter(|n| *n > 0)
 }
@@ -182,9 +180,6 @@ impl GovernancePolicy for RequireApproval {
         if self.exempt_scopes.contains(&ctx.access_scope) {
             return allow(Cow::Borrowed("Caller scope is exempt from approval"));
         }
-        // Why: computed at most once per call, and only once a tool name has
-        // actually matched — the overwhelming majority of calls match nothing
-        // and must not pay for a walk of their own arguments.
         let mut scalars = None;
         for rule in &self.rules {
             if !rule.matches_tool(tool.as_str()) {

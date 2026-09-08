@@ -40,6 +40,7 @@ fn the_proxy_command_stands_down_when_a_sibling_already_serves() {
         );
 
         let record = systemprompt_bridge::proxy::portfile::read(serving.install_id())
+            .expect("the record is readable")
             .expect("the record survives");
         assert_eq!(
             record.port, port,

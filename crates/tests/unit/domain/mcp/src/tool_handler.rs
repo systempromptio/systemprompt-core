@@ -203,3 +203,64 @@ async fn execute_input_parse_error_returns_invalid_params() {
     let err = result.expect_err("parse should fail");
     assert!(err.message.to_lowercase().contains("invalid"));
 }
+
+// Why: the 2026-09-08 outage of every systemprompt-server tool in Claude Code.
+// An internally tagged enum input renders as a bare `oneOf`; Claude Code
+// validates `inputSchema.type == "object"` per tool and, on one failure, drops
+// the server's whole tool list. The definition must carry the root type.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(tag = "report", rename_all = "snake_case")]
+#[allow(dead_code)]
+enum TaggedInput {
+    Activity { days: u16 },
+    Costs { days: u16 },
+}
+
+struct TaggedHandler;
+impl McpToolHandler for TaggedHandler {
+    type Input = TaggedInput;
+    type Output = TextArtifact;
+    fn tool_name(&self) -> &'static str {
+        "tagged"
+    }
+    async fn handle(
+        &self,
+        _input: TaggedInput,
+        _ctx: &RequestContext,
+        _exec: &McpExecutionId,
+    ) -> Result<(TextArtifact, String), McpError> {
+        Ok((TextArtifact::new(String::new()), String::new()))
+    }
+}
+
+#[test]
+fn tagged_enum_input_still_declares_an_object_root() {
+    let raw = TaggedHandler.input_schema();
+    assert!(
+        raw.get("oneOf").is_some(),
+        "schemars renders a tagged enum as oneOf: {raw}"
+    );
+    assert!(
+        raw.get("type").is_none(),
+        "and gives it no root type: {raw}"
+    );
+    let tool = TaggedHandler.tool_definition("srv");
+    assert_eq!(
+        tool.input_schema.get("type"),
+        Some(&serde_json::json!("object"))
+    );
+    assert!(
+        tool.input_schema.get("oneOf").is_some(),
+        "the variants are kept"
+    );
+}
+
+#[test]
+fn object_input_schema_leaves_declared_types_alone() {
+    let out = systemprompt_mcp::object_input_schema(
+        &serde_json::json!({"type": "object", "properties": {}}),
+    );
+    assert_eq!(out.get("type"), Some(&serde_json::json!("object")));
+    let out = systemprompt_mcp::object_input_schema(&serde_json::json!({"type": "string"}));
+    assert_eq!(out.get("type"), Some(&serde_json::json!("string")));
+}

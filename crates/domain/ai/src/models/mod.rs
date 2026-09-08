@@ -28,10 +28,10 @@ pub mod tools {
 pub mod ai_request_record;
 pub mod image_generation;
 pub mod providers;
+pub mod request_kind;
 
-pub use ai_request_record::{
-    AiRequestRecord, AiRequestRecordBuilder, CacheInfo, RequestStatus, TokenInfo,
-};
+pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
+pub use request_kind::{RequestKind, RequestStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AiRequest {

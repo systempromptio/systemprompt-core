@@ -78,6 +78,30 @@ impl ManifestService {
     ) -> Result<MarketplaceCandidate, MarketplaceError> {
         let catalog =
             CatalogContent::load_traced(services, services_root, api_external_url, trace)?;
+        Self::assemble_candidate_from_catalog(
+            catalog,
+            services,
+            services_root,
+            filter,
+            user_id,
+            trace,
+        )
+        .await
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the catalogue replaces assemble_candidate's load inputs one-for-one; a wrapper \
+                  struct would only relocate the same fan-in"
+    )]
+    pub async fn assemble_candidate_from_catalog(
+        catalog: CatalogContent,
+        services: &ServicesConfig,
+        services_root: &Path,
+        filter: &dyn MarketplaceFilter,
+        user_id: &UserId,
+        trace: &mut dyn TraceSink,
+    ) -> Result<MarketplaceCandidate, MarketplaceError> {
         let hooks = load_hooks(services_root)?;
         let plugins = load_plugins(services, &catalog.as_content())?;
         let skill_owners = skill_owners(services, &catalog.as_content())?;
@@ -145,10 +169,6 @@ impl ManifestService {
     }
 }
 
-// Why: seeded from the same plugin selection `MarketplaceMembership` reads, so
-// the listed plugin ids and the authz membership cannot disagree; the
-// intersection with the plugins that survive filtering happens at
-// `into_manifest_parts`, once the final plugin list is known.
 fn listed_marketplaces(
     services: &ServicesConfig,
     enabled: &[&MarketplaceConfig],

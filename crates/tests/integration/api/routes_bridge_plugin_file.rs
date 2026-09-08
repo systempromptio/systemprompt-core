@@ -1,15 +1,12 @@
 //! `GET /bridge/plugins/{id}/{*path}` — auth rejection, path-safety guard,
-//! bundle lookup misses, and the content-type / path-safety helpers exposed
-//! via `test-api`.
+//! bundle lookup misses, and the content-type / path-safety helpers.
 
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, header};
 use http::StatusCode;
 use systemprompt_api::routes::gateway::bridge_data::load_services_config;
-use systemprompt_api::routes::gateway::bridge_plugin_file::test_api::{
-    content_type, relative_path_is_safe,
-};
+use systemprompt_api::routes::gateway::bridge_plugin_file::{content_type, relative_path_is_safe};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_bridge_credential};
@@ -175,6 +172,28 @@ async fn plugin_file_serves_skill_bytes_with_markdown_content_type() -> anyhow::
 }
 
 #[tokio::test]
+async fn plugin_file_repeat_fetch_serves_identical_bytes_from_the_cached_catalog()
+-> anyhow::Result<()> {
+    let (app, pool) = bundle_router_and_pool().await?;
+    let cred = seed_bridge_credential(&pool, "plugin-repeat@example.invalid").await?;
+    let mut bodies = Vec::new();
+    for _ in 0..2 {
+        let resp = app
+            .clone()
+            .oneshot(authed_get(
+                "/bridge/plugins/cov-plugin/skills/covskill/SKILL.md",
+                cred.jwt.as_str(),
+            ))
+            .await?;
+        assert_eq!(resp.status(), StatusCode::OK);
+        bodies.push(axum::body::to_bytes(resp.into_body(), 1024 * 1024).await?);
+    }
+    assert_eq!(bodies[0], bodies[1]);
+    assert!(!bodies[0].is_empty());
+    Ok(())
+}
+
+#[tokio::test]
 async fn plugin_manifest_serves_json_with_plugin_identity() -> anyhow::Result<()> {
     let (app, pool) = bundle_router_and_pool().await?;
     let cred = seed_bridge_credential(&pool, "plugin-manifest@example.invalid").await?;
@@ -247,4 +266,25 @@ fn content_type_maps_known_extensions_and_defaults_to_octet_stream() {
     assert_eq!(content_type("a.wasm"), "application/wasm");
     assert_eq!(content_type("a.bin"), "application/octet-stream");
     assert_eq!(content_type("no-extension"), "application/octet-stream");
+}
+
+#[tokio::test]
+async fn coverage_malformed_plugin_id_is_not_found_without_catalog_disclosure() -> anyhow::Result<()>
+{
+    let (app, pool) = router_and_pool().await?;
+    let cred = seed_bridge_credential(
+        &pool,
+        &format!("plugin-malformed-{}@example.invalid", uuid::Uuid::new_v4()),
+    )
+    .await?;
+    let response = app
+        .oneshot(authed_get(
+            "/bridge/plugins/invalid%20plugin/SKILL.md",
+            cred.jwt.as_str(),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = axum::body::to_bytes(response.into_body(), 4096).await?;
+    assert!(String::from_utf8_lossy(&body).contains("Plugin not found"));
+    Ok(())
 }

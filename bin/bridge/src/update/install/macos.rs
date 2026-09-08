@@ -22,7 +22,7 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 
     let workdir = staged.with_extension("unpack");
     if workdir.exists() {
-        _ = std::fs::remove_dir_all(&workdir);
+        crate::fsutil::remove_leftover_dir(&workdir);
     }
     std::fs::create_dir_all(&workdir).map_err(|e| UpdateError::io(&workdir, e))?;
 
@@ -39,8 +39,6 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
     result.map(|()| bundle)
 }
 
-// Why: searches for the `.app` extension rather than counting path components,
-// so it stays correct if the bundle layout ever gains a level.
 fn running_bundle() -> Result<PathBuf, UpdateError> {
     let exe = running_exe()?;
     exe.ancestors()
@@ -55,9 +53,8 @@ fn running_bundle() -> Result<PathBuf, UpdateError> {
         })
 }
 
-// Why: `ditto -x -k` rather than an unzip crate — it preserves the symlinks,
-// code signature, and extended attributes a bundle's signature covers. A naive
-// unzip strips them and the result fails Gatekeeper.
+// Why: ditto preserves bundle symlinks and extended attributes needed for macOS
+// signature validation.
 fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
     let out = Command::new("/usr/bin/ditto")
         .arg("-x")
@@ -80,9 +77,6 @@ fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
         .ok_or_else(|| UpdateError::Unpack("the archive contains no .app bundle".to_owned()))
 }
 
-// Why: refuses anything Gatekeeper would refuse, before a working install is
-// replaced. `--deep --strict` covers nested code, and the `spctl` assessment is
-// what actually decides whether the swapped-in app will launch.
 fn verify_signature(bundle: &Path) -> Result<(), UpdateError> {
     let codesign = Command::new("/usr/bin/codesign")
         .arg("--verify")
@@ -116,9 +110,6 @@ fn verify_signature(bundle: &Path) -> Result<(), UpdateError> {
     Ok(())
 }
 
-// Why: the old bundle moves aside before the new one is written, so a failure
-// mid-copy can restore the working app instead of leaving a half-written
-// bundle.
 fn swap(new_bundle: &Path, target: &Path) -> Result<(), UpdateError> {
     let backup = crate::fsutil::temp_path_for(target);
     std::fs::rename(target, &backup).map_err(|e| UpdateError::io(target, e))?;
@@ -146,13 +137,22 @@ fn swap(new_bundle: &Path, target: &Path) -> Result<(), UpdateError> {
             Ok(())
         },
         Err(e) => {
-            _ = std::fs::remove_dir_all(target);
+            match std::fs::remove_dir_all(target) {
+                Ok(()) => {},
+                Err(cleanup) if cleanup.kind() == std::io::ErrorKind::NotFound => {},
+                Err(cleanup) => {
+                    return Err(UpdateError::Unpack(format!(
+                        "{e}; rollback cannot remove {}: {cleanup}; previous app remains at {}",
+                        target.display(),
+                        backup.display()
+                    )));
+                },
+            }
             if let Err(restore) = std::fs::rename(&backup, target) {
-                tracing::error!(
-                    error = %restore,
-                    backup = %backup.display(),
-                    "update: install failed AND rollback failed; the previous app is at the backup path"
-                );
+                return Err(UpdateError::Unpack(format!(
+                    "{e}; rollback failed: {restore}; previous app remains at {}",
+                    backup.display()
+                )));
             }
             Err(e)
         },

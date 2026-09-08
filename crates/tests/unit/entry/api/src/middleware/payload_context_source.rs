@@ -28,8 +28,8 @@ fn a_task_method_with_no_id_names_the_field_it_was_missing() {
     let body = br#"{"jsonrpc":"2.0","method":"tasks/get","params":{}}"#;
 
     let error = PayloadSource::extract_context_source(body)
-        .err()
-        .expect("a task method without a task id cannot resolve a context");
+        .map(|_| ())
+        .expect_err("a task method without a task id cannot resolve a context");
 
     match error {
         ContextExtractionError::InvalidHeaderValue { header, .. } => assert_eq!(
@@ -58,8 +58,8 @@ fn a_message_with_no_context_id_is_a_missing_context_not_a_fabricated_one() {
     let body = br#"{"jsonrpc":"2.0","method":"message/send","params":{"message":{}}}"#;
 
     let error = PayloadSource::extract_context_source(body)
-        .err()
-        .expect("no contextId means no context");
+        .map(|_| ())
+        .expect_err("no contextId means no context");
 
     assert!(
         matches!(error, ContextExtractionError::MissingContextId),
@@ -70,8 +70,8 @@ fn a_message_with_no_context_id_is_a_missing_context_not_a_fabricated_one() {
 #[test]
 fn a_body_that_is_not_json_is_reported_as_an_invalid_payload() {
     let error = PayloadSource::extract_context_source(b"<not json>")
-        .err()
-        .expect("a non-JSON body has no context to extract");
+        .map(|_| ())
+        .expect_err("a non-JSON body has no context to extract");
 
     match error {
         ContextExtractionError::InvalidHeaderValue { header, reason } => {

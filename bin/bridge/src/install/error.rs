@@ -7,6 +7,18 @@ use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum InstallError {
+    #[error("installation partially completed {completed:?}; {source}")]
+    Partial {
+        completed: Vec<super::InstallStep>,
+        #[source]
+        source: Box<Self>,
+    },
+    #[error(transparent)]
+    Config(#[from] crate::config::ConfigWriteError),
+    #[error(transparent)]
+    ConfigRead(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
     #[error("cannot determine current executable path: {0}")]
     BinaryPath(std::io::Error),
     #[error("cannot resolve org-plugins directory for this OS")]
@@ -23,6 +35,15 @@ pub enum InstallError {
     MobileconfigUnsupported,
     #[error("registering the scheduled sync job failed: {0}")]
     ScheduleApply(String),
+    #[error(
+        "scheduler units written ({}) but not activated: {reason}; activate them by hand or \
+         re-run --apply-schedule where systemd --user is available",
+        units.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")
+    )]
+    ScheduleActivation {
+        units: Vec<std::path::PathBuf>,
+        reason: String,
+    },
     #[error("--apply-schedule can only register a job for the OS it runs on")]
     ScheduleOsMismatch,
     #[error("failed to write {path}: {source}")]

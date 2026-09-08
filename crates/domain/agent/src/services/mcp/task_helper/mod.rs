@@ -52,9 +52,6 @@ pub async fn ensure_task_exists(
     .await
 }
 
-// Why: `ContextId` is UUID-validated on every construction path, so it can
-// never be empty. The emptiness branch that used to guard this, and the
-// session-lookup fallback behind it, were unreachable.
 async fn resolve_context_id(
     context_repo: &ContextRepository,
     request_context: &mut RequestContext,

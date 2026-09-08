@@ -6,9 +6,9 @@
 //! that bounds JWKS fetches is derived from the same config, so it is pinned
 //! here too.
 
-use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::{
-    jwks_host_allowlist, resolve_audience, validate_resource,
-};
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::claims::resolve_audience;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::jwks_host_allowlist;
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::validate_resource;
 use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::TrustedIssuer;

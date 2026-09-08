@@ -32,8 +32,6 @@ impl Job for PagePrerenderJob {
         "0 30 4 * * *"
     }
 
-    // Why: prerendered pages live on each replica's local disk, so every
-    // node must produce its own copy rather than one replica winning the lock.
     fn scope(&self) -> JobScope {
         JobScope::Node
     }

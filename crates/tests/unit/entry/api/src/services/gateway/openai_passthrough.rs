@@ -14,7 +14,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_api::services::gateway::protocol::outbound::OutboundCtx;
-use systemprompt_api::services::gateway::protocol::outbound::openai_chat::test_api::normalize_raw_body;
+use systemprompt_api::services::gateway::protocol::outbound::openai_chat::raw::normalize_raw_body;
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
@@ -248,7 +248,6 @@ fn a_reasoning_model_is_given_the_full_model_card_budget() {
         context_window: 100_000,
         max_output_tokens: 16_384,
         max_thinking_budget: Some(8_192),
-        ..Default::default()
     };
 
     let out = normalize(

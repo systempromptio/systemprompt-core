@@ -47,23 +47,12 @@ pub enum McpAuthState {
     NotRegistered,
     UpstreamError,
     ProxyUnreachable,
-    // Why: The probe ran out of time. Distinct from `ProxyUnreachable`: a server
-    // too slow to answer in six seconds is not a server that is down, and is
-    // certainly not one that needs signing in to.
     ProbeTimeout,
-    // Why: Something on *this* machine stopped the probe before it reached the
-    // server -- no HTTP client, no loopback secret. Says nothing about the
-    // server at all.
     LocalError,
     ProtocolError,
 }
 
 impl McpAuthState {
-    // Why: The single answer to "must the user sign in to this server again?".
-    //
-    // Why one function: this predicate drives the desktop notification and the
-    // per-server panel. When each surface derived it separately they disagreed,
-    // and the UI told users to re-auth four healthy servers.
     #[must_use]
     pub const fn needs_sign_in(self) -> bool {
         matches!(self, Self::GatewayUnauthorized | Self::NotRegistered)
@@ -77,8 +66,6 @@ impl McpAuthState {
         )
     }
 
-    // Why: an inconclusive probe is *unknown*, never red. The Status pane used
-    // to paint `ProxyUnreachable` as a failure of the server, which it is not.
     #[must_use]
     pub const fn tone(self) -> Tone {
         match self {

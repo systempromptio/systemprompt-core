@@ -313,12 +313,14 @@ const COMMANDS = {
   },
   "gateway.set": ({ url }) => {
     state.gateway_url = url;
+    state.gateway_configured = true;
     emit("state.changed", state);
     return {};
   },
   "gateway.probe": () => ({}),
   "session.login": ({ gateway }) => {
     state.gateway_url = gateway || state.gateway_url;
+    state.gateway_configured = true;
     state.signed_in = true;
     state.verified_identity = state.verified_identity || {
       email: "admin@localhost.dev",

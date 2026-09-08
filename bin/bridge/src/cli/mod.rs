@@ -59,9 +59,6 @@ pub fn run_with_args(args: &[String]) -> ExitCode {
     }
 
     let default_gui = args.len() == 1 && args::should_default_to_gui();
-    // Why: only the long-running commands own the loopback port. Everything
-    // else (`install --apply`, `sync`, `doctor`, the credential helpers) runs
-    // beside a bridge that is already serving and must find it, not race it.
     let mode = if default_gui || matches!(command, Some("proxy" | "gui")) {
         ProxyMode::Serve
     } else {

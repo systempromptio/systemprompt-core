@@ -20,6 +20,11 @@ use systemprompt_identifiers::{AgentName, SecretName, TeamsTenantId};
 
 use crate::errors::ConfigValidationError;
 
+pub const BOT_FRAMEWORK_OPENID_CONFIG_URL: &str =
+    "https://login.botframework.com/v1/.well-known/openidconfiguration";
+pub const BOT_FRAMEWORK_TOKEN_URL: &str =
+    "https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token";
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TeamsAppConfig {
@@ -34,6 +39,26 @@ pub struct TeamsAppConfig {
     pub routing: BTreeMap<String, AgentName>,
     #[serde(default)]
     pub authz: TeamsAuthzConfig,
+    #[serde(default)]
+    pub endpoints: TeamsEndpoints,
+}
+
+/// Bot Framework login endpoints; defaults to the public cloud, sovereign
+/// clouds override.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TeamsEndpoints {
+    pub openid_config_url: String,
+    pub token_url: String,
+}
+
+impl Default for TeamsEndpoints {
+    fn default() -> Self {
+        Self {
+            openid_config_url: BOT_FRAMEWORK_OPENID_CONFIG_URL.to_owned(),
+            token_url: BOT_FRAMEWORK_TOKEN_URL.to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]

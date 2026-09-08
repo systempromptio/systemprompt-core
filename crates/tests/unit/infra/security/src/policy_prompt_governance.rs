@@ -19,7 +19,7 @@ use systemprompt_security::policy::{
 const EXTRA_PATTERN: &str = "governance:\n  policies:\n    - id: secret_scan\n      extra_patterns:\n        - name: Demo Key\n          prefix: \"XDEMO-\"\n";
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap())
+    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
 }
 
 fn prompt_ctx<'a>(
@@ -122,8 +122,8 @@ fn a_prompt_target_names_itself_in_the_audit_row() {
 // operator limit. This is the test that pins "one engine, one budget".
 #[test]
 fn the_global_engine_is_one_shared_instance() {
-    let first: &'static GovernanceEngine = GovernanceEngine::global();
-    let second: &'static GovernanceEngine = GovernanceEngine::global();
+    let first: &'static GovernanceEngine = GovernanceEngine::global().unwrap();
+    let second: &'static GovernanceEngine = GovernanceEngine::global().unwrap();
 
     assert!(
         std::ptr::eq(first, second),

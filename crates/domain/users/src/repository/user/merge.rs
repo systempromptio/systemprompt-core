@@ -16,10 +16,6 @@ pub struct MergeResult {
     pub total_rows: u64,
 }
 
-// Why: `merge_users` transfers data rows only. Rows in these credential and
-// auth-state tables are bound to the source identity and die with it via FK
-// CASCADE when the source row is deleted. A new table holding credentials or
-// auth state belongs on this list, not in a `transfer_*` helper.
 pub const MERGE_EXCLUDED_SECURITY_TABLES: &[&str] = &[
     "oauth_auth_codes",
     "oauth_refresh_tokens",

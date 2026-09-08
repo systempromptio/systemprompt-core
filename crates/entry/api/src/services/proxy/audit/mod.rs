@@ -9,8 +9,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod jsonrpc;
-mod tap;
+pub mod jsonrpc;
+pub mod tap;
 
 use std::sync::Arc;
 
@@ -25,44 +25,8 @@ pub(crate) use tap::record;
 
 use jsonrpc::{ToolCallInvocation, ToolCallOutcome};
 
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use serde_json::Value;
-
-    #[must_use]
-    pub fn parse_tool_call(body: &[u8]) -> Option<(Value, String, Value)> {
-        super::jsonrpc::parse_tool_call(body).map(|i| (i.id, i.tool_name, i.arguments))
-    }
-
-    #[must_use]
-    pub fn parse_response_frame(
-        data: &str,
-        request_id: &Value,
-    ) -> Option<(Option<Value>, Option<String>)> {
-        super::jsonrpc::parse_response_frame(data, request_id).map(|o| (o.output, o.error_message))
-    }
-
-    #[must_use]
-    pub fn extract_sse_data(frame: &str) -> Option<String> {
-        super::jsonrpc::extract_sse_data(frame)
-    }
-
-    pub async fn record_tool_call(
-        response: reqwest::Response,
-        pool: &systemprompt_database::DbPool,
-        context: systemprompt_models::RequestContext,
-        server_name: &str,
-        request_body: &[u8],
-    ) -> Result<axum::response::Response<axum::body::Body>, String> {
-        let invocation = super::jsonrpc::parse_tool_call(request_body)
-            .ok_or_else(|| "request body is not a tools/call".to_owned())?;
-        let repo = crate::repository::tool_usage(pool).map_err(|e| e.to_string())?;
-        let audit = super::McpAudit::new(repo, context, server_name.to_owned(), invocation);
-        super::tap::record(response, audit).await
-    }
-}
-
-pub(crate) struct McpAudit {
+#[derive(Debug)]
+pub struct McpAudit {
     repo: Arc<ToolUsageRepository>,
     context: RequestContext,
     server_name: String,
@@ -71,7 +35,7 @@ pub(crate) struct McpAudit {
 }
 
 impl McpAudit {
-    pub(crate) fn new(
+    pub fn new(
         repo: Arc<ToolUsageRepository>,
         context: RequestContext,
         server_name: String,

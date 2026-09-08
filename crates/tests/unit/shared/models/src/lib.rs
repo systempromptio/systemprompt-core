@@ -136,6 +136,7 @@ mod services_hooks;
 
 #[cfg(test)]
 mod services_other;
+mod services_teams;
 
 #[cfg(test)]
 mod content_config;

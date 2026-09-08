@@ -188,17 +188,16 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     #[cfg(target_os = "windows")]
     winproc::attach_parent_console_if_present();
     obs::install_panic_hook();
-    obs::tracing_init::init();
+    if let Err(e) = obs::tracing_init::init() {
+        stdio::eprint_str(&format!("bridge startup failed: {e}\n"));
+        return ExitCode::FAILURE;
+    }
+    brand::warn_if_version_drifts();
     purge_legacy_agents_state();
-    // Why: must run before anything else touches the install directory — on
-    // Windows this deletes the binary the previous version was renamed to, which
-    // only becomes possible once that process has exited.
     update::sweep_leftovers();
     cli::run()
 }
 
-// Why: agents.json stopped being written in 0.28.0; this one-way purge can go
-// once 0.36.0 is the oldest bridge still updating itself.
 fn purge_legacy_agents_state() {
     let Some(base) = basedirs::config_dir() else {
         return;
@@ -212,3 +211,8 @@ fn purge_legacy_agents_state() {
         },
     }
 }
+
+pub(crate) mod tasks;
+
+#[cfg(target_os = "windows")]
+pub(crate) mod windows_acl;

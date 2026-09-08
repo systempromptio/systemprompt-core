@@ -20,13 +20,6 @@ use super::super::RequestOrigin;
 use super::claims::intersect_scopes;
 use super::subject::SubjectIdentity;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn validate_resource<'a>(
     resource: Option<&'a str>,
     global: &Config,
@@ -46,8 +39,6 @@ pub fn validate_resource<'a>(
     }
 }
 
-// Why: Resolve the resource the issued token may target, honouring an ID-JAG's
-// pin before the deployment's own allowlist.
 pub(super) fn resolve_resource(
     subject: &SubjectIdentity,
     requested: Option<&str>,
@@ -62,9 +53,6 @@ pub(super) fn resolve_resource(
     Ok(validate_resource(effective, global)?.map(ToOwned::to_owned))
 }
 
-// Why: Resolve who the token is issued for, and the permissions it may carry.
-// An ID-JAG subject names an employee, so the ceiling is that employee's
-// permissions; every other subject delegates the client owner's.
 pub(super) async fn resolve_delegate(
     repo: &OAuthRepository,
     state: &OAuthState,

@@ -789,3 +789,45 @@ fn removing_nothing_leaves_the_store_untouched() {
         "a no-op must not mark the store as changed"
     );
 }
+
+#[test]
+fn concurrent_saves_into_one_sessions_dir_all_land() {
+    let dir = TempDir::new().expect("tempdir");
+    let sessions_dir = dir.path().to_path_buf();
+    let handles: Vec<_> = (0..16)
+        .map(|n| {
+            let sessions_dir = sessions_dir.clone();
+            std::thread::spawn(move || {
+                let mut store = SessionStore::new();
+                store.upsert_session(
+                    &SessionKey::from_tenant_id(None),
+                    build_session(&format!("profile-{n}")),
+                );
+                for _ in 0..200 {
+                    store.save(&sessions_dir)?;
+                }
+                Ok::<(), systemprompt_cloud::CloudError>(())
+            })
+        })
+        .collect();
+    for handle in handles {
+        handle
+            .join()
+            .expect("writer thread")
+            .expect("every concurrent save succeeds");
+    }
+    let loaded = SessionStore::load(&sessions_dir)
+        .expect("index parses")
+        .expect("index exists");
+    assert_eq!(loaded.len(), 1);
+    let leftovers: Vec<_> = std::fs::read_dir(&sessions_dir)
+        .expect("read sessions dir")
+        .filter_map(Result::ok)
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".tmp"))
+        .collect();
+    assert!(
+        leftovers.is_empty(),
+        "temp files left behind: {leftovers:?}"
+    );
+}

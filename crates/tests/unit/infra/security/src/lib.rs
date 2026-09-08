@@ -62,3 +62,6 @@ mod session_generator;
 mod signing_key_independence;
 #[cfg(test)]
 mod signing_key_pem_roundtrip;
+
+#[cfg(test)]
+mod policy_recovery;

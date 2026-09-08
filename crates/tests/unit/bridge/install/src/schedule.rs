@@ -1,13 +1,22 @@
-use systemprompt_bridge::install::{
-    InstallError, ScheduleRemoval, apply_schedule, emit_schedule, remove_schedule,
-};
+use systemprompt_bridge::install::{InstallError, apply_schedule, emit_schedule};
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+use systemprompt_bridge::install::{ScheduleRemoval, remove_schedule};
 use systemprompt_bridge::schedule::Os;
 use tempfile::TempDir;
 
 fn home_sandbox<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     let home = TempDir::new().expect("home tempdir");
     let path = home.path().to_path_buf();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let stub = path.join("systemctl");
+        std::fs::write(&stub, "#!/bin/sh\nexit 0\n").expect("systemctl stub");
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o700))
+            .expect("executable stub");
+    }
     let vars: Vec<(&str, Option<String>)> = vec![
+        ("PATH", Some(path.display().to_string())),
         ("HOME", Some(path.display().to_string())),
         ("SUDO_USER", None),
     ];

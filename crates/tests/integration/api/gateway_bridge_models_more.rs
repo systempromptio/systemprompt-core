@@ -16,7 +16,7 @@ use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
 use systemprompt_api::services::gateway::GatewayRequestContext;
 use systemprompt_api::services::gateway::audit::GatewayAudit;
-use systemprompt_api::services::gateway::audit::test_api::flatten_message_content;
+use systemprompt_api::services::gateway::audit::message_text::flatten_message_content;
 use systemprompt_api::services::gateway::protocol::{CanonicalContent, ImageSource};
 use systemprompt_api::services::gateway::registry::{
     GatewayUpstreamRegistry, SafetyScannerRegistry,
@@ -192,6 +192,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         gateway_conversation_id: Some(
             GatewayConversationId::try_new("ctx_00112233aabbccdd".to_owned()).expect("id"),
         ),
+        client_session_id: None,
         trace_id: Some(TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,

@@ -17,7 +17,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod a2a;
+pub mod a2a;
 pub mod identity;
 
 use std::sync::LazyLock;
@@ -83,13 +83,12 @@ pub enum MessagingError {
 
 impl MessagingError {
     #[must_use]
+    #[expect(
+        clippy::unused_self,
+        reason = "opaque by contract: no part of the error may reach the caller"
+    )]
     pub fn user_message(&self) -> String {
-        let opaque = "Sorry — something went wrong handling that.";
-        if cfg!(feature = "test-api") {
-            format!("{opaque} ({self})")
-        } else {
-            opaque.to_owned()
-        }
+        "Sorry — something went wrong handling that.".to_owned()
     }
 }
 
@@ -137,20 +136,4 @@ pub async fn dispatch_messaging(
     let request = build_a2a_request(&inbound, &authed, &session_id, &token, &context_id)?;
     let reply = run_agent(ctx, inbound.agent_name.as_str(), request).await?;
     Ok(DispatchOutcome::Replied(reply))
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use systemprompt_agent::models::a2a::Task;
-    use systemprompt_models::auth::Permission;
-
-    #[must_use]
-    pub fn reply_text(task: Option<&Task>) -> String {
-        super::a2a::reply_text(task)
-    }
-
-    #[must_use]
-    pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
-        super::a2a::permissions_for(roles)
-    }
 }

@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod cache_ttl;
 #[cfg(test)]
+mod chain_exit_report;
+#[cfg(test)]
 mod chain_fallthrough;
 #[cfg(test)]
 mod credential_source;

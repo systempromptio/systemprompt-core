@@ -46,9 +46,8 @@ use crate::stdio::diag;
 
 pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 
-// Why: winit 0.31 removed generic user events — an `EventLoopProxy` can only
-// `wake_up()` the loop, carrying no payload, so the queue here is what actually
-// transports a `UiEvent`.
+// Why: winit 0.31 EventLoopProxy can wake the loop but cannot carry an event
+// payload.
 #[derive(Clone, Debug)]
 pub(crate) struct UiEventProxy {
     proxy: EventLoopProxy,
@@ -122,8 +121,6 @@ pub fn run(ctx: Arc<BridgeContext>) -> ExitCode {
                 ));
             }
         },
-        // Why: a sibling window of this same install already serves the port.
-        // Keep running — the GUI is still useful against that proxy.
         ProxyRole::AlreadyRunning {
             port, config_dir, ..
         } => {
@@ -164,7 +161,7 @@ pub(crate) struct GuiApp {
     pub(crate) last_proxy_stats_tick: Instant,
     pub(crate) last_event_loop_pass: Instant,
     pub(crate) last_saved_geometry: Option<crate::window_state::WindowGeometry>,
-    pub(crate) last_state_hash: Option<u64>,
+    pub(crate) last_semantic_state: Option<serde_json::Value>,
     pub(crate) did_initial_sync: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
 }
@@ -189,7 +186,7 @@ impl GuiApp {
             last_proxy_stats_tick: Instant::now(),
             last_event_loop_pass: Instant::now(),
             last_saved_geometry: None,
-            last_state_hash: None,
+            last_semantic_state: None,
             did_initial_sync: false,
             active_signals: HashSet::new(),
         }
@@ -204,8 +201,12 @@ impl GuiApp {
 
     pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
-        if let Some(handles) = &mut self.tray {
-            tray::refresh(handles, &snap, &self.ctx.schedule);
+        if let Some(handles) = &mut self.tray
+            && let Err(e) = tray::refresh(handles, &snap, &self.ctx.schedule)
+        {
+            self.ctx
+                .activity
+                .append_error(format!("tray update failed: {e}"));
         }
     }
 

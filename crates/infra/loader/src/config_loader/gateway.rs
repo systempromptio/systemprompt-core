@@ -50,9 +50,6 @@ pub fn resolve_override_prompt_includes(
     Ok(())
 }
 
-// Why: `!include` paths are relative to the file that wrote them, and that file
-// is only known while it is being parsed — so each file resolves its own
-// gateway prompts before the merge, the same way agent system prompts are.
 pub(super) fn resolve_file_gateway_includes(
     file_dir: &Path,
     config: &mut ServicesConfig,
@@ -63,10 +60,6 @@ pub(super) fn resolve_file_gateway_includes(
     Ok(())
 }
 
-// Why: the cache only ever holds a resolved gateway, so no runtime reader can
-// observe `GatewayState::Spec` — the loader is the single place the projection
-// happens. Validation against the merged registry runs in
-// `ServicesConfig::validate`, which the caller invokes right after this.
 pub(super) fn project_gateway(config: &mut ServicesConfig) {
     let Some(state) = config.gateway.take() else {
         return;

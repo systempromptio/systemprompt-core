@@ -122,8 +122,6 @@ impl AnalyticsService {
         &self.cost_repo
     }
 
-    // Why: Profile usage windows for one user — the single derivation shared by the
-    // bridge profile route and the server-rendered admin profile page.
     #[must_use]
     pub fn profile_usage(&self) -> ProfileUsageService {
         ProfileUsageService::new(self.cost_repo.clone())

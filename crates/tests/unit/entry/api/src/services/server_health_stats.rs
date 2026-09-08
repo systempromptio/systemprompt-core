@@ -1,13 +1,13 @@
 //! Unit tests for the health surface's statistics formatting helpers.
 
 use serde_json::json;
-use systemprompt_api::services::server::test_api::{
+use systemprompt_api::services::server::health::{
     audit_log_stats, database_stats, human_bytes, table_stats,
 };
 use systemprompt_traits::JsonRow;
 
 #[cfg(target_os = "linux")]
-use systemprompt_api::services::server::test_api::parse_proc_status_kb;
+use systemprompt_api::services::server::health::parse_proc_status_kb;
 
 fn row(pairs: &[(&str, serde_json::Value)]) -> JsonRow {
     pairs

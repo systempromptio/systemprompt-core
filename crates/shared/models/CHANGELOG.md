@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Added
+
+- `TeamsAppConfig.endpoints` (`TeamsEndpoints`) selects the Bot Framework OpenID and token endpoints; defaults to the public cloud.
+- `bridge_version_is_supported` refuses a version it cannot parse. It answered `true`, so a bridge reporting a non-semver string passed the `min_bridge_version` floor and the heartbeat `compatible` check on a parse failure nobody saw. Every cargo build carries a semver `CARGO_PKG_VERSION`, so no real build is affected.
+
 ## [0.47.0] - 2026-09-06
 
 ### Breaking

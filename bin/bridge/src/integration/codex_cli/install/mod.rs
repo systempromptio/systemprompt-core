@@ -57,12 +57,8 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     }
 }
 
-// Why: `open` only *offers* a `.mobileconfig` — macOS parks it in System
-// Settings until the user approves it, and since macOS 11 nothing short of MDM
-// can apply one unattended. The `-g` below then means the approval sheet never
-// comes forward. Without this notice the app logs a successful install, the
-// payload silently never lands, and the next probe truthfully reports it
-// missing — each part behaving reasonably, combining into total silence.
+// Why: macOS requires manual approval of profiles opened in System Settings;
+// unattended installation needs MDM.
 #[cfg(target_os = "macos")]
 fn notify_profile_pending() {
     crate::user_alert::alert_user(
@@ -77,9 +73,6 @@ const fn notify_profile_pending() {}
 
 pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     if cfg!(target_os = "macos") {
-        // Why: see integration/claude_desktop/macos.rs::install_profile —
-        // `-g` prevents System Settings from stealing focus, which would
-        // trip a wry/muda/objc2 weak-ref teardown crash on the bridge window.
         std::process::Command::new("/usr/bin/open")
             .args(["-g", generated_path])
             .status()?;
@@ -144,7 +137,7 @@ fn writable(path: &Path) -> bool {
     ));
     match std::fs::File::create(&probe) {
         Ok(_) => {
-            _ = std::fs::remove_file(&probe);
+            crate::fsutil::remove_leftover_file(&probe);
             true
         },
         Err(_) => false,

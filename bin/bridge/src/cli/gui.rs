@@ -13,8 +13,7 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
     #[cfg(target_os = "windows")]
     {
         crate::winproc::detach_console();
-        // Why: toasts and taskbar grouping are keyed on the AUMID, and without
-        // an installer nothing else declares one for this process.
+        // Why: Windows keys toast identity and taskbar grouping on the process AUMID.
         crate::winproc::set_app_user_model_id(crate::brand::brand().aumid);
         if !crate::gui::webview2::ensure_present() {
             return ExitCode::FAILURE;
@@ -29,11 +28,6 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
                 );
                 return ExitCode::SUCCESS;
             }
-            // Why: the lock holder is alive (flock releases on process death)
-            // but never confirmed the focus request — it is wedged or GUI-less.
-            // A second GUI would race the proxy and loopback ports, so refuse
-            // visibly: on a Finder launch this is the difference between an
-            // explanation and an app that appears to do nothing.
             let app = crate::brand::brand().app_name;
             crate::stdio::diag(
                 "gui: another bridge instance holds the lock but did not answer the focus \
@@ -52,7 +46,10 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
         },
     };
     let exit = crate::gui::run(ctx);
-    crate::single_instance::clear_running_port();
+    if let Err(e) = crate::single_instance::clear_running_port() {
+        crate::stdio::diag(&format!("clear bridge sidecar: {e}"));
+        return ExitCode::FAILURE;
+    }
     exit
 }
 

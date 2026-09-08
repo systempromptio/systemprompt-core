@@ -16,11 +16,6 @@ use systemprompt_users::{UserRepository, UserService};
 
 pub const DEFAULT_CLI_SESSION_HOURS: i64 = 24;
 
-// Why: the public `POST /oauth/session` must not accept a caller-supplied
-// `user_id` — that would allow admin-JWT issuance against any known user UUID
-// on a public route. The CLI holds the signing secret and the database, so it
-// mints session rows locally, through `SessionCreationService` rather than
-// the repository so every `user_sessions` row is written by one code path.
 pub async fn create_local_session_row(
     db_pool: &DbPool,
     user: &UserId,

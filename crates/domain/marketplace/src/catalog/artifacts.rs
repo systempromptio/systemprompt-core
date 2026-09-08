@@ -157,7 +157,6 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
         content,
         starred: config.starred,
         sha256,
-        // Why: stamped in `into_manifest_parts`, once the surviving plugin list is known.
         plugins: Vec::new(),
     }))
 }

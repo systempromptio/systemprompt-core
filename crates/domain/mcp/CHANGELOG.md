@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Fixed
+
+- Persist external MCP session bindings in PostgreSQL with caller and credential checks, expiry, and primary-only reads.
+- Authenticate bearer-accessor requests with the optional credential broker secret.
+
+### Removed
+
+- The hidden `test_api` module; the RBAC JWT helpers, orchestrator cleanup and schema-sync passes, and chart scale helpers are public in their own modules.
+
 ## [0.47.0] - 2026-09-06
 
 ### Changed

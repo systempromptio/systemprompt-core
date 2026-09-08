@@ -30,17 +30,10 @@ use crate::proxy::mcp_probe::McpServerAuth;
 use crate::validate::ValidationReport;
 use cancel::CancelTokens;
 
-// Why: one lock, not three. The snapshot, the cancel tokens and the saved
-// pre-probe status used to sit behind separate locks, and `mark_probing`
-// released the first before taking the third — two probes interleaving there
-// could strand the UI on `Probing` for good.
 #[derive(Debug)]
 struct Inner {
     snapshot: AppStateSnapshot,
     cancels: CancelTokens,
-    // Why: `Probing` overwrites the field that holds the last conclusive
-    // answer. A probe that never concludes has to put that answer back rather
-    // than leave the UI stuck on a transient state.
     pre_probe_status: Option<GatewayStatus>,
 }
 
@@ -53,6 +46,7 @@ pub struct AppState {
 impl AppState {
     pub fn new_loaded(ctx: Arc<crate::context::BridgeContext>) -> Arc<Self> {
         let mut snap = AppStateSnapshot::default();
+        snap.startup_faults.clone_from(&ctx.startup_faults);
         reload::reload_into(&mut snap);
         Arc::new(Self {
             inner: RwLock::new(Inner {
@@ -107,9 +101,6 @@ impl AppState {
         }
     }
 
-    // Why: Put back the status this probe replaced, for a probe that concluded
-    // nothing. Identity and provider health were never touched, so there is
-    // nothing else to undo.
     pub fn abandon_probe(&self) {
         let mut guard = self.inner.write();
         if let Some(prior) = guard.pre_probe_status.take() {
@@ -123,16 +114,11 @@ impl AppState {
         let reachable = outcome.status.is_reachable();
         inner.snapshot.gateway_status = outcome.status;
         inner.snapshot.last_probe_at_unix = Some(outcome.at_unix);
-        // Why: an unreachable gateway cannot tell us who we are, so the probe
-        // returns no identity and no provider list. Writing those empties in
-        // would report a transient network fault as a sign-out and blank the
-        // provider panel. The last verified answer stands, timestamped by its
-        // own `verified_at_unix`, until a reachable probe replaces it or the
-        // user signs out (`clear_verified_identity`).
         if reachable {
             inner.snapshot.verified_identity = outcome.identity;
             inner.snapshot.provider_health = outcome.provider_health;
         }
+        inner.snapshot.credential_error = outcome.credential_error;
     }
 
     pub fn gateway_probe_in_flight(&self) -> bool {
@@ -155,6 +141,14 @@ impl AppState {
         drop(guard);
     }
 
+
+    pub fn finish_failed_probe(&self, host_id: Option<&str>) {
+        let mut guard = self.snap_mut();
+        match host_id {
+            Some(id) => guard.hosts.entry(id).probe_in_flight = false,
+            None => guard.hosts.proxy_probe_in_flight = false,
+        }
+    }
 
     pub fn mark_host_probing(&self, host_id: &str) -> bool {
         let mut guard = self.snap_mut();
@@ -205,13 +199,6 @@ impl AppState {
     }
 
 
-    // Why: Apply a probe pass, keeping the last conclusive answer for any server
-    // this pass could not reach.
-    //
-    // Why merge rather than replace: the probe has a six-second budget and
-    // funnels every transport fault into a state of its own. Replacing
-    // wholesale meant one slow round trip erased `Authenticated` for a server
-    // that was working, which the UI then reported as needing a sign-in.
     pub fn apply_mcp_auth(&self, results: Vec<McpServerAuth>) {
         let mut guard = self.snap_mut();
         let merged = results
@@ -232,9 +219,6 @@ impl AppState {
         guard.mcp_auth_probe_in_flight = false;
     }
 
-    // Why: a single-server re-check replaces that server's row and leaves the
-    // rest as they were; an inconclusive answer keeps the prior conclusive one
-    // for the same reason `apply_mcp_auth` does.
     pub fn apply_mcp_auth_one(&self, fresh: McpServerAuth) {
         let mut guard = self.snap_mut();
         let keep_prior = !fresh.state.is_conclusive()

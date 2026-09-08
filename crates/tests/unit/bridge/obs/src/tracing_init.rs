@@ -50,7 +50,7 @@ fn log_dir_and_file_path_resolve_under_state_home() {
 fn init_writes_formatted_events_to_the_log_file() {
     let temp = tempfile::tempdir().unwrap();
     temp_env::with_var("XDG_STATE_HOME", Some(temp.path().as_os_str()), || {
-        obs::init();
+        obs::init().expect("initialize logging");
         tracing::info!(
             count = 3_i64,
             size = 4_u64,
@@ -94,7 +94,7 @@ fn init_json_format_emits_json_lines() {
             ("SP_BRIDGE_LOG_FORMAT", Some("json".into())),
         ],
         || {
-            obs::init();
+            obs::init().expect("initialize logging");
             tracing::info!(kind = "json-check", "json formatted event");
 
             let dir = obs::log_dir().unwrap();

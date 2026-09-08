@@ -24,8 +24,8 @@ const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
 
 const SP_PROTOCOL: &str = "sp";
 pub(super) const SP_HOST: &str = "app";
-// Why: `.app` is HSTS-preloaded in Chromium, so WebView2 upgrades an http
-// origin's subresources to https, past wry's interception filter.
+// Why: Chromium preloads .app HSTS, upgrading HTTP subresources past wry's
+// interception filter.
 #[cfg(any(target_os = "windows", target_os = "android"))]
 const SP_INDEX_URL: &str = "https://sp.app/index.html";
 #[cfg(not(any(target_os = "windows", target_os = "android")))]
@@ -36,8 +36,7 @@ pub struct SettingsWindow {
     webview: WebView,
 }
 
-// Why: winit 0.31's `create_window` returns an unsized `Box<dyn Window>`, but
-// wry's `WebViewBuilder::build` needs a sized `HasWindowHandle`.
+// Why: winit returns Box<dyn Window>, but wry requires a sized HasWindowHandle.
 struct WindowRef<'a>(&'a dyn Window);
 
 impl raw_window_handle::HasWindowHandle for WindowRef<'_> {
@@ -94,11 +93,6 @@ impl SettingsWindow {
                 source: WindowError::Os(e),
             })?;
 
-        // Why: the title bar has to agree with the page under it. The web UI
-        // follows `prefers-color-scheme` and has a real light theme, so pinning
-        // the title bar dark would reproduce the mismatch this call exists to
-        // fix, with the colours swapped — unless the brand has pinned the page
-        // itself dark, in which case the OS preference is the mismatch.
         let dark = crate::brand::brand().force_dark || super::prefers_dark(&*window);
         super::set_immersive_dark(&*window, dark);
         if restored.is_some_and(|g| g.maximized) {
@@ -138,9 +132,7 @@ impl SettingsWindow {
             })
             .build_as_child(&WindowRef(&*window))
             .map_err(|e| {
-                // Why: `windows_subsystem = "windows"` means a failure here has
-                // no console to print to. Without this the app simply does not
-                // appear — the commonest cause being a missing WebView2 runtime.
+                // Why: windows_subsystem = "windows" provides no console for startup errors.
                 crate::user_alert::alert_user(
                     &format!("{} could not start", crate::brand::brand().app_name),
                     &format!("The embedded browser failed to initialise: {e}"),
@@ -172,10 +164,7 @@ impl SettingsWindow {
         self.focus_webview();
     }
 
-    // Why: the page is a *child* WebView2/WKWebView window (`build_as_child`),
-    // so focusing the host frame alone leaves the page itself unfocused — it
-    // renders inactive and swallows clicks and keys. The sign-in flow hands the
-    // foreground to a browser, and coming back is exactly what reproduces it.
+    // Why: Focusing the host frame does not focus the child WebView2/WKWebView.
     pub fn focus_webview(&self) {
         if let Err(e) = self.webview.focus() {
             tracing::warn!(error = %e, "webview focus failed");
@@ -210,10 +199,8 @@ impl SettingsWindow {
         })
     }
 
-    pub fn evaluate_script(&self, script: &str) {
-        if let Err(e) = self.webview.evaluate_script(script) {
-            tracing::warn!(error = %e, "evaluate_script failed");
-        }
+    pub fn evaluate_script(&self, script: &str) -> Result<(), wry::Error> {
+        self.webview.evaluate_script(script)
     }
 }
 

@@ -126,9 +126,6 @@ impl WebhookHook {
         self.timeout
     }
 
-    // Why: `detail` reaches the audit row, so a hook that is unreachable, one
-    // that answers 500 and one that returns undecodable JSON are three
-    // different rows rather than one indistinguishable "unavailable".
     async fn fault(&self, req: &AuthzRequest, detail: String) -> AuthzDecision {
         let policy = AuthzSource::WebhookFault.policy().to_owned();
         let decision = AuthzDecision::Deny {

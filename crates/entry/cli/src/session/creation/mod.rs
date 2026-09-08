@@ -51,10 +51,6 @@ pub(super) async fn create_local_session(
 
     let db_pool = connect_database(&secrets).await?;
 
-    // Why: a local-trial install has no credentials to name a user with, so the
-    // admin is resolved by `system_admin.username` — the same key the runtime
-    // resolves on — rather than by matching a hardcoded email. Anything else here
-    // (a session hint, cloud credentials) is a real address and stays email-keyed.
     let admin_user = if profile.is_local_trial() && session_email_hint.is_none() {
         resolve_local_admin(&db_pool, &profile.system_admin.username).await?
     } else {

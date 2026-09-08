@@ -89,8 +89,6 @@ pub struct SurfaceBudget {
 impl Default for SurfaceBudget {
     fn default() -> Self {
         Self {
-            // Why: legitimate provider content nests a handful of levels; this
-            // is far above that and far below what would exhaust the walk.
             depth: 64,
             leaves: 50_000,
             total_bytes: 2 * 1024 * 1024,
@@ -142,8 +140,6 @@ fn data_payload(frame: &[u8]) -> Option<Vec<u8>> {
     found.then_some(out)
 }
 
-// Why: `false` means a budget is exhausted and no further root may be walked,
-// which is what lets one budget span every frame of a stream.
 fn walk(
     surface: &mut ForwardedSurface,
     total: &mut usize,
@@ -164,16 +160,12 @@ fn walk(
                 }
             },
             Value::Array(items) => {
-                // Why: pushed in reverse so popping yields document order.
                 for (index, item) in items.iter().enumerate().rev() {
                     stack.push((item, format!("{path}[{index}]"), depth + 1));
                 }
             },
             Value::Object(map) => {
                 for (key, item) in map.iter().rev() {
-                    // Why: a credential used as an object key is pathological
-                    // but costs nothing to cover, and skipping it would be a
-                    // blind spot chosen on the basis of shape.
                     if !push_leaf(surface, total, &budget, &format!("{path}.{key}.$key"), key) {
                         return false;
                     }
@@ -186,8 +178,6 @@ fn walk(
     true
 }
 
-// Why: `false` means a budget is exhausted and the whole walk must stop, not
-// that this one leaf was skipped; `surface.truncated` is set in that case.
 fn push_leaf(
     surface: &mut ForwardedSurface,
     total: &mut usize,
@@ -214,8 +204,6 @@ fn push_leaf(
     true
 }
 
-// Why: both ends are kept because a credential in a large blob sits at one end
-// far more often than in the middle, and keeping both costs the same as one.
 fn clip(value: &str, limit: usize) -> (String, bool) {
     if value.len() <= limit {
         return (value.to_owned(), false);

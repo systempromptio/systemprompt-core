@@ -30,7 +30,6 @@ pub mod show;
 mod status;
 mod task;
 mod tools;
-mod tools_mcp;
 pub mod validate;
 
 use anyhow::{Context, Result};

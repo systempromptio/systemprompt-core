@@ -459,30 +459,3 @@ fn uncacheable_response_records_only_when_signatures_are_present() {
     );
     assert_eq!(unsigned, None);
 }
-
-#[tokio::test]
-async fn cache_survives_a_poisoned_lock() {
-    let Some(h) = Harness::open_or_skip().await else {
-        return;
-    };
-    let cache = h.cache();
-    let conv = conv();
-    cache.store(&conv, "call_1", "sig-a").await;
-
-    let previous = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let poisoned =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cache.poison_lock())).is_err();
-    std::panic::set_hook(previous);
-    assert!(poisoned);
-
-    assert_eq!(
-        cache.lookup(&conv, "call_1").await.as_deref(),
-        Some("sig-a")
-    );
-    cache.store(&conv, "call_2", "sig-b").await;
-    assert_eq!(
-        cache.lookup(&conv, "call_2").await.as_deref(),
-        Some("sig-b")
-    );
-}

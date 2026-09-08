@@ -15,7 +15,6 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::SessionId;
 
-use crate::auth::ChainError;
 use crate::context::BridgeContext;
 use crate::{auth, config};
 
@@ -36,7 +35,13 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
 }
 
 fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            crate::stdio::diag(&e.to_string());
+            return ExitCode::FAILURE;
+        },
+    };
     let acquired = ctx.block_on(auth::acquire_bearer(
         &cfg,
         &SessionId::generate(),
@@ -44,30 +49,18 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     ));
     let out = match acquired {
         Ok(out) => out,
-        Err(ChainError::PreferredTransient { provider, source }) => {
-            eprintln!(
-                "{}",
-                error_json(&format!("transient auth failure on {provider}: {source}"))
-            );
-            return ExitCode::from(10);
-        },
-        Err(ChainError::NoneSucceeded) => {
-            eprintln!(
-                "{}",
-                error_json(&format!(
-                    "no credential available; run `{} login`",
-                    crate::brand::brand().binary_name
-                ))
-            );
-            return ExitCode::from(5);
+        Err(e) => {
+            let (code, message) = e.exit_report();
+
+            eprintln!("{}", error_json(&message));
+
+            return code;
         },
     };
     emit_claude(&out)
 }
 
 fn emit_codex(ctx: &BridgeContext) -> ExitCode {
-    // Why: Codex authenticates against the loopback proxy, not the upstream
-    // gateway, so it needs the loopback secret.
     let secret = match ctx.proxy.loopback().secret() {
         Ok(s) => s,
         Err(e) => {
@@ -80,8 +73,8 @@ fn emit_codex(ctx: &BridgeContext) -> ExitCode {
             return ExitCode::from(70);
         },
     };
-    // Why: Codex forwards helper stdout verbatim as `Authorization: Bearer
-    // <stdout>`, so this must be the bare secret, not JSON.
+    // Why: Codex forwards helper stdout as the bearer credential, so it must be a
+    // bare secret.
     println!("{}", secret.as_str());
     ExitCode::SUCCESS
 }

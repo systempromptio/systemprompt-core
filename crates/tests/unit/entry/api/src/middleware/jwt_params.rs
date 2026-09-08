@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_api::services::middleware::jwt::test_api::{
+use systemprompt_api::services::middleware::jwt::params::{
     BuildContextParams, build_context, extract_common_headers,
 };
 use systemprompt_identifiers::{

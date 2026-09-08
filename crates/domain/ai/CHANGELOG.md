@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Added
+
+- `AiRequestRecord` carries `client_session_id` and `request_kind`, both persisted by migration `021_ai_requests_client_session_kind` and indexed together. `RequestKind::classify` reads `max_tokens` and marks a call of one token or fewer as a `probe`, so the token-counting and cache-warming calls a client makes are no longer counted as turns; `utility` is available for a consumer that can distinguish a side call such as title generation. The migration backfills existing rows on the same rule.
+
+### Changed
+
+- No other functional change; the crate's `why` comments were re-cut by the comment-standards pass and the sqlx offline cache was regenerated.
+
 ## [0.47.0] - 2026-09-06
 
 ### Added

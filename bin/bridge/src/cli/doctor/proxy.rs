@@ -89,8 +89,6 @@ pub fn check_proxy_client_config(env: &ProbeEnv) -> Vec<Check> {
                     host.display_name()
                 ),
             )),
-            // Why: a deliberately remote or unparseable base URL is covered by
-            // the host's own profile checks.
             PortMatch::NotLoopback | PortMatch::Unparseable => {},
         }
     }

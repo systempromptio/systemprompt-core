@@ -26,9 +26,6 @@ use crate::authz::{GovernanceDecisionRecord, insert_governance_decision};
 pub enum ChainEntryResult {
     Pass,
     Fail,
-    // Why: the policy found what it would normally refuse but runs in
-    // `mode: warn`, so the chain continued. Kept distinct from `Fail` so a
-    // warn-mode installation cannot be misread as an enforcing one.
     Warn,
     Disabled,
     Skip,
@@ -110,16 +107,10 @@ pub struct DecisionAudit {
     pub act_chain: Vec<Actor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_id: Option<String>,
-    // Why: persisted to the `trace_id` column so the trace explorer joins on
-    // a real key.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
 }
 
-// Why: an allow because nothing ran and an allow because everything passed are
-// the same `Decision`, and the flat `policy` column is what operational queries
-// filter on. Collapsing both to `default_allow` would make an unguarded
-// installation indistinguishable from a healthy one.
 fn allow_policy_label(chain: &[ChainEntryOutcome]) -> &'static str {
     if !chain.is_empty() && chain.iter().all(|e| e.result == ChainEntryResult::Disabled) {
         return "governance_disabled";
@@ -127,11 +118,6 @@ fn allow_policy_label(chain: &[ChainEntryOutcome]) -> &'static str {
     "default_allow"
 }
 
-// Why: by the same argument, an allow because a *human authorised it* is a
-// third thing again, and the one an audit reader most needs to tell apart. It
-// carries an approver, so the policy that held it is named rather than
-// collapsed into `default_allow` — otherwise an approved call is reported as
-// though nothing enforced it.
 fn approved_policy_label(audit: &DecisionAudit) -> Option<String> {
     audit.approver.as_ref()?;
     audit
@@ -162,9 +148,6 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
                 .map_or_else(|| "unknown".to_owned(), |e| e.policy_id.as_str().to_owned());
             (DecisionTag::Deny, reason.to_string(), policy_str)
         },
-        // Why: the `policy` column names the first policy that warned, not
-        // `default_allow`. A warn row whose policy read `default_allow` would
-        // be useless to the report the mode exists to feed.
         Decision::Warn { reason } => {
             let policy_str = audit
                 .chain

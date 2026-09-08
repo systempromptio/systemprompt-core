@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod detection;
-mod events;
+pub mod detection;
+pub mod events;
 
 use axum::extract::Request;
 use axum::http::StatusCode;
@@ -25,41 +25,6 @@ use systemprompt_runtime::AppContext;
 use systemprompt_security::ScannerDetector;
 
 pub use events::AnalyticsEventParams;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use std::sync::Arc;
-
-    use systemprompt_analytics::{BehavioralAnalysisInput, SessionRepository};
-    use systemprompt_identifiers::SessionId;
-
-    #[must_use]
-    pub fn sanitize_uri(uri: &http::Uri) -> String {
-        super::events::sanitize_uri(uri)
-    }
-
-    #[must_use]
-    pub fn is_sensitive_key(key: &str) -> bool {
-        super::events::is_sensitive_key(key)
-    }
-
-    pub async fn collect_analysis_input(
-        session_repo: &Arc<SessionRepository>,
-        session_id: SessionId,
-        fingerprint_hash: Option<String>,
-        user_agent: Option<String>,
-        request_count: i64,
-    ) -> BehavioralAnalysisInput {
-        super::detection::collect_analysis_input_for_test(
-            session_repo,
-            session_id,
-            fingerprint_hash,
-            user_agent,
-            request_count,
-        )
-        .await
-    }
-}
 
 struct TrackingParams<'a> {
     req_ctx: &'a RequestContext,

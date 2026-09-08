@@ -31,6 +31,7 @@ use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use systemprompt_identifiers::MarketplaceId;
 
+pub use bundle::filter_skills_for_host;
 use bundle::{mirror_plugin, remove_dir, remove_stale_children};
 use marketplace::{
     set_enabled, strip_installed_plugins, strip_known_marketplace, upsert_installed_plugins,
@@ -42,9 +43,6 @@ use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use crate::ids::PluginId;
 
-// Why: the one marketplace every bridge wrote before the manifest named its
-// marketplaces. It is still the shape an older gateway is mirrored as, and the
-// key a first sync against a newer gateway purges.
 pub const LEGACY_MARKETPLACE: &str = "org-provisioned";
 const LEGACY_DESCRIPTION: &str =
     "Skills, agents, and MCP servers provisioned by your organization.";
@@ -142,9 +140,7 @@ fn io_err(context: impl Into<String>, source: std::io::Error) -> ApplyError {
     }
 }
 
-// Why: `~/.claude` is created by the CLI's first run, not its installation, so
-// the PATH probe is what distinguishes genuinely-absent from
-// installed-but-unused.
+// Why: Claude Code creates ~/.claude on first run, not during installation.
 pub(crate) fn claude_cli_installed() -> bool {
     if paths::claude_cli_home().is_some_and(|h| h.exists()) {
         return true;
@@ -187,11 +183,10 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         return clear_install();
     }
 
-    // Why: an enterprise MCP policy left by an older bridge shadows every
-    // plugin-provided server and Cowork's own tools; it goes before the
-    // per-plugin `.mcp.json` files are written so those are the servers the
-    // CLI actually loads.
-    crate::install::managed_mcp::clear_policy();
+    crate::install::managed_mcp::clear_policy().map_err(|source| ApplyError::Io {
+        context: "remove managed MCP policy".to_owned(),
+        source,
+    })?;
 
     let mut mirrored = Vec::with_capacity(marketplaces.len());
     for marketplace in &marketplaces {
@@ -233,9 +228,6 @@ fn mirror_marketplace(
     let mut ids: Vec<&PluginId> = Vec::with_capacity(marketplace.plugin_ids.len());
     let mut entries = Vec::with_capacity(marketplace.plugin_ids.len());
     for id in &marketplace.plugin_ids {
-        // Why: the gateway never lists a plugin the manifest lacks; if one ever
-        // arrives there is nothing on disk to mirror, so it is skipped rather
-        // than failing the whole host.
         let Some(version) = versions.get(id.as_str()) else {
             continue;
         };
@@ -249,12 +241,14 @@ fn mirror_marketplace(
             &src,
             &source_plugin_dir(plugins, &marketplace.id, id),
             mcp_servers,
+            &ctx.manifest.skills,
         )?;
         mirror_plugin(
             ctx.loopback,
             &src,
             &cache_install_dir(plugins, &marketplace.id, id),
             mcp_servers,
+            &ctx.manifest.skills,
         )?;
         entries.push(marketplace::entry_for(&src, id, version));
         ids.push(id);
@@ -290,7 +284,10 @@ fn purge_marketplace(plugins: &Path, marketplace: &MarketplaceId) -> Result<(), 
 }
 
 pub(crate) fn clear_install() -> Result<(), ApplyError> {
-    crate::install::managed_mcp::clear_policy();
+    crate::install::managed_mcp::clear_policy().map_err(|source| ApplyError::Io {
+        context: "remove managed MCP policy".to_owned(),
+        source,
+    })?;
     let Some(plugins) = paths::claude_cli_plugins_dir() else {
         tracing::warn!(
             target: "bridge::claude-code-cli",

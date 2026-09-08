@@ -17,3 +17,5 @@ mod server_reconciliation_stale;
 mod server_reconciliation_verify;
 mod server_shutdown;
 mod validation;
+
+mod coverage_agent_reconciliation;

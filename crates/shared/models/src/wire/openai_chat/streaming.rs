@@ -20,10 +20,6 @@ use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
 };
 
-// Why: the codec has to act on the end of the upstream stream, not only on
-// its frames -- a turn whose `finish_reason` was seen but whose usage chunk
-// never arrived still has to state its terminal. `scan` cannot observe the
-// end, so the end is made a frame.
 enum Frame {
     Chunk(Result<Bytes, String>),
     Eof,
@@ -83,9 +79,7 @@ fn drain_buffer(
                 continue;
             };
             if data.trim() == "[DONE]" {
-                // Why: the sentinel is itself a statement that the turn ended,
-                // so a wire that sent no finish reason at all still stops here
-                // -- some OpenAI-compatible proxies never send one.
+                // Why: Some OpenAI-compatible proxies send `[DONE]` without a finish reason.
                 flush_into(state, &mut events, Some("stop"));
                 continue;
             }
@@ -98,10 +92,6 @@ fn drain_buffer(
     events
 }
 
-// Why: a stream that ended without `[DONE]` still stated a finish reason on
-// its last content chunk, and a turn that never stated one at all is a
-// truncation the gateway reports separately -- so the flush states only what
-// the wire actually said.
 fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, String>> {
     let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
     flush_into(state, &mut events, None);
@@ -116,9 +106,6 @@ fn flush_into(
     if state.stopped {
         return;
     }
-    // Why: at a bare end of stream `default_reason` is None -- a turn that
-    // stated no reason and never reached the sentinel was cut off, and
-    // inventing a terminal here would hide the truncation the gateway reports.
     let Some(finish) = state
         .pending_finish
         .take()
@@ -134,14 +121,9 @@ fn handle_chunk(
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
-    // Why: chat completions reports a mid-stream failure as an `{"error":
-    // ...}` chunk with no `choices`, which every branch below skips -- the
-    // stream then reached `[DONE]` (or simply ended) with the failure dropped.
     if let Some(message) = crate::wire::sse::upstream_error_message(value) {
         events.push(Ok(CanonicalEvent::Error(message)));
-        // Why: `[DONE]` still follows the error frame, and the sentinel
-        // synthesises a `stop` terminal -- which would report the failed turn
-        // as a clean finish to the client and to the audit.
+        // Why: OpenAI-compatible streams can send `[DONE]` after an error frame.
         state.stopped = true;
         return;
     }
@@ -162,12 +144,8 @@ fn handle_chunk(
     process_reasoning_delta(state, delta, events);
     process_text_delta(state, delta, events);
     process_tool_calls(state, delta, events);
-    // Why: Chat Completions sends usage in a chunk of its own AFTER the one
-    // carrying `finish_reason`, so a terminal emitted on sight of the finish
-    // reason ends the canonical turn before its own counts arrive -- every
-    // inbound surface then renders the turn with zeroed usage and the real
-    // numbers, which the audit records, never reach the caller. The reason is
-    // held until the stream states its end.
+    // Why: Chat Completions sends its usage chunk after the chunk carrying
+    // `finish_reason`.
     if let Some(finish) = choice.get("finish_reason").and_then(Value::as_str)
         && !state.stopped
         && state.pending_finish.is_none()
@@ -229,17 +207,14 @@ fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
         .and_then(|d| d.get("cached_tokens"))
         .and_then(Value::as_u64)
         .map(|v| v as u32);
-    // Why: `cached_tokens` is a subset of `prompt_tokens` here, but
-    // `CanonicalUsage::input_tokens` is exclusive of cache reads, so the
-    // streamed frame subtracts exactly as the buffered parse does.
+    // Why: Chat Completions includes `cached_tokens` in `prompt_tokens`.
     CanonicalUsageUpdate {
         input_tokens: field("prompt_tokens").map(|input| input.saturating_sub(cached.unwrap_or(0))),
         output_tokens: field("completion_tokens"),
         cache_read_tokens: cached,
         cache_creation_tokens: None,
         total_tokens: field("total_tokens"),
-        // Why: already inside `completion_tokens` on this contract, so it is
-        // reported as a breakdown and never added to the total.
+        // Why: OpenAI includes reasoning tokens in `completion_tokens`.
         reasoning_tokens: usage
             .get("completion_tokens_details")
             .and_then(|d| d.get("reasoning_tokens"))

@@ -6,14 +6,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod cli;
+pub mod cli;
 mod keys;
 
 use axum::Router;
 use systemprompt_runtime::AppContext;
-
-#[cfg(feature = "test-api")]
-pub use cli::test_api as cli_test_api;
 
 pub fn router() -> Router<AppContext> {
     Router::new()

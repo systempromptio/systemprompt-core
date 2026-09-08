@@ -18,12 +18,8 @@ pub(super) fn find_pid_by_port_proc(port: u16) -> Option<u32> {
         }
 
         let local_addr = parts.get(1).copied().unwrap_or("");
-        // Why: `/proc/net/tcp` formats local_address as `<IP-hex>:<PORT-hex>` —
-        // a `contains(&port_hex)` substring match also matches when the port
-        // digits appear inside the IP-hex portion (e.g. port 0xFFF0 matches any
-        // local IP containing "FFF0"). Callers act on the returned PID with
-        // SIGTERM, so a false positive kills an unrelated process. Match the
-        // port field exactly.
+        // Why: `/proc/net/tcp` encodes local_address as `<IP-hex>:<PORT-hex>`;
+        // the same hex digits can occur in either field.
         let Some((_, port_str)) = local_addr.rsplit_once(':') else {
             continue;
         };

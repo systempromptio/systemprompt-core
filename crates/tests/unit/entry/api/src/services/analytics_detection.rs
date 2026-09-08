@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use systemprompt_analytics::SessionRepository;
-use systemprompt_api::services::middleware::analytics::test_api::collect_analysis_input;
+use systemprompt_api::services::middleware::analytics::detection::collect_analysis_input;
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_db_pool};
 

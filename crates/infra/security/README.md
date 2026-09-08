@@ -153,7 +153,7 @@ Shared tool-use governance types that produce the same `Decision` shape as the a
 | Export | Type | Purpose |
 |--------|------|---------|
 | `GovernancePolicy` | Trait | Contract every tool-call policy in the chain implements |
-| `GovernanceEngine` | Struct | Ordered set of policies (secret scan, scope check, blocklist, rate limit) evaluated to one `Decision` |
+| `GovernanceEngine` | Struct | Ordered set of policies (scope check, secret scan, blocklist, rate limit) evaluated to one `Decision` |
 | `PolicyContext` / `McpToolInput` / `AgentScope` | Types | Inputs a policy evaluates against |
 
 ### `manifest_signing`
@@ -170,7 +170,7 @@ Ed25519 signing for bridge manifests, keyed independently of the JWT signing key
 
 ```toml
 [dependencies]
-systemprompt-security = "0.46"
+systemprompt-security = "0.48"
 ```
 
 ### Token Extraction

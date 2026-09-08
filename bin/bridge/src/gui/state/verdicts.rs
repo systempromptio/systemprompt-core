@@ -57,7 +57,9 @@ impl AppStateSnapshot {
             GatewayStatus::Reachable { .. } if verified => {
                 Verdict::new(Tone::Ok, IdentityCode::SignedIn)
             },
-            GatewayStatus::Reachable { .. } if self.pat_present => {
+            GatewayStatus::Reachable { .. }
+                if self.pat_present || self.credential_error.is_some() =>
+            {
                 Verdict::new(Tone::Err, IdentityCode::TokenRejected)
             },
             GatewayStatus::Reachable { .. } => Verdict::new(Tone::Warn, IdentityCode::SignedOut),
@@ -99,9 +101,6 @@ impl AppStateSnapshot {
         }
     }
 
-    // Why: the health board folds five sources, not just `validate`. Each
-    // synthetic row's tone is fixed here and mirrored by the row the front end
-    // draws; the *badge* is this fold, so the board cannot contradict it.
     #[must_use]
     pub fn health_verdict(&self) -> Verdict<HealthCode> {
         let mut tones: Vec<Tone> = Vec::new();
@@ -110,6 +109,9 @@ impl AppStateSnapshot {
         }
         if self.provider_health.iter().any(|p| !p.configured) {
             tones.push(Tone::Warn);
+        }
+        if !self.startup_faults.is_empty() || self.credential_error.is_some() {
+            tones.push(Tone::Err);
         }
         if self.malformed_plugin_count.is_some_and(|n| n > 0) {
             tones.push(Tone::Err);
@@ -134,8 +136,6 @@ impl AppStateSnapshot {
         Verdict::new(tone, code)
     }
 
-    // Why: `probing` while the first pass is out and `warn` when nothing is
-    // registered — an empty list is not a healthy one.
     #[must_use]
     pub fn mcp_auth_tone(&self) -> Tone {
         if self.mcp_auth.is_empty() {

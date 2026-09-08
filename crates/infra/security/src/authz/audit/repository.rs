@@ -35,8 +35,6 @@ pub struct GovernanceDecisionRecord<'a> {
     pub act_chain: &'a [Actor],
     pub context_id: &'a str,
     pub task_id: Option<&'a str>,
-    // Why: the request-plane correlator gets its own field so the trace join
-    // never depends on `session_id` carrying it.
     pub trace_id: Option<&'a str>,
     pub client_id: Option<&'a str>,
 }
@@ -128,9 +126,6 @@ pub struct GovernanceWarningRow {
     pub example_reason: String,
 }
 
-// Why: grouped by all three dimensions at once so a caller can re-aggregate to
-// whichever one it wants without a second round trip. The combinations are
-// bounded by the policy count times the tool count, not by traffic.
 pub async fn list_governance_warnings(
     pool: &PgPool,
     since: Option<chrono::DateTime<chrono::Utc>>,
@@ -156,9 +151,6 @@ pub async fn list_governance_warnings(
     .await
 }
 
-// Why: kept separate from the trace listing query so `trace list --decision`
-// filters an existing result set rather than reshaping the trace query, which
-// already unions four tables for every listing.
 pub async fn list_trace_ids_with_decision(
     pool: &PgPool,
     decision: &str,

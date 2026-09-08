@@ -11,12 +11,10 @@ use std::path::Path;
 use super::frontmatter::parse_skill_frontmatter;
 use super::{FrontmatterExtra, MarketplaceExtra, MarketplaceItem, McpServerEntry};
 
-pub(super) fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
-    let Ok(rd) = std::fs::read_dir(dir) else {
-        return Vec::new();
-    };
+pub(super) fn list_skills(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
+    let rd = super::read_dir_optional(dir)?;
     let mut out = Vec::new();
-    for entry in rd.flatten() {
+    for entry in rd {
         let name_os = entry.file_name();
         let Some(id) = name_os.to_str() else {
             continue;
@@ -24,11 +22,17 @@ pub(super) fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
         if id.starts_with('.') {
             continue;
         }
-        if !entry.file_type().ok().is_some_and(|t| t.is_dir()) {
+        if !entry.file_type()?.is_dir() {
             continue;
         }
         let skill_md = entry.path().join("SKILL.md");
-        let body = std::fs::read_to_string(&skill_md).ok();
+        let body = match super::read_text(&skill_md) {
+            Ok(body) => Some(body),
+            Err(e) => {
+                out.push(MarketplaceItem::failed(id, &entry.path(), &e));
+                continue;
+            },
+        };
         let (frontmatter_name, summary) = body
             .as_deref()
             .map_or((None, None), parse_skill_frontmatter);
@@ -51,20 +55,19 @@ pub(super) fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
             children: Vec::new(),
             plugins: Vec::new(),
             extra,
+            error: None,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
-    out
+    Ok(out)
 }
 
-pub(super) fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
-    let Ok(rd) = std::fs::read_dir(dir) else {
-        return Vec::new();
-    };
+pub(super) fn list_agents(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
+    let rd = super::read_dir_optional(dir)?;
     let mut out = Vec::new();
-    for entry in rd.flatten() {
+    for entry in rd {
         let path = entry.path();
-        if !entry.file_type().ok().is_some_and(|t| t.is_file()) {
+        if !entry.file_type()?.is_file() {
             continue;
         }
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
@@ -73,7 +76,13 @@ pub(super) fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
         if path.extension().and_then(|e| e.to_str()) != Some("md") {
             continue;
         }
-        let body = std::fs::read_to_string(&path).ok();
+        let body = match super::read_text(&path) {
+            Ok(body) => Some(body),
+            Err(e) => {
+                out.push(MarketplaceItem::failed(stem, &path, &e));
+                continue;
+            },
+        };
         let (frontmatter_name, summary) = body
             .as_deref()
             .map_or((None, None), parse_skill_frontmatter);
@@ -96,10 +105,11 @@ pub(super) fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
             children: Vec::new(),
             plugins: Vec::new(),
             extra,
+            error: None,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
-    out
+    Ok(out)
 }
 
 pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
@@ -131,6 +141,7 @@ pub(super) fn list_artifacts() -> Vec<MarketplaceItem> {
                 children: Vec::new(),
                 plugins: record.plugins,
                 extra: MarketplaceExtra::None,
+                error: None,
             }
         })
         .collect();
@@ -158,8 +169,6 @@ pub(super) fn list_registry_mcp(
             homepage: None,
             change: None,
             children: Vec::new(),
-            // Why: deliberately unowned: the registry snapshot is not per-plugin,
-            // and `mark_shared_mcp` already models multi-plugin membership.
             plugins: Vec::new(),
             extra: MarketplaceExtra::Mcp(McpServerEntry {
                 proxy_url: Some(proxy_url),
@@ -171,6 +180,7 @@ pub(super) fn list_registry_mcp(
                     .clone()
                     .or_else(|| Some("http".to_owned())),
             }),
+            error: None,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));

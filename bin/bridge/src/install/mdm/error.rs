@@ -7,6 +7,20 @@ use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MdmError {
+    #[error("policy partially completed {completed:?}; {source}")]
+    Partial {
+        completed: super::MdmApplication,
+        #[source]
+        source: Box<Self>,
+    },
+    #[error("invalid policy configuration: {0}")]
+    InvalidConfig(String),
+    #[error(transparent)]
+    Config(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
+    #[error(transparent)]
+    Store(#[from] crate::config::store::ConfigStoreError),
     #[error("{action} {path}: {source}")]
     Io {
         action: &'static str,
@@ -31,16 +45,6 @@ pub enum MdmError {
     InsecureGateway { gateway: String },
     #[error("--apply on {os} must be run from a {os} binary")]
     WrongHostOs { os: &'static str },
-    #[cfg(target_os = "macos")]
-    #[error(
-        "{source} — re-run `{binary} install --apply` and approve the authorization prompt, or \
-         use `--apply-mobileconfig` for the System-Settings/MDM path."
-    )]
-    ApplyElevation {
-        binary: &'static str,
-        #[source]
-        source: crate::install::elevate::ElevationError,
-    },
     #[cfg(target_os = "macos")]
     #[error(transparent)]
     Elevation(#[from] crate::install::elevate::ElevationError),

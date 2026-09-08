@@ -138,10 +138,6 @@ fn resolve_content_types(
         ));
     };
 
-    // Why: `split(',')` yields one empty element for an empty string rather
-    // than an empty Vec, so without dropping empties the guard below never
-    // fires and `--content-types ""` writes a template bound to a single
-    // empty-string content type.
     let content_types: Vec<String> = content_types
         .into_iter()
         .filter(|s| !s.is_empty())

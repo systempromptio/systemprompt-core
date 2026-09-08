@@ -5,7 +5,7 @@
 
 use systemprompt_identifiers::{PluginId, SessionId};
 
-use crate::auth::{self, ChainError, plugin_oauth};
+use crate::auth::{self, plugin_oauth};
 use crate::config;
 use crate::gateway::GatewayClient;
 use crate::gateway::errors::GatewayError;
@@ -27,21 +27,9 @@ pub async fn check_mint_jwt(
             ));
             Some(out)
         },
-        Err(ChainError::PreferredTransient { provider, source }) => {
-            checks.push(Check::fail(
-                "mint JWT",
-                format!("preferred provider `{provider}` failed transiently: {source}"),
-            ));
-            None
-        },
-        Err(ChainError::NoneSucceeded) => {
-            checks.push(Check::fail(
-                "mint JWT",
-                format!(
-                    "no provider in the chain succeeded — run `{} login`",
-                    crate::brand::brand().binary_name
-                ),
-            ));
+        Err(e) => {
+            checks.push(Check::fail("mint JWT", e.exit_report().1));
+
             None
         },
     }
@@ -102,17 +90,30 @@ pub async fn check_whoami(
 }
 
 pub fn check_pinned_pubkey() -> Check {
-    if config::pinned_pubkey().is_some() {
-        Check::ok(
+    match config::pinned_pubkey_state() {
+        Err(e) => Check::fail("manifest pubkey", e.to_string()),
+        Ok(config::PinnedPubkeyState::Pinned { source, .. }) => Check::ok(
             "manifest pubkey pinned",
-            "signed-manifest verification will reject pubkey rotation",
-        )
-    } else {
-        Check::warn(
+            format!(
+                "from the {}; signed-manifest verification will reject pubkey rotation",
+                source.label()
+            ),
+        ),
+        Ok(config::PinnedPubkeyState::StaleForGateway {
+            pinned_for,
+            current,
+        }) => Check::fail(
+            "manifest pubkey pinned",
+            format!(
+                "config-file pin was learned for {pinned_for} but the gateway is {current}; it \
+                 blocks sync until explicitly replaced with `install --apply --pubkey <base64>`"
+            ),
+        ),
+        Ok(config::PinnedPubkeyState::Unpinned) => Check::warn(
             "manifest pubkey pinned",
             "no pinned pubkey — first sync needs `--allow-tofu` or `install --apply --pubkey \
              <b64>`",
-        )
+        ),
     }
 }
 

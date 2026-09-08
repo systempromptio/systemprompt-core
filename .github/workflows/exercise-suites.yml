@@ -49,11 +49,9 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      # cargo-fuzz needs nightly; rust-toolchain.toml pins the workspace
-      # nightly, so the plain toolchain action resolves the same channel.
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2026-06-03
+      # cargo-fuzz needs nightly; `rustup show` installs the nightly that
+      # rust-toolchain.toml pins, so no separate channel is requested here.
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -110,7 +108,7 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
@@ -137,7 +135,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates/tests/loadtest

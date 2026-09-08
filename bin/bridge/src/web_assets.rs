@@ -91,9 +91,6 @@ pub fn render_index_from(source: &str) -> String {
         .replace("__LOGO_SVG__", brand.assets.logo_svg)
         .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
         .replace("__PLATFORM__", PLATFORM_SLUG);
-    // Why: both of these have to land before the module scripts run — the
-    // brand tokens so the first paint is already branded, and the force-dark
-    // flag so `theme.js` never resolves the OS preference in the first place.
     let mut head = String::new();
     if !brand.assets.theme_css.is_empty() {
         head.push_str(&format!(

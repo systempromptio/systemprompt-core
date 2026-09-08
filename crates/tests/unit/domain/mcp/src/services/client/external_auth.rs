@@ -153,3 +153,68 @@ fn static_headers_reject_invalid_value() {
     let err = static_outbound_headers(&statics, "srv").expect_err("invalid value rejected");
     assert!(err.to_string().contains("invalid value"));
 }
+
+#[tokio::test]
+async fn fetch_bearer_authenticates_the_broker() {
+    const SECRET: &str = "test-broker-credential";
+    if std::env::var("MCP_CREDENTIAL_BROKER_SECRET").as_deref() != Ok(SECRET) {
+        let result = std::process::Command::new(std::env::current_exe().expect("test executable"))
+            .args([
+                "--exact",
+                "services::client::external_auth::fetch_bearer_authenticates_the_broker",
+                "--nocapture",
+            ])
+            .env("MCP_CREDENTIAL_BROKER_SECRET", SECRET)
+            .output()
+            .expect("run with isolated broker environment");
+        assert!(
+            result.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
+        return;
+    }
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/token"))
+        .and(header("authorization", "Bearer employee-token"))
+        .and(header("x-systemprompt-credential-broker", SECRET))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({"access_token":"provider-token"})),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let bearer = fetch_external_bearer(
+        &format!("{}/token", server.uri()),
+        "employee-token",
+        "provider",
+    )
+    .await
+    .expect("broker authenticated");
+    assert_eq!(bearer, "provider-token");
+}
+
+#[tokio::test]
+async fn fetch_bearer_does_not_forward_credentials_to_redirects() {
+    let accessor = MockServer::start().await;
+    let destination = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token":"stolen"})),
+        )
+        .expect(0)
+        .mount(&destination)
+        .await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(302).insert_header("location", destination.uri()))
+        .mount(&accessor)
+        .await;
+    let error = fetch_external_bearer(&accessor.uri(), "employee-token", "provider")
+        .await
+        .expect_err("redirect refused");
+    assert!(error.to_string().contains("302"));
+}

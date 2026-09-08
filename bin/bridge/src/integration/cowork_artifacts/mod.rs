@@ -43,10 +43,6 @@ impl HostSync for CoworkArtifactsSync {
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        // Why: staged first and unconditionally. The workspace bundle is what
-        // the setup skills install from, and it resolves its own path, so it
-        // must not ride on `resolve_artifacts_dir` — that returns `None` until
-        // Cowork has created a session dir, which a fresh install has not.
         workspace_sink::stage_bundle(&ctx.manifest.artifacts)?;
         let Some(dir) = emit::resolve_artifacts_dir() else {
             return Ok(());

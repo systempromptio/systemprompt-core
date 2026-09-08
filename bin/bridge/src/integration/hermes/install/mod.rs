@@ -50,9 +50,6 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
     install_profile_into(generated_path, &config::hermes_home())
 }
 
-// Why: public because the crate denies `unsafe_code`, so a test cannot set the
-// `HERMES_HOME` variable the env-resolving path goes through. This is the same
-// code with the directory passed in.
 #[doc(hidden)]
 pub fn install_profile_into(
     generated_path: &str,
@@ -62,8 +59,6 @@ pub fn install_profile_into(
     let mut source: Value = serde_yaml::from_str(&source_text)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-    // Why: lift the API key out of the generated artifact and into .env, then
-    // remove the marker so only the `model` block reaches config.yaml.
     let api_key = take_api_key_marker(&mut source);
     if let Some(key) = api_key {
         write_env_key(&config::env_path_in(hermes_home), config::ENV_API_KEY, &key)?;
@@ -80,8 +75,6 @@ pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
     remove_profile_from(&config::hermes_home())
 }
 
-// Why: public as the counterpart to `install_profile_into`, for the same
-// reason.
 #[doc(hidden)]
 pub fn remove_profile_from(hermes_home: &std::path::Path) -> std::io::Result<ProfileRemoval> {
     let target = config::config_yaml_path_in(hermes_home);
@@ -107,8 +100,6 @@ fn take_api_key_marker(source: &mut Value) -> Option<String> {
     }
 }
 
-// Why: `.env` is a flat KEY=VALUE file, not YAML — a targeted line replace
-// preserves every other secret the user keeps there.
 fn write_env_key(path: &std::path::Path, key: &str, value: &str) -> std::io::Result<()> {
     let existing = match std::fs::read_to_string(path) {
         Ok(s) => s,

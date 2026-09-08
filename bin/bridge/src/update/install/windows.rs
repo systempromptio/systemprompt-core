@@ -14,8 +14,6 @@ use std::path::{Path, PathBuf};
 use crate::update::error::UpdateError;
 use crate::update::install::{probe_writable, running_exe};
 
-// Why: the displaced binary keeps this suffix until the next start, when the
-// lock the previous process held is finally gone.
 const OLD_SUFFIX: &str = ".old";
 
 pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
@@ -32,8 +30,6 @@ pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
 
     std::fs::rename(&target, &displaced).map_err(|e| UpdateError::io(&target, e))?;
 
-    // Why: any failure past this point leaves no usable binary at `target`, so
-    // the running one goes back rather than leaving a half-updated install.
     if let Err(e) = std::fs::copy(staged, &target).map_err(|e| UpdateError::io(&target, e)) {
         if let Err(restore) = std::fs::rename(&displaced, &target) {
             tracing::error!(
@@ -55,8 +51,6 @@ fn displaced_path(target: &Path) -> PathBuf {
     PathBuf::from(name)
 }
 
-// Why: best-effort — on the first run after a swap the old process may still be
-// exiting, in which case the delete fails and the next start retries it.
 pub(super) fn sweep_leftovers() {
     let Ok(exe) = running_exe() else {
         return;

@@ -17,13 +17,6 @@ use systemprompt_models::wire::gemini;
 use super::super::canonical_response::CanonicalResponse;
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome, PreparedBody};
 
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use systemprompt_models::wire::gemini::{
-        buffered_defect, build_request_body, parse_response, sse_to_canonical_events,
-    };
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GeminiOutbound;
 
@@ -43,10 +36,6 @@ impl OutboundAdapter for GeminiOutbound {
         let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
         let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
 
-        // Why: Vertex refuses an API key outright and wants an OAuth token on the
-        // bearer header; the public Gemini endpoint takes the key on
-        // x-goog-api-key. Same wire and body, different credential header, and
-        // this applies to the streaming path too -- it shares this request.
         let base = super::http_client().post(&url);
         let base = if ctx.api_key_is_bearer {
             base.header("authorization", format!("Bearer {}", ctx.api_key))

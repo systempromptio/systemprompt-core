@@ -14,17 +14,12 @@ use super::super::config::{
 use super::super::probe::write_dotted;
 use crate::integration::host_app::ProfileGenInputs;
 
-// Why: a top-level key the installer strips before merging, so the static API
-// key rides along with the generated profile but never lands in config.yaml.
 pub(super) const API_KEY_MARKER: &str = "_systemprompt_openai_api_key";
 
 pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> std::io::Result<String> {
     let gateway = inputs.gateway_base_url.trim_end_matches('/');
 
     let mut value = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
-    // Why: the named `providers:` entry carries the endpoint, and
-    // `model.provider` selects it. Both halves are needed — an entry nothing
-    // points at is dead config, and a selection with no entry fails resolution.
     write_dotted(
         &mut value,
         MODEL_PROVIDER,

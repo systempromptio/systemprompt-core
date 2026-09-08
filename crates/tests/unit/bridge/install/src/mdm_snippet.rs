@@ -10,9 +10,9 @@ fn windows_snippet_disables_local_dev_mcp() {
     );
 }
 
-/// Egress is unrestricted by default: pinning the allowlist to loopback left
-/// agents with no internet access at all, so the key is now an opt-in that the
-/// snippet only shows commented out.
+// Egress is unrestricted by default: pinning the allowlist to loopback left
+// agents with no internet access at all, so the key is now an opt-in that the
+// snippet only shows commented out.
 #[test]
 fn windows_snippet_leaves_cowork_egress_unrestricted() {
     let text = mdm_snippet(Os::Windows, Some("https://gateway.example"));
@@ -38,6 +38,10 @@ fn windows_snippet_embeds_brand_default_workspace_folder() {
     assert!(
         !text.contains("{workspace}"),
         "the {{workspace}} placeholder must be substituted, not left literal: {text}"
+    );
+    assert!(
+        text.contains(r#"{\"path\":\"~\",\"isDefaultSelected\":false}"#),
+        "the snippet must allow home as well, or the Code tab refuses every other folder: {text}"
     );
 }
 

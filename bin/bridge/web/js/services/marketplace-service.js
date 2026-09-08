@@ -52,13 +52,22 @@ export function createListingFetcher(onChange = () => {}) {
         set("idle", { reason: "signed-out", listing: null });
         return;
       }
-      if (self.state === "loading") { return; }
       // A sync that produced an identical summary string still changes what is
       // on disk, so a run finishing always refetches rather than trusting the
       // flattened one-line summary to have moved.
       const syncJustFinished = syncing && !snap.sync_in_flight;
       syncing = !!snap.sync_in_flight;
-      const unchanged = self.state === "ok" && fingerprint(snap) === lastFingerprint;
+      // Why: a request already in flight is left alone, except when a sync has
+      // just landed. The request was issued the instant the previous sync
+      // finished, while the post-sync re-check ran; if its reply was lost the
+      // pane sat on the skeleton until the window closed, because every later
+      // snapshot bailed out here.
+      if (self.state === "loading" && !syncJustFinished) { return; }
+      // Why: the marker is keyed on the listing, not on the state machine. A
+      // failed sync leaves `state` at "error" while the listing on disk is
+      // unchanged; refetching on every snapshot then repainted the pane on each
+      // 30 s host probe.
+      const unchanged = lastFingerprint !== null && fingerprint(snap) === lastFingerprint;
       if (unchanged && !syncJustFinished) { return; }
       await run(snap);
     },
@@ -76,7 +85,11 @@ export function createListingFetcher(onChange = () => {}) {
 
   async function run(snap) {
     lastSnapshot = snap;
-    set("loading", { error: null, reason: null });
+    // Why: a pane that already shows a listing keeps showing it while the next
+    // one loads. Dropping to "loading" first blanked the list and the counts
+    // for the round-trip, which reads as a flash.
+    if (self.listing) { set("ok", { error: null }); }
+    else { set("loading", { error: null, reason: null }); }
     try {
       const listing = await bridge.marketplaceList();
       // The marker only advances on a successful fetch. Advancing it up front

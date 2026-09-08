@@ -5,7 +5,7 @@ use systemprompt_api::services::gateway::protocol::canonical::CanonicalContent;
 use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
-use systemprompt_api::services::gateway::stream_tap::test_api::{
+use systemprompt_api::services::gateway::stream_tap::accumulator::{
     TapState, accumulate_event, extract_summary, snapshot,
 };
 use systemprompt_test_fixtures as fixtures;

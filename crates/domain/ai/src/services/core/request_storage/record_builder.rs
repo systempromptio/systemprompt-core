@@ -88,8 +88,6 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     builder.build()
 }
 
-// Why: a turn that reported no counts at all -- a failed request -- must leave
-// the token columns NULL, so absence is distinguished from a genuine zero.
 fn response_usage(response: &AiResponse) -> Option<CanonicalUsage> {
     let reported = [
         response.input_tokens,

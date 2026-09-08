@@ -62,9 +62,6 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     ) {
         Ok(summary) => {
             stdio::print_str(&install::render_install_summary(&summary));
-            // Why: repairs the profiles that have gone stale and leaves
-            // hosts that were never set up alone, so the stale-secret
-            // remediation can keep naming this command.
             if apply {
                 let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
                 let reports = ctx.block_on(crate::integration::reapply::reapply_stale_profiles(
@@ -72,10 +69,6 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
                 ));
                 stdio::print_str(&crate::integration::reapply::render(&reports));
             }
-            // Why: enrolment is deliberately independent of --apply. --apply
-            // lands MDM policy and the scheduled task and only *repairs*
-            // profiles that already exist; --host is how a client that was
-            // never set up gets one, which is the whole Linux install path.
             host_selection.map_or(ExitCode::SUCCESS, |selection| {
                 enrol_selected(ctx, &selection)
             })
@@ -87,9 +80,6 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     }
 }
 
-// Why: `--hosts all` and a repeated `--host` are the same request expressed
-// two ways; naming both on one line is a contradiction rather than a union, so
-// it is refused instead of guessed at.
 fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, String> {
     let ids = parse_multi_flag(args, "--host");
     let all = parse_multi_flag(args, "--hosts");

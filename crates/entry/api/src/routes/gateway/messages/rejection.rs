@@ -5,8 +5,7 @@
 
 use axum::http::StatusCode;
 use bytes::Bytes;
-use systemprompt_ai::models::RequestStatus;
-use systemprompt_ai::models::ai_request_record::AiRequestRecord;
+use systemprompt_ai::models::{AiRequestRecord, RequestKind, RequestStatus};
 use systemprompt_ai::repository::{
     AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
 };
@@ -14,13 +13,6 @@ use systemprompt_identifiers::AiRequestId;
 
 use super::extract::RejectionPartial;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn persist_rejection(
     repos: &crate::services::gateway::GatewayRepositories,
     ai_request_id: &AiRequestId,
@@ -38,13 +30,6 @@ pub async fn persist_rejection(
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_rejection_record(
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,
@@ -65,7 +50,11 @@ pub fn build_rejection_record(
     });
     let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id)
         .streaming(partial.is_streaming)
+        .request_kind(RequestKind::classify(partial.max_tokens))
         .rejected();
+    if let Some(cs) = &partial.client_session_id {
+        builder = builder.client_session_id(cs.clone());
+    }
     if let Some(instance_id) = systemprompt_logging::instance_id() {
         builder = builder.instance_id(instance_id.clone());
     }

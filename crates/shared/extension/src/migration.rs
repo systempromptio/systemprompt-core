@@ -17,10 +17,6 @@ pub struct Migration {
     pub sql: &'static str,
     pub down: Option<&'static str>,
     pub no_transaction: bool,
-    // Why: a spent slot — the migration shipped, its file was later deleted,
-    // and established databases still carry its tracking row. Declaring it
-    // keeps the number from being refilled. Never executed, never recorded,
-    // and never checksummed: the SQL behind the stored checksum is gone.
     pub tombstone: bool,
 }
 
@@ -66,10 +62,6 @@ impl Migration {
         }
     }
 
-    // Why: emitted by `build.rs` for a `NNN[-MMM]_<name>.tombstone` file, to
-    // declare `version` permanently spent without any SQL. `name` is the
-    // deleted migration's own name, so a reused slot can still be reported
-    // against the file that originally occupied it.
     #[must_use]
     pub fn tombstone(version: u32, name: impl Into<String>) -> Self {
         Self {
@@ -82,8 +74,6 @@ impl Migration {
         }
     }
 
-    // Why: never call this on a tombstone — its `sql` is empty, so the hash
-    // says nothing about the migration whose checksum the database recorded.
     #[must_use]
     pub fn checksum(&self) -> String {
         use std::hash::{Hash, Hasher};

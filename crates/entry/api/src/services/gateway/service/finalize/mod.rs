@@ -27,10 +27,8 @@ use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 
-pub(super) mod safety;
+pub mod safety;
 
-#[cfg(feature = "test-api")]
-pub use self::safety::dedupe_findings;
 pub(in crate::services::gateway) use self::safety::{
     request_finding_blocks, run_request_safety_scan, run_response_safety_scan,
 };
@@ -56,13 +54,6 @@ pub(super) struct FinalizeCtx {
     pub(super) stream_usage: bool,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn apply_system_prompt_override(
     config: &GatewayConfig,
     provider: &ProviderId,
@@ -164,8 +155,6 @@ async fn finalize_buffered(
         &safety,
     )
     .await;
-    // Why: warn mode still scans and still persists, so the report shows what
-    // the response block list would have caught. It only skips the refusal.
     let blocked = findings
         .iter()
         .find(|f| !safety.mode.is_warn() && safety.block_response_categories.contains(&f.category))
@@ -282,13 +271,6 @@ async fn buffered_completion(
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn attach_request_id(mut response: Response<Body>, id: &AiRequestId) -> Response<Body> {
     if let Ok(v) = HeaderValue::from_str(id.as_str()) {
         response.headers_mut().insert(REQUEST_ID_HEADER, v);

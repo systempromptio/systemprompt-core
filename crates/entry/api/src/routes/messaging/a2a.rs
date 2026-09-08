@@ -1,6 +1,8 @@
-//! The A2A backend leg of the messaging pipeline: mint a per-user bearer, build
-//! the blocking `message/send` request the proxy forwards to the agent service,
-//! run it through [`ProxyEngine`], and extract the agent's reply text.
+//! The A2A backend leg of the messaging pipeline.
+//!
+//! Mints a per-user bearer, builds the blocking `message/send` request the
+//! proxy forwards to the agent service, runs it through [`ProxyEngine`], and
+//! extracts the agent's reply text.
 //!
 //! This is the only part of dispatch that speaks the A2A wire protocol; the
 //! orchestration in [`super`] stays platform- and protocol-agnostic.
@@ -30,11 +32,7 @@ use super::{MessagingError, MessagingInbound};
 
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
-// Why: the sender drives the agent with the permissions their systemprompt
-// account actually holds. A hardcoded `a2a`-only scope cannot reach an
-// admin-scoped MCP server, so every downstream tool call would fail; granting
-// `admin` unconditionally would hand it to anyone who can type in Slack.
-pub(super) fn permissions_for(roles: &[String]) -> Vec<Permission> {
+pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
     let held = if roles.iter().any(|role| role == BaseRoles::ADMIN) {
         Permission::Admin
     } else {
@@ -61,9 +59,6 @@ pub(super) fn mint_a2a_token(
     authed: &AuthenticatedUser,
     session_id: &SessionId,
 ) -> Result<String, MessagingError> {
-    // Why: `mcp` rides alongside `a2a` because the agent forwards this very
-    // token to the MCP servers it is assigned; a token audienced only for a2a
-    // is rejected at the MCP door before any authz rule is consulted.
     let config = JwtConfig {
         permissions: authed.permissions.clone(),
         audience: vec![JwtAudience::A2a, JwtAudience::Mcp],
@@ -175,7 +170,7 @@ pub(super) async fn run_agent(
     Ok(reply_text(parsed.result.as_ref()))
 }
 
-pub(super) fn reply_text(task: Option<&Task>) -> String {
+pub fn reply_text(task: Option<&Task>) -> String {
     let Some(task) = task else {
         return String::new();
     };

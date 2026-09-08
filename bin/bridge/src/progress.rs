@@ -76,8 +76,6 @@ impl SyncProgressSink {
         }
     }
 
-    // Why: deliberately infallible — progress reporting must never be able to
-    // fail a sync, so a poisoned lock drops the update.
     pub fn report(&self, progress: &SyncProgress) {
         let sink = self
             .inner

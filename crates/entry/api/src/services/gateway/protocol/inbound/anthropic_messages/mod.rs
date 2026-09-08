@@ -16,16 +16,10 @@ use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
 use super::{InboundAdapter, InboundParseError};
 
-mod parse;
-mod render;
+pub mod parse;
+pub mod render;
 
 pub use systemprompt_models::wire::anthropic::content_to_anthropic_block;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::parse::parse as parse_request;
-    pub use super::render::{render_event_frame, render_response_value, render_terminal_frames};
-}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnthropicMessagesInbound;
@@ -54,9 +48,6 @@ impl InboundAdapter for AnthropicMessagesInbound {
         render::render_event_frame(event, model)
     }
 
-    // Why: the terminal frame states the turn's usage, and only the tap's
-    // accumulated snapshot holds it -- the canonical MessageStop carries a
-    // stop reason and nothing else.
     fn render_terminal_event(
         &self,
         event: &CanonicalEvent,

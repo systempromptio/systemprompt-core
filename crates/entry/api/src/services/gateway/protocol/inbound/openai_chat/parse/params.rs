@@ -13,8 +13,6 @@ use super::super::super::super::canonical::{
 };
 use super::super::super::InboundParseError;
 
-// Why: rejection detail for a `tool_choice` outside the Chat Completions
-// grammar.
 const TOOL_CHOICE_EXPECTED: &str =
     "expected \"none\", \"auto\", \"required\", or an object with type function";
 
@@ -44,9 +42,6 @@ pub(super) fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     })
 }
 
-// Why: Chat Completions accepts three strings or a `function` object; anything
-// else is a client bug that the upstream API rejects, so it must not reach
-// dispatch as a silently dropped field.
 pub(super) fn parse_tool_choice(
     request: &Value,
 ) -> Result<Option<CanonicalToolChoice>, InboundParseError> {
@@ -85,8 +80,6 @@ fn parse_present_tool_choice(value: &Value) -> Result<CanonicalToolChoice, Inbou
 
 pub(super) fn parse_reasoning_effort(s: &str) -> Option<ReasoningEffort> {
     match s {
-        // Why: `minimal` is a valid OpenAI value with no canonical tier; folding
-        // it into Low keeps the caller's intent instead of dropping the field.
         "minimal" | "low" => Some(ReasoningEffort::Low),
         "medium" => Some(ReasoningEffort::Medium),
         "high" => Some(ReasoningEffort::High),

@@ -4,7 +4,9 @@
 //! that place a point on the canvas: get the range wrong and every series is
 //! drawn confidently at the wrong height, with nothing to show for it.
 
-use systemprompt_mcp::test_api::{Scale, ScaleKind, for_axis, format_value, linear};
+use systemprompt_mcp::services::ui_renderer::templates::chart_svg::scale::{
+    Scale, ScaleKind, for_axis, format_value, linear,
+};
 use systemprompt_models::artifacts::chart::ChartDataset;
 
 fn data(values: &[f64]) -> Vec<ChartDataset> {

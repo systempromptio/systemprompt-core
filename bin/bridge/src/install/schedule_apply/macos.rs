@@ -10,7 +10,6 @@ use std::process::Command;
 use super::{InstallError, ScheduleRemoval, home, write};
 use crate::schedule::{self, Os};
 
-// Why: launchd addresses the per-user domain as `gui/<uid>`.
 fn gui_domain() -> String {
     #![allow(unsafe_code, reason = "libc::getuid is the only way to read the uid")]
     // SAFETY: getuid() is always safe; it reads the caller's real uid and cannot
@@ -32,12 +31,7 @@ pub(super) fn register(
     write(&path, rendered)?;
 
     let domain = gui_domain();
-    // Why: launchctl fails bootout with "not loaded" on a first install, which
-    // is expected and not fatal.
-    _ = Command::new("launchctl")
-        .args(["bootout", &domain])
-        .arg(&path)
-        .status();
+    bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
     let status = Command::new("launchctl")
         .args(["bootstrap", &domain])
         .arg(&path)
@@ -63,10 +57,7 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
     let path = agents_dir()?.join(format!("{label}.plist"));
     write(&path, rendered)?;
     let domain = gui_domain();
-    _ = Command::new("launchctl")
-        .args(["bootout", &domain])
-        .arg(&path)
-        .status();
+    bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
     let status = Command::new("launchctl")
         .args(["bootstrap", &domain])
         .arg(&path)
@@ -90,10 +81,9 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
     if !path.exists() {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
-    _ = Command::new("launchctl")
-        .args(["bootout", &gui_domain()])
-        .arg(&path)
-        .status();
+    if let Err(e) = bootout(&gui_domain(), label) {
+        return ScheduleRemoval::Failed(e);
+    }
     match fs::remove_file(&path) {
         Ok(()) => ScheduleRemoval::Removed(label.to_owned()),
         Err(e) => ScheduleRemoval::Failed(format!("remove {}: {e}", path.display())),
@@ -132,12 +122,28 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     if !path.exists() {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
-    _ = Command::new("launchctl")
-        .args(["bootout", &gui_domain()])
-        .arg(&path)
-        .status();
+    if let Err(e) = bootout(&gui_domain(), label) {
+        return ScheduleRemoval::Failed(e);
+    }
     match fs::remove_file(&path) {
         Ok(()) => ScheduleRemoval::Removed(label.to_owned()),
         Err(e) => ScheduleRemoval::Failed(format!("remove {}: {e}", path.display())),
     }
+}
+
+fn bootout(domain: &str, label: &str) -> Result<(), String> {
+    let target = format!("{domain}/{label}");
+    let output = Command::new("launchctl")
+        .args(["bootout", &target])
+        .output()
+        .map_err(|e| format!("launchctl bootout {target}: {e}"))?;
+    // Why: launchctl reports ESRCH (3) when the service target is not loaded.
+    if output.status.success() || output.status.code() == Some(3) {
+        return Ok(());
+    }
+    Err(format!(
+        "launchctl bootout {target}: {}: {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr).trim()
+    ))
 }

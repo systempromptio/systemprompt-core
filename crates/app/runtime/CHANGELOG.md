@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Changed
+
+- `AppContextBuilder` initialises the global `GovernanceEngine` while it builds the context, so a deployment whose governance rules do not load fails at boot rather than on the first decision. `RuntimeError` gained a transparent `Governance` variant carrying `GovernanceEngineError`.
+
 ## [0.45.0] - 2026-09-03
 
 ### Removed

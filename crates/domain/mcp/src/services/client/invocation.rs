@@ -21,12 +21,7 @@ pub async fn execute_tool_call(
     arguments: Option<serde_json::Value>,
     elicitation: Option<SharedElicitationDelegate>,
 ) -> McpDomainResult<systemprompt_models::CallToolResult> {
-    // Why: rmcp's default is `ProtocolVersion::LATEST`, which is 2025-11-25 —
-    // BELOW the 2026-07-28 that MRTR requires. A server refuses to hand an
-    // `InputRequiredResult` to a peer that negotiated lower, so with the
-    // default every `input_required` round became an error and no tool could
-    // ever ask a human for anything through this client. Servers that do not
-    // speak 2026-07-28 negotiate down as usual.
+    // Why: rmcp 3.1.3 defaults to 2025-11-25; MRTR requires MCP 2026-07-28.
     let client_info = ClientInfo::new(
         capabilities::client_capabilities(elicitation.is_some()),
         Implementation::new("systemprompt-ai-mcp-client", "1.0.0"),
@@ -89,10 +84,8 @@ where
         CallToolResponse::Task(created) => {
             tasks::poll_task_to_completion(client, server, created).await
         },
-        // Why: rmcp's MRTR driver owns the input_required loop, but its retry
-        // assembly is private, so the round is re-entered through `call_tool`;
-        // SEP-2322 rounds are stateless on the server, so the extra initial
-        // round-trip is harmless.
+        // Why: rmcp's MRTR retry assembly is private; SEP-2322 rounds are stateless,
+        // so re-entering `call_tool` can repeat the initial round-trip.
         CallToolResponse::InputRequired(_) => client.call_tool(params).await.map_err(|e| {
             crate::error::McpDomainError::ToolExecutionFailed(format!("MCP tool call failed: {e}"))
         }),

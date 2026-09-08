@@ -5,17 +5,13 @@
 
 use super::SyncError;
 
-// Why: Claude Desktop only reads org-plugins from a root-owned system path on
-// macOS, and the GUI had no way to create it — sync failed closed telling a
-// double-click user to run `sudo … install --apply`, which also left the MCP
-// registry empty. This raises the same single administrator prompt Windows
-// raises, once per process so a declined prompt does not re-fire from auto-sync
-// or a watch loop, and hands the directory to the invoking user so later
-// unelevated syncs can write it.
+// Why: Claude Desktop on macOS scans org-plugins only under the root-owned
+// system directory.
 #[cfg(target_os = "macos")]
 pub(super) async fn provision_system_org_plugins(
     bridge: &crate::context::BridgeContext,
     path: &std::path::Path,
+    operation: std::sync::Arc<tokio::sync::OwnedMutexGuard<()>>,
 ) -> Result<(), SyncError> {
     let missing = || SyncError::OrgPluginsNeedElevation {
         bin: crate::brand::brand().binary_name,
@@ -31,14 +27,19 @@ pub(super) async fn provision_system_org_plugins(
     if user.is_empty() || user == "root" {
         return Err(missing());
     }
-    let quoted = path.display().to_string().replace('"', "\\\"");
-    let script =
-        format!("set -e\nmkdir -p \"{quoted}\"\n/usr/sbin/chown -R \"{user}\" \"{quoted}\"\n");
+    let quote = crate::install::elevation_script::shell_quote;
+    let script = format!(
+        "set -e\nmkdir -p {}\n/usr/sbin/chown -R {} {}\n",
+        quote(&path.display().to_string()),
+        quote(&user),
+        quote(&path.display().to_string())
+    );
     tracing::info!(
         path = %path.display(),
         "requesting one-time administrator approval to provision org-plugins for Cowork"
     );
     let outcome = tokio::task::spawn_blocking(move || {
+        let _operation = operation;
         crate::install::elevate::run_privileged(
             &script,
             "Bridge needs administrator privileges to create the Claude Desktop org-plugins folder.",
@@ -47,18 +48,21 @@ pub(super) async fn provision_system_org_plugins(
     .await;
     match outcome {
         Ok(Ok(())) if path.is_dir() => {
+            crate::fsutil::verify_directory_write(path).map_err(|e| {
+                SyncError::Network(format!("verify org-plugins access {}: {e}", path.display()))
+            })?;
             tracing::info!(path = %path.display(), "provisioned system org-plugins directory");
             Ok(())
         },
         Ok(Ok(())) => Err(missing()),
-        Ok(Err(e)) => {
-            tracing::warn!(error = %e, "org-plugins provisioning was not completed");
-            Err(missing())
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "org-plugins provisioning task failed");
-            Err(missing())
-        },
+        Ok(Err(e)) => Err(SyncError::Network(format!(
+            "provision {}: {e}",
+            path.display()
+        ))),
+        Err(e) => Err(SyncError::Network(format!(
+            "provisioning task for {}: {e}",
+            path.display()
+        ))),
     }
 }
 
@@ -70,6 +74,7 @@ pub(super) async fn provision_system_org_plugins(
 pub(super) async fn provision_system_org_plugins(
     _bridge: &crate::context::BridgeContext,
     path: &std::path::Path,
+    _operation: std::sync::Arc<tokio::sync::OwnedMutexGuard<()>>,
 ) -> Result<(), SyncError> {
     Err(SyncError::PathMissing {
         bin: crate::brand::brand().binary_name,

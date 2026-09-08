@@ -47,7 +47,6 @@ impl SlackClient {
         }
     }
 
-    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_base_url(
         http: reqwest::Client,
@@ -62,7 +61,6 @@ impl SlackClient {
         }
     }
 
-    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_users_info_url(mut self, users_info_url: impl Into<String>) -> Self {
         self.users_info_url = users_info_url.into();
@@ -132,8 +130,7 @@ impl SlackClient {
         Self::parse_ok(resp).await.map(|_| ())
     }
 
-    // Why: Slack returns HTTP 200 with `{"ok": false, "error": "..."}` on logical
-    // failures; surface those as errors rather than treating 200 as success.
+    // Why: Slack reports logical failures with HTTP 200 and `ok: false` in JSON.
     async fn parse_ok(resp: reqwest::Response) -> SlackResult<Value> {
         let status = resp.status();
         let payload: Value = resp

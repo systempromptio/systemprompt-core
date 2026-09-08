@@ -61,13 +61,7 @@ pub fn parse_response(
         |parts| (parts_to_content(&parts), code_execution(&parts)),
     );
 
-    // Why: Gemini reports finishReason STOP even when the candidate it just
-    // returned is a functionCall, so the wire's reason cannot tell "finished
-    // talking" from "wants a tool run". Left as EndTurn it renders as
-    // `finish_reason: "stop"`, the client ends the turn, and the call rides
-    // along in the payload unexecuted. The content is the only reliable
-    // signal; MAX_TOKENS still wins, since a call truncated mid-args is not
-    // one the client can run.
+    // Why: Gemini reports `finishReason: STOP` even for a `functionCall` candidate.
     let has_tool_use = content
         .iter()
         .any(|c| matches!(c, CanonicalContent::ToolUse { .. }));
@@ -86,8 +80,6 @@ pub fn parse_response(
     })
 }
 
-// Why: thoughts are summed into output and cached is subtracted from prompt;
-// the module head explains both conventions and why billing depends on them.
 fn usage(meta: Option<GeminiUsageMetadata>) -> CanonicalUsage {
     meta.map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
         input_tokens: u.prompt.saturating_sub(u.cached),
@@ -180,9 +172,6 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
         .collect()
 }
 
-// Why: runs before `parse_response`, which is total and would turn a body
-// carrying nothing into a well-formed empty turn. `None` means the body is
-// worth parsing.
 #[must_use]
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "candidates", "usageMetadata")

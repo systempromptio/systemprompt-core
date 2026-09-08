@@ -11,14 +11,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod complete;
-mod message_text;
+pub mod message_text;
 mod open;
 pub mod payload;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::message_text::flatten_message_content;
-}
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -27,7 +22,8 @@ use anyhow::Result;
 use systemprompt_ai::models::RequestStatus;
 use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_identifiers::{
-    AiRequestId, ClientId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
+    AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
+    UserId,
 };
 use systemprompt_security::policy::types::AccessScope;
 
@@ -48,9 +44,8 @@ pub struct GatewayRequestContext {
     pub session_id: Option<SessionId>,
     pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub client_session_id: Option<ClientSessionId>,
     pub trace_id: Option<TraceId>,
-    // Why: governance policies read the caller's tier; an API key carries no
-    // roles and is therefore `Unknown`.
     pub access_scope: AccessScope,
     pub client_id: Option<ClientId>,
     pub provider: String,
@@ -143,9 +138,6 @@ impl GatewayAudit {
         {
             tracing::warn!(error = %e, "audit fail update failed");
         }
-        // Why: `update_error` writes no usage columns, so a failed row keeps the
-        // zeros it was opened with — say so, or the reader takes them as "nothing
-        // was consumed" when a partial stream may well have been billed upstream.
         tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,

@@ -82,10 +82,6 @@ fn sso_code(
     gateway: Option<&str>,
     no_browser: bool,
 ) -> Result<String, String> {
-    // Why: both SSO paths need a person — one waits on a browser callback, the
-    // other on a pasted code. Detached from a terminal neither can ever
-    // complete, so they would block until the caller gives up rather than
-    // naming the one credential that works unattended.
     if !std::io::stdin().is_terminal() {
         return Err(format!(
             "signing in interactively needs a terminal. Unattended, redeem an \
@@ -124,15 +120,13 @@ fn sso_code(
     extract_code(line.trim())
 }
 
-fn extract_code(pasted: &str) -> Result<String, String> {
+pub fn extract_code(pasted: &str) -> Result<String, String> {
     let pasted = strip_terminal_noise(pasted);
     let pasted = pasted.trim();
     if pasted.is_empty() {
         return Err("nothing pasted".into());
     }
 
-    // Why: first, because the displayed command carries a `--gateway` URL that
-    // a query-string parse would otherwise wander into.
     if let Some(code) = code_after_flag(pasted) {
         return Ok(code);
     }
@@ -161,11 +155,9 @@ fn extract_code(pasted: &str) -> Result<String, String> {
     Err("that URL carries no `code` parameter — paste the code the page displayed".into())
 }
 
-// Why: terminals with bracketed paste enabled wrap the paste in `ESC[200~` /
-// `ESC[201~`. Readline strips those at a shell prompt but nothing strips them
-// from a raw stdin read, so without this the gateway rejects a code the user
-// can see is correct. A non-CSI escape is two characters, hence dropping one.
-fn strip_terminal_noise(pasted: &str) -> String {
+// Why: raw stdin retains terminal bracketed-paste escapes (ESC[200~ /
+// ESC[201~).
+pub fn strip_terminal_noise(pasted: &str) -> String {
     let mut out = String::with_capacity(pasted.len());
     let mut chars = pasted.chars();
     while let Some(c) = chars.next() {
@@ -186,7 +178,7 @@ fn strip_terminal_noise(pasted: &str) -> String {
     out
 }
 
-fn code_after_flag(pasted: &str) -> Option<String> {
+pub fn code_after_flag(pasted: &str) -> Option<String> {
     let mut tokens = pasted.split_whitespace();
     while let Some(token) = tokens.next() {
         if let Some(code) = token.strip_prefix("--code=") {
@@ -199,9 +191,13 @@ fn code_after_flag(pasted: &str) -> Option<String> {
     None
 }
 
-fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
+pub fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
     gateway.map_or_else(
-        || Ok(crate::config::gateway_url_or_default(&crate::config::load())),
+        || {
+            crate::config::load()
+                .map(|cfg| crate::config::gateway_url_or_default(&cfg))
+                .map_err(|e| e.to_string())
+        },
         |raw| ValidatedUrl::try_new(raw.trim()).map_err(|e| format!("--gateway: {e}")),
     )
 }
@@ -226,7 +222,7 @@ fn redeem_code(
     .map_err(|e| e.to_string())
 }
 
-fn default_device_name() -> Option<String> {
+pub fn default_device_name() -> Option<String> {
     std::env::var("HOSTNAME")
         .ok()
         .map(|h| h.trim().to_owned())
@@ -239,12 +235,6 @@ fn default_device_name() -> Option<String> {
         })
 }
 
-// Why: signing in re-mints the credential and can move the gateway, but
-// installed host profiles keep the loopback secret they were written with —
-// see `integration::reapply`. The TTY gate is the load-bearing part here: an
-// interactive sign-in can answer the administrator prompt a managed profile
-// may raise, a scripted one cannot, and must not stall on a dialog nobody is
-// there to see.
 fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
     use std::io::IsTerminal as _;
 
@@ -266,6 +256,3 @@ fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {
         stdio::print_str(&crate::integration::reapply::render(&reports));
     }
 }
-
-#[path = "login_test_api.rs"]
-pub mod test_api;

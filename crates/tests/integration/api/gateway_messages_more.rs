@@ -1,7 +1,7 @@
 //! Integration tests (coverage campaign 2026-07).
 //!
-//! Drives the gateway message-extraction seams re-exported through
-//! `routes::gateway::messages::test_api`: the header parsers, canonical-body
+//! Drives the gateway message-extraction helpers in
+//! `routes::gateway::messages`: the header parsers, canonical-body
 //! reader, conversation-id derivation, pre-dispatch authz enforcement, the
 //! `authenticate` credential dispatcher (API-key + JWT), and the rejection
 //! audit-record builder / persister — none of which are reachable through the
@@ -14,10 +14,16 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use systemprompt_ai::models::RequestStatus;
-use systemprompt_api::routes::gateway::messages::test_api::{
-    ApiKeyPrincipal, AuthedPrincipal, RejectionPartial, authenticate, build_rejection_record,
-    derive_conversation, enforce_authz_pre_dispatch, optional_gateway_conversation_id,
-    persist_rejection, read_gateway_body, require_session_id,
+use systemprompt_api::routes::gateway::messages::auth::{
+    ApiKeyPrincipal, AuthedPrincipal, authenticate,
+};
+use systemprompt_api::routes::gateway::messages::extract::authz::enforce_authz_pre_dispatch;
+use systemprompt_api::routes::gateway::messages::extract::headers::{
+    optional_gateway_conversation_id, read_gateway_body, require_session_id,
+};
+use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
+use systemprompt_api::routes::gateway::messages::rejection::{
+    build_rejection_record, persist_rejection,
 };
 use systemprompt_api::services::gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_api::services::gateway::protocol::{
@@ -188,7 +194,7 @@ fn derive_conversation_prefers_header_value() {
     let header = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned()).expect("id");
     let request = canonical(vec![user_message("hello")]);
     let mut partial = RejectionPartial::default();
-    let (conv, ctx) =
+    let (conv, ctx, _client) =
         derive_conversation(Some(header), &request, &mut partial).expect("derived ok");
     assert_eq!(conv.as_str(), "ctx_00000000deadbeef");
     assert_eq!(
@@ -202,7 +208,8 @@ fn derive_conversation_prefers_header_value() {
 fn derive_conversation_derives_from_messages_when_header_absent() {
     let request = canonical(vec![user_message("derive me")]);
     let mut partial = RejectionPartial::default();
-    let (conv, _ctx) = derive_conversation(None, &request, &mut partial).expect("derived ok");
+    let (conv, _ctx, _client) =
+        derive_conversation(None, &request, &mut partial).expect("derived ok");
     assert!(!conv.as_str().is_empty());
 }
 

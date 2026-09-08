@@ -74,17 +74,11 @@ impl UpstreamError {
     }
 }
 
-// Why: one process-wide client — a client per request would open a fresh
-// connection pool and TLS handshake on every gateway call.
 pub(in crate::services::gateway) fn http_client() -> &'static reqwest::Client {
     static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
     CLIENT.get_or_init(reqwest::Client::new)
 }
 
-// Why: every adapter's one upstream call, so the bounded retry for transient
-// capacity failures lives here rather than four times over. Retrying is safe
-// at this point precisely because it is the only point: no byte of a response
-// has been relayed, and neither the buffered nor the streaming lane has begun.
 pub(in crate::services::gateway) async fn send_checked(
     provider: &str,
     req: reqwest::RequestBuilder,
@@ -157,16 +151,8 @@ pub struct OutboundAdapterRegistration {
 
 inventory::collect!(OutboundAdapterRegistration);
 
-// Why: an upstream that answers 2xx with a body carrying no turn has failed,
-// and the failure is the provider's rather than the caller's, so it is
-// reported the same way a genuine 502 from that provider would be.
 const DEFECTIVE_BODY_STATUS: u16 = 502;
 
-// Why: a buffered parser is total and will happily turn `{}` into a
-// well-formed canonical response with empty content and zero usage, which the
-// gateway then relays as a successful turn in which the model said nothing.
-// Rejecting here converts that into the upstream failure it always was, and
-// the raw body reaches both the log and the audit row so the cause is visible.
 pub(in crate::services::gateway) fn reject_defective_body(
     provider: &str,
     wire: &str,
@@ -191,9 +177,6 @@ pub(in crate::services::gateway) fn reject_defective_body(
     })
 }
 
-// Why: a body that fails to deserialize used to default to an empty canonical
-// response, so the request billed nothing and was audited as completed with no
-// content. It is an upstream contract breach and reaches the client as one.
 pub(in crate::services::gateway) fn reject_unparsable_body(
     provider: &str,
     wire: &str,

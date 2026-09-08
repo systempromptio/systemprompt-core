@@ -8,7 +8,10 @@ use systemprompt_models::wire::canonical::{
 };
 use systemprompt_models::wire::gemini;
 
-use super::{base_request, image_url, plain_tool, tool_use, tool_with_unsupported_keywords};
+use super::{
+    base_request, claude_code_shaped_tool, image_url, plain_tool, tool_use,
+    tool_with_unsupported_keywords,
+};
 
 #[test]
 fn gemini_request_emits_max_output_tokens_and_sampling() {
@@ -195,6 +198,42 @@ fn gemini_tools_strip_unsupported_schema_keywords() {
     );
     assert_eq!(params["type"], "object");
     assert_eq!(params["properties"]["count"]["type"], "integer");
+}
+
+// Why: the 2026-09-08 production failure. Claude Code's tool schemas carry a
+// tuple-typed array nested inside `items`; Gemini answered 400 "Unknown name
+// prefixItems" and every Claude Code turn on a Gemini model died before the
+// model saw it. The old keyword test only covered top-level keywords.
+#[test]
+fn gemini_tools_flatten_nested_tuple_arrays_claude_code_sends() {
+    let mut req = base_request();
+    req.tools = vec![claude_code_shaped_tool()];
+    let body = gemini::build_request_body(&req, None);
+    let params = &body["tools"][0]["functionDeclarations"][0]["parameters"];
+    let where_items = &params["properties"]["query"]["properties"]["where"]["items"];
+    assert!(
+        where_items.get("prefixItems").is_none(),
+        "prefixItems must not reach Gemini: {where_items}"
+    );
+    assert!(where_items.get("additionalItems").is_none());
+    assert_eq!(where_items["type"], "array");
+    assert!(
+        where_items.get("items").is_some(),
+        "a tuple array must stay an array with an item schema"
+    );
+    assert!(
+        params["properties"]["mode"].get("$comment").is_none(),
+        "$comment must be stripped"
+    );
+    assert!(
+        params["properties"]["mode"].get("const").is_none(),
+        "const is converted for Gemini"
+    );
+    let serialized = serde_json::to_string(params).expect("json");
+    assert!(
+        !serialized.contains("prefixItems"),
+        "no prefixItems anywhere in the declaration: {serialized}"
+    );
 }
 
 #[test]

@@ -55,15 +55,19 @@ fn cmd_status() -> ExitCode {
 }
 
 fn cmd_rotate(ctx: &BridgeContext) -> ExitCode {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            diag(&e.to_string());
+            return ExitCode::FAILURE;
+        },
+    };
     let base_url = config::gateway_url_or_default(&cfg);
     let client = ctx.gateway_client(base_url);
 
     let http = ctx.http.clone();
     let outer = ctx.block_on(async move {
-        let bearer = auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
-            .await
-            .ok_or("no credential source configured (run `bridge login` first)")?;
+        let bearer = auth::obtain_live_token(&cfg, &SessionId::generate(), &http).await?;
         let creds = plugin_oauth::refresh_creds(&client, &bearer.token).await?;
         Ok::<_, Box<dyn std::error::Error>>(creds)
     });

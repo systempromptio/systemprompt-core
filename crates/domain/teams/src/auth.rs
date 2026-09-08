@@ -21,10 +21,10 @@ use std::sync::RwLock;
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::Deserialize;
+use systemprompt_models::services::teams::BOT_FRAMEWORK_OPENID_CONFIG_URL;
 
 use crate::error::{TeamsError, TeamsResult};
 
-const OPENID_CONFIG_URL: &str = "https://login.botframework.com/v1/.well-known/openidconfiguration";
 const ISSUER: &str = "https://api.botframework.com";
 
 pub const MAX_TIMESTAMP_SKEW_SECS: u64 = 60 * 5;
@@ -74,12 +74,11 @@ impl ActivityTokenVerifier {
         Self {
             http,
             audience: app_id.into(),
-            openid_config_url: OPENID_CONFIG_URL.to_owned(),
+            openid_config_url: BOT_FRAMEWORK_OPENID_CONFIG_URL.to_owned(),
             cache: RwLock::new(None),
         }
     }
 
-    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_openid_url(
         http: reqwest::Client,

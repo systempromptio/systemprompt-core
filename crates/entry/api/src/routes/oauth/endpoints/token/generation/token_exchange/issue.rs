@@ -1,5 +1,7 @@
-//! EMA issuer path: on `requested_token_type = id-jag`, mint a short-lived
-//! ID-JAG from a validated upstream OIDC `id_token`, bound to the authenticated
+//! EMA issuer path.
+//!
+//! On `requested_token_type = id-jag`, mints a short-lived ID-JAG from a
+//! validated upstream OIDC `id_token`, bound to the authenticated
 //! token-exchange client and, when `resource` is supplied, pinned to that
 //! resource. Mirror of [`super::id_jag_subject`].
 //!
@@ -16,13 +18,6 @@ use super::super::super::{TokenError, TokenResponse};
 use super::oidc::validate_oidc_subject;
 use super::{ID_TOKEN_TYPE, JWT_TOKEN_TYPE, TokenExchangeRequest};
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn issue_id_jag(
     client_id: &ClientId,
     request: &TokenExchangeRequest<'_>,

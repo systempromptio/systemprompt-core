@@ -13,17 +13,18 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use std::sync::Arc;
-use systemprompt_api::routes::gateway::messages::test_api::{
-    RejectionPartial, build_error_response, derive_conversation, optional_gateway_conversation_id,
-    read_gateway_body, require_session_id,
+use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
+use systemprompt_api::routes::gateway::messages::extract::headers::{
+    optional_gateway_conversation_id, read_gateway_body, require_session_id,
 };
+use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_identifiers::GatewayConversationId;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
+use systemprompt_identifiers::{ClientSessionId, ContextId, GatewayConversationId, SessionId};
 
 fn headers_with(name: &'static str, value: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -183,7 +184,7 @@ fn a_header_supplied_conversation_id_wins_over_derivation() {
     let supplied = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned())
         .expect("test conversation id must be valid");
 
-    let (conversation, context) = derive_conversation(
+    let (conversation, context, _) = derive_conversation(
         Some(supplied.clone()),
         &canonical(vec![user_message("hello")]),
         &mut partial,
@@ -199,11 +200,11 @@ fn a_header_supplied_conversation_id_wins_over_derivation() {
 fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent() {
     let mut partial = RejectionPartial::default();
 
-    let (conversation, _) =
+    let (conversation, _, _) =
         derive_conversation(None, &canonical(vec![user_message("hello")]), &mut partial)
             .expect("a request with messages can derive its conversation");
 
-    let (repeat, _) = derive_conversation(
+    let (repeat, _, _) = derive_conversation(
         None,
         &canonical(vec![user_message("hello")]),
         &mut RejectionPartial::default(),
@@ -215,6 +216,81 @@ fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent(
         "derivation must be stable so a retried request joins the same conversation"
     );
     assert_eq!(partial.gateway_conversation_id, Some(conversation));
+}
+
+const CLAUDE_CODE_USER_ID: &str = "user_1f8e6b2d9c4a7e0f1b3d5a7c9e2f4b6d8a0c2e4f6b8d0a2c4e6f8a0b2c4d6e8f_account_3c9b1d2e-7f4a-4b6c-9d8e-0f1a2b3c4d5e_session_9d2c4e6f-1a3b-4c5d-8e7f-0a1b2c3d4e5f";
+
+fn canonical_from_claude_code(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
+    let mut request = canonical(messages);
+    request.metadata = Some(serde_json::json!({ "user_id": CLAUDE_CODE_USER_ID }));
+    request
+}
+
+#[test]
+fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
+    let mut partial = RejectionPartial::default();
+
+    let (conversation, context, client_session) = derive_conversation(
+        None,
+        &canonical_from_claude_code(vec![user_message("hello")]),
+        &mut partial,
+    )
+    .expect("derivation must succeed");
+
+    let expected_session = ClientSessionId::try_new("9d2c4e6f-1a3b-4c5d-8e7f-0a1b2c3d4e5f")
+        .expect("test session id must be valid");
+    assert_eq!(client_session.as_ref(), Some(&expected_session));
+    assert_eq!(
+        context,
+        ContextId::derived_from_session(&SessionId::new(expected_session.as_str())),
+        "the gateway context must be the one the hooks pipeline derives from the same uuid"
+    );
+    assert_ne!(
+        context,
+        ContextId::derived_from_gateway_conversation(&conversation),
+        "the context no longer follows the prefix hash once the caller names its session"
+    );
+    assert_eq!(partial.client_session_id, Some(expected_session));
+    assert_eq!(partial.context_id, Some(context));
+}
+
+#[test]
+fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session() {
+    let mut partial = RejectionPartial::default();
+    let supplied = GatewayConversationId::try_new("ctx_00000000deadbeef".to_owned())
+        .expect("test conversation id must be valid");
+
+    let (_, context, client_session) = derive_conversation(
+        Some(supplied.clone()),
+        &canonical_from_claude_code(vec![user_message("hello")]),
+        &mut partial,
+    )
+    .expect("an explicit conversation id is always usable");
+
+    assert!(
+        client_session.is_some(),
+        "the session is still parsed and recorded"
+    );
+    assert_eq!(
+        context,
+        ContextId::derived_from_gateway_conversation(&supplied)
+    );
+}
+
+#[test]
+fn a_request_without_metadata_keeps_the_prefix_hash_context() {
+    let mut partial = RejectionPartial::default();
+
+    let (conversation, context, client_session) =
+        derive_conversation(None, &canonical(vec![user_message("hello")]), &mut partial)
+            .expect("derivation must succeed");
+
+    assert!(client_session.is_none());
+    assert_eq!(
+        context,
+        ContextId::derived_from_gateway_conversation(&conversation)
+    );
+    assert_eq!(partial.client_session_id, None);
 }
 
 #[test]

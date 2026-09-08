@@ -15,13 +15,6 @@ use super::super::protocol::canonical_response::{
     ContentBlockKind,
 };
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug, Default)]
 pub struct TapState {
     response_id: String,
@@ -52,13 +45,6 @@ enum BlockAccumulator {
     },
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct Summary {
     pub usage: CanonicalUsage,
@@ -71,13 +57,6 @@ pub struct Summary {
     pub saw_usage_delta: bool,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn extract_summary(state: &mut TapState) -> Summary {
     let mut response = build_response(state);
     let tool_calls = response
@@ -120,13 +99,6 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn snapshot(state: &TapState) -> CanonicalResponse {
     build_response(state)
 }
@@ -204,13 +176,6 @@ fn start_block(state: &mut TapState, index: u32, block: &ContentBlockKind) {
     state.blocks[idx] = slot;
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
     match event {
         CanonicalEvent::MessageStart { id, model, usage } => {
@@ -273,12 +238,8 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
     }
 }
 
-// Why: providers end a message more than once -- Anthropic's `message_delta`
-// carries the real reason and the `message_stop` that follows carries none.
-// Assigning on every stop let that second frame default a streamed tool-use
-// turn back to EndTurn, so it was audited and rendered as "stop" and the call
-// was dropped. First stated reason wins; a bare stop only fills in what nothing
-// else gave, and the tool-use correction is repeated from the wire codecs.
+// Why: Anthropic's message_delta carries the stop reason; the following
+// message_stop carries none.
 fn apply_stop_reason(state: &mut TapState, reason: Option<CanonicalStopReason>) {
     let has_tool_use = state
         .blocks

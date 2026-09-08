@@ -83,10 +83,6 @@ impl ChainSources {
                     .collect::<Vec<String>>(),
             ),
         ] {
-            // Why: an empty `include:` means "every member of that catalogue",
-            // the same rule the manifest scoper applies — validation rejects an
-            // explicit ref with an empty include, so empty here is never
-            // "nothing".
             let include = &marketplace.members(member_kind).include;
             let members: Vec<String> = if include.is_empty() {
                 catalogue

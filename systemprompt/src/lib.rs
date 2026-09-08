@@ -22,11 +22,10 @@
 //! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + extension injection | `RuntimeBuilder` for embedding with custom extensions. |
-//! | `test-utils` | `cloud` | Enables `cloud` for test scaffolding; not for production. |
 //! | `full` | All of the above plus all domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `evaluation`, `scheduler`, `generator`, `files`) | Building a product binary. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.47.0", features = ["full"] }
+//! systemprompt = { version = "0.48.0", features = ["full"] }
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -163,8 +162,6 @@ pub mod runtime;
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub use runtime::RuntimeBuilder;
 
-/// Controls how the runtime serves the static web bundle: in-binary, on-disk,
-/// or disabled.
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
 pub use runtime::WebAssets;
@@ -192,10 +189,7 @@ pub mod ai {
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod mcp {
-    pub use systemprompt_mcp::*;
-    // Why: `#[macro_export]` puts these at the defining crate's root, where the
-    // glob above cannot see them.
-    pub use systemprompt_mcp::{register_artifact_theme, register_ui_renderer};
+    pub use systemprompt_mcp::{register_artifact_theme, register_ui_renderer, *};
 }
 
 /// OAuth2, OIDC, and WebAuthn flows.

@@ -7,17 +7,43 @@ use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
+    #[error("credential cache: {0}")]
+    CredentialCache(std::io::Error),
+    #[error("{}", .0.one_line())]
+    Partial(Box<super::SyncSummary>),
+    #[error("persist sync state at {path}: {source}")]
+    Persistence {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error(transparent)]
+    Config(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
     #[error("no valid credential available; run `{bin} login` first")]
     NoCredential { bin: &'static str },
+    #[error("authentication: {0}")]
+    Authentication(crate::auth::ChainError),
+    #[error("{0}")]
+    Provision(std::io::Error),
+    #[error("{0}")]
+    Elevation(String),
     #[error(transparent)]
     GatewayUnauthorized(Box<CredentialRejection>),
     #[error("{0}")]
     Network(String),
     #[error(
-        "manifest signature verification failed: {0}. The payload does not match the pinned \
-         pubkey — the manifest was tampered with, or the pinned pubkey is wrong."
+        "manifest signature verification failed: {detail}. The manifest served by {gateway} \
+         does not match the pubkey pinned from the {pin_source} — either the gateway rotated \
+         its signing key, or the pin belongs to a different gateway. {fix}"
     )]
-    SignatureFailed(String),
+    SignatureFailed {
+        detail: String,
+        gateway: String,
+        pin_source: &'static str,
+        fix: &'static str,
+    },
     #[error(
         "manifest requires schema {required} but this bridge supports up to {supported} — \
          upgrade the bridge to sync against this gateway"
@@ -43,6 +69,12 @@ pub enum SyncError {
         bin: &'static str,
         system_path: String,
     },
+    #[error(
+        "manifest signing pubkey on file was pinned for {pinned_for}, but the gateway is now \
+         {current}; explicitly pin the intended gateway key with `install \
+         --apply --pubkey <base64>`"
+    )]
+    PubkeyStale { pinned_for: String, current: String },
     #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
     #[error(
@@ -88,16 +120,24 @@ impl SyncError {
     #[must_use]
     pub fn exit_code(&self) -> ExitCode {
         match self {
+            Self::CredentialCache(_)
+            | Self::Partial(_)
+            | Self::Persistence { .. }
+            | Self::Config(_)
+            | Self::Trust(_)
+            | Self::Provision(_)
+            | Self::Elevation(_) => ExitCode::FAILURE,
             Self::NoCredential { .. } => ExitCode::from(5),
+            Self::Authentication(e) => e.exit_report().0,
             Self::GatewayUnauthorized(_) => ExitCode::from(10),
             Self::Network(_) => ExitCode::from(3),
-            Self::SignatureFailed(_) => ExitCode::from(4),
+            Self::SignatureFailed { .. } => ExitCode::from(4),
             Self::PathUnresolvable | Self::PathMissing { .. } | Self::ApplyFailed(_) => {
                 ExitCode::from(1)
             },
             Self::ReplayedManifest { .. } => ExitCode::from(6),
             Self::ManifestSkew { .. } => ExitCode::from(7),
-            Self::PubkeyNotPinned => ExitCode::from(8),
+            Self::PubkeyNotPinned | Self::PubkeyStale { .. } => ExitCode::from(8),
             Self::ReplayStateCorrupt(_) => ExitCode::from(9),
             Self::SchemaTooNew { .. } | Self::ManifestShape(_) | Self::BridgeTooOld { .. } => {
                 ExitCode::from(11)

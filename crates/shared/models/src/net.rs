@@ -68,10 +68,6 @@ pub fn trusted_http_hosts_from_env() -> Vec<String> {
         .unwrap_or_default()
 }
 
-// Why: spawned children re-validate outbound URLs when they load the profile
-// catalog, so the operator's process-wide trust assertion must travel with
-// them — env_clear would otherwise leave a child running with an empty
-// allowlist and reject sealed-network hostnames the parent already accepted.
 pub fn trusted_hosts_env_entry(
     lookup: impl Fn(&str) -> Option<String>,
 ) -> Option<(String, String)> {
@@ -128,10 +124,6 @@ pub fn validate_outbound_url_with_trust(
     Ok(parsed)
 }
 
-// Why: a caller that resolves a hostname itself — a server-side fetch of a
-// user-supplied URL, where the DNS answer is the attacker's real payload —
-// needs the same block list `validate_outbound_url` applies to address
-// literals, so it is exposed rather than duplicated.
 #[must_use]
 pub fn is_blocked_ip(ip: std::net::IpAddr) -> bool {
     match ip {
@@ -140,9 +132,8 @@ pub fn is_blocked_ip(ip: std::net::IpAddr) -> bool {
     }
 }
 
-// Why: RFC 4291 §2.5.5.2: an ::ffff:0:0/96 address embeds a real IPv4 address;
-// treat it as that IPv4 address for SSRF purposes so a hand-crafted v4-mapped
-// address cannot bypass the v4 block list.
+// Why: RFC 4291 §2.5.5.2 maps `::ffff:0:0/96` to IPv4, including private IPv4
+// addresses.
 fn is_blocked_v6(ip: std::net::Ipv6Addr) -> bool {
     ip.to_ipv4_mapped().map_or_else(
         || {
@@ -155,8 +146,8 @@ fn is_blocked_v6(ip: std::net::Ipv6Addr) -> bool {
     )
 }
 
-// Why: RFC 6598 carrier-grade NAT range `100.64.0.0/10` — operator-routable but
-// commonly bridges to internal services on cloud-provider managed networks.
+// Why: RFC 6598 reserves `100.64.0.0/10` for shared carrier-grade NAT, not
+// public hosts.
 fn is_cgnat_shared_v4(ip: std::net::Ipv4Addr) -> bool {
     let [a, b, _, _] = ip.octets();
     a == 100 && (64..=127).contains(&b)

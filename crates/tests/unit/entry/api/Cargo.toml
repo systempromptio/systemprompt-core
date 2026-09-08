@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-api = { workspace = true, features = ["test-api"] }
+systemprompt-api = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-extension = { workspace = true }
@@ -50,6 +50,7 @@ tower = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 rsa = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-mcp = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-content = { workspace = true }

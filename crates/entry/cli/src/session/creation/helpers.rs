@@ -72,9 +72,6 @@ pub async fn get_or_create_admin(
     email: &str,
     context_type: &str,
 ) -> Result<systemprompt_users::User> {
-    // Why: this path provisions a user and assigns it `admin`, so an
-    // unvalidated string would become an admin identity. Validate before any
-    // lookup or write, not after.
     let email = Email::try_new(email).map_err(|e| {
         anyhow::anyhow!("refusing to provision an admin for an invalid address: {e}")
     })?;

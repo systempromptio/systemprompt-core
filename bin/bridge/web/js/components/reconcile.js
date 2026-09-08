@@ -95,10 +95,19 @@ function patchAttributes(oldEl, newEl) {
   }
   for (const { name } of Array.from(oldEl.attributes)) {
     if (!newEl.hasAttribute(name)) {
+      if (isUserDisclosure(oldEl, name)) { continue; }
       oldEl.removeAttribute(name);
       syncProperty(oldEl, name, null);
     }
   }
+}
+
+// A <details> the user has opened carries `open` that no template wrote. The
+// snapshot ticks every few seconds, so stripping it here folded every
+// disclosure on the setup screen moments after it was expanded. A render that
+// writes `open` itself still wins in both directions.
+function isUserDisclosure(el, name) {
+  return name === "open" && el.tagName === "DETAILS";
 }
 
 // Form controls diverge from their attributes as soon as the user touches them.

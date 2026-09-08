@@ -143,8 +143,6 @@ fn add_external_dir(root: &mut Value) {
     write_dotted_seq(root, &want);
 }
 
-// Why: `skills.external_dirs` is a list; append the managed dir only if absent
-// so re-applies stay idempotent and user-added dirs are preserved.
 fn write_dotted_seq(root: &mut Value, want: &Value) {
     let Value::Mapping(top) = root else {
         return;

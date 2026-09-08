@@ -105,6 +105,13 @@ fn block_on<F: std::future::Future>(f: F) -> F::Output {
 }
 
 
+static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::config::store::PolicyStore::new(
+            systemprompt_bridge::config::store::managed_policy_store(),
+        )
+    });
+
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -119,6 +126,7 @@ fn stub_ctx<'a>(
     servers: &'a std::collections::BTreeMap<String, Vec<String>>,
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
+        policy_store: &POLICY_STORE,
         manifest: m,
         org_plugins_root: root,
         plugin_mcp_servers: servers,

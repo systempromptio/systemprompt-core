@@ -130,9 +130,13 @@ lint-schema:
 lint-extensions:
     ./scripts/lint-extensions.sh crates
 
-# Reject inline // comments in production crates (whitelist: '// Why:' / '// JSON:')
+# Check production comment syntax and Rustdoc placement; review meaning per AGENTS.md.
 lint-comments:
     ./scripts/lint-inline-comments.sh
+
+# Reject test-only seams (test features, test_api modules, unreachable_pub) in production crates
+lint-test-seams:
+    ./scripts/lint-test-seams.sh
 
 # Reject tests that return early on a missing prerequisite without saying so
 lint-silent-skips:
@@ -160,7 +164,7 @@ check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
 # Check without building
-check: lint-schema lint-extensions lint-comments lint-inline-tests lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check: lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -962,7 +966,7 @@ install-nextest:
 # nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
 # drops+recreates the target DB so cross-run pollution can't occur. Override the
 # DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`.
-# Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest edge
+# Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
 test-shard GROUP *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1751,3 +1755,9 @@ promote SHA="":
     echo
     echo "Opened https://github.com/$REPO/pull/$NUM"
     echo "Review it, then merge when you are ready:  gh pr merge $NUM --merge"
+
+lint-discarded-results:
+    ./scripts/check-discarded-results.sh
+
+lint-fail-open:
+    ./scripts/check-fail-open.sh

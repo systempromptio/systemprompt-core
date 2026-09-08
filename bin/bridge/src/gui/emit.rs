@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::hash::{Hash, Hasher};
 
 use serde_json::{Value, json};
 
@@ -11,11 +10,21 @@ use crate::gui::GuiApp;
 use crate::gui::events::UiEvent;
 use crate::wire::ipc::{self, BridgeError, IpcReplyPayload};
 
-pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
-    let script = ipc::emit_script(channel, payload);
-    if let Some(win) = &app.settings_window {
-        win.evaluate_script(&script);
+pub(crate) fn deliver(app: &GuiApp, script: &str) -> bool {
+    let Some(win) = &app.settings_window else {
+        return false;
+    };
+    match win.evaluate_script(script) {
+        Ok(()) => true,
+        Err(e) => {
+            app.append_log_error(format!("webview delivery failed: {e}"));
+            false
+        },
     }
+}
+
+pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
+    deliver(app, &ipc::emit_script(channel, payload));
 }
 
 pub(crate) fn send_reply(app: &GuiApp, id: u64, payload: Value, ok: bool) {
@@ -28,10 +37,7 @@ pub(crate) fn send_reply(app: &GuiApp, id: u64, payload: Value, ok: bool) {
 }
 
 pub(crate) fn send_reply_payload(app: &GuiApp, id: u64, payload: &IpcReplyPayload) {
-    let script = ipc::reply_script(id, payload);
-    if let Some(win) = &app.settings_window {
-        win.evaluate_script(&script);
-    }
+    deliver(app, &ipc::reply_script(id, payload));
 }
 
 pub(crate) fn emit_proxy_stats(app: &GuiApp) {
@@ -100,50 +106,26 @@ pub(crate) fn emit_first_run_progress(app: &GuiApp) {
 
 pub(crate) fn emit_state(app: &mut GuiApp) {
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::snapshot_value(&snap, &app.ctx.proxy);
-    let hash = semantic_hash(&value);
-    if app.last_state_hash == Some(hash) {
+    let payload = crate::gui::server_json::state_payload(&snap, &app.ctx.proxy);
+    let value = match serde_json::to_value(&payload) {
+        Ok(value) => value,
+        Err(e) => {
+            app.append_log_error(format!("serialize state: {e}"));
+            return;
+        },
+    };
+    let semantic = match payload.semantic_value() {
+        Ok(value) => value,
+        Err(e) => {
+            app.append_log_error(format!("compare state: {e}"));
+            return;
+        },
+    };
+    if app.last_semantic_state.as_ref() == Some(&semantic) {
         return;
     }
-    app.last_state_hash = Some(hash);
-    send_emit(app, "state.changed", &value);
-}
-
-const VOLATILE_KEYS: [&str; 4] = [
-    "probed_at_unix",
-    "last_probe_at_unix",
-    "ttl_seconds",
-    "expires_at_unix",
-];
-
-fn semantic_hash(value: &Value) -> u64 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    hash_value(value, &mut hasher);
-    hasher.finish()
-}
-
-fn hash_value(value: &Value, hasher: &mut impl Hasher) {
-    match value {
-        Value::Object(map) => {
-            0u8.hash(hasher);
-            for (k, v) in map {
-                if VOLATILE_KEYS.contains(&k.as_str()) {
-                    continue;
-                }
-                k.hash(hasher);
-                hash_value(v, hasher);
-            }
-        },
-        Value::Array(items) => {
-            1u8.hash(hasher);
-            for item in items {
-                hash_value(item, hasher);
-            }
-        },
-        other => {
-            2u8.hash(hasher);
-            other.to_string().hash(hasher);
-        },
+    if deliver(app, &ipc::emit_script("state.changed", &value)) {
+        app.last_semantic_state = Some(semantic);
     }
 }
 

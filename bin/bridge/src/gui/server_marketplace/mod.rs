@@ -35,28 +35,28 @@ pub fn build_listing(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,
     mcp_auth: &[McpServerAuth],
-) -> MarketplaceListing {
+) -> std::io::Result<MarketplaceListing> {
     let loc = paths::org_plugins_effective();
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
     let plugins_root: Option<PathBuf> = loc.as_ref().map(|l| l.path.clone());
 
-    let last_sync = paths::bridge_metadata_dir().and_then(|meta| {
-        read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL))
-            .ok()
-            .flatten()
-    });
+    let meta = paths::bridge_metadata_dir()
+        .ok_or_else(|| std::io::Error::other("marketplace metadata path unresolvable"))?;
+    // Why: the sentinel only annotates the listing with what the last sync
+    // changed. A corrupt one is reported on the listing; the plugins on
+    // disk are still there to browse.
+    let (last_sync, last_sync_error) = match read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL)) {
+        Ok(state) => (state, None),
+        Err(e) => (None, Some(e.to_string())),
+    };
 
     let (mut plugins, skills, hooks, mcp, agents) = match loc {
         Some(loc) => {
-            let plugins = plugins::list_plugins(&loc.path);
+            let plugins = plugins::list_plugins(&loc.path)?;
             let mut skills = Vec::new();
             let mut agents = Vec::new();
             let mut hooks = Vec::new();
-            for dir in plugins::plugin_dirs(&loc.path) {
-                // Why: the dir name is the plugin id. Stamped here, before
-                // `dedup_by_id` collapses an item shipped by two plugins —
-                // first-plugin-wins would otherwise discard the second owner
-                // and file the item under one plugin only.
+            for dir in plugins::plugin_dirs(&loc.path)? {
                 let owner = dir
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -71,8 +71,8 @@ pub fn build_listing(
                         })
                         .collect()
                 };
-                skills.extend(own(components::list_skills(&dir.join("skills"))));
-                agents.extend(own(components::list_agents(&dir.join("agents"))));
+                skills.extend(own(components::list_skills(&dir.join("skills"))?));
+                agents.extend(own(components::list_agents(&dir.join("agents"))?));
                 hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
             }
             let mcp = components::list_registry_mcp(loopback, registry);
@@ -106,7 +106,7 @@ pub fn build_listing(
         mcp_auth,
     };
 
-    MarketplaceListing {
+    Ok(MarketplaceListing {
         plugins: merge_external(plugins, MarketplaceCategory::Plugins, &ctx),
         skills: merge_external(skills, MarketplaceCategory::Skills, &ctx),
         hooks: merge_external(hooks, MarketplaceCategory::Hooks, &ctx),
@@ -119,12 +119,10 @@ pub fn build_listing(
         ),
         plugins_dir,
         last_sync_diff,
-    }
+        last_sync_error,
+    })
 }
 
-// Why: keeps the first item per id, but unions the owner lists rather than
-// dropping the loser's — an item two plugins ship belongs to both, and the
-// grouped listing must show it under each.
 fn dedup_by_id(items: Vec<MarketplaceItem>) -> Vec<MarketplaceItem> {
     let mut out: Vec<MarketplaceItem> = Vec::new();
     let mut index: BTreeMap<String, usize> = BTreeMap::new();
@@ -173,4 +171,28 @@ pub fn listing_to_value(
     listing: &MarketplaceListing,
 ) -> Result<serde_json::Value, serde_json::Error> {
     serde_json::to_value(listing)
+}
+
+fn read_dir_optional(path: &std::path::Path) -> std::io::Result<Vec<std::fs::DirEntry>> {
+    match std::fs::read_dir(path) {
+        Ok(entries) => entries.collect(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(std::io::Error::new(
+            e.kind(),
+            format!("read directory {}: {e}", path.display()),
+        )),
+    }
+}
+
+fn read_text(path: &std::path::Path) -> std::io::Result<String> {
+    std::fs::read_to_string(path)
+        .map_err(|e| std::io::Error::new(e.kind(), format!("read {}: {e}", path.display())))
+}
+
+fn read_optional_text(path: &std::path::Path) -> std::io::Result<Option<String>> {
+    match read_text(path) {
+        Ok(body) => Ok(Some(body)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
 }

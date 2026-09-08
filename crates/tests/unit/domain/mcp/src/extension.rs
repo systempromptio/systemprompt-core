@@ -20,10 +20,10 @@ fn test_dependencies_contains_users() {
 }
 
 #[test]
-fn test_schemas_four_tables() {
+fn test_schemas_five_tables() {
     let ext = McpExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 4);
+    assert_eq!(schemas.len(), 5);
 }
 
 #[test]
@@ -35,6 +35,7 @@ fn test_schemas_table_names_match_expected() {
     assert!(names.contains(&"mcp_sessions"));
     assert!(names.contains(&"mcp_artifacts"));
     assert!(names.contains(&"mcp_proxy_identities"));
+    assert!(names.contains(&"mcp_external_sessions"));
 }
 
 #[test]

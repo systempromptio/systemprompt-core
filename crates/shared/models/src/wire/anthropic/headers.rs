@@ -17,17 +17,12 @@ pub fn auth_headers(api_key: &str) -> [(&'static str, String); 3] {
     ]
 }
 
-// Why: Anthropic's contract wants `anthropic-*` forwarded verbatim, not
-// allowlisted — each beta body field pairs with a header, and forwarding one
-// half of the pair is a hard 400.
+// Why: Anthropic beta body fields require their corresponding `anthropic-beta`
+// headers.
 const FORWARD_PREFIXES: &[&str] = &["anthropic-"];
 
-// Why: the contract classifies these as consumable — recorded on the audit row
-// and dropped before the upstream send, never relayed to a third party.
 const IDENTITY_PREFIXES: &[&str] = &["x-claude-code-", "x-stainless-", "x-systemprompt-"];
 
-// Why: the gateway substitutes its own provider credential — relaying the
-// caller's `authorization`/`x-api-key` would leak a systemprompt credential.
 const IDENTITY_NAMES: &[&str] = &[
     "user-agent",
     "cookie",
@@ -49,11 +44,6 @@ pub fn is_identity_request_header(name: &str) -> bool {
     identity_lower(&name.to_ascii_lowercase())
 }
 
-// Why: a subset of the identity set carries a live secret. Classification keeps
-// them out of the upstream request; this keeps their *values* out of the audit
-// row and the logs, which is a separate concern — the identity vec is recorded
-// and logged, and a bearer token written at INFO is a credential leak into
-// anywhere the logs are pasted.
 const CREDENTIAL_NAMES: &[&str] = &[
     "authorization",
     "proxy-authorization",
@@ -70,8 +60,6 @@ pub fn is_credential_request_header(name: &str) -> bool {
     CREDENTIAL_NAMES.contains(&lower.as_str())
 }
 
-// Why: the header *name* is kept even when the value is dropped — that the
-// header was present is the part with audit value.
 #[must_use]
 pub fn recordable_header_value(name: &str, value: &str) -> String {
     if is_credential_request_header(name) {

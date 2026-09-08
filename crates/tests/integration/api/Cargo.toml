@@ -13,9 +13,15 @@ path = "mod.rs"
 [lints]
 workspace = true
 
+[package.metadata.cargo-machete]
+# register_gateway_guard! expands to ::inventory::submit! in this crate.
+ignored = ["inventory"]
+
 [dependencies]
+async-trait = { workspace = true }
+inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-api = { workspace = true, features = ["test-api"] }
+systemprompt-api = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-storage = { workspace = true }

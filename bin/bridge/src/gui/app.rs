@@ -19,9 +19,6 @@ use crate::stdio::diag;
 
 const PROXY_STATS_TICK_SECS: u64 = 1;
 
-// Why: the loop parks at one second, so a gap this long means the machine was
-// suspended. There is no WM_POWERBROADCAST hook to hang a resume handler on,
-// and without one the tray keeps a stale alert dot for a whole probe interval.
 const SLEEP_GAP_SECS: u64 = 60;
 
 impl ApplicationHandler for GuiApp {
@@ -103,10 +100,6 @@ impl ApplicationHandler for GuiApp {
                     win.resize_webview(win.winit_window().surface_size());
                 }
             },
-            // Why: returning to the app from the browser (the device-link
-            // sign-in flow) focuses the host frame only; without this the
-            // child webview stays unfocused and the window looks backgrounded
-            // and ignores clicks.
             WindowEvent::Focused(true) => {
                 if let Some(win) = &self.settings_window {
                     win.focus_webview();

@@ -8,7 +8,7 @@
 //! arm is pinned here.
 
 use axum::http::StatusCode;
-use systemprompt_api::routes::gateway::messages::test_api::{
+use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     classify_dispatch_error, map_dispatch_error,
 };
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
@@ -136,8 +136,8 @@ fn map_dispatch_error_preserves_the_classified_status() {
 async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operator() {
     let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
         GovernanceDenied {
-            policy: "secret_scan".to_owned(),
-            message: "secret detected: High-entropy token at prompt.text".to_owned(),
+            policy: "tool_blocklist".to_owned(),
+            message: "tool blocked: send_email".to_owned(),
         },
     )))
     .expect("a governance denial renders a response");
@@ -159,7 +159,29 @@ async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operat
         message.starts_with("blocked by systemprompt governance:"),
         "{message}"
     );
-    assert!(message.contains("prompt.text"), "{message}");
+    assert!(message.contains("send_email"), "{message}");
+    assert!(
+        parsed["error"].get("recovery").is_none(),
+        "only PromptRepairRequired carries repair guidance: {parsed}"
+    );
+}
+
+#[tokio::test]
+async fn a_secret_scan_governance_denial_is_not_promoted_to_repair_guidance() {
+    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+        GovernanceDenied {
+            policy: "secret_scan".to_owned(),
+            message: "secret detected: High-entropy token at prompt.text".to_owned(),
+        },
+    )))
+    .expect("a governance denial renders a response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+        .await
+        .expect("the error body is small and fully buffered");
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).expect("valid JSON envelope");
+    assert!(parsed["error"].get("recovery").is_none(), "{parsed}");
 }
 
 #[test]
@@ -343,5 +365,127 @@ async fn a_nonstandard_but_representable_status_is_still_relayed() {
         response.status().as_u16(),
         599,
         "a status HTTP can express is the provider's to choose, not ours to normalise"
+    );
+}
+
+#[tokio::test]
+async fn coverage_gateway_error_envelopes_round_trip_control_characters_and_unicode() {
+    use systemprompt_api::routes::gateway::messages::dispatch::errors::build_error_response;
+    for message in [
+        "line one\nline two",
+        "tab\tcarriage\rreturn",
+        "nul\0backspace\u{0008}",
+        "quote\" slash\\ €",
+    ] {
+        let response =
+            build_error_response(StatusCode::BAD_REQUEST, "invalid_request_error", message);
+        assert_eq!(response.headers()["content-type"], "application/json");
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        let value: serde_json::Value =
+            serde_json::from_slice(&body).expect("every error must be valid JSON");
+        assert_eq!(value["error"]["message"], message);
+    }
+}
+
+#[tokio::test]
+async fn coverage_image_fetch_errors_distinguish_caller_and_upstream_faults() {
+    use systemprompt_api::services::gateway::image_fetch::ImageFetchFailed;
+    for caller_fault in [true, false] {
+        let response = map_dispatch_error(DispatchError::PreAudit(anyhow::Error::new(
+            ImageFetchFailed {
+                url: "https://images.example/photo".into(),
+                message: "unsupported image\nformat".into(),
+                caller_fault,
+            },
+        )))
+        .unwrap();
+        assert_eq!(
+            response.status(),
+            if caller_fault {
+                StatusCode::BAD_REQUEST
+            } else {
+                StatusCode::BAD_GATEWAY
+            }
+        );
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(
+            parsed["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("unsupported image")
+        );
+    }
+}
+
+#[tokio::test]
+async fn coverage_upstream_passthrough_preserves_body_and_retry_correlation_headers() {
+    let body = bytes::Bytes::from_static(br#"{"error":{"message":"retry without thinking"}}"#);
+    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+        UpstreamError::Status {
+            provider: "fixture".into(),
+            status: 429,
+            message: "rate limited".into(),
+            body: body.clone(),
+            retry_after: Some("15".into()),
+            request_id: Some("upstream-123".into()),
+        },
+    )))
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(response.headers()["retry-after"], "15");
+    assert_eq!(response.headers()["x-upstream-request-id"], "upstream-123");
+    assert_eq!(
+        axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap(),
+        body
+    );
+}
+
+#[test]
+fn coverage_invalid_upstream_headers_fall_back_to_a_classified_rejection() {
+    for (status, retry_after, request_id) in [
+        (9999, None, None),
+        (429, Some("bad\nheader"), None),
+        (400, None, Some("bad\rheader")),
+    ] {
+        let rejection = map_dispatch_error(DispatchError::PreAudit(anyhow::Error::new(
+            UpstreamError::Status {
+                provider: "fixture".into(),
+                status,
+                message: "safe reason".into(),
+                body: bytes::Bytes::from_static(b"{}"),
+                retry_after: retry_after.map(str::to_owned),
+                request_id: request_id.map(str::to_owned),
+            },
+        )))
+        .unwrap_err();
+        assert!(rejection.persist);
+        assert!(!rejection.message.contains("bad\nheader"));
+        assert!(rejection.status.is_client_error() || rejection.status == StatusCode::BAD_GATEWAY);
+    }
+}
+
+#[tokio::test]
+async fn prompt_repair_error_reports_the_affected_provider_field() {
+    let error = systemprompt_api::services::gateway::service::PromptRepairRequired {
+        message: "Secret content could not be safely sanitized".to_owned(),
+        locations: vec!["forwarded.$.messages[0].id".to_owned()],
+    };
+    let response = map_dispatch_error(DispatchError::Recorded(error.into())).unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = axum::body::to_bytes(response.into_body(), 4096)
+        .await
+        .unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(value["error"]["recovery"]["code"], "prompt_repair_required");
+    assert_eq!(
+        value["error"]["recovery"]["locations"][0],
+        "forwarded.$.messages[0].id"
     );
 }

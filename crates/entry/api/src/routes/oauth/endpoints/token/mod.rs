@@ -9,13 +9,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod generation;
-mod handler;
+pub mod handler;
 pub mod validation;
 
 pub use handler::handle_token;
-
-#[cfg(feature = "test-api")]
-pub use handler::test_api as handler_test_api;
 
 use serde::{Deserialize, Serialize};
 
@@ -53,8 +50,6 @@ pub struct TokenResponse {
     pub refresh_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
-    // Why: RFC 8693 §2.2.1 issued_token_type. Only set by the
-    // urn:ietf:params:oauth:grant-type:token-exchange flow.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issued_token_type: Option<String>,
 }

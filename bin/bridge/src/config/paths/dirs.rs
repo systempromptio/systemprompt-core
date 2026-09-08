@@ -22,8 +22,7 @@ fn cowork3p_base() -> Option<PathBuf> {
     {
         crate::basedirs::home_dir().map(|h| h.join("Library").join("Application Support"))
     }
-    // Why: Cowork ships macOS and Windows builds only, so an XDG-style Linux path
-    // would name a directory no install can ever create.
+    // Why: Cowork has no Linux desktop build.
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         None
@@ -36,9 +35,6 @@ pub const COWORK_ARTIFACTS_SUBDIR: &str = "cowork_artifacts";
 
 pub const WORKSPACE_ARTIFACTS_SUBDIR: &str = "systemprompt/artifacts";
 
-// Why: the pre-trusted Cowork workspace named by `allowedWorkspaceFolders` is
-// a connected folder, so a file the bridge stages there is a path Cowork's
-// `create_artifact` accepts — no shell copy into the session is needed.
 #[must_use]
 pub fn workspace_dir() -> Option<PathBuf> {
     let name = crate::brand::brand().workspace_dir_name;

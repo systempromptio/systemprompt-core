@@ -241,7 +241,7 @@ fn set_mode(path: &std::path::Path, mode: u32) {
 
 #[cfg(unix)]
 #[test]
-fn login_fails_with_the_create_dir_context_when_the_config_base_is_read_only() {
+fn login_fails_with_the_prepare_dir_context_when_the_config_base_is_read_only() {
     let (err, _dirs) = sandbox(|| {
         // Lock the resolved config dir's parent (XDG_CONFIG_HOME on Linux,
         // `$HOME/Library/Application Support` on macOS) rather than assuming
@@ -257,15 +257,15 @@ fn login_fails_with_the_create_dir_context_when_the_config_base_is_read_only() {
     });
     match err {
         SetupError::Io(msg) => assert!(
-            msg.contains("create config dir"),
-            "error names the failing step: {msg}"
+            msg.starts_with("prepare ") && msg.contains("systemprompt"),
+            "error names the failing step and the directory: {msg}"
         ),
         other => panic!("expected Io, got {other:?}"),
     }
 }
 
 #[test]
-fn login_fails_with_the_rename_context_when_the_pat_path_is_a_directory() {
+fn login_fails_with_the_write_context_when_the_pat_path_is_a_directory() {
     let (err, _cfg) = sandbox(|| {
         let paths = setup::resolve_paths().unwrap();
         std::fs::create_dir_all(&paths.pat_file).unwrap();
@@ -273,8 +273,8 @@ fn login_fails_with_the_rename_context_when_the_pat_path_is_a_directory() {
     });
     match err {
         SetupError::Io(msg) => assert!(
-            msg.contains("rename"),
-            "the atomic-write rename step surfaces: {msg}"
+            msg.starts_with("write and verify ") && msg.contains(".pat"),
+            "the atomic-write step surfaces with the PAT path: {msg}"
         ),
         other => panic!("expected Io, got {other:?}"),
     }

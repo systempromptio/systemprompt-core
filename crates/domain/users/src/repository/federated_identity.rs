@@ -107,9 +107,6 @@ impl UserRepository {
     }
 }
 
-// Why: a verified upstream email attaches this sign-in to the existing
-// account instead of minting a duplicate user — one human, one row.
-// Unverified emails never link (account-claim defence in `derive`).
 async fn link_by_verified_email(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     issuer: &str,

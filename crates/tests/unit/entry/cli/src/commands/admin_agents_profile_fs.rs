@@ -221,3 +221,68 @@ async fn edit_rejects_an_unknown_agent() {
     let err = run(&["edit", "ghost", "--enable"]).await.unwrap_err();
     assert!(format!("{err:#}").contains("ghost"));
 }
+
+#[tokio::test]
+async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_disabled_agents() {
+    use std::sync::Arc;
+    use systemprompt_cli::infrastructure::services::restart;
+    use systemprompt_test_fixtures::{
+        fixture_app_context_with, fixture_db_pool, install_test_signing_key,
+    };
+
+    let root = seed_agents();
+    let listener = (9000..=9999)
+        .find_map(|port| std::net::TcpListener::bind(("127.0.0.1", port)).ok())
+        .expect("an available agent port");
+    let port = listener.local_addr().unwrap().port();
+    std::fs::write(
+        root.join("agents/covlister.yaml"),
+        agent_yaml("covlister", port, "Coverage Lister", true),
+    )
+    .unwrap();
+    systemprompt_test_fixtures::refresh_services_config();
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    install_test_signing_key();
+    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
+    let paths = systemprompt_models::PathsConfig {
+        system: boot.system_path.display().to_string(),
+        services: root.display().to_string(),
+        bin: boot.bin_path.display().to_string(),
+        web_path: None,
+        storage: Some(boot.storage_path.display().to_string()),
+        geoip_database: None,
+    };
+    let app = fixture_app_context_with(
+        &pool,
+        &boot.database_url,
+        paths,
+        Arc::new(systemprompt_marketplace::AllowAllFilter),
+    )
+    .unwrap();
+    let config = CliConfig::new()
+        .with_interactive(false)
+        .with_output_format(OutputFormat::Json);
+    let out = restart::execute_all_agents(&app, &config).await.unwrap();
+    let value = serde_json::to_value(out.artifact()).unwrap();
+    let sections = value["sections"].as_array().unwrap();
+    let count = |name: &str| {
+        sections
+            .iter()
+            .find(|s| s["heading"] == name)
+            .unwrap_or_else(|| panic!("{value}"))["content"]
+            .as_u64()
+            .unwrap()
+    };
+    assert_eq!(count("restarted_count"), 0);
+    assert_eq!(count("failed_count"), 1);
+    assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
+    drop(listener);
+    assert!(
+        app.a2a_repositories()
+            .agent_services
+            .get_agent_status("covdormant")
+            .await
+            .unwrap()
+            .is_none()
+    );
+}

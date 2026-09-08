@@ -30,6 +30,8 @@ pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>
 
 #[derive(Debug, Error)]
 pub enum ForwardError {
+    #[error("routing unavailable: {0}")]
+    Routing(String),
     #[error("authentication unavailable: {0}")]
     Auth(String),
     #[error("authentication timed out after 10s")]
@@ -55,7 +57,7 @@ pub enum ForwardError {
 impl ForwardError {
     pub const fn status(&self) -> StatusCode {
         match self {
-            Self::Auth(_) | Self::AuthTimeout => StatusCode::SERVICE_UNAVAILABLE,
+            Self::Auth(_) | Self::AuthTimeout | Self::Routing(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::BodyTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Self::BadMethod { .. } | Self::BadHeader(_) => StatusCode::BAD_REQUEST,
             Self::Upstream(_) | Self::BuildResponse(_) | Self::ReadBody(_) => {
@@ -117,11 +119,9 @@ pub(crate) async fn forward(
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_owned();
 
-    // Why: `hook_plugin` is carried out of the match: a hook token rejected
-    // upstream has to be evicted by the plugin it was minted for, and the match
-    // arm is the only place that name exists.
     let mut hook_plugin = None;
     let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
+        RouteResolution::Unavailable(reason) => return Err(ForwardError::Routing(reason)),
         RouteResolution::Gateway(url) => (
             Route {
                 url,
@@ -191,10 +191,6 @@ pub(crate) async fn forward(
         tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
         if status == StatusCode::UNAUTHORIZED {
             if let Some(plugin_id) = hook_plugin.as_ref() {
-                // Why: the mint path already retries a 401, but a token that
-                // minted cleanly and was then refused in use had nothing to
-                // evict it, so the cache served the same rejected token until
-                // it expired.
                 plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
             } else {
                 token_cache.reject_upstream(&request_path).await;

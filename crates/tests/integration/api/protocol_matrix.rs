@@ -1,16 +1,13 @@
 //! Pure-function coverage for the gateway protocol matrix: inbound parsers
 //! (Anthropic Messages, OpenAI Responses), outbound request builders +
 //! response parsers (Anthropic, OpenAI Chat, OpenAI Responses), and SSE-byte
-//! streaming decoders for each outbound provider. Drives the private modules
-//! through the `protocol_test_api` re-exports gated by the `test-api`
-//! feature on `systemprompt-api`.
+//! streaming decoders for each outbound provider.
 
 use bytes::Bytes;
 use futures::StreamExt;
 use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalRequest, CanonicalStopReason, ContentBlockKind,
-    Role, anthropic_messages, openai_chat, openai_responses as openai_responses_in,
-    outbound_anthropic, outbound_openai_responses,
+    Role, anthropic_messages, openai_responses as openai_responses_in, outbound_anthropic,
 };
 
 // -----------------------------------------------------------------------------
@@ -24,7 +21,7 @@ fn anthropic_messages_parses_minimal_request() {
         "max_tokens": 1024,
         "messages": [{"role": "user", "content": "hello"}]
     });
-    let req = anthropic_messages::test_api::parse_request(&body).expect("parse");
+    let req = anthropic_messages::parse::parse(&body).expect("parse");
     assert_eq!(req.model, "claude-3-5-sonnet");
     assert_eq!(req.max_tokens, 1024);
     assert_eq!(req.messages.len(), 1);
@@ -37,7 +34,7 @@ fn anthropic_messages_missing_model_errors() {
         "max_tokens": 100,
         "messages": [{"role": "user", "content": "x"}]
     });
-    assert!(anthropic_messages::test_api::parse_request(&body).is_err());
+    assert!(anthropic_messages::parse::parse(&body).is_err());
 }
 
 #[test]
@@ -49,7 +46,7 @@ fn anthropic_messages_parses_system_prompt_and_temperature() {
         "temperature": 0.7,
         "messages": [{"role": "user", "content": "ping"}]
     });
-    let req = anthropic_messages::test_api::parse_request(&body).expect("parse");
+    let req = anthropic_messages::parse::parse(&body).expect("parse");
     assert_eq!(req.system.as_deref(), Some("You are helpful"));
     assert!((req.temperature.unwrap() - 0.7).abs() < 1e-5);
 }
@@ -61,7 +58,7 @@ fn openai_responses_parses_minimal_request() {
         "max_output_tokens": 512,
         "input": [{"role": "user", "content": [{"type": "input_text", "text": "hi"}]}]
     });
-    let req = openai_responses_in::test_api::parse_request(&body).expect("parse");
+    let req = openai_responses_in::parse::parse(&body).expect("parse");
     assert_eq!(req.model, "gpt-5");
     assert_eq!(req.max_tokens, 512);
     assert!(!req.messages.is_empty());
@@ -105,7 +102,7 @@ fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
 fn anthropic_outbound_request_builder_carries_model_and_messages() {
     let req = fixture_request("claude-3-5-sonnet", false);
     let body =
-        outbound_anthropic::test_api::build_request_body(&req, "claude-3-5-sonnet-upstream", None);
+        outbound_anthropic::request::build_request_body(&req, "claude-3-5-sonnet-upstream", None);
     assert_eq!(body["model"], "claude-3-5-sonnet-upstream");
     assert_eq!(body["max_tokens"], 256);
     assert!(body["messages"].is_array());
@@ -115,7 +112,8 @@ fn anthropic_outbound_request_builder_carries_model_and_messages() {
 #[test]
 fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
     let req = fixture_request("gpt-4o", true);
-    let body = openai_chat::test_api::build_request_body(&req, "gpt-4o-upstream", None);
+    let body =
+        systemprompt_models::wire::openai_chat::build_request_body(&req, "gpt-4o-upstream", None);
     assert_eq!(body["model"], "gpt-4o-upstream");
     assert_eq!(body["stream"], true);
     assert!(body["messages"].is_array());
@@ -124,8 +122,11 @@ fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
 #[test]
 fn openai_responses_outbound_request_builder_uses_responses_shape() {
     let req = fixture_request("gpt-5", false);
-    let body =
-        outbound_openai_responses::test_api::build_request_body(&req, "gpt-5-upstream", None);
+    let body = systemprompt_models::wire::openai_responses::build_request_body(
+        &req,
+        "gpt-5-upstream",
+        None,
+    );
     assert_eq!(body["model"], "gpt-5-upstream");
     assert!(body.get("input").is_some() || body.get("messages").is_some());
 }
@@ -143,7 +144,7 @@ fn anthropic_response_parser_extracts_text_and_usage() {
         "stop_reason": "end_turn",
         "usage": {"input_tokens": 10, "output_tokens": 20}
     });
-    let canon = outbound_anthropic::test_api::parse_response(&resp, "fallback-model")
+    let canon = outbound_anthropic::response::parse_response(&resp, "fallback-model")
         .expect("fixture parses");
     assert_eq!(canon.id, "msg_1");
     assert_eq!(canon.usage.input_tokens, 10);
@@ -164,7 +165,7 @@ fn anthropic_response_parser_falls_back_to_model_when_missing() {
         "id": "msg_x",
         "content": [{"type": "text", "text": "y"}]
     });
-    let canon = outbound_anthropic::test_api::parse_response(&resp, "fallback-model")
+    let canon = outbound_anthropic::response::parse_response(&resp, "fallback-model")
         .expect("fixture parses");
     assert_eq!(canon.model, "fallback-model");
 }
@@ -180,7 +181,8 @@ fn openai_chat_response_parser_extracts_choice_content() {
         }],
         "usage": {"prompt_tokens": 5, "completion_tokens": 7}
     });
-    let canon = openai_chat::test_api::parse_response(&resp, "fallback").expect("fixture parses");
+    let canon = systemprompt_models::wire::openai_chat::parse_response(&resp, "fallback")
+        .expect("fixture parses");
     assert_eq!(canon.id, "chatcmpl_1");
     assert!(
         canon
@@ -203,8 +205,9 @@ fn openai_responses_object_parser_extracts_output_text() {
         }],
         "usage": {"input_tokens": 4, "output_tokens": 3}
     });
-    let canon = outbound_openai_responses::test_api::parse_response_object(&resp, "fallback")
-        .expect("fixture parses");
+    let canon =
+        systemprompt_models::wire::openai_responses::parse_response_object(&resp, "fallback")
+            .expect("fixture parses");
     assert_eq!(canon.id, "resp_1");
     assert!(
         canon
@@ -255,7 +258,7 @@ async fn anthropic_streaming_decoder_emits_text_delta_then_message_stop() {
          output_tokens\":5}}\n\n",
         "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
     ];
-    let stream = outbound_anthropic::test_api::sse_to_canonical_events(byte_stream(chunks));
+    let stream = outbound_anthropic::streaming::sse_to_canonical_events(byte_stream(chunks));
     let events = collect_events(stream).await;
     assert!(
         events
@@ -283,7 +286,7 @@ async fn anthropic_streaming_decoder_handles_split_event_across_chunk_boundary()
         "aude\",\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\n",
         "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
     ];
-    let stream = outbound_anthropic::test_api::sse_to_canonical_events(byte_stream(chunks));
+    let stream = outbound_anthropic::streaming::sse_to_canonical_events(byte_stream(chunks));
     let events = collect_events(stream).await;
     assert!(
         events
@@ -301,8 +304,10 @@ async fn openai_chat_streaming_decoder_emits_text_deltas() {
         "data: {\"id\":\"c_1\",\"choices\":[{\"index\":0,\"finish_reason\":\"stop\"}]}\n\n",
         "data: [DONE]\n\n",
     ];
-    let stream =
-        openai_chat::test_api::sse_to_canonical_events(byte_stream(chunks), "gpt-4o".to_owned());
+    let stream = systemprompt_models::wire::openai_chat::sse_to_canonical_events(
+        byte_stream(chunks),
+        "gpt-4o".to_owned(),
+    );
     let events = collect_events(stream).await;
     assert!(
         events
@@ -322,7 +327,7 @@ async fn openai_responses_streaming_decoder_recognises_response_created() {
          output_tokens\":5}}}\n\n",
         "data: [DONE]\n\n",
     ];
-    let stream = outbound_openai_responses::test_api::sse_to_canonical_events(
+    let stream = systemprompt_models::wire::openai_responses::sse_to_canonical_events(
         byte_stream(chunks),
         "gpt-5".to_owned(),
     );
@@ -336,7 +341,7 @@ async fn openai_responses_streaming_decoder_recognises_response_created() {
 
 #[tokio::test]
 async fn streaming_decoder_yields_no_events_on_empty_stream() {
-    let stream = outbound_anthropic::test_api::sse_to_canonical_events(byte_stream(vec![]));
+    let stream = outbound_anthropic::streaming::sse_to_canonical_events(byte_stream(vec![]));
     let events = collect_events(stream).await;
     assert!(events.is_empty());
 }
@@ -362,7 +367,7 @@ fn anthropic_render_response_value_emits_id_model_content() {
         raw_finish_reason: None,
         ..Default::default()
     };
-    let value = anthropic_messages::test_api::render_response_value(&canon);
+    let value = anthropic_messages::render::render_response_value(&canon);
     assert_eq!(value["id"], "msg_render_1");
     assert_eq!(value["model"], "claude-3-5");
     assert!(value["content"].is_array());
@@ -374,8 +379,7 @@ fn anthropic_render_event_frame_text_delta_produces_sse_block() {
         index: 0,
         text: "x".to_owned(),
     };
-    let bytes =
-        anthropic_messages::test_api::render_event_frame(&event, "claude").expect("rendered");
+    let bytes = anthropic_messages::render::render_event_frame(&event, "claude").expect("rendered");
     let s = std::str::from_utf8(&bytes).unwrap_or_default();
     assert!(
         s.contains("content_block_delta") || s.contains("text_delta"),
@@ -392,7 +396,7 @@ fn anthropic_render_event_frame_unknown_kind_returns_none_for_unsupported() {
     // Whether this returns Some or None depends on the renderer; the test
     // simply locks in that the function returns without panicking and that any
     // Some result is non-empty.
-    if let Some(bytes) = anthropic_messages::test_api::render_event_frame(&event, "claude") {
+    if let Some(bytes) = anthropic_messages::render::render_event_frame(&event, "claude") {
         assert!(!bytes.is_empty());
     }
 }

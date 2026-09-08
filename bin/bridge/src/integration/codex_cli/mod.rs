@@ -35,7 +35,6 @@ impl HostApp for CodexCliHost {
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
-        // Why: Codex bakes `<origin>/v1`, and the classifier ignores the path.
         let endpoint_fresh = ProfileState::endpoint_freshness(
             read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
             env.proxy_port,
@@ -77,10 +76,6 @@ impl HostApp for CodexCliHost {
 
     fn install_action_label(&self) -> &'static str {
         if cfg!(target_os = "macos") {
-            // Why: on macOS the install only hands the profile to System
-            // Settings, which holds it until the user approves it. Claiming it
-            // had loaded made every subsequent "profile not installed" read as
-            // a contradiction rather than as the accurate report it was.
             "offered to System Settings — approve it under General › Device Management"
         } else if cfg!(target_os = "windows") {
             "merged into %USERPROFILE%\\.codex\\managed_config.toml"
@@ -110,19 +105,11 @@ impl HostApp for CodexCliHost {
         "https://developers.openai.com/codex/app"
     }
 
-    // Why: the gateway serves Codex over `/v1/responses`, not
-    // `/v1/chat/completions`. Leaving this at the trait's empty default made
-    // `effective_surfaces` yield nothing, so no model protocol was ever
-    // negotiated, no compatible models were offered, and the profile writer had
-    // nothing to install — the host synced its MCP half and silently skipped the
-    // model half.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
         &[systemprompt_models::services::ApiSurface::OpenAi]
     }
 }
 
-// Why: Codex ships as a conventional installer on every platform, so there is
-// no MSIX family to consult.
 const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
     crate::integration::app_launch::AppLocator {
         macos_name: "Codex",

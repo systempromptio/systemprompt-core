@@ -27,8 +27,6 @@ pub fn set_immersive_dark(window: &dyn Window, dark: bool) {
         )
     };
     if hr < 0 {
-        // Why: unsupported before Windows 10 1809, where the correct behaviour
-        // is a light title bar. Not an error worth surfacing.
         tracing::debug!(hr, "DWMWA_USE_IMMERSIVE_DARK_MODE rejected");
     }
 }

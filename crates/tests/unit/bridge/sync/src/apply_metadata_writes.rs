@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use systemprompt_bridge::gateway::manifest::UserInfo;
-use systemprompt_bridge::sync::apply::test_api::{prepare_dirs, write_mcp_servers, write_user};
+use systemprompt_bridge::sync::apply::{prepare_dirs, write_mcp_servers, write_user};
 use systemprompt_identifiers::UserId;
 
 fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {

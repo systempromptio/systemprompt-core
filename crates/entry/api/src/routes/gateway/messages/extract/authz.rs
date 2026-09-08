@@ -59,13 +59,6 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::services::GatewayRoute,

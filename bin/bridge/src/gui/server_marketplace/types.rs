@@ -41,12 +41,11 @@ pub struct MarketplaceItem {
     pub(crate) change: Option<ChangeKind>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) children: Vec<PluginChild>,
-    // Why: empty for plugins themselves, for MCP servers (the registry
-    // snapshot is not per-plugin — `mark_shared_mcp` models that instead), and
-    // for items from an external source, which render under "Ungrouped".
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) plugins: Vec<String>,
     pub(crate) extra: MarketplaceExtra,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
 }
 
 impl MarketplaceItem {
@@ -72,7 +71,15 @@ impl MarketplaceItem {
             children: Vec::new(),
             plugins: Vec::new(),
             extra: MarketplaceExtra::None,
+            error: None,
         }
+    }
+
+    #[must_use]
+    pub(crate) fn failed(id: &str, path: &std::path::Path, error: &std::io::Error) -> Self {
+        let mut item = Self::new(id, id, None, path.display().to_string(), "tenant");
+        item.error = Some(error.to_string());
+        item
     }
 
     #[must_use]
@@ -116,6 +123,8 @@ pub struct MarketplaceListing {
     pub(crate) artifacts: Vec<MarketplaceItem>,
     pub(crate) plugins_dir: Option<String>,
     pub(crate) last_sync_diff: MarketplaceDiff,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) last_sync_error: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -126,10 +135,39 @@ pub(crate) struct PluginManifest {
     pub(crate) description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "author_display",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub(crate) author: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) homepage: Option<String>,
+}
+
+// Why: `author` in a Claude `plugin.json` is either a bare string or an object
+// with `name`/`email`, and one object-form bundle failed the whole listing.
+fn author_display<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Author {
+        Name(String),
+        Object {
+            #[serde(default)]
+            name: Option<String>,
+            #[serde(default)]
+            email: Option<String>,
+        },
+    }
+
+    Ok(match Option::<Author>::deserialize(deserializer)? {
+        None => None,
+        Some(Author::Name(name)) => Some(name),
+        Some(Author::Object { name, email }) => name.or(email),
+    })
 }
 
 #[derive(Debug, Serialize)]

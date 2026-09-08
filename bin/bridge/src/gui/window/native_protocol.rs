@@ -62,16 +62,16 @@ pub(super) fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<C
 }
 fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
     let mut response = Response::new(asset.body);
-    _ = response.headers_mut().insert(
+    response.headers_mut().insert(
         CONTENT_TYPE,
         http::HeaderValue::from_str(asset.content_type)
             .unwrap_or_else(|_| http::HeaderValue::from_static("application/octet-stream")),
     );
-    _ = response.headers_mut().insert(
+    response.headers_mut().insert(
         http::header::CACHE_CONTROL,
         http::HeaderValue::from_static("no-store, must-revalidate"),
     );
-    _ = response.headers_mut().insert(
+    response.headers_mut().insert(
         http::header::X_CONTENT_TYPE_OPTIONS,
         http::HeaderValue::from_static("nosniff"),
     );
@@ -80,7 +80,7 @@ fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
 fn not_found() -> Response<Cow<'static, [u8]>> {
     let mut response = Response::new(Cow::Borrowed::<'static, [u8]>(b"not found"));
     *response.status_mut() = http::StatusCode::NOT_FOUND;
-    _ = response.headers_mut().insert(
+    response.headers_mut().insert(
         CONTENT_TYPE,
         http::HeaderValue::from_static("text/plain; charset=utf-8"),
     );

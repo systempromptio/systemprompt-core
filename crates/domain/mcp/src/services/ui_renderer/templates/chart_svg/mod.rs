@@ -19,7 +19,7 @@
 mod cartesian;
 mod frame;
 mod radial;
-pub(crate) mod scale;
+pub mod scale;
 
 use super::html::html_escape;
 use systemprompt_models::artifacts::chart::ChartDataset;
@@ -96,8 +96,6 @@ fn legend(datasets: &[ChartDataset], labels: &[String], chart_type: ChartType) -
         },
     };
 
-    // Why: A one-series chart used to render no legend at all, so its dataset's
-    // own label appeared nowhere in the document.
     if names.is_empty() || names.iter().all(|n| n.is_empty()) {
         return String::new();
     }

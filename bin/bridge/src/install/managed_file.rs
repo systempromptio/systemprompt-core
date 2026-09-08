@@ -20,31 +20,39 @@ pub enum ManagedWrite {
     Unchanged,
 }
 
-pub(crate) fn write_managed_file(
-    path: &Path,
-    bytes: &[u8],
-    prompt: &str,
-) -> io::Result<ManagedWrite> {
-    if std::fs::read(path).is_ok_and(|existing| existing == bytes) {
-        return Ok(ManagedWrite::Unchanged);
+pub fn write_managed_file(path: &Path, bytes: &[u8], prompt: &str) -> io::Result<ManagedWrite> {
+    match std::fs::read(path) {
+        Ok(existing) if existing == bytes => return Ok(ManagedWrite::Unchanged),
+        Ok(_) => {},
+        Err(e)
+            if matches!(
+                e.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
+            ) => {},
+        Err(e) => return Err(e),
     }
     match crate::fsutil::atomic_write_0644(path, bytes) {
         Ok(()) => Ok(ManagedWrite::Written),
-        // Why: only permission-denied justifies escalating — anything else
-        // (ENOSPC and friends) is a real failure elevation cannot fix.
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            write_elevated(path, bytes, prompt).map(|()| ManagedWrite::Written)
+            write_elevated(path, bytes, prompt)?;
+            crate::fsutil::verify_contents(path, bytes)?;
+            Ok(ManagedWrite::Written)
         },
         Err(e) => Err(e),
     }
 }
 
-pub(crate) fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool> {
+pub fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool> {
     match std::fs::remove_file(path) {
-        Ok(()) => Ok(true),
+        Ok(()) => {
+            verify_absent(path)?;
+            Ok(true)
+        },
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            remove_elevated(path, prompt).map(|()| true)
+            remove_elevated(path, prompt)?;
+            verify_absent(path)?;
+            Ok(true)
         },
         Err(e) => Err(e),
     }
@@ -52,15 +60,13 @@ pub(crate) fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool>
 
 #[cfg(target_os = "macos")]
 fn write_elevated(path: &Path, bytes: &[u8], prompt: &str) -> io::Result<()> {
-    // Why: stage into a user-writable tempdir first — the elevated shell can
-    // read it, whereas a heredoc would embed the body in the script itself.
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
         .tempdir()?;
     let staged = staging.path().join(path.file_name().ok_or_else(|| {
         io::Error::new(io::ErrorKind::InvalidInput, "managed path has no file name")
     })?);
-    std::fs::write(&staged, bytes)?;
+    crate::fsutil::atomic_write_0600(&staged, bytes)?;
     let dir = path.parent().unwrap_or(path);
     let script = crate::install::elevation_script::write_managed_file_script(dir, &staged, path);
     run(&script, prompt)
@@ -92,7 +98,7 @@ fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
         .prefix("systemprompt-managed-")
         .tempdir()?;
     let staged = staging.path().join("managed-file");
-    std::fs::write(&staged, bytes)?;
+    crate::fsutil::atomic_write_0600(&staged, bytes)?;
     let job = ElevatedJob {
         reg_path: None,
         org_plugins: None,
@@ -104,7 +110,7 @@ fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
         }],
         remove_files: Vec::new(),
     };
-    crate::install::elevated_job::elevate_and_run(staging.path(), &job)
+    crate::install::elevated_job::elevate_and_run(staging.path(), &job)?.require("install", path)
 }
 
 #[cfg(target_os = "windows")]
@@ -121,7 +127,7 @@ fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
         managed_files: Vec::new(),
         remove_files: vec![path.to_path_buf()],
     };
-    crate::install::elevated_job::elevate_and_run(staging.path(), &job)
+    crate::install::elevated_job::elevate_and_run(staging.path(), &job)?.require("remove", path)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -149,5 +155,13 @@ fn root_required(path: &Path) -> io::Error {
     )
 }
 
-#[path = "managed_file_test_api.rs"]
-pub mod test_api;
+fn verify_absent(path: &Path) -> io::Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+        Ok(_) => Err(io::Error::other(format!(
+            "{} still exists after deletion",
+            path.display()
+        ))),
+    }
+}

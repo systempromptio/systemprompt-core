@@ -332,6 +332,7 @@ fn run_once_with_enabled_hosts_materialises_all_host_state() {
     );
     let (server, dirs) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &m).await;
         let dirs = sandbox(&server.uri());
         (server, dirs)
@@ -385,6 +386,7 @@ fn a_sync_with_no_cowork_session_dir_still_stages_the_workspace_bundle() {
     );
     let (server, dirs) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &m).await;
         let dirs = sandbox(&server.uri());
         (server, dirs)
@@ -449,6 +451,7 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
 
     let (enable_server, dirs) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &enabled).await;
         let dirs = sandbox(&server.uri());
         (server, dirs)
@@ -458,6 +461,7 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
 
     let disable_server = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &disabled).await;
         server
     });
@@ -584,6 +588,7 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
         .collect();
     let (server, dirs) = rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         mount_gateway(&server, &m).await;
         let dirs = sandbox(&server.uri());
         (server, dirs)

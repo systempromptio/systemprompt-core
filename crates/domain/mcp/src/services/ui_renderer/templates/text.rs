@@ -99,10 +99,6 @@ fn render_text(artifact: &Artifact, presentation: Presentation, csp: CspPolicy) 
         .or_else(|| artifact.title.clone())
         .unwrap_or_else(|| "Text".to_owned());
 
-    // Why: `.text-content-mono` existed in text.css from the start and was applied
-    // by nothing, so the copy-paste variant rendered in the body font with the
-    // browser's default monospace inside the <pre> — its whole intended
-    // treatment was dead code.
     let language = payload_language(artifact);
     let (formatted_text, content_class) = match presentation {
         Presentation::Prose => (format_prose(&text), "text-content"),
@@ -233,8 +229,6 @@ fn format_prose(text: &str) -> String {
     out
 }
 
-// Why: a `*` bullet needs the trailing space, which is what keeps `**bold**` at
-// the start of a line from being mistaken for one.
 fn bullet_body(line: &str) -> Option<&str> {
     line.strip_prefix("- ").or_else(|| line.strip_prefix("* "))
 }
@@ -244,9 +238,6 @@ fn format_inline(text: &str) -> String {
     wrap_delimited(&bolded, "`", "code")
 }
 
-// Why: this operates on already-escaped text, so it can only introduce the tag
-// it is asked for. An odd number of delimiters means the author wrote a literal
-// marker rather than a pair, and the text is returned untouched.
 fn wrap_delimited(text: &str, delimiter: &str, tag: &str) -> String {
     let parts: Vec<&str> = text.split(delimiter).collect();
     if parts.len() < 3 || parts.len().is_multiple_of(2) {

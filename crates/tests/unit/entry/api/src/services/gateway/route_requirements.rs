@@ -10,7 +10,7 @@
 //! directions of that fallback are asserted — a model can be stricter than its
 //! provider, and it can be laxer.
 
-use systemprompt_api::services::gateway::service::test_api::enforce_route_requirements;
+use systemprompt_api::services::gateway::service::resolve::enforce_route_requirements;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::services::ai::ModelGovernance;
 use systemprompt_models::services::{

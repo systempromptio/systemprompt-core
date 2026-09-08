@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true }
 tokio = { workspace = true }
 wiremock = { workspace = true }

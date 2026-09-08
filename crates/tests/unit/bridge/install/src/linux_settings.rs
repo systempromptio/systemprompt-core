@@ -5,7 +5,8 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::install::{InstallOptions, MdmDisplay, install, uninstall};
+use systemprompt_bridge::install::mdm::MdmError;
+use systemprompt_bridge::install::{InstallError, InstallOptions, MdmDisplay, install, uninstall};
 use tempfile::TempDir;
 
 struct Dirs {
@@ -87,7 +88,7 @@ fn apply_options() -> InstallOptions {
 
 fn applied_lines(display: &MdmDisplay) -> Vec<String> {
     match display {
-        MdmDisplay::Applied { lines, .. } => lines.clone(),
+        MdmDisplay::Applied { report, .. } => report.lines.clone(),
         other => panic!("expected an applied MDM step, got {other:?}"),
     }
 }
@@ -172,7 +173,7 @@ fn a_users_own_settings_keys_survive_the_apply() {
         r#"{"model":"claude-user-choice","env":{"MY_OWN":"keep"},"permissions":{"allow":["Bash"]}}"#,
     );
     dirs.run(|| {
-        install(&apply_options(), &bridge()).expect("install --apply succeeds");
+        let _installed = install(&apply_options(), &bridge()).expect("install --apply succeeds");
     });
 
     let doc = dirs.settings_json();
@@ -197,9 +198,9 @@ fn a_users_own_settings_keys_survive_the_apply() {
 fn a_second_apply_leaves_the_settings_file_byte_identical() {
     let dirs = Dirs::new();
     let (first, second) = dirs.run(|| {
-        install(&apply_options(), &bridge()).expect("first apply");
+        let _installed = install(&apply_options(), &bridge()).expect("first apply");
         let first = fs::read(dirs.settings()).expect("settings after first apply");
-        install(&apply_options(), &bridge()).expect("second apply");
+        let _installed = install(&apply_options(), &bridge()).expect("second apply");
         let second = fs::read(dirs.settings()).expect("settings after second apply");
         (first, second)
     });
@@ -210,28 +211,48 @@ fn a_second_apply_leaves_the_settings_file_byte_identical() {
 }
 
 #[test]
-fn forced_login_settings_are_reported_as_a_warning() {
+fn forced_login_settings_fail_the_apply_and_name_both_keys() {
     let dirs = Dirs::new();
-    dirs.seed_settings(r#"{"forceLoginMethod":"claudeai","forceLoginOrgUUID":"abc"}"#);
-    let lines = dirs.run(|| {
-        let summary = install(&apply_options(), &bridge()).expect("install --apply succeeds");
-        applied_lines(&summary.mdm)
+    let seeded = r#"{"forceLoginMethod":"claudeai","forceLoginOrgUUID":"abc"}"#;
+    dirs.seed_settings(seeded);
+    let err = dirs.run(|| {
+        install(&apply_options(), &bridge())
+            .expect_err("forced login blocks the gateway credential, so the apply must refuse")
     });
 
+    let MdmError::InvalidConfig(message) = innermost_mdm_error(&err) else {
+        panic!("a forced-login conflict is an invalid configuration, got {err:?}");
+    };
     for key in ["forceLoginMethod", "forceLoginOrgUUID"] {
         assert!(
-            lines
-                .iter()
-                .any(|l| l.starts_with("WARNING:") && l.contains(key)),
-            "{key} blocks the gateway credential at startup and must be flagged: {lines:?}"
+            message.contains(key),
+            "{key} blocks the gateway credential at startup and must be named: {message}"
         );
     }
-    let doc = dirs.settings_json();
-    assert_eq!(
-        doc["forceLoginMethod"].as_str(),
-        Some("claudeai"),
-        "the bridge warns about the key rather than deleting it"
+    assert!(
+        message.contains("WARNING:"),
+        "the refusal is worded as the warning the operator sees: {message}"
     );
+    assert_eq!(
+        fs::read_to_string(dirs.settings()).expect("settings still present"),
+        seeded,
+        "the bridge refuses rather than deleting or rewriting the conflicting keys"
+    );
+}
+
+fn innermost_mdm_error(err: &InstallError) -> &MdmError {
+    let mut install_err = err;
+    while let InstallError::Partial { source, .. } = install_err {
+        install_err = source;
+    }
+    let InstallError::MdmApply(mdm) = install_err else {
+        panic!("a settings conflict surfaces as an apply failure, got {install_err:?}");
+    };
+    let mut mdm = mdm;
+    while let MdmError::Partial { source, .. } = mdm {
+        mdm = source;
+    }
+    mdm
 }
 
 #[test]
@@ -258,7 +279,7 @@ fn uninstall_strips_the_bridge_keys_and_keeps_the_users_own() {
     let dirs = Dirs::new();
     dirs.seed_settings(r#"{"model":"claude-user-choice","env":{"MY_OWN":"keep"}}"#);
     dirs.run(|| {
-        install(&apply_options(), &bridge()).expect("install --apply succeeds");
+        let _installed = install(&apply_options(), &bridge()).expect("install --apply succeeds");
         uninstall(false, &bridge()).expect("uninstall succeeds");
     });
 
@@ -298,7 +319,7 @@ fn uninstall_strips_the_bridge_keys_and_keeps_the_users_own() {
 fn uninstall_removes_a_settings_file_that_held_only_bridge_keys() {
     let dirs = Dirs::new();
     dirs.run(|| {
-        install(&apply_options(), &bridge()).expect("install --apply succeeds");
+        let _installed = install(&apply_options(), &bridge()).expect("install --apply succeeds");
         assert!(dirs.settings().is_file(), "apply created the settings file");
         uninstall(false, &bridge()).expect("uninstall succeeds");
     });
@@ -309,12 +330,19 @@ fn uninstall_removes_a_settings_file_that_held_only_bridge_keys() {
 }
 
 #[test]
-fn uninstall_leaves_a_settings_file_it_cannot_parse_in_place() {
+fn uninstall_refuses_a_settings_file_it_cannot_parse_and_leaves_it_in_place() {
     let dirs = Dirs::new();
     dirs.seed_settings("{ not json at all");
-    dirs.run(|| {
-        uninstall(false, &bridge()).expect("uninstall succeeds");
+    let err = dirs.run(|| {
+        uninstall(false, &bridge()).expect_err("unreadable settings must fail the uninstall")
     });
+    let InstallError::Bootstrap(message) = &err else {
+        panic!("a managed-profile removal failure is reported as a bootstrap error, got {err:?}");
+    };
+    assert!(
+        message.contains("settings.json") && message.contains("not valid JSON"),
+        "the failure names the file and why it was refused: {message}"
+    );
     assert_eq!(
         fs::read_to_string(dirs.settings()).expect("settings still present"),
         "{ not json at all",

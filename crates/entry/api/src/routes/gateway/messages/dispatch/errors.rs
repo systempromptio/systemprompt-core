@@ -6,12 +6,13 @@
 
 use axum::body::Body;
 use axum::http::{HeaderValue, StatusCode};
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 
 use crate::services::gateway::image_fetch::ImageFetchFailed;
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{
-    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
+    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
+    QuotaExceeded, SafetyBlocked,
 };
 
 use super::RejectionError;
@@ -21,14 +22,9 @@ const ERROR_TYPE_PERMISSION: &str = "permission_error";
 const ERROR_TYPE_INVALID_REQUEST: &str = "invalid_request_error";
 
 const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
+const PROMPT_REPAIR_ACTION: &str = "Remove secret-bearing content, correct system instructions, \
+                                    or shorten the conversation before retrying";
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_policy_denial(message: &str) -> Response<Body> {
     build_error_response(
         StatusCode::BAD_REQUEST,
@@ -38,13 +34,6 @@ pub fn build_policy_denial(message: &str) -> Response<Body> {
 }
 
 #[must_use]
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn policy_denial_message(message: &str) -> String {
     if message.starts_with(POLICY_DENIAL_PREFIX) {
         return message.to_owned();
@@ -53,13 +42,6 @@ pub fn policy_denial_message(message: &str) -> String {
 }
 
 #[must_use]
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn error_type_for(status: StatusCode) -> &'static str {
     match status {
         StatusCode::UNAUTHORIZED => "authentication_error",
@@ -71,13 +53,6 @@ pub fn error_type_for(status: StatusCode) -> &'static str {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionError> {
     let (persist, inner) = match e {
         DispatchError::PreAudit(inner) => (true, inner),
@@ -94,9 +69,6 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
         }
         return Ok(resp);
     }
-    // Why: a guard rejection *is* an authorization failure, so 403 — and the
-    // client's prompt to re-authenticate — is the right response here. It is
-    // the one case below that a re-login can actually fix.
     if let Some(forbidden) = inner.downcast_ref::<GuardForbidden>() {
         return Ok(build_error_response(
             StatusCode::FORBIDDEN,
@@ -104,12 +76,12 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             &forbidden.message,
         ));
     }
+    if let Some(repair) = inner.downcast_ref::<PromptRepairRequired>() {
+        return Ok(build_prompt_repair(&repair.message, &repair.locations));
+    }
     if let Some(denied) = inner.downcast_ref::<GovernanceDenied>() {
         return Ok(build_policy_denial(&denied.message));
     }
-    // Why: the image is part of the prompt. Degrading to text and answering
-    // anyway is the defect this path exists to remove, so the request fails and
-    // says which URL failed and whether the caller can fix it.
     if let Some(image) = inner.downcast_ref::<ImageFetchFailed>() {
         let status = if image.caller_fault {
             StatusCode::BAD_REQUEST
@@ -122,10 +94,8 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             &image.to_string(),
         ));
     }
-    // Why: Claude Code recovers from several provider rejections by matching on
-    // the provider's own error wording and retrying without the rejected
-    // capability. Re-wrapping the error defeats that even when the status is
-    // preserved, so an upstream rejection is relayed exactly as it arrived.
+    // Why: Claude Code matches provider error wording to retry without rejected
+    // capabilities.
     if let Some(upstream) = inner.downcast_ref::<UpstreamError>()
         && let Some(response) = build_upstream_passthrough(upstream)
     {
@@ -139,14 +109,13 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
+    if let Some(repair) = e.downcast_ref::<PromptRepairRequired>() {
+        return (
+            StatusCode::BAD_REQUEST,
+            policy_denial_message(&repair.message),
+        );
+    }
     if let Some(denied) = e.downcast_ref::<PolicyDenied>() {
         return (
             StatusCode::BAD_REQUEST,
@@ -221,39 +190,30 @@ pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_error_response(status: StatusCode, error_type: &str, message: &str) -> Response<Body> {
-    let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
-    let body = format!(
-        "{{\"type\":\"error\",\"error\":{{\"type\":\"{error_type}\",\"message\":\"{escaped}\"}}}}"
-    );
-    match Response::builder()
-        .status(status)
-        .header("content-type", "application/json")
-        .body(Body::from(body))
-    {
-        Ok(resp) => resp,
-        Err(e) => {
-            tracing::error!(error = %e, status = %status, "Failed to build gateway error response");
-            internal_error_response()
-        },
-    }
+    (
+        status,
+        axum::Json(serde_json::json!({
+            "type": "error",
+            "error": { "type": error_type, "message": message },
+        })),
+    )
+        .into_response()
 }
 
-fn internal_error_response() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header("content-type", "application/json")
-        .body(Body::from(r#"{"error":"internal"}"#))
-        .unwrap_or_else(|_| {
-            let mut fallback = Response::new(Body::from(r#"{"error":"internal"}"#));
-            *fallback.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-            fallback
-        })
+fn build_prompt_repair(message: &str, locations: &[String]) -> Response<Body> {
+    let body = serde_json::json!({
+        "type": "error",
+        "error": {
+            "type": ERROR_TYPE_INVALID_REQUEST,
+            "message": policy_denial_message(message),
+            "recovery": {
+                "code": "prompt_repair_required",
+                "locations": locations,
+                "retryable": false,
+                "action": PROMPT_REPAIR_ACTION,
+            }
+        }
+    });
+    (StatusCode::BAD_REQUEST, axum::Json(body)).into_response()
 }

@@ -8,7 +8,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{ClientId, SessionId};
-use systemprompt_mcp::test_api::{validate_audience, validate_scopes_for_permissions};
+use systemprompt_mcp::middleware::rbac::jwt::{validate_audience, validate_scopes_for_permissions};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };

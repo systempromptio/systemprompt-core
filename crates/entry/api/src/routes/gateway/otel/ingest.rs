@@ -16,13 +16,6 @@ use super::convert::{any_value_to_string, attrs_to_json, hex_lower, severity_to_
 
 const MODULE: &str = "otel";
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn ingest_traces(req: ExportTraceServiceRequest) {
     for resource in req.resource_spans {
         let resource_attrs = attrs_to_json(
@@ -91,13 +84,6 @@ pub fn ingest_traces(req: ExportTraceServiceRequest) {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn ingest_logs(req: ExportLogsServiceRequest) {
     for resource in req.resource_logs {
         let resource_attrs = attrs_to_json(
@@ -156,13 +142,6 @@ pub fn ingest_logs(req: ExportLogsServiceRequest) {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn ingest_metrics(req: &ExportMetricsServiceRequest) {
     let mut total = 0usize;
     let mut names: Vec<String> = Vec::new();

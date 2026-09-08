@@ -67,10 +67,6 @@ pub struct ResolveBase<'a> {
 pub struct ParentChainIndex {
     pub(super) marketplaces: BTreeMap<MarketplaceId, LoadedParent>,
     pub(super) plugins: BTreeMap<PluginId, LoadedParent>,
-    // Why: shared rather than owned. The sources are fixed for the process
-    // lifetime while the index is rebuilt whenever the cache sees the rule or
-    // entity tables change, so an owned copy would deep-clone every plugin
-    // id, skill id and member set on each rebuild for no benefit.
     pub(super) sources: Arc<ChainSources>,
 }
 

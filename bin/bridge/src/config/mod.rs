@@ -8,21 +8,23 @@ mod profile;
 pub mod redaction;
 mod runtime;
 pub mod store;
+pub mod trust;
 pub mod write;
 
-pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_loaded};
+pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_config, shared_from_loaded};
 
 use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
-use std::sync::Once;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-use crate::ids::{KeystoreRef, PinnedPubKey};
+use crate::ids::KeystoreRef;
 
-pub use self::profile::{
-    ClaudeConfig, gateway_url_or_default, persist_pinned_pubkey, pinned_pubkey, policy_pubkey,
+pub use self::profile::{ClaudeConfig, gateway_url_or_default};
+pub use self::trust::{
+    PinSource, PinnedPubkeyState, SyncConfig, TrustError, persist_pinned_pubkey, pinned_pubkey,
+    pinned_pubkey_state, policy_pubkey,
 };
 pub use self::write::ConfigWriteError;
 
@@ -76,6 +78,8 @@ pub struct PatConfig {
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
 pub struct SessionConfig {
     #[serde(default)]
+    pub generation: Option<uuid::Uuid>,
+    #[serde(default)]
     pub enabled: Option<bool>,
 }
 
@@ -85,56 +89,13 @@ pub struct MtlsConfig {
     pub cert_keystore_ref: Option<KeystoreRef>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-pub struct SyncConfig {
-    #[serde(default)]
-    pub pinned_pubkey: Option<PinnedPubKey>,
-}
-
 impl Config {
-    pub fn load() -> Self {
-        let mut cfg = match read() {
-            Ok(cfg) => cfg,
-            Err(e) => {
-                static WARN_ONCE: Once = Once::new();
-                WARN_ONCE.call_once(|| {
-                    tracing::warn!(error = %e, "config unreadable; falling back to defaults");
-                });
-                Self::default()
-            },
-        };
-
+    pub fn load() -> Result<Self, ConfigReadError> {
+        let mut cfg = read()?;
         if cfg.gateway_url.is_none() {
             cfg.gateway_url = Some(default_gateway());
         }
-
-        cfg
-    }
-
-    #[must_use]
-    pub fn with_policy_overrides(mut self) -> Self {
-        let Some(policy_value) = policy_pubkey() else {
-            return self;
-        };
-        let sync = self.sync.get_or_insert_with(SyncConfig::default);
-        match sync.pinned_pubkey.as_ref() {
-            None => sync.pinned_pubkey = Some(policy_value),
-            Some(existing) if existing.as_str() == policy_value.as_str() => {},
-            Some(existing) => {
-                static WARN_ONCE: Once = Once::new();
-                let existing_prefix: String = existing.as_str().chars().take(12).collect();
-                let policy_prefix: String = policy_value.as_str().chars().take(12).collect();
-                WARN_ONCE.call_once(|| {
-                    tracing::warn!(
-                        operator_pubkey_prefix = %existing_prefix,
-                        policy_pubkey_prefix = %policy_prefix,
-                        "policy-provided manifest pubkey overrides operator-set value"
-                    );
-                });
-                sync.pinned_pubkey = Some(policy_value);
-            },
-        }
-        self
+        Ok(cfg)
     }
 
     #[must_use]
@@ -145,9 +106,8 @@ impl Config {
     }
 }
 
-#[must_use]
-pub fn load() -> Config {
-    Config::load().with_policy_overrides()
+pub fn load() -> Result<Config, ConfigReadError> {
+    Config::load()
 }
 
 #[must_use]
@@ -172,7 +132,7 @@ pub enum ConfigReadError {
     #[error("{path} is not valid TOML: {source}")]
     Malformed {
         path: PathBuf,
-        source: toml::de::Error,
+        source: Box<toml::de::Error>,
     },
 }
 
@@ -186,7 +146,10 @@ pub fn read() -> Result<Config, ConfigReadError> {
     else {
         return Ok(Config::default());
     };
-    toml::from_str(&body).map_err(|source| ConfigReadError::Malformed { path, source })
+    toml::from_str(&body).map_err(|source| ConfigReadError::Malformed {
+        path,
+        source: Box::new(source),
+    })
 }
 
 pub fn ensure_gateway_url(url: &str) -> Result<(), ConfigWriteError> {

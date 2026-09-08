@@ -34,13 +34,6 @@ pub struct A2ABroadcastRequest {
 }
 
 #[derive(Debug)]
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub struct AgUiWebhookData {
     pub event_name: String,
     pub payload: serde_json::Value,

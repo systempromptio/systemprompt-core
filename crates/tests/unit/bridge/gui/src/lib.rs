@@ -19,6 +19,10 @@ mod marketplace_children;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod marketplace_hooks;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
+mod marketplace_listing;
+#[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod profile;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod server_json;
+#[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
+mod state_verdicts;

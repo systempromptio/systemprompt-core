@@ -56,14 +56,31 @@ pub async fn fetch_external_bearer(
     jwt: &str,
     server: &str,
 ) -> McpDomainResult<String> {
-    let response = reqwest::Client::new()
-        .get(accessor)
-        .header("Authorization", format!("Bearer {jwt}"))
-        .send()
-        .await
-        .map_err(|e| {
-            McpDomainError::Transport(format!("token accessor request failed for '{server}': {e}"))
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|error| {
+            McpDomainError::Transport(format!(
+                "token accessor client failed for '{server}': {error}"
+            ))
         })?;
+    let mut request = client
+        .get(accessor)
+        .header("Authorization", format!("Bearer {jwt}"));
+    let broker_secret = std::env::var("MCP_CREDENTIAL_BROKER_SECRET")
+        .ok()
+        .filter(|secret| !secret.is_empty())
+        .or_else(|| {
+            systemprompt_config::SecretsBootstrap::get()
+                .ok()
+                .and_then(|secrets| secrets.get("mcp_credential_broker_secret").cloned())
+        });
+    if let Some(secret) = broker_secret.filter(|s| !s.is_empty()) {
+        request = request.header("X-Systemprompt-Credential-Broker", secret);
+    }
+    let response = request.send().await.map_err(|e| {
+        McpDomainError::Transport(format!("token accessor request failed for '{server}': {e}"))
+    })?;
 
     match response.status() {
         reqwest::StatusCode::OK => {

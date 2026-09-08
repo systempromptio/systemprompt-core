@@ -24,9 +24,6 @@ pub(crate) fn on_model_filter_set_requested(
     protocols: Option<Vec<String>>,
     reply_to: ReplyId,
 ) {
-    // Why: the filter is a gateway-side preference, but it is stored per host,
-    // and an agent with no local host entry has nothing to store it against —
-    // so it is accepted as a no-op rather than reported as an unknown id.
     if crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "model filter", reply_to)
         .is_none()
     {
@@ -61,10 +58,14 @@ async fn push_model_filter(
     protocols: Option<&[String]>,
     http: reqwest::Client,
 ) -> GuiResult<()> {
-    let cfg = config::load();
+    let cfg = config::load()?;
     let gateway_base = config::gateway_url_or_default(&cfg);
-    let bearer =
-        crate::auth::cache::read_valid(&gateway_base).ok_or_else(|| GuiError::Profile {
+    let bearer = crate::auth::cache::read_for(&cfg, &gateway_base, 30)
+        .map_err(|e| GuiError::Profile {
+            context: "credential cache".into(),
+            source: e,
+        })?
+        .ok_or_else(|| GuiError::Profile {
             context: "model filter".into(),
             source: std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,

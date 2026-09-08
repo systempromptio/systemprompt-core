@@ -38,9 +38,6 @@ use systemprompt_identifiers::{
 
 pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
 
-// Why: not tied to the release version, and never swept by a version-bump
-// script. Raising it strands every client below it until they update, so it
-// moves only when the gateway makes a change an older bridge cannot handle.
 pub const MIN_BRIDGE_VERSION: &str = "0.28.0";
 
 #[must_use]
@@ -50,9 +47,10 @@ pub fn bridge_version_is_supported(reported: &str, floor: &str) -> bool {
         semver::Version::parse(floor),
     ) {
         (Ok(reported), Ok(floor)) => reported >= floor,
-        // Why: an unparseable version is almost always a local dev build;
-        // refusing those would make the gateway untestable against a work tree.
-        _ => true,
+        // Why: a version that cannot be parsed cannot be shown to meet the
+        // floor. Answering "supported" here let a mis-built bridge through the
+        // gate and hid the defect until the admin Devices page disagreed.
+        _ => false,
     }
 }
 
@@ -94,10 +92,6 @@ pub struct SignedManifest {
     pub allow_claude_ai_connectors: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostics: Vec<String>,
-    // Why: which enabled marketplace each surviving plugin came from, so a
-    // client can mirror one host marketplace per gateway marketplace. Empty on
-    // a manifest built before this field existed, which clients treat as a
-    // single unnamed marketplace holding every plugin.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub marketplaces: Vec<ManifestMarketplace>,
 }
@@ -151,8 +145,6 @@ pub struct ArtifactEntry {
     pub content: String,
     pub starred: bool,
     pub sha256: Sha256Digest,
-    // Why: grouping context for the bridge's Marketplace listing; empty on a
-    // manifest built before this field existed, which renders ungrouped.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
 }
@@ -169,8 +161,6 @@ pub struct SkillEntry {
     pub instructions: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub hosts: Vec<String>,
-    // Why: see `ArtifactEntry::plugins` — same grouping context, same
-    // empty-means-ungrouped fallback.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
 }
@@ -233,8 +223,6 @@ pub struct ManagedMcpServer {
     pub tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
 }
 
-// Why: manifests signed before the `id` field existed carry only `name`, so
-// deserialization derives an absent id from it.
 #[derive(Deserialize)]
 struct ManagedMcpServerWire {
     #[serde(default)]

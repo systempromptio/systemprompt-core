@@ -11,9 +11,6 @@ fn cowork_possible() -> bool {
     paths::cowork3p_sessions_root().is_some()
 }
 
-// Why: only Windows both runs Cowork and has a writability fallback — macOS
-// always resolves the system path and Linux has no Cowork desktop app, so the
-// scope check would only ever produce noise off-Windows.
 #[cfg(target_os = "windows")]
 pub fn check_cowork_scope() -> Option<Check> {
     if !cowork_possible() {
@@ -128,8 +125,6 @@ struct PluginManifestProbe {
     installation_preference: Option<String>,
 }
 
-// Why: a synced plugin.json lacking `installationPreference` triggers Cowork's
-// "Contact an organization owner" tooltip under MDM.
 pub fn check_plugin_installation_preference() -> Option<Check> {
     if !cowork_possible() {
         return None;
@@ -212,7 +207,6 @@ pub fn check_plugin_installation_preference() -> Option<Check> {
     ))
 }
 
-// Why: Cowork may bump PERSONAL_SESSION_UUID, which we hard-code.
 pub fn check_personal_session_sentinel() -> Option<Check> {
     use crate::cowork_compat::PERSONAL_SESSION_UUID;
 

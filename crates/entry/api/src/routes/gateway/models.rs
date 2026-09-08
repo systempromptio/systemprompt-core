@@ -164,22 +164,56 @@ pub fn model_entries(registry: &ProviderRegistry, surfaces: &[ApiSurface]) -> Ve
             ModelEntry {
                 kind: "model",
                 display_name: humanize_model_id(&id),
+                created_at: model_created_at(&id),
                 id,
-                created_at: "1970-01-01T00:00:00Z".to_owned(),
             },
         );
     }
     by_id.into_values().collect()
 }
 
+// Why: consecutive numeric segments are a version (`4-5` is 4.5) and a
+// trailing eight-digit segment is the release date, which `model_created_at`
+// carries; the picker shows `Claude Haiku 4.5`, never `20251001`.
 pub fn humanize_model_id(id: &str) -> String {
-    id.split('-')
-        .map(|part| {
+    let parts: Vec<&str> = id.split('-').filter(|p| !p.is_empty()).collect();
+    let parts = match parts.split_last() {
+        Some((last, rest)) if is_release_date(last) => rest,
+        _ => parts.as_slice(),
+    };
+    let mut out = String::with_capacity(id.len());
+    let mut prev_numeric = false;
+    for part in parts {
+        let numeric = part.bytes().all(|b| b.is_ascii_digit());
+        if !out.is_empty() {
+            out.push(if numeric && prev_numeric { '.' } else { ' ' });
+        }
+        if numeric {
+            out.push_str(part);
+        } else {
             let mut chars = part.chars();
-            chars.next().map_or_else(String::new, |c| {
-                c.to_ascii_uppercase().to_string() + chars.as_str()
-            })
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+            if let Some(c) = chars.next() {
+                out.extend(c.to_uppercase());
+                out.push_str(chars.as_str());
+            }
+        }
+        prev_numeric = numeric;
+    }
+    out
+}
+
+fn is_release_date(part: &str) -> bool {
+    part.len() == 8 && part.bytes().all(|b| b.is_ascii_digit())
+}
+
+// Why: the Unix epoch is the documented "unknown" value for this field.
+pub fn model_created_at(id: &str) -> String {
+    const EPOCH: &str = "1970-01-01T00:00:00Z";
+    let Some(date) = id.rsplit('-').next().filter(|p| is_release_date(p)) else {
+        return EPOCH.to_owned();
+    };
+    chrono::NaiveDate::parse_from_str(date, "%Y%m%d").map_or_else(
+        |_| EPOCH.to_owned(),
+        |d| format!("{}T00:00:00Z", d.format("%Y-%m-%d")),
+    )
 }

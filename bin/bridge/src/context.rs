@@ -14,12 +14,13 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use tokio::runtime::{Handle, Runtime};
-use tokio::task::JoinHandle;
+
 
 use crate::activity::ActivityLog;
 use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::mcp_registry::{self, McpRegistrySlot};
+pub use crate::obs::StartupFault;
 use crate::probe_cache::StartMenuCache;
 use crate::proxy::identity::InstallId;
 use crate::proxy::{ProxyDeps, ProxyHandle};
@@ -35,6 +36,7 @@ pub enum ProxyMode {
 
 /// Everything a command or the GUI needs that outlives a single call.
 pub struct BridgeContext {
+    tasks: crate::tasks::TaskOwner,
     runtime: OwnedRuntime,
     pub proxy: ProxyHandle,
     pub mcp_registry: Arc<McpRegistrySlot>,
@@ -43,21 +45,11 @@ pub struct BridgeContext {
     pub plugin_tokens: Arc<PluginTokenCache>,
     pub schedule: ScheduleStatusCache,
     pub start_menu: Arc<StartMenuCache>,
-    // Why: sync runs several layers below anything that knows about a UI, and
-    // the CLI runs the same code with no UI at all. A sink here is set by the
-    // GUI for the duration of a sync and left empty everywhere else, so the
-    // reporting calls inside `sync::apply` need no new parameters and cost
-    // nothing when nobody is watching.
     pub sync_progress: crate::progress::SyncProgressSink,
-    // Why: a trust-on-first-use pubkey that could not be written to the config
-    // leaves the process trusting a key nothing will remember, so the next sync
-    // re-trusts whatever the gateway serves. There is no on-disk trace to read
-    // back -- the failure *is* that nothing was written -- so validate learns it
-    // from here.
-    pub unpersisted_tofu_pubkey: AtomicBool,
-    // Why: one administrator prompt per process — a declined prompt must not
-    // re-fire from the GUI auto-sync, tray retries, or a `sync --watch` loop.
+    pub policy_store: crate::config::store::PolicyStore,
+    pub sync_lock: Arc<tokio::sync::Mutex<()>>,
     pub elevation_attempted: AtomicBool,
+    pub startup_faults: Vec<StartupFault>,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -70,28 +62,51 @@ impl std::fmt::Debug for BridgeContext {
 
 impl BridgeContext {
     pub fn start(mode: ProxyMode) -> std::io::Result<Arc<Self>> {
+        Self::start_with_policy_store(
+            mode,
+            crate::config::store::PolicyStore::new(crate::config::store::managed_policy_store()),
+        )
+    }
+
+    pub fn start_with_policy_store(
+        mode: ProxyMode,
+        policy_store: crate::config::store::PolicyStore,
+    ) -> std::io::Result<Arc<Self>> {
         let runtime = OwnedRuntime::build()?;
+        let mut faults = Vec::new();
+        if let Some(error) = crate::obs::logging_fault() {
+            faults.push(StartupFault::new("log file", error));
+        }
         let activity = ActivityLog::new();
-        crate::activity::install_persistent_writer(&activity);
-        // Why: loaded in every mode, not just when serving — `install --apply`
-        // writes the managed-MCP policy from this registry and used to run in
-        // a process that had never read it.
+        if let Err(e) = crate::activity::install_persistent_writer(&activity) {
+            faults.push(StartupFault::new("activity log", e));
+        }
         let mcp_registry = mcp_registry::empty_slot();
-        mcp_registry::rehydrate_from_disk(&mcp_registry);
+        if let Err(e) = mcp_registry::rehydrate_from_disk(&mcp_registry) {
+            faults.push(StartupFault::new("mcp registry cache", e));
+        }
         let http = crate::gateway::build_http_client();
         let plugin_tokens = Arc::new(PluginTokenCache::default());
+        let install_id = match InstallId::establish() {
+            Ok(id) => id,
+            Err(e) => {
+                faults.push(StartupFault::new("install identity", e));
+                InstallId::ephemeral()
+            },
+        };
         let deps = ProxyDeps {
-            install_id: InstallId::establish(),
+            install_id,
             mcp_registry: Arc::clone(&mcp_registry),
             activity: activity.clone(),
             http: http.clone(),
             plugin_tokens: Arc::clone(&plugin_tokens),
         };
         let proxy = match mode {
-            ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps),
-            ProxyMode::Attach => ProxyHandle::attach(runtime.handle(), deps),
+            ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps, &mut faults),
+            ProxyMode::Attach => ProxyHandle::attach(deps, &mut faults),
         };
         Ok(Arc::new(Self {
+            tasks: crate::tasks::TaskOwner::new(runtime.handle(), activity.clone()),
             runtime,
             proxy,
             mcp_registry,
@@ -101,8 +116,10 @@ impl BridgeContext {
             schedule: ScheduleStatusCache::default(),
             start_menu: Arc::new(StartMenuCache::default()),
             sync_progress: crate::progress::SyncProgressSink::default(),
-            unpersisted_tofu_pubkey: AtomicBool::new(false),
+            policy_store,
+            sync_lock: Arc::new(tokio::sync::Mutex::new(())),
             elevation_attempted: AtomicBool::new(false),
+            startup_faults: faults,
         }))
     }
 
@@ -133,18 +150,14 @@ impl BridgeContext {
         self.runtime.handle().block_on(fut)
     }
 
-    pub fn spawn<F>(&self, fut: F) -> JoinHandle<F::Output>
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        self.runtime.handle().spawn(fut)
+    #[track_caller]
+    pub fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) {
+        self.tasks.spawn(fut);
     }
 }
 
-// Why: dropping a `Runtime` inside one of its own tasks panics, and the last
-// `Arc<BridgeContext>` can legitimately go out of scope there.
-// `shutdown_background` is the drop tokio documents for exactly that case.
+// Why: Tokio runtime drop panics inside an async task; the final owner may be
+// dropped there.
 struct OwnedRuntime(Option<Runtime>);
 
 impl OwnedRuntime {

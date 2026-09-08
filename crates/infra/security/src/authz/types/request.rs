@@ -192,9 +192,8 @@ impl AuthzRequest {
             .unwrap_or_else(|| Actor::user(self.user_id.clone()))
     }
 
-    // Why: the direct caller is the outermost `act` link -- the most recent
-    // delegate -- and only a delegate that is itself an agent is a verified
-    // agent identity. A chain of plain users yields no agent, which is honest.
+    // Why: RFC 8693 puts the current actor in the outermost `act` claim;
+    // nested actors are prior delegates.
     #[must_use]
     pub fn verified_agent_id(&self) -> Option<&str> {
         match self.act_chain.first().map(|a| &a.kind) {

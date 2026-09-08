@@ -1,14 +1,13 @@
 //! Unit-level coverage for the streaming-event accumulator behind the gateway
-//! `stream_tap`, exercised through the `test_api` seam gated on the `test-api`
-//! feature. Feeds sequences of `CanonicalEvent`s into a `TapState` and asserts
-//! the accumulated snapshot and finalized `Summary` (usage, tool calls, stop
-//! reason, error, final bytes, served model).
+//! `stream_tap`. Feeds sequences of `CanonicalEvent`s into a `TapState` and
+//! asserts the accumulated snapshot and finalized `Summary` (usage, tool calls,
+//! stop reason, error, final bytes, served model).
 
 use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
     ContentBlockKind,
 };
-use systemprompt_api::services::gateway::stream_tap::test_api::{
+use systemprompt_api::services::gateway::stream_tap::accumulator::{
     TapState, accumulate_event, extract_summary, snapshot,
 };
 use systemprompt_test_fixtures as fixtures;

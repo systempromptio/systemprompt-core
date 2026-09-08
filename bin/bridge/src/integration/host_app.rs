@@ -138,8 +138,6 @@ pub trait HostApp: Send + Sync + 'static {
         ))
     }
 
-    // Why: a terminal-only CLI has nothing to bring to the foreground, and the
-    // verdict must not offer an Open button whose only outcome is an error.
     fn can_open(&self) -> bool {
         true
     }

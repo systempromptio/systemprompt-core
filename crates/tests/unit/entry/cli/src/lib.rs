@@ -44,6 +44,8 @@ mod interactive;
 #[cfg(test)]
 mod interactive_terminal;
 #[cfg(test)]
+mod mcp_probe_flows;
+#[cfg(test)]
 mod paths;
 #[cfg(test)]
 mod presentation_startup_renderer;
@@ -56,6 +58,8 @@ mod runner_routing;
 #[cfg(test)]
 mod session_creation_admin_db;
 #[cfg(test)]
+mod session_lifecycle_flows;
+#[cfg(test)]
 mod session_resolution_context_db;
 #[cfg(test)]
 mod session_resolution_helpers;
@@ -63,3 +67,6 @@ mod session_resolution_helpers;
 mod session_store_reads;
 #[cfg(test)]
 mod shared;
+
+#[cfg(all(test, unix))]
+mod coverage_process_flows;

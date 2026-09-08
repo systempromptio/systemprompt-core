@@ -67,8 +67,8 @@ fn explicit_hosts_are_split_and_trimmed() {
     );
 }
 
-/// An empty value must not render as an empty allowlist — that would block
-/// every host, the opposite of what clearing the variable reads as.
+// An empty value must not render as an empty allowlist — that would block
+// every host, the opposite of what clearing the variable reads as.
 #[test]
 fn empty_value_means_unrestricted() {
     assert_eq!(
@@ -88,16 +88,17 @@ fn macos_payloads_omit_egress_key_by_default() {
     unsafe {
         std::env::remove_var(ENV);
     }
-    let plist = systemprompt_bridge::install::build_macos_prefs_plist(
-        &mdm_inputs(),
-        "https://gateway.example",
-        None,
-    );
+    let hosts = systemprompt_bridge::install::cowork_egress_allowed_hosts(None);
+    let inputs = mdm_inputs(hosts.as_deref());
+    let plist =
+        systemprompt_bridge::install::build_macos_prefs_plist(&inputs, "https://gateway.example")
+            .expect("prefs plist");
     let mc = systemprompt_bridge::install::build_macos_mobileconfig(
-        &mdm_inputs(),
+        &inputs,
         "https://gateway.example",
         None,
-    );
+    )
+    .expect("mobileconfig");
     assert!(!plist.contains("coworkEgressAllowedHosts"), "{plist}");
     assert!(!mc.contains("coworkEgressAllowedHosts"), "{mc}");
     for rendered in [&plist, &mc] {
@@ -115,16 +116,17 @@ fn macos_payloads_render_array_when_opted_in() {
     unsafe {
         std::env::set_var(ENV, "loopback");
     }
-    let plist = systemprompt_bridge::install::build_macos_prefs_plist(
-        &mdm_inputs(),
-        "https://gateway.example",
-        None,
-    );
+    let hosts = systemprompt_bridge::install::cowork_egress_allowed_hosts(None);
+    let inputs = mdm_inputs(hosts.as_deref());
+    let plist =
+        systemprompt_bridge::install::build_macos_prefs_plist(&inputs, "https://gateway.example")
+            .expect("prefs plist");
     let mc = systemprompt_bridge::install::build_macos_mobileconfig(
-        &mdm_inputs(),
+        &inputs,
         "https://gateway.example",
         None,
-    );
+    )
+    .expect("mobileconfig");
     unsafe {
         std::env::remove_var(ENV);
     }
@@ -153,10 +155,21 @@ static MDM_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpR
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
 #[cfg(target_os = "macos")]
-fn mdm_inputs() -> systemprompt_bridge::install::MdmPayloadInputs<'static> {
+static MDM_POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::config::store::PolicyStore::new(
+            systemprompt_bridge::config::store::managed_policy_store(),
+        )
+    });
+
+#[cfg(target_os = "macos")]
+fn mdm_inputs(
+    egress_allowed_hosts: Option<&[String]>,
+) -> systemprompt_bridge::install::MdmPayloadInputs<'_> {
     systemprompt_bridge::install::MdmPayloadInputs {
+        policy_store: &MDM_POLICY_STORE,
         loopback: &MDM_LOOPBACK,
         registry: &MDM_REGISTRY,
-        egress_allowed_hosts: None,
+        egress_allowed_hosts,
     }
 }

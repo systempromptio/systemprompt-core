@@ -9,13 +9,6 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::{HeaderExtractor, JwtUserContext, TokenExtractor};
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct BuildContextParams {
     pub jwt_context: JwtUserContext,
@@ -29,13 +22,6 @@ pub struct BuildContextParams {
     pub user_type: UserType,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_context(params: BuildContextParams) -> RequestContext {
     let BuildContextParams {
         jwt_context,
@@ -67,13 +53,6 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
     ctx
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn extract_common_headers(
     token_extractor: &TokenExtractor,
     headers: &HeaderMap,

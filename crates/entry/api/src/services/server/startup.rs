@@ -103,9 +103,6 @@ pub fn starting_router() -> Router {
         .fallback(starting_fallback)
 }
 
-// Why: `/health` answers 200 while booting so a single-probe orchestrator (Fly)
-// does not kill a machine mid-migration; admission is `/readyz`'s job, and it
-// says 503 until the full router is live.
 async fn starting_health() -> impl IntoResponse {
     Json(json!({ "status": "starting" }))
 }

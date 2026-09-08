@@ -4,7 +4,7 @@
 use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
 use opentelemetry_proto::tonic::common::v1::{AnyValue, ArrayValue, KeyValue, KeyValueList};
 use serde_json::json;
-use systemprompt_api::routes::gateway::otel::test_api::{
+use systemprompt_api::routes::gateway::otel::convert::{
     any_value_to_string, attrs_to_json, hex_lower, severity_to_level,
 };
 use systemprompt_logging::LogLevel;

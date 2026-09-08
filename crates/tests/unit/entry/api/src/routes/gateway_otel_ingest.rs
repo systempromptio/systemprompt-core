@@ -1,6 +1,6 @@
 //! OTLP ingest persistence paths (`routes::gateway::otel::ingest`). Builds
 //! protobuf envelopes for traces, logs, and metrics and drives the ingest
-//! functions directly through the `test_api` seam. Without a bootstrapped
+//! functions directly. Without a bootstrapped
 //! system admin the per-record `LogActor::platform` call fails closed and the
 //! record is skipped, but the decode/flatten/metadata assembly still runs — the
 //! functions must never panic on any well-formed envelope.
@@ -14,9 +14,7 @@ use opentelemetry_proto::tonic::logs::v1::{LogRecord, ResourceLogs, ScopeLogs};
 use opentelemetry_proto::tonic::metrics::v1::{Metric, ResourceMetrics, ScopeMetrics};
 use opentelemetry_proto::tonic::resource::v1::Resource;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, Status};
-use systemprompt_api::routes::gateway::otel::test_api::{
-    ingest_logs, ingest_metrics, ingest_traces,
-};
+use systemprompt_api::routes::gateway::otel::ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 fn string_kv(key: &str, value: &str) -> KeyValue {
     KeyValue {

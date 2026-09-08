@@ -7,4 +7,10 @@
 
 use std::path::Path;
 
-pub(super) const fn chown_to_sudo_user_if_root(_path: &Path) {}
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "matches the fallible Unix bootstrap interface"
+)]
+pub(super) const fn chown_to_sudo_user_if_root(_path: &Path) -> std::io::Result<()> {
+    Ok(())
+}

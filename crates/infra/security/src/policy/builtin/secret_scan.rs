@@ -14,12 +14,15 @@ use regex::Regex;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::{PolicyId, SecretPatternId};
 
+use super::super::governed::GovernedInput;
 use super::super::registry::PolicyRegistration;
-use super::super::secrets::{EntropyConfig, detect_secrets_with};
+use super::super::secrets::{
+    EntropyConfig, MAX_RECOVERY_FINDINGS, SecretFinding, SecretSource, detect_secrets_with,
+    secret_findings,
+};
 use super::super::types::{GovernancePolicy, PolicyContext, SecretLocation};
+use super::SECRET_SCAN_ID as ID;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
-
-const ID: &str = "secret_scan";
 
 #[derive(Debug, Clone)]
 struct ExtraPattern {
@@ -36,10 +39,6 @@ struct SecretScan {
 
 const ENTROPY_KEYS: [&str; 4] = ["enabled", "min_len", "threshold", "allowlist"];
 
-// Why: an absent block or an absent key falls back to the built-in default,
-// but an unknown key or a value of the wrong shape is reported at error level
-// — a typo must not silently reconfigure credential detection into something
-// other than what the operator wrote.
 fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
     let defaults = EntropyConfig::default();
     let Some(block) = v.get("entropy") else {
@@ -182,6 +181,23 @@ impl GovernancePolicy for SecretScan {
     fn description(&self) -> &'static str {
         "Block a tool call or submitted prompt containing an AWS key, GitHub PAT, \
          PEM block, connection string, or other plaintext credential pattern."
+    }
+    fn prompt_secret_findings(&self, input: &GovernedInput) -> Option<Vec<SecretFinding>> {
+        let mut findings = secret_findings(input, &self.entropy);
+        let strings = input.strings();
+        let custom = strings.iter().enumerate().flat_map(|(part_index, found)| {
+            self.extra_patterns
+                .iter()
+                .filter(|extra| found.value.contains(&extra.prefix))
+                .map(move |extra| SecretFinding {
+                    source: SecretSource { part_index },
+                    span: 0..found.value.len(),
+                    pattern_id: SecretPatternId::new(extra.id.clone()),
+                })
+        });
+        findings.extend(custom);
+        findings.truncate(MAX_RECOVERY_FINDINGS + 1);
+        Some(findings)
     }
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         let kind = ctx.input.location_kind();

@@ -47,10 +47,6 @@ pub fn reconstruct_args(cli: &Cli) -> Vec<String> {
     reconstruct_args_from(cli, &original)
 }
 
-// Why: takes the original argv rather than reading `std::env::args()` so the
-// reconstruction can be exercised at all. Reading the process inside the
-// function made every branch below reachable only by however the test binary
-// itself happened to be invoked.
 pub fn reconstruct_args_from(cli: &Cli, original_args: &[String]) -> Vec<String> {
     let mut args = Vec::new();
 
@@ -120,9 +116,6 @@ pub fn has_local_export_flag(command: Option<&Commands>) -> bool {
     has_local_export_flag_in(command, &args)
 }
 
-// Why: same split as `reconstruct_args_from`. The `--export` check is one line
-// of logic wrapped around a process read, and the read is what made it
-// untestable.
 pub fn has_local_export_flag_in(command: Option<&Commands>, args: &[String]) -> bool {
     if !matches!(command, Some(Commands::Analytics(_))) {
         return false;

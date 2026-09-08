@@ -109,12 +109,7 @@ impl ConfigLoader {
         Ok(config)
     }
 
-    // Why: canonicalising the file itself makes the cache key depend on the file
-    // still existing — `fs::canonicalize` fails once it is removed and the key
-    // silently falls back to the uncanonicalised path, missing the entry at the
-    // exact moment the cache is meant to cover for the missing file. Only the
-    // directory is resolved, which survives the file's removal and still folds
-    // away symlinked roots (on macOS `/var` vs `/private/var`).
+    // Why: `fs::canonicalize` requires the path to exist, even for cache keys.
     fn cache_key(&self) -> PathBuf {
         let Some(parent) = self.config_path.parent() else {
             return self.config_path.clone();
@@ -279,9 +274,6 @@ fn demote_providers_without_credentials(config: &mut ServicesConfig) {
         if secrets.get(provider.api_key_secret.as_str()).is_some() {
             continue;
         }
-        // Why: the logging layer redacts any field named `secret`, so naming
-        // the missing one here rendered as `[REDACTED]`. `cloud doctor` names
-        // it in full.
         tracing::warn!(
             provider = %provider.name.as_str(),
             "provider has no credential in the secret store; its models will not be advertised"

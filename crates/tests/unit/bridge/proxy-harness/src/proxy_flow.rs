@@ -31,7 +31,7 @@ struct Harness {
 fn stub_refresh() -> RefreshFn {
     Arc::new(|_threshold| {
         Box::pin(async {
-            Some(HelperOutput {
+            Ok(HelperOutput {
                 token: BearerToken::new("upstream-jwt"),
                 ttl: 3600,
                 headers: Default::default(),
@@ -46,6 +46,29 @@ fn shared_runtime_config(gateway_uri: &str) -> SharedRuntimeConfig {
         ..Default::default()
     };
     Arc::new(ArcSwap::from_pointee(RuntimeConfig::from_config(&cfg)))
+}
+
+
+// Why: the token cache binds every minted JWT to the credential identity on
+// disk, so a proxy with no credentials configured answers 503 before the
+// refresh closure ever runs. Each test runs in a sandboxed config dir with a
+// PAT supplied through the environment.
+fn with_credentials<F: std::future::Future>(fut: F) -> F::Output {
+    let temp = tempfile::tempdir().expect("config tempdir");
+    temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            ("SP_BRIDGE_PAT", Some("sp-live-a.b".into())),
+        ],
+        || {
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(fut)
+        },
+    )
 }
 
 async fn spawn_harness() -> Harness {
@@ -105,204 +128,220 @@ impl Harness {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn happy_path_forwards_to_gateway_and_records_stats() {
-    let h = spawn_harness().await;
+#[test]
+fn happy_path_forwards_to_gateway_and_records_stats() {
+    with_credentials(async {
+        let h = spawn_harness().await;
 
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "application/json")
-                .set_body_string(r#"{"ok":true,"echo":"upstream"}"#),
-        )
-        .mount(&h.gateway)
-        .await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "application/json")
+                    .set_body_string(r#"{"ok":true,"echo":"upstream"}"#),
+            )
+            .mount(&h.gateway)
+            .await;
 
-    let resp = Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("authorization", format!("Bearer {SECRET}"))
-        .header("content-type", "application/json")
-        .body(r#"{"messages":[{"role":"user","content":"hi"}]}"#)
-        .send()
-        .await
-        .expect("request to proxy");
+        let resp = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .header("content-type", "application/json")
+            .body(r#"{"messages":[{"role":"user","content":"hi"}]}"#)
+            .send()
+            .await
+            .expect("request to proxy");
 
-    assert_eq!(resp.status().as_u16(), 200);
-    let body = resp.text().await.expect("read body");
-    assert_eq!(body, r#"{"ok":true,"echo":"upstream"}"#);
+        assert_eq!(resp.status().as_u16(), 200);
+        let body = resp.text().await.expect("read body");
+        assert_eq!(body, r#"{"ok":true,"echo":"upstream"}"#);
 
-    assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
-    assert_eq!(h.stats.last_status.load(Ordering::Relaxed), 200);
+        assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
+        assert_eq!(h.stats.last_status.load(Ordering::Relaxed), 200);
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn missing_authorization_is_rejected_403() {
-    let h = spawn_harness().await;
+#[test]
+fn missing_authorization_is_rejected_403() {
+    with_credentials(async {
+        let h = spawn_harness().await;
 
-    let resp = Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("content-type", "application/json")
-        .body("{}")
-        .send()
-        .await
-        .expect("request to proxy");
+        let resp = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("content-type", "application/json")
+            .body("{}")
+            .send()
+            .await
+            .expect("request to proxy");
 
-    assert_eq!(resp.status().as_u16(), 403);
-    let body = resp.text().await.expect("read body");
-    // A missing credential is a distinct fault from a wrong one: the first is
-    // usually an unconfigured client, the second a client pointed at the wrong
-    // install. Collapsing them cost real debugging time.
-    assert!(
-        body.contains("no loopback credential presented"),
-        "expected the no-credential body, got: {body}"
-    );
-    assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 0);
+        assert_eq!(resp.status().as_u16(), 403);
+        let body = resp.text().await.expect("read body");
+        // A missing credential is a distinct fault from a wrong one: the first is
+        // usually an unconfigured client, the second a client pointed at the wrong
+        // install. Collapsing them cost real debugging time.
+        assert!(
+            body.contains("no loopback credential presented"),
+            "expected the no-credential body, got: {body}"
+        );
+        assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 0);
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn wrong_secret_is_rejected_403() {
-    let h = spawn_harness().await;
+#[test]
+fn wrong_secret_is_rejected_403() {
+    with_credentials(async {
+        let h = spawn_harness().await;
 
-    let resp = Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("authorization", "Bearer not-the-secret")
-        .body("{}")
-        .send()
-        .await
-        .expect("request to proxy");
+        let resp = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", "Bearer not-the-secret")
+            .body("{}")
+            .send()
+            .await
+            .expect("request to proxy");
 
-    assert_eq!(resp.status().as_u16(), 403);
-    let body = resp.text().await.expect("read body");
-    assert!(
-        body.contains("bad loopback secret"),
-        "expected bad-secret body, got: {body}"
-    );
+        assert_eq!(resp.status().as_u16(), 403);
+        let body = resp.text().await.expect("read body");
+        assert!(
+            body.contains("bad loopback secret"),
+            "expected bad-secret body, got: {body}"
+        );
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn non_loopback_host_is_rejected_403() {
-    let h = spawn_harness().await;
+#[test]
+fn non_loopback_host_is_rejected_403() {
+    with_credentials(async {
+        let h = spawn_harness().await;
 
-    let resp = Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("host", "evil.example.com")
-        .header("authorization", format!("Bearer {SECRET}"))
-        .body("{}")
-        .send()
-        .await
-        .expect("request to proxy");
+        let resp = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("host", "evil.example.com")
+            .header("authorization", format!("Bearer {SECRET}"))
+            .body("{}")
+            .send()
+            .await
+            .expect("request to proxy");
 
-    assert_eq!(resp.status().as_u16(), 403);
-    let body = resp.text().await.expect("read body");
-    assert!(
-        body.contains("non-loopback host"),
-        "expected non-loopback-host body, got: {body}"
-    );
-    assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 0);
+        assert_eq!(resp.status().as_u16(), 403);
+        let body = resp.text().await.expect("read body");
+        assert!(
+            body.contains("non-loopback host"),
+            "expected non-loopback-host body, got: {body}"
+        );
+        assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 0);
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn unknown_mcp_server_yields_404() {
-    let h = spawn_harness().await;
+#[test]
+fn unknown_mcp_server_yields_404() {
+    with_credentials(async {
+        let h = spawn_harness().await;
 
-    let resp = Harness::client()
-        .post(h.url("/mcp/does-not-exist"))
-        .header("authorization", format!("Bearer {SECRET}"))
-        .body("{}")
-        .send()
-        .await
-        .expect("request to proxy");
+        let resp = Harness::client()
+            .post(h.url("/mcp/does-not-exist"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .body("{}")
+            .send()
+            .await
+            .expect("request to proxy");
 
-    assert_eq!(resp.status().as_u16(), 404);
-    let body = resp.text().await.expect("read body");
-    assert!(
-        body.contains("unknown managed MCP server"),
-        "expected unknown-mcp body, got: {body}"
-    );
+        assert_eq!(resp.status().as_u16(), 404);
+        let body = resp.text().await.expect("read body");
+        assert!(
+            body.contains("unknown managed MCP server"),
+            "expected unknown-mcp body, got: {body}"
+        );
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn upstream_500_is_forwarded_and_recorded() {
-    let h = spawn_harness().await;
+#[test]
+fn upstream_500_is_forwarded_and_recorded() {
+    with_credentials(async {
+        let h = spawn_harness().await;
 
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(500).set_body_string("upstream boom"))
-        .mount(&h.gateway)
-        .await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("upstream boom"))
+            .mount(&h.gateway)
+            .await;
 
-    let resp = Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("authorization", format!("Bearer {SECRET}"))
-        .body(r#"{"messages":[{"role":"user","content":"x"}]}"#)
-        .send()
-        .await
-        .expect("request to proxy");
+        let resp = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .body(r#"{"messages":[{"role":"user","content":"x"}]}"#)
+            .send()
+            .await
+            .expect("request to proxy");
 
-    assert_eq!(
-        resp.status().as_u16(),
-        500,
-        "forward.rs passes the upstream status through verbatim"
-    );
-    let body = resp.text().await.expect("read body");
-    assert_eq!(body, "upstream boom");
+        assert_eq!(
+            resp.status().as_u16(),
+            500,
+            "forward.rs passes the upstream status through verbatim"
+        );
+        let body = resp.text().await.expect("read body");
+        assert_eq!(body, "upstream boom");
 
-    assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
-    assert_eq!(h.stats.last_status.load(Ordering::Relaxed), 500);
+        assert_eq!(h.stats.forwarded_total.load(Ordering::Relaxed), 1);
+        assert_eq!(h.stats.last_status.load(Ordering::Relaxed), 500);
+    });
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn sse_messages_response_streams_back_and_taps_usage() {
-    let h = spawn_harness().await;
+#[test]
+fn sse_messages_response_streams_back_and_taps_usage() {
+    with_credentials(async {
+        let h = spawn_harness().await;
 
-    let sse = concat!(
-        "event: message_start\n",
-        "data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n",
-        "event: message_delta\n",
-        "data: {\"type\":\"message_delta\",\"usage\":{\"input_tokens\":11,\"output_tokens\":7}}\n\n",
-        "data: [DONE]\n\n",
-    );
+        let sse = concat!(
+            "event: message_start\n",
+            "data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n",
+            "event: message_delta\n",
+            "data: {\"type\":\"message_delta\",\"usage\":{\"input_tokens\":11,\"output_tokens\":7}}\n\n",
+            "data: [DONE]\n\n",
+        );
 
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(sse.as_bytes(), "text/event-stream"))
-        .mount(&h.gateway)
-        .await;
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_raw(sse.as_bytes(), "text/event-stream"),
+            )
+            .mount(&h.gateway)
+            .await;
 
-    let resp = Harness::client()
-        .post(h.url("/v1/messages"))
-        .header("authorization", format!("Bearer {SECRET}"))
-        .header("content-type", "application/json")
-        .body(r#"{"messages":[{"role":"user","content":"stream"}],"stream":true}"#)
-        .send()
-        .await
-        .expect("request to proxy");
+        let resp = Harness::client()
+            .post(h.url("/v1/messages"))
+            .header("authorization", format!("Bearer {SECRET}"))
+            .header("content-type", "application/json")
+            .body(r#"{"messages":[{"role":"user","content":"stream"}],"stream":true}"#)
+            .send()
+            .await
+            .expect("request to proxy");
 
-    assert_eq!(resp.status().as_u16(), 200);
-    let ct = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_owned();
-    assert!(
-        ct.contains("text/event-stream"),
-        "content-type preserved, got: {ct}"
-    );
-    let body = resp.text().await.expect("read streamed body");
-    assert!(body.contains("message_start"), "body forwarded: {body}");
-    assert!(body.contains("[DONE]"));
+        assert_eq!(resp.status().as_u16(), 200);
+        let ct = resp
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_owned();
+        assert!(
+            ct.contains("text/event-stream"),
+            "content-type preserved, got: {ct}"
+        );
+        let body = resp.text().await.expect("read streamed body");
+        assert!(body.contains("message_start"), "body forwarded: {body}");
+        assert!(body.contains("[DONE]"));
 
-    for _ in 0..50 {
-        if h.stats.messages_total.load(Ordering::Relaxed) > 0 {
-            break;
+        for _ in 0..50 {
+            if h.stats.messages_total.load(Ordering::Relaxed) > 0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
         }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    assert_eq!(h.stats.messages_total.load(Ordering::Relaxed), 1);
-    assert_eq!(h.stats.tokens_in_total.load(Ordering::Relaxed), 11);
-    assert_eq!(h.stats.tokens_out_total.load(Ordering::Relaxed), 7);
+        assert_eq!(h.stats.messages_total.load(Ordering::Relaxed), 1);
+        assert_eq!(h.stats.tokens_in_total.load(Ordering::Relaxed), 11);
+        assert_eq!(h.stats.tokens_out_total.load(Ordering::Relaxed), 7);
+    });
 }
 
 static REGISTRY: std::sync::LazyLock<Arc<systemprompt_bridge::mcp_registry::McpRegistrySlot>> =
@@ -310,7 +349,8 @@ static REGISTRY: std::sync::LazyLock<Arc<systemprompt_bridge::mcp_registry::McpR
 
 fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
     systemprompt_bridge::proxy::ProxyDeps {
-        install_id: systemprompt_bridge::proxy::identity::InstallId::establish(),
+        install_id: systemprompt_bridge::proxy::identity::InstallId::establish()
+            .expect("the sandbox mints an install id"),
         mcp_registry: Arc::clone(&REGISTRY),
         activity: systemprompt_bridge::activity::ActivityLog::new(),
         http: reqwest::Client::new(),

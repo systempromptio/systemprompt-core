@@ -24,11 +24,12 @@ use crate::proxy::forward::{ForwardError, ForwardResult};
 use crate::{auth, config};
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
-const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
-// Why: a token the gateway refuses this soon after minting was not stale, it
-// was revoked. Re-minting would only reproduce the rejection, so the cache
-// latches instead of spinning.
 const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
+// Why: the credential stamp reads the config file, hashes the PAT and opens
+// the keystore. Doing that on every forwarded request put a disk read and a
+// keychain call on the hot path; once per interval catches a rotated
+// credential within seconds without paying for it per request.
+const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum AuthState {
@@ -46,35 +47,25 @@ impl AuthState {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
-struct CredentialStamp {
-    pat_mtime: Option<std::time::SystemTime>,
-    config_mtime: Option<std::time::SystemTime>,
+type CredentialStamp = auth::cache::CredentialBinding;
+
+fn capture_stamp() -> ForwardResult<CredentialStamp> {
+    let cfg = config::load().map_err(|e| ForwardError::Auth(e.to_string()))?;
+    CredentialStamp::capture(&cfg).map_err(|e| ForwardError::Auth(e.to_string()))
 }
 
-impl CredentialStamp {
-    fn capture() -> Self {
-        let pat = auth::setup::resolve_paths().ok().map(|p| p.pat_file);
-        Self {
-            pat_mtime: mtime(pat),
-            config_mtime: mtime(config::config_path()),
-        }
-    }
-}
-
-fn mtime(path: Option<std::path::PathBuf>) -> Option<std::time::SystemTime> {
-    path.and_then(|p| std::fs::metadata(p).ok())
-        .and_then(|m| m.modified().ok())
-}
-
-pub type RefreshFn =
-    Arc<dyn Fn(u64) -> Pin<Box<dyn Future<Output = Option<HelperOutput>> + Send>> + Send + Sync>;
+pub type RefreshFn = Arc<
+    dyn Fn(u64) -> Pin<Box<dyn Future<Output = ForwardResult<HelperOutput>> + Send>> + Send + Sync,
+>;
 
 struct CachedEntry {
     token: HelperOutput,
     minted_at: Instant,
     stamp: CredentialStamp,
-    stamp_checked_at: Instant,
+    // Why: tokio's clock, not std's, so a paused test clock drives the
+    // interval; `minted_at` stays on std time because the rejection window
+    // measures real elapsed time against the gateway.
+    stamp_checked_at: tokio::time::Instant,
 }
 
 #[expect(
@@ -85,9 +76,8 @@ pub struct TokenCache {
     cached: Mutex<Option<CachedEntry>>,
     refresh_lock: Mutex<()>,
     refresh: RefreshFn,
-    stamp_check_interval: Duration,
     auth_state: watch::Sender<AuthState>,
-    latched_stamp: std::sync::Mutex<Option<CredentialStamp>>,
+    latched_stamp: parking_lot::Mutex<Option<CredentialStamp>>,
 }
 
 impl TokenCache {
@@ -97,9 +87,8 @@ impl TokenCache {
             cached: Mutex::new(None),
             refresh_lock: Mutex::new(()),
             refresh,
-            stamp_check_interval: STAMP_CHECK_INTERVAL,
             auth_state: watch::Sender::new(AuthState::Ok),
-            latched_stamp: std::sync::Mutex::new(None),
+            latched_stamp: parking_lot::Mutex::new(None),
         }
     }
 
@@ -108,16 +97,13 @@ impl TokenCache {
         self.auth_state.subscribe()
     }
 
-    // Why: a `login` run from another process rewrites the PAT or config on
-    // disk and cannot reach this latch, so the latch remembers the credential
-    // stamp it was raised against and stands down when that stamp moves.
     #[must_use]
     pub fn sign_in_required(&self) -> bool {
         if !self.auth_state.borrow().sign_in_required() {
             return false;
         }
-        let stamped = self.latched_stamp.lock().ok().and_then(|g| g.clone());
-        if stamped.is_some_and(|stamp| stamp != CredentialStamp::capture()) {
+        let stamped = self.latched_stamp.lock().clone();
+        if stamped.is_some_and(|stamp| capture_stamp().is_ok_and(|current| stamp != current)) {
             tracing::info!("credentials changed on disk; sign-in latch released");
             self.unlatch();
             return false;
@@ -130,27 +116,26 @@ impl TokenCache {
             return;
         }
         tracing::warn!(reason, "token cache latched: sign-in required");
-        if let Ok(mut guard) = self.latched_stamp.lock() {
-            *guard = Some(CredentialStamp::capture());
-        }
-        self.auth_state.send_replace(AuthState::SignInRequired {
-            reason: reason.to_owned(),
-        });
+        let (stamp, reason) = match capture_stamp() {
+            Ok(stamp) => (Some(stamp), reason.to_owned()),
+            Err(e) => (
+                None,
+                format!("{reason}; credential identity unavailable: {e}"),
+            ),
+        };
+        *self.latched_stamp.lock() = stamp;
+        self.auth_state
+            .send_replace(AuthState::SignInRequired { reason });
     }
 
     fn unlatch(&self) {
-        if let Ok(mut guard) = self.latched_stamp.lock() {
-            *guard = None;
-        }
+        *self.latched_stamp.lock() = None;
         if self.auth_state.borrow().sign_in_required() {
             tracing::info!("token cache re-armed");
             self.auth_state.send_replace(AuthState::Ok);
         }
     }
 
-    // Why: the refresh tick exists to renew a token *before* it expires, not to
-    // acquire one. Minting from an empty cache is a request-driven decision
-    // (`current`), and on a signed-out install it would fail every minute.
     pub async fn refresh_if_cached(&self, refresh_threshold_secs: u64) -> ForwardResult<()> {
         if self.cached.lock().await.is_none() {
             return Ok(());
@@ -159,19 +144,15 @@ impl TokenCache {
     }
 
     #[must_use]
-    pub const fn with_stamp_check_interval(mut self, interval: Duration) -> Self {
-        self.stamp_check_interval = interval;
-        self
-    }
-
-    #[must_use]
     pub fn default_for_runtime(session_id: SessionId, http: reqwest::Client) -> Self {
         Self::new(Arc::new(move |threshold| {
             let session_id = session_id.clone();
             let http = http.clone();
             Box::pin(async move {
-                let cfg = config::load();
-                auth::read_or_refresh(&cfg, threshold, &session_id, &http).await
+                let cfg = config::load().map_err(|e| ForwardError::Auth(e.to_string()))?;
+                auth::read_or_refresh(&cfg, threshold, &session_id, &http)
+                    .await
+                    .map_err(|e| ForwardError::Auth(e.to_string()))
             })
         }))
     }
@@ -181,7 +162,7 @@ impl TokenCache {
         reason = "refresh_guard intentionally held to serialise concurrent refreshes"
     )]
     pub async fn current(&self, refresh_threshold_secs: u64) -> ForwardResult<HelperOutput> {
-        if let Some(token) = self.peek_fresh(refresh_threshold_secs).await {
+        if let Some(token) = self.peek_fresh(refresh_threshold_secs).await? {
             return Ok(token);
         }
         if self.sign_in_required() {
@@ -190,21 +171,26 @@ impl TokenCache {
 
         let _refresh_guard = self.refresh_lock.lock().await;
 
-        if let Some(token) = self.peek_fresh(refresh_threshold_secs).await {
+        if let Some(token) = self.peek_fresh(refresh_threshold_secs).await? {
             return Ok(token);
         }
         if self.sign_in_required() {
             return Err(sign_in_required_error());
         }
 
+        let stamp = capture_stamp()?;
         let refresh = Arc::clone(&self.refresh);
         let token = tokio::time::timeout(REFRESH_TIMEOUT, refresh(refresh_threshold_secs))
             .await
             .map_err(|_elapsed| ForwardError::AuthTimeout)?
-            .ok_or_else(|| {
-                self.latch("no credential source could mint a token");
-                sign_in_required_error()
+            .inspect_err(|e| {
+                self.latch(&e.to_string());
             })?;
+        if capture_stamp()? != stamp {
+            return Err(ForwardError::Auth(
+                "credentials changed during token refresh".into(),
+            ));
+        }
 
         tracing::info!("token cache refresh");
         self.unlatch();
@@ -213,8 +199,8 @@ impl TokenCache {
         *guard = Some(CachedEntry {
             token: token.clone(),
             minted_at: Instant::now(),
-            stamp: CredentialStamp::capture(),
-            stamp_checked_at: Instant::now(),
+            stamp,
+            stamp_checked_at: tokio::time::Instant::now(),
         });
         Ok(token)
     }
@@ -227,10 +213,6 @@ impl TokenCache {
         }
     }
 
-    // Why: the upstream said 401 to a token this cache handed out. An old
-    // token is dropped so the next caller renews it; a token still inside
-    // [`FRESH_REJECTION_WINDOW`] cannot be fixed by renewing, so the cache
-    // latches and the user is asked to sign in instead of the bridge looping.
     pub async fn reject_upstream(&self, endpoint: &str) {
         let mut guard = self.cached.lock().await;
         let Some(entry) = guard.take() else {
@@ -247,9 +229,6 @@ impl TokenCache {
         }
     }
 
-    // Why: sign-in, sign-out and a gateway change all replace the credential
-    // on disk. The latch describes the previous credential, so it is cleared
-    // together with the cached token.
     pub async fn reset(&self) {
         self.invalidate().await;
         self.unlatch();
@@ -257,30 +236,50 @@ impl TokenCache {
 
     #[expect(
         clippy::significant_drop_tightening,
-        reason = "guard scope is the whole function; entry borrows from it"
+        reason = "the guard is released before the blocking stamp capture and re-taken after; \
+                  the scopes are the point"
     )]
-    async fn peek_fresh(&self, refresh_threshold_secs: u64) -> Option<HelperOutput> {
+    async fn peek_fresh(&self, refresh_threshold_secs: u64) -> ForwardResult<Option<HelperOutput>> {
+        let (token, age_secs) = {
+            let mut guard = self.cached.lock().await;
+            let Some(entry) = guard.as_mut() else {
+                return Ok(None);
+            };
+            let age_secs = entry.minted_at.elapsed().as_secs();
+            if age_secs.saturating_add(refresh_threshold_secs) >= entry.token.ttl {
+                return Ok(None);
+            }
+            if entry.stamp_checked_at.elapsed() < STAMP_CHECK_INTERVAL {
+                tracing::debug!(cached_age_secs = age_secs, "token cache hit");
+                return Ok(Some(entry.token.clone()));
+            }
+            (entry.token.clone(), age_secs)
+        };
+        let current = tokio::task::spawn_blocking(capture_stamp)
+            .await
+            .map_err(|e| ForwardError::Auth(format!("credential stamp task: {e}")))?;
         let mut guard = self.cached.lock().await;
-        let entry = guard.as_mut()?;
-        let age_secs = entry.minted_at.elapsed().as_secs();
-        if age_secs.saturating_add(refresh_threshold_secs) >= entry.token.ttl {
-            return None;
-        }
-        // Why: an external `login` rewrites the PAT/config on disk but cannot
-        // reach this in-memory cache; without the mtime check the old JWT is
-        // served until its TTL lapses and every sync 401s against fresh disk
-        // credentials.
-        if entry.stamp_checked_at.elapsed() >= self.stamp_check_interval {
-            let current = CredentialStamp::capture();
-            if current != entry.stamp {
+        let Some(entry) = guard.as_mut() else {
+            return Ok(None);
+        };
+        match current {
+            Ok(current) if current == entry.stamp => {
+                entry.stamp_checked_at = tokio::time::Instant::now();
+                drop(guard);
+                tracing::debug!(cached_age_secs = age_secs, "token cache hit");
+                Ok(Some(token))
+            },
+            Ok(_) => {
                 tracing::info!("credentials changed on disk; discarding cached token");
                 *guard = None;
-                return None;
-            }
-            entry.stamp_checked_at = Instant::now();
+                Ok(None)
+            },
+            Err(e) => {
+                tracing::warn!(error = %e, "credential identity unreadable; cached token discarded");
+                *guard = None;
+                Ok(None)
+            },
         }
-        tracing::debug!(cached_age_secs = age_secs, "token cache hit");
-        Some(entry.token.clone())
     }
 }
 

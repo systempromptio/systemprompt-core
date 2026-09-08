@@ -45,28 +45,27 @@ pub(super) struct TeeWriterImpl {
 }
 
 impl Write for TeeWriterImpl {
-    // Why: bootstrap errors raised before the appender installs must stay
-    // visible, so an absent file writer forces the stderr leg. The discarded
-    // write results are deliberate — this is the sink `tracing` itself reports
-    // through, so there is nowhere left to report a sink failure.
+    // Why: a closed stderr (a detached GUI, a parent that went away) must
+    // not stop the line reaching the log file, and vice versa; both legs run
+    // and the first failure is reported after.
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.stderr || self.file.is_none() {
-            _ = io::stderr().write_all(buf);
-        }
-        if let Some(file) = self.file.as_mut() {
-            _ = file.write_all(buf);
-        }
-        Ok(buf.len())
+        let stderr = if self.stderr || self.file.is_none() {
+            io::stderr().write_all(buf)
+        } else {
+            Ok(())
+        };
+        let file = self.file.as_mut().map_or(Ok(()), |f| f.write_all(buf));
+        stderr.and(file).map(|()| buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        if self.stderr || self.file.is_none() {
-            _ = io::stderr().flush();
-        }
-        if let Some(file) = self.file.as_mut() {
-            _ = file.flush();
-        }
-        Ok(())
+        let stderr = if self.stderr || self.file.is_none() {
+            io::stderr().flush()
+        } else {
+            Ok(())
+        };
+        let file = self.file.as_mut().map_or(Ok(()), Write::flush);
+        stderr.and(file)
     }
 }
 
@@ -80,14 +79,13 @@ struct EventVisitor {
 
 impl EventVisitor {
     fn write_field(&mut self, name: &str, value: fmt::Arguments<'_>) {
-        use std::fmt::Write as _;
         if name == "message" {
-            _ = write!(self.message, "{value}");
+            self.message.push_str(&value.to_string());
         } else {
             if !self.fields.is_empty() {
                 self.fields.push(' ');
             }
-            _ = write!(self.fields, "{name}={value}");
+            self.fields.push_str(&format!("{name}={value}"));
         }
     }
 }

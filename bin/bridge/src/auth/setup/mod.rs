@@ -30,8 +30,6 @@ pub enum SetupError {
     Join(#[from] tokio::task::JoinError),
     #[error("gateway: {0}")]
     Gateway(#[from] crate::gateway::GatewayError),
-    // Why: the user (or a superseding request) stopped this before it could
-    // conclude. It is not a failure and must never be reported as one.
     #[error("cancelled")]
     Cancelled,
 }
@@ -102,7 +100,7 @@ pub fn logout() -> Result<PathLayout, SetupError> {
                 if stripped.trim().is_empty() {
                     remove_if_exists(&paths.config_file)?;
                 } else {
-                    atomic_write(&paths.config_file, stripped.as_bytes(), false)?;
+                    atomic_write(&paths.config_file, stripped.as_bytes(), true)?;
                 }
             },
             Err(e) => return Err(SetupError::Io(format!("read config: {e}"))),
@@ -174,9 +172,14 @@ pub struct StatusReport {
 pub fn session_setup(gateway_url: Option<&str>) -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
-    let gateway = resolve_gateway(&paths.config_file, gateway_url);
+    let gateway = resolve_gateway(&paths.config_file, gateway_url)?;
     merge_config_file(&paths.config_file, &gateway, "session", |doc| {
-        crate::config::write::set(doc, &["session", "enabled"], true);
+        crate::config::write::set(doc, &["session", "enabled"], true)?;
+        crate::config::write::set(
+            doc,
+            &["session", "generation"],
+            uuid::Uuid::new_v4().to_string(),
+        )
     })?;
     invalidate_cached_token()?;
     tracing::info!(config_file = %paths.config_file.display(), "session setup: config written");

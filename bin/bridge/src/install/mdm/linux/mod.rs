@@ -10,16 +10,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fs;
 use std::path::{Path, PathBuf};
 
-pub mod settings;
-
-use settings::{apply_managed_settings, key_helper_path, remove_managed_settings};
-
-pub(crate) use settings::seed_default_model;
-
 use super::MdmError;
+use super::claude_code_settings::{
+    apply_managed_settings, io_error, read_or_empty, remove_all, write_atomic,
+};
 
 fn markers() -> (String, String) {
     let bin = crate::brand::brand().binary_name;
@@ -86,94 +82,79 @@ fn splice(existing: &str, block: &str) -> Option<String> {
     (replaced != existing).then_some(replaced)
 }
 
-fn io_error(action: &'static str, path: &Path) -> impl FnOnce(std::io::Error) -> MdmError {
-    let path = path.to_path_buf();
-    move |source| MdmError::Io {
-        action,
-        path,
-        source,
-    }
-}
-
-fn write_atomic(path: &Path, contents: &str) -> Result<(), MdmError> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(io_error("create", parent))?;
-    }
-    let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
-    fs::write(&tmp, contents).map_err(io_error("write", &tmp))?;
-    fs::rename(&tmp, path).map_err(|e| {
-        _ = fs::remove_file(&tmp);
-        io_error("rename onto", path)(e)
-    })
-}
-
-fn read_or_empty(path: &Path) -> Result<String, MdmError> {
-    match fs::read_to_string(path) {
-        Ok(s) => Ok(s),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
-        Err(e) => Err(io_error("read", path)(e)),
-    }
-}
-
-pub(super) fn apply(gateway: &str) -> Result<Vec<String>, MdmError> {
+pub(super) fn apply(gateway: &str) -> Result<super::MdmApplication, MdmError> {
     let env_file = env_file_path().ok_or(MdmError::Resolve("the user's config directory"))?;
     let key_path =
         crate::proxy::secret::secret_path().ok_or(MdmError::Resolve("the loopback secret path"))?;
-    write_atomic(&env_file, &env_file_body(gateway, &key_path))?;
+    let env_body = env_file_body(gateway, &key_path);
+    write_atomic(&env_file, &env_body)?;
+    let mut files = vec![
+        crate::fsutil::FileReceipt::verify(&env_file, env_body.as_bytes())
+            .map_err(io_error("verify", &env_file))?,
+    ];
 
     let mut lines = vec![format!(
         "wrote: {} (ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN)",
         env_file.display()
     )];
 
-    let profile = profile_path().ok_or(MdmError::Resolve("the user's home directory"))?;
-    let existing = read_or_empty(&profile)?;
-    match splice(&existing, &profile_block(&env_file)) {
-        Some(updated) => {
-            write_atomic(&profile, &updated)?;
-            lines.push(format!("wrote: {} (managed block)", profile.display()));
-        },
-        None => lines.push(format!(
-            "{}: managed block already current",
-            profile.display()
-        )),
-    }
+    let outcome = (|| {
+        let profile = profile_path().ok_or(MdmError::Resolve("the user's home directory"))?;
+        let existing = read_or_empty(&profile)?;
+        match splice(&existing, &profile_block(&env_file)) {
+            Some(updated) => {
+                write_atomic(&profile, &updated)?;
+                files.push(
+                    crate::fsutil::FileReceipt::verify(&profile, updated.as_bytes())
+                        .map_err(io_error("verify", &profile))?,
+                );
+                lines.push(format!("wrote: {} (managed block)", profile.display()));
+            },
+            None => lines.push(format!(
+                "{}: managed block already current",
+                profile.display()
+            )),
+        }
 
-    lines.extend(apply_managed_settings(gateway, &key_path)?);
-    // Why: Claude Code no longer depends on this — it reads the settings file
-    // written above on every invocation, in any shell. `env.sh` remains for
-    // other Anthropic-API clients (curl, SDK scripts) that read the process
-    // environment, so say what it is for rather than presenting it as a step.
-    lines.push(
-        "Claude Code is configured and needs no further steps. env.sh additionally \
+        let settings = apply_managed_settings(gateway, &key_path)?;
+        lines.extend(settings.lines);
+        files.extend(settings.files);
+        lines.push(
+            "Claude Code is configured and needs no further steps. env.sh additionally \
          exports these for other Anthropic-API clients; a new login shell picks it up."
-            .to_owned(),
-    );
-    Ok(lines)
+                .to_owned(),
+        );
+        Ok::<_, MdmError>(())
+    })();
+    outcome.map_err(|source| MdmError::Partial {
+        completed: super::MdmApplication {
+            lines: lines.clone(),
+            files: files.clone(),
+            policies: Vec::new(),
+        },
+        source: Box::new(source),
+    })?;
+    Ok(super::MdmApplication {
+        lines,
+        files,
+        policies: Vec::new(),
+    })
 }
 
-pub(crate) fn remove() -> Vec<String> {
+pub(crate) fn remove() -> Result<Vec<String>, MdmError> {
     let mut lines = Vec::new();
-    for path in [env_file_path(), key_helper_path()].into_iter().flatten() {
-        match fs::remove_file(&path) {
-            Ok(()) => lines.push(format!("removed: {}", path.display())),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-            Err(e) => lines.push(format!("could not remove {}: {e}", path.display())),
-        }
+    let env_file = env_file_path().ok_or(MdmError::Resolve("env path"))?;
+    if env_file.try_exists().map_err(io_error("read", &env_file))? {
+        crate::fsutil::remove_verified(&env_file).map_err(io_error("remove", &env_file))?;
+        lines.push(format!("removed: {}", env_file.display()));
     }
-    lines.extend(remove_managed_settings());
-    let Some(profile) = profile_path() else {
-        return lines;
-    };
-    let Ok(existing) = read_or_empty(&profile) else {
-        return lines;
-    };
+    lines.extend(remove_all()?);
+    let profile = profile_path().ok_or(MdmError::Resolve("profile path"))?;
+    let existing = read_or_empty(&profile)?;
     if let Some((start, end)) = managed_range(&existing) {
         let stripped = format!("{}{}", &existing[..start], &existing[end..]);
-        match write_atomic(&profile, &stripped) {
-            Ok(()) => lines.push(format!("removed: managed block in {}", profile.display())),
-            Err(e) => lines.push(format!("could not clean {}: {e}", profile.display())),
-        }
+        write_atomic(&profile, &stripped)?;
+        lines.push(format!("removed: managed block in {}", profile.display()));
     }
-    lines
+    Ok(lines)
 }

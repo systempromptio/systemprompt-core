@@ -34,10 +34,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2026-06-03
-          components: rustfmt
+      - run: rustup show
       - uses: extractions/setup-just@v2
       # `just format-check` covers all three workspaces (root, crates/tests,
       # bin/bridge); a bare root `cargo fmt` leaves the bridge unchecked.
@@ -50,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --locked
 
@@ -61,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
       - name: Verify offline sqlx cache is current
         run: |
@@ -87,7 +84,7 @@ jobs:
         # Group names only; the group→prefix mapping, package selection, and
         # nextest invocation live in scripts/test-shard.sh so CI and the local
         # `just test-shard` recipes share one source of truth.
-        group: [shared, infra, domain, app-runtime, app-scheduler, app-generator, entry-api, entry-cli, bridge, integration-api, integration-cli, integration-rest, edge]
+        group: [shared, infra, domain, app-runtime, app-scheduler, app-generator, entry-api, entry-cli, bridge, integration-api, integration-cli, integration-rest-1, integration-rest-2, edge]
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
     # Drop debuginfo and incremental artifacts: each shard's compile footprint
@@ -140,7 +137,7 @@ jobs:
               p.write_text(s)
           PY
 
-      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
           # Per-shard key so shards don't clobber each other's cache.

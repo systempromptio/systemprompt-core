@@ -226,7 +226,7 @@ mod block_scope {
     use systemprompt_ai::{
         PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyHistoryMode,
     };
-    use systemprompt_api::services::gateway::service::test_api::blocks_at_phase;
+    use systemprompt_api::services::gateway::service::finalize::safety::blocks_at_phase;
 
     #[test]
     fn a_finding_in_the_newest_turn_always_blocks() {
@@ -264,7 +264,7 @@ mod block_scope {
 mod dedup {
     use super::*;
     use systemprompt_ai::PHASE_REQUEST;
-    use systemprompt_api::services::gateway::service::test_api::dedupe_findings;
+    use systemprompt_api::services::gateway::service::finalize::safety::dedupe_findings;
 
     fn finding(phase: &'static str, category: &str, excerpt: &str) -> Finding {
         Finding {

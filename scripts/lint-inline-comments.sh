@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
+cd "$(dirname "$0")/.."
+git rev-parse --is-inside-work-tree >/dev/null
 
 # Machete rule: inline `//` comments are banned in production crates.
 #
-# The only permitted full-line inline comments are the two whitelisted
+# The only permitted full-line inline comments are the three whitelisted
 # justification prefixes mandated by the rust-coding-standards skill:
 #
-#   // Why:    — a non-obvious invariant, hidden constraint, or exemption
-#                justification (e.g. a permitted `let _ =`)
+#   // Why:    — a concise external constraint: a normative protocol or API,
+#                third-party runtime/tool behavior, platform defect, or
+#                toolchain limitation that the code cannot encode
 #   // JSON:   — a sanctioned `serde_json::Value` protocol-boundary usage
 #   // SAFETY: — the discharge of an `unsafe` block's obligations. Not a
 #                discretionary comment: clippy's `undocumented_unsafe_blocks`
@@ -24,18 +27,22 @@ set -uo pipefail
 # traits, top-level types (struct/enum/union/type), and `mod` declarations.
 # Rustdoc on anything else — functions, methods, consts, statics, fields,
 # enum variants, macros, or any `pub(crate)`/`pub(super)`/private item — is
-# banned. A genuine invariant on such an item belongs in a `// Why:` comment;
-# anything else is deleted.
+# banned. Code must express its own internal invariants; only an external
+# constraint on such an item may use a `// Why:` comment.
 #
-# Scope: production sources in `crates/**` and `bin/bridge/src/**`, tracked or
-# not (`git ls-files -co`) — an untracked new file must not pass vacuously.
+# Scope: production sources in `crates/**`, `bin/bridge/src/**`, and the
+# `systemprompt` facade, tracked or not (`git ls-files -co`) — an untracked new
+# file must not pass vacuously.
 
 MATCHES=""
+scanned=0
 while IFS= read -r file; do
     case "$file" in
         crates/tests/*) continue ;;
         */build.rs) continue ;;
     esac
+    [ -e "$file" ] || continue
+    scanned=$((scanned + 1))
     FOUND=$(awk -v MAX_WHY_LINES="${MAX_WHY_LINES:-6}" '
         /^[[:space:]]*\/\/\// { prev_allowed = 0; if (!in_doc) doc_line = FNR; in_doc = 1; next }
         /^[[:space:]]*\/\/!/ { prev_allowed = 0; next }
@@ -45,7 +52,7 @@ while IFS= read -r file; do
             if (prev_allowed) {
                 why_lines++
                 if (why_lines > MAX_WHY_LINES) {
-                    print FILENAME ":" FNR ": `// Why:` block longer than " MAX_WHY_LINES " continuation lines — a rationale that long belongs in the module `//!` head"
+                    print FILENAME ":" FNR ": comment block longer than " MAX_WHY_LINES " continuation lines — remove narration and shorten the external constraint"
                     prev_allowed = 0
                 }
                 next
@@ -69,17 +76,19 @@ while IFS= read -r file; do
                 stripped = $0
                 sub(/^[[:space:]]+/, "", stripped)
                 if (stripped !~ /^(pub[[:space:]]+)?(unsafe[[:space:]]+)?(trait|struct|enum|union|type|mod)[[:space:]<]/) {
-                    print FILENAME ":" doc_line ": rustdoc on non-type item (" stripped ") — /// is reserved for pub traits, top-level types, and modules; use // Why: or delete"
+                    print FILENAME ":" doc_line ": rustdoc on non-type item (" stripped ") — /// is reserved for pub traits, top-level types, and modules; remove narration"
                 } else if (stripped !~ /^pub[[:space:]]/) {
-                    print FILENAME ":" doc_line ": rustdoc on non-public item (" stripped ") — use // Why: or delete"
+                    print FILENAME ":" doc_line ": rustdoc on non-public item (" stripped ") — remove narration"
                 }
             }
             in_doc = 0
             prev_allowed = 0
         }
     ' "$file")
-    [ -n "$FOUND" ] && MATCHES+="${FOUND}"$'\n'
-done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' | sort -u)
+    if [ -n "$FOUND" ]; then MATCHES+="${FOUND}"$'\n'; fi
+done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' | sort -u)
+
+if [ "$scanned" -eq 0 ]; then echo "lint-inline-comments: no production sources scanned" >&2; exit 1; fi
 
 if [ -z "$MATCHES" ]; then
     echo "lint-inline-comments: OK (no unlisted inline comments)"
@@ -88,7 +97,8 @@ fi
 
 echo "lint-inline-comments: inline // comments are banned in production crates,"
 echo "and /// rustdoc is reserved for pub traits, top-level types, and modules."
-echo "Delete the comment, or justify it with a '// Why:', '// JSON:' or '// SAFETY:' prefix:"
+echo "Delete narration or express it in code; reserve '// Why:' for external constraints."
+echo "Protocol-boundary '// JSON:' and required '// SAFETY:' annotations remain permitted."
 echo ""
 printf '%s' "$MATCHES"
 exit 1

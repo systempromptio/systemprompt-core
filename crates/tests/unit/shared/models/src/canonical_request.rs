@@ -381,6 +381,34 @@ mod derived_gateway_conversation_id {
     }
 }
 
+mod client_session_id {
+    use super::*;
+
+    #[test]
+    fn none_without_metadata() {
+        assert!(empty_request().client_session_id().is_none());
+    }
+
+    #[test]
+    fn none_when_user_id_is_not_a_string_or_has_no_session() {
+        let mut req = empty_request();
+        req.metadata = Some(json!({ "user_id": 42 }));
+        assert!(req.client_session_id().is_none());
+        req.metadata = Some(json!({ "user_id": "user-abc" }));
+        assert!(req.client_session_id().is_none());
+    }
+
+    #[test]
+    fn parses_the_claude_code_shape() {
+        let mut req = empty_request();
+        req.metadata = Some(json!({
+            "user_id": "user_abc_account_def_session_9d2c4e6f-1a3b-4c5d-8e7f-0a1b2c3d4e5f"
+        }));
+        let id = req.client_session_id().expect("session");
+        assert_eq!(id.as_str(), "9d2c4e6f-1a3b-4c5d-8e7f-0a1b2c3d4e5f");
+    }
+}
+
 mod latest_message_text {
     use super::*;
 

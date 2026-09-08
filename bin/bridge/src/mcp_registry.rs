@@ -57,25 +57,17 @@ pub fn snapshot(slot: &McpRegistrySlot) -> Arc<McpRegistry> {
     slot.load_full()
 }
 
-pub fn rehydrate_from_disk(slot: &McpRegistrySlot) {
-    let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
-        return;
-    };
+pub fn rehydrate_from_disk(slot: &McpRegistrySlot) -> std::io::Result<()> {
+    let meta_dir = crate::config::paths::bridge_metadata_dir()
+        .ok_or_else(|| std::io::Error::other("MCP registry metadata path unresolvable"))?;
     let path = meta_dir.join(crate::config::paths::MCP_SERVERS_FRAGMENT);
-    let bytes = match std::fs::read(&path) {
-        Ok(b) => b,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
-        Err(e) => {
-            tracing::debug!(target: "bridge::proxy", error = %e, path = %path.display(), "mcp registry: read fragment failed");
-            return;
-        },
+    let Some(body) = crate::fsutil::read_optional(&path)? else {
+        return Ok(());
     };
-    match serde_json::from_slice::<Vec<ManagedMcpServer>>(&bytes) {
-        Ok(servers) => publish(slot, &servers),
-        Err(e) => {
-            tracing::debug!(target: "bridge::proxy", error = %e, path = %path.display(), "mcp registry: parse fragment failed");
-        },
-    }
+    let servers = serde_json::from_str::<Vec<ManagedMcpServer>>(&body)
+        .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))?;
+    publish(slot, &servers);
+    Ok(())
 }
 
 #[must_use]

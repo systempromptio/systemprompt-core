@@ -18,9 +18,6 @@ use crate::services::ui_renderer::{
 use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_models::mcp::McpResourceUiMeta;
 
-// Why: the viewer template only changes when the server binary is redeployed,
-// so intermediaries may share it (SEP-2549 `public`); rendered artifacts are
-// per-user data and must revalidate every read (`private`, ttl 0).
 const STATIC_TEMPLATE_TTL_MS: u64 = 3_600_000;
 
 #[derive(Debug)]

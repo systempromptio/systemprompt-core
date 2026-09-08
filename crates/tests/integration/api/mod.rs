@@ -349,6 +349,10 @@ mod routes_agent_cards;
 mod proxy_auth_access;
 
 #[cfg(test)]
+#[path = "proxy_support.rs"]
+mod proxy_support;
+
+#[cfg(test)]
 #[path = "proxy_mcp_session_cache.rs"]
 mod proxy_mcp_session_cache;
 
@@ -511,3 +515,6 @@ mod gateway_dispatch_success;
 #[cfg(test)]
 #[path = "gateway_malformed_tool_choice.rs"]
 mod gateway_malformed_tool_choice;
+
+#[cfg(test)]
+mod gateway_google_credentials;

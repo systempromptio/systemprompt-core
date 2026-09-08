@@ -13,9 +13,6 @@ use crate::stdio::diag;
 use crate::{install, stdio};
 
 pub(super) fn cmd_uninstall(ctx: &BridgeContext, args: &[String]) -> ExitCode {
-    // Why: naming hosts scopes the command to them. Removing the whole bridge
-    // because the operator asked to un-enrol one client would be a far larger
-    // act than the words on the line.
     let hosts = parse_multi_flag(args, "--host");
     if !hosts.is_empty() {
         return remove_hosts(&Selection::Ids(hosts));

@@ -33,10 +33,6 @@ use crate::stdio::{diag, print_line};
 
 const MOCK_TAG: &str = "<script type=\"module\" src=\"/dev/mock-ipc.js\"></script>";
 
-// Why: the mock has to be installed *before* the entry module, because
-// components call `bridge.stateSnapshot()` from `connectedCallback` the moment
-// they upgrade — ordered module scripts run in document order, and the mock's
-// top-level await holds the entry module until the fixture has landed.
 const ENTRY_TAG: &str = "<script type=\"module\" src=\"/assets/js/index.js\"";
 
 #[derive(Debug)]
@@ -59,19 +55,21 @@ pub fn serve(opts: &Options) -> std::io::Result<()> {
     ));
     for conn in listener.incoming() {
         match conn {
-            Ok(stream) => handle(stream, opts),
+            Ok(stream) => {
+                if let Err(e) = handle(stream, opts) {
+                    diag(&format!("dev-web: response failed: {e}"));
+                }
+            },
             Err(e) => diag(&format!("dev-web: accept failed: {e}")),
         }
     }
     Ok(())
 }
 
-fn handle(mut stream: std::net::TcpStream, opts: &Options) {
+fn handle(mut stream: std::net::TcpStream, opts: &Options) -> std::io::Result<()> {
     let mut reader = BufReader::new(&stream);
     let mut line = String::new();
-    if reader.read_line(&mut line).is_err() {
-        return;
-    }
+    reader.read_line(&mut line)?;
     let target = line.split_whitespace().nth(1).unwrap_or("/");
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
 
@@ -82,15 +80,25 @@ fn handle(mut stream: std::net::TcpStream, opts: &Options) {
          no-store\r\nConnection: close\r\n\r\n",
         body.len()
     );
-    _ = stream.write_all(head.as_bytes());
-    _ = stream.write_all(&body);
-    _ = stream.flush();
+    stream.write_all(head.as_bytes())?;
+    stream.write_all(&body)?;
+    stream.flush()
 }
 
 fn route(path: &str, query: &str, opts: &Options) -> (&'static str, &'static str, Vec<u8>) {
     match path {
         "/" | "/index.html" => {
-            let disk = std::fs::read_to_string(opts.web_root.join("index.html")).ok();
+            let disk = match std::fs::read_to_string(opts.web_root.join("index.html")) {
+                Ok(body) => Some(body),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                Err(e) => {
+                    return (
+                        "500 Internal Server Error",
+                        "text/plain",
+                        format!("read {}/index.html: {e}", opts.web_root.display()).into_bytes(),
+                    );
+                },
+            };
             let shell = disk.map_or_else(crate::web_assets::render_index, |src| {
                 crate::web_assets::render_index_from(&src)
             });
@@ -120,9 +128,6 @@ fn route(path: &str, query: &str, opts: &Options) -> (&'static str, &'static str
 }
 
 fn serve_file(path: &str, opts: &Options) -> (&'static str, &'static str, Vec<u8>) {
-    // Why: `/dev/*` resolves from disk or not at all — build.rs strips it from
-    // the staged tree, so it is not merely unused in a shipped binary, it is
-    // not in it.
     let rel = path
         .strip_prefix("/assets/")
         .or_else(|| path.strip_prefix('/'))

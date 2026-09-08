@@ -1,7 +1,7 @@
 //! Integration tests (coverage campaign 2026-07).
 //!
 //! Unit-level coverage for the gateway dispatch error mapper and the response
-//! finalization helpers reached through the `test_api` seams: `DispatchError`
+//! finalization helpers: `DispatchError`
 //! classification into HTTP status + body, the quota `retry-after` fast path,
 //! the JSON error-envelope builder, request-id stamping, and the
 //! system-prompt-override no-op when no overrides are configured.
@@ -9,14 +9,14 @@
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::Response;
-use systemprompt_api::routes::gateway::messages::test_api::{
+use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     build_error_response, classify_dispatch_error, map_dispatch_error,
 };
 use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
 use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
-use systemprompt_api::services::gateway::service::test_api::{
+use systemprompt_api::services::gateway::service::finalize::{
     apply_system_prompt_override, attach_request_id,
 };
 use systemprompt_api::services::gateway::service::{

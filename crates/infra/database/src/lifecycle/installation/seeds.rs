@@ -54,8 +54,7 @@ async fn apply_one(
             message: format!("begin transaction: {e}"),
         })?;
 
-    // Why: one prepared execute per statement — Postgres rejects multi-command
-    // prepared statements, and multi-statement seed bodies are valid input.
+    // Why: Postgres prepared statements cannot contain multiple SQL commands.
     for statement in statements {
         if let Err(e) = tx.execute(statement, &[]).await {
             let rollback = match tx.rollback().await {

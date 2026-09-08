@@ -25,8 +25,6 @@ use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_oauth::services::validation::CsrfToken;
 use tracing::instrument;
 
-// Why: Rejects open-redirect inputs: only same-origin, CR/LF-free absolute
-// paths.
 fn same_origin_return_path(client_state: &str) -> Option<String> {
     let raw = client_state.trim();
     if raw.is_empty()
@@ -112,9 +110,6 @@ fn login_page_redirect(params: &AuthorizeQuery) -> Option<Response> {
     Some(axum::response::Redirect::to(&target).into_response())
 }
 
-// Why: the configured URL is operator-controlled, but a typo'd relative or
-// non-http value would strand every sign-in — fall back to the built-in form
-// instead of redirecting into the void.
 #[must_use]
 pub fn login_page_redirect_target(login_page_url: &str, params: &AuthorizeQuery) -> Option<String> {
     if wants_passkey_form(params) {

@@ -18,26 +18,12 @@ use systemprompt_traits::AppContext as _;
 const UNKNOWN_SESSION_MESSAGE: &str =
     "unknown or revoked session; mint one at POST /api/public/gateway/sessions";
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub enum AuthedPrincipal {
     Jwt(JwtPrincipal),
     ApiKey(ApiKeyPrincipal),
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct JwtPrincipal {
     pub user_id: UserId,
@@ -49,13 +35,6 @@ pub struct JwtPrincipal {
     pub client_id: Option<ClientId>,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 #[derive(Debug)]
 pub struct ApiKeyPrincipal {
     pub user_id: UserId,
@@ -63,13 +42,6 @@ pub struct ApiKeyPrincipal {
     pub attested_session: SessionId,
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 impl AuthedPrincipal {
     pub const fn user_id(&self) -> &UserId {
         match self {
@@ -92,8 +64,6 @@ impl AuthedPrincipal {
         }
     }
 
-    // Why: an API key asserts no roles, so it resolves to `Unknown` rather
-    // than inheriting a tier it never proved.
     pub fn access_scope(&self) -> AccessScope {
         match self {
             Self::Jwt(p) => AccessScope::from_roles(&p.roles),
@@ -139,13 +109,6 @@ impl AuthedPrincipal {
     }
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn authenticate(
     credential: &str,
     session_id: &SessionId,

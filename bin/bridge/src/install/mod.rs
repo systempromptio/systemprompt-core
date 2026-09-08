@@ -10,6 +10,7 @@ mod builders;
 pub(crate) mod elevate;
 #[cfg(target_os = "windows")]
 pub(crate) mod elevated_job;
+pub mod elevated_protocol;
 pub mod elevation_script;
 mod error;
 pub mod managed_file;
@@ -19,17 +20,14 @@ pub mod reg_values;
 mod schedule_apply;
 mod schedule_emit;
 mod summary;
-// Why: plist rendering moved into the platform-neutral policy module so it can
-// be tested from any host, so its XML escaping must build everywhere too.
 pub(crate) mod xml;
 
 pub use apply::install;
 pub use builders::{InstallOptionsBuilder, UninstallSummaryBuilder};
 pub use error::InstallError;
 pub use mdm::{
-    LEGACY_PUBKEY_KEY, MdmError, MdmPayloadInputs, bridge_policy_values,
-    cowork_egress_allowed_hosts, default_inference_models, is_uuid_like,
-    parse_egress_allowed_hosts, snippet as mdm_snippet,
+    MdmError, MdmPayloadInputs, bridge_policy_values, cowork_egress_allowed_hosts,
+    default_inference_models, is_uuid_like, parse_egress_allowed_hosts, snippet as mdm_snippet,
 };
 pub use schedule_apply::{
     ScheduleStatus, apply_gui_autostart, apply_schedule, gui_autostart_status,
@@ -70,7 +68,18 @@ impl InstallOptions {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum InstallStep {
+    Directory(PathBuf),
+    Sentinel(PathBuf),
+    GatewayConfigured,
+    TrustConfigured,
+    Policy { outcome: MdmDisplay },
+    Schedule { outcome: ScheduleDisplay },
+}
+
 #[derive(Debug)]
+#[must_use]
 pub struct InstallSummary {
     pub location: paths::OrgPluginsLocation,
     pub binary: PathBuf,
@@ -78,29 +87,29 @@ pub struct InstallSummary {
     pub schedule: Option<ScheduleDisplay>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MdmDisplay {
     Snippet { os: Os, snippet: String },
-    Applied { os: Os, lines: Vec<String> },
-    MobileconfigApplied { lines: Vec<String> },
+    Applied { os: Os, report: mdm::MdmApplication },
+    MobileconfigPrepared { lines: Vec<String> },
 }
 
 /// What the install did about the periodic sync job: wrote a template for the
 /// user to install by hand, or registered it with the host scheduler.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScheduleDisplay {
     Template(ScheduleEmit),
     Applied(ScheduleApplied),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScheduleEmit {
     pub os: Os,
     pub path: PathBuf,
     pub install_hint: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScheduleApplied {
     pub os: Os,
     pub label: String,
@@ -143,7 +152,6 @@ pub enum ManagedProfileOutcome {
 pub enum CredentialsOutcome {
     Purged(PathBuf),
     Kept,
-    PurgeFailed(String),
 }
 
 #[must_use]
@@ -172,31 +180,29 @@ pub fn uninstall(
         (None, Some(metadata))
     };
 
-    if let Some(staging) = paths::bridge_staging_dir()
-        && staging.exists()
-    {
-        _ = fs::remove_dir_all(&staging);
-    }
-
-    if let Ok(entries) = fs::read_dir(&location.path) {
-        for entry in entries.flatten() {
-            let is_plugin_dir = entry.file_type().is_ok_and(|t| t.is_dir())
-                && entry
-                    .file_name()
-                    .to_str()
-                    .is_some_and(|n| !n.starts_with('.'));
-            if is_plugin_dir {
-                _ = fs::remove_dir_all(entry.path());
-            }
+    if let Some(staging) = paths::bridge_staging_dir() {
+        match fs::remove_dir_all(&staging) {
+            Ok(()) => {},
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => {
+                return Err(InstallError::Bootstrap(format!(
+                    "remove {}: {e}",
+                    staging.display()
+                )));
+            },
         }
     }
+    purge_plugin_dirs(&location.path)?;
 
     let schedule = remove_schedule(&bridge.schedule);
     if let ScheduleRemoval::Failed(e) = &schedule {
-        diag(&format!("warning: scheduled sync job removal failed: {e}"));
+        return Err(InstallError::ScheduleApply(e.clone()));
     }
 
     let managed_profile = remove_managed_profile();
+    if let ManagedProfileOutcome::RemoveFailed(e) = &managed_profile {
+        return Err(InstallError::Bootstrap(e.clone()));
+    }
 
     let credentials = if purge {
         match crate::auth::setup::logout() {
@@ -204,7 +210,7 @@ pub fn uninstall(
             Err(e) => {
                 let msg = format!("credential purge failed: {e}");
                 diag(&msg);
-                CredentialsOutcome::PurgeFailed(msg)
+                return Err(InstallError::Bootstrap(msg));
             },
         }
     } else {
@@ -218,6 +224,32 @@ pub fn uninstall(
         credentials,
         schedule,
     })
+}
+
+fn purge_plugin_dirs(root: &std::path::Path) -> Result<(), InstallError> {
+    let entries = match fs::read_dir(root) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => {
+            return Err(InstallError::Bootstrap(format!(
+                "enumerate {}: {e}",
+                root.display()
+            )));
+        },
+    };
+    for entry in entries {
+        let entry = entry
+            .map_err(|e| InstallError::Bootstrap(format!("enumerate {}: {e}", root.display())))?;
+        let kind = entry.file_type().map_err(|e| {
+            InstallError::Bootstrap(format!("inspect {}: {e}", entry.path().display()))
+        })?;
+        if kind.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+            fs::remove_dir_all(entry.path()).map_err(|e| {
+                InstallError::Bootstrap(format!("remove {}: {e}", entry.path().display()))
+            })?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -249,7 +281,10 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn remove_managed_profile() -> ManagedProfileOutcome {
-    let lines = mdm::linux::remove();
+    let lines = match mdm::linux::remove() {
+        Ok(lines) => lines,
+        Err(e) => return ManagedProfileOutcome::RemoveFailed(e.to_string()),
+    };
     if lines.is_empty() {
         return ManagedProfileOutcome::NotInstalled("Linux env configuration");
     }

@@ -1,5 +1,5 @@
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::install::{InstallOptions, install};
+use systemprompt_bridge::install::{InstallError, InstallOptions, install};
 use tempfile::TempDir;
 
 struct Dirs {
@@ -80,7 +80,7 @@ fn options() -> InstallOptions {
 fn a_root_owned_sudo_user_marker_is_ignored() {
     let dirs = Dirs::new();
     dirs.run(Some("root"), || {
-        install(&options(), &bridge())
+        let _installed = install(&options(), &bridge())
             .expect("install succeeds under a user-scoped org-plugins root");
     });
     assert!(dirs.sentinel().is_file(), "sentinel written");
@@ -92,21 +92,35 @@ fn a_root_owned_sudo_user_marker_is_ignored() {
 fn an_empty_sudo_user_marker_is_ignored() {
     let dirs = Dirs::new();
     dirs.run(Some(""), || {
-        install(&options(), &bridge()).expect("install succeeds");
+        let _installed = install(&options(), &bridge()).expect("install succeeds");
     });
     assert!(dirs.sentinel().is_file());
 }
 
 #[cfg(unix)]
 #[test]
-fn an_unresolvable_sudo_user_does_not_abort_the_install() {
+fn an_unresolvable_sudo_user_fails_the_install_before_the_sentinel() {
     let dirs = Dirs::new();
-    dirs.run(Some("no-such-user-987654"), || {
-        install(&options(), &bridge()).expect("ownership fixups are best-effort");
+    let err = dirs.run(Some("no-such-user-987654"), || {
+        install(&options(), &bridge()).expect_err("an unresolvable SUDO_USER cannot be chowned to")
     });
+    let InstallError::Partial { completed, source } = err else {
+        panic!("directory bootstrap runs first and reports partial progress, got {err:?}");
+    };
     assert!(
-        dirs.sentinel().is_file(),
-        "a failed SUDO_USER lookup must not fail the install"
+        completed.is_empty(),
+        "nothing is recorded as done before ownership is verified, got {completed:?}"
+    );
+    let InstallError::Bootstrap(message) = *source else {
+        panic!("the failure is the bootstrap step, got {source:?}");
+    };
+    assert!(
+        message.contains("no-such-user-987654"),
+        "the error names the user that could not be resolved: {message}"
+    );
+    assert!(
+        !dirs.sentinel().exists(),
+        "an install whose ownership could not be restored must not look complete"
     );
 }
 
@@ -116,7 +130,7 @@ fn a_resolvable_sudo_user_still_completes_the_install() {
     let dirs = Dirs::new();
     let me = std::env::var("USER").unwrap_or_else(|_| "root".to_owned());
     dirs.run(Some(&me), || {
-        install(&options(), &bridge()).expect("install succeeds");
+        let _installed = install(&options(), &bridge()).expect("install succeeds");
     });
     assert!(dirs.sentinel().is_file());
     assert!(dirs.org_plugins().is_dir());
@@ -136,4 +150,50 @@ fn install_is_idempotent() {
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+}
+
+#[cfg(unix)]
+#[test]
+fn a_sudo_user_install_leaves_the_tree_owned_by_that_user_root_and_children_alike() {
+    use std::os::unix::fs::MetadataExt;
+
+    let me = String::from_utf8(
+        std::process::Command::new("/usr/bin/id")
+            .arg("-un")
+            .output()
+            .expect("id -un")
+            .stdout,
+    )
+    .expect("utf-8 user name");
+    let me = me.trim().to_owned();
+    if me == "root" {
+        panic!("this test needs a non-root user so SUDO_USER is honoured rather than ignored");
+    }
+
+    let dirs = Dirs::new();
+    let root = dirs.org_plugins();
+    dirs.run(Some(&me), || {
+        install(&options(), &bridge()).expect("install completes for a resolvable SUDO_USER");
+        // Why: ownership is verified on the root *and* a sampled child; an
+        // empty tree would pass that check without ever reading a child.
+        std::fs::create_dir_all(root.join("an-existing-plugin")).expect("seed a child");
+        install(&options(), &bridge()).expect("a second install re-verifies the populated tree");
+    });
+
+    let expected = std::fs::metadata(dirs.data.path()).expect("data dir metadata");
+    let actual = std::fs::metadata(&root).expect("org-plugins metadata");
+    assert_eq!(
+        (actual.uid(), actual.gid()),
+        (expected.uid(), expected.gid()),
+        "the provisioned root belongs to the invoking user, not to root"
+    );
+
+    let child = root.join("an-existing-plugin");
+    let child_meta = std::fs::metadata(&child).expect("child metadata");
+    assert_eq!(
+        (child_meta.uid(), child_meta.gid()),
+        (expected.uid(), expected.gid()),
+        "ownership is verified recursively, so {} must match too",
+        child.display()
+    );
 }

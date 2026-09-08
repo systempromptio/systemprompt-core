@@ -137,12 +137,6 @@ impl<'a> MigrationService<'a> {
             let row = applied_rows.get(&migration.version).copied();
 
             if migration.tombstone {
-                // Why: a tombstone's name labels the retirement ("retired_chain"),
-                // it is not the name of the migration that once held the slot, so
-                // comparing it to a tracked row is meaningless — and it failed on
-                // exactly the population tombstones exist for. Every established
-                // database carries the real names in a retired range, so slot
-                // identity was checked against a label and refused the boot.
                 debug!(
                     extension = %ext_id,
                     version = migration.version,
@@ -184,9 +178,6 @@ impl<'a> MigrationService<'a> {
         })
     }
 
-    // Why: the recorded name is the only thing that distinguishes a migration
-    // edited in place from a slot whose file was deleted and its number reused.
-    // The checksum cannot tell them apart — it hashes the SQL alone.
     async fn execute_migration(
         &self,
         extension: &dyn Extension,
@@ -253,10 +244,6 @@ impl<'a> MigrationService<'a> {
     }
 }
 
-// Why: reported, never fatal. Databases predating tombstones carry rows for
-// every migration since deleted, and refusing to boot on those would strand
-// every established install. Adding the matching `.tombstone` file clears the
-// warning; `infra db migrate-status` lists the rows.
 pub(crate) fn orphaned_versions(applied: &[AppliedMigration], defined: &[Migration]) -> Vec<u32> {
     let declared: HashSet<u32> = defined.iter().map(|m| m.version).collect();
     applied

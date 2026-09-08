@@ -9,7 +9,9 @@
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Message, MessageRole, Part, TaskState, TextPart,
 };
-use systemprompt_agent::test_api::{PersistCompletedTaskParams, persist_completed_task};
+use systemprompt_agent::services::a2a_server::processing::message::persistence::{
+    PersistCompletedTaskParams, persist_completed_task,
+};
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
@@ -178,4 +180,74 @@ async fn a_task_that_does_not_exist_fails_loudly_rather_than_reporting_success()
             .contains("Failed to update task and save messages"),
         "the failure must name what could not be written: {err}"
     );
+}
+
+async fn persist_artifacts(broadcast_ok: bool) {
+    let pool = try_pool_or_skip()
+        .await
+        .expect("persistence coverage requires PostgreSQL");
+    let server = wiremock::MockServer::start().await;
+    wiremock::Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/v1/webhook/broadcast"))
+        .respond_with(wiremock::ResponseTemplate::new(if broadcast_ok {
+            200
+        } else {
+            503
+        }))
+        .expect(if broadcast_ok { 2 } else { 1 })
+        .mount(&server)
+        .await;
+    let _boot =
+        systemprompt_test_fixtures::init_isolated_bootstrap(&server.uri(), "mcp_servers: {}\n");
+    let repositories = repos(&pool);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let (ctx, task_id) = seed_context_and_task(&repositories, &user_id, &session_id).await;
+    let mut task = make_task(&task_id, &ctx);
+    task.status.state = TaskState::Completed;
+    let first = artifact(&ctx, &task_id);
+    let second = artifact(&ctx, &task_id);
+    let ids = [first.id.clone(), second.id.clone()];
+    task.artifacts = Some(vec![first, second]);
+    let updated = persist_completed_task(PersistCompletedTaskParams {
+        task: &task,
+        user_message: &message(MessageRole::User, &ctx, &task_id, "publish these"),
+        agent_message: &message(MessageRole::Agent, &ctx, &task_id, "published"),
+        context: &request_context(&ctx, &session_id, &user_id),
+        repositories: &repositories,
+        artifacts_already_published: false,
+    })
+    .await;
+    if broadcast_ok {
+        assert_eq!(updated.unwrap().status.state, TaskState::Completed);
+    } else {
+        let err = updated.unwrap_err().to_string();
+        assert!(err.contains("Failed to broadcast artifact"), "{err}");
+        assert!(err.contains(ids[0].as_str()), "{err}");
+        assert!(
+            repositories
+                .artifacts
+                .get_artifact_by_id(&ids[1])
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+    for id in ids.into_iter().take(if broadcast_ok { 2 } else { 1 }) {
+        let stored = repositories
+            .artifacts
+            .get_artifact_by_id(&id)
+            .await
+            .unwrap();
+        assert!(stored.is_some(), "artifact {id} must be persisted");
+    }
+}
+
+#[tokio::test]
+async fn coverage_unpublished_artifacts_are_saved_with_the_completed_task() {
+    persist_artifacts(true).await;
+}
+
+#[tokio::test]
+async fn coverage_failed_artifact_broadcast_is_reported_and_stops_further_publication() {
+    persist_artifacts(false).await;
 }

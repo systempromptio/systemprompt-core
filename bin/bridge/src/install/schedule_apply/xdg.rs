@@ -34,16 +34,15 @@ pub(super) fn register(
         format!("wrote: {}", proxy_path.display()),
     ];
 
-    // Why: activation needs a systemd user bus, which containers and
-    // systemd-less WSL distros lack; the written units still stand.
+    // Why: containers and WSL distributions without a user manager can
+    // still hold the unit files; the operator activates them once systemd
+    // --user exists. The receipts for what was written must survive the
+    // activation failure.
     if let Err(e) = activate(unit, &proxy_unit) {
-        crate::stdio::diag(&format!(
-            "warning: units written but not activated: {e}. Activate them yourself with: \
-             systemctl --user daemon-reload && systemctl --user enable --now {unit}.timer \
-             {proxy_unit}.service"
-        ));
-        lines.push(format!("not activated: {e}"));
-        return Ok((timer_path, lines));
+        return Err(InstallError::ScheduleActivation {
+            units: vec![service_path, timer_path, proxy_path],
+            reason: e.to_string(),
+        });
     }
 
     lines.push(format!(
@@ -105,18 +104,31 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     if !timer_path.exists() && !proxy_path.exists() {
         return ScheduleRemoval::NotInstalled(unit.to_owned());
     }
-    _ = systemctl(&["disable", "--now", &format!("{unit}.timer")]);
-    _ = systemctl(&["disable", "--now", &format!("{proxy_unit}.service")]);
+    if let Err(e) = stop_if_present(&timer_path, &format!("{unit}.timer"))
+        .and_then(|()| stop_if_present(&proxy_path, &format!("{proxy_unit}.service")))
+    {
+        return ScheduleRemoval::Failed(e);
+    }
     let removed = remove_if_present(&timer_path)
         .and_then(|()| remove_if_present(&dir.join(format!("{unit}.service"))))
         .and_then(|()| remove_if_present(&proxy_path));
-    match removed {
-        Ok(()) => {
-            _ = systemctl(&["daemon-reload"]);
-            ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
-        },
-        Err(e) => ScheduleRemoval::Failed(format!("remove under {}: {e}", dir.display())),
+    if let Err(e) = removed {
+        return ScheduleRemoval::Failed(format!("remove under {}: {e}", dir.display()));
     }
+    if let Err(e) = systemctl(&["daemon-reload"]) {
+        return ScheduleRemoval::Failed(format!("reload systemd: {e}"));
+    }
+    ScheduleRemoval::Removed(format!("{unit} + {proxy_unit}"))
+}
+
+fn stop_if_present(path: &Path, unit: &str) -> Result<(), String> {
+    let present = path
+        .try_exists()
+        .map_err(|e| format!("read {}: {e}", path.display()))?;
+    if present {
+        systemctl(&["disable", "--now", unit]).map_err(|e| format!("stop {unit}: {e}"))?;
+    }
+    Ok(())
 }
 
 fn remove_if_present(path: &Path) -> std::io::Result<()> {
@@ -126,8 +138,6 @@ fn remove_if_present(path: &Path) -> std::io::Result<()> {
     }
 }
 
-// Why: there is no GUI on Linux to autostart — the desktop shell is gated to
-// macOS and Windows — so the whole toggle is inert here rather than half-wired.
 pub(super) const fn register_autostart(_rendered: &str) -> Result<Vec<String>, InstallError> {
     Err(InstallError::ScheduleOsMismatch)
 }
@@ -137,8 +147,6 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
 }
 
 pub(super) fn autostart_status() -> super::ScheduleStatus {
-    // Why: not Unknown. There is no GUI on this platform to start, so "not
-    // registered" is the whole truth rather than a guess.
     tracing::debug!("autostart unavailable: this platform has no desktop shell");
     super::ScheduleStatus::NotInstalled
 }

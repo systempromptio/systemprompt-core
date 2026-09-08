@@ -74,9 +74,6 @@ pub struct MarketplaceAccessRule {
     pub justification: Option<String>,
 }
 
-// Why: models cannot depend on the security crate, so this mirrors
-// `RuleType::extension`'s well-formedness predicate. The two must agree —
-// ingestion rejects anything this accepts but that one does not.
 fn is_extension_slug(slug: &str) -> bool {
     !slug.is_empty()
         && !slug.starts_with('_')
@@ -116,8 +113,6 @@ impl MarketplaceAccess {
         !self.roles.is_empty() || !self.rules.is_empty()
     }
 
-    // Why: orphan deletion is scoped to exactly the bands the config still
-    // declares, so a band this block never mentions is left alone.
     #[must_use]
     pub fn rule_types(&self) -> BTreeSet<&str> {
         let mut out: BTreeSet<&str> = self.rules.iter().map(|r| r.rule_type.as_str()).collect();

@@ -21,6 +21,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ChainError {
+    #[error("credential providers failed: {}", .0.join("; "))]
+    Providers(Vec<String>),
+    #[error("credential cache: {0}")]
+    Cache(#[from] std::io::Error),
     #[error("no credential source succeeded")]
     NoneSucceeded,
     #[error("{provider}: transient failure on preferred provider: {source}")]
@@ -31,12 +35,32 @@ pub enum ChainError {
     },
 }
 
+impl ChainError {
+    #[must_use]
+    pub fn exit_report(&self) -> (std::process::ExitCode, String) {
+        let bin = crate::brand::brand().binary_name;
+        match self {
+            Self::Providers(_) | Self::Cache(_) => {
+                (std::process::ExitCode::FAILURE, self.to_string())
+            },
+            Self::PreferredTransient { provider, source } => (
+                std::process::ExitCode::from(10),
+                format!("transient auth failure on preferred provider {provider}: {source}"),
+            ),
+            Self::NoneSucceeded => (
+                std::process::ExitCode::from(5),
+                format!("no credential available; run `{bin} login <sp-live-...>` first"),
+            ),
+        }
+    }
+}
+
 pub async fn acquire_bearer(
     cfg: &config::Config,
     session_id: &SessionId,
     http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
-    if let Some(out) = read_cached(cfg, 30, None) {
+    if let Some(out) = read_cached(cfg, 30, None)? {
         return Ok(out);
     }
     run_chain(cfg, true, session_id, http).await
@@ -46,14 +70,11 @@ pub async fn obtain_live_token(
     cfg: &config::Config,
     session_id: &SessionId,
     http: &reqwest::Client,
-) -> Option<HelperOutput> {
-    if let Some(out) = read_cached(cfg, 30, None) {
-        return Some(out);
+) -> Result<HelperOutput, ChainError> {
+    if let Some(out) = read_cached(cfg, 30, None)? {
+        return Ok(out);
     }
-    mint_fresh(cfg, session_id, http)
-        .await
-        .inspect_err(|e| tracing::warn!(error = %e, "could not mint a fresh session token"))
-        .ok()
+    mint_fresh(cfg, session_id, http).await
 }
 
 pub async fn read_or_refresh(
@@ -61,24 +82,21 @@ pub async fn read_or_refresh(
     threshold_secs: u64,
     session_id: &SessionId,
     http: &reqwest::Client,
-) -> Option<HelperOutput> {
-    if let Some(out) = read_cached(cfg, threshold_secs, Some(session_id)) {
-        return Some(out);
+) -> Result<HelperOutput, ChainError> {
+    if let Some(out) = read_cached(cfg, threshold_secs, Some(session_id))? {
+        return Ok(out);
     }
-    mint_fresh(cfg, session_id, http)
-        .await
-        .inspect_err(|e| tracing::warn!(error = %e, "could not mint a fresh session token"))
-        .ok()
+    mint_fresh(cfg, session_id, http).await
 }
 
 fn read_cached(
     cfg: &config::Config,
     threshold_secs: u64,
     session_id: Option<&SessionId>,
-) -> Option<HelperOutput> {
+) -> Result<Option<HelperOutput>, ChainError> {
     let gateway = config::gateway_url_or_default(cfg);
-    cache::read_with_threshold(&gateway, threshold_secs)
-        .filter(|out| session_id.is_none_or(|id| cached_session_matches(out, id)))
+    Ok(cache::read_for(cfg, &gateway, threshold_secs)?
+        .filter(|out| session_id.is_none_or(|id| cached_session_matches(out, id))))
 }
 
 fn cached_session_matches(out: &HelperOutput, session_id: &SessionId) -> bool {
@@ -169,17 +187,18 @@ async fn run_chain(
     session_id: &SessionId,
     http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
+    if !has_credential_source(cfg) {
+        return Err(ChainError::NoneSucceeded);
+    }
+    let binding = cache::CredentialBinding::capture(cfg)?;
     let chain = provider_chain(cfg);
     let preferred = preferred_provider(cfg);
     let providers: Vec<&dyn AuthProvider> = chain.iter().map(AsRef::as_ref).collect();
-    let result = evaluate_chain(&providers, preferred, session_id, http).await;
-    if write_cache
-        && let Ok(out) = result.as_ref()
-        && let Err(e) = cache::write(&config::gateway_url_or_default(cfg), out)
-    {
-        diag(&format!("cache write failed (continuing): {e}"));
+    let output = evaluate_chain(&providers, preferred, session_id, http).await?;
+    if write_cache {
+        cache::write_bound(cfg, &config::gateway_url_or_default(cfg), &output, &binding)?;
     }
-    result
+    Ok(output)
 }
 
 pub async fn evaluate_chain(
@@ -188,6 +207,7 @@ pub async fn evaluate_chain(
     session_id: &SessionId,
     http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
+    let mut failures = Vec::new();
     for p in chain {
         match p.authenticate(session_id, http).await {
             Ok(out) => return Ok(out),
@@ -200,9 +220,13 @@ pub async fn evaluate_chain(
                     ));
                     return Err(ChainError::PreferredTransient { provider, source });
                 }
-                diag(&format!("{provider}: {source}"));
+                failures.push(format!("{provider}: {source}"));
             },
         }
     }
-    Err(ChainError::NoneSucceeded)
+    if failures.is_empty() {
+        Err(ChainError::NoneSucceeded)
+    } else {
+        Err(ChainError::Providers(failures))
+    }
 }

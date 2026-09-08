@@ -13,8 +13,6 @@ use crate::error::{McpDomainError, McpDomainResult};
 
 const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
-// Why: a server that omits both ttlMs and pollIntervalMs could otherwise pin
-// this client in an unbounded poll loop; the deadline is ours, not the spec's.
 const MAX_POLL_BUDGET: Duration = Duration::from_secs(600);
 
 pub(super) async fn poll_task_to_completion<S>(

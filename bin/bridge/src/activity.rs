@@ -8,8 +8,8 @@ use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use parking_lot::Mutex;
@@ -27,6 +27,8 @@ pub type EmitHook = Box<dyn Fn(&LogEntry) + Send + Sync>;
 pub struct ActivityLog {
     inner: Arc<Mutex<LogState>>,
     hooks: Arc<Mutex<Vec<EmitHook>>>,
+    persistent: Arc<OnceLock<PersistentWriter>>,
+    persistence_error: Arc<Mutex<Option<String>>>,
 }
 
 struct LogState {
@@ -67,6 +69,8 @@ impl ActivityLog {
                 entries: VecDeque::with_capacity(LOG_CAPACITY),
             })),
             hooks: Arc::new(Mutex::new(Vec::new())),
+            persistent: Arc::new(OnceLock::new()),
+            persistence_error: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -83,7 +87,7 @@ impl ActivityLog {
     }
 
     pub fn append_at(&self, level: LogLevel, line: impl Into<String>) {
-        let entry = {
+        let mut entry = {
             let mut g = self.inner.lock();
             let id = g.next_id;
             g.next_id += 1;
@@ -99,10 +103,37 @@ impl ActivityLog {
             g.entries.push_back(entry.clone());
             entry
         };
+        if let Some(writer) = self.persistent.get() {
+            let written = serde_json::to_string(&entry)
+                .map_err(std::io::Error::other)
+                .and_then(|line| writer.write(&line));
+            if let Err(e) = written {
+                let message = format!("activity log {}: {e}", writer.path.display());
+                *self.persistence_error.lock() = Some(message.clone());
+                entry.level = LogLevel::Error;
+                entry.line = format!("{message}; event was not persisted: {}", entry.line);
+                if let Some(stored) = self
+                    .inner
+                    .lock()
+                    .entries
+                    .iter_mut()
+                    .find(|stored| stored.id == entry.id)
+                {
+                    *stored = entry.clone();
+                }
+            }
+        }
         let hooks = self.hooks.lock();
         for hook in hooks.iter() {
             hook(&entry);
         }
+    }
+
+    pub fn ensure_persistence(&self) -> std::io::Result<()> {
+        self.persistence_error
+            .lock()
+            .as_ref()
+            .map_or(Ok(()), |error| Err(std::io::Error::other(error.clone())))
     }
 
     pub fn snapshot_since(&self, since: u64) -> Vec<LogEntry> {
@@ -151,7 +182,7 @@ impl PersistentWriter {
             std::fs::create_dir_all(parent)?;
         }
         let file = OpenOptions::new().create(true).append(true).open(&path)?;
-        let bytes = file.metadata().map_or(0, |m| m.len());
+        let bytes = file.metadata()?.len();
         Ok(Self {
             path,
             rolled,
@@ -160,12 +191,11 @@ impl PersistentWriter {
         })
     }
 
-    fn write(&self, line: &str) {
+    fn write(&self, line: &str) -> std::io::Result<()> {
         {
             let mut guard = self.file.lock();
-            if writeln!(guard, "{line}").is_ok() {
-                _ = guard.flush();
-            }
+            writeln!(guard, "{line}")?;
+            guard.flush()?;
         }
         let new_bytes = self
             .bytes
@@ -173,51 +203,42 @@ impl PersistentWriter {
             + line.len() as u64
             + 1;
         if new_bytes > PERSISTENT_MAX_BYTES {
-            self.try_rollover();
+            self.rollover()?;
         }
+        Ok(())
     }
 
-    #[expect(
-        clippy::significant_drop_tightening,
-        reason = "guard intentionally held across the whole rollover: flush, rename, reopen"
-    )]
-    fn try_rollover(&self) {
+    fn rollover(&self) -> std::io::Result<()> {
         let mut guard = self.file.lock();
-        _ = guard.flush();
-        _ = std::fs::remove_file(&self.rolled);
-        if std::fs::rename(&self.path, &self.rolled).is_err() {
-            return;
+        guard.flush()?;
+        match std::fs::remove_file(&self.rolled) {
+            Ok(()) => {},
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => return Err(e),
         }
-        let new_file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .truncate(false)
-            .open(&self.path);
-        if let Ok(f) = new_file {
-            *guard = BufWriter::new(f);
-            self.bytes.store(0, Ordering::Relaxed);
-        }
+        std::fs::rename(&self.path, &self.rolled)?;
+        *guard = BufWriter::new(
+            OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.path)?,
+        );
+        drop(guard);
+        self.bytes.store(0, Ordering::Relaxed);
+        Ok(())
     }
 }
 
-pub fn install_persistent_writer(log: &ActivityLog) {
-    let Some(path) = jsonl_path() else {
-        return;
-    };
-    let Some(rolled) = jsonl_rolled_path() else {
-        return;
-    };
-    let writer = match PersistentWriter::open(path, rolled) {
-        Ok(w) => Arc::new(w),
-        Err(e) => {
-            tracing::warn!(error = %e, "activity: persistent writer disabled");
-            return;
-        },
-    };
-    log.add_emit_hook(Box::new(move |entry| {
-        let Ok(line) = serde_json::to_string(entry) else {
-            return;
-        };
-        writer.write(&line);
-    }));
+pub fn install_persistent_writer(log: &ActivityLog) -> std::io::Result<()> {
+    let path =
+        jsonl_path().ok_or_else(|| std::io::Error::other("activity log path unresolvable"))?;
+    let rolled = jsonl_rolled_path()
+        .ok_or_else(|| std::io::Error::other("activity rollover path unresolvable"))?;
+    let writer = PersistentWriter::open(path, rolled)?;
+    log.persistent.set(writer).map_err(|writer| {
+        std::io::Error::other(format!(
+            "activity writer already installed for {}",
+            writer.path.display()
+        ))
+    })
 }

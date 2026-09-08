@@ -17,13 +17,9 @@ use crate::proxy::peer::{self as proxy_probe, PeerIdentity};
 const READY_TIMEOUT: Duration = Duration::from_secs(6);
 const READY_POLL: Duration = Duration::from_millis(250);
 
-/// Whether a loopback origin written right now would name a live proxy.
 #[derive(Debug, Clone)]
 pub enum ProxyReadiness {
     Live(u16),
-    // Why: the origin is still written even when nothing answers — clients
-    // pick it up once the proxy does come up — so the caller has to say so
-    // out loud rather than treat this as success.
     Unavailable { port: u16, reason: String },
 }
 
@@ -81,8 +77,6 @@ pub fn ensure_running(proxy: &ProxyHandle) -> ProxyReadiness {
     }
 }
 
-// Why: the supervisor can bind a different port than the one this process
-// resolved before it existed, so the portfile is re-read on every poll.
 fn wait_for_ready(resolved: u16) -> ProxyReadiness {
     let deadline = Instant::now() + READY_TIMEOUT;
     loop {

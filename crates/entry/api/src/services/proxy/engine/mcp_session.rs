@@ -31,7 +31,7 @@ async fn evict(identities: &McpProxyIdentityRepository, session_id: &SessionId, 
     }
 }
 
-pub(super) async fn enrich_with_cached_identity(
+pub async fn enrich_with_cached_identity(
     identities: &McpProxyIdentityRepository,
     request_headers: &HeaderMap,
     req_context: RequestContext,
@@ -90,7 +90,8 @@ pub(super) async fn enrich_with_cached_identity(
         ))
 }
 
-pub(super) struct McpResponseCtx<'a> {
+#[derive(Debug)]
+pub struct McpResponseCtx<'a> {
     pub identities: &'a McpProxyIdentityRepository,
     pub response: &'a reqwest::Response,
     pub request_headers: &'a HeaderMap,
@@ -100,7 +101,7 @@ pub(super) struct McpResponseCtx<'a> {
     pub method_str: &'a str,
 }
 
-pub(super) async fn handle_mcp_response(args: McpResponseCtx<'_>) {
+pub async fn handle_mcp_response(args: McpResponseCtx<'_>) {
     let McpResponseCtx {
         identities,
         response,
@@ -180,14 +181,16 @@ async fn evict_on_error_response(
     );
 
     if resp_status == StatusCode::NOT_FOUND
-        && method_str == "GET"
+        && (method_str == "GET" || method_str == "POST")
         && let Some(session_id) = session_id_header(request_headers)
     {
         evict(identities, &session_id, "stale_session").await;
         tracing::info!(
             service = %service_name,
             session_id = %session_id,
-            "Evicted stale proxy session identity on 404 GET"
+            method = %method_str,
+            reason = "stale_session",
+            "Evicted stale proxy session identity on 404; the backend no longer knows this session (restarted child?) and the client must re-initialise"
         );
     }
 }

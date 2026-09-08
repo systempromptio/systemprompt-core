@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Fixed
+
+- `SessionStore::save` writes its temp file under a per-process name before the rename. The sessions directory is shared by every CLI process of one user, and the fixed `index.tmp` let two concurrent saves truncate and rename each other's file, so one of them failed with a bare `No such file or directory`.
+
+### Changed
+
+- No functional change; the crate's `why` comments were re-cut by the comment-standards pass to state the hidden constraint and nothing else.
+
 ## [0.44.0] - 2026-09-02
 
 ### Changed

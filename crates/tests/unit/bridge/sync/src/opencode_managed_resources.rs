@@ -92,6 +92,13 @@ fn mcp(name: &str) -> ManagedMcpServer {
 }
 
 
+static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::config::store::PolicyStore::new(
+            systemprompt_bridge::config::store::managed_policy_store(),
+        )
+    });
+
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -107,6 +114,7 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let m = manifest_with(Vec::new(), Vec::new());
     let ctx = HostSyncCtx {
+        policy_store: &POLICY_STORE,
         manifest: &m,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -125,6 +133,7 @@ fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
     );
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let ctx = HostSyncCtx {
+        policy_store: &POLICY_STORE,
         manifest: m,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,

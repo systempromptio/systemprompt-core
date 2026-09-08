@@ -33,30 +33,16 @@ use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt_wit
 use super::super::TokenResponse;
 use super::RequestOrigin;
 
-mod claims;
-mod delegation;
-mod id_jag_subject;
-mod issue;
-mod oidc;
-mod subject;
+pub mod claims;
+pub mod delegation;
+pub mod id_jag_subject;
+pub mod issue;
+pub mod oidc;
+pub mod subject;
 
 pub use claims::{build_act_chain, intersect_scopes};
-#[cfg(feature = "test-api")]
 pub use delegation::validate_resource;
-
-#[cfg(not(feature = "test-api"))]
-use delegation::validate_resource;
 pub use subject::peek_issuer;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::claims::resolve_audience;
-    pub use super::id_jag_subject::validate_id_jag_subject;
-    pub use super::issue::issue_id_jag;
-    pub use super::oidc::validate_oidc_subject;
-    pub use super::subject::{SubjectIdentity, jwks_host_allowlist, validate_subject_token};
-    pub use super::{ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE, validate_resource};
-}
 
 use claims::resolve_audience;
 use delegation::{ensure_session, resolve_delegate, resolve_resource};
@@ -65,29 +51,8 @@ use issue::issue_id_jag;
 use subject::validate_subject_token;
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 
 #[derive(Debug, Default)]

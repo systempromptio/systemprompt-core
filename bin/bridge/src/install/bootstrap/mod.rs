@@ -35,10 +35,16 @@ pub struct InstallRecord {
     pub gateway_url: Option<String>,
 }
 
-#[must_use]
-pub fn read_install_record() -> Option<InstallRecord> {
-    let path = paths::bridge_metadata_dir()?.join(paths::VERSION_SENTINEL);
-    serde_json::from_slice(&fs::read(path).ok()?).ok()
+pub fn read_install_record() -> std::io::Result<Option<InstallRecord>> {
+    let path = paths::bridge_metadata_dir()
+        .ok_or_else(|| std::io::Error::other("install record path unresolvable"))?
+        .join(paths::VERSION_SENTINEL);
+    let Some(body) = crate::fsutil::read_optional(&path)? else {
+        return Ok(None);
+    };
+    serde_json::from_str(&body)
+        .map(Some)
+        .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))
 }
 
 pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {
@@ -46,8 +52,8 @@ pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<(
     let meta = paths::bridge_metadata_dir()
         .ok_or_else(|| std::io::Error::other("bridge metadata dir unresolvable"))?;
     fs::create_dir_all(&meta)?;
-    os::chown_to_sudo_user_if_root(&loc.path);
-    os::chown_to_sudo_user_if_root(&meta);
+    os::chown_to_sudo_user_if_root(&loc.path)?;
+    os::chown_to_sudo_user_if_root(&meta)?;
     Ok(())
 }
 
@@ -66,7 +72,7 @@ pub(super) fn write_version_sentinel(
         gateway_url,
     };
     let bytes = serde_json::to_vec_pretty(&payload).map_err(std::io::Error::other)?;
-    fs::write(&sentinel, bytes)?;
+    crate::fsutil::atomic_write_0600(&sentinel, &bytes)?;
     Ok(())
 }
 

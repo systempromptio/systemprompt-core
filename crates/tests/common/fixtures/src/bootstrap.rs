@@ -307,6 +307,17 @@ fn write_yaml_stub(path: &std::path::Path) {
 // resolve their app, agent, and named secrets from a single deterministic
 // source.
 fn messaging_config_yaml() -> String {
+    messaging_config_yaml_with_teams_endpoints(None)
+}
+
+// The same seeded services config with the Teams app's Bot Framework endpoints
+// redirected at a caller-supplied loopback origin, so a full-router happy path
+// can intercept the inbound JWKS fetch and the outbound token mint.
+#[must_use]
+pub fn messaging_config_yaml_with_teams_endpoints(teams_endpoints: Option<(&str, &str)>) -> String {
+    let endpoints = teams_endpoints.map_or_else(String::new, |(openid, token)| {
+        format!("\n    endpoints:\n      openid_config_url: {openid}\n      token_url: {token}")
+    });
     format!(
         r#"agents:
   {agent}:
@@ -336,7 +347,7 @@ teams_apps:
   test_teams:
     tenant_id: {teams_tenant}
     app_id: {teams_app}
-    app_password_ref: teams_app_password
+    app_password_ref: teams_app_password{endpoints}
     enabled: true
     default_agent: {agent}
     authz:
@@ -347,6 +358,7 @@ teams_apps:
         slack_ws = TEST_SLACK_WORKSPACE_ID,
         teams_tenant = TEST_TEAMS_TENANT_ID,
         teams_app = TEST_TEAMS_APP_ID,
+        endpoints = endpoints,
     )
 }
 

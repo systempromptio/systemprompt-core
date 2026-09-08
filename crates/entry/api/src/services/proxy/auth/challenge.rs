@@ -104,8 +104,8 @@ impl OAuthChallengeBuilder {
                 });
                 (header, body)
             } else {
-                // Why: RFC 6750 §3: omit `error` on the no-credentials challenge so clients
-                // know to start the OAuth flow rather than treat the request as rejected.
+                // Why: RFC 6750 §3 says to omit error information when the request lacks
+                // authentication.
                 let header = format!(
                     "Bearer realm=\"{service_name}\", \
                      resource_metadata=\"{resource_metadata_url}\""

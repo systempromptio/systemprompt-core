@@ -35,8 +35,6 @@ pub struct AuditOutput {
     pub output_tokens: i32,
     pub cache_read_tokens: i32,
     pub cache_creation_tokens: i32,
-    // Why: defaulted so an audit card deserialised from an older payload --
-    // fixtures and stored output predating the column -- still loads.
     #[serde(default)]
     pub reasoning_tokens: i32,
     pub cost_dollars: f64,
@@ -117,8 +115,6 @@ async fn execute_with_pool_inner(
 
 #[must_use]
 pub fn build_audit(output: &AuditOutput) -> CommandOutput {
-    // Why: audit is the richest single view; a failed request must announce
-    // itself in the title, not hide behind zero token counts.
     let title = if output.status == "completed" {
         "AI Request Audit".to_owned()
     } else {

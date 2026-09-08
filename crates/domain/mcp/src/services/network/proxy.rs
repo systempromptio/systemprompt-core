@@ -25,8 +25,8 @@ fn shared_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(reqwest::Client::new)
 }
 
-// Why: hop-by-hop headers are connection-scoped (RFC 9110 §7.6.1); copying
-// them onto the reconstructed response corrupts framing on the client leg.
+// Why: Hop-by-hop headers are connection-scoped (RFC 9110 §7.6.1) and cannot
+// be forwarded onto the reconstructed response.
 const HOP_BY_HOP: &[&str] = &[
     "connection",
     "keep-alive",

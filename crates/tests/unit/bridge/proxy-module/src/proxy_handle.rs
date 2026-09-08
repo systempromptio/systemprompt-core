@@ -36,14 +36,20 @@ fn forgetting_the_recorded_port_removes_the_record() {
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
         let ctx = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");
         assert!(
-            proxy::portfile::read(ctx.install_id()).is_some(),
+            proxy::portfile::read(ctx.install_id())
+                .expect("the record is readable")
+                .is_some(),
             "serving records the bound port"
         );
 
-        ctx.proxy.forget_recorded_port();
+        ctx.proxy
+            .forget_recorded_port()
+            .expect("our own record clears");
 
         assert!(
-            proxy::portfile::read(ctx.install_id()).is_none(),
+            proxy::portfile::read(ctx.install_id())
+                .expect("absence is readable")
+                .is_none(),
             "shutdown clears our own record so the next start is free to re-choose"
         );
     });
@@ -61,7 +67,9 @@ fn an_attached_proxy_serves_nothing_and_claims_no_peer_of_its_own() {
             "nothing of this install is serving, so the port is not ours"
         );
         assert!(
-            proxy::portfile::read(ctx.install_id()).is_none(),
+            proxy::portfile::read(ctx.install_id())
+                .expect("absence is readable")
+                .is_none(),
             "attaching records no port of its own"
         );
     });
@@ -94,7 +102,8 @@ fn a_recorded_port_now_held_by_another_install_is_abandoned() {
     assert_ne!(foreign_port, proxy::DEFAULT_PROXY_PORT);
 
     temp_env::with_var("XDG_CONFIG_HOME", Some(ours.path().as_os_str()), || {
-        let install = systemprompt_bridge::proxy::identity::InstallId::establish();
+        let install = systemprompt_bridge::proxy::identity::InstallId::establish()
+            .expect("the sandbox mints an install id");
         assert!(
             !install.same_install(foreign.install_id()),
             "the sandboxes must be two distinct installs for this test to mean anything"

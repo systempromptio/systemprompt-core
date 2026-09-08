@@ -11,15 +11,12 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::SessionId;
 
-use crate::auth::ChainError;
 use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::stdio::diag;
 use crate::update::{self, UpdateStatus};
 use crate::{auth, config, stdio};
 
-// Why: a distinct exit code makes `--check` usable as a cron or
-// config-management probe.
 const EXIT_UPDATE_AVAILABLE: u8 = 1;
 
 #[doc(hidden)]
@@ -61,22 +58,22 @@ pub fn cmd_update(ctx: &BridgeContext, argv: &[String]) -> ExitCode {
 }
 
 async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            diag(&e.to_string());
+            return ExitCode::FAILURE;
+        },
+    };
     let gateway = config::gateway_url_or_default(&cfg);
     let bearer = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
         Ok(out) => out,
-        Err(ChainError::PreferredTransient { provider, source }) => {
-            diag(&format!(
-                "transient auth failure on preferred provider {provider}: {source}"
-            ));
-            return ExitCode::from(10);
-        },
-        Err(ChainError::NoneSucceeded) => {
-            diag(&format!(
-                "no credential available; run `{} login` first",
-                crate::brand::brand().binary_name
-            ));
-            return ExitCode::from(5);
+        Err(e) => {
+            let (code, message) = e.exit_report();
+
+            diag(&message);
+
+            return code;
         },
     };
 
@@ -137,9 +134,7 @@ async fn install(
     }
 }
 
-// Why: silent when stderr is redirected — a progress bar in a CI log or a cron
-// mail is noise.
-fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
+pub fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
     if !std::io::stderr().is_terminal() {
         return Box::new(|_| {});
     }
@@ -155,27 +150,27 @@ fn progress_reporter() -> Box<dyn Fn(update::DownloadProgress) + Send + Sync> {
             return;
         }
         let mut err = std::io::stderr();
-        _ = write!(err, "\rdownloading… {pct:>3}%");
-        if pct == 100 {
-            _ = writeln!(err);
+        let suffix = if pct == 100 { "\n" } else { "" };
+        if let Err(e) = write!(err, "\rdownloading… {pct:>3}%{suffix}").and_then(|()| err.flush())
+        {
+            diag(&format!("download progress could not be displayed: {e}"));
         }
-        _ = err.flush();
     })
 }
 
-fn confirm(version: &str) -> bool {
+pub fn confirm(version: &str) -> bool {
     if !std::io::stdin().is_terminal() {
         diag("not a terminal; re-run with --yes to install unattended");
         return false;
     }
     stdio::print_str(&format!("install {version}? [y/N] "));
-    _ = std::io::stdout().flush();
+    if let Err(e) = std::io::stdout().flush() {
+        diag(&format!("cannot display install confirmation: {e}"));
+        return false;
+    }
     let mut answer = String::new();
     if std::io::stdin().read_line(&mut answer).is_err() {
         return false;
     }
     matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes")
 }
-
-#[path = "update_test_api.rs"]
-pub mod test_api;

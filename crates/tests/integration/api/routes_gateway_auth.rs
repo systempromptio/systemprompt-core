@@ -345,3 +345,39 @@ mod bridge_stream_auth {
         Ok(())
     }
 }
+
+#[tokio::test]
+async fn coverage_manifest_database_failure_preserves_instance_host_defaults() -> Result<()> {
+    let (pool, auth_ctx) = setup_ctx().await?;
+    systemprompt_test_fixtures::install_test_signing_key();
+    let cred = systemprompt_test_fixtures::seed_admin_credential(
+        &pool,
+        &format!("manifest-fallback-{}@example.invalid", uuid::Uuid::new_v4()),
+    )
+    .await?;
+    let extractor = jwt_extractor(&auth_ctx)?;
+    let closed = systemprompt_test_fixtures::closed_db_pool().await;
+    let offline_ctx = systemprompt_test_fixtures::fixture_app_context(
+        &closed,
+        "postgres://closed:closed@localhost/closed",
+    )?;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        http::header::AUTHORIZATION,
+        format!("Bearer {}", cred.jwt.as_str()).parse()?,
+    );
+    let envelope = bridge_manifest::manifest(extractor, (*offline_ctx).clone(), headers)
+        .await
+        .map_err(|(status, message)| anyhow::anyhow!("{status}: {message}"))?
+        .0;
+    let payload: serde_json::Value = serde_json::from_str(&envelope.payload)?;
+    assert_eq!(payload["user_id"], cred.user_id.as_str());
+    assert!(payload["user"].is_null());
+    assert_eq!(payload["revocations"], serde_json::json!([]));
+    assert_eq!(payload["host_model_protocols"], serde_json::json!({}));
+    let services = systemprompt_api::routes::gateway::bridge_data::load_services_config()?;
+    let expected = systemprompt_api::routes::gateway::bridge::instance_enabled_hosts(&services);
+    assert_eq!(payload["enabled_hosts"], serde_json::json!(expected));
+    assert!(!envelope.signature.as_str().is_empty());
+    Ok(())
+}

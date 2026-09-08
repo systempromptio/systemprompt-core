@@ -9,7 +9,7 @@
 use crate::gateway_hash::conversation_prefix_hash;
 use crate::wire::inspect::ForwardedSurface;
 use serde_json::Value;
-use systemprompt_identifiers::GatewayConversationId;
+use systemprompt_identifiers::{ClientSessionId, GatewayConversationId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
@@ -68,8 +68,7 @@ pub enum CanonicalContent {
         id: String,
         name: String,
         input: Value,
-        // Why: Gemini attaches an opaque `thoughtSignature` to function-call parts that
-        // must be echoed back verbatim on the next turn; this carries it through.
+        // Why: Gemini requires function-call `thoughtSignature` values replayed verbatim.
         signature: Option<String>,
     },
     ToolResult {
@@ -82,10 +81,8 @@ pub enum CanonicalContent {
     Thinking {
         text: String,
         signature: Option<String>,
-        // Why: OpenAI Responses reasoning items carry a provider id and, with
-        // `include: ["reasoning.encrypted_content"]`, an opaque blob — both must
-        // be replayed verbatim for stateless reasoning continuity, exactly like
-        // Gemini's thoughtSignature. Anthropic/Gemini thinking has neither.
+        // Why: OpenAI Responses requires the reasoning item ID and encrypted content
+        // replayed verbatim for stateless reasoning continuity.
         id: Option<String>,
         encrypted_content: Option<String>,
     },
@@ -220,6 +217,13 @@ impl CanonicalRequest {
         }
         let hash = conversation_prefix_hash(self.system.as_deref(), first.role.as_str(), &content);
         Some(GatewayConversationId::from_prefix_hash(hash))
+    }
+
+    // Why: the caller's own session travels inside `metadata.user_id`; it is
+    // read here, before the identity is stripped for the upstream.
+    pub fn client_session_id(&self) -> Option<ClientSessionId> {
+        let user_id = self.metadata.as_ref()?.get("user_id")?.as_str()?;
+        ClientSessionId::from_metadata_user_id(user_id)
     }
 
     pub fn flatten_message_text(&self, role: Role) -> Option<String> {

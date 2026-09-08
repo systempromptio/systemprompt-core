@@ -70,10 +70,6 @@ fn shape(value: &mut Value) {
     }
 }
 
-// Why: `["string", "null"]` is valid JSON Schema and what most generators emit
-// for `Option<T>`, but Anthropic's grammar wants the null spelled as its own
-// `anyOf` branch. The non-null branch keeps every other keyword (enum, format,
-// items, properties) so the constraint is preserved, not loosened.
 fn lift_null_type(object: &mut Map<String, Value>) {
     let Some(Value::Array(types)) = object.get("type") else {
         return;
@@ -87,9 +83,8 @@ fn lift_null_type(object: &mut Map<String, Value>) {
         return;
     }
     let mut branch = object.clone();
-    // Why: the null branch now carries the null, so a `null` left inside the
-    // string branch's `enum` is a value that contradicts its declared type,
-    // which the grammar compiler rejects outright.
+    // Why: Anthropic's grammar rejects a null enum value in a non-null typed
+    // branch.
     if let Some(Value::Array(values)) = branch.get_mut("enum") {
         values.retain(|v| !v.is_null());
     }

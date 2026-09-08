@@ -21,8 +21,6 @@ pub struct SearchArgs {
     #[arg(long, default_value = "20")]
     pub limit: i64,
 
-    // Why: matches `admin users list` — anonymous visitors stay out of results
-    // unless asked for by name.
     #[arg(long)]
     pub include_anonymous: bool,
 }

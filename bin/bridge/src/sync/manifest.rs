@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::atomic::Ordering;
 
 use super::error::SyncError;
 use crate::auth::secret::Secret;
@@ -21,13 +20,14 @@ struct RejectedCredential<'a> {
 }
 
 fn map_gateway_error(
+    cfg: &config::Config,
     err: GatewayError,
     endpoint: &'static str,
     rejected: &RejectedCredential<'_>,
 ) -> SyncError {
     match err {
         GatewayError::HttpStatus { status, .. } if matches!(status.as_u16(), 401 | 403) => {
-            unauthorized(endpoint, status.as_u16(), rejected)
+            unauthorized(cfg, endpoint, status.as_u16(), rejected)
         },
         GatewayError::ManifestDecode(e) if e.is_decode() => SyncError::ManifestShape(e.to_string()),
         e @ GatewayError::ManifestEnvelopeShape { .. } => SyncError::ManifestShape(e.to_string()),
@@ -36,11 +36,11 @@ fn map_gateway_error(
 }
 
 fn unauthorized(
+    cfg: &config::Config,
     endpoint: &'static str,
     status: u16,
     rejected: &RejectedCredential<'_>,
 ) -> SyncError {
-    let cfg = config::load();
     let identity = rejected
         .token
         .and_then(|t| crate::auth::jwt::decode_unverified(t.expose()))
@@ -58,7 +58,7 @@ fn unauthorized(
         bin: crate::brand::brand().binary_name,
         endpoint,
         status,
-        gateway: config::gateway_url_or_default(&cfg).to_string(),
+        gateway: config::gateway_url_or_default(cfg).to_string(),
         credential: rejected.credential,
         identity,
         config_file,
@@ -100,7 +100,34 @@ fn map_manifest_error(err: ManifestError) -> SyncError {
             SyncError::BridgeTooOld { local, required }
         },
         ManifestError::PayloadParse(e) => SyncError::ManifestShape(e.to_string()),
-        other => SyncError::SignatureFailed(other.to_string()),
+        other => SyncError::ManifestShape(other.to_string()),
+    }
+}
+
+fn signature_failure(
+    err: ManifestError,
+    client: &GatewayClient,
+    source: config::PinSource,
+) -> SyncError {
+    match err {
+        ManifestError::SchemaTooNew { .. }
+        | ManifestError::BridgeTooOld { .. }
+        | ManifestError::PayloadParse(_) => map_manifest_error(err),
+        other => SyncError::SignatureFailed {
+            detail: other.to_string(),
+            gateway: client.base_url().to_string(),
+            pin_source: source.label(),
+            fix: match source {
+                config::PinSource::Policy => {
+                    "Update the policy-supplied key (env var or managed policy) to the key this \
+                     gateway serves at /v1/bridge/pubkey."
+                },
+                config::PinSource::Operator => {
+                    "Remove the [sync.trust] section from the config file, or run \
+                     `install --apply --pubkey <base64>`, then sync again."
+                },
+            },
+        },
     }
 }
 
@@ -108,48 +135,36 @@ pub(super) struct ManifestFetch {
     pub client: GatewayClient,
     pub bearer: Secret,
     pub envelope: SignedManifestEnvelope,
+    pub config: config::Config,
 }
 
 pub(super) async fn fetch_authenticated_manifest(
     http: &reqwest::Client,
 ) -> Result<ManifestFetch, SyncError> {
-    let cfg = config::load();
+    let cfg = config::load()?;
     let gateway = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(gateway.clone(), http.clone());
 
-    let no_credential = || SyncError::NoCredential {
-        bin: crate::brand::brand().binary_name,
-    };
-
-    let cached = crate::auth::cache::read_valid(&gateway).map(|out| out.token);
+    let cached = crate::auth::cache::read_for(&cfg, &gateway, 30)
+        .map_err(SyncError::CredentialCache)?
+        .map(|out| out.token);
     let was_cached = cached.is_some();
     let mut bearer = match cached {
         Some(token) => token,
-        None => fetch_fresh_token(http).await.ok_or_else(no_credential)?,
+        None => fetch_fresh_token(http, &cfg).await?,
     };
 
     let mut envelope = client.fetch_manifest(bearer.expose()).await;
 
-    // Why: a rejected cached token outlives every re-login until its TTL
-    // lapses, wedging the install permanently; dropping it and minting once
-    // is the only way out that does not require the user to run `logout`.
     if is_unauthorized(&envelope) && was_cached {
         tracing::warn!("gateway refused the cached token; discarding it and re-authenticating");
-        if let Err(e) = crate::auth::cache::clear() {
-            tracing::warn!(error = %e, "failed to clear the rejected token cache");
-        }
-        bearer = fetch_fresh_token(http).await.ok_or_else(no_credential)?;
+        crate::auth::cache::clear().map_err(SyncError::CredentialCache)?;
+        bearer = fetch_fresh_token(http, &cfg).await?;
         envelope = client.fetch_manifest(bearer.expose()).await;
     }
 
-    // Why: minting writes the token to the cache before the gateway has seen
-    // it. A fresh token the gateway then refuses (revoked PAT, deleted user)
-    // must not be left behind as a "valid" cache entry, or the next run
-    // replays a known-bad credential before rediscovering the same refusal.
-    if is_unauthorized(&envelope)
-        && let Err(e) = crate::auth::cache::clear()
-    {
-        tracing::warn!(error = %e, "failed to clear the refused token from the cache");
+    if is_unauthorized(&envelope) {
+        crate::auth::cache::clear().map_err(SyncError::CredentialCache)?;
     }
 
     let credential = if was_cached {
@@ -159,6 +174,7 @@ pub(super) async fn fetch_authenticated_manifest(
     };
     let envelope = envelope.map_err(|e| {
         map_gateway_error(
+            &cfg,
             e,
             "manifest",
             &RejectedCredential {
@@ -172,6 +188,7 @@ pub(super) async fn fetch_authenticated_manifest(
         client,
         bearer,
         envelope,
+        config: cfg,
     })
 }
 
@@ -183,101 +200,61 @@ const fn is_unauthorized<T>(result: &Result<T, GatewayError>) -> bool {
 }
 
 pub(super) async fn verify_and_decode(
-    bridge: &crate::context::BridgeContext,
     fetch: &ManifestFetch,
     allow_unsigned: bool,
     allow_tofu: bool,
 ) -> Result<SignedManifest, SyncError> {
-    if !allow_unsigned {
-        let pubkey = resolve_pubkey(bridge, &fetch.client, allow_tofu).await?;
-        verify_envelope(&fetch.envelope, pubkey.as_str()).map_err(map_manifest_error)?;
+    if allow_unsigned {
+        return decode_payload(&fetch.envelope).map_err(map_manifest_error);
     }
-    decode_payload(&fetch.envelope).map_err(map_manifest_error)
+    let state = config::trust::pinned_pubkey_state_for(&fetch.config, fetch.client.base_url())?;
+    let (pubkey, source, newly_trusted) = match state {
+        config::PinnedPubkeyState::Pinned { key, source } => (key, source, false),
+        config::PinnedPubkeyState::StaleForGateway {
+            pinned_for,
+            current,
+        } => {
+            return Err(SyncError::PubkeyStale {
+                pinned_for,
+                current,
+            });
+        },
+        config::PinnedPubkeyState::Unpinned if allow_tofu => {
+            let key = fetch.client.fetch_pubkey().await.map_err(|e| {
+                map_gateway_error(
+                    &fetch.config,
+                    e,
+                    "pubkey",
+                    &RejectedCredential {
+                        credential: "the request",
+                        token: None,
+                    },
+                )
+            })?;
+            (PinnedPubKey::new(key), config::PinSource::Operator, true)
+        },
+        config::PinnedPubkeyState::Unpinned => return Err(SyncError::PubkeyNotPinned),
+    };
+    verify_envelope(&fetch.envelope, pubkey.as_str())
+        .map_err(|e| signature_failure(e, &fetch.client, source))?;
+    let manifest = decode_payload(&fetch.envelope).map_err(map_manifest_error)?;
+    if newly_trusted {
+        config::persist_pinned_pubkey(fetch.client.base_url(), pubkey.as_str())?;
+    }
+    Ok(manifest)
 }
 
-async fn resolve_pubkey(
-    bridge: &crate::context::BridgeContext,
-    client: &GatewayClient,
-    allow_tofu: bool,
-) -> Result<PinnedPubKey, SyncError> {
-    if let Some(k) = config::pinned_pubkey() {
-        return Ok(k);
-    }
-    if !allow_tofu {
-        return Err(SyncError::PubkeyNotPinned);
-    }
-    tracing::info!("first-run trust-on-first-use: fetching manifest pubkey from gateway");
-    let fetched = client.fetch_pubkey().await.map_err(|e| {
-        map_gateway_error(
-            e,
-            "pubkey",
-            &RejectedCredential {
-                credential: "the request",
-                token: None,
+async fn fetch_fresh_token(
+    http: &reqwest::Client,
+    cfg: &config::Config,
+) -> Result<Secret, SyncError> {
+    let out = crate::auth::mint_fresh(cfg, &systemprompt_identifiers::SessionId::generate(), http)
+        .await
+        .map_err(|e| match e {
+            crate::auth::ChainError::NoneSucceeded => SyncError::NoCredential {
+                bin: crate::brand::brand().binary_name,
             },
-        )
-    })?;
-    let prefix: String = fetched.chars().take(12).collect();
-    if let Err(e) = config::persist_pinned_pubkey(&fetched) {
-        bridge
-            .unpersisted_tofu_pubkey
-            .store(true, Ordering::Relaxed);
-        tracing::warn!(error = %e, "failed to persist pinned pubkey; next run will re-trust on first use");
-        // Why: the sync itself still succeeds, so without a line here the only
-        // trace of a pin that never landed is a warn in the rolling log -- and
-        // the key silently stops protecting anything from the next run on.
-        bridge.activity.append_error(format!(
-            "manifest pubkey ({prefix}…) could not be pinned: {e}. This sync is verified, but \
-             the next one will trust whatever key the gateway serves."
-        ));
-    } else {
-        bridge
-            .unpersisted_tofu_pubkey
-            .store(false, Ordering::Relaxed);
-        tracing::info!(
-            "pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation"
-        );
-    }
-    Ok(PinnedPubKey::new(fetched))
-}
-
-async fn fetch_fresh_token(http: &reqwest::Client) -> Option<Secret> {
-    use crate::auth::providers::AuthError;
-    use systemprompt_identifiers::SessionId;
-    let cfg = config::load();
-    let gateway = config::gateway_url_or_default(&cfg);
-    let session_id = SessionId::generate();
-    let chain = crate::auth::provider_chain(&cfg);
-    let mut not_configured: Vec<&'static str> = Vec::new();
-    let mut had_failure = false;
-    for p in &chain {
-        match p.authenticate(&session_id, http).await {
-            Ok(out) => {
-                if let Err(e) = crate::auth::cache::write(&gateway, &out) {
-                    tracing::warn!(error = %e, "failed to cache fresh token; will re-authenticate next call");
-                }
-                return Some(out.token);
-            },
-            Err(AuthError::NotConfigured) => {
-                not_configured.push(p.name());
-            },
-            Err(e @ AuthError::Failed { .. }) => {
-                had_failure = true;
-                crate::stdio::diag(&format!("{}: {e}", p.name()));
-            },
-        }
-    }
-    if !had_failure {
-        let tried = not_configured.join(", ");
-        let bin = crate::brand::brand().binary_name;
-        tracing::warn!(
-            providers = %tried,
-            bin = %bin,
-            "no auth provider is configured; run login to register a PAT before syncing",
-        );
-        crate::stdio::diag(&format!(
-            "no auth provider configured (tried: {tried}); run `{bin} login <sp-live-...>`"
-        ));
-    }
-    None
+            other => SyncError::Authentication(other),
+        })?;
+    Ok(out.token)
 }

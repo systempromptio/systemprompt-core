@@ -70,8 +70,7 @@ fn write_config(root: &Path, gateway: &str, pat_file: &Path) {
     fs::write(
         dir.join("systemprompt-bridge.toml"),
         format!(
-            "gateway_url = \"{gateway}\"\n[pat]\nfile = \"{}\"\n[sync]\npinned_pubkey = \
-             \"cGlubmVkLXB1YmtleQ==\"\n",
+            "gateway_url = \"{gateway}\"\n[pat]\nfile = \"{}\"\n[sync.trust]\ngateway = \"{gateway}\"\nsource = \"operator\"\nkey = \"11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=\"\n",
             pat_file.display()
         ),
     )

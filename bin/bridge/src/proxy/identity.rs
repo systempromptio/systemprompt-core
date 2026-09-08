@@ -34,15 +34,16 @@ const UNKNOWN: &str = "unknown";
 pub struct InstallId(String);
 
 impl InstallId {
-    // Why: an install that cannot establish an id still runs, but as `unknown`,
-    // which `same_install` never matches — so it can never stand down for a
-    // sibling it cannot prove is itself.
+    pub fn establish() -> std::io::Result<Self> {
+        load_or_mint().map(Self)
+    }
+
+    // Why: when the durable identity cannot be read or written, a
+    // process-only one makes siblings and port records never match, which
+    // is the correct answer for an install whose identity is unknown.
     #[must_use]
-    pub fn establish() -> Self {
-        Self(load_or_mint().unwrap_or_else(|e| {
-            tracing::warn!(error = %e, install_id = UNKNOWN, "could not establish an install id");
-            UNKNOWN.to_owned()
-        }))
+    pub fn ephemeral() -> Self {
+        Self(fresh_id())
     }
 
     #[must_use]
@@ -55,8 +56,6 @@ impl InstallId {
         is_known(&self.0)
     }
 
-    // Why: not `PartialEq` — two installs that both failed to establish an id
-    // must never read as the same install, or one would wrongly stand down.
     #[must_use]
     pub fn same_install(&self, other: &Self) -> bool {
         self.is_known() && other.is_known() && self.0 == other.0
@@ -141,8 +140,19 @@ fn load_or_mint() -> std::io::Result<String> {
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
     match fs::read(&path) {
         Ok(bytes) => {
-            let s = String::from_utf8_lossy(&bytes).trim().to_owned();
-            if s.is_empty() { mint(&path) } else { Ok(s) }
+            let s = String::from_utf8(bytes)
+                .map_err(std::io::Error::other)?
+                .trim()
+                .to_owned();
+            if is_known(&s) {
+                Ok(s)
+            } else {
+                tracing::warn!(
+                    path = %path.display(),
+                    "install identity file holds a placeholder; re-minting"
+                );
+                mint(&path)
+            }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => mint(&path),
         Err(e) => Err(e),
@@ -153,23 +163,16 @@ fn mint(path: &std::path::Path) -> std::io::Result<String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut buf = [0u8; 8];
-    rand::rng().fill_bytes(&mut buf);
-    let id = URL_SAFE_NO_PAD.encode(buf);
-    fs::write(path, id.as_bytes())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if let Err(e) = fs::set_permissions(path, fs::Permissions::from_mode(0o600)) {
-            tracing::warn!(
-                path = %path.display(),
-                error = %e,
-                "failed to lock down install id permissions",
-            );
-        }
-    }
+    let id = fresh_id();
+    crate::fsutil::atomic_write_0600(path, id.as_bytes())?;
     tracing::info!(path = %path.display(), install_id = %id, "minted install id");
     Ok(id)
+}
+
+fn fresh_id() -> String {
+    let mut buf = [0u8; 8];
+    rand::rng().fill_bytes(&mut buf);
+    URL_SAFE_NO_PAD.encode(buf)
 }
 
 #[must_use]

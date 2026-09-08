@@ -8,10 +8,10 @@ use std::sync::Arc;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
-use super::tools_mcp::{list_tools_authenticated, list_tools_unauthenticated};
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use crate::CliConfig;
 use crate::commands::plugins::mcp::types::McpToolEntry;
+use crate::commands::shared::mcp_tools::{list_tools_authenticated, list_tools_unauthenticated};
 use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use crate::session::get_or_create_session;

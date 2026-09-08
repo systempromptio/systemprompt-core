@@ -82,10 +82,6 @@ fn lower(s: &str) -> String {
     s.to_ascii_lowercase()
 }
 
-// Why: a single `to` field routinely carries a comma-joined recipient list, and
-// `addr_domain` reduces it to the LAST address. Judging the field by that one
-// address lets "a@evil.com, b@ours.io" pass a negated domain_suffix rule. Every
-// address must match, and a list that parses to nothing does not match.
 fn every_addr_domain_matches(text: &str, want: &str) -> bool {
     let mut seen = false;
     let all = text

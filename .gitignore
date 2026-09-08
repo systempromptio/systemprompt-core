@@ -138,6 +138,7 @@ scripts/*
 !scripts/lint-bridge-globals.sh
 !scripts/lint-bridge-file-size.sh
 !scripts/lint-bridge-no-window.sh
+!scripts/lint-test-seams.sh
 
 # Local-only review notes
 review/
@@ -167,3 +168,8 @@ Screenshot*.png
 
 # rustc internal compiler error dumps
 rustc-ice-*.txt
+
+!scripts/check-discarded-results.sh
+!scripts/check-fail-open.sh
+!scripts/rust-contracts/
+scripts/rust-contracts/target/

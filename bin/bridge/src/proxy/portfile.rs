@@ -43,38 +43,35 @@ pub fn portfile_path() -> Option<PathBuf> {
     )
 }
 
-#[must_use]
-pub fn read(ours: &InstallId) -> Option<PortRecord> {
-    let path = portfile_path()?;
-    let bytes = fs::read(&path).ok()?;
-    let record: PortRecord = serde_json::from_slice(&bytes)
-        .map_err(|e| {
-            tracing::debug!(path = %path.display(), error = %e, "unreadable proxy port file");
-        })
-        .ok()?;
+pub fn read(ours: &InstallId) -> std::io::Result<Option<PortRecord>> {
+    let path =
+        portfile_path().ok_or_else(|| std::io::Error::other("proxy port path unresolvable"))?;
+    let Some(body) = crate::fsutil::read_optional(&path)? else {
+        return Ok(None);
+    };
+    let record: PortRecord = serde_json::from_str(&body)
+        .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))?;
     if record.schema != SCHEMA {
-        tracing::debug!(
-            path = %path.display(),
-            schema = record.schema,
-            "ignoring proxy port file from another schema",
-        );
-        return None;
+        return Err(std::io::Error::other(format!(
+            "{}: unsupported port record schema {}",
+            path.display(),
+            record.schema
+        )));
     }
     if !record.install_id.same_install(ours) {
-        tracing::debug!(
-            path = %path.display(),
-            recorded = %record.install_id,
-            ours = %ours,
-            "ignoring proxy port file written by a different install",
-        );
-        return None;
+        return Ok(None);
     }
-    Some(record)
+    if !(super::DEFAULT_PROXY_PORT..=super::MAX_CANDIDATE_PORT).contains(&record.port) {
+        return Err(std::io::Error::other(format!(
+            "{}: port outside supported range",
+            path.display()
+        )));
+    }
+    Ok(Some(record))
 }
 
-#[must_use]
-pub fn preferred_port(ours: &InstallId) -> Option<u16> {
-    read(ours).map(|r| r.port)
+pub fn preferred_port(ours: &InstallId) -> std::io::Result<Option<u16>> {
+    Ok(read(ours)?.map(|r| r.port))
 }
 
 pub fn write(port: u16, ours: &InstallId) -> std::io::Result<()> {
@@ -93,33 +90,16 @@ pub fn write(port: u16, ours: &InstallId) -> std::io::Result<()> {
         version: crate::brand::brand().version.to_owned(),
     };
     let body = serde_json::to_vec_pretty(&record).map_err(std::io::Error::other)?;
-    fs::write(&path, &body)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if let Err(e) = fs::set_permissions(&path, fs::Permissions::from_mode(0o600)) {
-            tracing::warn!(
-                path = %path.display(),
-                error = %e,
-                "failed to lock down proxy port file permissions",
-            );
-        }
-    }
-    Ok(())
+    crate::fsutil::atomic_write_0600(&path, &body)
 }
 
-pub fn clear(ours: &InstallId) {
-    let Some(path) = portfile_path() else {
-        return;
-    };
-    match read(ours) {
-        Some(record) if record.pid == std::process::id() => {
-            if let Err(e) = fs::remove_file(&path)
-                && e.kind() != std::io::ErrorKind::NotFound
-            {
-                tracing::debug!(path = %path.display(), error = %e, "could not remove proxy port file");
-            }
-        },
-        _ => {},
+pub fn clear(ours: &InstallId) -> std::io::Result<()> {
+    let path =
+        portfile_path().ok_or_else(|| std::io::Error::other("proxy port path unresolvable"))?;
+    if let Some(record) = read(ours)?
+        && record.pid == std::process::id()
+    {
+        crate::fsutil::remove_verified(&path)?;
     }
+    Ok(())
 }

@@ -25,10 +25,8 @@ pub(super) fn arm_parent_death_signal(cmd: &mut Command) {
             if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) != 0 {
                 return Err(std::io::Error::last_os_error());
             }
-            // Why: if the supervisor died between `fork` and the `prctl` above,
-            // the death signal has already been missed and this child would
-            // outlive it forever. `getppid` no longer matching means exactly
-            // that — the child has been reparented — so leave immediately.
+            // Why: Linux does not deliver the parent-death signal if the parent died before
+            // `PR_SET_PDEATHSIG` was installed.
             if libc::getppid() != supervisor as libc::pid_t {
                 libc::_exit(0);
             }
@@ -53,8 +51,8 @@ pub fn is_zombie(pid: u32) -> bool {
     let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
         return false;
     };
-    // Why: The comm field is parenthesised and may contain spaces or `)`, so the
-    // state char is the first token after the final `)`.
+    // Why: Linux `/proc/<pid>/stat` permits spaces and `)` inside the parenthesised
+    // comm field.
     let Some((_, after_comm)) = stat.rsplit_once(')') else {
         return false;
     };

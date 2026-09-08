@@ -10,11 +10,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod external;
+pub mod external;
+mod external_governance;
+mod external_sessions;
 mod handlers;
-mod mcp_session;
-#[cfg(feature = "test-api")]
-pub mod test_api;
+pub mod mcp_session;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -172,9 +172,6 @@ impl ProxyEngine {
                 .to_owned(),
         })?;
 
-        // Why: an A2A service *is* the handling agent, so its name wins (the
-        // agent server enforces the same rule). An MCP server is a callee, not
-        // an agent; overwriting here would erase the caller's identity.
         if service.module_name == "agent" {
             let agent_name = AgentName::try_new(service_name.to_owned()).map_err(|e| {
                 ProxyError::InvalidServiceName {

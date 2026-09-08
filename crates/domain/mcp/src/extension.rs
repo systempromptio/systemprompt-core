@@ -21,6 +21,17 @@ impl Extension for McpExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new(
+                "mcp_external_sessions",
+                include_str!("../schema/mcp_external_sessions.sql"),
+            )
+            .with_required_columns(vec![
+                "server_name".into(),
+                "session_id".into(),
+                "user_id".into(),
+                "credential_hash".into(),
+                "expires_at".into(),
+            ]),
+            SchemaDefinition::new(
                 "mcp_tool_executions",
                 include_str!("../schema/mcp_tool_executions.sql"),
             )

@@ -1,6 +1,6 @@
 //! MCP service reconciliation during server startup.
 //!
-//! [`reconcile_system_services`] cleans stale service rows, reconciles the MCP
+//! `reconcile_system_services` cleans stale service rows, reconciles the MCP
 //! orchestrator to the required set of enabled servers, and verifies each is
 //! registered and running in the database — failing server startup loudly if
 //! any required MCP server is missing, since agents depend on their tools.
@@ -95,7 +95,7 @@ async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<
               (`events.error(...)`); clippy's `collection_is_never_read` heuristic does not \
               recognise those calls as reads of the `Option`"
 )]
-async fn handle_missing_servers(
+pub async fn handle_missing_servers(
     required_servers: &[systemprompt_mcp::McpServerConfig],
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpOrchestrator>,
     events: Option<&StartupEventSender>,
@@ -134,7 +134,7 @@ async fn handle_missing_servers(
     reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
               recognise as reads"
 )]
-async fn verify_database_registration(
+pub async fn verify_database_registration(
     required_servers: &[systemprompt_mcp::McpServerConfig],
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
@@ -189,7 +189,7 @@ async fn verify_database_registration(
     reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
               recognise as reads"
 )]
-async fn cleanup_stale_service_entries(
+pub async fn cleanup_stale_service_entries(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
@@ -247,16 +247,7 @@ async fn cleanup_stale_service_entries(
     Ok(deleted_count)
 }
 
-#[cfg(feature = "test-api")]
-#[path = "reconciliation_test_api.rs"]
-pub mod test_api;
-
-// Why: A `running` row is stale unless its recorded PID is alive *and* still
-// names our child — a recycled PID that now belongs to an unrelated process
-// must be dropped, never adopted (and never signalled on the next reap).
-// `error` / `stopped` rows are always stale; any other status is left
-// untouched.
-fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name: &str) -> bool {
+pub fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name: &str) -> bool {
     use systemprompt_scheduler::ProcessCleanup;
 
     match status {

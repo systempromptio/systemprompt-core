@@ -45,8 +45,8 @@ mod winreg {
         }
     }
 
-    // Why: `None` means the key could not be opened, which is distinct from an
-    // empty key; registry key names are capped at 255 chars, +1 for the NUL.
+    // Why: Windows registry key names are limited to 255 characters plus the
+    // terminating NUL.
     pub(super) fn enumerate_subkeys(subkey: &str) -> Option<Vec<String>> {
         const MAX_KEY_NAME: usize = 256;
 

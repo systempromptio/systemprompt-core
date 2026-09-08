@@ -29,9 +29,6 @@ pub(super) async fn execute(args: AssignArgs, ctx: &CommandContext) -> Result<Co
     if args.roles.is_empty() {
         return Err(anyhow!("At least one role must be specified"));
     }
-    // Why: roles are a closed set. An unknown string would be written verbatim
-    // and gate nothing — `--roles platform_admin` used to "succeed" while
-    // granting no access at all.
     for role in &args.roles {
         if role.parse::<UserRole>().is_err() {
             return Err(anyhow!(

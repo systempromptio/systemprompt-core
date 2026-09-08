@@ -173,7 +173,8 @@ impl AiRequestRepository {
         record: &AiRequestRecord,
     ) -> Result<AiRequestId, RepositoryError> {
         use systemprompt_identifiers::{
-            GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId,
+            ClientSessionId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId,
+            TaskId, TraceId,
         };
 
         let status = record.status.as_str();
@@ -194,12 +195,13 @@ impl AiRequestRepository {
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
                 cost_microdollars, latency_ms, status, error_message,
                 actor_kind, actor_id, requested_model, instance_id, reasoning_tokens,
+                client_session_id, request_kind,
                 created_at, updated_at, completed_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-                $25, $26, $27, $28, $29,
+                $25, $26, $27, $28, $29, $31, $32,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                 CASE WHEN $30 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
@@ -234,7 +236,9 @@ impl AiRequestRepository {
             record.requested_model.as_deref(),
             record.instance_id.as_ref().map(InstanceId::as_str),
             record.tokens.reasoning_tokens,
-            use_completed_at
+            use_completed_at,
+            record.client_session_id.as_ref().map(ClientSessionId::as_str),
+            record.request_kind.as_str()
         )
         .execute(self.write_pool())
         .await?;

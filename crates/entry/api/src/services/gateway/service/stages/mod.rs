@@ -13,6 +13,7 @@
 
 mod governance;
 mod outbound;
+pub mod recovery;
 
 use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;
@@ -20,9 +21,8 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::services::GatewayConfig;
 use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::inspect;
-use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::ChainEntryResult;
+use systemprompt_security::authz::types::{Decision, DenyReason};
+use systemprompt_security::policy::{ChainEntryResult, SECRET_SCAN_ID};
 
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
@@ -37,7 +37,12 @@ use super::finalize::{
     apply_system_prompt_override, request_finding_blocks, run_request_safety_scan,
 };
 use super::resolve::ResolvedUpstream;
-use super::{DispatchError, GovernanceDenied, SafetyBlocked};
+use super::{DispatchError, GovernanceDenied, PromptRepairRequired, SafetyBlocked};
+
+const UNSANITIZABLE_SECRET_MESSAGE: &str = "Secret content could not be safely sanitized; remove \
+                                            the affected content or restart with a corrected \
+                                            system prompt";
+const FALLBACK_REPAIR_LOCATION: &str = "provider_payload";
 
 pub(super) struct UpstreamRelay<'a> {
     pub raw_body: &'a Bytes,
@@ -49,6 +54,7 @@ pub(super) struct PreparedDispatch {
     upstream_model: String,
     model_limits: Option<ModelLimits>,
     body: PreparedBody,
+    recovery_count: usize,
 }
 
 pub(super) struct GovernedDispatch(PreparedDispatch);
@@ -77,12 +83,6 @@ impl PreparedDispatch {
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
-        // Why: the catalog matches on the model's id and aliases, never on its
-        // upstream name, so the lookup must use what the caller asked for.
-        // Looking up the upstream name found nothing for every provider whose
-        // ids differ from the upstream's (both Vertex entries), which silently
-        // dropped the output cap and thinking budget and let Gemini 2.5 Pro
-        // spend the caller's whole max_tokens thinking.
         let model_limits = upstream
             .provider
             .find_model(&request.model)
@@ -111,28 +111,19 @@ impl PreparedDispatch {
             .map_err(DispatchError::Recorded)?;
         audit.set_prepared_body_digest(&body.bytes).await;
 
-        let surface = inspect::string_leaves(&body.bytes, inspect::SurfaceBudget::default());
-        if surface.truncated() {
-            tracing::warn!(
-                ai_request_id = %audit.ctx.ai_request_id,
-                leaves = surface.len(),
-                "Gateway inspection surface truncated — part of the forwarded body was not scanned"
-            );
-        }
-        request.forwarded_surface = surface;
-
         Ok(Self {
             request,
             upstream_model,
             model_limits,
             body,
+            recovery_count: 0,
         })
     }
 }
 
 impl GovernedDispatch {
     pub(super) async fn enforce(
-        prepared: PreparedDispatch,
+        mut prepared: PreparedDispatch,
         db: &DbPool,
         ctx: &GatewayRequestContext,
         audit: &GatewayAudit,
@@ -141,7 +132,21 @@ impl GovernedDispatch {
             evaluation,
             call_id,
             session_id,
-        } = evaluate_prompt(ctx, &prepared.request);
+            recovery_count,
+            recovery_locations,
+        } = evaluate_prompt(ctx, &mut prepared.request, &mut prepared.body)
+            .map_err(|error| DispatchError::PreAudit(error.into()))?;
+
+        prepared.recovery_count = recovery_count;
+        if recovery_count > 0 {
+            audit.set_prepared_body_digest(&prepared.body.bytes).await;
+            tracing::warn!(
+                ai_request_id = %ctx.ai_request_id,
+                recovery_count,
+                locations = ?recovery_locations,
+                "Gateway sanitized secret-bearing prompt content"
+            );
+        }
 
         #[expect(
             clippy::match_same_arms,
@@ -150,16 +155,11 @@ impl GovernedDispatch {
         )]
         let denied = match &evaluation.decision {
             Decision::Allow { .. } => None,
-            // Why: warn mode's entire purpose is that the call proceeds. The
-            // reason is already on the audit row written just below, so
-            // nothing is lost by not refusing here.
             Decision::Warn { .. } => None,
+            Decision::Deny {
+                reason: DenyReason::SecretLeak { .. },
+            } => Some(UNSANITIZABLE_SECRET_MESSAGE.to_owned()),
             Decision::Deny { reason } => Some(reason.to_string()),
-            // Why: a held call needs somewhere to park and something to wake
-            // it. The MCP enforcement point has both; an inference request on
-            // this path has neither, so the only safe reading of "a human must
-            // authorise this" here is a refusal. Failing open would turn the
-            // strictest verdict in the chain into the weakest.
             Decision::Pending { reason } => Some(reason.to_string()),
         };
         let policy = evaluation
@@ -186,14 +186,18 @@ impl GovernedDispatch {
         if let Err(e) = audit.fail(&reason).await {
             tracing::warn!(error = %e, "governance-deny audit fail failed");
         }
-        Err(DispatchError::Recorded(
-            GovernanceDenied {
-                policy,
-                message: reason,
-            }
-            .into(),
-        ))
+        Err(governance_denial(policy, reason, recovery_locations))
     }
+}
+
+fn governance_denial(policy: String, message: String, mut locations: Vec<String>) -> DispatchError {
+    if policy != SECRET_SCAN_ID {
+        return DispatchError::Recorded(GovernanceDenied { policy, message }.into());
+    }
+    if locations.is_empty() {
+        locations.push(FALLBACK_REPAIR_LOCATION.to_owned());
+    }
+    DispatchError::Recorded(PromptRepairRequired { message, locations }.into())
 }
 
 impl ScannedDispatch {
@@ -212,10 +216,6 @@ impl ScannedDispatch {
             safety,
         )
         .await;
-        // Why: the same predicate that stamped the `blocked` column decides the
-        // refusal, so a finding can never be reported as blocking while the
-        // request went through, or the reverse. It is false throughout under
-        // `safety.mode: warn`.
         let Some(finding) = findings.iter().find(|f| request_finding_blocks(f, safety)) else {
             return Ok(Self(prepared));
         };
@@ -239,6 +239,10 @@ impl ScannedDispatch {
             }
             .into(),
         ))
+    }
+
+    pub(super) const fn recovery_count(&self) -> usize {
+        self.0.recovery_count
     }
 
     pub(super) fn request_model(&self) -> &str {

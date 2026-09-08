@@ -7,15 +7,16 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum GuiError {
+    #[error(transparent)]
+    ConfigRead(#[from] crate::config::ConfigReadError),
+    #[error(transparent)]
+    Trust(#[from] crate::config::TrustError),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 
     #[error("not authenticated")]
     NotAuthenticated,
 
-    // Why: an operation that was stopped before it concluded produced no
-    // finding at all. Modelled as its own variant so no caller has to sniff
-    // a message string to tell "the user pressed Cancel" from "this failed".
     #[error("cancelled")]
     Cancelled,
 

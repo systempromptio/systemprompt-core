@@ -8,19 +8,17 @@
     reason = "Arc::clone usage is intentional and ergonomic in this gateway dispatch path"
 )]
 
-mod credentials;
-mod finalize;
-mod resolve;
-mod stages;
+pub mod credentials;
+mod error;
+pub mod finalize;
+pub mod resolve;
+pub mod stages;
 
+pub use self::error::{
+    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
+    QuotaExceeded, SafetyBlocked,
+};
 pub(super) use self::finalize::run_response_safety_scan;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::finalize::safety::blocks_at_phase;
-    pub use super::finalize::{apply_system_prompt_override, attach_request_id, dedupe_findings};
-    pub use super::resolve::{describe_route_match, enforce_route_requirements};
-}
 
 use std::sync::Arc;
 
@@ -44,6 +42,7 @@ use super::protocol::inbound::InboundAdapter;
 use super::quota;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
+pub const RECOVERY_COUNT_HEADER: &str = "x-systemprompt-recovery-count";
 
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayService;
@@ -56,47 +55,6 @@ pub struct DispatchInputs {
     pub inbound: Arc<dyn InboundAdapter>,
     pub forward_headers: Vec<(String, String)>,
     pub identity_headers: Vec<(String, String)>,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum DispatchError {
-    #[error(transparent)]
-    PreAudit(anyhow::Error),
-    #[error(transparent)]
-    Recorded(anyhow::Error),
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{0}")]
-pub struct PolicyDenied(pub String);
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct QuotaExceeded {
-    pub message: String,
-    pub retry_after_seconds: i32,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct GuardForbidden {
-    pub message: String,
-}
-
-/// A denial from the typed four-stage governance chain — the same engine and
-/// the same operator-configured policies that govern MCP tool calls.
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct GovernanceDenied {
-    pub policy: String,
-    pub message: String,
-}
-
-#[derive(Debug, thiserror::Error)]
-#[error("{message}")]
-pub struct SafetyBlocked {
-    pub category: String,
-    pub message: String,
 }
 
 impl GatewayService {
@@ -166,7 +124,7 @@ impl GatewayService {
 
         let outcome = scanned.send(&upstream, &forward_headers, &audit).await?;
 
-        let response = finalize(
+        let mut response = finalize(
             outcome,
             FinalizeCtx {
                 audit: Arc::clone(&audit),
@@ -180,6 +138,7 @@ impl GatewayService {
             },
         )
         .await;
+        stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
         Ok(attach_request_id(response, &ai_request_id))
     }
 }
@@ -195,8 +154,6 @@ async fn open_audit(
     if let Err(e) = audit.open(request, raw_body).await {
         tracing::error!(error = %e, "audit open failed — proceeding without audit row");
     }
-    // Why: identity headers are recorded against the audit row, then dropped
-    // before the upstream send so a third-party provider never receives them.
     if !identity_headers.is_empty() {
         tracing::info!(
             ai_request_id = %ctx.ai_request_id,
@@ -229,10 +186,6 @@ async fn enforce_quota(
     if decision.allow {
         return Ok(());
     }
-    // Why: warn mode on the quota plane. The window was reserved against and
-    // the ceiling was breached exactly as under enforce; only the refusal is
-    // dropped, and the breach lands in `governance_decisions` under policy
-    // `quota` so the report can price what enforcement would have cost.
     if policy.quota_mode.is_warn() {
         tracing::warn!(
             ai_request_id = %ctx.ai_request_id,

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     task_id TEXT,
     context_id VARCHAR(255) NOT NULL,
     gateway_conversation_id VARCHAR(255),
+    client_session_id TEXT,
     provider_request_id VARCHAR(255),
     trace_id VARCHAR(255),
     mcp_execution_id VARCHAR(255),
@@ -33,6 +34,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'job', 'mcp')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     synthetic BOOLEAN NOT NULL DEFAULT FALSE,
+    request_kind TEXT NOT NULL DEFAULT 'turn'
+        CONSTRAINT ai_requests_request_kind_check CHECK (request_kind IN ('turn', 'probe', 'utility')),
     instance_id VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -50,6 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_requests_session_id ON ai_requests(session_id)
 CREATE INDEX IF NOT EXISTS idx_ai_requests_task_id ON ai_requests(task_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_context_id ON ai_requests(context_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_gateway_conversation_id ON ai_requests(gateway_conversation_id);
+CREATE INDEX IF NOT EXISTS idx_ai_requests_client_session_kind ON ai_requests(client_session_id, request_kind);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_provider_request_id ON ai_requests(provider_request_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_trace_id ON ai_requests(trace_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_mcp_execution_id ON ai_requests(mcp_execution_id);

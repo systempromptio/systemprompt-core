@@ -82,10 +82,6 @@ pub enum DenyReason {
          roles.yaml."
     )]
     UnknownEntity { entity: EntityRef },
-    // Why: `detail` carries the underlying failure so the audit row can tell a
-    // transient database fault from a malformed rule. Without it every fault on
-    // this plane writes a byte-identical row and the cause survives only in a
-    // log line. `serde(default)` so rows written before the field parse back.
     #[error("authz hook unavailable for policy {policy}: {detail}")]
     HookUnavailable {
         policy: String,
@@ -163,9 +159,6 @@ impl Decision {
         }
     }
 
-    // Why: the predicate every enforcement point should use. Matching on
-    // `Allow` alone turns warn mode back into enforcement silently, which is
-    // the one failure the `Warn` variant exists to prevent.
     #[must_use]
     pub const fn permits(&self) -> bool {
         matches!(self, Self::Allow { .. } | Self::Warn { .. })

@@ -21,12 +21,18 @@ pub(super) fn show(title: &str, message: &str) {
     // SAFETY: both buffers are NUL-terminated UTF-16 owned by this frame and
     // outlive the call; a null HWND makes the box ownerless, which is what we
     // want when there is no window yet.
-    unsafe {
-        _ = MessageBoxW(
+    let outcome = unsafe {
+        MessageBoxW(
             std::ptr::null_mut(),
             message.as_ptr(),
             title.as_ptr(),
             MB_OK | MB_ICONERROR | MB_SETFOREGROUND | MB_SYSTEMMODAL,
-        );
+        )
+    };
+    if outcome == 0 {
+        crate::stdio::diag(&format!(
+            "native error dialog failed: {}",
+            std::io::Error::last_os_error()
+        ));
     }
 }

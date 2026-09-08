@@ -21,8 +21,6 @@ pub fn alert_user(title: &str, message: &str) {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        // Why: the shells below are quote-delimited; dropping quotes from the
-        // interpolated text keeps the command well-formed without an escaper.
         let title = title.replace(['"', '\''], "");
         let message = message.replace(['"', '\''], "");
         let spawned = std::cfg_select! {

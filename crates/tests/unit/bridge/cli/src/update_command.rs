@@ -3,8 +3,7 @@
 
 use std::process::ExitCode;
 
-use systemprompt_bridge::cli::update::test_api::{confirm, progress_reporter};
-use systemprompt_bridge::cli::update::{cmd_update, parse};
+use systemprompt_bridge::cli::update::{cmd_update, confirm, parse, progress_reporter};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::update::DownloadProgress;
 use tempfile::TempDir;

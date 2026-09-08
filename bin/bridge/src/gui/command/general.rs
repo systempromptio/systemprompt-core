@@ -42,7 +42,7 @@ pub(super) fn meta_dispatch(
             &app.state.snapshot(),
             &app.ctx.proxy,
         ))),
-        "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing(app))),
+        "marketplace.list" => CommandOutcome::Sync(marketplace_listing(app)),
         "activity.recent" => CommandOutcome::Sync(Ok(json!({
             "entries": app.ctx.activity.snapshot_recent(recent_limit(args)),
         }))),
@@ -274,12 +274,14 @@ pub(super) fn diagnostics_dispatch(
     })
 }
 
-fn marketplace_listing(app: &GuiApp) -> Value {
+fn marketplace_listing(app: &GuiApp) -> Result<Value, BridgeError> {
     let snap = app.state.snapshot();
     let listing = crate::gui::server_marketplace::build_listing(
         app.ctx.proxy.loopback(),
         &app.ctx.mcp_registry(),
         &snap.mcp_auth,
-    );
-    crate::gui::server_marketplace::listing_to_value(&listing).unwrap_or(Value::Null)
+    )
+    .map_err(|e| BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string()))?;
+    crate::gui::server_marketplace::listing_to_value(&listing)
+        .map_err(|e| BridgeError::new(ErrorScope::Marketplace, ErrorCode::Internal, e.to_string()))
 }

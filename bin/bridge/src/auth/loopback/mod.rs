@@ -6,7 +6,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 use systemprompt_identifiers::ValidatedUrl;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
 pub const LOOPBACK_PORT: u16 = 8767;
@@ -62,10 +62,6 @@ impl LoopbackServer {
     pub async fn bind_first_available(ports: &[u16]) -> Result<Self> {
         for &port in ports {
             match Self::bind_on(port).await {
-                // Why: only a port already taken is worth stepping over. Any
-                // other bind failure is a real fault and stepping past it
-                // would report the last port's error for a problem the first
-                // one already had.
                 Err(LoopbackError::Bind { source, .. })
                     if source.kind() == std::io::ErrorKind::AddrInUse => {},
                 other => return other,
@@ -122,9 +118,8 @@ async fn handle_connection(stream: TcpStream) -> Result<Captured> {
         Err(_) => ("400 Bad Request", ERROR_HTML),
     };
     write_response(&mut write_half, status, body).await?;
-    _ = write_half.shutdown().await;
-    let mut sink = [0u8; 16];
-    _ = reader.read(&mut sink).await;
+    write_half.shutdown().await?;
+    drop(reader);
     outcome.map(|code| Captured { code })
 }
 

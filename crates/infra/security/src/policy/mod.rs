@@ -43,9 +43,9 @@ pub use audit::{
     ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, ClaimedAgent,
     DecisionAudit, PrincipalSnapshot, record_decision,
 };
-pub use builtin::ApprovalSettings;
+pub use builtin::{ApprovalSettings, SECRET_SCAN_ID};
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
-pub use engine::{Evaluation, GovernanceEngine};
+pub use engine::{Evaluation, GovernanceEngine, GovernanceEngineError};
 pub use governed::{
     GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,
     UNKNOWN_TARGET_NAME,

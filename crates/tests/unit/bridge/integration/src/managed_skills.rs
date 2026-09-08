@@ -13,6 +13,13 @@ use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 
+static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::config::store::PolicyStore::new(
+            systemprompt_bridge::config::store::managed_policy_store(),
+        )
+    });
+
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -118,6 +125,7 @@ fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), 
     let plugin_mcp_servers = BTreeMap::new();
     let client = stub_client();
     let ctx = HostSyncCtx {
+        policy_store: &POLICY_STORE,
         manifest: m,
         org_plugins_root: sb.org_plugins.as_path(),
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -351,6 +359,7 @@ fn clearing_a_host_removes_the_managed_dirs_and_the_sidecar() {
         let plugin_mcp_servers = BTreeMap::new();
         let client = stub_client();
         let ctx = HostSyncCtx {
+            policy_store: &POLICY_STORE,
             manifest: &m,
             org_plugins_root: sb.org_plugins.as_path(),
             plugin_mcp_servers: &plugin_mcp_servers,

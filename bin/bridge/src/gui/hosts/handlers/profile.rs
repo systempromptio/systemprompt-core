@@ -75,7 +75,16 @@ pub(crate) fn on_profile_generate_finished(
     finish(app, bridge_result, reply_to);
 }
 
-fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
+fn needs_elevation_notice(
+    #[cfg_attr(
+        not(target_os = "windows"),
+        expect(
+            unused_variables,
+            reason = "only the registry-backed host needs elevation"
+        )
+    )]
+    host: &dyn crate::integration::HostApp,
+) -> bool {
     #[cfg(target_os = "windows")]
     {
         host.config_format() == crate::integration::ConfigFormat::Reg
@@ -83,15 +92,10 @@ fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = host;
         false
     }
 }
 
-// Why: the Windows UAC notice had no macOS counterpart, so the one platform
-// whose install cannot complete on its own was the one that said nothing. The
-// profile is only queued in System Settings, which stays backgrounded, and the
-// probe that follows reports it absent until the user approves it by hand.
 fn manual_approval_notice(host: &dyn crate::integration::HostApp) -> Option<String> {
     (cfg!(target_os = "macos") && host.config_format() == crate::integration::ConfigFormat::Plist)
         .then(|| {
@@ -206,9 +210,6 @@ async fn generate_profile_for(
     bridge: &crate::context::BridgeContext,
     overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
-    // Why: the inputs come from `integration::reapply`, which is also what
-    // `install --apply` and `login` use. One builder is what stops the CLI
-    // repair paths and this button writing subtly different profiles.
     let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides)
         .await
         .map_err(|e| GuiError::Profile {

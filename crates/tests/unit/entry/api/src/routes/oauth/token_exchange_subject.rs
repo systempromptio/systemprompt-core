@@ -8,7 +8,7 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use systemprompt_api::routes::oauth::endpoints::token::generation::test_api::{
+use systemprompt_api::routes::oauth::endpoints::token::generation::token_exchange::subject::{
     jwks_host_allowlist, validate_subject_token,
 };
 use systemprompt_identifiers::UserId;
@@ -35,7 +35,10 @@ fn unsigned_jwt(header: &str, payload: &str) -> String {
 }
 
 fn err(result: anyhow::Result<impl Sized>) -> String {
-    result.err().expect("expected rejection").to_string()
+    result
+        .map(|_| ())
+        .expect_err("expected rejection")
+        .to_string()
 }
 
 #[tokio::test]

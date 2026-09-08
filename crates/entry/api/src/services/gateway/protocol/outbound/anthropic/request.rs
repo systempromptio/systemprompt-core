@@ -13,13 +13,6 @@ use systemprompt_models::wire::anthropic;
 use super::super::super::canonical::CanonicalRequest;
 use super::super::OutboundCtx;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
@@ -28,9 +21,6 @@ pub fn build_request_body(
     anthropic::build_request_body(request, upstream_model, limits)
 }
 
-// Why: the passthrough lane must not become a way around the checks the
-// canonical lane applies, so the policy transforms are re-applied here in
-// place.
 pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
         return None;

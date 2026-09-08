@@ -19,7 +19,7 @@ use windows_sys::Win32::System::Registry::{
 
 use super::{
     ConfigStore, ConfigStoreError, ManagedPolicyRead, PolicyDocument, PolicyDocumentValue,
-    PolicyHive,
+    PolicyHive, PolicyTarget,
 };
 
 use crate::cowork_compat::POLICY_SUBKEY;
@@ -27,15 +27,17 @@ use crate::cowork_compat::POLICY_SUBKEY;
 pub(super) struct WindowsRegistryStore;
 
 impl ConfigStore for WindowsRegistryStore {
+    fn policy_key_exists(
+        &self,
+        hive: PolicyHive,
+        target: PolicyTarget,
+    ) -> Result<bool, ConfigStoreError> {
+        key_exists(hive, &target.subkey())
+    }
     fn read_managed_policy(&self, key: &str) -> Result<Option<String>, ConfigStoreError> {
         for hive in [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER] {
-            let Some(handle) = open_policy_key(hive)? else {
-                continue;
-            };
-            let value = read_string_value(handle.0, key)?;
-            drop(handle);
-            if value.is_some() {
-                return Ok(value);
+            if let Some(handle) = open_policy_key(hive)? {
+                return read_string_value(handle.0, key);
             }
         }
         Ok(None)
@@ -45,46 +47,32 @@ impl ConfigStore for WindowsRegistryStore {
         &self,
         keys: &[&str],
     ) -> Result<ManagedPolicyRead, ConfigStoreError> {
-        // Why: HKLM is read last so it wins — Cowork ignores HKCU once the
-        // machine key exists, and the probe must see what Cowork sees.
-        let mut values: BTreeMap<String, String> = BTreeMap::new();
-        let mut hives_with_data: Vec<&'static str> = Vec::new();
-        for (hive, hive_label) in [(HKEY_CURRENT_USER, "HKCU"), (HKEY_LOCAL_MACHINE, "HKLM")] {
+        for (hive, label) in [(HKEY_LOCAL_MACHINE, "HKLM"), (HKEY_CURRENT_USER, "HKCU")] {
             let Some(handle) = open_policy_key(hive)? else {
                 continue;
             };
-            let mut hive_had_value = false;
+            let mut values = BTreeMap::new();
             for key in keys {
-                if let Some(v) = read_string_value(handle.0, key)? {
-                    values.insert((*key).to_owned(), v);
-                    hive_had_value = true;
+                if let Some(value) = read_string_value(handle.0, key)? {
+                    values.insert((*key).to_owned(), value);
                 }
             }
-            drop(handle);
-            if hive_had_value {
-                hives_with_data.push(hive_label);
-            }
+            return Ok(ManagedPolicyRead {
+                source: Some(format!(r"{label}\{POLICY_SUBKEY}")),
+                values,
+            });
         }
-        if values.is_empty() {
-            return Ok(ManagedPolicyRead::default());
-        }
-        let source = match hives_with_data.as_slice() {
-            [single] => format!(r"{single}\{POLICY_SUBKEY}"),
-            multi => format!("{}\\{POLICY_SUBKEY}", multi.join("+")),
-        };
-        Ok(ManagedPolicyRead {
-            source: Some(source),
-            values,
-        })
+        Ok(ManagedPolicyRead::default())
     }
 
     fn read_policy_document(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         keys: &[&str],
     ) -> Result<PolicyDocument, ConfigStoreError> {
         let mut doc = PolicyDocument::new();
-        let Some(handle) = open_policy_key(hkey(hive))? else {
+        let Some(handle) = open_key_for_read(hkey(hive), &target.subkey())? else {
             return Ok(doc);
         };
         for key in keys {
@@ -98,17 +86,19 @@ impl ConfigStore for WindowsRegistryStore {
     fn write_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         entries: &[(String, PolicyDocumentValue)],
     ) -> Result<(), ConfigStoreError> {
-        super::windows_registry_write::write_policy_values(hive, entries)
+        super::windows_registry_write::write_values_at(hive, &target.subkey(), entries)
     }
 
     fn delete_policy_values(
         &self,
         hive: PolicyHive,
+        target: PolicyTarget,
         names: &[&str],
     ) -> Result<usize, ConfigStoreError> {
-        super::windows_registry_write::delete_policy_values(hive, names)
+        super::windows_registry_write::delete_values_at(hive, &target.subkey(), names)
     }
 
     fn delete_policy_key(&self, hive: PolicyHive) -> Result<bool, ConfigStoreError> {
@@ -132,6 +122,10 @@ impl Drop for OwnedKey {
             unsafe { RegCloseKey(self.0) };
         }
     }
+}
+
+pub(super) fn key_exists(hive: PolicyHive, subkey: &str) -> Result<bool, ConfigStoreError> {
+    Ok(open_key_for_read(hkey(hive), subkey)?.is_some())
 }
 
 fn open_policy_key(hive: HKEY) -> Result<Option<OwnedKey>, ConfigStoreError> {
@@ -201,7 +195,9 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
         )));
     }
     if value_type != REG_SZ {
-        return Ok(None);
+        return Err(ConfigStoreError::Backend(format!(
+            "registry value {name} has type {value_type}, expected REG_SZ"
+        )));
     }
     if byte_len == 0 {
         return Ok(Some(String::new()));
@@ -226,11 +222,18 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
             "RegQueryValueExW read failed with status {status}"
         )));
     }
-    let final_wide = (final_len as usize).div_ceil(2);
+    if value_type != REG_SZ || !final_len.is_multiple_of(2) || final_len > byte_len {
+        return Err(ConfigStoreError::Backend(format!(
+            "registry value {name} changed type or has malformed UTF-16"
+        )));
+    }
+    let final_wide = (final_len as usize) / 2;
     let slice = &buffer[..final_wide.min(buffer.len())];
     let trimmed = slice
         .iter()
         .position(|c| *c == 0)
         .map_or(slice, |end| &slice[..end]);
-    Ok(Some(String::from_utf16_lossy(trimmed)))
+    String::from_utf16(trimmed)
+        .map(Some)
+        .map_err(|e| ConfigStoreError::Backend(format!("registry value {name}: {e}")))
 }

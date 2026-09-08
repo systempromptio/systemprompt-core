@@ -99,10 +99,7 @@ pub(super) fn handle_completed(
             .and_then(|d| d.get("cached_tokens"))
             .and_then(Value::as_u64)
             .map(|v| v as u32);
-        // Why: `cached_tokens` is a subset of `input_tokens` here, but
-        // `CanonicalUsage::input_tokens` is exclusive of cache reads, so the
-        // streamed frame must subtract exactly as the buffered parse does or
-        // the same reply prices differently on the two paths.
+        // Why: OpenAI Responses includes `cached_tokens` in `input_tokens`.
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
             input_tokens: pull("input_tokens")
                 .map(|input| input.saturating_sub(cached.unwrap_or(0))),
@@ -110,8 +107,7 @@ pub(super) fn handle_completed(
             cache_read_tokens: cached,
             cache_creation_tokens: None,
             total_tokens: pull("total_tokens"),
-            // Why: already inside `output_tokens` on this contract, so it is
-            // reported as a breakdown and never added to the total.
+            // Why: OpenAI Responses includes reasoning tokens in `output_tokens`.
             reasoning_tokens: usage
                 .get("output_tokens_details")
                 .and_then(|d| d.get("reasoning_tokens"))

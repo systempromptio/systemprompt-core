@@ -47,6 +47,7 @@ mod agent;
 mod ai;
 mod auth;
 mod client;
+mod client_session;
 mod cloud;
 mod connection;
 mod content;
@@ -96,6 +97,7 @@ pub use auth::{
     ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, DeviceId, JwtToken, SessionToken,
 };
 pub use client::{ClientId, ClientType};
+pub use client_session::ClientSessionId;
 pub use cloud::PriceId;
 pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};

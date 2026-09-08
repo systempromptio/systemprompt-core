@@ -1,8 +1,8 @@
 //! CLI runtime entry point and bootstrap helpers.
 //!
 //! Owns argument parsing (`args`), profile/secrets bootstrap (`bootstrap`),
-//! and cloud routing (`routing`). The public surface is just [`run`]; every
-//! other symbol stays scoped to the runner subtree.
+//! and cloud routing ([`routing`], [`profile_routing`]). [`run`] is the
+//! process entry point.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,12 +10,9 @@
 pub mod args;
 mod bootstrap;
 mod db_url;
-mod profile_routing;
-mod routing;
+pub mod profile_routing;
+pub mod routing;
 mod structured_output;
-
-#[doc(hidden)]
-pub mod test_api;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;

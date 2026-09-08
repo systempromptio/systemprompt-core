@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub(crate) mod metadata;
+pub mod metadata;
 mod transport;
 
 use crate::services::client::challenge::{AuthChallenge, McpTransportError};
@@ -28,9 +28,6 @@ pub struct HttpClientWithContext {
     context: RequestContext,
     forward_context: bool,
     outbound_headers: HashMap<HeaderName, HeaderValue>,
-    // Why: restated in every request's `_meta` from 2026-07-28 on. See
-    // `stamp_request_metadata` — the value must match what `initialize`
-    // declared, so it is supplied by whoever built the `ClientInfo`.
     client_capabilities: ClientCapabilities,
 }
 
@@ -128,10 +125,6 @@ impl HttpClientWithContext {
         Self::build(context, true, outbound_headers)
     }
 
-    // Why: the capabilities restated in `_meta` must be the ones `initialize`
-    // declared. A caller that knows them (an elicitation-capable tool call)
-    // sets them with `with_client_capabilities`; the default matches what
-    // `client_capabilities(false)` sends.
     #[must_use]
     pub fn with_client_capabilities(mut self, capabilities: ClientCapabilities) -> Self {
         self.client_capabilities = capabilities;

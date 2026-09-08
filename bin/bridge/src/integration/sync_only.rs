@@ -19,9 +19,6 @@ pub struct SyncOnlyAgent {
     pub icon: &'static str,
 }
 
-// Why: kept in step with `KNOWN_HOSTS` in
-// `systemprompt_models::bridge::profile`; the inventory test asserts the two
-// cover each other.
 pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
     id: "claude-code",
     display_name: "Claude Code",
@@ -34,9 +31,6 @@ pub fn sync_only_agent(host_id: &str) -> Option<&'static SyncOnlyAgent> {
     SYNC_ONLY_AGENTS.iter().find(|a| a.id == host_id)
 }
 
-// Why: a sync-only agent is governed by construction — it reaches the gateway
-// directly — so the only thing this machine can say about it is whether the
-// manifest that enables it has arrived yet.
 pub const fn sync_only_verdict(manifest_synced: bool) -> AgentVerdict {
     if manifest_synced {
         AgentVerdict {

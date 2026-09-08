@@ -69,11 +69,6 @@ pub fn cmd_comms_drain() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-// Why: rename-then-read rather than read-then-remove: the proxy appends to this
-// file concurrently, and a message landing between a read and a remove would be
-// unlinked unread. Renaming first makes the swap atomic — the appender's next
-// write recreates the inbox and is delivered by the following drain, and the
-// pid in the taken name keeps two concurrent drains off each other's file.
 fn drain(session_id: &crate::ids::HookSessionId) -> Vec<InboxLine> {
     let safe: String = session_id
         .as_str()

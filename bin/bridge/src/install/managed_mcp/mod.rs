@@ -23,38 +23,21 @@ pub(crate) fn policy_dir() -> PathBuf {
     crate::config::paths::claude_code_policy_dir()
 }
 
-// Why: removes the files rather than writing an empty server map — an empty
-// managed set leaves MCP disabled entirely instead of restoring the unmanaged
-// default.
-pub(crate) fn clear_policy() {
+// Why: Claude Code treats an empty managed MCP file as exclusive mode with no
+// servers.
+pub(crate) fn clear_policy() -> std::io::Result<()> {
     let dir = policy_dir();
     let mcp_path = dir.join(MANAGED_MCP_FILE);
     let settings_path = dir.join(MANAGED_SETTINGS_FILE);
-
-    let stripped = match stripped_settings(&settings_path) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::install::managed-mcp",
-                path = %settings_path.display(),
-                error = %e,
-                "could not read managed-settings.json; leaving it in place"
-            );
-            None
+    let stripped = stripped_settings(&settings_path)?;
+    match write::clear_direct(&mcp_path, &settings_path, stripped.as_deref()) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            write::clear_elevated(&mcp_path, &settings_path, stripped.as_deref())
         },
-    };
-    let mcp_exists = mcp_path.exists();
-    if !mcp_exists && stripped.is_none() {
-        return;
+        Err(e) => Err(std::io::Error::new(
+            e.kind(),
+            format!("{}: {e}", dir.display()),
+        )),
     }
-    // Why: try the direct removal first — a privileged user must not be
-    // prompted at all.
-    if write::clear_direct(&mcp_path, &settings_path, stripped.as_deref()) {
-        tracing::info!(
-            target: "bridge::install::managed-mcp",
-            "Claude Code MCP policy removed; plugin and user MCP servers are no longer shadowed"
-        );
-        return;
-    }
-    write::clear_elevated(&mcp_path, &settings_path, stripped.as_deref());
 }

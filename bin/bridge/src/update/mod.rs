@@ -197,9 +197,6 @@ pub fn installed_path() -> Result<std::path::PathBuf, UpdateError> {
 pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
     let mut command =
         if cfg!(target_os = "macos") && installed.extension().is_some_and(|e| e == "app") {
-            // Why: `open -n` hands the bundle to launchd, which gives the new
-            // instance a proper session — spawning Contents/MacOS/<bin> directly
-            // leaves it parented to a dying process and without one.
             let mut c = std::process::Command::new("/usr/bin/open");
             c.arg("-n").arg(installed);
             c
@@ -262,8 +259,14 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str, http: &reqwest:
 
 #[must_use]
 pub fn automatic_enabled() -> bool {
-    crate::config::load()
-        .update
+    let cfg = match crate::config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            tracing::error!(error = %e, "config unreadable; automatic update disabled");
+            return false;
+        },
+    };
+    cfg.update
         .as_ref()
         .and_then(|u| u.automatic)
         .unwrap_or(true)

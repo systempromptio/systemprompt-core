@@ -32,6 +32,27 @@ impl PolicyHive {
     }
 }
 
+/// Which managed key a store operation addresses.
+///
+/// Claude Desktop's policy and the bridge's own signing-trust key live under
+/// the same hive and are written by the same verified algorithm; only the
+/// subkey differs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PolicyTarget {
+    Claude,
+    Bridge,
+}
+
+impl PolicyTarget {
+    #[must_use]
+    pub fn subkey(self) -> String {
+        match self {
+            Self::Claude => crate::cowork_compat::POLICY_SUBKEY.to_owned(),
+            Self::Bridge => super::bridge_policy_subkey(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
 pub enum PolicyDocumentValue {
@@ -42,6 +63,14 @@ pub enum PolicyDocumentValue {
 }
 
 impl PolicyDocumentValue {
+    #[must_use]
+    pub fn strings(entries: &[(String, String)]) -> Vec<(String, Self)> {
+        entries
+            .iter()
+            .map(|(name, value)| (name.clone(), Self::Str(value.clone())))
+            .collect()
+    }
+
     #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
@@ -54,8 +83,6 @@ impl PolicyDocumentValue {
 pub type PolicyDocument = BTreeMap<String, PolicyDocumentValue>;
 
 impl PolicyDocumentValue {
-    // Why: `plutil -convert json` is how a plist is read back; the JSON shape
-    // has to round-trip to the same value the renderer wrote.
     #[must_use]
     pub fn from_json(v: &serde_json::Value) -> Option<Self> {
         match v {

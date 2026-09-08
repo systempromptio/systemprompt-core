@@ -35,6 +35,10 @@
   gap: var(--sp-space-1-5);
   margin-bottom: var(--sp-space-3-5);
 }
+.sp-mkt-detail__summary--error {
+  color: var(--sp-err);
+}
+
 .sp-mkt-detail__summary {
   margin: 0 0 var(--sp-space-3-5);
   font-size: 13px;

@@ -17,11 +17,6 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
-    // Why: the probe is an idempotent read, issued from the tick loop, from
-    // wake-from-sleep, after login, after a gateway save, and from four places
-    // in the UI. Starting a second one used to cancel the first, and the loser
-    // reported "unreachable: probe cancelled" over a gateway that was fine.
-    // Overlapping callers now join the answer already on its way.
     if app.state.gateway_probe_in_flight() {
         if let Some(id) = reply_to {
             emit::send_reply(app, id, json!({ "inFlight": true }), true);
@@ -40,8 +35,6 @@ pub(crate) fn on_gateway_probe_finished(
     reply_to: ReplyId,
 ) {
     let Some(outcome) = outcome else {
-        // Why: a cancelled probe learned nothing. It must not alarm, and it
-        // must not overwrite the answer the last real probe left behind.
         app.state.clear_cancel(CancelScope::GatewayProbe);
         app.state.abandon_probe();
         app.refresh_ui();
@@ -67,8 +60,6 @@ pub(crate) fn on_gateway_probe_finished(
             ErrorCode::Unreachable,
             reason.clone(),
         )),
-        // Why: neither is a failure -- they are "no answer yet". Reporting
-        // them as errors would put a red toast on the absence of a finding.
         GatewayStatus::Probing => Ok(json!({ "state": "probing" })),
         GatewayStatus::Unknown => Ok(json!({ "state": "unknown" })),
     };
@@ -92,8 +83,6 @@ pub(crate) fn on_gateway_probe_finished(
     emit::send_reply_payload(app, id, &payload);
 }
 
-// Why: a laptop that wakes to a dead gateway is governing nothing, and the tray
-// dot alone is easy to miss.
 const SESSION_EXPIRY_WARN_SECS: u64 = 24 * 60 * 60;
 
 fn announce(app: &mut GuiApp) {
@@ -128,9 +117,6 @@ fn announce(app: &mut GuiApp) {
 }
 
 pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
-    // Why: post-login and post-gateway-save call in here directly, and used to
-    // cancel whatever the tick loop had already started. Joining the in-flight
-    // probe gives the same answer without producing a spurious failure.
     if app.state.gateway_probe_in_flight() {
         return;
     }
@@ -146,8 +132,21 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     });
 }
 
+fn unreachable_outcome(reason: String) -> GatewayProbeOutcome {
+    GatewayProbeOutcome {
+        status: GatewayStatus::Unreachable { reason },
+        identity: None,
+        at_unix: now_unix(),
+        provider_health: Vec::new(),
+        credential_error: None,
+    }
+}
+
 async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
-    let cfg = config::load();
+    let cfg = match config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => return unreachable_outcome(e.to_string()),
+    };
     let gateway = config::gateway_url_or_default(&cfg);
     let client = GatewayClient::new(gateway, http.clone());
 
@@ -161,25 +160,40 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
         },
     };
 
+    // Why: `status` answers "is the gateway there"; a credential that cannot
+    // be minted, a cache that cannot be cleared, or a profile that cannot be
+    // fetched are local faults reported beside it, not a reason to tell the
+    // user the gateway is down.
+    let mut credential_error = None;
     let identity = if matches!(status, GatewayStatus::Reachable { .. })
         && crate::auth::has_credential_source(&cfg)
     {
-        obtain_live_token(&cfg, http)
-            .await
-            .and_then(|tok| decode_jwt_identity_unverified(tok.expose()))
+        match obtain_live_token(&cfg, http).await {
+            Ok(tok) => decode_jwt_identity_unverified(tok.expose()),
+            Err(e) => {
+                credential_error = Some(format!("authentication: {e}"));
+                None
+            },
+        }
     } else {
-        if !crate::auth::has_credential_source(&cfg) {
-            _ = crate::auth::cache::clear();
+        if !crate::auth::has_credential_source(&cfg)
+            && let Err(e) = crate::auth::cache::clear()
+        {
+            credential_error = Some(format!("clear credential cache: {e}"));
         }
         None
     };
 
     let provider_health = if matches!(status, GatewayStatus::Reachable { .. }) {
-        client
-            .fetch_bridge_profile()
-            .await
-            .map(|profile| profile.providers)
-            .unwrap_or_default()
+        match client.fetch_bridge_profile().await {
+            Ok(profile) => profile.providers,
+            Err(e) => {
+                if credential_error.is_none() {
+                    credential_error = Some(format!("provider health: {e}"));
+                }
+                Vec::new()
+            },
+        }
     } else {
         Vec::new()
     };
@@ -189,13 +203,14 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
         identity,
         at_unix: now_unix(),
         provider_health,
+        credential_error,
     }
 }
 
 async fn obtain_live_token(
     cfg: &config::Config,
     http: &reqwest::Client,
-) -> Option<crate::auth::secret::Secret> {
+) -> Result<crate::auth::secret::Secret, crate::auth::ChainError> {
     crate::auth::obtain_live_token(cfg, &systemprompt_identifiers::SessionId::generate(), http)
         .await
         .map(|out| out.token)

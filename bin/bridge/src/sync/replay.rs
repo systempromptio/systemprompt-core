@@ -23,16 +23,10 @@ pub struct LastSyncState {
     pub updated_plugins: Vec<String>,
     #[serde(default)]
     pub removed_plugins: Vec<String>,
-    // Why: written by `LastSyncSentinel` and read back here so callers outside
-    // the GUI can tell whether the instance enables a host before offering to
-    // enrol a client into it. Read-only for this struct: the sentinel is the
-    // writer, so the field cannot be lost by a round trip through here.
     #[serde(default)]
     pub enabled_hosts: Vec<String>,
 }
 
-// Why: `None` is not "nothing is enabled" — a bridge installed a minute ago
-// has no record at all, and a caller must not read that as a refusal.
 #[must_use]
 pub fn last_synced_enabled_hosts() -> Option<Vec<String>> {
     let meta = crate::config::paths::bridge_metadata_dir()?;

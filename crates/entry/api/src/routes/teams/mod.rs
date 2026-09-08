@@ -50,8 +50,8 @@ async fn handle_messages(
     let Ok(activity) = serde_json::from_slice::<Activity>(&body) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
-    // Why: A non-dispatchable surface (e.g. a typing/event activity) is acked so
-    // the Bot Service does not retry.
+    // Why: Bot Service retries unacknowledged activities, including typing and
+    // event activities.
     let Ok(normalized) = activity.normalize() else {
         return StatusCode::OK.into_response();
     };
@@ -63,7 +63,7 @@ async fn handle_messages(
     let Some(token) = bearer(&headers) else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
-    let verifier = activity_verifier(&app.app_id);
+    let verifier = activity_verifier(&app);
     if verifier
         .verify(
             token,
@@ -103,6 +103,7 @@ async fn handle_messages(
         conversation_id: normalized.conversation_id,
         app_id: app.app_id,
         app_password,
+        token_url: app.endpoints.token_url,
     };
     spawn_reply(ctx, inbound, reply);
     StatusCode::OK.into_response()
@@ -113,6 +114,7 @@ struct TeamsReply {
     conversation_id: TeamsConversationId,
     app_id: String,
     app_password: String,
+    token_url: String,
 }
 
 fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, reply: TeamsReply) {
@@ -126,7 +128,7 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, reply: TeamsReply) {
             },
         };
         let attachments = systemprompt_teams::cards::render_card(&text);
-        let client = teams_client(reply.app_id, reply.app_password);
+        let client = teams_client(reply.app_id, reply.app_password, reply.token_url);
         if let Err(err) = client
             .reply(
                 &reply.service_url,
@@ -171,22 +173,14 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
         .and_then(|v| v.strip_prefix("Bearer "))
 }
 
-fn activity_verifier(app_id: &str) -> ActivityTokenVerifier {
-    #[cfg(feature = "test-api")]
-    if let Ok(openid_url) = std::env::var("SYSTEMPROMPT_TEST_TEAMS_OPENID_URL") {
-        return ActivityTokenVerifier::with_openid_url(
-            http_client(),
-            app_id.to_owned(),
-            openid_url,
-        );
-    }
-    ActivityTokenVerifier::new(http_client(), app_id.to_owned())
+fn activity_verifier(app: &TeamsAppConfig) -> ActivityTokenVerifier {
+    ActivityTokenVerifier::with_openid_url(
+        http_client(),
+        app.app_id.clone(),
+        app.endpoints.openid_config_url.clone(),
+    )
 }
 
-fn teams_client(app_id: String, app_password: String) -> TeamsClient {
-    #[cfg(feature = "test-api")]
-    if let Ok(token_url) = std::env::var("SYSTEMPROMPT_TEST_TEAMS_TOKEN_URL") {
-        return TeamsClient::with_endpoints(http_client(), app_id, app_password, token_url);
-    }
-    TeamsClient::new(http_client(), app_id, app_password)
+fn teams_client(app_id: String, app_password: String, token_url: String) -> TeamsClient {
+    TeamsClient::with_endpoints(http_client(), app_id, app_password, token_url)
 }

@@ -6,9 +6,9 @@ use std::collections::BTreeMap;
 
 use systemprompt_bridge::config::store::document::PolicyDocumentValue;
 use systemprompt_bridge::config::store::plist::render_plist;
-use systemprompt_bridge::config::store::{
-    PolicyDocument, PolicyHive, bridge_policy_domain, managed_policy_store,
-};
+use systemprompt_bridge::config::store::{PolicyDocument, PolicyHive, bridge_policy_domain};
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+use systemprompt_bridge::config::store::{PolicyTarget, managed_policy_store};
 
 fn doc(entries: Vec<(&str, PolicyDocumentValue)>) -> PolicyDocument {
     entries
@@ -189,7 +189,7 @@ fn the_bridge_policy_domain_is_reverse_dns_under_the_brand_config_dir() {
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 #[test]
-fn on_a_host_with_no_managed_policy_backend_every_read_is_empty_and_every_write_is_a_no_op() {
+fn unsupported_policy_backend_reports_absence_but_rejects_writes() {
     let store = managed_policy_store();
 
     assert_eq!(store.read_managed_policy("anything").expect("read"), None);
@@ -200,7 +200,7 @@ fn on_a_host_with_no_managed_policy_backend_every_read_is_empty_and_every_write_
 
     assert!(
         store
-            .read_policy_document(PolicyHive::Machine, &["a"])
+            .read_policy_document(PolicyHive::Machine, PolicyTarget::Claude, &["a"])
             .expect("read")
             .is_empty()
     );
@@ -208,13 +208,14 @@ fn on_a_host_with_no_managed_policy_backend_every_read_is_empty_and_every_write_
         store
             .write_policy_values(
                 PolicyHive::User,
+                PolicyTarget::Claude,
                 &[("k".to_owned(), PolicyDocumentValue::Str("v".to_owned()))]
             )
-            .is_ok()
+            .is_err()
     );
     assert_eq!(
         store
-            .delete_policy_values(PolicyHive::User, &["k"])
+            .delete_policy_values(PolicyHive::User, PolicyTarget::Claude, &["k"])
             .expect("delete"),
         0
     );

@@ -1,8 +1,9 @@
 use systemprompt_bridge::config::paths::{FallbackReason, OrgPluginsLocation, Scope};
+use systemprompt_bridge::install::mdm::MdmApplication;
 use systemprompt_bridge::install::{
-    CredentialsOutcome, InstallSummary, ManagedProfileOutcome, MdmDisplay, ScheduleApplied,
-    ScheduleDisplay, ScheduleEmit, ScheduleRemoval, UninstallSummary, render_install_summary,
-    render_uninstall_summary,
+    CredentialsOutcome, InstallError, InstallStep, InstallSummary, ManagedProfileOutcome,
+    MdmDisplay, ScheduleApplied, ScheduleDisplay, ScheduleEmit, ScheduleRemoval, UninstallSummary,
+    render_install_summary, render_uninstall_summary,
 };
 use systemprompt_bridge::schedule::Os;
 
@@ -42,13 +43,38 @@ fn install_summary_with_applied_policy_renders_lines() {
         binary: "/usr/bin/systemprompt-bridge".into(),
         mdm: MdmDisplay::Applied {
             os: Os::Windows,
-            lines: vec!["wrote HKCU".into()],
+            report: MdmApplication {
+                lines: vec!["wrote HKCU".into(), "wrote managed.json".into()],
+                policies: Vec::new(),
+                files: Vec::new(),
+            },
         },
         schedule: None,
     };
     let out = render_install_summary(&s);
-    assert!(out.contains("policy applied"));
-    assert!(out.contains("wrote HKCU"));
+    assert!(out.contains("--- policy applied (Windows) ---"));
+    assert!(out.contains("  wrote HKCU\n  wrote managed.json\n"));
+    assert!(!out.contains("mobileconfig prepared"));
+}
+
+#[test]
+fn install_summary_with_prepared_mobileconfig_renders_approval_notice() {
+    let s = InstallSummary {
+        location: OrgPluginsLocation {
+            path: "/opt/plugins".into(),
+            scope: Scope::User,
+            reason: FallbackReason::Preferred,
+        },
+        binary: "/usr/bin/systemprompt-bridge".into(),
+        mdm: MdmDisplay::MobileconfigPrepared {
+            lines: vec!["profile: /tmp/bridge.mobileconfig".into()],
+        },
+        schedule: None,
+    };
+    let out = render_install_summary(&s);
+    assert!(out.contains("mobileconfig prepared; approval in System Settings required (macOS)"));
+    assert!(out.contains("  profile: /tmp/bridge.mobileconfig\n"));
+    assert!(!out.contains("policy applied"));
 }
 
 #[test]
@@ -150,4 +176,43 @@ fn install_summary_with_applied_schedule_renders_registration() {
     assert!(out.contains("sync schedule registered"));
     assert!(out.contains("systemprompt-bridge-sync.timer"));
     assert!(!out.contains("Schedule template"));
+}
+
+#[test]
+fn a_partial_install_error_names_both_what_completed_and_what_failed() {
+    let err = InstallError::Partial {
+        completed: vec![
+            InstallStep::Directory("/opt/plugins".into()),
+            InstallStep::GatewayConfigured,
+        ],
+        source: Box::new(InstallError::ScheduleApply("systemctl refused".into())),
+    };
+
+    let rendered = err.to_string();
+    assert!(
+        rendered.contains("/opt/plugins") && rendered.contains("GatewayConfigured"),
+        "the steps that did land are named so nothing has to be guessed at: {rendered}"
+    );
+    assert!(
+        rendered.contains("systemctl refused"),
+        "the underlying failure is carried through, not swallowed: {rendered}"
+    );
+}
+
+#[test]
+fn a_partial_install_error_with_nothing_completed_still_reports_its_cause() {
+    let err = InstallError::Partial {
+        completed: Vec::new(),
+        source: Box::new(InstallError::ScheduleOsMismatch),
+    };
+
+    let rendered = err.to_string();
+    assert!(
+        rendered.contains("[]"),
+        "an empty completed list is stated rather than omitted: {rendered}"
+    );
+    assert!(
+        rendered.contains("--apply-schedule"),
+        "the cause survives the wrapper: {rendered}"
+    );
 }

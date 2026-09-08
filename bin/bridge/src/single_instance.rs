@@ -83,8 +83,13 @@ mod unix {
                 _ => SingletonResult::Error(format!("flock {}: {err}", path.display())),
             };
         }
-        _ = file.set_len(0);
-        _ = writeln!(file, "{}", std::process::id());
+        if let Err(e) = file
+            .set_len(0)
+            .and_then(|()| writeln!(file, "{}", std::process::id()))
+            .and_then(|()| file.sync_all())
+        {
+            return SingletonResult::Error(format!("write lock {}: {e}", path.display()));
+        }
         SingletonResult::Acquired(SingletonGuard { _file: file })
     }
 }
@@ -166,24 +171,27 @@ fn sidecar_path() -> PathBuf {
     }
 }
 
-pub(crate) fn write_running_port(port: u16, csrf_token: &str) {
+pub(crate) fn write_running_port(port: u16, csrf_token: &str) -> std::io::Result<()> {
     let path = sidecar_path();
-    if let Some(parent) = path.parent() {
-        _ = fs::create_dir_all(parent);
-    }
-    let payload = serde_json::json!({
-        "pid": std::process::id(),
-        "port": port,
-        "token": csrf_token,
-    });
-    if let Ok(mut f) = fs::File::create(&path) {
-        _ = f.write_all(payload.to_string().as_bytes());
-    }
+    let payload =
+        serde_json::json!({ "pid": std::process::id(), "port": port, "token": csrf_token });
+    crate::fsutil::atomic_write_0600(&path, payload.to_string().as_bytes())
 }
 
-pub(crate) fn clear_running_port() {
+pub(crate) fn clear_running_port() -> std::io::Result<()> {
     let path = sidecar_path();
-    _ = fs::remove_file(path);
+    match fs::remove_file(&path) {
+        Ok(()) => {},
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+        Err(e) => return Err(e),
+    }
+    if path.try_exists()? {
+        return Err(std::io::Error::other(format!(
+            "{}: sidecar removal did not land",
+            path.display()
+        )));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -202,13 +210,6 @@ fn read_running_instance() -> Option<RunningInstance> {
     Some(RunningInstance { port, token })
 }
 
-// Why: true only when the instance *accepts* the request (204 from
-// handle_focus, sent once the event is queued to a live event loop). A
-// successful write_all is not evidence: the sidecar outlives a killed process,
-// and a recycled port means an unrelated listener accepts and discards the
-// bytes — the false positive that let a double-click report "focused its
-// window" while nothing appeared. On failure the sidecar is deleted so the
-// next launch treats the singleton as vacant.
 pub(crate) fn ping_focus_running_instance() -> bool {
     let Some(instance) = read_running_instance() else {
         return false;
@@ -216,7 +217,9 @@ pub(crate) fn ping_focus_running_instance() -> bool {
     if focus_handshake(&instance) {
         return true;
     }
-    clear_running_port();
+    if let Err(e) = clear_running_port() {
+        crate::stdio::diag(&format!("remove stale bridge sidecar: {e}"));
+    }
     false
 }
 
@@ -227,10 +230,15 @@ fn focus_handshake(instance: &RunningInstance) -> bool {
     let Ok(mut stream) = TcpStream::connect_timeout(&parsed, Duration::from_millis(250)) else {
         return false;
     };
-    _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
-    // Why: the peer only replies after the winit event loop has taken the
-    // FocusWindow event, so allow more read time than connect/write.
-    _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+    if stream
+        .set_write_timeout(Some(Duration::from_millis(250)))
+        .is_err()
+        || stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .is_err()
+    {
+        return false;
+    }
     let request = format!(
         "POST /api/focus_window?t={} HTTP/1.1\r\nHost: localhost\r\nContent-Length: \
          0\r\nConnection: close\r\n\r\n",
@@ -239,7 +247,6 @@ fn focus_handshake(instance: &RunningInstance) -> bool {
     if stream.write_all(request.as_bytes()).is_err() {
         return false;
     }
-    // Why: the reply is a bare status line; 16 bytes covers "HTTP/1.1 204 No…".
     let mut buf = [0u8; 16];
     let mut filled = 0;
     while filled < buf.len() {

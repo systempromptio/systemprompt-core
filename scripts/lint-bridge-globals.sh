@@ -24,7 +24,6 @@ allow=(
     "i18n.rs:CATALOG — read-only message catalogue, parsed once"
     "integration/registry.rs:REGISTRY — link-time inventory of host apps, sorted once"
     "host_sync/mod.rs:REGISTRY — link-time inventory of sync emitters, sorted once"
-    "config/mod.rs:WARN_ONCE — rate-limits a warning, carries no state anyone reads"
     "auth/plugin_oauth/secret_store.rs:BACKEND — mirrors keyring_core::set_default_store, a set-once third-party global"
     "auth/plugin_oauth/secret_store.rs:MEMORY_SECRETS — the in-memory fallback behind that same set-once backend"
     "integration/codex_cli/install/mod.rs:SEQ — temp-file name uniqueness counter"

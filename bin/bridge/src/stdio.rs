@@ -32,8 +32,6 @@ pub fn emit_json<T: serde::Serialize>(value: &T) -> std::io::Result<()> {
     stdout.flush()
 }
 
-// Why: routed through tracing so it lands in the log file as well as on the
-// console the subscriber tees to.
 pub fn diag(msg: &str) {
     tracing::warn!(target: "systemprompt_bridge", "{msg}");
 }

@@ -1,11 +1,12 @@
 //! Proxy access enforcement — drives
-//! `AccessValidator::validate_with_requirement` through the `test-api` seam.
+//! `AccessValidator::validate_with_requirement`.
 //! Covers the no-auth challenge, the MCP session-only fallback, bearer
 //! validation, scope enforcement, and the required-audience check, asserting on
 //! the RFC 6750 / RFC 9728 challenge responses the proxy emits.
 
 use axum::http::{HeaderMap, HeaderValue, header};
-use systemprompt_api::services::proxy::auth_test_api::{Requirement, validate_with_requirement};
+use axum::response::IntoResponse;
+use systemprompt_api::services::proxy::auth::access::{AccessValidator, OAuthRequirement};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::Config;
 use systemprompt_test_fixtures::{install_test_signing_key, mint_admin_jwt};
@@ -13,8 +14,19 @@ use uuid::Uuid;
 
 use super::common::{request_context, setup_ctx};
 
-fn requirement(required: bool, scopes: &[&str], audience: &str) -> Requirement {
-    Requirement {
+fn validate_with_requirement(
+    headers: &HeaderMap,
+    service_name: &str,
+    requirement: &OAuthRequirement,
+    ctx: &systemprompt_runtime::AppContext,
+    req_context: Option<&systemprompt_models::RequestContext>,
+) -> Result<Option<systemprompt_models::auth::AuthenticatedUser>, Box<axum::response::Response>> {
+    AccessValidator::validate_with_requirement(headers, service_name, requirement, ctx, req_context)
+        .map_err(|e| Box::new(e.into_response()))
+}
+
+fn requirement(required: bool, scopes: &[&str], audience: &str) -> OAuthRequirement {
+    OAuthRequirement {
         module: "mcp".to_owned(),
         required,
         scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),

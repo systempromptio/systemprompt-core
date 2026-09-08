@@ -12,6 +12,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use crate::repo_path;
 use serde_json::{Value, json};
 use systemprompt_bridge::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, HostCapabilities, HostHealthInputs, HostModelViewRef,
@@ -21,7 +22,6 @@ use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
 };
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
-use systemprompt_test_fixtures::repo_path;
 
 // Why: a fixed number of `..` segments resolves to a different directory the
 // moment a crate moves, and a fixtures directory that is not there reads as

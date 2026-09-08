@@ -24,8 +24,7 @@ use crate::sysproc;
 
 pub(super) use crate::integration::config_read::DomainRead;
 
-// Why: managed preferences are binary plists; `plutil` is the only reader
-// guaranteed present, and it renders the whole document as JSON in one call.
+// Why: macOS managed preferences can be binary plists; plutil decodes them.
 #[cfg(target_os = "macos")]
 fn read_macos_managed() -> Option<DomainRead> {
     for path in config::macos_managed_prefs_paths() {
@@ -62,9 +61,6 @@ pub(super) fn read_config() -> DomainRead {
     }
     let jsonc = config::managed_jsonc_path();
     if jsonc.exists() {
-        // Why: the bridge never writes `.jsonc` and does not parse comments; a
-        // managed `.jsonc` is foreign config, reported as the source but never
-        // read.
         tracing::warn!(
             source = %jsonc.display(),
             "opencode probe: managed opencode.jsonc present; bridge reads opencode.json only"
@@ -99,8 +95,6 @@ fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
     ))
 }
 
-// Why: model ids carry dots (`gpt-4.1`), so the `models` object is displayed
-// as its sorted key list rather than addressed through them.
 fn lookup_dotted(root: &Value, dotted: &str) -> Option<String> {
     let mut cur = root;
     for segment in dotted.split('.') {

@@ -8,8 +8,6 @@ use axum::http::{StatusCode, header};
 use serde::Deserialize;
 use systemprompt_models::services::BridgeReleasesSpec;
 
-// Why: GitHub caps a release listing at 100, and bridge releases are infrequent
-// enough that the newest matching tag is always well inside the first page.
 const RELEASE_PAGE_SIZE: u8 = 30;
 
 #[derive(Debug, Deserialize)]
@@ -33,8 +31,6 @@ pub(super) struct GhAsset {
     pub(super) size: u64,
 }
 
-// Why: bridge releases are tagged separately from the server's, so an
-// unfiltered "latest release" would pick the wrong one.
 pub(super) async fn resolve_release(
     spec: &BridgeReleasesSpec,
 ) -> Result<GhRelease, (StatusCode, String)> {
@@ -65,8 +61,6 @@ pub(super) async fn resolve_release(
         })
 }
 
-// Why: taken from the release's cosign-signed SHA256SUMS rather than computed
-// here, so the digest the updater enforces is the one signed at publish time.
 pub(super) async fn asset_digest(
     spec: &BridgeReleasesSpec,
     release: &GhRelease,
@@ -100,8 +94,6 @@ pub(super) async fn asset_digest(
     })
 }
 
-// Why: `sha256sum` output is `<hex>␠[␠*]<name>` — the second space or the `*`
-// marks binary mode, and both forms appear in the files this reads.
 pub fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
     body.lines().find_map(|line| {
         let (digest, name) = line.split_once(char::is_whitespace)?;

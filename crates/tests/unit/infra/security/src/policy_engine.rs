@@ -79,7 +79,7 @@ fn ctx<'a>(
 }
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap())
+    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
 }
 
 fn entry_result(
@@ -144,9 +144,17 @@ fn disabled_policy_records_disabled_and_does_not_evaluate() {
 }
 
 #[test]
-fn unknown_config_id_is_dropped_from_the_chain() {
-    let e = engine("governance:\n  policies:\n    - id: no_such_policy\n    - id: t_allow\n");
-    assert!(e.policies().all(|(cfg, _)| cfg.id != "no_such_policy"));
+fn unknown_config_id_rejects_engine_construction() {
+    let config = GovernanceConfig::parse(
+        "governance:\n  policies:\n    - id: no_such_policy\n    - id: t_allow\n",
+    )
+    .unwrap();
+    let error = GovernanceEngine::from_config(&config).unwrap_err();
+    assert!(matches!(
+        error,
+        systemprompt_security::policy::GovernanceEngineError::UnknownPolicyId { id }
+        if id == "no_such_policy"
+    ));
 }
 
 #[test]
@@ -249,7 +257,7 @@ fn the_master_switch_defaults_to_on_when_the_key_is_absent() {
 
 #[test]
 fn default_config_builds_the_four_builtins_enabled() {
-    let e = GovernanceEngine::from_config(&GovernanceConfig::defaults());
+    let e = GovernanceEngine::from_config(&GovernanceConfig::defaults()).unwrap();
     for id in ["secret_scan", "scope_check", "tool_blocklist", "rate_limit"] {
         let (cfg, _) = e
             .policies()

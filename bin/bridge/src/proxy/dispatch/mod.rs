@@ -133,10 +133,6 @@ fn health_response(method: &Method) -> Response<ProxyBody> {
     simple_response(StatusCode::OK, body)
 }
 
-// Why: unauthenticated on purpose — the caller asking is by definition one that
-// could not authenticate, a sibling bridge deciding whether the port is held by
-// itself or by a stranger. It inherits the loopback-host guard above, and the
-// payload must carry no secret nor anything derived from one.
 fn whoami_response(ctx: &ProxyContext) -> Response<ProxyBody> {
     let who = crate::proxy::identity::WhoAmI::current(
         ctx.port,

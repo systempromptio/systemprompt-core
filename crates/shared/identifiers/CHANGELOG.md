@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Added
+
+- `ClientSessionId`, the caller's own session id carried inside `metadata.user_id`. Claude Code stamps every `/v1/messages` call with `user_<sha256>_account_<uuid>_session_<uuid>`, and the trailing UUID is the session id its hook events report. It is distinct from `SessionId`, which is the gateway's own attested `sess_` session shared by every run one credential drives.
+- `ContextId::derived_from_client_session` derives a context from a `ClientSessionId` using the same namespace and bytes as `derived_from_session`, so a gateway request and the hook events of one Claude Code run land on the same context row.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added

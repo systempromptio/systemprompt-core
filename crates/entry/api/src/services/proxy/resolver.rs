@@ -11,25 +11,11 @@ use systemprompt_runtime::AppContext;
 
 use super::backend::ProxyError;
 
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use systemprompt_database::ServiceConfig;
-    use systemprompt_runtime::AppContext;
-
-    use super::super::backend::ProxyError;
-
-    pub async fn resolve(
-        service_name: &str,
-        ctx: &AppContext,
-    ) -> Result<ServiceConfig, ProxyError> {
-        super::ServiceResolver::resolve(service_name, ctx).await
-    }
-}
-
-pub(super) struct ServiceResolver;
+#[derive(Debug, Clone, Copy)]
+pub struct ServiceResolver;
 
 impl ServiceResolver {
-    pub(super) async fn resolve(
+    pub async fn resolve(
         service_name: &str,
         ctx: &AppContext,
     ) -> Result<ServiceConfig, ProxyError> {
@@ -57,11 +43,6 @@ impl ServiceResolver {
             if service.status == "crashed" {
                 tracing::info!(service = %service_name, "Service crashed, attempting restart");
 
-                // Why: re-read rather than recurse. `start_services` reports Ok
-                // when it started nothing — an unregistered name filters to an
-                // empty target list — so recursing on Ok alone spins forever on
-                // a row that never leaves `crashed`, and a single proxied
-                // request exhausts the stack and kills the process.
                 if Self::attempt_restart(service_name, ctx).await.is_ok() {
                     let restarted = service_repo
                         .find_service_by_name(service_name)

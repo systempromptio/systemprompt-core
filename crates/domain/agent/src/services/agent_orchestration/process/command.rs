@@ -70,8 +70,6 @@ pub struct BuildAgentCommandParams<'a> {
     clippy::too_many_arguments,
     reason = "one argument per environment source; a struct would only rename the same six"
 )]
-// Why: returned as pairs rather than applied onto a `Command` so the set is
-// assertable in a test.
 pub fn build_agent_environment(
     agent_name: &str,
     port: u16,

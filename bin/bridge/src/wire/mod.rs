@@ -13,6 +13,7 @@ pub mod first_run;
 pub mod hosts;
 pub mod ipc;
 pub mod payloads;
+mod semantic;
 
 use serde::Serialize;
 
@@ -20,7 +21,7 @@ use crate::verdict::{Tone, Verdict};
 use codes::{HealthCode, IdentityCode, OverallCode, TokenCode};
 use payloads::{
     CachedTokenPayload, GatewayStatusPayload, McpServerAuthPayload, ProxyStatsPayload,
-    UpdatePayload, ValidationPayload, VerifiedIdentityPayload,
+    StartupFaultPayload, UpdatePayload, ValidationPayload, VerifiedIdentityPayload,
 };
 
 /// The whole state snapshot as the webview receives it on `state.snapshot`
@@ -28,8 +29,13 @@ use payloads::{
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "flat JSON wire contract; each flag is a serialised field the GUI reads by name"
+)]
 pub struct StatePayload<'a> {
     pub gateway_url: &'a str,
+    pub gateway_configured: bool,
     pub config_file: &'a str,
     pub pat_file: &'a str,
     pub config_present: bool,
@@ -52,6 +58,10 @@ pub struct StatePayload<'a> {
         )
     )]
     pub provider_health: &'a [systemprompt_models::bridge::profile::ProviderHealth],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts-export", ts(optional))]
+    pub credential_error: Option<&'a str>,
+    pub startup_faults: Vec<StartupFaultPayload<'a>>,
     pub sync_in_flight: bool,
     pub cached_token: Option<CachedTokenPayload>,
     pub token: Verdict<TokenCode>,

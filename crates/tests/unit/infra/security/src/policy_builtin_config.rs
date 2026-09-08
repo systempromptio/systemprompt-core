@@ -6,7 +6,7 @@ use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContex
 use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap())
+    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
 }
 
 struct Call {

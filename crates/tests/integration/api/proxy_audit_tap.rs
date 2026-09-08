@@ -1,16 +1,32 @@
-//! External-MCP audit tap — drives `audit::record` end-to-end via the
-//! `test-api` seam with wiremock upstream responses. Verifies the body is
+//! External-MCP audit tap — drives `audit::record` end-to-end with wiremock
+//! upstream responses. Verifies the body is
 //! forwarded verbatim for both JSON and SSE upstreams and that an
 //! `mcp_tool_executions` row is finalized with the matched outcome.
 
 use axum::body::to_bytes;
-use systemprompt_api::services::proxy::test_api::record_tool_call;
+use systemprompt_api::repository::tool_usage;
+use systemprompt_api::services::proxy::audit::jsonrpc::parse_tool_call;
+use systemprompt_api::services::proxy::audit::{McpAudit, tap};
 use systemprompt_database::DbPool;
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::{request_context, setup_ctx};
+
+async fn record_tool_call(
+    response: reqwest::Response,
+    pool: &DbPool,
+    context: systemprompt_models::RequestContext,
+    server_name: &str,
+    request_body: &[u8],
+) -> Result<axum::response::Response<axum::body::Body>, String> {
+    let invocation = parse_tool_call(request_body)
+        .ok_or_else(|| "request body is not a tools/call".to_owned())?;
+    let repo = tool_usage(pool).map_err(|e| e.to_string())?;
+    let audit = McpAudit::new(repo, context, server_name.to_owned(), invocation);
+    tap::record(response, audit).await
+}
 
 fn tool_call_body(tool: &str) -> Vec<u8> {
     serde_json::json!({

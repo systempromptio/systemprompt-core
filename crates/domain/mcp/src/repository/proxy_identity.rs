@@ -27,7 +27,7 @@ pub struct ProxyIdentityRow {
 
 #[derive(Debug, Clone)]
 pub struct McpProxyIdentityRepository {
-    write_pool: Arc<PgPool>,
+    pub(super) write_pool: Arc<PgPool>,
 }
 
 impl McpProxyIdentityRepository {
@@ -109,6 +109,9 @@ impl McpProxyIdentityRepository {
     }
 
     pub async fn cleanup_expired(&self) -> McpDomainResult<u64> {
+        sqlx::query!("DELETE FROM mcp_external_sessions WHERE expires_at <= NOW()")
+            .execute(&*self.write_pool)
+            .await?;
         let result = sqlx::query!(r#"DELETE FROM mcp_proxy_identities WHERE expires_at <= NOW()"#)
             .execute(&*self.write_pool)
             .await?;

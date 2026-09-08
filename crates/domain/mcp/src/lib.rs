@@ -52,30 +52,6 @@ pub(crate) mod tool;
 
 pub use extension::McpExtension;
 
-/// Internal seams exposed for the out-of-tree test workspace.
-///
-/// Not part of the semver-stable surface — the orchestrator's cleanup passes
-/// are crate-private because callers must go through
-/// [`services::McpOrchestrator::reconcile`], which sequences them against the
-/// database prune and the start phase.
-#[doc(hidden)]
-pub mod test_api {
-    pub use crate::middleware::rbac::jwt::{
-        validate_and_extract_claims, validate_audience, validate_scopes_for_permissions,
-    };
-    pub use crate::services::client::handle_elicitation;
-    pub use crate::services::client::http_client_with_context::metadata::stamp_request_metadata;
-    pub use crate::services::orchestrator::process_cleanup::{
-        detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
-    };
-    pub use crate::services::orchestrator::schema_sync::{
-        validate_and_migrate_schemas, validate_schemas,
-    };
-    pub use crate::services::ui_renderer::templates::chart_svg::scale::{
-        Scale, ScaleKind, for_axis, format_value, linear,
-    };
-}
-
 pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
 
@@ -97,7 +73,7 @@ pub use schema::McpOutputSchema;
 pub use services::ui_renderer::templates::html::artifact_shell_template;
 pub use services::ui_renderer::{artifact_resource_uri, parse_artifact_resource_uri};
 pub use systemprompt_models::mcp::ClientProfile;
-pub use tool::{McpToolExecutor, McpToolHandler, build_tool_list_result};
+pub use tool::{McpToolExecutor, McpToolHandler, build_tool_list_result, object_input_schema};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, ERROR, McpAuthState, McpServerConfig, OAuthRequirement, RUNNING,
@@ -121,9 +97,6 @@ pub use systemprompt_models::mcp::{
     McpProvider, McpRegistry, McpServerState,
 };
 
-// Why: pinned to a named constant, not `ProtocolVersion::LATEST`, so the
-// version we advertise cannot move silently on an rmcp bump; bumping it is a
-// deliberate release decision with wire-conformance coverage.
 pub fn mcp_protocol_version() -> String {
     ProtocolVersion::V_2026_07_28.to_string()
 }
@@ -175,11 +148,7 @@ pub struct SessionTimeouts {
 impl Default for McpHttpConfig {
     fn default() -> Self {
         Self {
-            // Why: `0.0.0.0` and `[::]` are common bind addresses for the
-            // local MCP server; clients connecting via the bind URL send a
-            // matching `Host` header that the default allow-list must
-            // accept. Port-less entries match any port via rmcp's
-            // `host_is_allowed`.
+            // Why: rmcp's `host_is_allowed` treats port-less entries as matching any port.
             allowed_hosts: Some(vec![
                 "localhost".into(),
                 "127.0.0.1".into(),

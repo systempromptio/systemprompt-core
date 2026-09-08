@@ -30,10 +30,6 @@ pub(crate) const fn should_default_to_gui() -> bool {
     false
 }
 
-// Why: `parse_opt_flag` returns the first match only, which silently drops
-// every later `--host` on a line that names several. Values are additionally
-// split on commas so `--host a,b` and `--host a --host b` mean the same
-// thing, and blanks are dropped so a trailing comma is not an unknown id.
 pub fn parse_multi_flag(args: &[String], flag: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut i = 2;

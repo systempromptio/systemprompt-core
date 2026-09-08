@@ -26,14 +26,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-// Why: Cowork's fixed sentinel for the personal org-session dir; if it ever
-// changes, `pick_target` falls back to mtime and `bridge doctor` flags the
-// mismatch — update the literal here to whatever Cowork now hard-codes.
+// Why: Cowork uses this fixed UUID for its personal org-session directory.
 pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 
-// Why: Cowork >= 1.22209 ignores HKCU entirely once HKLM\SOFTWARE\Policies\
-// Claude exists, so policy writes must target HKLM and clear any stale HKCU
-// copy.
+// Why: Cowork >= 1.22209 ignores HKCU once HKLM\SOFTWARE\Policies\Claude
+// exists.
 pub const POLICY_SUBKEY: &str = r"SOFTWARE\Policies\Claude";
 pub const HKCU_POLICY_KEY: &str = r"HKCU\SOFTWARE\Policies\Claude";
 pub const HKLM_POLICY_KEY: &str = r"HKLM\SOFTWARE\Policies\Claude";

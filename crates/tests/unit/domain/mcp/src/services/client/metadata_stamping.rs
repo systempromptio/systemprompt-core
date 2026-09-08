@@ -13,7 +13,7 @@ use http::{HeaderName, HeaderValue};
 use rmcp::model::{
     ClientCapabilities, ClientJsonRpcMessage, GetMeta, JsonRpcRequest, ProtocolVersion, RequestId,
 };
-use systemprompt_mcp::test_api::stamp_request_metadata;
+use systemprompt_mcp::services::client::http_client_with_context::metadata::stamp_request_metadata;
 
 const HEADER: &str = "mcp-protocol-version";
 

@@ -7,29 +7,28 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::SessionId;
 
-use crate::auth::ChainError;
 use crate::context::BridgeContext;
 use crate::stdio::diag;
 use crate::{auth, config, stdio};
 
 pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
     ctx.block_on(async {
-        let cfg = config::load();
+        let cfg = match config::load() {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                diag(&e.to_string());
+                return ExitCode::FAILURE;
+            },
+        };
         let gateway = config::gateway_url_or_default(&cfg);
         let out = match auth::acquire_bearer(&cfg, &SessionId::generate(), &ctx.http).await {
             Ok(out) => out,
-            Err(ChainError::PreferredTransient { provider, source }) => {
-                diag(&format!(
-                    "transient auth failure on preferred provider {provider}: {source}"
-                ));
-                return ExitCode::from(10);
-            },
-            Err(ChainError::NoneSucceeded) => {
-                diag(&format!(
-                    "no credential available; run `{} login` first",
-                    crate::brand::brand().binary_name
-                ));
-                return ExitCode::from(5);
+            Err(e) => {
+                let (code, message) = e.exit_report();
+
+                diag(&message);
+
+                return code;
             },
         };
 

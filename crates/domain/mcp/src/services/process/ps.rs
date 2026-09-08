@@ -27,10 +27,8 @@ pub(super) fn command_name(pid: u32) -> Option<String> {
     }
 
     let raw = String::from_utf8_lossy(&output.stdout);
-    // Why: `comm` is a bare command name under GNU `ps` but the executable's
-    // full path under BSD `ps` on macOS. Callers compare the result against a
-    // configured server name, so an unnormalised path never matched there and
-    // every by-name port lookup silently returned `None`.
+    // Why: `ps comm` returns a bare command name on GNU systems but can return
+    // the executable's full path on macOS.
     let name = std::path::Path::new(raw.trim())
         .file_name()
         .and_then(std::ffi::OsStr::to_str)
@@ -41,9 +39,7 @@ pub(super) fn command_name(pid: u32) -> Option<String> {
 }
 
 pub(super) fn process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
-    // Why: `command` is the one spelling both `ps` implementations accept —
-    // BSD `ps` on macOS rejects the GNU-only `cmd` keyword outright, which made
-    // every lookup here return `None` on that platform.
+    // Why: macOS BSD `ps` rejects GNU's `cmd` keyword; both accept `command`.
     let output = Command::new("ps")
         .args(["-p", &pid.to_string(), "-o", "pid,ppid,command"])
         .output()

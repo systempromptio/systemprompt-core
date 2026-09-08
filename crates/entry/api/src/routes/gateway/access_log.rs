@@ -49,8 +49,7 @@ fn gateway_log_actor(resp: &Response) -> Option<LogActor> {
 
 pub(super) async fn log_gateway_request(req: Request, next: Next) -> Response {
     let method = req.method().clone();
-    // Why: the router is nested under GATEWAY_BASE, so req.uri() arrives with
-    // the prefix already stripped; log the path the client actually requested.
+    // Why: Axum strips the mount prefix from `req.uri()` inside a nested router.
     let path = req
         .extensions()
         .get::<axum::extract::OriginalUri>()

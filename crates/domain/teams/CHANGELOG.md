@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+### Added
+
+- `TeamsClient::with_endpoints`, `ActivityTokenVerifier::with_openid_url` and `TokenProvider::with_token_url` are unconditional constructors; Bot Framework endpoint constants come from `systemprompt_models`.
+
+### Removed
+
+- The `test` Cargo feature.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

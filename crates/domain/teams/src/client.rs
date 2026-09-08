@@ -33,7 +33,6 @@ impl TeamsClient {
         Self { http, tokens }
     }
 
-    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_endpoints(
         http: reqwest::Client,

@@ -60,9 +60,6 @@ pub fn remove_schedule(cache: &ScheduleStatusCache) -> ScheduleRemoval {
     removal
 }
 
-// Why: not a convenience. The bridge's value is a loopback proxy that governs
-// agent traffic, so a session where nobody remembered to open the app is a
-// session where agents ran ungoverned.
 pub fn apply_gui_autostart(
     cache: &ScheduleStatusCache,
     binary: &Path,

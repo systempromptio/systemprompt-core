@@ -154,6 +154,20 @@ fn write_web_manifest(staged: &std::path::Path, out_dir: &std::path::Path) {
 }
 
 fn main() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let manifest = root.join("Cargo.toml");
+    println!("cargo:rerun-if-changed={}", manifest.display());
+    let core: toml::Value =
+        toml::from_str(&std::fs::read_to_string(manifest).expect("read core manifest"))
+            .expect("parse core manifest");
+    let release = core["workspace"]["package"]["version"]
+        .as_str()
+        .expect("workspace release version");
+    assert_eq!(
+        env!("CARGO_PKG_VERSION"),
+        release,
+        "bridge version must equal core release"
+    );
     stage_web_assets();
 
     if let Err(e) = emit_vergen() {
@@ -187,9 +201,7 @@ fn main() {
             res.set_windres_path("x86_64-w64-mingw32-windres");
             res.set_ar_path("x86_64-w64-mingw32-ar");
         }
-        if let Err(e) = res.compile() {
-            eprintln!("cargo:warning=winresource compile failed: {e}");
-        }
+        res.compile().expect("compile Windows executable resources");
         println!("cargo:rerun-if-changed=assets/app-icon.ico");
         println!("cargo:rerun-if-changed=build.rs");
     }

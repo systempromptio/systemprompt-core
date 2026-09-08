@@ -1,7 +1,9 @@
-//! EMA resource-server consume path: validate an ID-JAG presented as a
-//! token-exchange subject — `typ`, audience, client binding, and single-use
-//! `jti` replay. Signature is checked against the local authority for a
-//! self-issued ID-JAG, otherwise the trusted issuer's JWKS.
+//! EMA resource-server consume path.
+//!
+//! Validates an ID-JAG presented as a token-exchange subject — `typ`,
+//! audience, client binding, and single-use `jti` replay. Signature is checked
+//! against the local authority for a self-issued ID-JAG, otherwise the trusted
+//! issuer's JWKS.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,13 +26,6 @@ use systemprompt_security::keys::{JwksClient, authority};
 use super::super::super::TokenError;
 use super::subject::{SubjectIdentity, jwks_host_allowlist, peek_issuer};
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub async fn validate_id_jag_subject(
     token: &str,
     authenticated_client: &ClientId,

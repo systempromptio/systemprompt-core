@@ -3,13 +3,42 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use tracing_init::{init, install_panic_hook, log_dir, log_file_path};
+pub use tracing_init::{init, install_panic_hook, log_dir, log_file_path, logging_fault};
 
 mod format;
 
+/// A start-up step that failed without stopping the process.
+///
+/// Start-up touches metadata the process can live without: the recorded
+/// proxy port, the cached MCP registry, the activity log, the log file. A
+/// fault in any of them must reach `doctor` and the GUI, but must not brick
+/// the very commands that repair it; a corrupt port file that makes
+/// `doctor` exit 70 leaves nobody able to see what is wrong.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StartupFault {
+    pub component: &'static str,
+    pub error: String,
+}
+
+impl StartupFault {
+    #[must_use]
+    pub fn new(component: &'static str, error: impl std::fmt::Display) -> Self {
+        Self {
+            component,
+            error: error.to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for StartupFault {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.component, self.error)
+    }
+}
+
 pub mod tracing_init {
     use std::path::PathBuf;
-    use std::sync::{Once, OnceLock};
+    use std::sync::OnceLock;
 
     use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
     use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -17,7 +46,11 @@ pub mod tracing_init {
 
     use super::format::{BridgeFormat, TeeWriter};
 
-    static INIT: Once = Once::new();
+    // Why: the log file is diagnostics, not a dependency. A missing home or
+    // an unwritable log directory must not stop `doctor` from running;
+    // stderr still gets every WARN and the fault travels with the
+    // initialisation outcome so `logging_fault` can report it.
+    static INIT: OnceLock<Result<Option<String>, String>> = OnceLock::new();
     static GUARD: OnceLock<WorkerGuard> = OnceLock::new();
     pub(super) static FILE_WRITER: OnceLock<NonBlocking> = OnceLock::new();
 
@@ -26,77 +59,65 @@ pub mod tracing_init {
             .is_ok_and(|v| v.eq_ignore_ascii_case("json"))
     }
 
-    pub fn init() {
-        INIT.call_once(|| {
-            install_file_writer();
-            let filter = EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("info,systemprompt_bridge::proxy=debug"));
+    pub fn init() -> Result<(), String> {
+        INIT.get_or_init(|| {
+            let file_fault = install_file_writer().err();
+            let filter = match EnvFilter::try_from_default_env() {
+                Ok(filter) => filter,
+                Err(e) if std::env::var_os("RUST_LOG").is_some() => {
+                    return Err(format!("RUST_LOG: {e}"));
+                },
+                Err(_) => EnvFilter::new("info,systemprompt_bridge::proxy=debug"),
+            };
             if json_format_requested() {
-                _ = tracing_subscriber::fmt()
+                tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
                     .with_env_filter(filter)
                     .json()
                     .flatten_event(true)
-                    .try_init();
+                    .try_init()
+                    .map_err(|e| format!("initialize tracing: {e}"))?;
             } else {
-                _ = tracing_subscriber::fmt()
+                tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
                     .with_env_filter(filter)
                     .event_format(BridgeFormat)
-                    .try_init();
+                    .try_init()
+                    .map_err(|e| format!("initialize tracing: {e}"))?;
             }
-            tracing::info!(
-                "log dir: {}",
-                log_dir().map_or_else(|| "<disabled>".to_owned(), |p| p.display().to_string())
-            );
-        });
+            Ok(file_fault)
+        })
+        .clone()
+        .map(|_fault| ())
     }
 
-    fn install_file_writer() {
-        let Some(dir) = log_dir() else {
-            return;
-        };
-        if let Err(e) = std::fs::create_dir_all(&dir) {
-            #[expect(
-                clippy::print_stderr,
-                reason = "tracing subscriber not yet installed; stderr is the only diagnostic \
-                          channel"
-            )]
-            {
-                eprintln!(
-                    "[{}] cannot create log dir {}: {e}",
-                    crate::brand::brand().binary_name,
-                    dir.display()
-                );
-            }
-            return;
-        }
+    fn install_file_writer() -> Result<(), String> {
+        let dir = log_dir().ok_or_else(|| "cannot resolve bridge log directory".to_owned())?;
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| format!("create log directory {}: {e}", dir.display()))?;
         let appender = RollingFileAppender::builder()
             .rotation(Rotation::DAILY)
             .filename_prefix("bridge")
             .filename_suffix("log")
             .max_log_files(7)
-            .build(&dir);
-        let appender = match appender {
-            Ok(a) => a,
-            Err(e) => {
-                #[expect(
-                    clippy::print_stderr,
-                    reason = "tracing subscriber not yet installed; stderr is the only diagnostic \
-                              channel"
-                )]
-                {
-                    eprintln!(
-                        "[{}] rolling appender init failed: {e}",
-                        crate::brand::brand().binary_name
-                    );
-                }
-                return;
-            },
-        };
-        let (writer, guard) = tracing_appender::non_blocking(appender);
-        _ = GUARD.set(guard);
-        _ = FILE_WRITER.set(writer);
+            .build(&dir)
+            .map_err(|e| format!("open log directory {}: {e}", dir.display()))?;
+        // Why: the log is the evidence for every failed subcommand; dropping
+        // lines under back-pressure would lose exactly the burst that matters.
+        let (writer, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
+            .lossy(false)
+            .finish(appender);
+        GUARD
+            .set(guard)
+            .map_err(|_guard| "logging worker already installed".to_owned())?;
+        FILE_WRITER
+            .set(writer)
+            .map_err(|_writer| "logging writer already installed".to_owned())?;
+        Ok(())
+    }
+
+    pub fn logging_fault() -> Option<String> {
+        INIT.get().and_then(|init| init.as_ref().ok()?.clone())
     }
 
     pub fn log_dir() -> Option<PathBuf> {
@@ -149,9 +170,13 @@ pub mod tracing_init {
             let dump =
                 format!("panic at {location}\npayload: {payload}\n\nbacktrace:\n{backtrace:?}\n");
             if let Some(dir) = log_dir() {
-                _ = std::fs::create_dir_all(&dir);
                 let path = dir.join(format!("bridge-crash-{ts}.log"));
-                _ = std::fs::write(&path, &dump);
+                if let Err(e) = crate::fsutil::atomic_write_0600(&path, dump.as_bytes()) {
+                    crate::stdio::eprint_str(&format!(
+                        "cannot persist crash report {}: {e}",
+                        path.display()
+                    ));
+                }
                 tracing::error!(
                     crash_log = %path.display(),
                     location = %location,

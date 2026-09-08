@@ -12,7 +12,6 @@ pub mod logs_db;
 mod logs_disk;
 mod status;
 mod tools;
-mod tools_client;
 mod tools_schema;
 pub mod types;
 pub mod validate;

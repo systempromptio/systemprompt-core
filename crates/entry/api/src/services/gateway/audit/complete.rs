@@ -38,9 +38,6 @@ impl GatewayAudit {
     ) -> Result<i64> {
         let latency_ms = self.elapsed_ms();
         let effective_model = self.effective_model();
-        // Why: the one place both gateway paths -- buffered and streamed --
-        // hand usage to billing, and the only one that knows the provider
-        // name. See `CanonicalUsage::normalise_reasoning` for the invariant.
         usage.normalise_reasoning(&self.ctx.provider);
         let services = systemprompt_loader::ServicesBootstrap::get().ok();
         let gateway =

@@ -34,10 +34,6 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Sync);
     let bridge = Arc::clone(&app.ctx);
-    // Why: the sink is installed for the duration of this sync only. The sync
-    // internals run several layers down and on the CLI have no UI at all, so
-    // they report into this rather than being handed a callback through every
-    // signature between here and the per-plugin fetch loop.
     {
         let proxy = proxy.clone();
         bridge.sync_progress.install(Arc::new(move |step| {
@@ -45,15 +41,16 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         }));
     }
     app.ctx.spawn(async move {
-        let allow_tofu = config::pinned_pubkey().is_none();
+        let allow_tofu = matches!(
+            config::pinned_pubkey_state(),
+            Ok(config::PinnedPubkeyState::Unpinned)
+        );
         let result = tokio::select! {
             () = token.cancelled() => Err(Arc::new(GuiError::Cancelled)),
             outcome = sync::run_once(&bridge, false, false, allow_tofu) => {
                 outcome.map_err(GuiError::from).map_err(Arc::new)
             }
         };
-        // Why: cleared before the finish event so no late step can arrive
-        // after the UI has been told the sync is over.
         bridge.sync_progress.clear();
         proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
@@ -81,31 +78,37 @@ pub(crate) fn on_sync_finished(
             tracing::info!(summary = %line, "sync completed");
             app.append_log(&line);
             if !summary.host_failures.is_empty() {
-                let hosts: Vec<&str> = summary
+                // Why: a host id alone ("claude-desktop") told the user nothing
+                // about a registry write that did not land; the failure text
+                // names the hive, key and value.
+                let failures: Vec<String> = summary
                     .host_failures
                     .iter()
-                    .map(|f| f.host_id.as_str())
+                    .map(|f| format!("{}: {}", f.host_id, f.error.lines().next().unwrap_or("")))
                     .collect();
                 crate::gui::window::notify_user(
                     &format!("{} synced with failures", crate::brand::brand().app_name),
-                    &format!("These agents did not update: {}", hosts.join(", ")),
+                    &format!("These agents did not update — {}", failures.join("; ")),
                 );
-                app.append_log_warn(format!("These agents did not update: {}", hosts.join(", ")));
+                app.append_log_warn(format!(
+                    "These agents did not update — {}",
+                    failures.join("; ")
+                ));
             }
             emit::emit_sync_progress(app, "completed", Some(&line));
             structured = Some(summary);
             Ok(json!({ "summary": line }))
         },
         Err(msg) if msg.is_cancelled() => {
-            // Why: a cancelled sync is not a failed sync. It reports the
-            // `cancelled` phase so the UI settles, and replies Ok so no error
-            // toast is raised for something the user (or a newer sync) asked for.
             let line = i18n::t("sync-cancelled");
             app.append_log(&line);
             emit::emit_sync_progress(app, "cancelled", Some(&line));
             Ok(json!({ "cancelled": true }))
         },
         Err(msg) => {
+            if let GuiError::Sync(sync::SyncError::Partial(summary)) = msg.as_ref() {
+                structured = Some(summary.as_ref().clone());
+            }
             let raw = format!("{msg:#}");
             tracing::error!(error = %raw, "sync failed");
             let sync_err = match msg.as_ref() {
@@ -165,8 +168,6 @@ pub(crate) fn on_sync_finished(
         },
     };
     app.state.reload();
-    // Why: `reload` re-derives `last_sync_summary` from the on-disk sentinel, so
-    // the structured report has to be stored after it, not before.
     if let Some(summary) = structured {
         app.state.set_last_sync_report(summary);
     }
@@ -179,8 +180,6 @@ pub(crate) fn on_sync_finished(
         }
     }
     emit::emit_state(app);
-    // Why: a sync writes machine policy and host files; the health panel must
-    // re-read them rather than keep a verdict from before the write.
     app.proxy
         .send_event(UiEvent::ValidateRequested { reply_to: None });
     if succeeded {
@@ -189,8 +188,6 @@ pub(crate) fn on_sync_finished(
             reply_to: None,
         });
     }
-    // Why: only a user-initiated sync (reply_to set) may raise the settings
-    // window for re-auth; a background sync popping a window would steal focus.
     if auth_failure && reply_to.is_some() && !app.state.first_run_active() {
         app.proxy.send_event(UiEvent::OpenSettings);
     }

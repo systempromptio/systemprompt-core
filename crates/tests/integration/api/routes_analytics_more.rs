@@ -1,6 +1,6 @@
 //! Analytics + engagement content-routing resolution branches.
 //!
-//! Drives the `test-api` seams that mount the analytics and engagement routers
+//! Drives the entry points that mount the analytics and engagement routers
 //! over a stub `ContentRouting`, so the slug-resolution success path (routing
 //! maps a page URL to a seeded `markdown_content` slug, then `get_by_slug`
 //! returns the row) and the conversion-marking path both execute — branches the
@@ -70,7 +70,7 @@ async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::test_api::router_with_routing(&ctx, Some(routing))
+    let app = analytics::router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({ "event_type": "page_view", "page_url": page_url });
@@ -87,7 +87,7 @@ async fn record_event_resolves_content_via_routing() -> anyhow::Result<()> {
 async fn record_event_with_explicit_slug_skips_routing() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
     let (slug, _page_url) = seed_content(&db).await?;
-    let app = analytics::test_api::router_with_routing(&ctx, None)
+    let app = analytics::router_with_routing(&ctx, None)
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -112,7 +112,7 @@ async fn page_exit_fanout_resolves_content_via_routing() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::test_api::router_with_routing(&ctx, Some(routing))
+    let app = analytics::router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -145,7 +145,7 @@ async fn batch_resolves_content_via_routing() -> anyhow::Result<()> {
         page_url: page_url.clone(),
         slug,
     });
-    let app = analytics::test_api::router_with_routing(&ctx, Some(routing))
+    let app = analytics::router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_an_more")));
 
     let body = serde_json::json!({
@@ -175,7 +175,7 @@ async fn engagement_resolves_content_and_marks_conversion() -> anyhow::Result<()
         page_url: page_url.clone(),
         slug,
     });
-    let app = engagement::test_api::router_with_routing(&ctx, Some(routing))
+    let app = engagement::router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({
@@ -202,7 +202,7 @@ async fn engagement_batch_resolves_and_marks_conversion() -> anyhow::Result<()> 
         page_url: page_url.clone(),
         slug,
     });
-    let app = engagement::test_api::router_with_routing(&ctx, Some(routing))
+    let app = engagement::router_with_routing(&ctx, Some(routing))
         .layer(Extension(request_context("user_en_more")));
 
     let body = serde_json::json!({

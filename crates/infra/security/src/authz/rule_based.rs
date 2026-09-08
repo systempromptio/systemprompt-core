@@ -82,9 +82,6 @@ impl RuleBasedHook {
         self.cache.get(&self.repo, Arc::clone(&self.sources)).await
     }
 
-    // Why: takes the typed error rather than a rendered string so the reason
-    // reaching the audit row names the cause. Stringifying at the call site put
-    // it in a log line and left every fault row identical.
     async fn fault(&self, req: &AuthzRequest, error: &AuthzError) -> AuthzDecision {
         let policy = AuthzSource::RuleBased.policy().to_owned();
         let detail = error.to_string();
@@ -145,9 +142,6 @@ impl AuthzDecisionHook for RuleBasedHook {
         let policy = AuthzSource::RuleBased.policy().to_owned();
         let authz_decision = match decision {
             Decision::Allow { .. } => AuthzDecision::Allow,
-            // Why: warn is an allow by construction. This plane has no warn
-            // verdict of its own, so the reason is logged here or it is lost —
-            // the rule resolver does not write the governance audit row.
             Decision::Warn { reason } => {
                 tracing::warn!(
                     entity = %req.entity,
@@ -158,12 +152,6 @@ impl AuthzDecisionHook for RuleBasedHook {
                 AuthzDecision::Allow
             },
             Decision::Deny { reason } => AuthzDecision::Deny { reason, policy },
-            // Why: the rule resolver answers "may this subject reach this
-            // entity", which has no third answer — only the governance chain's
-            // `require_approval` returns `Pending`, and it never runs here. A
-            // hold reaching this plane means a policy was mounted where it
-            // cannot be honoured, so it degrades to a deny rather than an
-            // allow.
             Decision::Pending { reason } => {
                 tracing::error!(
                     %reason,

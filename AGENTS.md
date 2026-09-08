@@ -33,10 +33,10 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.47", features = ["full"] }
+systemprompt = { version = "0.48", features = ["full"] }
 
 # Selective (pick what you need)
-systemprompt = { version = "0.47", features = ["core", "database", "mcp"] }
+systemprompt = { version = "0.48", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.
@@ -88,6 +88,27 @@ just build && just setup-local <api-key> && just start
 ```
 
 Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read `src/` and the published docs at [docs.rs/systemprompt-core](https://docs.rs/systemprompt-core).
+
+## Production Rust Comments
+
+The default is no inline comment. Express internal rules through names, types,
+validation, and control flow. Remove prose that restates the code; do not turn
+it into Rustdoc or a `Why:` comment to satisfy a lint.
+
+Use `// Why:` sparingly, only for an externally imposed protocol, vendor,
+platform, or toolchain constraint that the code cannot express. State the
+external cause and its consequence concisely. Passing the prefix check does
+not establish that a comment is necessary or correct; review its meaning.
+
+Keep required `// SAFETY:` obligations and `// JSON:` protocol-boundary
+annotations. Useful `//!` module documentation and `///` on public top-level
+types, traits, and modules remain permitted. Rustdoc that merely paraphrases
+names or control flow should be removed even at a permitted placement.
+
+This rule includes the `systemprompt/src` facade and `bin/bridge/src`, as well
+as production crate sources. Test sources, examples, and files named `build.rs`
+are outside this cleanup. Run `just lint-comments` to check permitted syntax
+and Rustdoc placement; assess necessity and accuracy during code review.
 
 ## Branching & Release Cycle
 

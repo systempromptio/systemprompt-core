@@ -30,9 +30,6 @@ pub enum InboundParseError {
     Unsupported { field: &'static str, detail: String },
 }
 
-// Why: the wire contract names a client mistake `invalid_request_error`; the
-// generic `api_error` is reserved for the server's own faults, so a rendered
-// error must take its type from the status it is being sent with.
 pub(crate) fn error_type_for_status(status: StatusCode) -> &'static str {
     match status {
         StatusCode::UNAUTHORIZED => "authentication_error",

@@ -7,7 +7,7 @@
 //! failure to even enumerate the children must not abort the shutdown.
 
 use systemprompt_api::services::server::readiness::init_readiness;
-use systemprompt_api::services::server::shutdown_test_api;
+use systemprompt_api::services::server::shutdown;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_app_context};
 
 #[tokio::test]
@@ -15,8 +15,7 @@ async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
     init_readiness();
 
     let outcome =
-        shutdown_test_api::join_within_drain_grace(async { Err(anyhow::anyhow!("bind lost")) })
-            .await;
+        shutdown::join_within_drain_grace(async { Err(anyhow::anyhow!("bind lost")) }).await;
 
     let error = outcome.expect_err("the server's failure is the caller's failure");
     assert_eq!(
@@ -37,7 +36,7 @@ async fn an_unreadable_service_registry_does_not_abort_child_termination() {
 
     let completed = tokio::time::timeout(
         std::time::Duration::from_secs(10),
-        shutdown_test_api::terminate_children(&ctx),
+        shutdown::terminate_children(&ctx),
     )
     .await;
 

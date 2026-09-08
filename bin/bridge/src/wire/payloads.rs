@@ -13,12 +13,6 @@ use crate::validate::{CheckLine, ValidationCode, ValidationReport};
 use crate::verdict::{Tone, Verdict};
 use crate::wire::codes::GatewayCode;
 
-// Why: The one place the auth verdict crosses to the UI.
-//
-// Why computed here rather than re-derived in JavaScript: the front end used
-// to test the state name itself, against a variant that does not exist, and
-// so declared every healthy server broken. Shipping the verdict beside the
-// state leaves the UI nothing to get wrong.
 #[derive(Debug, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
@@ -149,6 +143,25 @@ impl ProxyStatsPayload {
 pub struct CachedTokenPayload {
     pub ttl_seconds: u64,
     pub length: usize,
+}
+
+/// A start-up step that failed without stopping the bridge; the GUI lists
+/// these under health so the operator learns what `doctor` would say.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub struct StartupFaultPayload<'a> {
+    pub component: &'a str,
+    pub error: &'a str,
+}
+
+impl<'a> From<&'a crate::obs::StartupFault> for StartupFaultPayload<'a> {
+    fn from(fault: &'a crate::obs::StartupFault) -> Self {
+        Self {
+            component: fault.component,
+            error: fault.error.as_str(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]

@@ -34,11 +34,11 @@ const MAX_TIMEOUT_SECS: u64 = 600;
 const DEFAULT_CLI_BINARY_PATH: &str = "/app/bin/systemprompt";
 const MAX_CLI_ARGS: usize = 32;
 
-#[derive(Clone)]
-pub(crate) struct CliBinaryPath(Arc<str>);
+#[derive(Clone, Debug)]
+pub struct CliBinaryPath(Arc<str>);
 
 impl CliBinaryPath {
-    pub(crate) fn new(path: impl AsRef<str>) -> Self {
+    pub fn new(path: impl AsRef<str>) -> Self {
         Self(Arc::from(path.as_ref()))
     }
 
@@ -54,10 +54,6 @@ impl Default for CliBinaryPath {
 }
 const MAX_CLI_ARG_LEN: usize = 256;
 
-// Why: The CLI subprocess is spawned without a shell, so this is
-// defence-in-depth against argv smuggling (flag injection via crafted
-// `--foo=$(...)` payloads, NUL-byte truncation) reaching downstream tooling
-// that does invoke a shell.
 fn validate_cli_args(args: &[String]) -> Result<(), Box<ApiError>> {
     if args.is_empty() {
         return Err(Box::new(ApiError::bad_request(
@@ -101,7 +97,7 @@ pub(super) fn router() -> Router<AppContext> {
     router_with_binary(CliBinaryPath::default())
 }
 
-fn router_with_binary(binary: CliBinaryPath) -> Router<AppContext> {
+pub fn router_with_binary(binary: CliBinaryPath) -> Router<AppContext> {
     Router::new()
         .route("/", post(execute_cli))
         .layer(Extension(binary))
@@ -274,16 +270,5 @@ fn create_cli_stream(
         for event in wait_exit_events(child).await {
             yield Ok(cli_event_to_sse(&event));
         }
-    }
-}
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use super::{CliBinaryPath, router_with_binary};
-    use axum::Router;
-    use systemprompt_runtime::AppContext;
-
-    pub fn cli_router_with_binary(path: &str) -> Router<AppContext> {
-        router_with_binary(CliBinaryPath::new(path))
     }
 }

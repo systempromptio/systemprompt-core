@@ -102,8 +102,6 @@ const TABLE: &[(&[&str], &str, &str)] = &[
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     ),
-    // Why: without these rows the static handler labels an archive
-    // `text/plain; charset=utf-8` and a browser renders mojibake instead of saving.
     (&["gz", "tgz"], "application/gzip", "application/gzip"),
     (&["tar"], "application/x-tar", "application/x-tar"),
     (&["zip"], "application/zip", "application/zip"),
@@ -123,8 +121,6 @@ const TABLE: &[(&[&str], &str, &str)] = &[
     ),
     (&["rpm"], "application/x-rpm", "application/x-rpm"),
     (&["appimage"], OCTET_STREAM, OCTET_STREAM),
-    // Why: checksum and signature sidecars are meant to be read in the browser,
-    // not downloaded, so they stay text/plain rather than octet-stream.
     (
         &["sha256", "sha512", "asc"],
         "text/plain",
@@ -144,8 +140,6 @@ const ALIASES: &[(&str, &str)] = &[
     ("audio/x-m4a", "audio/mp4"),
 ];
 
-// Why: canonical extension for the MIME types several `TABLE` rows share;
-// every other type takes the first extension of its unique row.
 const CANONICAL_EXTENSIONS: &[(&str, &str)] = &[
     (OCTET_STREAM, "bin"),
     ("text/plain", "txt"),

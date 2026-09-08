@@ -53,8 +53,6 @@ pub struct AgentFleetSummary {
 }
 
 impl AgentFleetSummary {
-    // Why: takes only verdicts — never the raw snapshot — so the card and the rows
-    // are structurally incapable of reaching different conclusions.
     #[must_use]
     pub fn fold<'a>(verdicts: impl Iterator<Item = &'a AgentVerdict>) -> Self {
         let mut s = Self {

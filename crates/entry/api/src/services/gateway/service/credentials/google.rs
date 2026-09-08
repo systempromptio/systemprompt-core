@@ -22,24 +22,19 @@ use anyhow::{Result, anyhow, bail};
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 
-// Why: the assertion only has to survive the exchange, so this is not the
-// token's lifetime. Google caps it at one hour either way.
+// Why: Google limits a service-account JWT assertion's lifetime to one hour.
 const ASSERTION_TTL: Duration = Duration::from_secs(3600);
 
-// Why: a token that expires in flight fails the user's request, so one is
-// retired early rather than used to the last second.
 const EXPIRY_SKEW: Duration = Duration::from_secs(120);
 
-// Why: the broad cloud-platform scope. Narrower scopes differ per surface and
-// would each have to be configured per provider.
 const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 
 #[derive(Debug, Deserialize)]
-pub(super) struct ServiceAccountKey {
+pub struct ServiceAccountKey {
     pub(super) client_email: String,
     pub(super) private_key: String,
     #[serde(default = "default_token_uri")]
-    pub(super) token_uri: String,
+    pub token_uri: String,
 }
 
 fn default_token_uri() -> String {
@@ -47,13 +42,7 @@ fn default_token_uri() -> String {
 }
 
 impl ServiceAccountKey {
-    // Why: recognised by the `type` field the document declares about itself,
-    // not by shape. Anything else — including any other JSON — is not one, and
-    // the caller sends it verbatim as an API key. A document that *does* claim
-    // to be a service account and then fails to deserialise is an error, never
-    // an API key: silently downgrading it would send the private key to the
-    // provider as a bearer secret.
-    pub(super) fn parse(secret: &str) -> Result<Option<Self>> {
+    pub fn parse(secret: &str) -> Result<Option<Self>> {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(secret) else {
             return Ok(None);
         };
@@ -93,7 +82,7 @@ fn cache() -> &'static RwLock<HashMap<String, CachedToken>> {
     CACHE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
-pub(super) async fn access_token(secret_name: &str, key: &ServiceAccountKey) -> Result<String> {
+pub async fn access_token(secret_name: &str, key: &ServiceAccountKey) -> Result<String> {
     if let Some(token) = cached(secret_name) {
         return Ok(token);
     }
@@ -147,8 +136,6 @@ async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse> {
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     if !status.is_success() {
-        // Why: Google answers a bad assertion with `invalid_grant` and no
-        // detail, so the body is the only diagnostic an operator gets.
         bail!("token endpoint returned {status}: {}", body.trim());
     }
 

@@ -40,3 +40,5 @@ pub(crate) fn finish(
     };
     emit::send_reply_payload(app, id, &payload);
 }
+
+pub(crate) use probe::on_probe_failed;

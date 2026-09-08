@@ -1,8 +1,8 @@
 //! Graceful shutdown: signal wait, child termination, forced-exit backstop.
 //!
 //! Ordering matters. Axum starts draining connections only once
-//! [`shutdown_signal`] resolves, so the run loop bounds that drain with
-//! [`join_within_drain_grace`] and arms the hard [`arm_forced_exit`] deadline
+//! `shutdown_signal` resolves, so the run loop bounds that drain with
+//! [`join_within_drain_grace`] and arms the hard `arm_forced_exit` deadline
 //! only afterwards — a single deadline spanning both would let a wedged SSE
 //! stream consume the whole budget and kill the process before any child was
 //! signalled.
@@ -14,31 +14,9 @@ use std::time::Duration;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};
 
-const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
-pub(crate) const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
+pub const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
+pub const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
 const FORCED_SHUTDOWN_GRACE_MS: u64 = 10_000;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    use systemprompt_runtime::AppContext;
-
-    pub async fn drain(ctx: &AppContext) {
-        super::drain(ctx, None).await;
-    }
-
-    pub async fn terminate_children(ctx: &AppContext) {
-        super::terminate_children(ctx).await;
-    }
-
-    pub async fn join_within_drain_grace(
-        serve: impl Future<Output = anyhow::Result<()>>,
-    ) -> anyhow::Result<()> {
-        super::join_within_drain_grace(serve).await
-    }
-
-    pub const AXUM_DRAIN_GRACE_MS: u64 = super::AXUM_DRAIN_GRACE_MS;
-    pub const CHILD_SHUTDOWN_GRACE_MS: u64 = super::CHILD_SHUTDOWN_GRACE_MS;
-}
 
 pub(super) async fn shutdown_signal() {
     wait_for_signal().await;
@@ -103,7 +81,7 @@ fn force_exit() -> ! {
     std::process::exit(0);
 }
 
-pub(super) async fn join_within_drain_grace(
+pub async fn join_within_drain_grace(
     serve: impl Future<Output = anyhow::Result<()>>,
 ) -> anyhow::Result<()> {
     use super::readiness::ReadinessEvent;
@@ -135,7 +113,7 @@ pub(super) async fn join_within_drain_grace(
     }
 }
 
-pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
+pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
     if let Some(handle) = ctx.event_bridge().get() {
         handle.abort();
     }
@@ -149,7 +127,7 @@ pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) 
     terminate_children(ctx).await;
 }
 
-async fn terminate_children(ctx: &AppContext) {
+pub async fn terminate_children(ctx: &AppContext) {
     let repo = ctx.service_repository();
 
     tokio::join!(terminate_agent_children(repo), terminate_mcp_children(repo),);
@@ -191,9 +169,7 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository)
     .await;
 }
 
-// Why: a recycled PID is cleared without signalling — `kill(-pid)` on it would
-// hit every process in the reused group, e.g. the systemd `user@<uid>` session
-// leader.
+// Why: Unix can reuse PIDs; kill(-pid) signals the entire process group.
 async fn terminate_service_child(
     repo: &systemprompt_database::ServiceRepository,
     name: &str,

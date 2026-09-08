@@ -90,9 +90,6 @@ impl std::fmt::Display for PolicyMode {
     }
 }
 
-// Why: an absent key inherits, a present-but-unreadable key is an error. Both
-// are distinct from "present and valid", so the return is a three-way option
-// rather than a defaulted value.
 fn read_mode(
     node: Option<&YamlValue>,
     location: &str,
@@ -135,7 +132,7 @@ pub struct GovernanceConfig {
 impl GovernanceConfig {
     #[must_use]
     pub fn defaults() -> Self {
-        let policies = ["secret_scan", "scope_check", "tool_blocklist", "rate_limit"]
+        let policies = ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
             .into_iter()
             .map(|id| PolicyConfig {
                 id: id.to_owned(),

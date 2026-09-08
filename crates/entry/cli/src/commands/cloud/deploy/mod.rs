@@ -15,7 +15,7 @@
 
 pub mod pipeline;
 pub mod progress;
-mod select;
+pub mod select;
 
 pub(in crate::commands::cloud) use progress::CliDeployProgress;
 pub(in crate::commands::cloud) use select::resolve_profile;

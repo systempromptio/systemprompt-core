@@ -35,11 +35,6 @@ pub enum ElevationError {
     Spawn(#[from] std::io::Error),
 }
 
-// Why: `prompt` reaches the user only on the GUI path — sudo carries its own
-// on a TTY — so it must read as a standalone sentence. `UserCancelled` is a
-// decision, not a failure: callers surface it as "declined" rather than error.
-// The probe is stdin, not stdout: stdout redirected to a log must not push a
-// terminal session onto the osascript dialog path.
 pub(crate) fn run_privileged(script: &str, prompt: &str) -> Result<(), ElevationError> {
     if std::io::stdin().is_terminal() {
         sudo_direct(script)

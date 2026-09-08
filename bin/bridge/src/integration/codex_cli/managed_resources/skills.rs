@@ -13,9 +13,6 @@ use crate::integration::managed_skills::skill_markdown;
 
 use super::io_err;
 
-// Why: skills may target specific hosts; an empty list means every host. The
-// Codex surface must skip skills aimed elsewhere (e.g. hosts: [cowork]), or
-// the Cowork setup skill shows up in a host that cannot run it.
 pub(super) fn targets_codex(skill: &SkillEntry) -> bool {
     skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "codex" || h == "codex-cli")
 }

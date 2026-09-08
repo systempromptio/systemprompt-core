@@ -18,7 +18,13 @@ mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub(crate) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
+pub(crate) fn apply(
+    #[cfg_attr(
+        not(any(target_os = "macos", target_os = "windows", target_os = "linux")),
+        expect(unused_variables, reason = "no installer exists for other platforms")
+    )]
+    staged: &Path,
+) -> Result<PathBuf, UpdateError> {
     #[cfg(target_os = "macos")]
     {
         macos::apply(staged)
@@ -33,7 +39,6 @@ pub(crate) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
-        _ = staged;
         Err(UpdateError::UnsupportedPlatform)
     }
 }
@@ -52,8 +57,7 @@ pub(crate) fn sweep_leftovers() {
     }
 }
 
-// Why: checked by writing rather than by inspecting permission bits — the bits
-// do not account for macOS SIP, a read-only mount, or another user's install.
+// Why: Permission bits do not account for macOS SIP or read-only mounts.
 pub(crate) fn probe_writable(path: &Path, hint: &str) -> Result<(), UpdateError> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     let probe = crate::fsutil::temp_path_for(&parent.join(".update-probe"));
@@ -71,8 +75,6 @@ pub(crate) fn probe_writable(path: &Path, hint: &str) -> Result<(), UpdateError>
     }
 }
 
-// Why: the unit that gets replaced differs by platform — the enclosing `.app`
-// on macOS, the executable itself elsewhere.
 pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
     let exe = running_exe()?;
     #[cfg(target_os = "macos")]
@@ -88,8 +90,6 @@ pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
     }
 }
 
-// Why: resolved through symlinks so the swap lands on the real file rather than
-// replacing a link into it.
 pub(crate) fn running_exe() -> Result<PathBuf, UpdateError> {
     let exe = std::env::current_exe().map_err(|e| UpdateError::LocateInstall {
         what: "executable",

@@ -1,5 +1,6 @@
 {
   "gateway_url": "https://internal.systemprompt.io",
+  "gateway_configured": true,
   "config_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.toml",
   "pat_file": "C:\\Users\\ejb50\\AppData\\Roaming\\systemprompt-internal\\systemprompt-internal-bridge.pat",
   "config_present": true,

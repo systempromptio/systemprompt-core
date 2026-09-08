@@ -65,6 +65,7 @@ fn serve(m: &SignedManifest) -> (MockServer, Sandbox) {
         .unwrap();
     rt.block_on(async {
         let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
         Mock::given(method("POST"))
             .and(path("/v1/auth/bridge/pat"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({

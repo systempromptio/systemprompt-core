@@ -177,3 +177,57 @@ fn serialize_server_configs_emits_json_for_tools_and_model() {
     serde_json::from_str::<serde_json::Value>(&tools).expect("tools config is JSON");
     assert_eq!(model, "null", "an absent model config serialises as null");
 }
+
+#[test]
+fn coverage_log_directory_failure_names_the_unwritable_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = make_paths_with_system(dir.path().to_str().unwrap());
+    let logs = paths.system().logs();
+    std::fs::create_dir_all(logs.parent().unwrap()).unwrap();
+    std::fs::write(&logs, b"a file blocks directory creation").unwrap();
+    let err = open_server_log(&paths, &make_config("unused")).unwrap_err();
+    assert!(err.to_string().contains("Failed to create logs directory"));
+    assert!(err.to_string().contains(logs.to_str().unwrap()));
+}
+
+#[test]
+fn coverage_log_open_failure_does_not_remove_an_existing_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = make_paths_with_system(dir.path().to_str().unwrap());
+    let config = make_config("unused");
+    let log = paths
+        .system()
+        .logs()
+        .join(format!("mcp-{}.log", config.name));
+    std::fs::create_dir_all(&log).unwrap();
+    let err = open_server_log(&paths, &config).unwrap_err();
+    assert!(err.to_string().contains("Failed to create log file"));
+    assert!(log.is_dir());
+}
+
+#[test]
+fn coverage_rotation_failure_keeps_the_original_log_readable() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = dir.path().join("blocked.log");
+    let file = std::fs::File::create(&log).unwrap();
+    file.set_len(10 * 1024 * 1024 + 1).unwrap();
+    std::fs::create_dir(log.with_extension("log.old")).unwrap();
+    rotate_log_if_needed(&log);
+    assert_eq!(std::fs::metadata(&log).unwrap().len(), 10 * 1024 * 1024 + 1);
+}
+
+#[test]
+fn coverage_spawn_invalid_executable_returns_a_detached_start_error() {
+    use std::os::unix::fs::PermissionsExt;
+    use systemprompt_mcp::services::process::spawner::spawn_server;
+    let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let config = make_config("invalid-executable");
+    let binary = boot.bin_path.join(&config.binary);
+    std::fs::write(&binary, b"#!/no-such-interpreter-for-coverage\n").unwrap();
+    std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let err = spawn_server(&boot.app_paths, &config).unwrap_err();
+    assert!(
+        err.to_string().contains("Failed to start detached"),
+        "{err}"
+    );
+}

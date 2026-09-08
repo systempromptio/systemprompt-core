@@ -24,13 +24,7 @@ pub(super) const APPROVAL_POLICY: &str = "approval_policy";
 pub(super) const SANDBOX_MODE: &str = "sandbox_mode";
 pub(super) const SANDBOX_NETWORK_ACCESS: &str = "sandbox_workspace_write.network_access";
 
-// Why: approval prompts are a fleet policy, not a per-developer preference. An
-// unattended Codex that stops to ask cannot be governed centrally, and every
-// prompt answered locally is a decision the gateway never sees.
 pub(super) const APPROVAL_POLICY_VALUE: &str = "never";
-// Why: deliberately not `danger-full-access` — suppressing the prompts does not
-// mean surrendering the sandbox. Commands stay confined to the workspace, so an
-// unattended run's blast radius is bounded by the checkout it runs in.
 pub(super) const SANDBOX_MODE_VALUE: &str = "workspace-write";
 
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
@@ -77,8 +71,7 @@ pub(super) fn user_config_path() -> PathBuf {
     codex_home().join("config.toml")
 }
 
-// Why: Codex defines no admin-scope path on Windows, so managed config lands
-// user-scope under CODEX_HOME there.
+// Why: Codex's Windows managed config is user-scoped under CODEX_HOME.
 pub(super) fn managed_config_path() -> PathBuf {
     if let Some(custom) = std::env::var_os("CODEX_SYSTEM_CONFIG") {
         return PathBuf::from(custom);
@@ -90,12 +83,8 @@ pub(super) fn managed_config_path() -> PathBuf {
     }
 }
 
-// Why: on macOS the installed profile is not a TOML file on disk — the payload
-// carries the config as base64 under `config_toml_base64` inside the
-// `com.openai.codex` managed-preference plist. So `managed_config_path`'s
-// `/etc/codex/config.toml` never exists there however successful the install
-// was, which is what made every re-verify report "profile not installed"
-// seconds after reporting the profile loaded. User scope precedes device scope.
+// Why: Codex's macOS MDM payload stores base64 TOML under config_toml_base64 in
+// com.openai.codex preferences.
 #[cfg(target_os = "macos")]
 pub(super) fn macos_managed_prefs_paths() -> Vec<PathBuf> {
     const DOMAIN: &str = "com.openai.codex.plist";

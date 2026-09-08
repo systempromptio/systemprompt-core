@@ -41,8 +41,7 @@ pub struct SlackAppConfig {
 pub struct SlackAuthzConfig {
     #[serde(default)]
     pub allowed_roles: Vec<String>,
-    // Why: requires the `users:read.email` bot scope; an app without it must
-    // leave this off and link identities explicitly.
+    // Why: Slack email lookup requires the `users:read.email` bot scope.
     #[serde(default)]
     pub link_by_workspace_email: bool,
 }

@@ -145,9 +145,6 @@ const MOVED_SECTIONS: &[(&str, &str)] = &[
     ("gateway", "services/ai/gateway.yaml"),
 ];
 
-// Why: `Profile` is `deny_unknown_fields`, so a profile written for a release
-// that still carried these sections would otherwise fail with a bare "unknown
-// field" — the one message that does not say where the section went.
 fn reject_moved_sections(content: &str, profile_path: &Path) -> ProfileResult<()> {
     let Ok(serde_yaml::Value::Mapping(map)) = serde_yaml::from_str::<serde_yaml::Value>(content)
     else {

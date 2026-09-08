@@ -153,7 +153,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
     };
 
     let latency_ms = elapsed_ms(started);
-    _ = stream.shutdown(std::net::Shutdown::Both);
+    drop(stream);
 
     ProxyHealth {
         url: Some(url.to_owned()),

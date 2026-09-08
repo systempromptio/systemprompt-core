@@ -34,6 +34,43 @@ fn tool_with_unsupported_keywords() -> CanonicalTool {
     }
 }
 
+// The shape Claude Code sends: a tuple-typed `where` clause nested two levels
+// down, a `format` hint, `const`, a nullable union and a `$comment`.
+fn claude_code_shaped_tool() -> CanonicalTool {
+    CanonicalTool {
+        name: "query_rows".to_owned(),
+        description: Some("query".to_owned()),
+        input_schema: json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "limit": {"type": "integer", "format": "uint32", "minimum": 1},
+                "mode": {"const": "fast", "$comment": "internal"},
+                "query": {
+                    "type": "object",
+                    "properties": {
+                        "where": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "prefixItems": [
+                                    {"type": "string"},
+                                    {"type": "string", "enum": ["eq", "gt"]},
+                                    {}
+                                ],
+                                "additionalItems": false
+                            }
+                        },
+                        "cursor": {"type": ["string", "null"]}
+                    }
+                }
+            },
+            "required": ["query"]
+        }),
+    }
+}
+
 fn plain_tool() -> CanonicalTool {
     CanonicalTool {
         name: "lookup".to_owned(),

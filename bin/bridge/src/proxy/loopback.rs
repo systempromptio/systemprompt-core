@@ -50,19 +50,12 @@ impl LoopbackEndpoint {
         format!("{}/mcp/{slug}", self.origin())
     }
 
-    // Why: a process that did not mint the secret (an `install --apply` run, a
-    // GUI that lost the port race) reads it from disk at the moment of use, so
-    // a secret minted by the serving bridge after this process started is still
-    // found.
     pub fn secret(&self) -> std::io::Result<LoopbackSecret> {
         self.secret
             .as_ref()
             .map_or_else(secret::for_profile, |s| Ok(s.clone()))
     }
 
-    // Why: a fragment writer (`sync`, `install --apply`) may legitimately run
-    // before the proxy has ever started; it mints the secret the proxy will
-    // later load, where a *profile* must only ever carry one that exists.
     pub fn bearer(&self) -> std::io::Result<String> {
         self.secret
             .as_ref()

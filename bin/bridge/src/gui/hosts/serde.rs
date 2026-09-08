@@ -66,10 +66,6 @@ fn build_entry<'a>(
     }
 }
 
-// Why: these hosts are enabled by the same manifest as the desktop ones but
-// have no `HostApp`, so `host_apps()` never yields them and they used to be
-// invisible — including `claude-code`, which is what most readers are running
-// while they look at this screen.
 fn build_sync_only_entry<'a>(
     snap: &'a AppStateSnapshot,
     agent: &'a crate::integration::agent_health::SyncOnlyAgent,
@@ -121,10 +117,6 @@ pub(crate) fn single_host_payload<'a>(
     snap: &'a AppStateSnapshot,
     host_id: &str,
 ) -> Option<HostEntryPayload<'a>> {
-    // Why: the sync-only fallback is not decoration. `emit_host_changed` sends
-    // whatever this returns on the `host.changed` channel, so a `None` here
-    // published a null body that the front end silently dropped — the row for
-    // a sync-only agent could never be updated after its first full snapshot.
     crate::integration::host_apps()
         .iter()
         .copied()
@@ -137,9 +129,6 @@ pub(crate) fn single_host_payload<'a>(
 }
 
 pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
-    // Why: the last-sync manifest is the instance's host gate. Before the
-    // first sync it is empty and every registered host stays visible;
-    // afterwards hosts the instance disabled are dropped from the GUI.
     let mut entries: Vec<HostEntryPayload<'_>> = crate::integration::host_apps()
         .iter()
         .copied()

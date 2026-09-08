@@ -39,9 +39,8 @@ fn generation_config(
     limits: Option<ModelLimits>,
 ) -> GeminiGenerationConfig {
     let (response_mime_type, response_schema) = match &request.response_format {
-        // Why: Gemini's response schema is an OpenAPI subset, not JSON Schema —
-        // no `additionalProperties`, no type lists, nullability as a flag. The
-        // same sanitizer the tool schemas already go through shapes it.
+        // Why: Gemini's `responseSchema` uses an OpenAPI subset: no `additionalProperties`
+        // or type lists, and nullability is a flag.
         Some(ResponseFormat::JsonSchema { schema, .. }) => {
             let sanitizer = SchemaSanitizer::new(WireProtocol::Gemini.schema_capabilities());
             (
@@ -128,8 +127,8 @@ fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
         .collect()
 }
 
-// Why: Gemini's `functionResponse.name` must be the declared function name, but
-// canonical `ToolResult` carries only the gateway-minted `tool_use_id`.
+// Why: Gemini requires `functionResponse.name` to be the declared function
+// name.
 fn tool_call_names(request: &CanonicalRequest) -> HashMap<&str, &str> {
     let mut names = HashMap::new();
     for msg in &request.messages {
@@ -224,13 +223,8 @@ fn image_part(src: &ImageSource) -> GeminiPart {
                 data: data.clone(),
             },
         },
-        // Why: Gemini's generateContent has no URL image part -- inlineData
-        // (base64) or a Files API handle are the only shapes it accepts. The
-        // gateway resolves URL images to inline data before the codec runs
-        // (`gateway::image_fetch`), so this arm is the defence-in-depth path
-        // for a caller that renders a body without going through it: the URL is
-        // kept as text so the model at least sees what was referenced, and the
-        // warning is the only signal that it is no longer an image.
+        // Why: Gemini image parts require inline base64 data or a Files API handle,
+        // not an arbitrary image URL.
         ImageSource::Url { url, .. } => {
             tracing::warn!(
                 url = %url,

@@ -173,3 +173,78 @@ async fn wait_for_request(server: &MockServer) -> Vec<u8> {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
+
+async fn coverage_command_reply(
+    agent_response: serde_json::Value,
+    denied: bool,
+    hook_status: u16,
+) -> anyhow::Result<serde_json::Value> {
+    let b = ensure_messaging_bootstrap();
+    install_test_signing_key();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let ctx = if denied {
+        systemprompt_test_fixtures::fixture_app_context_with_hook(
+            &pool,
+            &b.database_url,
+            Arc::new(systemprompt_security::authz::DenyAllHook::null()),
+        )?
+    } else {
+        fixture_app_context(&pool, &b.database_url)?
+    };
+    let agent = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(agent_response))
+        .expect(if denied { 0 } else { 1 })
+        .mount(&agent)
+        .await;
+    seed_agent_backend(&pool, &agent).await?;
+    let hook = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(hook_status)
+                .set_body_json(serde_json::json!({"ok": hook_status == 200})),
+        )
+        .expect(1)
+        .mount(&hook)
+        .await;
+    let user = uuid::Uuid::new_v4().simple();
+    let body = format!(
+        "command=%2Fask&text=hi&user_id=U_{user}&channel_id=C1&team_id={TEST_SLACK_WORKSPACE_ID}&response_url={}",
+        urlencode(&hook.uri())
+    );
+    let response = router(&ctx)
+        .oneshot(signed_post("/commands", &body, TEST_SLACK_SIGNING_SECRET))
+        .await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    Ok(serde_json::from_slice(&wait_for_request(&hook).await)?)
+}
+
+#[tokio::test]
+async fn coverage_slack_denial_is_ephemeral_and_never_reaches_the_agent() -> anyhow::Result<()> {
+    let body =
+        coverage_command_reply(agent_reply_response_json("must not execute"), true, 200).await?;
+    assert_eq!(body["response_type"], "ephemeral");
+    assert!(body["blocks"].to_string().contains('⛔'));
+    Ok(())
+}
+
+#[tokio::test]
+async fn coverage_slack_agent_failure_posts_an_ephemeral_error() -> anyhow::Result<()> {
+    let body = coverage_command_reply(
+        systemprompt_test_fixtures::agent_error_response_json(-32603, "private backend details"),
+        false,
+        200,
+    )
+    .await?;
+    assert_eq!(body["response_type"], "ephemeral");
+    assert!(!body["blocks"].as_array().unwrap().is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn coverage_slack_empty_reply_has_a_visible_placeholder() -> anyhow::Result<()> {
+    let body = coverage_command_reply(agent_reply_response_json("  \n"), false, 200).await?;
+    assert_eq!(body["response_type"], "in_channel");
+    assert!(body["blocks"].to_string().contains("(no response)"));
+    Ok(())
+}

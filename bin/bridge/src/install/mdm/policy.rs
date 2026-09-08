@@ -51,10 +51,6 @@ pub struct PolicyInputs<'a> {
     pub mcp_servers: &'a [McpServerEntry],
 }
 
-// Why: the order is the order the keys are written in, which keeps a rendered
-// profile byte-stable across runs — `macos::apply` compares bytes to decide
-// whether to raise an administrator prompt, so an unstable order would prompt
-// on every sync.
 #[must_use]
 pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
     let mut out = inference_entries(inputs);
@@ -65,9 +61,7 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
             PolicyValue::Json(json_of(&hosts)),
         ));
     }
-    if let Some(entry) = workspace_entry() {
-        out.push(entry);
-    }
+    out.push(workspace_entry());
     if !inputs.headers.is_empty() {
         out.push((
             "inferenceCustomHeaders",
@@ -84,17 +78,40 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
     out
 }
 
-// Why: Cowork treats `inferenceProvider=gateway` without a base URL and a
-// credential as unusable and refuses to start any task, so these are written as
-// one unit or not at all. A model list already on the machine wins over the
-// default, which is how a gateway-supplied list survives a re-apply.
+// Why: Claude Desktop breaks when `inferenceModels` names a non-Anthropic
+// family, so whatever list arrives — an installed policy, a future catalog
+// feed — is filtered to Claude ids here, at the one place the key is built.
+// Non-Claude gateway models are Claude Code's business (its `modelPicker`).
+fn anthropic_only(models: &serde_json::Value) -> serde_json::Value {
+    let Some(arr) = models.as_array() else {
+        return json_of(&super::default_inference_models());
+    };
+    let kept: Vec<serde_json::Value> = arr
+        .iter()
+        .filter(|m| {
+            m.as_str().is_some_and(|id| {
+                let lower = id.to_ascii_lowercase();
+                lower.contains("claude") || lower.contains("anthropic")
+            })
+        })
+        .cloned()
+        .collect();
+    if kept.is_empty() {
+        json_of(&super::default_inference_models())
+    } else {
+        serde_json::Value::Array(kept)
+    }
+}
+
 fn inference_entries(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
-    let models = inputs
-        .models
-        .as_deref()
-        .filter(|m| !m.trim().is_empty())
-        .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
-        .unwrap_or_else(|| json_of(&super::default_inference_models()));
+    let models = anthropic_only(
+        &inputs
+            .models
+            .as_deref()
+            .filter(|m| !m.trim().is_empty())
+            .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
+            .unwrap_or_else(|| json_of(&super::default_inference_models())),
+    );
     vec![
         ("inferenceProvider", PolicyValue::Str("gateway".into())),
         (
@@ -113,10 +130,8 @@ fn inference_entries(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
     ]
 }
 
-// Why: `disableNonessentialServices` is written as an explicit `false` rather
-// than omitted, because `true` blocks the claudemcpcontent.com renderer that
-// MCP display extensions load from — an older `true` must be corrected on
-// drift, which omitting the key would not do.
+// Why: Cowork's disableNonessentialServices=true blocks the
+// claudemcpcontent.com MCP renderer.
 fn hardening_entries() -> Vec<PolicyEntry> {
     vec![
         ("disableEssentialTelemetry", PolicyValue::Bool(true)),
@@ -128,26 +143,30 @@ fn hardening_entries() -> Vec<PolicyEntry> {
     ]
 }
 
-// Why: without a pre-trusted workspace Cowork falls back to protected host
-// paths and blocks on `request_cowork_directory`; `isDefaultSelected` skips the
-// trust prompt. This was a Windows-only key, which is why the macOS setup
-// health row for it could never go green however the profile was installed.
-fn workspace_entry() -> Option<PolicyEntry> {
-    let workspace = crate::brand::brand().workspace_dir_name;
-    (!workspace.is_empty()).then(|| {
-        (
-            "allowedWorkspaceFolders",
-            PolicyValue::Json(
-                serde_json::json!([{ "path": format!("~/{workspace}"), "isDefaultSelected": true }]),
-            ),
-        )
-    })
+// Why: Cowork's isDefaultSelected pre-trusts the workspace and avoids
+// request_cowork_directory, but the Claude Desktop Code tab enforces the
+// same list as the only permitted workspace roots, so the home directory
+// must be listed too or every folder outside the brand workspace is refused.
+fn workspace_entry() -> PolicyEntry {
+    (
+        "allowedWorkspaceFolders",
+        PolicyValue::Json(workspace_folders()),
+    )
 }
 
-// Why: servers point at the loopback proxy, never the gateway — the proxy is
-// what stamps the per-user JWT and applies governance, and Cowork's OAuth flow
-// rejects the gateway's non-HTTPS authorize URL besides. An empty list is
-// written rather than omitted so a stale server clears.
+#[must_use]
+pub fn workspace_folders() -> serde_json::Value {
+    let workspace = crate::brand::brand().workspace_dir_name;
+    let mut folders = Vec::new();
+    if !workspace.is_empty() {
+        folders.push(
+            serde_json::json!({ "path": format!("~/{workspace}"), "isDefaultSelected": true }),
+        );
+    }
+    folders.push(serde_json::json!({ "path": "~", "isDefaultSelected": false }));
+    serde_json::Value::Array(folders)
+}
+
 fn mcp_value(servers: &[McpServerEntry]) -> PolicyValue {
     PolicyValue::Json(serde_json::Value::Array(
         servers
@@ -177,8 +196,8 @@ pub fn reg_values(policy: &[PolicyEntry]) -> Vec<(&'static str, &'static str, St
         .collect()
 }
 
-// Why: the published reference asks for every value as a string in an OS
-// preference store, with arrays and objects as JSON text.
+// Why: Claude's registry encoding requires strings, with arrays and objects
+// encoded as JSON text.
 #[cfg(target_os = "windows")]
 fn reg_encode(value: &PolicyValue) -> String {
     match value {
@@ -198,9 +217,8 @@ pub fn plist_body(policy: &[PolicyEntry], indent: &str) -> String {
     out
 }
 
-// Why: booleans are written as `<string>true</string>` rather than `<true/>`.
-// Both are read, and the string form is what the published encoding table asks
-// for; it also keeps one encoding across the plist and the registry.
+// Why: Claude's published preference encoding specifies string booleans, not
+// plist booleans.
 fn plist_value(value: &PolicyValue, indent: &str) -> String {
     match value {
         PolicyValue::Str(s) => format!("{indent}<string>{}</string>\n", xml::escape(s)),
@@ -238,9 +256,6 @@ fn plist_json(value: &serde_json::Value, indent: &str) -> String {
     }
 }
 
-// Why: every entry points at the loopback proxy, so a caller cannot
-// accidentally publish the upstream gateway URL — the shape that could not
-// authenticate.
 pub fn mcp_entries(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,

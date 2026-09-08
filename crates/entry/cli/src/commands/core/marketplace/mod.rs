@@ -53,9 +53,6 @@ pub async fn execute(command: MarketplaceCommands, ctx: &CommandContext) -> Resu
     }
 }
 
-// Why: public so the assembly can be asserted on directly. `execute` only
-// renders, and rendering goes to stdout where a test cannot see it — the same
-// split `plugins::validate::execute` uses.
 pub async fn explain(args: &ExplainArgs) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let services =

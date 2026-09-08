@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod cli_settings;
-mod commands;
+pub mod commands;
 pub mod context;
 pub mod descriptor;
 pub mod env_overrides;
@@ -18,7 +18,7 @@ pub mod environment;
 pub mod interactive;
 pub mod paths;
 pub mod presentation;
-mod runner;
+pub mod runner;
 pub mod session;
 pub mod shared;
 
@@ -27,12 +27,4 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 pub use context::CommandContext;
 pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, Prompter, ScriptedPrompter};
-pub use runner::run;
-// Why: the argument plane is exported so its pure halves — config assembly,
-// argv reconstruction and the export-flag check — can be exercised from the
-// test workspace. They were `pub(super)` inside a private module, so nothing
-// outside `runner` could name them and the only coverage they got was
-// incidental, through `run`.
-pub use runner::args;
-#[doc(hidden)]
-pub use runner::test_api;
+pub use runner::{args, run};

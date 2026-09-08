@@ -91,22 +91,12 @@ impl MigrationService<'_> {
         Ok(check)
     }
 
-    // Why: the rows only, executed by the caller — the installer commits them
-    // in the same transaction as the extension's structural DDL. Stamping in a
-    // transaction of its own left a window in which the tables existed and the
-    // baseline did not, and a database in that state is no longer fresh: the
-    // next install calls it established and executes migration SQL written for
-    // a schema shape the declarative baseline has already moved past.
     #[must_use]
     pub fn baseline_stamp_rows(extension: &dyn Extension) -> Vec<BaselineStamp> {
         let ext_id = extension.metadata().id;
         extension
             .migrations()
             .iter()
-            // Why: a tombstone has no SQL, so stamping it would record a
-            // checksum of the empty string against a slot this database never
-            // used. The slot stays free of tracking rows here and spent in the
-            // tree, which is exactly the truth.
             .filter(|migration| !migration.tombstone)
             .map(|migration| BaselineStamp {
                 id: format!("{}_{:03}", ext_id, migration.version),

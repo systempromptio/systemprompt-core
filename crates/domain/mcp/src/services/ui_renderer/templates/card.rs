@@ -101,8 +101,6 @@ fn render_sections(sections: &[CardSection]) -> String {
                 <h2 class="card-section-heading">{icon}{heading}</h2>
                 <div class="card-section-content">{content}</div>
             </div>"#,
-                // Why: The icon is decorative; without aria-hidden a screen reader
-                // announces the emoji's name in the middle of the heading.
                 icon = section.icon.as_ref().map_or_else(String::new, |i| format!(
                     r#"<span class="card-section-icon" aria-hidden="true">{}</span>"#,
                     html_escape(i)
@@ -173,8 +171,6 @@ fn render_ctas(ctas: &[CardCta]) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
-    // Why: The live region sits with the buttons so the outcome of a click is
-    // announced and visible in the same place the click happened.
     format!(
         r#"<footer class="card-ctas">{buttons}<p class="card-cta-status" id="card-cta-status" role="status" aria-live="polite"></p></footer>"#
     )

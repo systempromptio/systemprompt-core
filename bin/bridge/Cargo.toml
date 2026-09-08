@@ -2,7 +2,7 @@
 
 [package]
 name = "systemprompt-bridge"
-version = "0.38.0"
+version = "0.48.0"
 edition = "2024"
 rust-version = "1.96"
 authors = ["Edward Burton"]
@@ -17,6 +17,7 @@ name = "systemprompt_bridge"
 path = "src/lib.rs"
 
 [build-dependencies]
+toml = "1.1"
 winresource = "0.1"
 vergen-gitcl = { version = "10", features = ["build"] }
 
@@ -69,8 +70,8 @@ ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.10"
 tempfile = "3"
-systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.47.0", default-features = false }
-systemprompt-models = { path = "../../crates/shared/models", version = "0.47.0", default-features = false }
+systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.48.0", default-features = false }
+systemprompt-models = { path = "../../crates/shared/models", version = "0.48.0", default-features = false }
 hostname = "0.4"
 ts-rs = { version = "12", optional = true }
 # Why: OAuth client_secret moves off disk into the OS keystore. We link
@@ -133,6 +134,7 @@ windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_Security",
+    "Win32_Security_Authorization",
     "Win32_Security_Cryptography",
     "Win32_Storage_FileSystem",
     "Win32_System_Console",

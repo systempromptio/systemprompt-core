@@ -101,13 +101,6 @@ pub(super) async fn resolve_upstream<'a>(
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported by the feature-gated `test_api` module"
-    )
-)]
 pub fn describe_route_match(
     route: &GatewayRoute,
     declarative: Option<String>,
@@ -127,13 +120,6 @@ pub fn describe_route_match(
     })
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported by the feature-gated `test_api` module"
-    )
-)]
 pub fn enforce_route_requirements(
     route: &GatewayRoute,
     provider: &ProviderEntry,

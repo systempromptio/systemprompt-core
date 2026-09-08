@@ -1,65 +1,73 @@
-//! Unix bootstrap that chowns the org-plugins tree back to the invoking
-//! `SUDO_USER` after root install.
+//! Restore bootstrap ownership to the invoking sudo user and verify it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#![cfg(unix)]
-
+use std::io;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
-pub(super) fn chown_to_sudo_user_if_root(path: &Path) {
-    let Ok(sudo_user) = std::env::var("SUDO_USER") else {
-        return;
+#[cfg(target_os = "macos")]
+pub(super) const CHOWN: &str = "/usr/sbin/chown";
+#[cfg(not(target_os = "macos"))]
+pub(super) const CHOWN: &str = "/bin/chown";
+
+pub(super) fn chown_to_sudo_user_if_root(path: &Path) -> io::Result<()> {
+    let user = match std::env::var("SUDO_USER") {
+        Ok(user) if !user.is_empty() && user != "root" => user,
+        Ok(_) | Err(std::env::VarError::NotPresent) => return Ok(()),
+        Err(e) => return Err(io::Error::other(e)),
     };
-    if sudo_user.is_empty() || sudo_user == "root" {
-        return;
+    let uid = lookup_id(&user, "-u")?;
+    let gid = lookup_id(&user, "-g")?;
+    let metadata = std::fs::metadata(path)?;
+    if metadata.uid() == uid && metadata.gid() == gid && sampled_child_owned(path, uid, gid)? {
+        return Ok(());
     }
-    let Some((uid, gid)) = lookup_uid_gid(&sudo_user) else {
-        tracing::warn!(user = %sudo_user, "could not resolve SUDO_USER; leaving ownership as root");
-        return;
-    };
-    let needs_chown = std::fs::metadata(path).map_or(true, |m| m.uid() != uid || m.gid() != gid);
-    if !needs_chown {
-        return;
-    }
-    let status = std::process::Command::new("/usr/sbin/chown")
+    // Why: root created the whole tree, not just the root directory; a
+    // non-recursive chown leaves every child unwritable for the user.
+    let status = std::process::Command::new(CHOWN)
         .arg("-R")
         .arg(format!("{uid}:{gid}"))
         .arg(path)
-        .status();
-    match status {
-        Ok(s) if s.success() => {
-            tracing::info!(path = %path.display(), user = %sudo_user, "chowned org-plugins to invoking user");
-        },
-        Ok(s) => {
-            tracing::warn!(path = %path.display(), exit = ?s.code(), "chown returned non-zero");
-        },
-        Err(e) => tracing::warn!(path = %path.display(), error = %e, "chown failed to spawn"),
+        .status()?;
+    if !status.success() {
+        return Err(io::Error::other(format!(
+            "chown {} for {user} exited {status}",
+            path.display()
+        )));
     }
+    let actual = std::fs::metadata(path)?;
+    if actual.uid() != uid || actual.gid() != gid || !sampled_child_owned(path, uid, gid)? {
+        return Err(io::Error::other(format!(
+            "{}: ownership verification failed",
+            path.display()
+        )));
+    }
+    Ok(())
 }
 
-fn lookup_uid_gid(user: &str) -> Option<(u32, u32)> {
+fn sampled_child_owned(path: &Path, uid: u32, gid: u32) -> io::Result<bool> {
+    let Some(child) = std::fs::read_dir(path)?.next() else {
+        return Ok(true);
+    };
+    let meta = child?.metadata()?;
+    Ok(meta.uid() == uid && meta.gid() == gid)
+}
+fn lookup_id(user: &str, option: &str) -> io::Result<u32> {
     let output = std::process::Command::new("/usr/bin/id")
-        .arg("-u")
+        .arg(option)
         .arg(user)
-        .output()
-        .ok()?;
-    let uid: u32 = std::str::from_utf8(&output.stdout)
-        .ok()?
+        .output()?;
+    if !output.status.success() {
+        return Err(io::Error::other(format!(
+            "id {option} {user} exited {}",
+            output.status
+        )));
+    }
+    std::str::from_utf8(&output.stdout)
+        .map_err(io::Error::other)?
         .trim()
         .parse()
-        .ok()?;
-    let output = std::process::Command::new("/usr/bin/id")
-        .arg("-g")
-        .arg(user)
-        .output()
-        .ok()?;
-    let gid: u32 = std::str::from_utf8(&output.stdout)
-        .ok()?
-        .trim()
-        .parse()
-        .ok()?;
-    Some((uid, gid))
+        .map_err(io::Error::other)
 }

@@ -54,9 +54,6 @@ pub(super) fn append_artifact_files(
     if records.is_empty() {
         return;
     }
-    // Why: the bundle is content-addressed by the installer, so the manifest
-    // must not depend on catalogue iteration order — two builds of the same
-    // plugin have to produce byte-identical bytes.
     records.sort_by(|a, b| a.id.cmp(&b.id));
     let manifest = CoworkArtifactBundleManifest { artifacts: records };
     match serde_json::to_vec_pretty(&manifest) {

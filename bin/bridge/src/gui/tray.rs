@@ -42,11 +42,6 @@ pub enum TrayStatus {
     Alert,
 }
 
-// Why: the notification area draws at 16px. macOS wants the flat monochrome
-// template; Windows wants the 16x16 frame the .ico already carries, not a
-// 1024px app icon resampled down to a smudge. Split by `#[cfg]` rather than
-// `cfg!`, which compiles both arms: `image`'s ICO decoder is a Windows-only
-// feature of the dependency, so the macOS build cannot name it at all.
 #[cfg(target_os = "macos")]
 fn tray_image() -> Result<image::RgbaImage, image::ImageError> {
     let assets = crate::brand::brand().assets;
@@ -158,7 +153,7 @@ pub fn refresh(
     handles: &mut TrayHandles,
     snap: &AppStateSnapshot,
     schedule: &crate::schedule::status::ScheduleStatusCache,
-) {
+) -> Result<(), tray_icon::Error> {
     handles.identity_item.set_text(format_identity(snap));
     handles.last_sync_item.set_text(format_last_sync(snap));
     handles.sync_item.set_enabled(!snap.sync_in_flight);
@@ -168,9 +163,6 @@ pub fn refresh(
     } else {
         handles.sync_item.set_text(i18n::t("tray-sync-now"));
     }
-    // Why: a tick box cannot say "I could not ask the scheduler". Greying it out
-    // is the difference between a box the user has not ticked and one that will
-    // silently refuse to tick.
     let autostart = crate::install::gui_autostart_status(schedule);
     handles
         .autostart_item
@@ -178,7 +170,7 @@ pub fn refresh(
     handles
         .autostart_item
         .set_checked(autostart == ScheduleStatus::Installed);
-    _ = handles.tray.set_tooltip(Some(tooltip(snap)));
+    handles.tray.set_tooltip(Some(tooltip(snap)))?;
     let target = match snap.gateway_status {
         GatewayStatus::Unreachable { .. } => TrayStatus::Alert,
         _ => TrayStatus::Normal,
@@ -188,9 +180,10 @@ pub fn refresh(
             TrayStatus::Normal => handles.icon_normal.clone(),
             TrayStatus::Alert => handles.icon_alert.clone(),
         };
-        _ = handles.tray.set_icon(Some(icon));
+        handles.tray.set_icon(Some(icon))?;
         handles.status = target;
     }
+    Ok(())
 }
 
 pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
@@ -264,8 +257,6 @@ fn decode_alert_icon() -> GuiResult<Icon> {
     let mut img = tray_image()?;
     let (w, h) = img.dimensions();
     let dot_radius = (w.min(h) / 4).max(3);
-    // Why: centring the dot on the corner pixel clipped half of it outside the
-    // bitmap, which at 16px left an ambiguous smear rather than an alert.
     let cx = w.saturating_sub(dot_radius).saturating_sub(1);
     let cy = h.saturating_sub(dot_radius).saturating_sub(1);
     for y in 0..h {

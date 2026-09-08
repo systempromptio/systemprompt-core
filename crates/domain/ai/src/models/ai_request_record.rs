@@ -5,9 +5,11 @@
 
 use systemprompt_models::wire::canonical::CanonicalUsage;
 
+use super::request_kind::{RequestKind, RequestStatus};
+
 use systemprompt_identifiers::{
-    Actor, AiRequestId, ContextId, GatewayConversationId, InstanceId, McpExecutionId,
-    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
+    Actor, AiRequestId, ClientSessionId, ContextId, GatewayConversationId, InstanceId,
+    McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -25,25 +27,6 @@ pub struct CacheInfo {
     pub creation_tokens: Option<i32>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RequestStatus {
-    Pending,
-    Completed,
-    Failed,
-    Rejected,
-}
-
-impl RequestStatus {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Completed => "completed",
-            Self::Failed => "failed",
-            Self::Rejected => "rejected",
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct AiRequestRecord {
     pub request_id: AiRequestId,
@@ -53,6 +36,8 @@ pub struct AiRequestRecord {
     pub task_id: Option<TaskId>,
     pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub client_session_id: Option<ClientSessionId>,
+    pub request_kind: RequestKind,
     pub provider_request_id: Option<ProviderRequestId>,
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
@@ -89,6 +74,8 @@ pub struct AiRequestRecordBuilder {
     task_id: Option<TaskId>,
     context_id: ContextId,
     gateway_conversation_id: Option<GatewayConversationId>,
+    client_session_id: Option<ClientSessionId>,
+    request_kind: RequestKind,
     provider_request_id: Option<ProviderRequestId>,
     trace_id: Option<TraceId>,
     mcp_execution_id: Option<McpExecutionId>,
@@ -116,6 +103,8 @@ impl AiRequestRecordBuilder {
             task_id: None,
             context_id,
             gateway_conversation_id: None,
+            client_session_id: None,
+            request_kind: RequestKind::Turn,
             provider_request_id: None,
             trace_id: None,
             mcp_execution_id: None,
@@ -161,6 +150,18 @@ impl AiRequestRecordBuilder {
         self
     }
 
+    #[must_use]
+    pub fn client_session_id(mut self, id: ClientSessionId) -> Self {
+        self.client_session_id = Some(id);
+        self
+    }
+
+    #[must_use]
+    pub const fn request_kind(mut self, kind: RequestKind) -> Self {
+        self.request_kind = kind;
+        self
+    }
+
     pub fn provider_request_id(mut self, id: ProviderRequestId) -> Self {
         self.provider_request_id = Some(id);
         self
@@ -197,10 +198,6 @@ impl AiRequestRecordBuilder {
         self
     }
 
-    // Why: the record's token columns are set from one `CanonicalUsage` and
-    // nowhere else, so `tokens_used` cannot drift from the gateway's
-    // definition. `None` is a request that never reported usage at all -- a
-    // failed turn -- and leaves every column NULL rather than storing zeros.
     #[must_use]
     pub fn usage(mut self, usage: Option<CanonicalUsage>) -> Self {
         let Some(usage) = usage else { return self };
@@ -263,6 +260,8 @@ impl AiRequestRecordBuilder {
             task_id: self.task_id,
             context_id: self.context_id,
             gateway_conversation_id: self.gateway_conversation_id,
+            client_session_id: self.client_session_id,
+            request_kind: self.request_kind,
             provider_request_id: self.provider_request_id,
             trace_id: self.trace_id,
             mcp_execution_id: self.mcp_execution_id,

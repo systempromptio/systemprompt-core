@@ -7,11 +7,10 @@
 #![cfg(target_os = "windows")]
 #![allow(unsafe_code, reason = "Win32 process / window-manipulation FFI")]
 
-use std::env;
 use std::mem::MaybeUninit;
 use std::os::windows::process::CommandExt;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::path::Path;
+use std::process::Command;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, ERROR_CANCELLED, GetLastError, HANDLE, WAIT_OBJECT_0,
@@ -39,31 +38,12 @@ pub(crate) fn set_app_user_model_id(aumid: &str) {
     }
 }
 
-// Why: `CREATE_NO_WINDOW` is documented as invalid alongside `DETACHED_PROCESS`
-// or `CREATE_NEW_CONSOLE`; it must stand alone or the console it was meant to
-// suppress is created anyway. The bridge is a `windows_subsystem = "windows"`
-// binary with no console of its own, so every console child it spawns without
-// this flag gets a brand-new window that takes the foreground.
+// Why: Windows ignores CREATE_NO_WINDOW when combined with DETACHED_PROCESS or
+// CREATE_NEW_CONSOLE.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub(crate) fn no_window(cmd: &mut Command) -> &mut Command {
     cmd.creation_flags(CREATE_NO_WINDOW)
-}
-
-pub(crate) fn reg_command() -> Command {
-    silenced_command(system32_path("reg.exe"))
-}
-
-pub(crate) fn silenced_command(exe: PathBuf) -> Command {
-    let mut cmd = Command::new(exe);
-    no_window(&mut cmd)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    if let Some(root) = env::var_os("SystemRoot") {
-        cmd.current_dir(root);
-    }
-    cmd
 }
 
 struct OwnedHandle(HANDLE);
@@ -130,12 +110,6 @@ pub(crate) fn detach_console() {
     unsafe { FreeConsole() };
 }
 
-fn system32_path(exe: &str) -> PathBuf {
-    let root =
-        env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
-    root.join("System32").join(exe)
-}
-
 pub(crate) enum ElevationOutcome {
     Completed { exit_code: u32 },
     Declined,
@@ -146,8 +120,8 @@ fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-// Why: CommandLineToArgvW quoting — the child reconstructs argv from this one
-// string.
+// Why: Windows reconstructs argv from one command-line string using
+// CommandLineToArgvW quoting.
 fn quote_arg(arg: &str) -> String {
     if !arg.is_empty() && !arg.contains([' ', '\t', '"']) {
         return arg.to_owned();

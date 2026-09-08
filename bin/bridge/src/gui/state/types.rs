@@ -44,11 +44,17 @@ pub struct GatewayProbeOutcome {
     pub identity: Option<VerifiedIdentity>,
     pub at_unix: u64,
     pub provider_health: Vec<crate::gateway::types::ProviderHealth>,
+    pub credential_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "mirrors StatePayload, the flat wire contract; each flag is a field the GUI reads by name"
+)]
 pub struct AppStateSnapshot {
     pub gateway_url: String,
+    pub gateway_configured: bool,
     pub config_file: String,
     pub pat_file: String,
     pub config_present: bool,
@@ -72,6 +78,8 @@ pub struct AppStateSnapshot {
     pub enabled_hosts: Vec<String>,
     pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     pub provider_health: Vec<crate::gateway::types::ProviderHealth>,
+    pub credential_error: Option<String>,
+    pub startup_faults: Vec<crate::obs::StartupFault>,
 
     pub hosts: HostsState,
 
@@ -82,10 +90,6 @@ pub struct AppStateSnapshot {
 }
 
 impl AppStateSnapshot {
-    // Why: deliberately not `!enabled_hosts.is_empty()` -- an instance may
-    // disable every host, and that empty list is a real answer from a good
-    // manifest, not a missing one. Anything gating on the instance's host
-    // policy must ask this instead.
     pub const fn manifest_synced(&self) -> bool {
         self.last_sync_summary.is_some()
     }

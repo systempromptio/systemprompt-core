@@ -64,8 +64,7 @@ macro_rules! register_artifact_theme {
 }
 
 pub fn active_theme() -> Option<ArtifactTheme> {
-    // Why: `inventory` makes no ordering promise across link units, so sort to
-    // keep one binary rendering the same way run to run.
+    // Why: `inventory` does not guarantee registration iteration order.
     let mut found: Vec<&ArtifactThemeRegistration> =
         inventory::iter::<ArtifactThemeRegistration>().collect();
     found.sort_by_key(|registration| registration.name);

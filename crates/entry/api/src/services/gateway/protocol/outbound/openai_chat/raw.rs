@@ -21,13 +21,6 @@ use systemprompt_models::services::ai::ModelLimits;
 
 use super::super::OutboundCtx;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "re-exported by the feature-gated `test_api` module"
-    )
-)]
 pub fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
         return None;
@@ -50,11 +43,8 @@ pub fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     }
 }
 
-// Why: both spellings, because a caller may send either and the upstream
-// honours whichever it finds. A reasoning model gets the full model-card cap:
-// it bills thought against the same completion budget, so the caller's limit
-// -- which bounds visible output -- starves the turn and it stops on `length`
-// before the tool call is ever emitted.
+// Why: OpenAI reasoning models charge thinking and visible output against the
+// same completion budget.
 fn apply_output_limit(
     obj: &mut Map<String, Value>,
     upstream_model: &str,

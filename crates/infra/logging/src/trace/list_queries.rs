@@ -49,9 +49,6 @@ async fn fetch_trace_rows(pool: &Arc<PgPool>, filter: &TraceListFilter) -> Resul
     let agent_pat = agent_pattern.as_deref();
     let status_lower = filter.status.as_ref().map(|s| s.to_lowercase());
     let status_val = status_lower.as_deref();
-    // Why: also gates out zero-content traces (no AI requests, no MCP calls,
-    // no agent) — bridge housekeeping endpoints mint a log-only trace every
-    // few seconds per connected bridge, drowning real conversations.
     let exclude_system = (!filter.include_system).then_some("1");
     let require_tracked: Option<&str> = None;
 

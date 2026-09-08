@@ -9,24 +9,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod auth;
-mod dispatch;
-mod extract;
-mod rejection;
-
-#[cfg(feature = "test-api")]
-pub mod test_api {
-    pub use super::auth::{ApiKeyPrincipal, AuthedPrincipal, JwtPrincipal, authenticate};
-    pub use super::dispatch::{
-        RejectionError, build_error_response, build_policy_denial, classify_dispatch_error,
-        error_type_for, map_dispatch_error, policy_denial_message,
-    };
-    pub use super::extract::test_api::{
-        RejectionPartial, derive_conversation, enforce_authz_pre_dispatch,
-        optional_gateway_conversation_id, read_gateway_body, require_session_id,
-    };
-    pub use super::rejection::{build_rejection_record, persist_rejection};
-}
+pub mod auth;
+pub mod dispatch;
+pub mod extract;
+pub mod rejection;
 
 pub use dispatch::map_upstream_error;
 pub use extract::{GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential};

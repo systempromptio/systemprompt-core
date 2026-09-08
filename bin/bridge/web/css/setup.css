@@ -177,6 +177,13 @@ body.is-setup-mode .sp-setup {
   color: var(--sp-muted);
   line-height: 1.5;
 }
+.sp-setup__target {
+  margin: var(--sp-space-1-5) 0 0;
+  font-size: clamp(12px, 0.5vw, 17px);
+  color: var(--sp-muted);
+  line-height: 1.5;
+}
+.sp-setup__target--default { color: var(--sp-warn); }
 .sp-setup__pat-link {
   color: var(--sp-accent-text);
   text-decoration: none;

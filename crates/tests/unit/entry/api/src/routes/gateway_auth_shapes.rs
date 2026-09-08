@@ -67,11 +67,11 @@ fn a_dispatch_failure_renders_one_apologetic_line_per_variant() {
 
 #[test]
 fn the_reply_surface_never_names_the_failing_subsystem_to_the_user() {
-    // Under `test-api` the error text is appended so CI failures are
-    // reproducible; the opaque sentence must still lead, because that prefix is
-    // all a production user sees.
-    let rendered = MessagingError::Token("vault credentials expired".to_owned()).user_message();
+    let err = MessagingError::Token("vault credentials expired".to_owned());
 
-    let (opener, _detail) = rendered.split_once(" (").unwrap_or((rendered.as_str(), ""));
-    assert_eq!(opener, "Sorry — something went wrong handling that.");
+    let rendered = err.user_message();
+    assert_eq!(rendered, "Sorry — something went wrong handling that.");
+    assert!(!rendered.contains("vault credentials expired"));
+
+    assert!(err.to_string().contains("vault credentials expired"));
 }

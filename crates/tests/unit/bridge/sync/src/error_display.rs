@@ -45,3 +45,66 @@ fn unauthorized_error_exit_code_is_stable() {
         format!("{:?}", std::process::ExitCode::from(10)),
     );
 }
+
+fn code(actual: std::process::ExitCode) -> String {
+    format!("{actual:?}")
+}
+
+#[test]
+fn an_authentication_failure_carries_the_chain_s_own_exit_code_through_sync() {
+    // Why: sync wraps the credential chain, and a signed-out install (5) has
+    // to stay distinguishable from a transient failure worth retrying (10).
+    // Flattening both onto 1 is what makes an automated retry impossible.
+    use systemprompt_bridge::auth::ChainError;
+    use systemprompt_bridge::auth::providers::AuthFailedSource;
+
+    assert_eq!(
+        code(SyncError::Authentication(ChainError::NoneSucceeded).exit_code()),
+        code(std::process::ExitCode::from(5)),
+    );
+    assert_eq!(
+        code(
+            SyncError::Authentication(ChainError::PreferredTransient {
+                provider: "mtls",
+                source: AuthFailedSource::SignInRequired,
+            })
+            .exit_code()
+        ),
+        code(std::process::ExitCode::from(10)),
+    );
+    assert_eq!(
+        code(
+            SyncError::NoCredential {
+                bin: "systemprompt-bridge"
+            }
+            .exit_code()
+        ),
+        code(std::process::ExitCode::from(5)),
+        "no credential at all reports the same signed-out code as an empty chain"
+    );
+}
+
+#[test]
+fn provisioning_and_elevation_failures_are_plain_failures_that_still_say_why() {
+    let provision = SyncError::Provision(std::io::Error::other(
+        "create /Library/Application Support/ClaudeCode: permission denied",
+    ));
+    let elevation = SyncError::Elevation("the administrator prompt was declined".to_owned());
+
+    for error in [&provision, &elevation] {
+        assert_eq!(
+            code(error.exit_code()),
+            code(std::process::ExitCode::FAILURE),
+            "{error}"
+        );
+    }
+    assert!(
+        provision.to_string().contains("permission denied"),
+        "the underlying io failure reaches the operator verbatim: {provision}"
+    );
+    assert_eq!(
+        elevation.to_string(),
+        "the administrator prompt was declined",
+        "an elevation failure is reported as written, not wrapped in boilerplate"
+    );
+}

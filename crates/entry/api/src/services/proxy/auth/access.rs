@@ -25,14 +25,16 @@ use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider};
 
 use super::challenge::{AuthValidator, ChallengeRequest, challenge_or_error};
 
-pub(crate) struct OAuthRequirement {
-    pub(crate) module: String,
-    pub(crate) required: bool,
-    pub(crate) scopes: Vec<String>,
-    pub(crate) audience: String,
+#[derive(Debug)]
+pub struct OAuthRequirement {
+    pub module: String,
+    pub required: bool,
+    pub scopes: Vec<String>,
+    pub audience: String,
 }
 
-pub(crate) struct AccessValidator;
+#[derive(Debug, Clone, Copy)]
+pub struct AccessValidator;
 
 impl AccessValidator {
     pub(crate) async fn validate(
@@ -46,7 +48,7 @@ impl AccessValidator {
         Self::validate_with_requirement(headers, service_name, &requirement, ctx, req_context)
     }
 
-    pub(crate) fn validate_with_requirement(
+    pub fn validate_with_requirement(
         headers: &HeaderMap,
         service_name: &str,
         requirement: &OAuthRequirement,

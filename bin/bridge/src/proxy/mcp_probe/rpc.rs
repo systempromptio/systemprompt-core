@@ -13,7 +13,7 @@ pub(super) async fn list_tools(
     url: &str,
     bearer: &str,
     session: Option<&str>,
-) -> Vec<McpTool> {
+) -> Result<Vec<McpTool>, RpcError> {
     let initialized = with_session(
         client
             .post(url)
@@ -22,10 +22,11 @@ pub(super) async fn list_tools(
             .header(ACCEPT, "application/json, text/event-stream"),
         session,
     );
-    _ = initialized
+    initialized
         .json(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }))
         .send()
-        .await;
+        .await?
+        .error_for_status()?;
 
     let req = with_session(
         client
@@ -35,23 +36,18 @@ pub(super) async fn list_tools(
             .header(ACCEPT, "application/json, text/event-stream"),
         session,
     );
-    let Ok(resp) = req
+    let resp = req
         .json(&json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }))
         .send()
-        .await
-    else {
-        return Vec::new();
-    };
-    if !resp.status().is_success() {
-        return Vec::new();
-    }
+        .await?
+        .error_for_status()?;
     let content_type = resp
         .headers()
         .get(CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
         .to_owned();
-    let body = resp.text().await.unwrap_or_default();
+    let body = resp.text().await?;
     parse_tools(&content_type, &body)
 }
 
@@ -78,40 +74,48 @@ pub(super) fn initialize_body() -> Value {
     })
 }
 
-fn parse_tools(content_type: &str, body: &str) -> Vec<McpTool> {
-    let Some(value) = parse_jsonrpc(content_type, body) else {
-        return Vec::new();
-    };
-    value
-        .get("result")
-        .and_then(|r| r.get("tools"))
-        .and_then(Value::as_array)
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|t| {
-                    Some(McpTool {
-                        name: t.get("name")?.as_str()?.to_owned(),
-                        description: t
-                            .get("description")
-                            .and_then(Value::as_str)
-                            .map(str::to_owned),
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+#[derive(Debug, thiserror::Error)]
+pub(super) enum RpcError {
+    #[error("MCP tools/list transport: {0}")]
+    Transport(#[from] reqwest::Error),
+    #[error("MCP tools/list response: {0}")]
+    Decode(#[from] serde_json::Error),
+    #[error("MCP tools/list response did not contain a result.tools array")]
+    MissingTools,
 }
 
-fn parse_jsonrpc(content_type: &str, body: &str) -> Option<Value> {
-    if content_type.contains("text/event-stream") {
-        let mut data = String::new();
-        for line in body.lines() {
-            if let Some(rest) = line.strip_prefix("data:") {
-                data.push_str(rest.trim_start());
-            }
-        }
-        serde_json::from_str(&data).ok()
-    } else {
-        serde_json::from_str(body).ok()
+fn parse_tools(content_type: &str, body: &str) -> Result<Vec<McpTool>, RpcError> {
+    #[derive(serde::Deserialize)]
+    struct Tool {
+        name: String,
+        description: Option<String>,
     }
+    let data;
+    let body = if content_type.contains("text/event-stream") {
+        data = body
+            .lines()
+            .filter_map(|line| line.strip_prefix("data:"))
+            .map(str::trim_start)
+            .collect::<Vec<_>>()
+            .join("\n");
+        data.as_str()
+    } else {
+        body
+    };
+    let value: Value = serde_json::from_str(body)?;
+    let tools = value
+        .get("result")
+        .and_then(|value| value.get("tools"))
+        .and_then(Value::as_array)
+        .ok_or(RpcError::MissingTools)?;
+    tools
+        .iter()
+        .map(|value| {
+            let tool: Tool = serde_json::from_value(value.clone())?;
+            Ok(McpTool {
+                name: tool.name,
+                description: tool.description,
+            })
+        })
+        .collect()
 }

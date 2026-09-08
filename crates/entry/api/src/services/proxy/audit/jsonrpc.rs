@@ -30,13 +30,14 @@ struct ToolCallParams {
     arguments: Option<Value>,
 }
 
-pub(crate) struct ToolCallInvocation {
-    pub(super) id: Value,
-    pub(super) tool_name: String,
-    pub(super) arguments: Value,
+#[derive(Debug)]
+pub struct ToolCallInvocation {
+    pub id: Value,
+    pub tool_name: String,
+    pub arguments: Value,
 }
 
-pub(crate) fn parse_tool_call(body: &[u8]) -> Option<ToolCallInvocation> {
+pub fn parse_tool_call(body: &[u8]) -> Option<ToolCallInvocation> {
     let frame: RequestFrame = serde_json::from_slice(body).ok()?;
     if frame.method != TOOLS_CALL_METHOD {
         return None;
@@ -69,12 +70,13 @@ struct ToolCallResult {
     content: Option<Value>,
 }
 
-pub(super) struct ToolCallOutcome {
-    pub(super) output: Option<Value>,
-    pub(super) error_message: Option<String>,
+#[derive(Debug)]
+pub struct ToolCallOutcome {
+    pub output: Option<Value>,
+    pub error_message: Option<String>,
 }
 
-pub(super) fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOutcome> {
+pub fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOutcome> {
     let frame: ResponseFrame = serde_json::from_str(data).ok()?;
     if frame.id.as_ref() != Some(request_id) {
         return None;
@@ -96,7 +98,7 @@ pub(super) fn parse_response_frame(data: &str, request_id: &Value) -> Option<Too
     })
 }
 
-pub(super) fn extract_sse_data(frame: &str) -> Option<String> {
+pub fn extract_sse_data(frame: &str) -> Option<String> {
     let mut data = String::new();
     for line in frame.lines() {
         if let Some(rest) = line.strip_prefix("data:") {

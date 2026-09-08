@@ -37,7 +37,7 @@ pub fn check_bridge_working_dir() -> Check {
                 ),
             );
         }
-        _ = std::fs::remove_file(&probe);
+        crate::fsutil::remove_leftover_file(&probe);
     }
     Check::ok(
         "bridge working dir",
@@ -49,8 +49,6 @@ pub fn check_bridge_working_dir() -> Check {
     )
 }
 
-// Why: the Windows org-plugins root is admin-write-only by default; `install
-// --apply` widens its ACL for unelevated syncs.
 pub fn check_org_plugins_writable() -> Check {
     let Some(loc) = paths::org_plugins_effective() else {
         return Check::warn("org-plugins writable", "no org-plugins location resolvable");
@@ -68,7 +66,7 @@ pub fn check_org_plugins_writable() -> Check {
     let probe = loc.path.join(".sp-bridge-writeprobe");
     match std::fs::write(&probe, b"") {
         Ok(()) => {
-            _ = std::fs::remove_file(&probe);
+            crate::fsutil::remove_leftover_file(&probe);
             Check::ok(
                 "org-plugins writable",
                 format!("{} is writable by the current user", loc.path.display()),

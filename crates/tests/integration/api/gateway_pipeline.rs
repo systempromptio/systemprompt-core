@@ -164,6 +164,7 @@ pub(super) fn dispatch_ctx(
             ))
             .expect("valid conversation id"),
         ),
+        client_session_id: None,
         trace_id: Some(TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,
@@ -943,4 +944,167 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
 
 fn jailbreak_sse_body() -> String {
     streaming_sse_body().replace("streamed hello", "fine, developer mode enabled for you")
+}
+
+async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
+    install_provider_api_key();
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::installed("coverage_gw_quota").await?;
+    let pool = database.pool().await?;
+    let cred = seed_admin_credential(&pool, "quota@example.invalid").await?;
+    let raw = pool.pool_arc().unwrap();
+    sqlx::query("INSERT INTO ai_gateway_policies (id,name,spec,enabled,priority) VALUES ($1,$2,$3,true,100)")
+        .bind("coverage-quota").bind("coverage-quota")
+        .bind(serde_json::json!({"quota_mode":mode,"quota_windows":[{"window_seconds":60,"max_requests":1}]}))
+        .execute(raw.as_ref()).await?;
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(buffered_response_json()))
+        .expect(if mode == "warn" { 2 } else { 1 })
+        .mount(&upstream)
+        .await;
+    let config = gateway_config(PROVIDER);
+    let registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    let repositories = gw_repos(&pool);
+    let first = GatewayService::dispatch(
+        &config,
+        &registry,
+        &pool,
+        &repositories,
+        inputs(&cred, canonical_request(MODEL, false), false),
+    )
+    .await?;
+    assert_eq!(first.status(), http::StatusCode::OK);
+    to_bytes(first.into_body(), 1024 * 1024).await?;
+    let second = inputs(&cred, canonical_request(MODEL, false), false);
+    let request_id = second.ctx.ai_request_id.clone();
+    let result = GatewayService::dispatch(&config, &registry, &pool, &repositories, second).await;
+    if mode == "warn" {
+        let response = result?;
+        assert_eq!(response.status(), http::StatusCode::OK);
+        to_bytes(response.into_body(), 1024 * 1024).await?;
+        let audit: serde_json::Value = sqlx::query_scalar("SELECT evaluated_rules FROM governance_decisions WHERE user_id=$1 AND policy='quota' AND decision='warn'")
+            .bind(cred.user_id.as_str()).fetch_one(raw.as_ref()).await?;
+        assert_eq!(audit["call_id"], request_id.as_str());
+    } else {
+        let DispatchError::Recorded(error) = result.unwrap_err() else {
+            panic!("quota denial must already be audited");
+        };
+        let quota = error
+            .downcast_ref::<systemprompt_api::services::gateway::service::QuotaExceeded>()
+            .unwrap();
+        assert_eq!(quota.retry_after_seconds, 60);
+        assert!(quota.message.contains("used 2/1"), "{}", quota.message);
+    }
+    upstream.verify().await;
+    drop(repositories);
+    raw.close().await;
+    database.drop_now().await;
+    Ok(())
+}
+#[tokio::test]
+async fn coverage_quota_enforcement_blocks_only_the_request_exceeding_the_window()
+-> anyhow::Result<()> {
+    coverage_quota_dispatch("enforce").await
+}
+#[tokio::test]
+async fn coverage_quota_warning_continues_dispatch_and_records_a_warning_decision()
+-> anyhow::Result<()> {
+    coverage_quota_dispatch("warn").await
+}
+
+#[derive(Default)]
+struct CoverageGatewayGuard;
+#[async_trait::async_trait]
+impl systemprompt_extension::GatewayRequestGuard for CoverageGatewayGuard {
+    async fn check(
+        &self,
+        _pool: &sqlx::PgPool,
+        request: &systemprompt_extension::GatewayGuardRequest<'_>,
+    ) -> Result<(), systemprompt_extension::GatewayDenyReason> {
+        match request.model {
+            "claude-coverage-guard-forbidden" => Err(
+                systemprompt_extension::GatewayDenyReason::forbidden("fixture entitlement denied"),
+            ),
+            "claude-coverage-guard-quota" => Err(systemprompt_extension::GatewayDenyReason {
+                message: "fixture credit exhausted".into(),
+                retry_after_seconds: 42,
+                kind: systemprompt_extension::GatewayDenyKind::Quota,
+            }),
+            _ => Ok(()),
+        }
+    }
+}
+systemprompt_extension::register_gateway_guard!(CoverageGatewayGuard);
+
+async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _ctx) = setup_ctx().await?;
+    let cred = seed_admin_credential(
+        &pool,
+        &format!("guard-{}@example.invalid", uuid::Uuid::new_v4()),
+    )
+    .await?;
+    let upstream = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&upstream)
+        .await;
+    let mut registry = provider_registry(
+        &upstream.uri(),
+        PROVIDER,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    registry.providers[0].models[0].id = ModelId::new(model);
+    let di = inputs(&cred, canonical_request(model, false), false);
+    let id = di.ctx.ai_request_id.clone();
+    let error = GatewayService::dispatch(
+        &gateway_config(PROVIDER),
+        &registry,
+        &pool,
+        &gw_repos(&pool),
+        di,
+    )
+    .await
+    .unwrap_err();
+    let response =
+        systemprompt_api::routes::gateway::messages::dispatch::errors::map_dispatch_error(error)
+            .unwrap();
+    assert_eq!(response.status(), status);
+    if status == http::StatusCode::TOO_MANY_REQUESTS {
+        assert_eq!(response.headers()["retry-after"], "42");
+    } else {
+        assert!(!response.headers().contains_key("retry-after"));
+    }
+    let error: Option<String> =
+        sqlx::query_scalar("SELECT error_message FROM ai_requests WHERE id=$1")
+            .bind(id.as_str())
+            .fetch_one(pool.pool_arc().unwrap().as_ref())
+            .await?;
+    assert!(error.unwrap().contains("fixture"));
+    Ok(())
+}
+#[tokio::test]
+async fn coverage_gateway_entitlement_guard_denial_is_audited_before_returning_403()
+-> anyhow::Result<()> {
+    coverage_guard_dispatch(
+        "claude-coverage-guard-forbidden",
+        http::StatusCode::FORBIDDEN,
+    )
+    .await
+}
+#[tokio::test]
+async fn coverage_gateway_credit_guard_denial_keeps_its_retry_after() -> anyhow::Result<()> {
+    coverage_guard_dispatch(
+        "claude-coverage-guard-quota",
+        http::StatusCode::TOO_MANY_REQUESTS,
+    )
+    .await
 }

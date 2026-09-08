@@ -22,13 +22,6 @@ use super::super::super::canonical_response::{
 
 pub(super) const STREAM_CHUNK_ID: &str = "chatcmpl-systemprompt-stream";
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut text = String::new();
     let mut tool_calls: Vec<Value> = Vec::new();
@@ -92,8 +85,8 @@ pub(super) fn usage_object(usage: &CanonicalUsage) -> Value {
         "completion_tokens": usage.output_tokens,
         "total_tokens": usage.input_tokens + usage.output_tokens,
         "prompt_tokens_details": { "cached_tokens": usage.cache_read_tokens },
-        // Why: a breakdown of completion_tokens, per the OpenAI contract --
-        // adding it to the totals above would double-count every thinking turn.
+        // Why: OpenAI includes reasoning tokens in completion_tokens; they are not an additional
+        // total.
         "completion_tokens_details": { "reasoning_tokens": usage.reasoning_tokens },
     })
 }
@@ -104,13 +97,6 @@ pub(super) fn current_unix_ts() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
 pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let delta: Value = match event {
         CanonicalEvent::MessageStart { .. } => json!({ "role": "assistant", "content": "" }),
@@ -177,9 +163,6 @@ pub(super) fn render_chunk(
 
 fn render_error_frame(msg: &str) -> Bytes {
     let escaped = msg.replace('\\', "\\\\").replace('"', "\\\"");
-    // Why: an OpenAI-SDK client reads until the `[DONE]` sentinel, so an error
-    // frame without one leaves the turn open and the client waiting on a
-    // stream the gateway has already finished.
     Bytes::from(format!(
         "data: {{\"error\":{{\"type\":\"upstream_error\",\"message\":\"{escaped}\"}}}}\n\n\
          data: [DONE]\n\n"

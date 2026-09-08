@@ -13,8 +13,16 @@ use toml_edit::{DocumentMut, Item, Value};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigWriteError {
+    #[error(
+        "gateway changed while signing trust was being established: {0}; retry against the current gateway"
+    )]
+    GatewayChanged(String),
     #[error("config path unresolvable on this platform")]
     PathUnresolvable,
+    #[error("config key {key}: expected a nonempty path through TOML tables")]
+    InvalidPath { key: String },
+    #[error("config {path} changed during the edit; retry with the current contents")]
+    ConcurrentEdit { path: PathBuf },
     #[error("read {path}: {source}")]
     Read {
         path: PathBuf,
@@ -23,7 +31,7 @@ pub enum ConfigWriteError {
     #[error("{path} is not valid TOML: {source}")]
     Malformed {
         path: PathBuf,
-        source: toml_edit::TomlError,
+        source: Box<toml_edit::TomlError>,
     },
     #[error("write {path}: {source}")]
     Write {
@@ -32,30 +40,74 @@ pub enum ConfigWriteError {
     },
 }
 
-pub fn edit(mutate: impl FnOnce(&mut DocumentMut)) -> Result<(), ConfigWriteError> {
+pub fn edit(
+    mutate: impl FnOnce(&mut DocumentMut) -> Result<(), ConfigWriteError>,
+) -> Result<(), ConfigWriteError> {
     let path = super::config_path().ok_or(ConfigWriteError::PathUnresolvable)?;
     edit_file(&path, mutate)
 }
 
 pub fn edit_file(
     path: &Path,
-    mutate: impl FnOnce(&mut DocumentMut),
+    mutate: impl FnOnce(&mut DocumentMut) -> Result<(), ConfigWriteError>,
 ) -> Result<(), ConfigWriteError> {
-    let existing = crate::fsutil::read_optional(path)
-        .map_err(|source| ConfigWriteError::Read {
-            path: path.to_owned(),
+    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty())
+        && !parent
+            .try_exists()
+            .map_err(|source| ConfigWriteError::Read {
+                path: parent.to_owned(),
+                source,
+            })?
+    {
+        crate::fsutil::create_dir_all_mode_0700(parent).map_err(|source| {
+            ConfigWriteError::Write {
+                path: parent.to_owned(),
+                source,
+            }
+        })?;
+    }
+    let lock_path = path.with_extension("toml.lock");
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true).write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let lock = options
+        .open(&lock_path)
+        .map_err(|source| ConfigWriteError::Write {
+            path: lock_path.clone(),
             source,
-        })?
-        .unwrap_or_default();
+        })?;
+    lock.lock().map_err(|source| ConfigWriteError::Write {
+        path: lock_path,
+        source,
+    })?;
+    let existing = crate::fsutil::read_optional(path).map_err(|source| ConfigWriteError::Read {
+        path: path.to_owned(),
+        source,
+    })?;
 
     let mut doc: DocumentMut = existing
+        .as_deref()
+        .unwrap_or("")
         .parse()
         .map_err(|source| ConfigWriteError::Malformed {
             path: path.to_owned(),
-            source,
+            source: Box::new(source),
         })?;
 
-    mutate(&mut doc);
+    mutate(&mut doc)?;
+    let current = crate::fsutil::read_optional(path).map_err(|source| ConfigWriteError::Read {
+        path: path.to_owned(),
+        source,
+    })?;
+    if current != existing {
+        return Err(ConfigWriteError::ConcurrentEdit {
+            path: path.to_owned(),
+        });
+    }
 
     crate::fsutil::atomic_write_0600(path, doc.to_string().as_bytes()).map_err(|source| {
         ConfigWriteError::Write {
@@ -65,9 +117,15 @@ pub fn edit_file(
     })
 }
 
-pub fn set(doc: &mut DocumentMut, path: &[&str], value: impl Into<Value>) {
+pub fn set(
+    doc: &mut DocumentMut,
+    path: &[&str],
+    value: impl Into<Value>,
+) -> Result<(), ConfigWriteError> {
     let Some((leaf, parents)) = path.split_last() else {
-        return;
+        return Err(ConfigWriteError::InvalidPath {
+            key: path.join("."),
+        });
     };
     let mut table = doc.as_table_mut();
     for key in parents {
@@ -75,39 +133,56 @@ pub fn set(doc: &mut DocumentMut, path: &[&str], value: impl Into<Value>) {
             .entry(key)
             .or_insert_with(|| Item::Table(toml_edit::Table::new()));
         let Some(next) = entry.as_table_mut() else {
-            return;
+            return Err(ConfigWriteError::InvalidPath {
+                key: path.join("."),
+            });
         };
         table = next;
     }
     let mut next = value.into();
-    // Why: replacing the item outright would discard the whitespace and any
-    // comment the operator wrote against this key.
     if let Some(existing) = table.get_mut(leaf).and_then(Item::as_value_mut) {
         *next.decor_mut() = existing.decor().clone();
         *existing = next;
-        return;
+        return Ok(());
     }
     table.insert(leaf, Item::Value(next));
+    Ok(())
 }
 
-pub fn set_if_absent(doc: &mut DocumentMut, path: &[&str], value: impl Into<Value>) {
-    if get(doc, path).is_none() {
-        set(doc, path, value);
+pub fn set_if_absent(
+    doc: &mut DocumentMut,
+    path: &[&str],
+    value: impl Into<Value>,
+) -> Result<(), ConfigWriteError> {
+    if path.is_empty() {
+        return Err(ConfigWriteError::InvalidPath { key: String::new() });
     }
+    if get(doc, path).is_none() {
+        set(doc, path, value)?;
+    }
+    Ok(())
 }
 
-pub fn remove(doc: &mut DocumentMut, path: &[&str]) {
+pub fn remove(doc: &mut DocumentMut, path: &[&str]) -> Result<(), ConfigWriteError> {
     let Some((leaf, parents)) = path.split_last() else {
-        return;
+        return Err(ConfigWriteError::InvalidPath {
+            key: path.join("."),
+        });
     };
     let mut table = doc.as_table_mut();
     for key in parents {
-        let Some(next) = table.get_mut(key).and_then(Item::as_table_mut) else {
-            return;
+        let Some(entry) = table.get_mut(key) else {
+            return Ok(());
         };
+        let next = entry
+            .as_table_mut()
+            .ok_or_else(|| ConfigWriteError::InvalidPath {
+                key: path.join("."),
+            })?;
         table = next;
     }
     table.remove(leaf);
+    Ok(())
 }
 
 #[must_use]

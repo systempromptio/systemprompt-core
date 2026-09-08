@@ -3,101 +3,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod policy;
+mod report;
 
 use crate::auth::cache;
 use crate::config;
 use crate::config::paths::{self, Scope};
 use crate::gateway::GatewayClient;
-use crate::verdict::{Tone, Verdict};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CheckLevel {
-    Ok,
-    Warn,
-    Fail,
-    Info,
-}
+use self::report::Report;
+pub use self::report::{CheckLevel, CheckLine, ValidationCode, ValidationReport};
 
-impl CheckLevel {
-    #[must_use]
-    pub const fn tone(self) -> Tone {
-        match self {
-            Self::Ok => Tone::Ok,
-            Self::Warn => Tone::Warn,
-            Self::Fail => Tone::Err,
-            Self::Info => Tone::Unknown,
-        }
-    }
-}
-
-/// How a validation report reads as a whole.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
-pub enum ValidationCode {
-    Healthy,
-    Attention,
-    Failing,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct CheckLine {
-    pub level: CheckLevel,
-    pub label: String,
-    pub value: String,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ValidationReport {
-    pub lines: Vec<CheckLine>,
-    pub any_failed: bool,
-}
-
-impl ValidationReport {
-    #[must_use]
-    pub fn verdict(&self) -> Verdict<ValidationCode> {
-        let tone = Tone::fold(self.lines.iter().map(|l| l.level.tone()), Tone::Ok);
-        let code = match tone {
-            Tone::Err => ValidationCode::Failing,
-            Tone::Warn => ValidationCode::Attention,
-            Tone::Ok | Tone::Unknown | Tone::Probing => ValidationCode::Healthy,
-        };
-        Verdict::new(tone, code)
-    }
-
-    #[must_use]
-    pub fn rendered(&self) -> String {
-        let mut s = format!("{} validate\n", crate::brand::brand().binary_name);
-        for line in &self.lines {
-            let prefix = match line.level {
-                CheckLevel::Ok => "  [ok]   ",
-                CheckLevel::Warn => "  [warn] ",
-                CheckLevel::Fail => "  [fail] ",
-                CheckLevel::Info => "         ",
-            };
-            s.push_str(prefix);
-            s.push_str(&line.label);
-            s.push_str(": ");
-            s.push_str(&line.value);
-            s.push('\n');
-        }
-        if self.any_failed {
-            s.push_str("\nResult: FAIL — one or more critical checks did not pass.\n");
-        } else {
-            s.push_str("\nResult: OK\n");
-        }
-        s
-    }
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-mod policy;
-
-// Why: `BridgeContext` sits above `validate`, so this takes what it reads.
-pub async fn run(http: &reqwest::Client, unpersisted_tofu_pubkey: &AtomicBool) -> ValidationReport {
+pub async fn run(http: &reqwest::Client) -> ValidationReport {
     let mut report = Report::new();
     check_binary(&mut report);
     check_org_plugins(&mut report);
@@ -105,7 +23,7 @@ pub async fn run(http: &reqwest::Client, unpersisted_tofu_pubkey: &AtomicBool) -
     policy::check_managed_policy(&mut report);
     check_gateway(&mut report, http).await;
     check_cached_token(&mut report);
-    check_pinned_pubkey(&mut report, unpersisted_tofu_pubkey);
+    check_pinned_pubkey(&mut report);
     report.into_report()
 }
 
@@ -170,7 +88,9 @@ fn check_last_sync(report: &mut Report, meta: &std::path::Path) {
 }
 
 async fn check_gateway(report: &mut Report, http: &reqwest::Client) {
-    let cfg = config::load();
+    let Some(cfg) = loaded_config(report) else {
+        return;
+    };
     let Some(url) = cfg.gateway_url.as_ref() else {
         report.fail("gateway_url", "not set in config");
         return;
@@ -183,14 +103,28 @@ async fn check_gateway(report: &mut Report, http: &reqwest::Client) {
     }
 }
 
+fn loaded_config(report: &mut Report) -> Option<config::Config> {
+    match config::load() {
+        Ok(cfg) => Some(cfg),
+        Err(e) => {
+            report.fail("config", &e.to_string());
+            None
+        },
+    }
+}
+
 fn check_cached_token(report: &mut Report) {
-    let gateway = config::gateway_url_or_default(&config::load());
-    match cache::read_valid(&gateway) {
-        Some(out) => report.ok(
+    let Some(cfg) = loaded_config(report) else {
+        return;
+    };
+    let gateway = config::gateway_url_or_default(&cfg);
+    match cache::read_for(&cfg, &gateway, 30) {
+        Err(e) => report.fail("cached token", &e.to_string()),
+        Ok(Some(out)) => report.ok(
             "cached token",
             &format!("ttl={}s, len={}", out.ttl, out.token.len()),
         ),
-        None => report.warn(
+        Ok(None) => report.warn(
             "cached token",
             "absent, expired, or minted for another gateway — helper will probe \
              providers on next run",
@@ -198,19 +132,24 @@ fn check_cached_token(report: &mut Report) {
     }
 }
 
-fn check_pinned_pubkey(report: &mut Report, unpersisted_tofu_pubkey: &AtomicBool) {
-    match config::pinned_pubkey() {
-        Some(k) => report.ok(
+fn check_pinned_pubkey(report: &mut Report) {
+    match config::pinned_pubkey_state() {
+        Err(e) => report.fail("manifest pubkey", &e.to_string()),
+        Ok(config::PinnedPubkeyState::Pinned { key, source }) => report.ok(
             "pinned manifest pubkey",
-            &format!("{} chars", k.as_str().len()),
+            &format!("{} chars, from the {}", key.as_str().len(), source.label()),
         ),
-        None if unpersisted_tofu_pubkey.load(Ordering::Relaxed) => report.fail(
+        Ok(config::PinnedPubkeyState::StaleForGateway {
+            pinned_for,
+            current,
+        }) => report.fail(
             "pinned manifest pubkey",
-            "fetched over the wire but not written to the config — the pin is not in effect and \
-             the next sync will trust any key. Fix the config write (see the activity log for the \
-             underlying error), then rerun `sync`",
+            &format!(
+                "pinned for {pinned_for} but the gateway is {current} — the pin is not in effect; \
+                 explicitly pin the key with `install --apply --pubkey <base64>`"
+            ),
         ),
-        None => report.fail(
+        Ok(config::PinnedPubkeyState::Unpinned) => report.fail(
             "pinned manifest pubkey",
             "not pinned — provide it out of band via MDM (`install --apply --pubkey <base64>`) or \
              rerun `sync --allow-tofu`",
@@ -251,53 +190,4 @@ pub fn count_installed_plugins(org_plugins: &std::path::Path) -> Option<usize> {
         }
     }
     Some(n)
-}
-
-struct Report {
-    any_failed: bool,
-    lines: Vec<CheckLine>,
-}
-
-impl Report {
-    const fn new() -> Self {
-        Self {
-            any_failed: false,
-            lines: Vec::new(),
-        }
-    }
-    pub(super) fn ok(&mut self, label: &str, value: &str) {
-        self.lines.push(CheckLine {
-            level: CheckLevel::Ok,
-            label: label.into(),
-            value: value.into(),
-        });
-    }
-    pub(super) fn warn(&mut self, label: &str, value: &str) {
-        self.lines.push(CheckLine {
-            level: CheckLevel::Warn,
-            label: label.into(),
-            value: value.into(),
-        });
-    }
-    pub(super) fn fail(&mut self, label: &str, value: &str) {
-        self.any_failed = true;
-        self.lines.push(CheckLine {
-            level: CheckLevel::Fail,
-            label: label.into(),
-            value: value.into(),
-        });
-    }
-    pub(super) fn info(&mut self, label: &str, value: &str) {
-        self.lines.push(CheckLine {
-            level: CheckLevel::Info,
-            label: label.into(),
-            value: value.into(),
-        });
-    }
-    fn into_report(self) -> ValidationReport {
-        ValidationReport {
-            lines: self.lines,
-            any_failed: self.any_failed,
-        }
-    }
 }

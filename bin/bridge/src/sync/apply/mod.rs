@@ -15,7 +15,6 @@ pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 const LEGACY_SYNTHETIC_PLUGIN: &str = "systemprompt-managed";
 
 use crate::config::paths::{self, OrgPluginsLocation};
-use crate::config::{self as config};
 use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
@@ -49,10 +48,10 @@ pub(crate) async fn apply_manifest(
     };
     let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
 
-    _ = fs::remove_dir_all(&staging_root);
+    crate::fsutil::remove_leftover_dir(&staging_root);
     prune_legacy_state();
 
-    let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
+    let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let manifest_for_write = manifest_with_servers(manifest, mcp_servers.clone());
     write_user(&meta_dir, manifest.user.as_ref())?;
     write_mcp_servers(&meta_dir, &mcp_servers)?;
@@ -62,6 +61,7 @@ pub(crate) async fn apply_manifest(
 
     let plugin_mcp_servers = report.mcp_servers_by_plugin.clone();
     let ctx = HostSyncCtx {
+        policy_store: &bridge.policy_store,
         manifest: &manifest_for_write,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -114,9 +114,6 @@ fn prune_legacy_state() {
     }
 }
 
-// Why: the synthetic aggregate plugin and the old metadata markers were last
-// written by 0.24.0; this one-way prune can go once 0.36.0 is the oldest
-// bridge still updating itself.
 fn remove_legacy_dir(path: &Path, what: &str) {
     if !path.exists() {
         return;
@@ -138,21 +135,18 @@ fn remove_legacy_dir(path: &Path, what: &str) {
     }
 }
 
-// Why: a Cowork client on a different host cannot reach a loopback MCP URL, so
-// it is re-pointed at the configured gateway host.
-fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> {
-    let cfg = config::load();
-    let Some(gateway) = cfg.gateway_url.as_ref() else {
-        return servers.to_vec();
-    };
+fn rewrite_loopback_urls(
+    servers: &[ManagedMcpServer],
+    gateway: &ValidatedUrl,
+) -> Vec<ManagedMcpServer> {
     let Ok(gateway_url) = Url::parse(gateway.as_str()) else {
         return servers.to_vec();
     };
     let (Some(raw_gw_host), gw_scheme) = (gateway_url.host_str(), gateway_url.scheme()) else {
         return servers.to_vec();
     };
-    // Why: Cowork's MCP URL validator rejects literal `localhost` for non-HTTPS
-    // connectors — only `127.0.0.1` passes.
+    // Why: Cowork's non-HTTPS MCP validator accepts 127.0.0.1 but rejects literal
+    // localhost.
     let gw_host = if raw_gw_host.eq_ignore_ascii_case("localhost") {
         "127.0.0.1"
     } else {
@@ -225,7 +219,7 @@ fn manifest_with_servers(base: &SignedManifest, servers: Vec<ManagedMcpServer>) 
     next
 }
 
-fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
+pub fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
     fs::create_dir_all(root).map_err(|e| ApplyError::Io {
         context: format!("create {}", root.display()),
         source: e,
@@ -242,7 +236,7 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
         context: "resolve bridge staging dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
     })?;
-    _ = fs::remove_dir_all(&staging_root);
+    crate::fsutil::remove_leftover_dir(&staging_root);
     fs::create_dir_all(&staging_root).map_err(|e| ApplyError::Io {
         context: format!("create staging at {}", staging_root.display()),
         source: e,
@@ -258,7 +252,7 @@ fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
         .find(|path| path.is_file())
 }
 
-fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError> {
+pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError> {
     let path = meta_dir.join(paths::USER_FRAGMENT);
     let bytes = match user {
         Some(u) => serde_json::to_vec_pretty(u).map_err(|e| ApplyError::Serialize {
@@ -273,7 +267,7 @@ fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError
     })
 }
 
-fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+pub fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
     let path = meta_dir.join(paths::MCP_SERVERS_FRAGMENT);
     let bytes = serde_json::to_vec_pretty(servers).map_err(|e| ApplyError::Serialize {
         what: "managed MCP servers".into(),
@@ -284,6 +278,3 @@ fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<()
         source: e,
     })
 }
-
-#[path = "apply_test_api.rs"]
-pub mod test_api;

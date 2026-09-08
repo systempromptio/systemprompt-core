@@ -16,7 +16,7 @@ fn persistent_writer_mirrors_appends_and_rolls_over() {
     let temp = tempfile::tempdir().unwrap();
     let log = ActivityLog::new();
     temp_env::with_var("XDG_STATE_HOME", Some(temp.path().as_os_str()), || {
-        install_persistent_writer(&log);
+        install_persistent_writer(&log).expect("install persistent activity writer");
         log.append("first persistent line");
     });
 

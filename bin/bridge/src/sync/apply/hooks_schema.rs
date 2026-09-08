@@ -114,10 +114,6 @@ impl HooksFile {
         Self { hooks }
     }
 
-    // Why: UserPromptSubmit *and* Stop: the first surfaces a message at the
-    // natural boundary before the agent acts, the second catches an agent that
-    // is mid-task and would otherwise not reach a prompt for minutes. Stop is
-    // async so a drain never delays the turn ending.
     pub(crate) fn append_comms_hooks(&mut self, command: &str) {
         for (event, is_async) in [("UserPromptSubmit", false), ("Stop", true)] {
             self.hooks

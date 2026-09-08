@@ -9,9 +9,6 @@
 
 use std::path::Path;
 
-// Why: an AppleScript string literal cannot contain a raw newline, and every
-// caller passes a multi-line `set -e` shell script — newlines must become the
-// literal's `\n` escape or osascript rejects the whole program.
 #[must_use]
 pub fn applescript_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 4);

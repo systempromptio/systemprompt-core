@@ -63,19 +63,11 @@ pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
 pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
 
-// Why: an env var, not a profile field. The same profile YAML is used on the
-// operator's machine (must route to the remote tenant) and inside the container
-// (must not — it is the tenant); the document is byte-identical in both, so
-// only the environment can tell.
 pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
 
-// Why: fallback so tenants deployed before `DEPLOYMENT_HOST_ENV` existed keep
-// working without a redeploy. Fly injects it; nothing we generate does.
+// Why: Fly injects `FLY_APP_NAME` into deployed machines.
 const FLY_HOST_ENV: &str = "FLY_APP_NAME";
 
-// Why: `DEPLOYMENT_HOST_ENV` wins over the Fly marker because the one we
-// generate is the one an operator can steer; takes a lookup so tests never
-// touch process-global state.
 pub fn deployment_host(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
     [DEPLOYMENT_HOST_ENV, FLY_HOST_ENV].iter().find_map(|name| {
         lookup(name)
@@ -84,19 +76,10 @@ pub fn deployment_host(lookup: impl Fn(&str) -> Option<String>) -> Option<String
     })
 }
 
-// Why: a process that answers `false` here will try to reach its deployment
-// host over the network. Answering `false` while actually on that host is what
-// makes a server attempt to route a command to itself, so any one marker is
-// proof and only their absence means "elsewhere".
 pub fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
     deployment_host(lookup).is_some()
 }
 
-// Why: both spawners clear the child environment and rebuild it from an
-// allowlist, and both need exactly this set. It lives here so the two cannot
-// diverge. HOSTNAME rides along because a child resolves its own instance id
-// from it on a cloud target; without it the child refuses to boot while the
-// parent runs.
 pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
     let mut env: Vec<(String, String)> = [
         DEPLOYMENT_HOST_ENV,
@@ -169,9 +152,8 @@ fn spawn_on_this_thread(cmd: &mut Command) -> std::io::Result<u32> {
     Ok(pid)
 }
 
-// Why: pgid 0 makes the child its own group leader (pgid == pid), so the
-// supervisor can signal the whole group on shutdown and reach any helper
-// processes the child spawns, not just the child itself.
+// Why: On Unix, process group 0 assigns the child's PID as its process group
+// ID.
 #[cfg(unix)]
 pub fn place_in_own_process_group(command: &mut Command) {
     use std::os::unix::process::CommandExt;
@@ -216,13 +198,9 @@ pub fn environ_identifies_child(environ: &[u8], name_key: &str, service_name: &s
     has_marker && has_name
 }
 
-// Why: a `KERN_PROCARGS2` blob is `argc`, the exec path, NUL padding, `argc`
-// argv entries, then the environment — all NUL-delimited in one buffer. The
-// argv entries have to be skipped by count rather than searched past: an entry
-// is matched whole by `environ_identifies_child`, so a command line such as
-// `env MCP_SERVICE_ID=files …` would otherwise read as a marked environment and
-// get an unrelated process signalled. Kept here rather than in `darwin` so the
-// parse is unit-testable on every platform.
+// Why: macOS `KERN_PROCARGS2` stores argc, exec path, NUL padding, argv, then
+// environ. Skip argv by argc: argument strings can themselves look like
+// environment entries.
 #[must_use]
 pub fn environ_from_procargs2(blob: &[u8]) -> Option<&[u8]> {
     const ARGC_LEN: usize = size_of::<i32>();

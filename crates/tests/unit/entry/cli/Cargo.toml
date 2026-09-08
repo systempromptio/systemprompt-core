@@ -44,6 +44,7 @@ systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-runtime = { workspace = true }
+systemprompt-marketplace = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 rmcp = { workspace = true }
 systemprompt-mcp = { workspace = true }

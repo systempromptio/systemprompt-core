@@ -1,5 +1,65 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+Every production crate now compiles in exactly one shape. The out-of-tree test
+workspace had been reaching private items through Cargo features (`test-api`,
+`slack/test`, `teams/test`, `test-jwks-insecure-scheme`), `test_api` re-export
+modules, delegating wrappers and about a hundred `unreachable_pub`
+suppressions. All of that is gone: the items tests need are public in honest
+`pub` modules, collaborators are injected through constructors or config, and
+test conveniences live in the test workspace.
+
+Two other threads run through the release. Governance gained a recovery path:
+a prompt that trips the secret scan can be sanitized and resumed rather than
+only refused, external MCP tool calls are governed and audited like every
+other forwarded call, and a policy id the engine does not recognise is refused
+at start-up instead of silently skipped. And running a non-Claude model
+through Claude Code on the gateway surfaced a set of tool-schema and
+model-discovery defects, each of which failed a whole request or a whole tool
+list.
+
+### Added
+
+- **Gateway:** a `/v1/messages` request whose `metadata.user_id` names a Claude Code session (`…_session_<uuid>`) lands in the context that session's hook events already write to (`ContextId::derived_from_client_session`, equal to `derived_from_session` over the bare uuid). The gateway conversation id is unchanged, so thought-signature hydration stays per thread. New `ClientSessionId` identifier and `CanonicalRequest::client_session_id()`.
+- **AI:** `ai_requests.client_session_id` and `ai_requests.request_kind` (`turn` | `probe` | `utility`; `probe` when `max_tokens <= 1`) with migration 021, on `AiRequestRecord` as `client_session_id` and `request_kind: RequestKind`.
+- **Security:** located secret findings and an opt-in prompt-recovery evaluator that resumes the configured policy chain after verified sanitization, without recharging the policies it already passed. `PolicyContext::with_input` borrows a context with a substituted input and `SECRET_SCAN_ID` names the built-in secret-scan policy. Deny-only evaluation is unchanged.
+- **MCP:** external MCP session bindings are persisted in PostgreSQL with caller and credential checks, an expiry and primary-only reads, so a session survives a replica change and cannot be reused by another caller.
+- **Models:** `TeamsAppConfig.endpoints` (`TeamsEndpoints`) selects the Bot Framework OpenID-configuration and token endpoints, defaulting to the public cloud, so a sovereign-cloud tenant can point a Teams app at its own login host.
+- **Slack / Teams:** `SlackClient::with_base_url`, `SlackClient::with_users_info_url`, `TeamsClient::with_endpoints`, `ActivityTokenVerifier::with_openid_url` and `TokenProvider::with_token_url` are ordinary constructors.
+
+### Changed
+
+- **Agent:** `ContextRepository::ensure_context` bumps `updated_at` and fills a missing `session_id` on a repeat call instead of `DO NOTHING`; `name` and `kind` are still never overwritten.
+- **Security:** a governance policy id that no registered policy claims is rejected when the engine is built, rather than passing as an empty chain. A profile naming a policy that does not exist now fails the boot it was meant to govern.
+- **Security:** JWKS fetches accept `http://` only for loopback hosts (RFC 8252 §8.3); every other issuer stays HTTPS-only.
+- **API:** Teams inbound resolves Bot Framework endpoints from `TeamsAppConfig.endpoints` instead of a feature-gated environment read. `MessagingError::user_message` is always the opaque sentence; the detail remains on `Display`.
+- **API:** the bridge plugin-file route builds the marketplace catalogue once per request instead of twice, serving both the authorisation and the bundle from a cached load; the manifest route shares the same cached path. Each rebuild walked and hashed every skill on disk.
+- **CLI:** `admin agents tools` and `plugins mcp tools` share one `commands::shared::mcp_tools` probe module; `runner::{routing, profile_routing}` are public.
+- **API, CLI, MCP, Agent:** gateway protocol codecs, gateway service stages, stream-tap accumulator, proxy engine/auth/resolver, server lifecycle/shutdown/health, middleware helpers, OAuth token-exchange and client-credentials internals, OTel convert/ingest, webhook payload helpers, RBAC JWT helpers, orchestrator cleanup and schema-sync passes, chart scale helpers, and the A2A message-handler, persistence and stream-processor helpers are public in their own modules.
+
+### Fixed
+
+- **Gateway:** a conversation stopped by the secret scan can be recovered by sanitizing the detected secrets in the exact provider-bound payload, resent system prompts and history included. Tool-call pairing and signed payloads are preserved, repaired content is rechecked before forwarding, the sanitization is audited, and buffered and streaming responses report `x-systemprompt-recovery-count`. An unsafe repair or an incomplete inspection returns `prompt_repair_required` guidance instead. Enforced MCP actions stay blocked, and warn-only and disabled policies keep their behaviour.
+- **Proxy:** external MCP tool calls run the governance policy chain, and the decision is audited, before the call is forwarded. Session ownership is validated across replicas, and a binding is preserved when the upstream deletion fails.
+- **MCP:** bearer-accessor requests to the credential broker are authenticated with the optional broker secret, and credentials are not forwarded through redirects.
+- **Proxy:** a cached MCP session identity is evicted on a 404 from a POST as well as a GET, and the audit line names `stale_session`. A restarted MCP child answers 404 to any request carrying the old `mcp-session-id`; a POST was previously relayed as-is and logged as a bare backend error. Clients already re-initialise per the MCP specification, so their behaviour is unchanged.
+- **Models:** tool schemas are flattened for providers that do not accept tuple arrays. Gemini's `function_declarations` reject `prefixItems`, and Claude Code's tools carry tuple arrays such as a `[field, operator, value]` triple, so every request with tools failed with a 400 that the audit recorded as a failed turn with no tokens. `SchemaFeatures` gains `tuple_items`; without it the sanitizer rewrites `prefixItems`/`additionalItems`/`unevaluatedItems` to a plain `items` (the shared prefix schema when every position agrees, otherwise an untyped item), recurses into tuples it keeps, and drops `$comment`.
+- **Models:** a const-derived or bare enum gets a type inferred from its values when they agree, because Vertex AI rejects a declaration node carrying `enum` without `type`. Declared types and mixed enums are left alone.
+- **MCP:** every tool definition carries an object root input schema. Claude Code validates `inputSchema.type == "object"` per tool and drops a server's whole tool list when one fails, and schemars renders an internally tagged enum input as a bare `oneOf` with no root type, which took the systemprompt CLI tool list down for every Claude Code user.
+- **CLI:** two `systemprompt` processes saving the session index at the same moment no longer race on one `index.tmp`; the loser used to exit with a bare `No such file or directory` before running its command.
+- **Gateway:** `/v1/models` display names join consecutive numeric segments as a version and read a trailing `YYYYMMDD` as `created_at`, so a picker shows `Claude Haiku 4.5` rather than `Claude Haiku 4 5 20251001` created at the Unix epoch.
+
+### Removed
+
+- The `test-api` (api, cli), `test` (slack, teams) and `test-jwks-insecure-scheme` (security) Cargo features, every `test_api` module, the delegating `*_test_api` wrappers, and `ThoughtSignatureCache::poison_lock`.
+- **Facade:** the `test-utils` Cargo feature; it only implied `cloud` and nothing consumed it.
+
+### Breaking
+
+- **Breaking:** `GovernancePolicy::prompt_secret_findings` returns `Option<Vec<SecretFinding>>` and defaults to `None`, so a policy that cannot locate its findings is never offered a prompt repair. Migrate by returning `Some(findings)` from a policy that supports recovery.
+- **Breaking:** `SecretPattern` gains `redact_whole_value`, marking the patterns whose match is only a credential prefix; the whole value is removed for those and for custom rules when no safe secret boundary is available. Migrate by setting the field on any hand-built `SecretPattern` literal.
+
 ## [0.47.0] - 2026-09-06
 
 Three threads run through this release. The gateway's accounting was wrong in

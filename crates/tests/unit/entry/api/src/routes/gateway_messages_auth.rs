@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use axum::http::StatusCode;
 use serde_json::json;
-use systemprompt_api::routes::gateway::messages::test_api::{
+use systemprompt_api::routes::gateway::messages::auth::{
     ApiKeyPrincipal, AuthedPrincipal, JwtPrincipal,
 };
 use systemprompt_identifiers::{Actor, SessionId, TraceId, UserId};

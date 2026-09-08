@@ -112,10 +112,6 @@ pub struct GovernedString<'a> {
 
 /// One non-container JSON value of a governed call's arguments, with the path
 /// it was found at.
-///
-/// Why: `strings()` cannot serve a policy that compares numbers, and a second
-/// traversal to reach them would be a second path grammar to keep in step with
-/// the first. This is the one walk; `strings()` is a filter over it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GovernedScalar<'a> {
     pub path: String,
@@ -187,10 +183,6 @@ impl GovernedInput {
         }
     }
 
-    // Why: a prompt has no argument structure to address, so a condition that
-    // names a field can never be satisfied by one. Returning empty rather than
-    // the prompt's text keeps a path-addressed policy from matching a prompt on
-    // a coincidence of naming.
     #[must_use]
     pub fn scalars(&self) -> Vec<GovernedScalar<'_>> {
         match self {

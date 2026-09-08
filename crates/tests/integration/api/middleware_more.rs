@@ -15,7 +15,7 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use axum::{Extension, Router, middleware};
-use systemprompt_api::services::middleware::analytics::test_api::{is_sensitive_key, sanitize_uri};
+use systemprompt_api::services::middleware::analytics::events::{is_sensitive_key, sanitize_uri};
 use systemprompt_api::services::middleware::{
     BotMarker, BotType, JtiRevocationChecker, detect_bots_early, ip_ban_middleware,
     is_datacenter_ip, is_known_bot, is_outdated_browser, is_scanner_request, login_redirect,
@@ -357,7 +357,7 @@ fn analytics_sanitiser_redacts_sensitive_keys() {
 fn user_cache_ttl_expiry_and_admin_role() {
     use std::time::Duration;
 
-    use systemprompt_api::services::middleware::jwt::test_api::{UserCache, user_is_admin};
+    use systemprompt_api::services::middleware::jwt::validation::{UserCache, user_is_admin};
     use systemprompt_identifiers::UserId;
     use systemprompt_traits::AuthUser;
 
