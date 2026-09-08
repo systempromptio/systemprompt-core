@@ -102,6 +102,7 @@ pub trait McpToolHandler: Send + Sync {
 /// `type`, which is exactly that failure; the root gets `type: object` here so
 /// no handler can ship it by accident.
 #[must_use]
+// Why:
 pub fn object_input_schema(schema: JsonValue) -> serde_json::Map<String, JsonValue> {
     let mut obj = schema.as_object().cloned().unwrap_or_default();
     if !obj.contains_key("type") {
