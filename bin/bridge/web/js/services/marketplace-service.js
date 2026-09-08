@@ -52,12 +52,17 @@ export function createListingFetcher(onChange = () => {}) {
         set("idle", { reason: "signed-out", listing: null });
         return;
       }
-      if (self.state === "loading") { return; }
       // A sync that produced an identical summary string still changes what is
       // on disk, so a run finishing always refetches rather than trusting the
       // flattened one-line summary to have moved.
       const syncJustFinished = syncing && !snap.sync_in_flight;
       syncing = !!snap.sync_in_flight;
+      // Why: a request already in flight is left alone, except when a sync has
+      // just landed. The request was issued the instant the previous sync
+      // finished, while the post-sync re-check ran; if its reply was lost the
+      // pane sat on the skeleton until the window closed, because every later
+      // snapshot bailed out here.
+      if (self.state === "loading" && !syncJustFinished) { return; }
       // Why: the marker is keyed on the listing, not on the state machine. A
       // failed sync leaves `state` at "error" while the listing on disk is
       // unchanged; refetching on every snapshot then repainted the pane on each

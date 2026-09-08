@@ -33,11 +33,29 @@ function ensureBridge() {
   if (!w.__bridge.subs) { w.__bridge.subs = new Map(); }
 }
 
-export function invoke(cmd, args) {
+/**
+ * @param {string} cmd
+ * @param {object} [args]
+ * @param {{ timeoutMs?: number }} [opts] a reply deadline. Off by default:
+ *   sync and host installs legitimately run for minutes (UAC prompts included),
+ *   so only read-style commands whose reply the UI cannot live without opt in.
+ */
+export function invoke(cmd, args, opts) {
   ensureBridge();
   return new Promise((resolve, reject) => {
     const id = nextId++;
-    window.__bridge.pending.set(id, { resolve, reject });
+    const timeoutMs = opts && opts.timeoutMs;
+    // Why: a reply that never lands used to leave the promise pending for the
+    // life of the window, and a pane waiting on it stayed on its skeleton with
+    // nothing to click. A deadline turns that into an error the pane can retry.
+    const timer = timeoutMs
+      ? setTimeout(() => {
+        if (!window.__bridge.pending.delete(id)) { return; }
+        reject({ scope: "internal", code: "timeout", message: `${cmd} did not reply within ${Math.round(timeoutMs / 1000)}s` });
+      }, timeoutMs)
+      : null;
+    const settle = (fn) => (v) => { if (timer) { clearTimeout(timer); } fn(v); };
+    window.__bridge.pending.set(id, { resolve: settle(resolve), reject: settle(reject) });
     window.ipc.postMessage(JSON.stringify({ id, cmd, args: args ?? {} }));
   });
 }
@@ -64,7 +82,7 @@ export const bridge = {
   sync:                 ()                  => invoke("sync"),
   validate:             ()                  => invoke("validate"),
   activityRecent:       (limit)             => invoke("activity.recent", { limit }),
-  marketplaceList:      ()                  => invoke("marketplace.list"),
+  marketplaceList:      ()                  => invoke("marketplace.list", {}, { timeoutMs: 30_000 }),
   profileFetch:         ()                  => invoke("profile.fetch"),
   hostProbe:            (hostId)            => invoke("host.probe", { hostId }),
   hostProfileGenerate:  (hostId)            => invoke("host.profile.generate", { hostId }),
