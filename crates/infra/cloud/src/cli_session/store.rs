@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,20 @@ use super::{CliSession, LOCAL_SESSION_KEY, SessionKey};
 use crate::error::{CloudError, CloudResult};
 
 const STORE_VERSION: u32 = 1;
+
+static TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
+
+fn write_private(path: &Path, content: &str) -> CloudResult<()> {
+    fs::write(path, content)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(path)?.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(path, perms)?;
+    }
+    Ok(())
+}
 
 const fn default_store_version() -> u32 {
     STORE_VERSION
@@ -254,18 +269,21 @@ impl SessionStore {
 
         let index_path = sessions_dir.join("index.json");
         let content = serde_json::to_string_pretty(self)?;
-        let temp_path = index_path.with_extension("tmp");
-        fs::write(&temp_path, &content)?;
-
-        #[cfg(unix)]
+        // Why: the sessions dir is shared by every CLI process of one user, and
+        // a fixed temp name let two concurrent saves truncate and rename each
+        // other's file, so one of them failed with a bare ENOENT.
+        let nonce = TEMP_NONCE.fetch_add(1, Ordering::Relaxed);
+        let temp_path = sessions_dir.join(format!("index.json.{}.{nonce}.tmp", std::process::id()));
+        let written = write_private(&temp_path, &content).and_then(|()| {
+            fs::rename(&temp_path, &index_path)?;
+            Ok(())
+        });
+        if written.is_err()
+            && let Err(cleanup) = fs::remove_file(&temp_path)
+            && cleanup.kind() != std::io::ErrorKind::NotFound
         {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&temp_path)?.permissions();
-            perms.set_mode(0o600);
-            fs::set_permissions(&temp_path, perms)?;
+            tracing::debug!(path = %temp_path.display(), error = %cleanup, "session index temp file not removed");
         }
-
-        fs::rename(&temp_path, &index_path)?;
-        Ok(())
+        written
     }
 }
