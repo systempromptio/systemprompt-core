@@ -7557,7 +7557,6 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-bridge",
  "systemprompt-models",
- "systemprompt-test-fixtures",
 ]
 
 [[package]]

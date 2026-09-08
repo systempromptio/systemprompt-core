@@ -79,6 +79,7 @@ fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
         authz: TeamsAuthzConfig {
             allowed_roles: roles.iter().map(|r| (*r).to_owned()).collect(),
         },
+        endpoints: systemprompt_models::services::teams::TeamsEndpoints::default(),
     }
 }
 

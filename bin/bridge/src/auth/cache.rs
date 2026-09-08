@@ -1,4 +1,7 @@
 //! Gateway and credential-bound storage for minted tokens.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::config;
 use crate::gateway::types::HelperOutput;

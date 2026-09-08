@@ -1,4 +1,7 @@
 //! Owned background work with inspected completion and visible panic reports.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::activity::ActivityLog;
 use std::future::Future;

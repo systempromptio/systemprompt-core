@@ -62,7 +62,7 @@ fn read_document_at(
     path: &std::path::Path,
     keys: &[&str],
 ) -> Result<PolicyDocument, ConfigStoreError> {
-    if !path.try_exists().map_err(|e| map_io(path.as_ref(), &e))? {
+    if !path.try_exists().map_err(|e| map_io(path, &e))? {
         return Ok(PolicyDocument::new());
     }
     let output = Command::new("/usr/bin/plutil")
@@ -118,7 +118,7 @@ pub(super) fn write_values(
 pub(super) fn delete_values(hive: PolicyHive, names: &[&str]) -> Result<usize, ConfigStoreError> {
     let path = plist_path(hive)
         .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
-    if !path.try_exists().map_err(|e| map_io(path.as_ref(), &e))? {
+    if !path.try_exists().map_err(|e| map_io(path, &e))? {
         return Ok(0);
     }
     let mut doc = read_all(hive)?;
@@ -164,7 +164,7 @@ pub(super) fn delete_key(hive: PolicyHive) -> Result<bool, ConfigStoreError> {
 fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
     let path = plist_path(hive)
         .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
-    if !path.try_exists().map_err(|e| map_io(path.as_ref(), &e))? {
+    if !path.try_exists().map_err(|e| map_io(path, &e))? {
         return Ok(PolicyDocument::new());
     }
     let output = Command::new("/usr/bin/plutil")

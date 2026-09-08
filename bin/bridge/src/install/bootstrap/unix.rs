@@ -1,4 +1,7 @@
 //! Restore bootstrap ownership to the invoking sudo user and verify it.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::io;
 use std::os::unix::fs::MetadataExt;

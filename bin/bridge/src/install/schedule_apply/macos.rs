@@ -31,7 +31,7 @@ pub(super) fn register(
     write(&path, rendered)?;
 
     let domain = gui_domain();
-    bootout(&domain, &label).map_err(InstallError::ScheduleApply)?;
+    bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
     let status = Command::new("launchctl")
         .args(["bootstrap", &domain])
         .arg(&path)
@@ -57,7 +57,7 @@ pub(super) fn register_autostart(rendered: &str) -> Result<Vec<String>, InstallE
     let path = agents_dir()?.join(format!("{label}.plist"));
     write(&path, rendered)?;
     let domain = gui_domain();
-    bootout(&domain, &label).map_err(InstallError::ScheduleApply)?;
+    bootout(&domain, label).map_err(InstallError::ScheduleApply)?;
     let status = Command::new("launchctl")
         .args(["bootstrap", &domain])
         .arg(&path)
@@ -81,7 +81,7 @@ pub(super) fn remove_autostart() -> ScheduleRemoval {
     if !path.exists() {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
-    if let Err(e) = bootout(&gui_domain(), &label) {
+    if let Err(e) = bootout(&gui_domain(), label) {
         return ScheduleRemoval::Failed(e);
     }
     match fs::remove_file(&path) {
@@ -122,7 +122,7 @@ pub(super) fn remove_current() -> ScheduleRemoval {
     if !path.exists() {
         return ScheduleRemoval::NotInstalled(label.to_owned());
     }
-    if let Err(e) = bootout(&gui_domain(), &label) {
+    if let Err(e) = bootout(&gui_domain(), label) {
         return ScheduleRemoval::Failed(e);
     }
     match fs::remove_file(&path) {

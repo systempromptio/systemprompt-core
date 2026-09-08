@@ -198,16 +198,24 @@ async fn fetch_plugin_into_staging(
         }
     }
 
-    let mut fetches = futures_util::stream::iter(plugin.files.iter().map(|file| {
-        fetch_one_file(
-            client.clone(),
-            bearer.to_owned(),
-            plugin.id.to_string(),
-            file.clone(),
-            stage.join(normalise_relative(&file.path)),
-        )
-    }))
-    .buffer_unordered(PLUGIN_FILE_FETCH_CONCURRENCY);
+    // Why: the stream must own its futures before the first await; an
+    // iterator still borrowing `plugin.files` is a borrow held across the
+    // buffered await, which fails the spawned sync task's `Send` check.
+    let fetches: Vec<_> = plugin
+        .files
+        .iter()
+        .map(|file| {
+            fetch_one_file(
+                client.clone(),
+                bearer.to_owned(),
+                plugin.id.to_string(),
+                file.clone(),
+                stage.join(normalise_relative(&file.path)),
+            )
+        })
+        .collect();
+    let mut fetches =
+        futures_util::stream::iter(fetches).buffer_unordered(PLUGIN_FILE_FETCH_CONCURRENCY);
     while let Some(fetched) = fetches.next().await {
         fetched?;
     }

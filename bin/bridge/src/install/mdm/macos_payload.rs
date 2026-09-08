@@ -56,7 +56,6 @@ pub fn build_prefs_plist(
     Ok(PREFS_PLIST_TMPL.replace("{policy_body}", &policy_body(mcp, gateway, "  ")?))
 }
 
-#[must_use]
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "these braces are template placeholders substituted with str::replace, not format args"
