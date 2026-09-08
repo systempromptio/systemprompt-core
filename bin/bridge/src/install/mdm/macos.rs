@@ -121,12 +121,12 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
     let mut summary = apply_summary(dest_system, &dest_user, &user, gateway);
     let key_path =
         crate::proxy::secret::secret_path().ok_or(MdmError::Resolve("the loopback secret path"))?;
-    summary.extend(super::claude_code_settings::apply_managed_settings(
+    summary.extend(super::claude_code_settings::write_standalone_settings(
         gateway, &key_path,
     )?);
     summary.push(
-        "Claude Code (terminal) reads ~/.claude/settings.json on every run; no shell restart \
-         needed."
+        "Claude Code (terminal): `install --apply --host claude-code` routes every session; \
+         `claude --settings <that file>` routes one session and leaves ~/.claude alone."
             .into(),
     );
     Ok(summary)
