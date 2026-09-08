@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.48.0] - 2026-09-08
+
+Every production crate now compiles in exactly one shape. The out-of-tree test
+workspace had been reaching private items through Cargo features (`test-api`,
+`slack/test`, `teams/test`, `test-jwks-insecure-scheme`), `test_api` re-export
+modules, delegating wrappers and about a hundred `unreachable_pub`
+suppressions. All of that is gone: the items tests need are public in honest
+`pub` modules, collaborators are injected through constructors or config, and
+test conveniences live in the test workspace.
+
+### Added
+
+- **Models:** `TeamsAppConfig.endpoints` (`TeamsEndpoints`) selects the Bot Framework OpenID-configuration and token endpoints, defaulting to the public cloud, so a sovereign-cloud tenant can point a Teams app at its own login host.
+- **Slack / Teams:** `SlackClient::with_base_url`, `SlackClient::with_users_info_url`, `TeamsClient::with_endpoints`, `ActivityTokenVerifier::with_openid_url` and `TokenProvider::with_token_url` are ordinary constructors.
+
+### Changed
+
+- **Security:** JWKS fetches accept `http://` only for loopback hosts (RFC 8252 §8.3); every other issuer stays HTTPS-only.
+- **API:** Teams inbound resolves Bot Framework endpoints from `TeamsAppConfig.endpoints` instead of a feature-gated environment read. `MessagingError::user_message` is always the opaque sentence; the detail remains on `Display`.
+- **CLI:** `admin agents tools` and `plugins mcp tools` share one `commands::shared::mcp_tools` probe module; `runner::{routing, profile_routing}` are public.
+- **API, CLI, MCP, Agent:** gateway protocol codecs, gateway service stages, stream-tap accumulator, proxy engine/auth/resolver, server lifecycle/shutdown/health, middleware helpers, OAuth token-exchange and client-credentials internals, OTel convert/ingest, webhook payload helpers, RBAC JWT helpers, orchestrator cleanup and schema-sync passes, chart scale helpers, and the A2A message-handler, persistence and stream-processor helpers are public in their own modules.
+
+### Removed
+
+- The `test-api` (api, cli), `test` (slack, teams) and `test-jwks-insecure-scheme` (security) Cargo features, every `test_api` module, the delegating `*_test_api` wrappers, and `ThoughtSignatureCache::poison_lock`.
+
 ## [0.47.0] - 2026-09-06
 
 Three threads run through this release. The gateway's accounting was wrong in
