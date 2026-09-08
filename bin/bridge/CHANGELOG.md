@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.49.0] - Unreleased
+
+### Fixed
+
+- `alert_user` no longer holds its caller until the dialog is dismissed. The macOS `osascript` dialog and the Windows `MessageBoxW` were both modal and blocking, so an installer path that raised one on an unattended host, or the native test job on a CI runner, waited forever; the dialog is now raised and reaped on its own thread. The Quality workflow's native bridge job also carries a 45-minute timeout.
+
 ## [0.48.0] - 2026-09-08
 
 ### Breaking

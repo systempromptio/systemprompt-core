@@ -52,6 +52,9 @@ jobs:
     # job that code is first compiled on a bridge-v* release tag.
     name: Bridge native checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # A test that raises a native modal, or waits on elevation, hangs a runner
+    # silently; the whole job is well under this when healthy.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
