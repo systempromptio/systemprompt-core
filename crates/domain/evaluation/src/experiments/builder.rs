@@ -39,22 +39,22 @@ impl ExperimentSpecBuilder {
         self
     }
 
-    pub fn repetitions(mut self, repetitions: u32) -> Self {
+    pub const fn repetitions(mut self, repetitions: u32) -> Self {
         self.spec.repetitions = repetitions;
         self
     }
 
-    pub fn budget_microdollars(mut self, budget: i64) -> Self {
+    pub const fn budget_microdollars(mut self, budget: i64) -> Self {
         self.spec.budget_microdollars = budget;
         self
     }
 
-    pub fn execution_mode(mut self, mode: ExecutionMode) -> Self {
+    pub const fn execution_mode(mut self, mode: ExecutionMode) -> Self {
         self.spec.execution_mode = mode;
         self
     }
 
-    pub fn objective(mut self, objective: Objective) -> Self {
+    pub const fn objective(mut self, objective: Objective) -> Self {
         self.spec.objective = objective;
         self
     }

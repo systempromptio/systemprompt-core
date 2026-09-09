@@ -7981,9 +7981,12 @@ name = "systemprompt-evaluation"
 version = "0.48.0"
 dependencies = [
  "chrono",
+ "hex",
  "inventory",
  "serde",
+ "serde_jcs",
  "serde_json",
+ "sha2 0.11.0",
  "sqlx",
  "systemprompt-database",
  "systemprompt-extension",

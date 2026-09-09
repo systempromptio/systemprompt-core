@@ -39,8 +39,8 @@ pub fn score(
     {
         return Err(invalid("Judgment requires every dimension and a rationale"));
     }
-    let mut total = 0_u64;
-    let mut weights = 0_u64;
+    let mut total = 0u64;
+    let mut weights = 0u64;
     for dimension in &rubric.dimensions {
         let matches = judgment
             .dimensions
@@ -72,8 +72,8 @@ pub fn score(
     {
         return Err(invalid("Judgment requires the exact hard-gate set"));
     }
-    let score_milli =
-        u32::try_from(total / weights).map_err(|_| invalid("Weighted score overflow"))?;
+    let score_milli = u32::try_from(total / weights)
+        .map_err(|error| invalid(&format!("Weighted score overflow: {error}")))?;
     Ok(WeightedOutcome {
         score_milli,
         passed: total >= u64::from(rubric.pass_threshold_milli) * weights

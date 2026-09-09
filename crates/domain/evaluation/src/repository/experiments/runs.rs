@@ -94,12 +94,13 @@ impl ExperimentRepository {
         spec: &ExperimentSpec,
     ) -> Result<()> {
         for (variant, _) in spec.variants.iter().enumerate() {
-            let variant = i32::try_from(variant).map_err(|_| invalid("Too many variants"))?;
+            let variant = i32::try_from(variant)
+                .map_err(|error| invalid(&format!("Too many variants: {error}")))?;
             for case in &spec.cases {
                 for repetition in 0..spec.repetitions {
                     let execution_id = EvalExecutionId::generate();
-                    let repetition =
-                        i32::try_from(repetition).map_err(|_| invalid("Repetition overflow"))?;
+                    let repetition = i32::try_from(repetition)
+                        .map_err(|error| invalid(&format!("Repetition overflow: {error}")))?;
                     sqlx::query!("INSERT INTO eval_executions(id,experiment_id,variant_index,case_revision_id,repetition) VALUES($1,$2,$3,$4,$5)", execution_id.as_str(), id.as_str(), variant, case.as_str(), repetition)
             .execute(&mut **tx).await?;
                 }

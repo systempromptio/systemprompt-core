@@ -5,7 +5,7 @@ mod leases;
 mod revisions;
 mod runs;
 
-pub use leases::{ExecutionCompletion, ExecutionLease, TerminalOutcome};
 pub use budget::{BudgetRepository, ReservationAdmission};
+pub use leases::{ExecutionCompletion, ExecutionLease, TerminalOutcome};
 pub use revisions::RevisionRepository;
 pub use runs::ExperimentRepository;
