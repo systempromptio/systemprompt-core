@@ -8,9 +8,7 @@ use systemprompt_evaluation::experiments::execution::{
 use systemprompt_evaluation::experiments::{
     ClientKind, ExecutionMode, ExperimentSpec, Objective, VariantSpec,
 };
-use systemprompt_identifiers::{
-    AiRequestId, EvalExecutionId, EvalRevisionId, ModelId, ProviderId,
-};
+use systemprompt_identifiers::{AiRequestId, EvalExecutionId, EvalRevisionId, ModelId, ProviderId};
 
 fn digest_of(byte: char) -> String {
     std::iter::repeat_n(byte, 64).collect()
@@ -246,7 +244,11 @@ fn artifact_evidence_builder_names_each_missing_field() {
         .bytes(64)
         .build()
         .expect_err("path");
-    assert!(missing_path.to_string().contains("relative_path is required"));
+    assert!(
+        missing_path
+            .to_string()
+            .contains("relative_path is required")
+    );
 
     let missing_hash = ArtifactEvidence::builder()
         .relative_path("out/report.md".to_owned())

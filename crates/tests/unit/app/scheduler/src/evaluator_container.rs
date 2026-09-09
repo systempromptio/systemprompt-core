@@ -15,7 +15,10 @@ use systemprompt_scheduler::services::evaluator::container::{ContainerExecution,
 
 const DIGEST: &str = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-fn launch(docker: PathBuf, directory: PathBuf) -> systemprompt_scheduler::SchedulerResult<ContainerLaunch> {
+fn launch(
+    docker: PathBuf,
+    directory: PathBuf,
+) -> systemprompt_scheduler::SchedulerResult<ContainerLaunch> {
     ContainerLaunch::builder(docker, directory)
         .image(DIGEST.to_owned())
         .network("eval-net-1".to_owned())
@@ -34,7 +37,9 @@ fn fake_docker(directory: &Path, cleanup_body: &str) -> PathBuf {
     let path = directory.join("fake-docker");
     std::fs::write(
         &path,
-        format!("#!/bin/sh\nif [ \"$1\" = \"rm\" ]; then\n{cleanup_body}\nfi\necho started\nexit 0\n"),
+        format!(
+            "#!/bin/sh\nif [ \"$1\" = \"rm\" ]; then\n{cleanup_body}\nfi\necho started\nexit 0\n"
+        ),
     )
     .expect("the stand-in docker binary must be writable");
     #[cfg(unix)]
@@ -61,7 +66,11 @@ fn started(cleanup_body: &str, limits: ExecutionLimits) -> (tempfile::TempDir, C
 fn a_valid_specification_builds() {
     let workspace = tempfile::tempdir().expect("workspace");
     assert!(
-        launch(PathBuf::from("/usr/bin/docker"), workspace.path().to_path_buf()).is_ok(),
+        launch(
+            PathBuf::from("/usr/bin/docker"),
+            workspace.path().to_path_buf()
+        )
+        .is_ok(),
         "an absolute docker path, pinned digest, private network and eval- name must build"
     );
 }
@@ -75,12 +84,15 @@ fn the_image_must_be_a_pinned_digest() {
         "sha256:zzzz56789abcdef0123456789abcdef0123456789abcdef0123456789abcdefg",
     ] {
         assert!(
-            ContainerLaunch::builder(PathBuf::from("/usr/bin/docker"), workspace.path().to_path_buf())
-                .image(image.to_owned())
-                .network("eval-net-1".to_owned())
-                .name("eval-run-1".to_owned())
-                .build()
-                .is_err(),
+            ContainerLaunch::builder(
+                PathBuf::from("/usr/bin/docker"),
+                workspace.path().to_path_buf()
+            )
+            .image(image.to_owned())
+            .network("eval-net-1".to_owned())
+            .name("eval-run-1".to_owned())
+            .build()
+            .is_err(),
             "{image} is not a 64-character sha256 digest and must be refused"
         );
     }
@@ -89,8 +101,12 @@ fn the_image_must_be_a_pinned_digest() {
 #[test]
 fn every_required_field_must_be_supplied() {
     let workspace = tempfile::tempdir().expect("workspace");
-    let base =
-        || ContainerLaunch::builder(PathBuf::from("/usr/bin/docker"), workspace.path().to_path_buf());
+    let base = || {
+        ContainerLaunch::builder(
+            PathBuf::from("/usr/bin/docker"),
+            workspace.path().to_path_buf(),
+        )
+    };
 
     assert!(
         base()
@@ -123,12 +139,15 @@ fn shared_networks_are_refused() {
     let workspace = tempfile::tempdir().expect("workspace");
     for network in ["host", "bridge", "default", "none", "eval net", ""] {
         assert!(
-            ContainerLaunch::builder(PathBuf::from("/usr/bin/docker"), workspace.path().to_path_buf())
-                .image(DIGEST.to_owned())
-                .network(network.to_owned())
-                .name("eval-run-1".to_owned())
-                .build()
-                .is_err(),
+            ContainerLaunch::builder(
+                PathBuf::from("/usr/bin/docker"),
+                workspace.path().to_path_buf()
+            )
+            .image(DIGEST.to_owned())
+            .network(network.to_owned())
+            .name("eval-run-1".to_owned())
+            .build()
+            .is_err(),
             "network {network:?} would break evaluation isolation and must be refused"
         );
     }
@@ -137,14 +156,22 @@ fn shared_networks_are_refused() {
 #[test]
 fn execution_names_must_be_namespaced_and_shell_safe() {
     let workspace = tempfile::tempdir().expect("workspace");
-    for name in ["run-1", "eval-run 1", "eval-run;rm", &format!("eval-{}", "a".repeat(200))] {
+    for name in [
+        "run-1",
+        "eval-run 1",
+        "eval-run;rm",
+        &format!("eval-{}", "a".repeat(200)),
+    ] {
         assert!(
-            ContainerLaunch::builder(PathBuf::from("/usr/bin/docker"), workspace.path().to_path_buf())
-                .image(DIGEST.to_owned())
-                .network("eval-net-1".to_owned())
-                .name(name.to_owned())
-                .build()
-                .is_err(),
+            ContainerLaunch::builder(
+                PathBuf::from("/usr/bin/docker"),
+                workspace.path().to_path_buf()
+            )
+            .image(DIGEST.to_owned())
+            .network("eval-net-1".to_owned())
+            .name(name.to_owned())
+            .build()
+            .is_err(),
             "name {name:?} must be refused"
         );
     }
@@ -158,7 +185,11 @@ fn relative_paths_and_mount_separators_are_refused() {
         "a relative docker path must be refused"
     );
     assert!(
-        launch(PathBuf::from("/usr/bin/docker"), PathBuf::from("relative/workspace")).is_err(),
+        launch(
+            PathBuf::from("/usr/bin/docker"),
+            PathBuf::from("relative/workspace")
+        )
+        .is_err(),
         "a relative workspace must be refused"
     );
     assert!(
@@ -178,7 +209,9 @@ fn starting_twice_in_one_workspace_is_refused() {
     let spec = launch(docker, workspace.path().to_path_buf()).expect("valid spec");
     let native = client(ExecutionLimits::default());
 
-    let first = spec.start(&native, "prompt").expect("the first start spawns");
+    let first = spec
+        .start(&native, "prompt")
+        .expect("the first start spawns");
     assert!(
         spec.start(&native, "prompt").is_err(),
         "reusing a workspace would overwrite an existing event log and must fail"

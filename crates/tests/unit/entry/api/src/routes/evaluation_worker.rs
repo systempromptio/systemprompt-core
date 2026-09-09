@@ -267,7 +267,13 @@ async fn an_unknown_execution_is_refused_for_its_own_worker() {
     let own = lease(&credential.id);
 
     for path in MUTATING_ROUTES {
-        let status = call(&harness.router, path, Some(&authorization), &body_for(path, &own)).await;
+        let status = call(
+            &harness.router,
+            path,
+            Some(&authorization),
+            &body_for(path, &own),
+        )
+        .await;
         assert!(
             status.is_client_error(),
             "{path} must refuse a lease for an execution that was never handed out, got {status}"

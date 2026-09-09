@@ -66,7 +66,9 @@ fn claude_code_arguments_deny_the_dangerous_tools() {
 
     for tool in ["Bash", "Agent", "Task", "WebSearch", "WebFetch"] {
         assert!(
-            arguments[disallowed + 1].split(',').any(|name| name == tool),
+            arguments[disallowed + 1]
+                .split(',')
+                .any(|name| name == tool),
             "{tool} must stay denied, got {}",
             arguments[disallowed + 1]
         );
@@ -113,7 +115,8 @@ fn opencode_arguments_namespace_the_model_to_the_gateway() {
         .position(|value| value == "--model")
         .expect("the model must be passed explicitly");
     assert_eq!(
-        arguments[model + 1], "systemprompt/gpt-5",
+        arguments[model + 1],
+        "systemprompt/gpt-5",
         "opencode must be routed through the systemprompt gateway provider"
     );
     assert_eq!(arguments.last().map(String::as_str), Some("prompt"));
