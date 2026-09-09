@@ -72,18 +72,55 @@ pub(super) fn enforce_managed_policy(
     // is persisted per gateway in the config file; `install --apply --pubkey`
     // is the administrator pinning a key out of band and still writes it.
     let elevated = crate::winproc::is_elevated();
+    let replaced = if elevated {
+        foreign_secret_in_policy(inputs)
+    } else {
+        None
+    };
     let plan = windows_policy::WritePlan::new(&values, &[], elevated, inputs.policy_store);
 
-    let line = plan
+    let mut line = plan
         .write()?
         .iter()
         .map(crate::config::store::verified::PolicyReceipt::describe)
         .collect::<Vec<_>>()
         .join("; ");
+    if let Some(fp) = replaced {
+        line.push_str(&format!(
+            "; replaced a machine policy carrying another bridge's secret (fingerprint {fp}) — \
+             any other account's Claude Desktop on this computer now needs a repair"
+        ));
+    }
     if !elevated {
         require_org_plugins()?;
     }
     Ok(line)
+}
+
+// Why: the machine policy is shared by every account on the computer while
+// the secret in it belongs to one bridge. An elevated sync that overwrites a
+// secret it did not mint takes Claude Desktop away from whoever did, so the
+// overwrite is recorded by fingerprint where doctor and the activity log show
+// it rather than happening silently.
+fn foreign_secret_in_policy(inputs: &super::MdmPayloadInputs<'_>) -> Option<String> {
+    let ours = inputs.loopback.secret_fingerprint()?;
+    let existing = inputs
+        .policy_store
+        .backend()
+        .read_managed_policy(crate::cowork_compat::POLICY_API_KEY)
+        .ok()
+        .flatten()?;
+    let theirs = crate::proxy::secret::fingerprint(existing.trim());
+    if theirs == ours {
+        return None;
+    }
+    tracing::warn!(
+        target: "bridge::mdm",
+        existing_fp = %theirs,
+        ours_fp = %ours,
+        "replacing a machine Claude policy written for another bridge secret"
+    );
+    Some(theirs)
 }
 
 // Why: Cowork pre-trusts allowedWorkspaceFolders only when the directory

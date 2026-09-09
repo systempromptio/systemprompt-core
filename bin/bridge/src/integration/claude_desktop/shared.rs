@@ -15,19 +15,10 @@ use crate::integration::host_app::HostConfigSchema;
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) const API_KEY_KEY: &str = "inferenceGatewayApiKey";
+pub(super) const API_KEY_KEY: &str = crate::cowork_compat::POLICY_API_KEY;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) const KEYS_OF_INTEREST: &[&str] = &[
-    "inferenceProvider",
-    "inferenceGatewayBaseUrl",
-    API_KEY_KEY,
-    "inferenceGatewayAuthScheme",
-    "inferenceCustomHeaders",
-    "inferenceModels",
-    "allowedWorkspaceFolders",
-    "managedMcpServers",
-];
+pub(super) const KEYS_OF_INTEREST: &[&str] = crate::cowork_compat::POLICY_KEYS;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const REQUIRED_KEYS: &[&str] = &[

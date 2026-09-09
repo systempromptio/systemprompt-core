@@ -126,3 +126,45 @@ fn reapply_hint_directs_to_reapply_not_client_restart() {
         "hint must not advise restarting the client: {hint}"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn reset_replaces_the_secret_and_names_the_stale_profiles() {
+    config_sandbox(|root| {
+        let first = secret::proxy_init().expect("mint");
+        let (second, path) = secret::reset().expect("reset re-mints");
+        assert_eq!(path, root.join("systemprompt").join("bridge-loopback.key"));
+        assert_ne!(first.as_str(), second.as_str(), "a reset is a new secret");
+        let on_disk = secret::load(&path).unwrap().expect("readable");
+        assert_eq!(on_disk.as_str(), second.as_str());
+    });
+}
+
+// Why: the incident this guards against was a key file the user could no
+// longer read; the proxy failed with a bare "Access is denied" and nothing
+// said which file or what to do about it.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_secret_fails_proxy_init_with_the_file_and_the_remedy() {
+    use std::os::unix::fs::PermissionsExt;
+    config_sandbox(|root| {
+        let dir = root.join("systemprompt");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("bridge-loopback.key");
+        std::fs::write(&path, "sealed").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+        let err = secret::proxy_init().expect_err("unreadable must not mint over the file");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&path.display().to_string()) && msg.contains("Reset local proxy secret"),
+            "{msg}"
+        );
+        assert_eq!(
+            secret::load(&path).unwrap().unwrap().as_str(),
+            "sealed",
+            "the file was left alone"
+        );
+    });
+}

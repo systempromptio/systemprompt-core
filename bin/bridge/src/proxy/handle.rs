@@ -93,6 +93,17 @@ impl ProxyHandle {
         let mut tried = Vec::new();
         let mut last_error = "no candidate port could be bound".to_owned();
 
+        // Why: the secret is what makes a bound port usable. Reading it first
+        // keeps a port from being taken and then abandoned, and reports the
+        // real fault by name instead of an empty list of tried ports.
+        let loopback_secret = match secret::proxy_init() {
+            Ok(s) => s,
+            Err(e) => {
+                faults.push(StartupFault::new("loopback secret", &e));
+                return Self::failed(deps, runtime_config, tried, e.to_string());
+            },
+        };
+
         let listener =
             match bind_candidate(rt, &deps.install_id, &mut tried, &mut last_error, faults) {
                 Bind::Listener(l) => l,
@@ -117,10 +128,6 @@ impl ProxyHandle {
                 },
             };
 
-        let loopback_secret = match secret::proxy_init() {
-            Ok(s) => s,
-            Err(e) => return Self::failed(deps, runtime_config, tried, e.to_string()),
-        };
         let session_context = Arc::new(SessionContext::new());
         let session_id = session_context.session_id().clone();
         let token_cache = Arc::new(TokenCache::default_for_runtime(

@@ -11,7 +11,9 @@ pub use crate::buildinfo::{
     BUILD_TIMESTAMP, GIT_BRANCH, GIT_COMMIT_DATE, GIT_SHA, render, short_sha,
 };
 
-pub fn cmd_diagnostics() -> ExitCode {
+pub fn cmd_diagnostics(ctx: &crate::context::BridgeContext) -> ExitCode {
     stdio::print_str(&render());
+    stdio::print_str("\n");
+    stdio::print_str(&crate::diagnostics_state::render(ctx));
     ExitCode::SUCCESS
 }

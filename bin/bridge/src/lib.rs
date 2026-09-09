@@ -30,6 +30,7 @@ pub mod context;
 pub mod cowork_compat;
 #[cfg(feature = "dev-preview")]
 pub mod dev_preview;
+pub mod diagnostics_state;
 pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]

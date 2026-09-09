@@ -103,13 +103,27 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
         ));
     }
     // Why: an ordinary process writes the per-user policy, which Claude honours
-    // while no machine policy exists; only org-plugins genuinely needs UAC and
-    // is left to `install --apply` run as Administrator.
-    let outcome =
-        crate::config::store::write_managed_claude_policy(elevated, &entries).map_err(|e| {
+    // while no machine policy exists. A machine policy that already holds other
+    // values shadows anything HKCU says, and only an elevated write can replace
+    // it; the staged profile carries this user's secret, so the same values
+    // land whichever administrator approves the prompt.
+    let outcome = match crate::config::store::write_managed_claude_policy(elevated, &entries) {
+        Ok(outcome) => outcome,
+        Err(crate::config::store::ConfigStoreError::HiveConflict { differing, .. })
+            if !elevated =>
+        {
+            tracing::warn!(
+                path,
+                differing = ?differing,
+                "machine policy holds other values; requesting administrator approval to replace it"
+            );
+            return install_profile_elevated(path);
+        },
+        Err(e) => {
             tracing::error!(error = %e, path, "managed Claude policy write failed");
-            std::io::Error::other(e.to_string())
-        })?;
+            return Err(std::io::Error::other(e.to_string()));
+        },
+    };
     match outcome.outcome() {
         PolicyWrite::Written(hive) | PolicyWrite::AlreadyVerified(hive) => {
             tracing::info!(hive = hive.label(), "policy written and read back");
@@ -131,6 +145,27 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
     tracing::info!(
         value_count = entries.len(),
         "Claude Desktop profile installed"
+    );
+    Ok(())
+}
+
+fn install_profile_elevated(path: &str) -> std::io::Result<()> {
+    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
+    let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
+    std::fs::create_dir_all(&stage_dir)?;
+    let job = crate::install::elevated_job::ElevatedJob {
+        reg_path: Some(path.to_owned()),
+        org_plugins: Some(org),
+        clear_values: Vec::new(),
+        bridge_values: Vec::new(),
+        managed_files: Vec::new(),
+        remove_files: Vec::new(),
+    };
+    let receipt = crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
+    receipt.require("policy", std::path::Path::new(path))?;
+    tracing::info!(
+        path,
+        "Claude Desktop profile installed through an elevated write"
     );
     Ok(())
 }

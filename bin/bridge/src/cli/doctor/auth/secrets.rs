@@ -24,8 +24,22 @@ pub fn check_loopback_secret() -> Check {
                 proxy_secret::reapply_hint()
             ),
         ),
-        Err(e) => Check::fail("loopback secret", format!("{}: {e}", path.display())),
+        Err(e) => Check::fail(
+            "loopback secret",
+            format!("{}: {e}{}", path.display(), access_detail(&path)),
+        ),
     }
+}
+
+#[cfg(target_os = "windows")]
+fn access_detail(path: &std::path::Path) -> String {
+    crate::windows_acl::describe(path)
+        .map_or_else(|e| format!(" (acl: {e})"), |d| format!(" ({d})"))
+}
+
+#[cfg(not(target_os = "windows"))]
+const fn access_detail(_path: &std::path::Path) -> String {
+    String::new()
 }
 
 #[must_use]

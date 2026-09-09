@@ -6,8 +6,10 @@
 #![allow(unsafe_code, reason = "Windows descriptor and token APIs require FFI")]
 
 mod access;
+mod describe;
 
 pub(crate) use self::access::verify_modify_tree;
+pub(crate) use self::describe::describe;
 
 use std::fs::File;
 use std::io;

@@ -23,8 +23,8 @@ use crate::ids::KeystoreRef;
 
 pub use self::profile::{ClaudeConfig, gateway_url_or_default};
 pub use self::trust::{
-    PinSource, PinnedPubkeyState, SyncConfig, TrustError, persist_pinned_pubkey, pinned_pubkey,
-    pinned_pubkey_state, policy_pubkey,
+    LegacyPin, PinSource, PinnedPubkeyState, SyncConfig, TrustError, persist_pinned_pubkey,
+    pinned_pubkey, pinned_pubkey_state, policy_pubkey,
 };
 pub use self::write::ConfigWriteError;
 

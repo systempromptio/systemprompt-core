@@ -73,6 +73,12 @@ impl BridgeContext {
         policy_store: crate::config::store::PolicyStore,
     ) -> std::io::Result<Arc<Self>> {
         let runtime = OwnedRuntime::build()?;
+        tracing::info!(
+            version = crate::brand::brand().version,
+            commit = crate::buildinfo::short_sha(),
+            mode = ?mode,
+            "bridge starting"
+        );
         let mut faults = Vec::new();
         if let Some(error) = crate::obs::logging_fault() {
             faults.push(StartupFault::new("log file", error));

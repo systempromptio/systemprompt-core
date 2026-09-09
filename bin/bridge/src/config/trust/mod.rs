@@ -3,7 +3,11 @@
 //! Trust is a [`TrustRecord`]: the normalized gateway identity, a validated
 //! Ed25519 key and where it came from. A managed policy supplies it as
 //! `manifestTrust`; an operator pin lives under `[sync.trust]` in the config
-//! file. A legacy `[sync] pinned_pubkey` is reported stale until replaced.
+//! file. A legacy `[sync] pinned_pubkey` written by a pre-0.48 bridge was
+//! trust-on-first-use for the gateway configured at the time, so it is adopted
+//! as operator trust for the configured gateway (or refused when it names
+//! another) and rewritten as `[sync.trust]` by the first sync that verifies
+//! against it.
 //!
 //! A bare policy `manifestPubkey` with no gateway binding is the one legacy
 //! form that is adopted rather than refused: older bridges wrote it
@@ -22,6 +26,13 @@ use systemprompt_identifiers::ValidatedUrl;
 
 use super::{Config, ConfigReadError, ConfigWriteError, gateway_url_or_default, store, write};
 use crate::ids::PinnedPubKey;
+
+mod legacy;
+mod policy;
+
+pub use legacy::LegacyPin;
+use legacy::adopt_legacy_pin;
+use policy::{legacy_unbound_pubkey, policy_trust};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
@@ -108,7 +119,14 @@ impl TrustRecord {
 #[derive(Debug, Clone, Default)]
 pub struct SyncConfig {
     pub trust: Option<TrustRecord>,
-    pub legacy_pin: bool,
+    pub legacy: Option<LegacyPin>,
+}
+
+impl SyncConfig {
+    #[must_use]
+    pub const fn needs_legacy_migration(&self) -> bool {
+        self.trust.is_none() && self.legacy.is_some()
+    }
 }
 
 impl<'de> Deserialize<'de> for SyncConfig {
@@ -120,9 +138,17 @@ impl<'de> Deserialize<'de> for SyncConfig {
             pinned_pubkey_gateway: Option<String>,
         }
         let stored = StoredSync::deserialize(deserializer)?;
+        let legacy = stored
+            .pinned_pubkey
+            .map(|key| key.trim().to_owned())
+            .filter(|key| !key.is_empty())
+            .map(|key| LegacyPin {
+                key: PinnedPubKey::new(key),
+                gateway: stored.pinned_pubkey_gateway,
+            });
         Ok(Self {
             trust: stored.trust,
-            legacy_pin: stored.pinned_pubkey.is_some() || stored.pinned_pubkey_gateway.is_some(),
+            legacy,
         })
     }
 }
@@ -178,11 +204,12 @@ pub fn pinned_pubkey_state_for(
     let current = GatewayIdentity::new(gateway)?;
     let policy = policy_trust()?;
     let sync = cfg.sync.as_ref();
-    if policy.is_none() && sync.is_some_and(|s| s.legacy_pin) {
-        return Ok(PinnedPubkeyState::StaleForGateway {
-            pinned_for: "legacy configuration requiring explicit trust".to_owned(),
-            current: current.0,
-        });
+    if policy.is_none()
+        && let Some(legacy) = sync
+            .filter(|s| s.needs_legacy_migration())
+            .and_then(|s| s.legacy.as_ref())
+    {
+        return adopt_legacy_pin(legacy, gateway, &current);
     }
     let Some(record) = policy
         .as_ref()
@@ -245,46 +272,6 @@ pub fn policy_pubkey() -> Result<Option<PinnedPubKey>, TrustError> {
             Ok(TrustRecord::new(&gateway, record.key.as_str(), PinSource::Policy)?.key)
         })
         .transpose()
-}
-
-fn policy_trust() -> Result<Option<TrustRecord>, TrustError> {
-    let env_name = crate::brand::brand().env("POLICY_TRUST");
-    let raw = match std::env::var(&env_name) {
-        Ok(value) => Some(value),
-        Err(std::env::VarError::NotPresent) => {
-            store::read_bridge_policy(store::MANIFEST_TRUST_KEY)?
-        },
-        Err(e) => return Err(TrustError::InvalidPolicy(format!("{env_name}: {e}"))),
-    };
-    if let Some(raw) = raw {
-        let record: TrustRecord =
-            serde_json::from_str(&raw).map_err(|e| TrustError::InvalidPolicy(e.to_string()))?;
-        let gateway = ValidatedUrl::try_new(record.gateway.as_str())
-            .map_err(|e| TrustError::InvalidPolicy(format!("gateway: {e}")))?;
-        // Why: the key is validated by the caller only after the gateway
-        // comparison, so a policy pinned for another gateway reports stale
-        // rather than a key-decoding error the operator cannot act on.
-        return Ok(Some(TrustRecord {
-            gateway: GatewayIdentity::new(&gateway)?,
-            key: PinnedPubKey::new(record.key.as_str()),
-            source: PinSource::Policy,
-        }));
-    }
-    Ok(None)
-}
-
-fn legacy_unbound_pubkey() -> Result<Option<String>, TrustError> {
-    let pubkey_env = crate::brand::brand().env("POLICY_PUBKEY");
-    let raw = match std::env::var(&pubkey_env) {
-        Ok(value) => Some(value),
-        Err(std::env::VarError::NotPresent) => {
-            store::read_bridge_policy(store::MANIFEST_PUBKEY_KEY)?
-        },
-        Err(e) => return Err(TrustError::InvalidPolicy(format!("{pubkey_env}: {e}"))),
-    };
-    Ok(raw
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty()))
 }
 
 pub fn persist_pinned_pubkey(gateway: &ValidatedUrl, pubkey: &str) -> Result<(), TrustError> {

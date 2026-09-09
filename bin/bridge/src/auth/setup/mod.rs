@@ -122,6 +122,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
         remove_if_exists(&dir.join(crate::config::paths::FIRST_RUN_SENTINEL))?;
         remove_if_exists(&dir.join(crate::config::paths::ONBOARDED_SENTINEL))?;
     }
+
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }

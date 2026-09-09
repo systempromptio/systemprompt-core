@@ -23,7 +23,7 @@ pub(crate) fn on_purge_requested(app: &GuiApp, reply_to: ReplyId) {
         let worker = Arc::clone(&ctx);
         let result = match tokio::task::spawn_blocking(move || {
             crate::integration::uninstall::purge_device(&worker)
-                .map(|_| ())
+                .map(|report| report.leftovers())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
         })
@@ -40,12 +40,15 @@ pub(crate) fn on_purge_requested(app: &GuiApp, reply_to: ReplyId) {
 
 pub(crate) fn on_purge_finished(
     app: &mut GuiApp,
-    result: Result<(), Arc<GuiError>>,
+    result: Result<Vec<String>, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
     let bridge_result = match result {
-        Ok(()) => {
+        Ok(leftovers) => {
             app.append_log(i18n::t("purge-success"));
+            for line in leftovers {
+                app.append_log_error(format!("not removed: {line}"));
+            }
             Ok(())
         },
         Err(e) => {

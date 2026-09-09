@@ -39,6 +39,9 @@ pub enum UiEvent {
     OpenLogDirectory {
         reply_to: ReplyId,
     },
+    ProxySecretResetRequested {
+        reply_to: ReplyId,
+    },
     ExportDiagnosticBundle {
         reply_to: ReplyId,
     },
@@ -98,7 +101,7 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     PurgeFinished {
-        result: Result<(), Arc<GuiError>>,
+        result: Result<Vec<String>, Arc<GuiError>>,
         reply_to: ReplyId,
     },
     SetGatewayFinished {

@@ -261,6 +261,13 @@ pub(super) fn diagnostics_dispatch(
             send(app, UiEvent::ExportDiagnosticBundle { reply_to: reply_id });
             CommandOutcome::Async
         },
+        "proxy.resetSecret" => {
+            send(
+                app,
+                UiEvent::ProxySecretResetRequested { reply_to: reply_id },
+            );
+            CommandOutcome::Async
+        },
         "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
             "version": crate::brand::brand().version,
             "git_sha": crate::buildinfo::short_sha(),

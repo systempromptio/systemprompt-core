@@ -506,6 +506,9 @@ proxy-state-listening = listening
 proxy-state-refused = connection refused
 proxy-state-timeout = timed out
 proxy-state-http-error = http error
+status-proxy-reset-secret = Reset local proxy secret
+status-proxy-reset-secret-confirm = Reset the local proxy secret? The bridge restarts and every agent must be repaired afterwards.
+status-proxy-reset-secret-done = Secret reset — the bridge is restarting.
 
 mcp-auth-unknown = not checked yet
 mcp-auth-no-servers = no servers registered
