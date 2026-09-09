@@ -113,6 +113,7 @@ fn get_production_mcp_binary_names_excludes_dev_only() {
     services_config.mcp_servers.insert(
         "dev-ext-server".to_owned(),
         systemprompt_models::mcp::Deployment {
+            connector: None,
             binary: "dev-bin".to_owned(),
             dev_only: true,
             server_type: systemprompt_models::mcp::deployment::McpServerType::Internal,

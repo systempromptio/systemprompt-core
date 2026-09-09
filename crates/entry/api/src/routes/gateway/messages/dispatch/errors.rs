@@ -11,8 +11,8 @@ use axum::response::{IntoResponse, Response};
 use crate::services::gateway::image_fetch::ImageFetchFailed;
 use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{
-    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
-    QuotaExceeded, SafetyBlocked,
+    DispatchError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
+    PromptRepairRequired, QuotaExceeded, SafetyBlocked,
 };
 
 use super::RejectionError;
@@ -68,6 +68,17 @@ pub fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionE
             resp.headers_mut().insert("retry-after", v);
         }
         return Ok(resp);
+    }
+    if let Some(unavailable) = inner.downcast_ref::<GuardUnavailable>() {
+        let mut response = build_error_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            error_type_for(StatusCode::SERVICE_UNAVAILABLE),
+            &unavailable.message,
+        );
+        if let Ok(value) = HeaderValue::from_str(&unavailable.retry_after_seconds.to_string()) {
+            response.headers_mut().insert("retry-after", value);
+        }
+        return Ok(response);
     }
     if let Some(forbidden) = inner.downcast_ref::<GuardForbidden>() {
         return Ok(build_error_response(

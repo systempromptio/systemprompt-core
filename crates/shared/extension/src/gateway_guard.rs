@@ -29,6 +29,7 @@ pub enum GatewayDenyKind {
     #[default]
     Quota,
     Forbidden,
+    Unavailable,
 }
 
 /// Why a gateway request was denied by a guard.
@@ -40,6 +41,14 @@ pub struct GatewayDenyReason {
 }
 
 impl GatewayDenyReason {
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            retry_after_seconds: 5,
+            kind: GatewayDenyKind::Unavailable,
+        }
+    }
+
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),

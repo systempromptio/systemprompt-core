@@ -30,6 +30,7 @@ fn write_mcp_manifest(project_root: &Path, ext_name: &str, binary: &str) {
 
 fn deployment(binary: &str, dev_only: bool) -> Deployment {
     Deployment {
+        connector: None,
         server_type: McpServerType::Internal,
         binary: binary.to_owned(),
         package: None,

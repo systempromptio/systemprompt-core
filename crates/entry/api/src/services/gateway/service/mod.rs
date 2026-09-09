@@ -15,8 +15,8 @@ pub mod resolve;
 pub mod stages;
 
 pub use self::error::{
-    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
-    QuotaExceeded, SafetyBlocked,
+    DispatchError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
+    PromptRepairRequired, QuotaExceeded, SafetyBlocked,
 };
 pub(super) use self::finalize::run_response_safety_scan;
 
@@ -242,6 +242,11 @@ async fn enforce_request_guards(
         tracing::warn!(error = %e, "request-guard audit fail failed");
     }
     let inner: anyhow::Error = match deny.kind {
+        systemprompt_extension::GatewayDenyKind::Unavailable => GuardUnavailable {
+            message: deny.message,
+            retry_after_seconds: deny.retry_after_seconds,
+        }
+        .into(),
         systemprompt_extension::GatewayDenyKind::Forbidden => GuardForbidden {
             message: deny.message,
         }

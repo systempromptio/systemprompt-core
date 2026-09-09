@@ -49,6 +49,7 @@ fn make_agent_config(name: &str) -> AgentConfig {
 
 fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deployment {
     Deployment {
+        connector: None,
         server_type: Default::default(),
         binary: "server".into(),
         package: None,
