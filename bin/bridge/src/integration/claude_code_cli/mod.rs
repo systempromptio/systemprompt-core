@@ -23,6 +23,7 @@
 mod bundle;
 pub mod json_io;
 pub mod marketplace;
+mod mcp;
 pub mod sidecar;
 
 use std::collections::BTreeMap;
@@ -232,28 +233,7 @@ fn mirror_marketplace(
             continue;
         };
         let src = ctx.org_plugins_root.join(id.as_str());
-        // Bundle references are catalogue-wide; only the user's signed
-        // manifest authorizes a connector on this client. Include unowned
-        // managed servers in the first plugin so unprivileged installs also
-        // receive services that have no plugin reference.
-        let primary = manifest.plugins.first().is_some_and(|p| p.id == *id);
-        let mcp_servers: Vec<String> = manifest
-            .managed_mcp_servers
-            .iter()
-            .filter(|server| {
-                let name = server.name.as_str();
-                let referenced = ctx
-                    .plugin_mcp_servers
-                    .get(id.as_str())
-                    .is_some_and(|names| names.iter().any(|n| n == name));
-                let unowned = !ctx
-                    .plugin_mcp_servers
-                    .values()
-                    .any(|names| names.iter().any(|n| n == name));
-                referenced || (primary && unowned)
-            })
-            .map(|server| server.name.to_string())
-            .collect();
+        let mcp_servers = mcp::servers_for_plugin(ctx, id);
         mirror_plugin(
             ctx.loopback,
             &src,
