@@ -11,6 +11,7 @@
 pub mod credentials;
 mod error;
 pub mod finalize;
+mod pricing;
 pub mod resolve;
 pub mod stages;
 
@@ -31,6 +32,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
 
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
+use self::pricing::{dispatch_pricing, trace_dispatch};
 use self::resolve::{ResolvedUpstream, resolve_upstream};
 use self::stages::{
     GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay, record_quota_warning,
@@ -73,44 +75,13 @@ impl GatewayService {
             forward_headers,
             identity_headers,
         } = inputs;
-        if ctx.session_id.is_none() {
-            return Err(DispatchError::PreAudit(anyhow!(
-                "gateway dispatch missing conversation binding (session_id)"
-            )));
-        }
-
-        let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
-        let policy = resolver.resolve().await;
-        let evaluation_session = super::evaluation::preflight(repos, &ctx, &policy)
-            .await
-            .map_err(DispatchError::PreAudit)?;
+        let (policy, evaluation_session) = dispatch_policy(repos, &ctx).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
-        let pricing = if evaluation_session {
-            super::pricing::resolve_selected(&upstream.route, upstream.provider, &request.model)
-        } else {
-            super::pricing::resolve(
-                upstream.route.provider.as_str(),
-                &[&request.model],
-                Some(config),
-                registry,
-            )
-        }
-        .map_err(|error| DispatchError::PreAudit(error.into()))?;
+        let pricing = dispatch_pricing(config, registry, &request, &upstream, evaluation_session)?;
 
-        tracing::info!(
-            ai_request_id = %ai_request_id,
-            user_id = %ctx.user_id,
-            model = %request.model,
-            provider = %upstream.route.provider,
-            upstream = %upstream.provider.endpoint,
-            wire_protocol = %ctx.wire_protocol,
-            streaming = request.stream,
-            "Gateway request dispatched"
-        );
-
-
+        trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
         if evaluation_session {
             audit
@@ -170,6 +141,24 @@ impl GatewayService {
         stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
         Ok(attach_request_id(response, &ai_request_id))
     }
+}
+
+async fn dispatch_policy(
+    repos: &super::GatewayRepositories,
+    ctx: &GatewayRequestContext,
+) -> Result<(GatewayPolicySpec, bool), DispatchError> {
+    if ctx.session_id.is_none() {
+        return Err(DispatchError::PreAudit(anyhow!(
+            "gateway dispatch missing conversation binding (session_id)"
+        )));
+    }
+
+    let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
+    let policy = resolver.resolve().await;
+    let evaluation_session = super::evaluation::preflight(repos, ctx, &policy)
+        .await
+        .map_err(DispatchError::PreAudit)?;
+    Ok((policy, evaluation_session))
 }
 
 async fn open_audit(

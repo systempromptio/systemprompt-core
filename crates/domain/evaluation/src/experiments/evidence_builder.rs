@@ -3,7 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
+use crate::Result;
+use crate::experiments::execution::{ArtifactEvidence, ClientCapabilities, ExecutionEvidence};
+use crate::experiments::invalid;
+use systemprompt_identifiers::{AiRequestId, EvalExecutionId};
+
+#[derive(Debug, Default)]
+enum ExitCode {
+    #[default]
+    Missing,
+    Supplied(Option<i32>),
+}
 
 #[derive(Debug, Default)]
 pub struct ExecutionEvidenceBuilder {
@@ -15,7 +25,7 @@ pub struct ExecutionEvidenceBuilder {
     workspace_digest: Option<String>,
     requests: Option<Vec<AiRequestId>>,
     artifacts: Option<Vec<ArtifactEvidence>>,
-    exit_code: Option<Option<i32>>,
+    exit_code: ExitCode,
     elapsed_milliseconds: Option<u64>,
     cleanup_confirmed: Option<bool>,
 }
@@ -29,7 +39,7 @@ impl ExecutionEvidenceBuilder {
         self.execution_id = Some(value);
         self
     }
-    pub fn fencing_token(mut self, value: i64) -> Self {
+    pub const fn fencing_token(mut self, value: i64) -> Self {
         self.fencing_token = Some(value);
         self
     }
@@ -57,15 +67,15 @@ impl ExecutionEvidenceBuilder {
         self.artifacts = Some(value);
         self
     }
-    pub fn exit_code(mut self, value: Option<i32>) -> Self {
-        self.exit_code = Some(value);
+    pub const fn exit_code(mut self, value: Option<i32>) -> Self {
+        self.exit_code = ExitCode::Supplied(value);
         self
     }
-    pub fn elapsed_milliseconds(mut self, value: u64) -> Self {
+    pub const fn elapsed_milliseconds(mut self, value: u64) -> Self {
         self.elapsed_milliseconds = Some(value);
         self
     }
-    pub fn cleanup_confirmed(mut self, value: bool) -> Self {
+    pub const fn cleanup_confirmed(mut self, value: bool) -> Self {
         self.cleanup_confirmed = Some(value);
         self
     }
@@ -95,9 +105,10 @@ impl ExecutionEvidenceBuilder {
             artifacts: self
                 .artifacts
                 .ok_or_else(|| invalid("artifacts is required"))?,
-            exit_code: self
-                .exit_code
-                .ok_or_else(|| invalid("exit_code is required"))?,
+            exit_code: match self.exit_code {
+                ExitCode::Supplied(value) => value,
+                ExitCode::Missing => return Err(invalid("exit_code is required")),
+            },
             elapsed_milliseconds: self
                 .elapsed_milliseconds
                 .ok_or_else(|| invalid("elapsed_milliseconds is required"))?,

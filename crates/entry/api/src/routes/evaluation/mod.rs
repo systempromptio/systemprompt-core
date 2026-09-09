@@ -6,56 +6,10 @@
 mod error;
 mod handlers;
 
+pub use crate::repository::evaluation::{EvaluationWorkerState, EvaluationWorkerStateBuilder};
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::post;
-use sqlx::PgPool;
-use systemprompt_evaluation::repository::experiments::{
-    EvidenceRepository, ExperimentRepository, WorkerRepository,
-};
-
-#[derive(Clone, Debug)]
-pub struct EvaluationWorkerState {
-    experiments: ExperimentRepository,
-    evidence: EvidenceRepository,
-    workers: WorkerRepository,
-    environment: String,
-}
-
-impl EvaluationWorkerState {
-    pub fn builder(pool: PgPool) -> EvaluationWorkerStateBuilder {
-        EvaluationWorkerStateBuilder {
-            pool,
-            environment: None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct EvaluationWorkerStateBuilder {
-    pool: PgPool,
-    environment: Option<String>,
-}
-
-impl EvaluationWorkerStateBuilder {
-    pub fn environment(mut self, environment: String) -> Self {
-        self.environment = Some(environment);
-        self
-    }
-
-    pub fn build(self) -> anyhow::Result<EvaluationWorkerState> {
-        let environment = self
-            .environment
-            .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| anyhow::anyhow!("Evaluator environment is required"))?;
-        Ok(EvaluationWorkerState {
-            experiments: ExperimentRepository::new(self.pool.clone()),
-            evidence: EvidenceRepository::new(self.pool.clone()),
-            workers: WorkerRepository::new(self.pool),
-            environment,
-        })
-    }
-}
 
 pub fn router(state: EvaluationWorkerState) -> Router {
     Router::new()

@@ -6954,6 +6954,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
+ "systemprompt-evaluation",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",

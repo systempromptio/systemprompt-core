@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
+use super::{ArtifactEvidence, ClientCapabilities, ClientKind, ExecutionLimits};
+use crate::Result;
+use crate::experiments::invalid;
 #[path = "evidence_builder.rs"]
 mod evidence;
 pub use evidence::ExecutionEvidenceBuilder;
@@ -21,19 +23,19 @@ impl ExecutionLimits {
     }
 }
 impl ExecutionLimitsBuilder {
-    pub fn max_turns(mut self, value: u32) -> Self {
+    pub const fn max_turns(mut self, value: u32) -> Self {
         self.max_turns = Some(value);
         self
     }
-    pub fn max_output_tokens(mut self, value: u32) -> Self {
+    pub const fn max_output_tokens(mut self, value: u32) -> Self {
         self.max_output_tokens = Some(value);
         self
     }
-    pub fn active_timeout_seconds(mut self, value: u32) -> Self {
+    pub const fn active_timeout_seconds(mut self, value: u32) -> Self {
         self.active_timeout_seconds = Some(value);
         self
     }
-    pub fn max_artifact_bytes(mut self, value: u64) -> Self {
+    pub const fn max_artifact_bytes(mut self, value: u64) -> Self {
         self.max_artifact_bytes = Some(value);
         self
     }
@@ -71,7 +73,7 @@ impl ClientCapabilities {
     }
 }
 impl ClientCapabilitiesBuilder {
-    pub fn client(mut self, value: ClientKind) -> Self {
+    pub const fn client(mut self, value: ClientKind) -> Self {
         self.client = Some(value);
         self
     }
@@ -87,7 +89,7 @@ impl ClientCapabilitiesBuilder {
         self.image_digest = Some(value);
         self
     }
-    pub fn supports_session_resume(mut self, value: bool) -> Self {
+    pub const fn supports_session_resume(mut self, value: bool) -> Self {
         self.supports_session_resume = Some(value);
         self
     }
@@ -131,7 +133,7 @@ impl ArtifactEvidenceBuilder {
         self.sha256 = Some(value);
         self
     }
-    pub fn bytes(mut self, value: u64) -> Self {
+    pub const fn bytes(mut self, value: u64) -> Self {
         self.bytes = Some(value);
         self
     }

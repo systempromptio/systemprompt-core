@@ -69,7 +69,7 @@ pub fn request_bound(
         pricing.cache_write_rate(),
     ]
     .into_iter()
-    .try_fold(0.0_f64, |highest, rate| {
+    .try_fold(0.0f64, |highest, rate| {
         ensure!(rate.is_finite() && rate >= 0.0, "Invalid input pricing");
         Ok::<_, anyhow::Error>(highest.max(rate))
     })?;
@@ -82,8 +82,10 @@ pub fn request_bound(
         "Paid evaluations require explicit nonzero pricing"
     );
     let bytes = u32::try_from(encoded_bytes)?;
-    let bound = (f64::from(bytes) + 4096.0) * input_rate
-        + f64::from(output_tokens) * pricing.output_per_million;
+    let bound = f64::from(output_tokens).mul_add(
+        pricing.output_per_million,
+        (f64::from(bytes) + 4096.0) * input_rate,
+    );
     ensure!(
         bound.is_finite() && bound < i64::MAX as f64,
         "Request bound overflow"

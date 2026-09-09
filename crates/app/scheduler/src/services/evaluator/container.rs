@@ -32,7 +32,7 @@ pub struct ContainerLaunch {
 }
 
 impl ContainerLaunch {
-    pub fn builder(docker: PathBuf, directory: PathBuf) -> ContainerLaunchBuilder {
+    pub const fn builder(docker: PathBuf, directory: PathBuf) -> ContainerLaunchBuilder {
         ContainerLaunchBuilder {
             docker,
             directory,
@@ -231,7 +231,7 @@ impl Drop for ContainerExecution {
                 }
             },
             Err(error) => {
-                tracing::error!(error = %error, container = %self.name, "Cannot establish evaluator child state")
+                tracing::error!(error = %error, container = %self.name, "Cannot establish evaluator child state");
             },
         }
     }

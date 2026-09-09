@@ -90,7 +90,7 @@ impl GatewayAudit {
     ) -> Result<()> {
         self.evaluation_pricing
             .set(pricing)
-            .map_err(|_| anyhow::anyhow!("Evaluation pricing already pinned"))
+            .map_err(|_rejected_pricing| anyhow::anyhow!("Evaluation pricing already pinned"))
     }
 
     fn completion_pricing(

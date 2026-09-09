@@ -77,7 +77,7 @@ pub struct NativeClientBuilder {
 }
 
 impl NativeClientBuilder {
-    pub fn limits(mut self, limits: ExecutionLimits) -> Self {
+    pub const fn limits(mut self, limits: ExecutionLimits) -> Self {
         self.client.limits = limits;
         self
     }

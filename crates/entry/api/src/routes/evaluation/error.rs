@@ -22,7 +22,7 @@ impl IntoResponse for WorkerHttpError {
             Self::Evaluation(EvaluationError::ResourceNotFound(_)) => StatusCode::NOT_FOUND,
             Self::Evaluation(EvaluationError::InvalidSpec(_)) => StatusCode::BAD_REQUEST,
             Self::Evaluation(EvaluationError::ExperimentConflict(_)) => StatusCode::CONFLICT,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Evaluation(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         if status.is_server_error() {
             tracing::error!(error = %self, "Evaluation worker request failed");

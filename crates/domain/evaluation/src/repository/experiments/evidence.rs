@@ -64,14 +64,14 @@ impl EvidenceRepository {
         let digest = content_digest(evidence)?;
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, owner).await?;
-        let owned = sqlx::query!(
+        let execution = sqlx::query!(
             r#"SELECT x.status,(x.lease_expires_at>NOW() AND x.deadline_at>NOW()) AS live,e.spec->'variants'->x.variant_index AS "variant!: Json<VariantSpec>" FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND e.status='running'"#,
             owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token
         ).fetch_optional(&mut *tx).await?.ok_or_else(|| conflict("Foreign or cancelled execution lease"))?;
-        if owned.status != "running" || owned.live != Some(true) {
+        if execution.status != "running" || execution.live != Some(true) {
             return Err(conflict("Expired execution lease"));
         }
-        validate_variant(evidence, &owned.variant.0)?;
+        validate_variant(evidence, &execution.variant.0)?;
         let mut recorded = sqlx::query_scalar!(
             "SELECT m.request_id FROM eval_request_reservations m JOIN ai_requests r ON r.id=m.request_id WHERE m.execution_id=$1 AND r.user_id=$2",
             lease.execution_id.as_str(), owner.as_str()
