@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval_executions x SET status='error',result=$2,finished_at=NOW() FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND x.status='running' AND x.lease_expires_at<NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "831bbb109351e77929f769aea26d3a14f58c1c523fdc74e07ae33ee1b5e78407"
+}

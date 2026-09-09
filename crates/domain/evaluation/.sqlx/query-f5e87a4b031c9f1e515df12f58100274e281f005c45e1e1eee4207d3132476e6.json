@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval_executions x SET status=$5,result=$6,finished_at=NOW(),lease_expires_at=NULL FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND e.status='running' AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.lease_expires_at>NOW() AND x.status='running' RETURNING x.experiment_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "experiment_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_executions",
+            "name": "experiment_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f5e87a4b031c9f1e515df12f58100274e281f005c45e1e1eee4207d3132476e6"
+}

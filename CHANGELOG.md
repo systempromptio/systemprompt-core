@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Evaluation experiments can persist owner-scoped immutable inputs, freeze client/model matrices, and cancel pending executions. Fenced worker leases reject stale results and retain uncertain billing reservations after expiry.
+- Evaluation budgets support atomic admission, idempotent settlement, retained uncertain reservations, and suspension after an overage.
+- Evidence-based rubric scoring validates the complete dimension and hard-gate sets and calculates weighted scores on the server.
+
 ## [0.48.0] - 2026-09-08
 
 Every production crate now compiles in exactly one shape. The out-of-tree test

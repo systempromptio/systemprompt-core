@@ -24,6 +24,9 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
+sha2 = { workspace = true }
+serde_jcs = { workspace = true }
+hex = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 

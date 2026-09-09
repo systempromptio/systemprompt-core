@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `ExperimentRepository` and `RevisionRepository` persist immutable case, rubric and dataset inputs with owner-scoped experiment matrices.
+- `BudgetRepository` distinguishes new admission from duplicate reservations, settles each request once and freezes admission after an overage.
+- `experiments::scoring::score` rejects incomplete or unsupported judgments and calculates weighted outcomes using integer arithmetic.
+
 ## [0.42.0] - 2026-08-31
 
 ### Added

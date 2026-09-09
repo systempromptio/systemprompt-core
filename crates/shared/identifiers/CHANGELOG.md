@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Typed identifiers for evaluation experiments, executions, resource revisions, budget accounts and reservations.
+
 ## [0.48.0] - 2026-09-08
 
 ### Added
