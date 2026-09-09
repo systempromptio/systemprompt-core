@@ -98,6 +98,7 @@ export const bridge = {
   openLogFolder:        ()                  => invoke("openLogFolder"),
   openExternalUrl:      (url)               => invoke("openExternalUrl", { url }),
   diagnosticsExportBundle: ()               => invoke("diagnostics.exportBundle"),
+  proxyResetSecret:     ()                  => invoke("proxy.resetSecret"),
   diagnosticsInfo:      ()                  => invoke("diagnostics.info"),
   settingsGet:          ()                  => invoke("settings.get"),
   updateCheck:          ()                  => invoke("update.check"),

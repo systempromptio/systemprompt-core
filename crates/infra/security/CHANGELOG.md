@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.49.0] - 2026-09-09
+
+### Fixed
+
+- A subject-attribute provider that fails now denies the request instead of contributing no attributes. `gather_subject_attributes` swallowed a provider error and returned an empty set, so a rule keyed on the missing dimension stopped matching and the decision was taken against an incomplete subject. `try_gather_subject_attributes` propagates the error and `RuleBasedHook` routes it to the fault path.
+
+### Added
+
+- `SubjectAttributeProvider::try_values_for`, the fallible form of `values_for`. It defaults to the infallible implementation, so existing providers are unaffected until they opt in.
+
 ## [0.48.0] - 2026-09-08
 
 ### Breaking

@@ -64,7 +64,7 @@ fn mint(path: &std::path::Path) -> std::io::Result<LoopbackSecret> {
 pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    let secret = if let Some(s) = load(&path)? {
+    let secret = if let Some(s) = load(&path).map_err(|e| unreadable(&path, e))? {
         s
     } else {
         let s = mint(&path)?;
@@ -79,10 +79,50 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
     Ok(secret)
 }
 
+// Why: the key is minted by this user and never touched again, so a read the
+// OS refuses means its ACL no longer names them. Nothing re-mints it on its
+// own (only a missing file does), so the error has to carry the remedy.
+fn unreadable(path: &std::path::Path, e: std::io::Error) -> std::io::Error {
+    if e.kind() != std::io::ErrorKind::PermissionDenied {
+        return e;
+    }
+    std::io::Error::new(
+        e.kind(),
+        format!(
+            "{} cannot be read ({e}); this user no longer has access to the local proxy secret. \
+             Use \"Reset local proxy secret\" in the app or delete the file (as an \
+             administrator if needed), start the bridge again, then repair each agent",
+            path.display()
+        ),
+    )
+}
+
+pub fn reset() -> std::io::Result<(LoopbackSecret, PathBuf)> {
+    let path = secret_path()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
+    crate::fsutil::remove_verified(&path).map_err(|e| {
+        std::io::Error::new(
+            e.kind(),
+            format!(
+                "{e}; delete {} as an administrator, then start the bridge again",
+                path.display()
+            ),
+        )
+    })?;
+    let secret = mint(&path)?;
+    tracing::warn!(
+        path = %path.display(),
+        fp = %fingerprint(secret.as_str()),
+        remediation = %reapply_hint(),
+        "loopback secret reset; every installed host profile is now stale",
+    );
+    Ok((secret, path))
+}
+
 pub fn for_profile() -> std::io::Result<LoopbackSecret> {
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    load(&path)?.map_or_else(
+    load(&path).map_err(|e| unreadable(&path, e))?.map_or_else(
         || {
             Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,

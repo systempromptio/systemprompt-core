@@ -47,12 +47,16 @@ pub(super) fn bind_candidate(
                     };
                 },
                 PeerIdentity::Foreign(who) => {
-                    diag(&format!(
-                        "proxy: port {port} is held by another {} install ({}); trying the next \
-                         port",
+                    let message = format!(
+                        "127.0.0.1:{port} is served by another {} install ({}); another account \
+                         on this computer is running the bridge, and every profile written for \
+                         that port authenticates against it, not this one. Quit that bridge, \
+                         then repair each agent",
                         crate::brand::brand().app_name,
                         who.config_dir
-                    ));
+                    );
+                    diag(&format!("proxy: {message}; trying the next port"));
+                    faults.push(StartupFault::new("proxy port", message));
                     tried.push(port);
                     continue;
                 },

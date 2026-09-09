@@ -62,7 +62,21 @@ async fn resolve_subject<'a>(
     let provider = subject_providers(pool)
         .iter()
         .find(|p| p.dimension().rule_type.as_str() == window.subject)?;
-    let id = provider.values_for(user_id).await.into_iter().next()?;
+    // Why: a provider that cannot answer must not silently drop the window it
+    // keys; no subject means the quota is not evaluated at all.
+    let id = provider
+        .values_for(user_id)
+        .await
+        .inspect_err(|error| {
+            tracing::warn!(
+                subject = %window.subject,
+                %error,
+                "Subject attribute provider failed; quota window not evaluated"
+            );
+        })
+        .ok()?
+        .into_iter()
+        .next()?;
     Some(WindowSubject {
         kind: &window.subject,
         id,

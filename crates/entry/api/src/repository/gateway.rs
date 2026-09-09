@@ -17,6 +17,9 @@ use crate::services::gateway::signature_cache::{TTL, ThoughtSignatureCache};
 
 #[derive(Clone)]
 pub struct GatewayRepositories {
+    pub execution_capabilities:
+        systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository,
+    pub evaluations: systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository,
     pub quota_buckets: AiQuotaBucketRepository,
     pub requests: Arc<AiRequestRepository>,
     pub payloads: Arc<AiRequestPayloadRepository>,
@@ -38,7 +41,18 @@ impl GatewayRepositories {
         db: &DbPool,
         context_materializer: DynContextMaterializer,
     ) -> Result<Self, systemprompt_ai::error::RepositoryError> {
+        let pool = db.write_pool_arc().map_err(|error| {
+            systemprompt_ai::error::RepositoryError::PoolInitialization(error.to_string())
+        })?;
         Ok(Self {
+            execution_capabilities:
+                systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
+                    (*pool).clone(),
+                ),
+            evaluations:
+                systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository::new(
+                    (*pool).clone(),
+                ),
             quota_buckets: AiQuotaBucketRepository::new(db)?,
             requests: Arc::new(AiRequestRepository::new(db)?),
             payloads: Arc::new(AiRequestPayloadRepository::new(db)?),

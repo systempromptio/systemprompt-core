@@ -57,3 +57,10 @@ pub struct SafetyBlocked {
     pub category: String,
     pub message: String,
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct GuardUnavailable {
+    pub message: String,
+    pub retry_after_seconds: i32,
+}

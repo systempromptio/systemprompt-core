@@ -84,7 +84,15 @@ impl RegistryService {
                 module_name: "mcp".to_owned(),
                 protocol: "mcp".to_owned(),
                 remote_endpoint: deployment.endpoint.clone().unwrap_or_default(),
-                external_auth: deployment.external_auth.clone(),
+                external_auth: deployment.external_auth.clone().or_else(|| {
+                    deployment.connector.as_ref().map(|_| {
+                        systemprompt_models::mcp::deployment::ExternalAuth {
+                            token_endpoint: format!("/api/public/connectors/{server_name}/token"),
+                            header: "Authorization".into(),
+                            scheme: String::new(),
+                        }
+                    })
+                }),
                 headers: deployment.headers.clone(),
             };
             enabled.push(config);

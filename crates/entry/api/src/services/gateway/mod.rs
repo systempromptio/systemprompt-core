@@ -22,6 +22,7 @@
 
 pub mod audit;
 pub mod captures;
+pub mod evaluation;
 pub mod image_fetch;
 pub mod parse;
 pub mod policy;

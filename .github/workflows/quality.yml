@@ -26,6 +26,18 @@ env:
   SQLX_OFFLINE: "true"
 
 jobs:
+  bridge-web:
+    name: Bridge web regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --import ./bin/bridge/web/dev/tests/resolve-assets.mjs --test bin/bridge/web/dev/tests/*.test.mjs
+
   lint:
     name: Clippy lint baseline
     runs-on: ubuntu-latest
@@ -52,6 +64,9 @@ jobs:
     # job that code is first compiled on a bridge-v* release tag.
     name: Bridge native checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # A test that raises a native modal, or waits on elevation, hangs a runner
+    # silently; the whole job is well under this when healthy.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

@@ -43,6 +43,7 @@ fn services_config_with_server(name: &str) -> ServicesConfig {
     config.mcp_servers.insert(
         name.to_owned(),
         systemprompt_models::mcp::Deployment {
+            connector: None,
             server_type: systemprompt_models::mcp::McpServerType::Internal,
             binary: "test-bin".to_owned(),
             package: None,

@@ -15,6 +15,7 @@ readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
 [dependencies]
+systemprompt-evaluation = { workspace = true }
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process", "signal"] }
 tokio-stream = { workspace = true }

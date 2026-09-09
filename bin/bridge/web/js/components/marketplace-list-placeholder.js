@@ -36,6 +36,24 @@ function errorState(error) {
   </li></ul>`;
 }
 
+export function refreshErrorMarkup(error) {
+  if (!error) { return ""; }
+  return `<div class="sp-mkt-empty" role="status">
+    <span class="sp-mkt-empty__title">${escapeHtml(t("marketplace-refresh-error") || "Could not refresh. Showing the previous list.")}</span>
+    <span class="sp-mkt-empty__sub">${escapeHtml(error)}</span>
+    <button class="sp-btn-ghost" type="button" data-action="retry">${escapeHtml(t("marketplace-retry") || "Try again")}</button>
+  </div>`;
+}
+
+function idleState(reason) {
+  const labels = {
+    "signed-out": t("marketplace-signin-required") || "Sign in to view your marketplace.",
+    "verifying": t("marketplace-verifying") || "Checking your connection…",
+    "gateway-unreachable": t("marketplace-unreachable") || "Waiting for the gateway connection.",
+  };
+  return `<div class="sp-mkt-empty" role="status">${escapeHtml(labels[reason] || labels["verifying"])}</div>`;
+}
+
 function emptyState(kind, reason) {
   const neverSynced = reason === "never-synced";
   return `<ul class="sp-mkt-items"><li class="sp-mkt-empty--with-sync">
@@ -51,10 +69,9 @@ function emptyState(kind, reason) {
   </li></ul>`;
 }
 
-// Why: loading, empty and broken used to render the same line. They are three
-// different situations and the only ones the user can act on are the last two.
 export function placeholderMarkup({ state, error, search, kind, reason }) {
-  if (state === "loading" || state === "idle") { return skeleton(); }
+  if (state === "loading") { return skeleton(); }
+  if (state === "idle") { return idleState(reason); }
   if (state === "error") { return errorState(error); }
   if (search) {
     return `<ul class="sp-mkt-items"><li class="sp-mkt-empty">

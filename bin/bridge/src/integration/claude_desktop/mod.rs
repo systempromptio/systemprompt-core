@@ -19,6 +19,27 @@ use windows as os;
 pub use shared::{ProfileGenInputs, default_models};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+#[must_use]
+pub(crate) fn policy_summary() -> Vec<String> {
+    let read = os::read_domain(shared::DESKTOP_DOMAIN);
+    let mut lines = vec![format!(
+        "source: {}",
+        read.source_path.as_deref().unwrap_or("<no managed policy>")
+    )];
+    if let Some(fp) = read.api_key_fp.as_deref() {
+        lines.push(format!("api key fingerprint: {fp}"));
+    }
+    lines.extend(read.keys.iter().map(|(k, v)| format!("{k} = {v}")));
+    lines
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[must_use]
+pub(crate) fn policy_summary() -> Vec<String> {
+    vec!["<no managed policy on this platform>".to_owned()]
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
     ProfileRemoval, ProfileState,

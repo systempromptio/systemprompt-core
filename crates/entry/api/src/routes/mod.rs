@@ -14,6 +14,7 @@ pub mod agent;
 pub mod analytics;
 pub mod content;
 pub mod engagement;
+pub mod evaluation;
 pub mod gateway;
 pub mod marketplace;
 pub mod mcp;

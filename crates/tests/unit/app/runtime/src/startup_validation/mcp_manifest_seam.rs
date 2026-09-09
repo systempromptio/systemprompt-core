@@ -19,6 +19,7 @@ fn deployment(
     binary: &str,
 ) -> Deployment {
     Deployment {
+        connector: None,
         server_type,
         binary: binary.to_owned(),
         package: None,

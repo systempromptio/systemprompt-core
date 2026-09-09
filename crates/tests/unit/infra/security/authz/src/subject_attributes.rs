@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
+use systemprompt_security::authz::AuthzError;
 use systemprompt_security::authz::subject::{
     ROLE_PRECEDENCE, SharedSubjectAttributeProvider, SubjectAttributeProvider, SubjectAttributes,
     SubjectDimension, dimensions_of, gather_subject_attributes,
@@ -18,9 +19,37 @@ impl SubjectAttributeProvider for StaticProvider {
         self.dimension.clone()
     }
 
-    async fn values_for(&self, _user_id: &UserId) -> Vec<String> {
-        self.values.clone()
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+        Ok(self.values.clone())
     }
+}
+
+#[derive(Debug)]
+struct FailingProvider {
+    dimension: SubjectDimension,
+}
+
+#[async_trait]
+impl SubjectAttributeProvider for FailingProvider {
+    fn dimension(&self) -> SubjectDimension {
+        self.dimension.clone()
+    }
+
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+        Err(AuthzError::Validation(
+            "department lookup unavailable".to_owned(),
+        ))
+    }
+}
+
+fn failing_provider(slug: &'static str) -> SharedSubjectAttributeProvider {
+    std::sync::Arc::new(FailingProvider {
+        dimension: SubjectDimension {
+            rule_type: RuleType::extension(slug).expect("slug must be a valid extension dimension"),
+            label: slug,
+            precedence: 100,
+        },
+    })
 }
 
 fn provider(
@@ -137,7 +166,9 @@ async fn gathering_snapshots_every_providers_values_under_its_own_dimension() {
     ];
     let user = UserId::new("user-gather");
 
-    let attributes = gather_subject_attributes(&providers, &user).await;
+    let attributes = gather_subject_attributes(&providers, &user)
+        .await
+        .expect("every provider answered");
 
     assert_eq!(
         attributes.values(&RuleType::extension("department").unwrap()),
@@ -152,6 +183,24 @@ async fn gathering_snapshots_every_providers_values_under_its_own_dimension() {
     assert!(
         !attributes.is_empty(),
         "a dimension present with zero values is still a recorded dimension"
+    );
+}
+
+#[tokio::test]
+async fn a_provider_that_cannot_answer_fails_the_gather_rather_than_yielding_nothing() {
+    let providers = vec![
+        provider("clearance", 150, &["secret"]),
+        failing_provider("department"),
+    ];
+    let user = UserId::new("user-gather-fault");
+
+    let error = gather_subject_attributes(&providers, &user)
+        .await
+        .expect_err("a provider that cannot reach its data must not read as no attributes");
+
+    assert!(
+        error.to_string().contains("department lookup unavailable"),
+        "{error}"
     );
 }
 

@@ -15,6 +15,7 @@ pub mod elevation_script;
 mod error;
 pub mod managed_file;
 pub mod managed_mcp;
+mod managed_profile;
 pub mod mdm;
 pub mod reg_values;
 mod schedule_apply;
@@ -199,7 +200,7 @@ pub fn uninstall(
         return Err(InstallError::ScheduleApply(e.clone()));
     }
 
-    let managed_profile = remove_managed_profile();
+    let managed_profile = managed_profile::remove();
     if let ManagedProfileOutcome::RemoveFailed(e) = &managed_profile {
         return Err(InstallError::Bootstrap(e.clone()));
     }
@@ -250,46 +251,4 @@ fn purge_plugin_dirs(root: &std::path::Path) -> Result<(), InstallError> {
         }
     }
     Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn remove_managed_profile() -> ManagedProfileOutcome {
-    match mdm::macos::remove_profile() {
-        Ok(true) => ManagedProfileOutcome::Removed(mdm::macos::PAYLOAD_IDENTIFIER),
-        Ok(false) => ManagedProfileOutcome::NotInstalled(mdm::macos::PAYLOAD_IDENTIFIER),
-        Err(e) => {
-            let msg = format!("profile remove failed: {e}");
-            diag(&msg);
-            ManagedProfileOutcome::RemoveFailed(msg)
-        },
-    }
-}
-
-#[cfg(target_os = "windows")]
-fn remove_managed_profile() -> ManagedProfileOutcome {
-    match mdm::remove_windows_policy() {
-        Ok(true) => ManagedProfileOutcome::Removed(
-            "HKLM Policies\\Claude managedMcpServers (+ any HKCU copy)",
-        ),
-        Ok(false) => ManagedProfileOutcome::NotInstalled("Windows Policies\\Claude"),
-        Err(e) => {
-            diag(&e.to_string());
-            ManagedProfileOutcome::RemoveFailed(e.to_string())
-        },
-    }
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn remove_managed_profile() -> ManagedProfileOutcome {
-    let lines = match mdm::linux::remove() {
-        Ok(lines) => lines,
-        Err(e) => return ManagedProfileOutcome::RemoveFailed(e.to_string()),
-    };
-    if lines.is_empty() {
-        return ManagedProfileOutcome::NotInstalled("Linux env configuration");
-    }
-    for line in &lines {
-        tracing::info!(target: "bridge::install", detail = %line, "linux env cleanup");
-    }
-    ManagedProfileOutcome::Removed("Linux env configuration (env.sh + ~/.profile block)")
 }

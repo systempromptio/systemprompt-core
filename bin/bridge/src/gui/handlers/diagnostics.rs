@@ -53,7 +53,7 @@ pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
-    let result = build_bundle().map_err(|e| {
+    let result = build_bundle(&app.ctx).map_err(|e| {
         let msg = format!("export diagnostic bundle failed: {e}");
         app.append_log_error(&msg);
         BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, msg)
@@ -73,7 +73,34 @@ pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
     finish(app, value, reply_to);
 }
 
-fn build_bundle() -> io::Result<PathBuf> {
+// Why: the running proxy holds the secret it started with, so a reset only
+// takes effect in a fresh process. The relaunch is the same one an update
+// uses; when it cannot spawn, the reset still stands and the operator restarts
+// by hand.
+#[tracing::instrument(level = "info", skip(app))]
+pub(crate) fn on_reset_proxy_secret(app: &GuiApp, reply_to: ReplyId) {
+    let result = crate::proxy::secret::reset()
+        .map(|(_, path)| {
+            app.append_log(format!(
+                "local proxy secret reset at {}; restarting the bridge, then repair each agent \
+                 so it learns the new secret",
+                path.display()
+            ));
+            json!({ "path": path.display().to_string() })
+        })
+        .map_err(|e| {
+            let msg = format!("reset local proxy secret failed: {e}");
+            app.append_log_error(&msg);
+            BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, msg)
+        });
+    let reset_ok = result.is_ok();
+    finish(app, result, reply_to);
+    if reset_ok {
+        crate::gui::handlers::update::on_update_restart_requested(app);
+    }
+}
+
+fn build_bundle(ctx: &crate::context::BridgeContext) -> io::Result<PathBuf> {
     let log_dir = crate::obs::log_dir()
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "log dir unavailable"))?;
     let dest_dir = crate::basedirs::desktop_dir()
@@ -111,6 +138,9 @@ fn build_bundle() -> io::Result<PathBuf> {
 
     zip.start_file("diagnostics.txt", opts)?;
     zip.write_all(crate::buildinfo::render().as_bytes())?;
+
+    zip.start_file("state.txt", opts)?;
+    zip.write_all(crate::diagnostics_state::render(ctx).as_bytes())?;
 
     if let Some(yaml) = crate::config::redaction::redacted_config() {
         zip.start_file("config.redacted.toml", opts)?;

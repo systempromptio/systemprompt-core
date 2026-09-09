@@ -22,6 +22,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod error;
+pub mod experiments;
 pub mod extension;
 pub mod models;
 pub mod repository;

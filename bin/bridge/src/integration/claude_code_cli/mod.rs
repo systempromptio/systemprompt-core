@@ -23,6 +23,7 @@
 mod bundle;
 pub mod json_io;
 pub mod marketplace;
+mod mcp;
 pub mod sidecar;
 
 use std::collections::BTreeMap;
@@ -232,22 +233,19 @@ fn mirror_marketplace(
             continue;
         };
         let src = ctx.org_plugins_root.join(id.as_str());
-        let mcp_servers = ctx
-            .plugin_mcp_servers
-            .get(id.as_str())
-            .map_or(&[][..], Vec::as_slice);
+        let mcp_servers = mcp::servers_for_plugin(ctx, id);
         mirror_plugin(
             ctx.loopback,
             &src,
             &source_plugin_dir(plugins, &marketplace.id, id),
-            mcp_servers,
+            &mcp_servers,
             &ctx.manifest.skills,
         )?;
         mirror_plugin(
             ctx.loopback,
             &src,
             &cache_install_dir(plugins, &marketplace.id, id),
-            mcp_servers,
+            &mcp_servers,
             &ctx.manifest.skills,
         )?;
         entries.push(marketplace::entry_for(&src, id, version));

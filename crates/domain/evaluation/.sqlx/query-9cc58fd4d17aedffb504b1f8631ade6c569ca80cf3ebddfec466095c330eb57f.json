@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval_executions x SET lease_expires_at=LEAST(x.deadline_at,NOW()+INTERVAL '60 seconds') FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND e.status='running' AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.lease_expires_at>NOW() AND x.deadline_at>NOW() AND x.status='running'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9cc58fd4d17aedffb504b1f8631ade6c569ca80cf3ebddfec466095c330eb57f"
+}

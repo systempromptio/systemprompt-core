@@ -16,6 +16,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::OpenConfigFolder => "OpenConfigFolder",
         UiEvent::OpenLogDirectory { .. } => "OpenLogDirectory",
         UiEvent::ExportDiagnosticBundle { .. } => "ExportDiagnosticBundle",
+        UiEvent::ProxySecretResetRequested { .. } => "ProxySecretResetRequested",
         UiEvent::LoginRequested { .. } => "LoginRequested",
         UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
@@ -123,6 +124,9 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
         },
         UiEvent::ExportDiagnosticBundle { reply_to } => {
             handlers::diagnostics::on_export_diagnostic_bundle(app, reply_to);
+        },
+        UiEvent::ProxySecretResetRequested { reply_to } => {
+            handlers::diagnostics::on_reset_proxy_secret(app, reply_to);
         },
         UiEvent::LoginRequested {
             token,

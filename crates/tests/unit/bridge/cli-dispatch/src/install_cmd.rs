@@ -203,9 +203,27 @@ fn purge_device_returns_the_machine_to_a_never_installed_state() {
             sb.metadata().join("onboarded.json").exists(),
             "precondition: onboarding recorded"
         );
+        std::fs::write(config_dir.join("bridge-loopback.key"), "stale-secret")
+            .expect("seed a loopback key");
         let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
         purge_device(&ctx).expect("purge succeeds in a sandbox")
     });
+    assert!(
+        !config_dir.join("bridge-loopback.key").exists(),
+        "the loopback key goes with everything else; a kept key keeps its fault"
+    );
+    assert!(
+        report
+            .proxy_state_removed
+            .iter()
+            .any(|p| p.ends_with("bridge-loopback.key")),
+        "the report names the removed key: {:?}",
+        report.proxy_state_removed
+    );
+    assert!(
+        report.foreign_proxy.is_none(),
+        "no other install answered the default port in a sandbox"
+    );
 
     assert!(
         matches!(

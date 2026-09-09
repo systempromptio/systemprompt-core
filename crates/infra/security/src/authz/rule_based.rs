@@ -125,7 +125,10 @@ impl AuthzDecisionHook for RuleBasedHook {
             Err(err) => return self.fault(&req, &err).await,
         };
 
-        let attributes = gather_subject_attributes(&self.providers, &req.user_id).await;
+        let attributes = match gather_subject_attributes(&self.providers, &req.user_id).await {
+            Ok(attributes) => attributes,
+            Err(error) => return self.fault(&req, &error).await,
+        };
         let decision = index.resolve(
             kind,
             id,

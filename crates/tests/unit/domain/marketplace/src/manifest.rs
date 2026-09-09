@@ -378,6 +378,7 @@ fn enabled_deployment(endpoint: Option<&str>) -> systemprompt_models::mcp::Deplo
     use systemprompt_models::auth::JwtAudience;
     use systemprompt_models::mcp::deployment::OAuthRequirement;
     systemprompt_models::mcp::Deployment {
+        connector: None,
         server_type: Default::default(),
         binary: "server".into(),
         package: None,

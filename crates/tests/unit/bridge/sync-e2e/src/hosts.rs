@@ -203,7 +203,12 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         skills: vec![],
         agents: vec![],
         hooks: vec![],
-        managed_mcp_servers: vec![],
+        managed_mcp_servers: vec![
+            serde_json::from_value(serde_json::json!({
+                "name": "Primary MCP", "url": "https://gateway.example/mcp/primary"
+            }))
+            .unwrap(),
+        ],
         revocations: vec![],
         enabled_hosts,
         host_model_protocols: std::collections::BTreeMap::default(),
@@ -681,4 +686,56 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
             .is_none()
     );
     assert!(settings["extraKnownMarketplaces"]["someones-mp"].is_object());
+}
+
+// Catalogue bundles can contain connectors absent from the user's manifest.
+// Verify both first install and revocation without changing the bundle hash.
+#[test]
+fn claude_cli_mcp_projection_follows_the_user_manifest() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let mut m = manifest(vec!["claude-code".into()], true, "dddd0001");
+    m.managed_mcp_servers = vec![
+        serde_json::from_value(serde_json::json!({
+            "name": "knowledge-bank", "url": "https://gateway.example/mcp/knowledge-bank"
+        }))
+        .unwrap(),
+    ];
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &m).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    for revoked in [false, true] {
+        if revoked {
+            m.managed_mcp_servers.clear();
+            m.manifest_version = version("dddd0002");
+            rt.block_on(async {
+                server.reset().await;
+                crate::mount_profile(&server).await;
+                mount_gateway(&server, &m).await;
+            });
+        }
+        assert!(run_sync(&dirs).unwrap().host_failures.is_empty());
+        for relative in [
+            "marketplaces/org-provisioned/plugins/plugin-a/.mcp.json",
+            "cache/org-provisioned/plugin-a/current/.mcp.json",
+        ] {
+            let value: serde_json::Value = serde_json::from_slice(
+                &fs::read(dirs.claude_home.join("plugins").join(relative)).unwrap(),
+            )
+            .unwrap();
+            let servers = value["mcpServers"].as_object().unwrap();
+            assert!(!servers.contains_key("primary-mcp"));
+            assert_eq!(servers.len(), usize::from(!revoked));
+            if !revoked {
+                assert!(servers.contains_key("knowledge-bank"));
+            }
+        }
+    }
 }

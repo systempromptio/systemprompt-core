@@ -5,6 +5,7 @@ use systemprompt_models::mcp::{Deployment, ExternalAuth, McpServerType, OAuthReq
 
 fn deployment(server_type: McpServerType, endpoint: Option<&str>) -> Deployment {
     Deployment {
+        connector: None,
         server_type,
         binary: "bin".to_owned(),
         package: None,

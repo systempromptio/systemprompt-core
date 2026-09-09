@@ -125,9 +125,9 @@ pub(crate) fn on_profile_install_requested(
     app.append_log(format!("[{host_id}] installing {path}…"));
     if needs_elevation_notice(host) {
         app.append_log(format!(
-            "[{host_id}] administrator approval is required to write the machine-wide Claude \
-             policy (HKLM\\SOFTWARE\\Policies\\Claude). A Windows UAC prompt will appear — \
-             approve it to continue."
+            "[{host_id}] the policy is written for this user; if the machine-wide Claude \
+             policy (HKLM\\SOFTWARE\\Policies\\Claude) already holds other values, a Windows \
+             UAC prompt appears — approve it to replace them."
         ));
     }
     if let Some(notice) = manual_approval_notice(host) {

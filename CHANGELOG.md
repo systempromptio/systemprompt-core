@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.49.0] - 2026-09-09
+
+The evaluation domain becomes something a fleet of workers can actually run
+against. Experiments persist owner-scoped immutable inputs and frozen
+client/model matrices; workers hold environment-scoped credentials that expire
+and can be revoked, claim work under a fenced lease, and reach the gateway with
+five-minute execution-only capabilities that grant no administrative or worker
+access. Budget admission is atomic and settlement idempotent, so a request that
+is dispatched but never fully accounted for retains its reservation rather than
+losing it. Evidence is hash-verified against its manifest and scored on the
+server.
+
+The other thread is fail-open removal. An authorization subject-attribute
+provider that failed used to contribute an empty set and let the decision
+proceed against an incomplete subject; it now denies. The bridge's recovery
+paths follow the same rule: an upgrade run under another Windows account, an
+unreadable loopback key and a port held by another install are named startup
+faults with remedies instead of log lines and dead ends.
+
+### Added
+
+- Evaluation workers can obtain five-minute execution-only capabilities tied to an active lease and session. Gateway inference accepts these capabilities without granting administrative or worker access.
+- Gateway evaluation admission checks the selected provider and worker revocation; evaluation audit records identify the owning execution as a job actor.
+- Evaluation workers have environment-scoped, expiring credentials and fenced HTTP claim, heartbeat, evidence and completion endpoints.
+- Evaluation artifact uploads are checked against their SHA-256 manifests and server-recorded request IDs.
+- Evaluation experiments can persist owner-scoped immutable inputs, freeze client/model matrices, and cancel pending executions. Fenced worker leases reject stale results and retain uncertain billing reservations after expiry.
+- Evaluation budgets support atomic admission, idempotent settlement, retained uncertain reservations, and suspension after an overage.
+- Evidence-based rubric scoring validates the complete dimension and hard-gate sets and calculates weighted scores on the server.
+- **Scheduler:** native Claude Code and OpenCode container adapters run through the shared subprocess supervisor with pinned image digests, bounded output and explicit cleanup.
+- **MCP:** an external server can declare a `connector` — outbound personal-account OAuth, separate from the `external_auth` that governs inbound access. It is validated at config load (a generic connector requires an HTTPS resource; a client secret requires a client id), refused on internal servers, and resolves to the gateway-owned connector token endpoint when the server declares no explicit `external_auth`, so no token route has to be written by hand.
+- **Models:** `subprocess::spawn_owned_supervised` returns an owned child through the existing supervised spawning thread and parent-death handling, and kills and reaps the child when that ownership cannot be delivered to the caller.
+- **Bridge:** Claude Code's managed MCP configuration is projected from the user's own manifest, and connector projection is separated from marketplace mirroring so one cannot narrow the other. `modelPicker` options are emitted for Claude Code, with legacy rows migrated.
+
+### Changed
+
+- Evaluation budget reservations are held, not released: a reservation whose usage is never fully recorded stays against the cap until it is reconciled, and cancelling an execution freezes the account without returning it. This is deliberate — a request already dispatched upstream must not free budget it may still consume — but a crashed worker therefore holds its reservation until an operator reconciles it.
+- Attested evaluation sessions reserve gateway budget before dispatch, disable retries, pin selected-provider pricing and retain reservations when usage is incomplete.
+
+### Fixed
+
+- **Gateway:** a completion whose model has no configured pricing still writes its terminal `ai_requests` row. Resolving pricing at completion had become fallible and returned before the update, so a request already spent upstream was left in `processing` with no cost, tokens or response recorded. Dispatch refuses an unpriced model before the audit is opened, so a miss at completion means the rates moved mid-request; it is warned about and billed at zero rather than erasing the record.
+- **Security (authz):** a subject-attribute provider that fails now denies the request instead of quietly contributing nothing. `gather_subject_attributes` swallowed the provider's error and returned an empty attribute set, so a rule keyed on the missing dimension stopped matching and the decision was taken against an incomplete subject — a fail-open on the input to an authorization decision. The fallible `try_gather_subject_attributes` propagates it and the rule-based hook routes it to the fault path; `GatewayDenyKind::Unavailable` lets a guard that could not reach the state it needs be told apart from one that decided against the request, which had been reported as a quota denial.
+- **Bridge:** an upgrade run under another Windows account is recoverable. A default port held by another install, a loopback key file the OS refuses to read, and a machine policy holding another bridge's secret are named startup faults carrying the path and the remedy rather than `Tried ports []: Access is denied`; **Remove everything** now clears the loopback key, install identity, port record, every enrolled host profile and the whole machine Claude policy, and reports whatever it could not remove. `diagnostics` carries `state.txt` (proxy role, port ownership, config directory readability and ACLs, effective policy, visible bridge processes) and the bridge logs its version and commit on every start.
+- **Bridge:** a pre-0.48 `[sync] pinned_pubkey` is adopted as operator trust for the configured gateway and rewritten as `[sync.trust]` on the first sync that verifies against it. 0.48.0 reported it stale and blocked every sync behind a remedy only an administrator could run.
+- **Bridge:** marketplace skills and counts survive gateway probes and temporary outages — stale listing replies cannot overwrite a newer session, and a failed refresh retains the previous list with a retry action.
+- **Bridge:** `alert_user` no longer holds its caller until the dialog is dismissed. The macOS `osascript` dialog and the Windows `MessageBoxW` were modal, so an unattended installer path or a CI runner waited forever; the dialog is raised and reaped on its own thread.
+
 ## [0.48.0] - 2026-09-08
 
 Every production crate now compiles in exactly one shape. The out-of-tree test

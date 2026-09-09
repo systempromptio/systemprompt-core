@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.49.0] - 2026-09-09
+
+### Changed
+
+- A pre-0.48 `[sync] pinned_pubkey` is adopted as operator trust for the configured gateway (and dropped, like any operator pin, when it recorded another), and the first sync that verifies against it rewrites it as `[sync.trust]`. 0.48.0 reported it stale and blocked every sync with a remedy only an administrator could run; an install that had synced the day before was left with no in-app way back.
+- The loopback secret is read before a port is bound. A key file the OS refuses to read used to surface as `Tried ports []: Access is denied` with no path and no remedy; it is now a named startup fault that carries the file and the fix, and the Status page offers **Reset local proxy secret**, which re-mints the key and restarts the bridge.
+- A default port held by another bridge install (another Windows account running the bridge) is a startup fault naming that install's config directory, not a log line. Every profile written for that port authenticates against the other bridge, which is why the hosts reported "proxy timed out" with no visible cause.
+- Repairing Claude Desktop on Windows requests administrator approval when `HKLM\SOFTWARE\Policies\Claude` already holds other values, instead of failing with "already holds different values" after announcing a UAC prompt that never came. An elevated sync that replaces a machine policy carrying another bridge's secret says so by fingerprint.
+- **Remove everything** removes everything: the loopback key, install identity and port record go (a kept key kept its fault and the next start failed the same way), every enrolled host's profile is cleared rather than only Cowork and the Claude Code CLI, the whole machine Claude policy is cleared through an elevated write, and whatever could not be removed — including a bridge running under another account — is reported rather than silently left behind.
+- `diagnostics` and the diagnostic bundle carry `state.txt`: proxy role, who answers the default port, the port file, the config directory with per-file readability and (Windows) owner + DACL, the effective Claude Desktop policy, and visible bridge processes. The bridge logs its version and commit on every start.
+
+### Fixed
+
+- Marketplace skills and counts remain visible during gateway probes and temporary outages. Signing back in reloads an unchanged manifest, stale listing replies cannot overwrite a newer session, and failed refreshes retain the previous list with a retry action.
+- `alert_user` no longer holds its caller until the dialog is dismissed. The macOS `osascript` dialog and the Windows `MessageBoxW` were both modal and blocking, so an installer path that raised one on an unattended host, or the native test job on a CI runner, waited forever; the dialog is now raised and reaped on its own thread. The Quality workflow's native bridge job also carries a 45-minute timeout.
+
 ## [0.48.0] - 2026-09-08
 
 ### Breaking

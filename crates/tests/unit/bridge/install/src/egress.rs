@@ -147,7 +147,9 @@ static MDM_LOOPBACK: std::sync::LazyLock<systemprompt_bridge::proxy::LoopbackEnd
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::proxy::LoopbackEndpoint::new(
             systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-            None,
+            Some(systemprompt_bridge::ids::LoopbackSecret::new(
+                "mdm-test-secret",
+            )),
         )
     });
 #[cfg(target_os = "macos")]

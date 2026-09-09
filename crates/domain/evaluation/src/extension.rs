@@ -21,6 +21,14 @@ impl Extension for EvaluationExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
+            SchemaDefinition::new(
+                "eval_experiments",
+                include_str!("../schema/experiments.sql"),
+            ),
+            SchemaDefinition::new(
+                "eval_execution_evidence",
+                include_str!("../schema/execution_evidence.sql"),
+            ),
             SchemaDefinition::new("eval_runs", include_str!("../schema/eval_runs.sql"))
                 .with_required_columns(vec!["id".into(), "kind".into(), "status".into()]),
             SchemaDefinition::new("eval_cases", include_str!("../schema/eval_cases.sql"))

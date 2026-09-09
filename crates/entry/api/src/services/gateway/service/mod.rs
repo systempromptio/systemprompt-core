@@ -11,12 +11,13 @@
 pub mod credentials;
 mod error;
 pub mod finalize;
+mod pricing;
 pub mod resolve;
 pub mod stages;
 
 pub use self::error::{
-    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, PromptRepairRequired,
-    QuotaExceeded, SafetyBlocked,
+    DispatchError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
+    PromptRepairRequired, QuotaExceeded, SafetyBlocked,
 };
 pub(super) use self::finalize::run_response_safety_scan;
 
@@ -31,6 +32,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
 
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
+use self::pricing::{dispatch_pricing, trace_dispatch};
 use self::resolve::{ResolvedUpstream, resolve_upstream};
 use self::stages::{
     GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay, record_quota_warning,
@@ -73,31 +75,19 @@ impl GatewayService {
             forward_headers,
             identity_headers,
         } = inputs;
-        if ctx.session_id.is_none() {
-            return Err(DispatchError::PreAudit(anyhow!(
-                "gateway dispatch missing conversation binding (session_id)"
-            )));
-        }
-
+        let (policy, evaluation_session) = dispatch_policy(repos, &ctx).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
+        let pricing = dispatch_pricing(config, registry, &request, &upstream, evaluation_session)?;
 
-        tracing::info!(
-            ai_request_id = %ai_request_id,
-            user_id = %ctx.user_id,
-            model = %request.model,
-            provider = %upstream.route.provider,
-            upstream = %upstream.provider.endpoint,
-            wire_protocol = %ctx.wire_protocol,
-            streaming = request.stream,
-            "Gateway request dispatched"
-        );
-
-        let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
-        let policy = resolver.resolve().await;
-
+        trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
+        if evaluation_session {
+            audit
+                .pin_evaluation_pricing(pricing)
+                .map_err(DispatchError::PreAudit)?;
+        }
 
         if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
             audit.set_route_match(descriptor).await;
@@ -122,7 +112,17 @@ impl GatewayService {
             ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit)
                 .await?;
 
-        let outcome = scanned.send(&upstream, &forward_headers, &audit).await?;
+        let evaluation = scanned.admit_evaluation(repos, &ctx, &pricing).await?;
+        let retry_policy = if evaluation {
+            super::protocol::outbound::retry::RetryPolicy::none()
+        } else {
+            super::protocol::outbound::retry::current_policy()
+        };
+        let outcome = super::protocol::outbound::retry::with_policy(
+            retry_policy,
+            scanned.send(&upstream, &forward_headers, &audit),
+        )
+        .await?;
 
         let mut response = finalize(
             outcome,
@@ -141,6 +141,24 @@ impl GatewayService {
         stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
         Ok(attach_request_id(response, &ai_request_id))
     }
+}
+
+async fn dispatch_policy(
+    repos: &super::GatewayRepositories,
+    ctx: &GatewayRequestContext,
+) -> Result<(GatewayPolicySpec, bool), DispatchError> {
+    if ctx.session_id.is_none() {
+        return Err(DispatchError::PreAudit(anyhow!(
+            "gateway dispatch missing conversation binding (session_id)"
+        )));
+    }
+
+    let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
+    let policy = resolver.resolve().await;
+    let evaluation_session = super::evaluation::preflight(repos, ctx, &policy)
+        .await
+        .map_err(DispatchError::PreAudit)?;
+    Ok((policy, evaluation_session))
 }
 
 async fn open_audit(
@@ -242,11 +260,18 @@ async fn enforce_request_guards(
         tracing::warn!(error = %e, "request-guard audit fail failed");
     }
     let inner: anyhow::Error = match deny.kind {
+        systemprompt_extension::GatewayDenyKind::Unavailable => GuardUnavailable {
+            message: deny.message,
+            retry_after_seconds: deny.retry_after_seconds,
+        }
+        .into(),
         systemprompt_extension::GatewayDenyKind::Forbidden => GuardForbidden {
             message: deny.message,
         }
         .into(),
-        systemprompt_extension::GatewayDenyKind::Quota => QuotaExceeded {
+        // Why: the enum is non_exhaustive, and a denial whose kind this build
+        // does not know must still deny rather than fall through to a send.
+        _ => QuotaExceeded {
             message: deny.message,
             retry_after_seconds: deny.retry_after_seconds,
         }

@@ -282,6 +282,17 @@ fn jwt_extractor(
     Ok(JwtContextExtractor::new(analytics, user_provider, jti))
 }
 
+fn execution_capabilities(
+    pool: &DbPool,
+) -> Result<systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository> {
+    let write = pool.write_pool_arc()?;
+    Ok(
+        systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
+            (*write).clone(),
+        ),
+    )
+}
+
 #[tokio::test]
 async fn authenticate_accepts_seeded_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
@@ -297,9 +308,16 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
         .await?;
 
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(&issued.secret, &cred.session_id, &extractor, &ctx)
-        .await
-        .expect("api key authenticates");
+    let capabilities = execution_capabilities(&pool)?;
+    let principal = authenticate(
+        &issued.secret,
+        &cred.session_id,
+        &extractor,
+        &ctx,
+        &capabilities,
+    )
+    .await
+    .expect("api key authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
     assert_eq!(
         principal.attested_session().as_str(),
@@ -325,7 +343,8 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
 
     let extractor = jwt_extractor(&ctx)?;
     let forged = SessionId::new("not-a-real-session");
-    let (status, msg) = authenticate(&issued.secret, &forged, &extractor, &ctx)
+    let capabilities = execution_capabilities(&pool)?;
+    let (status, msg) = authenticate(&issued.secret, &forged, &extractor, &ctx, &capabilities)
         .await
         .expect_err("a session the server never issued must not authenticate");
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -335,13 +354,15 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
 
 #[tokio::test]
 async fn authenticate_rejects_unknown_api_key() -> Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
+    let capabilities = execution_capabilities(&pool)?;
     let (status, _msg) = authenticate(
         "sp-live-deadbeefdeadbeef",
         &SessionId::generate(),
         &extractor,
         &ctx,
+        &capabilities,
     )
     .await
     .expect_err("unknown api key must fail");
@@ -355,9 +376,16 @@ async fn authenticate_accepts_seeded_jwt() -> Result<()> {
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-jwt@example.invalid").await?;
     let extractor = jwt_extractor(&ctx)?;
-    let principal = authenticate(cred.jwt.as_str(), &cred.session_id, &extractor, &ctx)
-        .await
-        .expect("jwt authenticates");
+    let capabilities = execution_capabilities(&pool)?;
+    let principal = authenticate(
+        cred.jwt.as_str(),
+        &cred.session_id,
+        &extractor,
+        &ctx,
+        &capabilities,
+    )
+    .await
+    .expect("jwt authenticates");
     assert_eq!(principal.user_id().as_str(), cred.user_id.as_str());
     assert_eq!(
         principal.attested_session().as_str(),

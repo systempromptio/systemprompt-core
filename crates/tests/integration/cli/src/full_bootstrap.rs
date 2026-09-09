@@ -38,6 +38,11 @@ pub fn fixture_mcp_server() -> &'static str {
     })
 }
 
+pub fn fixture_instance_id() -> &'static str {
+    static INSTANCE: OnceLock<String> = OnceLock::new();
+    INSTANCE.get_or_init(|| format!("cli-fixture-{}", uuid::Uuid::new_v4().simple()))
+}
+
 pub struct FullBootstrap {
     _tmp: TempDir,
     pub profile_path: PathBuf,
@@ -472,7 +477,7 @@ server:
     referrer_policy: strict-origin-when-cross-origin
     permissions_policy: camera=()
     content_security_policy: null
-  instance_id: test-instance
+  instance_id: {instance_id}
   max_concurrent_streams: 256
   trusted_proxies: []
 paths:
@@ -529,5 +534,6 @@ governance:
         web = root.join("system/web").display(),
         storage = root.join("storage").display(),
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
+        instance_id = fixture_instance_id(),
     )
 }

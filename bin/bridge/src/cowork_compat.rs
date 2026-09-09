@@ -34,3 +34,14 @@ pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 pub const POLICY_SUBKEY: &str = r"SOFTWARE\Policies\Claude";
 pub const HKCU_POLICY_KEY: &str = r"HKCU\SOFTWARE\Policies\Claude";
 pub const HKLM_POLICY_KEY: &str = r"HKLM\SOFTWARE\Policies\Claude";
+pub const POLICY_API_KEY: &str = "inferenceGatewayApiKey";
+pub const POLICY_KEYS: &[&str] = &[
+    "inferenceProvider",
+    "inferenceGatewayBaseUrl",
+    POLICY_API_KEY,
+    "inferenceGatewayAuthScheme",
+    "inferenceCustomHeaders",
+    "inferenceModels",
+    "allowedWorkspaceFolders",
+    "managedMcpServers",
+];

@@ -4,6 +4,7 @@ import { bridge } from "/assets/js/bridge.js";
 import { publishSectionState } from "/assets/js/utils/format.js";
 import { t } from "/assets/js/i18n.js";
 import { toneDot, toneSection, worstTone } from "/assets/js/utils/verdict.js";
+import { runAction } from "/assets/js/utils/action.js";
 
 function proxyView(proxy) {
   const verdict = proxy.verdict || { tone: "unknown", code: "unknown" };
@@ -32,6 +33,17 @@ export class SpProxyStatus extends SpElement {
   constructor() {
     super();
     this.snapshot = null;
+    this.registerAction("reset-secret", (trigger) => {
+      if (!window.confirm(t("status-proxy-reset-secret-confirm")
+        || "Reset the local proxy secret? The bridge restarts and every agent must be repaired afterwards.")) {
+        return;
+      }
+      runAction(trigger, {
+        run: () => bridge.proxyResetSecret(),
+        success: () => t("status-proxy-reset-secret-done") || "Secret reset — the bridge is restarting.",
+        context: t("status-proxy-reset-secret") || "Reset local proxy secret",
+      });
+    });
   }
 
   onConnect() {
@@ -79,6 +91,7 @@ export class SpProxyStatus extends SpElement {
           </details>
           <div class="sp-kpi-card__foot">
             <span class="sp-kpi-card__foot-meta">${escapeHtml(url || "no URL configured")}</span>
+            ${view.tone === "err" ? `<button type="button" class="sp-btn-ghost" data-action="reset-secret">${escapeHtml(t("status-proxy-reset-secret") || "Reset local proxy secret")}</button>` : ""}
           </div>
         </article>
 

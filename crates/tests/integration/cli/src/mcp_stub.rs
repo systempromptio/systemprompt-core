@@ -16,7 +16,8 @@ use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::full_bootstrap::{
-    database_url_or_skip, fixture_mcp_server, fixture_or_skip, rewrite_services_config,
+    database_url_or_skip, fixture_instance_id, fixture_mcp_server, fixture_or_skip,
+    rewrite_services_config,
 };
 
 static STUB: OnceLock<Option<u16>> = OnceLock::new();
@@ -97,12 +98,13 @@ fn register_running_service(database_url: &str, port: u16) {
         let pid = i32::try_from(identity_holder_pid()).expect("pid fits in i32");
         sqlx::query(
             "INSERT INTO services (instance_id, name, module_name, server_type, port, status, pid)
-             VALUES ('test-instance', $1, 'mcp', 'external', $2, 'running', $3)
+             VALUES ($4, $1, 'mcp', 'external', $2, 'running', $3)
              ON CONFLICT (instance_id, name) DO UPDATE SET port = $2, status = 'running', pid = $3",
         )
         .bind(fixture_mcp_server())
         .bind(i32::from(port))
         .bind(pid)
+        .bind(fixture_instance_id())
         .execute(&pool)
         .await
         .expect("register running fixture_mcp service");

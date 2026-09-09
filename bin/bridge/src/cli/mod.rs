@@ -95,7 +95,7 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
         Some("uninstall") => uninstall::cmd_uninstall(&ctx, args),
         Some("credential-helper") => credential_helper::cmd_credential_helper(&ctx, args),
         Some("comms-drain") => comms_drain::cmd_comms_drain(),
-        Some("diagnostics") => diagnostics::cmd_diagnostics(),
+        Some("diagnostics") => diagnostics::cmd_diagnostics(&ctx),
         Some("doctor") => doctor::cmd_doctor(&ctx),
         Some("gui") => gui::cmd_gui(ctx),
         #[cfg(feature = "dev-preview")]

@@ -8,6 +8,7 @@ use systemprompt_models::services::ServicesConfig;
 
 fn deployment(required: bool, scopes: Vec<Permission>) -> Deployment {
     Deployment {
+        connector: None,
         server_type: McpServerType::Internal,
         binary: "bin".to_owned(),
         package: None,

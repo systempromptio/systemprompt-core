@@ -50,7 +50,15 @@ impl GatewayAudit {
     }
 
     pub async fn open(&self, request: &CanonicalRequest, request_body: &Bytes) -> Result<()> {
-        let record = self.build_record();
+        let mut record = self.build_record();
+        if let Some(session) = &self.ctx.session_id
+            && let Some(actor) = self
+                .evaluations
+                .execution_actor(&self.ctx.user_id, session)
+                .await?
+        {
+            record.actor = actor;
+        }
 
         if let Err(e) = self
             .context_materializer

@@ -31,9 +31,7 @@ pub(super) fn mirror_plugin(
     copy_dir_all(src, dst)?;
     filter_skills_for_host(dst, skills, "claude-code")?;
     drop_standard_hooks_pointer(dst)?;
-    if !mcp_servers.is_empty() {
-        write_mcp_json(loopback, dst, mcp_servers)?;
-    }
+    write_mcp_json(loopback, dst, mcp_servers)?;
     Ok(())
 }
 

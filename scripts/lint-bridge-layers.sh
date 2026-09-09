@@ -27,7 +27,7 @@ context
 host_sync
 install
 integration
-sync
+sync diagnostics_state
 wire
 gui
 dev_preview

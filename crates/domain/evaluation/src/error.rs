@@ -9,6 +9,15 @@ domain_error! {
     pub enum EvaluationError {
         common: [repository, json],
 
+        #[error("Evaluation state conflict: {0}")]
+        ExperimentConflict(String),
+
+        #[error("Evaluation resource not found: {0}")]
+        ResourceNotFound(String),
+
+        #[error("Invalid evaluation specification: {0}")]
+        InvalidSpec(String),
+
         #[error("AI provider request failed: {0}")]
         Ai(String),
 

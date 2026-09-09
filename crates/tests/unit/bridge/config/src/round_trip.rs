@@ -36,7 +36,7 @@ organization_uuid = "abc-123"
             .map(KeystoreRef::as_str),
         Some("macos:my-cert-label"),
     );
-    assert!(cfg.sync.as_ref().expect("sync").legacy_pin);
+    assert!(cfg.sync.as_ref().expect("sync").needs_legacy_migration());
     assert_eq!(
         cfg.claude
             .as_ref()

@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.49.0] - 2026-09-09
+
+### Breaking
+
+- **Breaking:** Gateway authentication takes an injected execution-capability repository and exposes an execution principal variant.
+
+- **Breaking:** `gateway::pricing::resolve` returns `Result<ModelPricing, MissingPricing>`. Migrate by handling missing prices explicitly.
+
+### Added
+
+- Authenticated evaluation workers can retrieve frozen assignments and submit ordered execution events through `/assignment` and `/events`; assignment responses disable caching.
+
+- Added the authenticated evaluation worker access endpoint and execution-only gateway authentication. Evaluation audit records carry job attribution.
+
+- Environment-scoped evaluation worker endpoints authenticate credentials and reject foreign or stale lease mutations.
+
+### Changed
+
+- Evaluation gateway dispatch requires a persisted audit row, reserves budget before sending and settles only completed, recorded usage.
+- Evaluation requests use selected-provider pricing consistently for admission and completion and reject unbudgeted routing selectors or safety scanners.
+
+### Fixed
+
+- A completion whose model has no configured pricing still writes its terminal `ai_requests` row. Resolving pricing at completion had become fallible and returned before the update, so a request already spent upstream was left in `processing` with no cost, no tokens and no response recorded. Dispatch refuses an unpriced model before the audit is opened, so a miss at completion means the rates moved mid-request; it is now warned about and billed at zero rather than erasing the record.
+
+- Reject missing gateway pricing before dispatch instead of reporting an unknown charge as zero.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

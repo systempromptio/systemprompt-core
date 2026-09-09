@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.49.0] - 2026-09-09
+
+### Breaking
+
+- **Breaking:** `AdmissionRequest` requires the resolved provider; supply it with the builder before admission.
+
+- **Breaking:** `ExecutionLease.worker_id` and `ExperimentRepository::claim` use `EvalWorkerId`. Migrate by assigning a worker identity independently of its owning user.
+
+### Added
+
+- `AssignmentRepository` returns hash-verified case, rubric, bundle and configuration snapshots only for a live owner-scoped worker lease.
+- `ExecutionEventRepository` records bounded, ordered progress with idempotent delivery and rejects conflicting duplicates, stale leases and revoked workers.
+- Client capability validation rejects empty or unbounded versions and malformed image hashes.
+
+- Added hashed, rotating execution capabilities bound to owner, environment, worker, session and lease fence. Admission rejects revoked workers and provider mismatches. The authenticated principal carries a fixed `user` role, not the owner's, so a run started by an administrator never authorises as one.
+
+- `WorkerRepository` issues hashed, environment-scoped credentials with expiration and revocation.
+- `EvidenceRepository` stores immutable workspaces, verifies uploaded artifact hashes and checks request references against the audit trail.
+- `GatewayEvaluationRepository` binds execution sessions, reserves request budgets transactionally and settles recorded usage idempotently.
+
+- `ExperimentRepository` and `RevisionRepository` persist immutable case, rubric and dataset inputs with owner-scoped experiment matrices.
+- `BudgetRepository` distinguishes new admission from duplicate reservations, settles each request once and freezes admission after an overage.
+- `experiments::scoring::score` rejects incomplete or unsupported judgments and calculates weighted outcomes using integer arithmetic.
+
+### Changed
+
+- Claiming limits each owner to two active executions, and lease heartbeats stop at a 30-minute execution deadline.
+
+### Fixed
+
+- Serialize owner-scoped claiming, cancellation and completion to prevent concurrent completions from leaving experiments running.
+
 ## [0.42.0] - 2026-08-31
 
 ### Added

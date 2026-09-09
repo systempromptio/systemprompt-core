@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval_execution_capabilities(token_hash,execution_id,worker_id,session_id,fencing_token,expires_at) VALUES($1,$2,$3,$4,$5,NOW()+INTERVAL '5 minutes')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "81052a3b757e29af3d6b125327789488dd6063608b54fbe26c3381bda309c5da"
+}

@@ -91,6 +91,8 @@ pub struct Deployment {
     pub env_vars: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_auth: Option<ExternalAuth>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connector: Option<ConnectorConfig>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub headers: HashMap<String, String>,
 }
@@ -142,7 +144,8 @@ impl Deployment {
                          server.api_external_url. Remove the scheme+host prefix."
                 )));
             }
-            if self.external_auth.is_some() || !self.headers.is_empty() {
+            if self.external_auth.is_some() || self.connector.is_some() || !self.headers.is_empty()
+            {
                 return Err(ConfigValidationError::invalid_field(format!(
                     "MCP server '{name}': external_auth and headers are only valid on \
                          external servers; internal servers are reached through the gateway \
@@ -151,6 +154,23 @@ impl Deployment {
             }
         }
 
+        if let Some(connector) = self.connector.as_ref() {
+            if connector.adapter != "generic"
+                || !self
+                    .endpoint
+                    .as_deref()
+                    .is_some_and(|endpoint| endpoint.starts_with("https://"))
+            {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "MCP server '{name}': generic connector requires an HTTPS resource"
+                )));
+            }
+            if connector.client_secret.is_some() && connector.client_id_secret.is_none() {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "MCP server '{name}': connector client secret requires a client ID"
+                )));
+            }
+        }
         if let Some(ext) = self.external_auth.as_ref() {
             if ext.token_endpoint.starts_with("http://")
                 || ext.token_endpoint.starts_with("https://")
@@ -212,4 +232,23 @@ const fn default_base_port() -> u16 {
 
 fn default_working_dir() -> String {
     "/app".to_owned()
+}
+
+/// Outbound personal-account OAuth settings, separate from inbound MCP access.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorConfig {
+    #[serde(default = "generic_adapter")]
+    pub adapter: String,
+    #[serde(default)]
+    pub scopes: Vec<String>,
+    #[serde(default)]
+    pub authorization_origins: Vec<String>,
+    #[serde(default)]
+    pub client_id_secret: Option<String>,
+    #[serde(default)]
+    pub client_secret: Option<String>,
+}
+fn generic_adapter() -> String {
+    "generic".to_owned()
 }

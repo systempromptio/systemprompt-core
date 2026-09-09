@@ -18,6 +18,7 @@ fn scripted(answers: &[&str]) -> ScriptedPrompter {
 
 fn deployment(port: u16) -> Deployment {
     Deployment {
+        connector: None,
         server_type: McpServerType::Internal,
         binary: "bin".to_owned(),
         package: None,

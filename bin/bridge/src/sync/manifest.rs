@@ -238,7 +238,15 @@ pub(super) async fn verify_and_decode(
     verify_envelope(&fetch.envelope, pubkey.as_str())
         .map_err(|e| signature_failure(e, &fetch.client, source))?;
     let manifest = decode_payload(&fetch.envelope).map_err(map_manifest_error)?;
-    if newly_trusted {
+    // Why: a legacy pin is rewritten in the bound form only once a manifest
+    // has verified against it, the same bar a first-use key must clear.
+    let migrate_legacy = source == config::PinSource::Operator
+        && fetch
+            .config
+            .sync
+            .as_ref()
+            .is_some_and(config::SyncConfig::needs_legacy_migration);
+    if newly_trusted || migrate_legacy {
         config::persist_pinned_pubkey(fetch.client.base_url(), pubkey.as_str())?;
     }
     Ok(manifest)

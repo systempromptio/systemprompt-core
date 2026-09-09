@@ -10,3 +10,11 @@ crate::define_id!(EvalResultId, generate, schema);
 crate::define_id!(EvalPairId, generate, schema);
 crate::define_id!(EvalJudgeCallId, generate, schema);
 crate::define_id!(EvalRubricId, generate, schema);
+
+crate::define_id!(EvalExperimentId, generate, schema);
+crate::define_id!(EvalExecutionId, generate, schema);
+crate::define_id!(EvalRevisionId, generate, schema);
+crate::define_id!(EvalBudgetId, generate, schema);
+crate::define_id!(EvalReservationId, generate, schema);
+
+crate::define_id!(EvalWorkerId, generate, schema);
