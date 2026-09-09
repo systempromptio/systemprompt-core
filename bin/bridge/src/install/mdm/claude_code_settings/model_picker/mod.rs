@@ -5,8 +5,8 @@
 //! `anthropic`, so every other model the gateway serves — Gemini, Vertex — is
 //! reachable with `--model <id>` yet invisible in `/model`. The bridge learns
 //! the catalog from the bridge profile's provider health on each sync and
-//! writes `{id, label}` rows into the settings files it owns. Claude ids are
-//! left to discovery, which carries their real pricing and labels.
+//! writes `modelPicker.options` rows into the settings files it owns. Claude
+//! ids are left to discovery, which carries their real pricing and labels.
 //!
 //! This is Claude Code only. Claude Desktop's `inferenceModels` policy must
 //! stay Anthropic-only (`crate::install::mdm::policy` enforces it); Desktop
@@ -24,6 +24,10 @@ use super::{
 };
 use crate::gateway::types::ProviderHealth;
 use crate::install::mdm::MdmError;
+
+mod merge;
+
+pub use merge::merged_picker;
 
 const SIDECAR: &str = "claude-code-model-picker.json";
 
@@ -119,31 +123,13 @@ fn splice_rows(
     previously_ours: &[String],
     rows: &[PickerRow],
 ) {
-    let mut kept: Vec<serde_json::Value> = root
-        .get("modelPicker")
-        .and_then(serde_json::Value::as_array)
-        .map(|arr| {
-            arr.iter()
-                .filter(|row| {
-                    row.get("id")
-                        .and_then(serde_json::Value::as_str)
-                        .is_none_or(|id| {
-                            !previously_ours.iter().any(|ours| ours == id)
-                                && !rows.iter().any(|r| r.id == id)
-                        })
-                })
-                .cloned()
-                .collect()
-        })
-        .unwrap_or_default();
-    kept.extend(
-        rows.iter()
-            .map(|r| serde_json::json!({ "id": r.id, "label": r.label })),
-    );
-    if kept.is_empty() {
-        root.remove("modelPicker");
-    } else {
-        root.insert("modelPicker".to_owned(), serde_json::Value::Array(kept));
+    match merged_picker(root.get("modelPicker"), previously_ours, rows) {
+        Some(picker) => {
+            root.insert("modelPicker".to_owned(), picker);
+        },
+        None => {
+            root.remove("modelPicker");
+        },
     }
 }
 

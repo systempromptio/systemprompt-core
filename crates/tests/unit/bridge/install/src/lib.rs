@@ -20,6 +20,8 @@ mod managed_file_writes;
 mod managed_settings;
 #[cfg(test)]
 mod mdm_snippet;
+#[cfg(all(test, unix))]
+mod model_picker;
 #[cfg(test)]
 mod policy;
 #[cfg(test)]
