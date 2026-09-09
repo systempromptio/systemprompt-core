@@ -1,5 +1,7 @@
 use serde_json::json;
-use systemprompt_bridge::install::mdm::claude_code_settings::model_picker::{PickerRow, merged_picker};
+use systemprompt_bridge::install::mdm::claude_code_settings::model_picker::{
+    PickerRow, merged_picker,
+};
 
 fn rows() -> Vec<PickerRow> {
     vec![PickerRow {

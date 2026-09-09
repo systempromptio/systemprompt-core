@@ -18,7 +18,11 @@ pub fn merged_picker(
         .cloned()
         .unwrap_or_default();
     let previous = existing
-        .and_then(|value| value.as_array().or_else(|| value.get("options")?.as_array()))
+        .and_then(|value| {
+            value
+                .as_array()
+                .or_else(|| value.get("options")?.as_array())
+        })
         .cloned()
         .unwrap_or_default();
     picker.remove("options");

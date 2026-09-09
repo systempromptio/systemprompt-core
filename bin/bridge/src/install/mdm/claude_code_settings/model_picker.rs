@@ -5,8 +5,8 @@
 //! `anthropic`, so every other model the gateway serves — Gemini, Vertex — is
 //! reachable with `--model <id>` yet invisible in `/model`. The bridge learns
 //! the catalog from the bridge profile's provider health on each sync and
-//! writes `modelPicker.options` rows into the settings files it owns. Claude ids are
-//! left to discovery, which carries their real pricing and labels.
+//! writes `modelPicker.options` rows into the settings files it owns. Claude
+//! ids are left to discovery, which carries their real pricing and labels.
 //!
 //! This is Claude Code only. Claude Desktop's `inferenceModels` policy must
 //! stay Anthropic-only (`crate::install::mdm::policy` enforces it); Desktop

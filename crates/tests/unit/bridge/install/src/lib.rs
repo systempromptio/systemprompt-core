@@ -18,10 +18,10 @@ mod linux_settings;
 mod managed_file_writes;
 #[cfg(test)]
 mod managed_settings;
-#[cfg(all(test, unix))]
-mod model_picker;
 #[cfg(test)]
 mod mdm_snippet;
+#[cfg(all(test, unix))]
+mod model_picker;
 #[cfg(test)]
 mod policy;
 #[cfg(test)]
