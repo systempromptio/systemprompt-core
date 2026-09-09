@@ -8,6 +8,7 @@
 mod agent;
 mod agent_responses;
 mod bridge_profile_models;
+mod evaluation_worker;
 mod gateway_auth_responses;
 mod gateway_auth_shapes;
 mod gateway_authz_request;
