@@ -118,7 +118,15 @@ jobs:
       - name: Install system dependencies
         # bridge test crates link keyring's linux-native-sync-persistent
         # backend, which needs libdbus at build time.
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config
+        run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
 
       - name: Strip [unstable] and [profile.dev] from cargo configs
         run: |

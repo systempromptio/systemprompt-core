@@ -2,6 +2,11 @@ name: Coverage
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        type: string
+        required: false
   # `main` is the canonical line: the pull_request trigger measures the
   # promote -> main release PR before it is merged, and the push trigger
   # produces the number for the commit that became main, which is the baseline
@@ -23,7 +28,7 @@ concurrency:
   # Keyed by event as well as ref: without the event, the release PR's run and
   # the run on the merge commit could share a bucket and cancel an hour of
   # instrumented build.
-  group: coverage-${{ github.ref }}-${{ github.event_name }}
+  group: coverage-${{ inputs.ref || github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
@@ -78,6 +83,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Runner resources
         run: |
@@ -94,7 +101,15 @@ jobs:
           df -h / /mnt
 
       - name: Install libdbus (bridge test bins link keyring -> dbus)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
 
       - name: Strip [unstable] and [profile.dev] from cargo configs
         run: |

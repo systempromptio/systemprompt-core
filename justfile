@@ -163,8 +163,16 @@ check-release-tag:
 check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
+# Every published version string must match [workspace.package].version
+check-version-strings:
+    ./scripts/check-version-strings.sh
+
+# Tracked lockfiles must resolve systemprompt crates from the workspace or crates.io
+check-lockfile-registry:
+    ./scripts/check-lockfile-registry.sh
+
 # Check without building
-check: lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check: check-version-strings check-lockfile-registry lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -1710,7 +1718,7 @@ gate REF="":
     REF="{{REF}}"; [ -n "$REF" ] || REF=$(git rev-parse origin/next)
     REF=$(git rev-parse "$REF")
     echo "Gating ${REF:0:9} on $REPO"
-    WFS=(ci.yml quality.yml)
+    WFS=(ci.yml quality.yml coverage.yml)
     [ -f .github/workflows/supply-chain.yml ] && WFS+=(supply-chain.yml)
     for wf in "${WFS[@]}"; do
         gh workflow run "$wf" --ref "$(git rev-parse --abbrev-ref HEAD)" -f ref="$REF"

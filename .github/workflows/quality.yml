@@ -48,7 +48,15 @@ jobs:
       # `just lint` covers bin/bridge, whose keyring backend pulls
       # libdbus-sys through pkg-config; ubuntu-latest no longer ships
       # libdbus-1-dev.
-      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
@@ -92,7 +100,15 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
-      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
@@ -119,7 +135,15 @@ jobs:
       # this job needs the keyring backend's libdbus-sys like every other job
       # that builds it -- without it the gate fails on a missing `dbus-1.pc`
       # and says nothing about bindings.
-      - run: sudo apt-get update && sudo apt-get install -y ripgrep libdbus-1-dev pkg-config
+      - run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update && sudo apt-get install -y ripgrep libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
       - uses: extractions/setup-just@v2
       - uses: taiki-e/install-action@v2
         with:
@@ -178,6 +202,10 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just check-crate-changelogs
         if: ${{ !cancelled() }}
+      - run: just check-version-strings
+        if: ${{ !cancelled() }}
+      - run: just check-lockfile-registry
+        if: ${{ !cancelled() }}
       - run: just machete
         if: ${{ !cancelled() }}
 
@@ -197,7 +225,15 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
-      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
       - uses: dtolnay/rust-toolchain@1.96.0
       - uses: Swatinem/rust-cache@v2
         with:

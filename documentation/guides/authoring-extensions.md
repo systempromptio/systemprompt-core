@@ -118,7 +118,7 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
 
    ```toml
    [build-dependencies]
-   systemprompt-extension = "0.45"
+   systemprompt-extension = "0.49"
    ```
 
 2. Add migration files. For example `schema/migrations/001_add_demo_items_label_index.sql`:
