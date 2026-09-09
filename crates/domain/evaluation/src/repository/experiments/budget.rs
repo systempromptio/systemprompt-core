@@ -49,17 +49,29 @@ impl BudgetRepository {
         operation: &str,
         amount: i64,
     ) -> Result<ReservationAdmission> {
+        let mut tx = self.pool.begin().await?;
+        let admitted = Self::reserve_in(&mut tx, owner, account, operation, amount).await?;
+        tx.commit().await?;
+        Ok(admitted)
+    }
+
+    pub(super) async fn reserve_in(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        owner: &UserId,
+        account: &EvalBudgetId,
+        operation: &str,
+        amount: i64,
+    ) -> Result<ReservationAdmission> {
         if amount <= 0 || operation.trim().is_empty() || operation.len() > 255 {
             return Err(invalid(
                 "A reservation needs a positive bound and a unique operation key",
             ));
         }
-        let mut tx = self.pool.begin().await?;
         let row = sqlx::query!("SELECT cap,reserved,settled,frozen FROM eval_budget_accounts WHERE id=$1 AND owner_id=$2 FOR UPDATE", account.as_str(), owner.as_str())
-            .fetch_optional(&mut *tx).await?
+            .fetch_optional(&mut **tx).await?
             .ok_or_else(|| crate::experiments::missing("Budget unavailable in this scope"))?;
         let existing = sqlx::query!("SELECT id,reserved FROM eval_budget_reservations WHERE account_id=$1 AND operation_key=$2", account.as_str(), operation)
-            .fetch_optional(&mut *tx).await?;
+            .fetch_optional(&mut **tx).await?;
         if let Some(existing) = existing {
             if existing.reserved != amount {
                 return Err(crate::experiments::conflict(
@@ -82,15 +94,14 @@ impl BudgetRepository {
         }
         let id = EvalReservationId::generate();
         sqlx::query!("INSERT INTO eval_budget_reservations(id,account_id,operation_key,reserved) VALUES($1,$2,$3,$4)", id.as_str(), account.as_str(), operation, amount)
-            .execute(&mut *tx).await?;
+            .execute(&mut **tx).await?;
         sqlx::query!(
             "UPDATE eval_budget_accounts SET reserved=reserved+$2 WHERE id=$1",
             account.as_str(),
             amount
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
-        tx.commit().await?;
         Ok(ReservationAdmission::Admitted(id))
     }
 

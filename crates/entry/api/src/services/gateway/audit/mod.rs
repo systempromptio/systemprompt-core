@@ -62,6 +62,8 @@ pub struct GatewayRequestContext {
     reason = "service type holds repository clients that intentionally do not implement Debug"
 )]
 pub struct GatewayAudit {
+    evaluation_pricing: std::sync::OnceLock<systemprompt_models::services::ModelPricing>,
+    evaluations: systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
     context_materializer: systemprompt_traits::DynContextMaterializer,
@@ -73,6 +75,8 @@ pub struct GatewayAudit {
 impl GatewayAudit {
     pub fn new(repos: &super::GatewayRepositories, ctx: GatewayRequestContext) -> Self {
         Self {
+            evaluation_pricing: std::sync::OnceLock::new(),
+            evaluations: repos.evaluations.clone(),
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
             context_materializer: Arc::clone(&repos.context_materializer),

@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `subprocess::spawn_owned_supervised` returns an owned child using the existing supervised spawning thread and parent-death handling.
+
+### Fixed
+
+- Kill and reap a spawned child when its ownership cannot be delivered to the caller.
+
 ## [0.48.0] - 2026-09-08
 
 ### Added

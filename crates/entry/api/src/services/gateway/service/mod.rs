@@ -79,9 +79,25 @@ impl GatewayService {
             )));
         }
 
+        let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
+        let policy = resolver.resolve().await;
+        let evaluation_session = super::evaluation::preflight(repos, &ctx, &policy)
+            .await
+            .map_err(DispatchError::PreAudit)?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
+        let pricing = if evaluation_session {
+            super::pricing::resolve_selected(&upstream.route, upstream.provider, &request.model)
+        } else {
+            super::pricing::resolve(
+                upstream.route.provider.as_str(),
+                &[&request.model],
+                Some(config),
+                registry,
+            )
+        }
+        .map_err(|error| DispatchError::PreAudit(error.into()))?;
 
         tracing::info!(
             ai_request_id = %ai_request_id,
@@ -94,10 +110,13 @@ impl GatewayService {
             "Gateway request dispatched"
         );
 
-        let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
-        let policy = resolver.resolve().await;
 
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
+        if evaluation_session {
+            audit
+                .pin_evaluation_pricing(pricing)
+                .map_err(DispatchError::PreAudit)?;
+        }
 
         if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
             audit.set_route_match(descriptor).await;
@@ -122,7 +141,17 @@ impl GatewayService {
             ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit)
                 .await?;
 
-        let outcome = scanned.send(&upstream, &forward_headers, &audit).await?;
+        let evaluation = scanned.admit_evaluation(repos, &ctx, &pricing).await?;
+        let retry_policy = if evaluation {
+            super::protocol::outbound::retry::RetryPolicy::none()
+        } else {
+            super::protocol::outbound::retry::current_policy()
+        };
+        let outcome = super::protocol::outbound::retry::with_policy(
+            retry_policy,
+            scanned.send(&upstream, &forward_headers, &audit),
+        )
+        .await?;
 
         let mut response = finalize(
             outcome,

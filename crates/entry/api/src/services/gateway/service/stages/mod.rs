@@ -241,6 +241,23 @@ impl ScannedDispatch {
         ))
     }
 
+    pub(super) async fn admit_evaluation(
+        &self,
+        repositories: &crate::services::gateway::GatewayRepositories,
+        context: &GatewayRequestContext,
+        pricing: &systemprompt_models::services::ModelPricing,
+    ) -> Result<bool, DispatchError> {
+        crate::services::gateway::evaluation::admit(
+            repositories,
+            context,
+            &self.0.request,
+            self.0.body.bytes.len(),
+            pricing,
+        )
+        .await
+        .map_err(DispatchError::Recorded)
+    }
+
     pub(super) const fn recovery_count(&self) -> usize {
         self.0.recovery_count
     }

@@ -16,6 +16,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod builder;
+pub mod execution;
 mod model;
 pub use builder::ExperimentSpecBuilder;
 pub mod records;

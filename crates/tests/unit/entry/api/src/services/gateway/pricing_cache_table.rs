@@ -159,7 +159,7 @@ fn every_provider_entry_prices_its_own_cache_rates() {
         .cache_creation(CACHE_WRITE)
         .build();
     for row in table() {
-        let resolved = resolve(row.provider, &[row.model], None, &registry);
+        let resolved = resolve(row.provider, &[row.model], None, &registry).unwrap();
         assert!(
             resolved.declares_cache_rate(),
             "{}: the resolver dropped the entry's declared cache rate",
@@ -203,7 +203,7 @@ fn no_provider_bills_the_cached_slice_twice() {
         .cache_read(CACHE_READ)
         .build();
     for row in table() {
-        let p = resolve(row.provider, &[row.model], None, &registry);
+        let p = resolve(row.provider, &[row.model], None, &registry).unwrap();
         let correct = p.cost_microdollars(&exclusive);
         let doubled = p.cost_microdollars(&overlapping);
         assert_eq!(
@@ -235,7 +235,7 @@ fn expected_slice_at_input_rate(p: &ModelPricing) -> i64 {
 #[test]
 fn a_declared_zero_cache_rate_bills_the_cached_slice_free_not_at_the_input_rate() {
     let registry = registry();
-    let p = resolve("cerebras", &["gpt-oss-120b-cached"], None, &registry);
+    let p = resolve("cerebras", &["gpt-oss-120b-cached"], None, &registry).unwrap();
     let with_cache = usage()
         .input(INPUT)
         .output(OUTPUT)

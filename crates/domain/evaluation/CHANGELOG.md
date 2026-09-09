@@ -2,11 +2,27 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Breaking:** `ExecutionLease.worker_id` and `ExperimentRepository::claim` use `EvalWorkerId`. Migrate by assigning a worker identity independently of its owning user.
+
 ### Added
+
+- `WorkerRepository` issues hashed, environment-scoped credentials with expiration and revocation.
+- `EvidenceRepository` stores immutable workspaces, verifies uploaded artifact hashes and checks request references against the audit trail.
+- `GatewayEvaluationRepository` binds execution sessions, reserves request budgets transactionally and settles recorded usage idempotently.
 
 - `ExperimentRepository` and `RevisionRepository` persist immutable case, rubric and dataset inputs with owner-scoped experiment matrices.
 - `BudgetRepository` distinguishes new admission from duplicate reservations, settles each request once and freezes admission after an overage.
 - `experiments::scoring::score` rejects incomplete or unsupported judgments and calculates weighted outcomes using integer arithmetic.
+
+### Changed
+
+- Claiming limits each owner to two active executions, and lease heartbeats stop at a 30-minute execution deadline.
+
+### Fixed
+
+- Serialize owner-scoped claiming, cancellation and completion to prevent concurrent completions from leaving experiments running.
 
 ## [0.42.0] - 2026-08-31
 

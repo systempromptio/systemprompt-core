@@ -265,6 +265,17 @@ pub(super) fn mount_content_and_misc(
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
 
+    let evaluator = crate::routes::evaluation::router_from_context(ctx).map_err(|error| {
+        LoaderError::InitializationFailed {
+            extension: "evaluation-worker".to_owned(),
+            message: error.to_string(),
+        }
+    })?;
+    router = router.nest(
+        "/api/v1/evaluation/worker",
+        evaluator.with_rate_limit(limits, 10, "evaluation_worker")?,
+    );
+
     if let Some(gateway) = crate::routes::gateway::gateway_router(ctx) {
         router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
         router = router.nest(

@@ -12,8 +12,8 @@
 //!      — the route provider's catalog entry, else any provider that serves it.
 //!      The provider registry is the single source of model pricing.
 //!
-//! If no candidate resolves, emit a WARN and return zero pricing — a real
-//! configuration gap, not noise to silence.
+//! Missing pricing is an explicit error. Callers must not record an unknown
+//! provider charge as a measured zero.
 //!
 //! The arithmetic itself is not here: `ModelPricing::cost_microdollars` in the
 //! shared models crate is the one cost function, shared with the internal
@@ -24,24 +24,29 @@
 
 use systemprompt_models::services::{GatewayConfig, ModelPricing, ProviderRegistry};
 
+#[derive(Debug, thiserror::Error)]
+#[error("No configured pricing for provider {provider} and models {models:?}")]
+pub struct MissingPricing {
+    pub provider: String,
+    pub models: Vec<String>,
+}
+
 pub fn resolve(
     provider: &str,
     candidates: &[&str],
     gateway: Option<&GatewayConfig>,
     registry: &ProviderRegistry,
-) -> ModelPricing {
+) -> Result<ModelPricing, MissingPricing> {
     for model in candidates.iter().filter(|m| !m.is_empty()) {
         if let Some(p) = lookup(model, gateway, registry) {
-            return p;
+            return Ok(p);
         }
     }
 
-    tracing::warn!(
-        provider = provider,
-        candidates = ?candidates,
-        "Gateway pricing lookup: no override and no registry entry — cost_microdollars will be 0"
-    );
-    ModelPricing::default()
+    Err(MissingPricing {
+        provider: provider.to_owned(),
+        models: candidates.iter().map(|model| (*model).to_owned()).collect(),
+    })
 }
 
 fn lookup(
@@ -75,4 +80,19 @@ fn registry_pricing(
         .iter()
         .find_map(|entry| entry.find_model(model))
         .map(|m| m.pricing)
+}
+
+pub fn resolve_selected(
+    route: &systemprompt_models::services::GatewayRoute,
+    provider: &systemprompt_models::services::ProviderEntry,
+    requested_model: &str,
+) -> Result<ModelPricing, MissingPricing> {
+    let model = route.upstream_model.as_deref().unwrap_or(requested_model);
+    route
+        .pricing
+        .or_else(|| provider.find_model(model).map(|entry| entry.pricing))
+        .ok_or_else(|| MissingPricing {
+            provider: route.provider.to_string(),
+            models: vec![model.to_owned()],
+        })
 }

@@ -99,20 +99,26 @@ pub fn inherited_parent_env(lookup: impl Fn(&str) -> Option<String>) -> Vec<(Str
     env
 }
 
-type SpawnReply = Sender<std::io::Result<u32>>;
+type SpawnReply = Sender<std::io::Result<std::process::Child>>;
 
 pub fn spawn_supervised(cmd: Command) -> std::io::Result<u32> {
+    let child = spawn_owned_supervised(cmd)?;
+    let pid = child.id();
+    drop(child);
+    Ok(pid)
+}
+
+pub fn spawn_owned_supervised(cmd: Command) -> std::io::Result<std::process::Child> {
     let sender = spawner()
         .as_ref()
         .map_err(|e| std::io::Error::other(e.clone()))?;
-
     let (reply_tx, reply_rx) = channel();
     sender
         .send((cmd, reply_tx))
-        .map_err(|disconnected| std::io::Error::other(disconnected.to_string()))?;
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
     reply_rx
         .recv()
-        .map_err(|disconnected| std::io::Error::other(disconnected.to_string()))?
+        .map_err(|error| std::io::Error::other(error.to_string()))?
 }
 
 fn spawner() -> &'static Result<Sender<(Command, SpawnReply)>, String> {
@@ -124,11 +130,15 @@ fn spawner() -> &'static Result<Sender<(Command, SpawnReply)>, String> {
             .spawn(move || {
                 while let Ok((mut cmd, reply)) = rx.recv() {
                     let outcome = spawn_on_this_thread(&mut cmd);
-                    if reply.send(outcome).is_err() {
-                        tracing::warn!(
-                            "Spawn requester vanished before collecting the child pid; the child \
-                             is unregistered and will only be cleaned up by its parent-death signal"
-                        );
+                    if let Err(undelivered) = reply.send(outcome)
+                        && let Ok(mut child) = undelivered.0
+                    {
+                        if let Err(error) = child.kill() {
+                            tracing::warn!(error = %error, "Failed to stop unclaimed subprocess");
+                        }
+                        if let Err(error) = child.wait() {
+                            tracing::warn!(error = %error, "Failed to reap unclaimed subprocess");
+                        }
                     }
                 }
             })
@@ -137,19 +147,10 @@ fn spawner() -> &'static Result<Sender<(Command, SpawnReply)>, String> {
     })
 }
 
-fn spawn_on_this_thread(cmd: &mut Command) -> std::io::Result<u32> {
+fn spawn_on_this_thread(cmd: &mut Command) -> std::io::Result<std::process::Child> {
     #[cfg(target_os = "linux")]
     linux::arm_parent_death_signal(cmd);
-
-    let child = cmd.spawn()?;
-    let pid = child.id();
-    #[expect(
-        clippy::mem_forget,
-        reason = "detached child: skip Child's drop-time wait so it keeps running after this \
-                  returns; reaping is the caller's business via is_zombie"
-    )]
-    std::mem::forget(child);
-    Ok(pid)
+    cmd.spawn()
 }
 
 // Why: On Unix, process group 0 assigns the child's PID as its process group

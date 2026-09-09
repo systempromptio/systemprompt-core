@@ -4,9 +4,16 @@
 
 ### Added
 
+- Evaluation workers have environment-scoped, expiring credentials and fenced HTTP claim, heartbeat, evidence and completion endpoints.
+- Evaluation artifact uploads are checked against their SHA-256 manifests and server-recorded request IDs.
+
 - Evaluation experiments can persist owner-scoped immutable inputs, freeze client/model matrices, and cancel pending executions. Fenced worker leases reject stale results and retain uncertain billing reservations after expiry.
 - Evaluation budgets support atomic admission, idempotent settlement, retained uncertain reservations, and suspension after an overage.
 - Evidence-based rubric scoring validates the complete dimension and hard-gate sets and calculates weighted scores on the server.
+
+### Changed
+
+- Attested evaluation sessions reserve gateway budget before dispatch, disable retries, pin selected-provider pricing and retain reservations when usage is incomplete.
 
 ## [0.48.0] - 2026-09-08
 

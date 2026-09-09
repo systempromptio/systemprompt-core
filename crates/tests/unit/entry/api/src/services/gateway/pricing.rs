@@ -47,7 +47,8 @@ fn route_pricing_takes_precedence() {
         &["claude-opus-4-7-something"],
         Some(&gw),
         &registry,
-    );
+    )
+    .unwrap();
     assert!((p.input_per_million - 1.0).abs() < f64::EPSILON);
     assert!((p.output_per_million - 2.0).abs() < f64::EPSILON);
 }
@@ -80,7 +81,7 @@ fn registry_pricing_used_when_no_route_override() {
         }],
     };
     let gw = gateway_with(vec![]);
-    let p = resolve("anthropic", &["claude-sonnet-4-rare"], Some(&gw), &registry);
+    let p = resolve("anthropic", &["claude-sonnet-4-rare"], Some(&gw), &registry).unwrap();
     assert!((p.input_per_million - 7.0).abs() < f64::EPSILON);
     assert!((p.output_per_million - 9.0).abs() < f64::EPSILON);
 }
@@ -119,7 +120,8 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
         &["gpt-5-mini-2025-08-07", "gpt-5-mini"],
         None,
         &registry,
-    );
+    )
+    .unwrap();
     assert!((p.input_per_million - 0.25).abs() < f64::EPSILON);
     assert!((p.output_per_million - 2.0).abs() < f64::EPSILON);
 }
@@ -127,7 +129,7 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
 #[test]
 fn resolve_reads_pricing_from_seeded_registry() {
     let registry = ProviderRegistry::default_seed().expect("embedded default catalog parses");
-    let p = resolve("anthropic", &["claude-haiku-4-5-20251001"], None, &registry);
+    let p = resolve("anthropic", &["claude-haiku-4-5-20251001"], None, &registry).unwrap();
     assert!((p.input_per_million - 1.0).abs() < 1e-9);
     assert!((p.output_per_million - 5.0).abs() < 1e-9);
 }
@@ -139,7 +141,8 @@ fn empty_registry_and_no_route_returns_zero() {
         &["claude-3-haiku-20240307"],
         None,
         &ProviderRegistry::default(),
-    );
+    )
+    .unwrap();
     assert_eq!(p.input_per_million, 0.0);
     assert_eq!(p.output_per_million, 0.0);
 }
@@ -151,7 +154,8 @@ fn unknown_provider_returns_zero() {
         &["wat"],
         None,
         &ProviderRegistry::default(),
-    );
+    )
+    .unwrap();
     assert!((p.input_per_million - 0.0).abs() < f64::EPSILON);
     assert!((p.output_per_million - 0.0).abs() < f64::EPSILON);
 }
@@ -175,7 +179,8 @@ fn unknown_model_in_known_provider_returns_zero() {
         &["claude-99-mystery"],
         None,
         &ProviderRegistry::default(),
-    );
+    )
+    .unwrap();
     assert_eq!(p.input_per_million, 0.0);
     assert_eq!(p.output_per_million, 0.0);
 }
@@ -351,18 +356,15 @@ fn a_cached_openai_turn_bills_the_cached_slice_once_at_the_cache_rate() {
 }
 
 #[test]
-fn an_unknown_provider_costs_nothing_rather_than_a_fabricated_rate() {
-    let p = resolve(
-        "some-new-provider",
-        &["mystery-model"],
-        None,
-        &ProviderRegistry::default(),
-    );
-    let u = usage().input(1_000_000).output(1_000_000).build();
-    assert_eq!(
-        p.cost_microdollars(&u),
-        0,
-        "an unpriced provider must bill zero, never an invented $1/$1 rate"
+fn an_unknown_provider_has_no_measured_price() {
+    assert!(
+        resolve(
+            "some-new-provider",
+            &["mystery-model"],
+            None,
+            &ProviderRegistry::default()
+        )
+        .is_err()
     );
 }
 

@@ -39,17 +39,7 @@ impl GatewayAudit {
         let latency_ms = self.elapsed_ms();
         let effective_model = self.effective_model();
         usage.normalise_reasoning(&self.ctx.provider);
-        let services = systemprompt_loader::ServicesBootstrap::get().ok();
-        let gateway =
-            services.and_then(systemprompt_models::services::ServicesConfig::gateway_config);
-        let empty_registry = systemprompt_models::services::ProviderRegistry::default();
-        let registry = services.map_or(&empty_registry, |s| &s.providers);
-        let candidates = [
-            effective_model.as_str(),
-            self.ctx.model.as_str(),
-            self.ctx.requested_model.as_deref().unwrap_or(""),
-        ];
-        let pricing_rates = pricing::resolve(&self.ctx.provider, &candidates, gateway, registry);
+        let pricing_rates = self.completion_pricing(&effective_model)?;
         let cost = pricing_rates.cost_microdollars(&usage);
         let tokens_used = usage.billable_total();
 
@@ -68,6 +58,9 @@ impl GatewayAudit {
             })
             .await?;
 
+        self.evaluations
+            .settle_recorded(&self.ctx.user_id, &self.ctx.ai_request_id)
+            .await?;
         self.persist_tool_calls(&tool_calls).await;
         self.persist_response(response, response_body).await;
 
@@ -89,6 +82,40 @@ impl GatewayAudit {
             "Gateway audit: request completed"
         );
         Ok(cost)
+    }
+
+    pub fn pin_evaluation_pricing(
+        &self,
+        pricing: systemprompt_models::services::ModelPricing,
+    ) -> Result<()> {
+        self.evaluation_pricing
+            .set(pricing)
+            .map_err(|_| anyhow::anyhow!("Evaluation pricing already pinned"))
+    }
+
+    fn completion_pricing(
+        &self,
+        effective_model: &str,
+    ) -> Result<systemprompt_models::services::ModelPricing> {
+        if let Some(pricing) = self.evaluation_pricing.get() {
+            return Ok(*pricing);
+        }
+        let services = systemprompt_loader::ServicesBootstrap::get().ok();
+        let gateway =
+            services.and_then(systemprompt_models::services::ServicesConfig::gateway_config);
+        let empty_registry = systemprompt_models::services::ProviderRegistry::default();
+        let registry = services.map_or(&empty_registry, |s| &s.providers);
+        let candidates = [
+            effective_model,
+            self.ctx.model.as_str(),
+            self.ctx.requested_model.as_deref().unwrap_or(""),
+        ];
+        Ok(pricing::resolve(
+            &self.ctx.provider,
+            &candidates,
+            gateway,
+            registry,
+        )?)
     }
 
     async fn persist_response(&self, response: &CanonicalResponse, response_body: &Bytes) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Native Claude Code and OpenCode container adapters use the shared subprocess supervisor, pinned image digests, bounded output and explicit cleanup.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS eval_executions (
     status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','running','awaiting_approval','completed','error','cancelled','blocked','budget_exhausted')),
     lease_owner TEXT,
     lease_expires_at TIMESTAMPTZ,
+    deadline_at TIMESTAMPTZ,
     fencing_token BIGINT NOT NULL DEFAULT 0,
     result JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

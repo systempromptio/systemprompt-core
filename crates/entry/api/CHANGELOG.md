@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** `gateway::pricing::resolve` returns `Result<ModelPricing, MissingPricing>`. Migrate by handling missing prices explicitly.
+
+### Added
+
+- Environment-scoped evaluation worker endpoints authenticate credentials and reject foreign or stale lease mutations.
+
+### Changed
+
+- Evaluation gateway dispatch requires a persisted audit row, reserves budget before sending and settles only completed, recorded usage.
+- Evaluation requests use selected-provider pricing consistently for admission and completion and reject unbudgeted routing selectors or safety scanners.
+
+### Fixed
+
+- Reject missing gateway pricing before dispatch instead of reporting an unknown charge as zero.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

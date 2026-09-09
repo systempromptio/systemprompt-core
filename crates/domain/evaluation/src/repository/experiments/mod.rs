@@ -4,11 +4,32 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod budget;
+mod evidence;
+mod gateway;
 mod leases;
 mod revisions;
 mod runs;
+mod workers;
 
 pub use budget::{BudgetRepository, ReservationAdmission};
-pub use leases::{ExecutionCompletion, ExecutionLease, TerminalOutcome};
+pub use evidence::EvidenceRepository;
+pub use gateway::{
+    AdmissionRequest, AdmissionRequestBuilder, GatewayEvaluationRepository, RequestAdmission,
+};
+pub use leases::{ExecutionCompletion, ExecutionLease, ExecutionLeaseBuilder, TerminalOutcome};
 pub use revisions::RevisionRepository;
 pub use runs::ExperimentRepository;
+pub use workers::{WorkerCredential, WorkerRecord, WorkerRecordBuilder, WorkerRepository};
+
+pub(super) async fn lock_owner(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner: &systemprompt_identifiers::UserId,
+) -> crate::Result<()> {
+    sqlx::query!(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1,0))",
+        format!("eval-owner:{}", owner.as_str())
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}

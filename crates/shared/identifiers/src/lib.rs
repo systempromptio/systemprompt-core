@@ -105,7 +105,7 @@ pub use context::ContextId;
 pub use email::Email;
 pub use evaluation::{
     EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalJudgeCallId, EvalPairId,
-    EvalReservationId, EvalResultId, EvalRevisionId, EvalRubricId, EvalRunId,
+    EvalReservationId, EvalResultId, EvalRevisionId, EvalRubricId, EvalRunId, EvalWorkerId,
 };
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
