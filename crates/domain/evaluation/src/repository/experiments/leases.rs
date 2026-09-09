@@ -1,5 +1,8 @@
 //! Fenced worker leases reject stale completion and preserve uncertain
 //! accounting.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::ExperimentRepository;
 use crate::Result;

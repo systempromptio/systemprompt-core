@@ -1,4 +1,7 @@
 //! Persistence for immutable experiment inputs and atomic budget admission.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod budget;
 mod leases;

@@ -1,5 +1,8 @@
 //! Deterministic weighted scoring requires a complete dimension and evidence
 //! set.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::invalid;
 use super::resources::RubricContent;

@@ -1,4 +1,7 @@
 //! Owner-scoped experiment creation, cancellation and durable worker claiming.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use crate::experiments::records::{ExecutionRecord, ExperimentDetail, ExperimentRecord};

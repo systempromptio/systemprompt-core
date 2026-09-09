@@ -1,5 +1,8 @@
 //! Build an experiment without permitting an unbounded or empty execution
 //! matrix.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{ExecutionMode, ExperimentSpec, Objective, VariantSpec};
 use crate::Result;

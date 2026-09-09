@@ -11,6 +11,9 @@
 //! injected into the owning application service. Domain failures use
 //! [`crate::EvaluationError`]; callers retain the error variant at their HTTP
 //! or CLI boundary.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod builder;
 mod model;

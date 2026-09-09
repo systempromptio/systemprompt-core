@@ -1,5 +1,8 @@
 //! Transactional reservations retain uncertain spend and settle each request
 //! once.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::{EvaluationError, Result};
 use sqlx::PgPool;
