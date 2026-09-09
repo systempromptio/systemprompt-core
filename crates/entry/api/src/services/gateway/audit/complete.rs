@@ -39,7 +39,7 @@ impl GatewayAudit {
         let latency_ms = self.elapsed_ms();
         let effective_model = self.effective_model();
         usage.normalise_reasoning(&self.ctx.provider);
-        let pricing_rates = self.completion_pricing(&effective_model)?;
+        let pricing_rates = self.completion_pricing(&effective_model);
         let cost = pricing_rates.cost_microdollars(&usage);
         let tokens_used = usage.billable_total();
 
@@ -93,12 +93,16 @@ impl GatewayAudit {
             .map_err(|_rejected_pricing| anyhow::anyhow!("Evaluation pricing already pinned"))
     }
 
+    // Why: dispatch already refuses an unpriced model before the audit is
+    // opened, so a miss here means the rates moved under a request that is
+    // already spent upstream. Losing the terminal row would erase the request
+    // itself; the cost is reported as zero and the miss is warned about.
     fn completion_pricing(
         &self,
         effective_model: &str,
-    ) -> Result<systemprompt_models::services::ModelPricing> {
+    ) -> systemprompt_models::services::ModelPricing {
         if let Some(pricing) = self.evaluation_pricing.get() {
-            return Ok(*pricing);
+            return *pricing;
         }
         let services = systemprompt_loader::ServicesBootstrap::get().ok();
         let gateway =
@@ -110,12 +114,18 @@ impl GatewayAudit {
             self.ctx.model.as_str(),
             self.ctx.requested_model.as_deref().unwrap_or(""),
         ];
-        Ok(pricing::resolve(
-            &self.ctx.provider,
-            &candidates,
-            gateway,
-            registry,
-        )?)
+        pricing::resolve(&self.ctx.provider, &candidates, gateway, registry).unwrap_or_else(
+            |error| {
+                tracing::warn!(
+                    ai_request_id = %self.ctx.ai_request_id,
+                    provider = %self.ctx.provider,
+                    model = %effective_model,
+                    %error,
+                    "No pricing at completion; recording the request at zero cost"
+                );
+                systemprompt_models::services::ModelPricing::default()
+            },
+        )
     }
 
     async fn persist_response(&self, response: &CanonicalResponse, response_body: &Bytes) {

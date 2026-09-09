@@ -36,7 +36,7 @@ use super::registry::AuthzHookContext;
 use super::repository::AccessControlRepository;
 use super::subject::{
     SharedSubjectAttributeProvider, SubjectDimension, dimensions_of, discover_subject_providers,
-    try_gather_subject_attributes,
+    gather_subject_attributes,
 };
 use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason};
 
@@ -125,7 +125,7 @@ impl AuthzDecisionHook for RuleBasedHook {
             Err(err) => return self.fault(&req, &err).await,
         };
 
-        let attributes = match try_gather_subject_attributes(&self.providers, &req.user_id).await {
+        let attributes = match gather_subject_attributes(&self.providers, &req.user_id).await {
             Ok(attributes) => attributes,
             Err(error) => return self.fault(&req, &error).await,
         };

@@ -135,29 +135,29 @@ fn resolve_reads_pricing_from_seeded_registry() {
 }
 
 #[test]
-fn empty_registry_and_no_route_returns_zero() {
-    let p = resolve(
+fn empty_registry_and_no_route_is_missing_pricing() {
+    let err = resolve(
         "anthropic",
         &["claude-3-haiku-20240307"],
         None,
         &ProviderRegistry::default(),
     )
-    .unwrap();
-    assert_eq!(p.input_per_million, 0.0);
-    assert_eq!(p.output_per_million, 0.0);
+    .expect_err("an empty registry prices nothing");
+    assert_eq!(err.provider, "anthropic");
+    assert_eq!(err.models, vec!["claude-3-haiku-20240307".to_owned()]);
 }
 
 #[test]
-fn unknown_provider_returns_zero() {
-    let p = resolve(
+fn unknown_provider_is_missing_pricing() {
+    let err = resolve(
         "never-heard-of-it",
         &["wat"],
         None,
         &ProviderRegistry::default(),
     )
-    .unwrap();
-    assert!((p.input_per_million - 0.0).abs() < f64::EPSILON);
-    assert!((p.output_per_million - 0.0).abs() < f64::EPSILON);
+    .expect_err("an unknown provider prices nothing");
+    assert_eq!(err.provider, "never-heard-of-it");
+    assert_eq!(err.models, vec!["wat".to_owned()]);
 }
 
 #[test]
@@ -173,16 +173,15 @@ fn cost_microdollars_uses_per_million_units() {
 }
 
 #[test]
-fn unknown_model_in_known_provider_returns_zero() {
-    let p = resolve(
+fn unknown_model_in_known_provider_is_missing_pricing() {
+    let err = resolve(
         "anthropic",
         &["claude-99-mystery"],
         None,
         &ProviderRegistry::default(),
     )
-    .unwrap();
-    assert_eq!(p.input_per_million, 0.0);
-    assert_eq!(p.output_per_million, 0.0);
+    .expect_err("an unpriced model must not be billed at zero");
+    assert_eq!(err.models, vec!["claude-99-mystery".to_owned()]);
 }
 
 #[test]

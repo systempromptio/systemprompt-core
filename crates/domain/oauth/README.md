@@ -54,7 +54,7 @@ This crate implements a complete OAuth 2.0 authorization server with:
 
 ```toml
 [dependencies]
-systemprompt-oauth = "0.48"
+systemprompt-oauth = "0.49"
 ```
 
 ```rust

@@ -100,7 +100,7 @@ HTTP routing lives outside this crate. API consumers compose `AgentHandlerState`
 
 ```toml
 [dependencies]
-systemprompt-agent = "0.48"
+systemprompt-agent = "0.49"
 ```
 
 ## Module Layout

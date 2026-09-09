@@ -98,11 +98,19 @@ fn the_pinned_pubkey_check_warns_until_a_key_is_pinned() {
     );
 
     let legacy = with_config(
-        Some("[sync]\npinned_pubkey = \"dGVzdC1wdWJrZXk\"\n"),
+        Some(
+            "gateway_url = 'http://localhost:8080'\n[sync]\npinned_pubkey = '11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo='\n",
+        ),
         check_pinned_pubkey,
     );
-    assert_eq!(legacy.status, Status::Fail, "{}", legacy.detail);
-    assert!(legacy.detail.contains("explicitly replaced"));
+    assert_eq!(legacy.status, Status::Ok, "{}", legacy.detail);
+    assert!(legacy.detail.contains("config file"), "{}", legacy.detail);
+
+    let unusable = with_config(
+        Some("gateway_url = 'http://localhost:8080'\n[sync]\npinned_pubkey = 'dGVzdC1wdWJrZXk'\n"),
+        check_pinned_pubkey,
+    );
+    assert_eq!(unusable.status, Status::Fail, "{}", unusable.detail);
 
     let pinned = with_config(
         Some(

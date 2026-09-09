@@ -25,6 +25,7 @@ pub struct GatewayGuardRequest<'a> {
 
 /// How a guard denial maps onto the HTTP response.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum GatewayDenyKind {
     #[default]
     Quota,

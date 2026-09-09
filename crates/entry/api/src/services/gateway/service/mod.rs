@@ -269,7 +269,9 @@ async fn enforce_request_guards(
             message: deny.message,
         }
         .into(),
-        systemprompt_extension::GatewayDenyKind::Quota => QuotaExceeded {
+        // Why: the enum is non_exhaustive, and a denial whose kind this build
+        // does not know must still deny rather than fall through to a send.
+        _ => QuotaExceeded {
             message: deny.message,
             retry_after_seconds: deny.retry_after_seconds,
         }

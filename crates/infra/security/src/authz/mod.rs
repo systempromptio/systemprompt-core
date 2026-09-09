@@ -73,7 +73,6 @@ pub use subject::{
     NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
     SubjectAttributeProvider, SubjectAttributes, SubjectDimension, SubjectProviderRegistration,
     USER_PRECEDENCE, dimensions_of, discover_subject_providers, gather_subject_attributes,
-    try_gather_subject_attributes,
 };
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,

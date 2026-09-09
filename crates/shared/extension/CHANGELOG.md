@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.49.0] - 2026-09-09
+
+### Breaking
+
+- **Breaking:** `GatewayDenyKind` is `#[non_exhaustive]` and gains an `Unavailable` variant. Migrate by adding a wildcard arm to any exhaustive `match` on it; later variants will no longer be a breaking change.
+
+### Added
+
+- `GatewayDenyKind::Unavailable` and `GatewayDenyReason::unavailable`, so a guard that could not reach the state it needs is distinguishable from one that decided against the request. A transient fault used to be reported as a quota denial.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

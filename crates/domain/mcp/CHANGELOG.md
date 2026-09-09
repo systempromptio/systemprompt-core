@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.49.0] - 2026-09-09
+
+### Added
+
+- An external server declaring a `connector` resolves to the gateway-owned connector token endpoint when it declares no explicit `external_auth`, so a personal-account OAuth connector needs no hand-written token route.
+
 ## [0.48.0] - 2026-09-08
 
 ### Fixed

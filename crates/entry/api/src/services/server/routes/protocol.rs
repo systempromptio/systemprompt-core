@@ -280,6 +280,10 @@ pub(super) fn mount_content_and_misc(
     Ok(router)
 }
 
+// Why: this mount deliberately carries no `with_auth`. Workers present an
+// environment-scoped `spexec_`/worker credential, not a user JWT, so every
+// handler authenticates it against the lease fence itself; wrapping the mount
+// in user auth would reject the only credential these routes accept.
 fn mount_evaluation_worker(router: Router, mount: &MountCtx<'_>) -> Result<Router, LoaderError> {
     let evaluator = crate::routes::evaluation::router_from_context(mount.ctx).map_err(|error| {
         LoaderError::InitializationFailed {

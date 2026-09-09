@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.49.0] - 2026-09-09
 
 ### Breaking
 
@@ -22,6 +22,8 @@
 - Evaluation requests use selected-provider pricing consistently for admission and completion and reject unbudgeted routing selectors or safety scanners.
 
 ### Fixed
+
+- A completion whose model has no configured pricing still writes its terminal `ai_requests` row. Resolving pricing at completion had become fallible and returned before the update, so a request already spent upstream was left in `processing` with no cost, no tokens and no response recorded. Dispatch refuses an unpriced model before the audit is opened, so a miss at completion means the rates moved mid-request; it is now warned about and billed at zero rather than erasing the record.
 
 - Reject missing gateway pricing before dispatch instead of reporting an unknown charge as zero.
 

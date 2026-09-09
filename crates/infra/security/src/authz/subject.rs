@@ -99,11 +99,7 @@ pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 pub trait SubjectAttributeProvider: Send + Sync + Debug {
     fn dimension(&self) -> SubjectDimension;
 
-    async fn values_for(&self, user_id: &UserId) -> Vec<String>;
-
-    async fn try_values_for(&self, user_id: &UserId) -> Result<Vec<String>, super::AuthzError> {
-        Ok(self.values_for(user_id).await)
-    }
+    async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, super::AuthzError>;
 }
 
 /// Shared handle to a registered provider.
@@ -135,14 +131,15 @@ pub fn dimensions_of(providers: &[SharedSubjectAttributeProvider]) -> Vec<Subjec
 pub async fn gather_subject_attributes(
     providers: &[SharedSubjectAttributeProvider],
     user_id: &UserId,
-) -> SubjectAttributes {
+) -> Result<SubjectAttributes, super::AuthzError> {
     let mut attributes = SubjectAttributes::new();
     for provider in providers {
-        let dimension = provider.dimension();
-        let values = provider.values_for(user_id).await;
-        attributes.insert(dimension.rule_type, values);
+        attributes.insert(
+            provider.dimension().rule_type,
+            provider.values_for(user_id).await?,
+        );
     }
-    attributes
+    Ok(attributes)
 }
 
 #[macro_export]
@@ -154,18 +151,4 @@ macro_rules! register_subject_attribute_provider {
             }
         }
     };
-}
-
-pub async fn try_gather_subject_attributes(
-    providers: &[SharedSubjectAttributeProvider],
-    user_id: &UserId,
-) -> Result<SubjectAttributes, super::AuthzError> {
-    let mut attributes = SubjectAttributes::new();
-    for provider in providers {
-        attributes.insert(
-            provider.dimension().rule_type,
-            provider.try_values_for(user_id).await?,
-        );
-    }
-    Ok(attributes)
 }

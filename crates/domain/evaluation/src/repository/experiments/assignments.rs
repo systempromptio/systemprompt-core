@@ -67,8 +67,12 @@ impl AssignmentRepository {
                 "Assignment resource types or case membership mismatch",
             ));
         }
-        let index = usize::try_from(row.execution.0.variant_index)
-            .map_err(|_| invalid("Invalid assignment variant index"))?;
+        let index = usize::try_from(row.execution.0.variant_index).map_err(|error| {
+            invalid(&format!(
+                "Invalid assignment variant index {}: {error}",
+                row.execution.0.variant_index
+            ))
+        })?;
         let variant = spec
             .variants
             .get(index)

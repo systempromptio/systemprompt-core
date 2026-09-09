@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.49.0] - 2026-09-09
 
 ### Breaking
 
@@ -14,7 +14,7 @@
 - `ExecutionEventRepository` records bounded, ordered progress with idempotent delivery and rejects conflicting duplicates, stale leases and revoked workers.
 - Client capability validation rejects empty or unbounded versions and malformed image hashes.
 
-- Added hashed, rotating execution capabilities bound to owner, environment, worker, session and lease fence. Admission rejects revoked workers and provider mismatches.
+- Added hashed, rotating execution capabilities bound to owner, environment, worker, session and lease fence. Admission rejects revoked workers and provider mismatches. The authenticated principal carries a fixed `user` role, not the owner's, so a run started by an administrator never authorises as one.
 
 - `WorkerRepository` issues hashed, environment-scoped credentials with expiration and revocation.
 - `EvidenceRepository` stores immutable workspaces, verifies uploaded artifact hashes and checks request references against the audit trail.

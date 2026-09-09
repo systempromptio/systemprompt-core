@@ -203,7 +203,20 @@ fn private_log(path: &Path) -> std::io::Result<std::fs::File> {
     options.open(path)
 }
 
+// Why: cancellation runs from `Drop`, which cannot be async, so the bounded
+// wait has to block. On a multi-threaded runtime it is handed to
+// `block_in_place` so the ten seconds are spent off the async scheduler rather
+// than stalling a worker that still owns other tasks.
 fn wait_bounded(child: &mut Child) -> std::io::Result<ExitStatus> {
+    match tokio::runtime::Handle::try_current().map(|handle| handle.runtime_flavor()) {
+        Ok(tokio::runtime::RuntimeFlavor::MultiThread) => {
+            tokio::task::block_in_place(|| poll_until_exit(child))
+        },
+        _ => poll_until_exit(child),
+    }
+}
+
+fn poll_until_exit(child: &mut Child) -> std::io::Result<ExitStatus> {
     let started = Instant::now();
     loop {
         if let Some(status) = child.try_wait()? {

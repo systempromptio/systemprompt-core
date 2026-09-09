@@ -1,10 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.49.0] - 2026-09-09
 
 ### Added
 
 - `subprocess::spawn_owned_supervised` returns an owned child using the existing supervised spawning thread and parent-death handling.
+- `Deployment.connector` (`ConnectorConfig`), the outbound personal-account OAuth settings for an external MCP server, validated at config load: a generic connector requires an HTTPS resource, and a client secret requires a client id. It is separate from `external_auth`, which governs inbound access, and is refused on internal servers.
 
 ### Fixed
 
