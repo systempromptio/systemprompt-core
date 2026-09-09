@@ -4,9 +4,13 @@
 
 ### Breaking
 
+- **Breaking:** `AdmissionRequest` requires the resolved provider; supply it with the builder before admission.
+
 - **Breaking:** `ExecutionLease.worker_id` and `ExperimentRepository::claim` use `EvalWorkerId`. Migrate by assigning a worker identity independently of its owning user.
 
 ### Added
+
+- Added hashed, rotating execution capabilities bound to owner, environment, worker, session and lease fence. Admission rejects revoked workers and provider mismatches.
 
 - `WorkerRepository` issues hashed, environment-scoped credentials with expiration and revocation.
 - `EvidenceRepository` stores immutable workspaces, verifies uploaded artifact hashes and checks request references against the audit trail.

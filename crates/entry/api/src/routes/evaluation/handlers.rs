@@ -131,3 +131,14 @@ pub(super) async fn complete(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+pub(super) async fn access(
+    State(state): State<EvaluationWorkerState>,
+    headers: HeaderMap,
+    Json(lease): Json<ExecutionLease>,
+) -> Result<impl axum::response::IntoResponse, WorkerHttpError> {
+    let worker = authenticate(&state, &headers).await?;
+    verify_worker(&worker, &lease)?;
+    let access = state.capabilities.issue(&worker.owner_id, &lease).await?;
+    Ok(([("cache-control", "no-store")], Json(access)))
+}

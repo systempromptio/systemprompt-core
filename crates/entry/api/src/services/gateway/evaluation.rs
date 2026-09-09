@@ -7,7 +7,7 @@ use super::protocol::canonical::{CanonicalContent, CanonicalRequest};
 use super::{GatewayRepositories, GatewayRequestContext};
 use anyhow::{Result, ensure};
 use systemprompt_evaluation::repository::experiments::{AdmissionRequest, RequestAdmission};
-use systemprompt_identifiers::ModelId;
+use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_models::services::ModelPricing;
 
 pub async fn admit(
@@ -40,7 +40,8 @@ pub async fn admit(
         "Evaluation admission currently requires text-only input"
     );
     let bound = request_bound(pricing, encoded_bytes, request.max_tokens)?;
-    let model = ModelId::new(request.model.clone());
+    let model = ModelId::new(context.model.clone());
+    let provider = ProviderId::new(context.provider.clone());
     let admission = repositories
         .evaluations
         .admit(&AdmissionRequest {
@@ -48,6 +49,7 @@ pub async fn admit(
             session,
             request: &context.ai_request_id,
             model: &model,
+            provider: &provider,
             bound_microdollars: bound,
         })
         .await?;

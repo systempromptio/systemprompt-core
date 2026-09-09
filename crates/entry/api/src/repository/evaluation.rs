@@ -5,11 +5,12 @@
 
 use sqlx::PgPool;
 use systemprompt_evaluation::repository::experiments::{
-    EvidenceRepository, ExperimentRepository, WorkerRepository,
+    EvidenceRepository, ExecutionCapabilityRepository, ExperimentRepository, WorkerRepository,
 };
 
 #[derive(Clone, Debug)]
 pub struct EvaluationWorkerState {
+    pub(crate) capabilities: ExecutionCapabilityRepository,
     pub(crate) experiments: ExperimentRepository,
     pub(crate) evidence: EvidenceRepository,
     pub(crate) workers: WorkerRepository,
@@ -43,6 +44,7 @@ impl EvaluationWorkerStateBuilder {
             .filter(|value| !value.trim().is_empty())
             .ok_or_else(|| anyhow::anyhow!("Evaluator environment is required"))?;
         Ok(EvaluationWorkerState {
+            capabilities: ExecutionCapabilityRepository::new(self.pool.clone()),
             experiments: ExperimentRepository::new(self.pool.clone()),
             evidence: EvidenceRepository::new(self.pool.clone()),
             workers: WorkerRepository::new(self.pool),

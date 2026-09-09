@@ -14,6 +14,7 @@ use axum::routing::post;
 pub fn router(state: EvaluationWorkerState) -> Router {
     Router::new()
         .route("/claim", post(handlers::claim))
+        .route("/access", post(handlers::access))
         .route("/heartbeat", post(handlers::heartbeat))
         .route("/evidence", post(handlers::evidence))
         .route("/complete", post(handlers::complete))

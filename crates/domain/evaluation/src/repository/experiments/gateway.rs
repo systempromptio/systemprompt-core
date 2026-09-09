@@ -8,7 +8,7 @@ use crate::Result;
 use crate::experiments::{conflict, missing};
 use sqlx::PgPool;
 use systemprompt_identifiers::{
-    AiRequestId, EvalBudgetId, EvalReservationId, ModelId, SessionId, UserId,
+    Actor, AiRequestId, EvalBudgetId, EvalReservationId, ModelId, ProviderId, SessionId, UserId,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,6 +29,21 @@ impl GatewayEvaluationRepository {
             budgets: BudgetRepository::new(pool.clone()),
             pool,
         }
+    }
+
+    pub async fn execution_actor(
+        &self,
+        owner: &UserId,
+        session: &SessionId,
+    ) -> Result<Option<Actor>> {
+        let execution = sqlx::query_scalar!(
+            "SELECT execution_id FROM eval_session_bindings WHERE session_id=$1 AND owner_id=$2",
+            session.as_str(),
+            owner.as_str()
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(execution.map(|id| Actor::job(owner.clone(), format!("evaluation:{id}"))))
     }
 
     pub async fn is_evaluation_session(&self, session: &SessionId) -> Result<bool> {
@@ -71,7 +86,7 @@ impl GatewayEvaluationRepository {
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, input.owner).await?;
         let bound = sqlx::query!(
-            "SELECT b.owner_id,b.execution_id,b.fencing_token,x.fencing_token AS current_fence,x.status,(x.lease_expires_at>NOW() AND x.deadline_at>NOW()) AS live,e.status AS experiment_status,e.budget_id,e.spec->'variants'->x.variant_index->>'model' AS model FROM eval_session_bindings b JOIN eval_executions x ON x.id=b.execution_id JOIN eval_experiments e ON e.id=x.experiment_id WHERE b.session_id=$1",
+            "SELECT b.owner_id,b.execution_id,b.fencing_token,x.fencing_token AS current_fence,x.status,(x.lease_expires_at>NOW() AND x.deadline_at>NOW()) AS live,e.status AS experiment_status,e.budget_id,e.spec->'variants'->x.variant_index->>'model' AS model,e.spec->'variants'->x.variant_index->>'provider' AS provider,EXISTS(SELECT 1 FROM eval_workers w WHERE w.id=x.lease_owner AND w.owner_id=e.owner_id AND w.enabled AND w.expires_at>NOW()) AS worker_live FROM eval_session_bindings b JOIN eval_executions x ON x.id=b.execution_id JOIN eval_experiments e ON e.id=x.experiment_id WHERE b.session_id=$1",
             input.session.as_str()
         ).fetch_optional(&mut *tx).await?;
         let Some(bound) = bound else {
@@ -83,6 +98,8 @@ impl GatewayEvaluationRepository {
             || bound.live != Some(true)
             || bound.experiment_status != "running"
             || bound.model.as_deref() != Some(input.model.as_str())
+            || bound.provider.as_deref() != Some(input.provider.as_str())
+            || bound.worker_live != Some(true)
         {
             return Err(conflict(
                 "Execution session is stale, cancelled, foreign or requests another model",
@@ -152,6 +169,7 @@ pub struct AdmissionRequest<'a> {
     pub session: &'a SessionId,
     pub request: &'a AiRequestId,
     pub model: &'a ModelId,
+    pub provider: &'a ProviderId,
     pub bound_microdollars: i64,
 }
 
@@ -161,6 +179,7 @@ pub struct AdmissionRequestBuilder<'a> {
     session: &'a SessionId,
     request: Option<&'a AiRequestId>,
     model: Option<&'a ModelId>,
+    provider: Option<&'a ProviderId>,
     bound_microdollars: Option<i64>,
 }
 
@@ -171,6 +190,7 @@ impl<'a> AdmissionRequest<'a> {
             session,
             request: None,
             model: None,
+            provider: None,
             bound_microdollars: None,
         }
     }
@@ -183,6 +203,10 @@ impl<'a> AdmissionRequestBuilder<'a> {
     }
     pub const fn model(mut self, model: &'a ModelId) -> Self {
         self.model = Some(model);
+        self
+    }
+    pub const fn provider(mut self, provider: &'a ProviderId) -> Self {
+        self.provider = Some(provider);
         self
     }
     pub const fn bound_microdollars(mut self, amount: i64) -> Self {
@@ -203,6 +227,9 @@ impl<'a> AdmissionRequestBuilder<'a> {
             model: self
                 .model
                 .ok_or_else(|| crate::experiments::invalid("Model required"))?,
+            provider: self
+                .provider
+                .ok_or_else(|| crate::experiments::invalid("Provider required"))?,
             bound_microdollars,
         })
     }

@@ -4,6 +4,9 @@
 
 ### Added
 
+- Evaluation workers can obtain five-minute execution-only capabilities tied to an active lease and session. Gateway inference accepts these capabilities without granting administrative or worker access.
+- Gateway evaluation admission checks the selected provider and worker revocation; evaluation audit records identify the owning execution as a job actor.
+
 - Evaluation workers have environment-scoped, expiring credentials and fenced HTTP claim, heartbeat, evidence and completion endpoints.
 - Evaluation artifact uploads are checked against their SHA-256 manifests and server-recorded request IDs.
 

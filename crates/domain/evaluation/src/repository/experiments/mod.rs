@@ -4,6 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod budget;
+mod capabilities;
+pub use capabilities::{
+    EXECUTION_TOKEN_PREFIX, ExecutionAccess, ExecutionCapabilityRepository, ExecutionIdentity,
+    ExecutionIdentityBuilder, ExecutionPrincipal,
+};
 mod evidence;
 mod gateway;
 mod leases;

@@ -4,9 +4,13 @@
 
 ### Breaking
 
+- **Breaking:** Gateway authentication takes an injected execution-capability repository and exposes an execution principal variant.
+
 - **Breaking:** `gateway::pricing::resolve` returns `Result<ModelPricing, MissingPricing>`. Migrate by handling missing prices explicitly.
 
 ### Added
+
+- Added the authenticated evaluation worker access endpoint and execution-only gateway authentication. Evaluation audit records carry job attribution.
 
 - Environment-scoped evaluation worker endpoints authenticate credentials and reject foreign or stale lease mutations.
 
