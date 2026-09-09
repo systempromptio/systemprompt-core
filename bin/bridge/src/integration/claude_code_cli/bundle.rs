@@ -31,8 +31,6 @@ pub(super) fn mirror_plugin(
     copy_dir_all(src, dst)?;
     filter_skills_for_host(dst, skills, "claude-code")?;
     drop_standard_hooks_pointer(dst)?;
-    // Always replace catalogue MCP metadata, including after the final
-    // connector is revoked. An empty list must not preserve bundled URLs.
     write_mcp_json(loopback, dst, mcp_servers)?;
     Ok(())
 }

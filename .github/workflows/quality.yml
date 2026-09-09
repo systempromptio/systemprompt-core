@@ -26,6 +26,18 @@ env:
   SQLX_OFFLINE: "true"
 
 jobs:
+  bridge-web:
+    name: Bridge web regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --import ./bin/bridge/web/dev/tests/resolve-assets.mjs --test bin/bridge/web/dev/tests/*.test.mjs
+
   lint:
     name: Clippy lint baseline
     runs-on: ubuntu-latest

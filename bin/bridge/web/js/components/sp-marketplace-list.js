@@ -2,7 +2,7 @@ import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { handleRovingKey, syncRoving } from "/assets/js/utils/roving.js";
 import { changeBadge, filterItems, groupItems } from "/assets/js/components/marketplace-list-groups.js";
-import { placeholderMarkup } from "/assets/js/components/marketplace-list-placeholder.js";
+import { placeholderMarkup, refreshErrorMarkup } from "/assets/js/components/marketplace-list-placeholder.js";
 
 export class SpMarketplaceList extends SpElement {
   constructor() {
@@ -108,9 +108,10 @@ export class SpMarketplaceList extends SpElement {
 
   render() {
     if (this.state !== "ok") { return this._placeholder(); }
+    const warning = refreshErrorMarkup(this.error);
     const items = filterItems(this.items || [], this.search);
-    if (items.length === 0) { return this._placeholder(); }
-    const open = `<ul class="sp-mkt-items" id="sp-mkt-items" role="listbox" data-l10n-aria="marketplace-items-aria" aria-label="Items in this category">`;
+    if (items.length === 0) { return warning + this._placeholder(); }
+    const open = `${warning}<ul class="sp-mkt-items" id="sp-mkt-items" role="listbox" data-l10n-aria="marketplace-items-aria" aria-label="Items in this category">`;
     const groups = groupItems(items, this.pluginNames || {});
     // One unnamed group means nothing here has an owner (plugins, MCP servers,
     // an install synced before ownership rode on the manifest). A single

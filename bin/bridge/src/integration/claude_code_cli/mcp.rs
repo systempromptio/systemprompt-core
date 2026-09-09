@@ -7,8 +7,6 @@ use crate::host_sync::HostSyncCtx;
 use crate::ids::PluginId;
 
 pub(super) fn servers_for_plugin(ctx: &HostSyncCtx<'_>, id: &PluginId) -> Vec<String> {
-    // Include unowned managed servers in the first plugin so unprivileged
-    // installs also receive services that have no plugin reference.
     let primary = ctx.manifest.plugins.first().is_some_and(|p| p.id == *id);
     ctx.manifest
         .managed_mcp_servers

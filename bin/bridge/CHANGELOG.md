@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Marketplace skills and counts remain visible during gateway probes and temporary outages. Signing back in reloads an unchanged manifest, stale listing replies cannot overwrite a newer session, and failed refreshes retain the previous list with a retry action.
 - `alert_user` no longer holds its caller until the dialog is dismissed. The macOS `osascript` dialog and the Windows `MessageBoxW` were both modal and blocking, so an installer path that raised one on an unattended host, or the native test job on a CI runner, waited forever; the dialog is now raised and reaped on its own thread. The Quality workflow's native bridge job also carries a 45-minute timeout.
 
 ## [0.48.0] - 2026-09-08
