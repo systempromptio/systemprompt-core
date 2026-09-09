@@ -110,8 +110,26 @@ pub struct ExecutionEvidence {
     pub cleanup_confirmed: bool,
 }
 
+impl ClientCapabilities {
+    pub fn validate(&self) -> Result<()> {
+        validate_digest(&self.image_digest)?;
+        for version in [&self.client_version, &self.adapter_version] {
+            if version.trim().is_empty()
+                || version.len() > 128
+                || version.chars().any(char::is_control)
+            {
+                return Err(invalid(
+                    "Client and adapter versions require 1–128 printable bytes",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
 impl ExecutionEvidence {
     pub fn validate(&self) -> Result<()> {
+        self.capabilities.validate()?;
         if self.fencing_token < 1 || self.artifacts.len() > 256 || self.requests.len() > 1000 {
             return Err(invalid("Invalid evidence lease or manifest size"));
         }

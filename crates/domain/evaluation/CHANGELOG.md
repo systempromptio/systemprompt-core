@@ -10,6 +10,10 @@
 
 ### Added
 
+- `AssignmentRepository` returns hash-verified case, rubric, bundle and configuration snapshots only for a live owner-scoped worker lease.
+- `ExecutionEventRepository` records bounded, ordered progress with idempotent delivery and rejects conflicting duplicates, stale leases and revoked workers.
+- Client capability validation rejects empty or unbounded versions and malformed image hashes.
+
 - Added hashed, rotating execution capabilities bound to owner, environment, worker, session and lease fence. Admission rejects revoked workers and provider mismatches.
 
 - `WorkerRepository` issues hashed, environment-scoped credentials with expiration and revocation.

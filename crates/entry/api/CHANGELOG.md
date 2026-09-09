@@ -10,6 +10,8 @@
 
 ### Added
 
+- Authenticated evaluation workers can retrieve frozen assignments and submit ordered execution events through `/assignment` and `/events`; assignment responses disable caching.
+
 - Added the authenticated evaluation worker access endpoint and execution-only gateway authentication. Evaluation audit records carry job attribution.
 
 - Environment-scoped evaluation worker endpoints authenticate credentials and reject foreign or stale lease mutations.

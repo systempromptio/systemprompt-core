@@ -3,6 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod assignments;
+mod events;
+pub use assignments::{AssignmentRepository, ExecutionAssignment};
+pub use events::{ExecutionEvent, ExecutionEventBuilder, ExecutionEventRepository, ExecutionStage};
 mod budget;
 mod capabilities;
 pub use capabilities::{

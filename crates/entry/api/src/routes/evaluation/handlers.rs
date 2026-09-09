@@ -142,3 +142,36 @@ pub(super) async fn access(
     let access = state.capabilities.issue(&worker.owner_id, &lease).await?;
     Ok(([("cache-control", "no-store")], Json(access)))
 }
+
+
+pub(super) async fn assignment(
+    State(state): State<EvaluationWorkerState>,
+    headers: HeaderMap,
+    Json(lease): Json<ExecutionLease>,
+) -> Result<impl axum::response::IntoResponse, WorkerHttpError> {
+    let worker = authenticate(&state, &headers).await?;
+    verify_worker(&worker, &lease)?;
+    let assignment = state.assignments.get(&worker, &lease).await?;
+    Ok(([("cache-control", "no-store")], Json(assignment)))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct EventSubmission {
+    lease: ExecutionLease,
+    event: systemprompt_evaluation::repository::experiments::ExecutionEvent,
+}
+
+pub(super) async fn event(
+    State(state): State<EvaluationWorkerState>,
+    headers: HeaderMap,
+    Json(input): Json<EventSubmission>,
+) -> Result<StatusCode, WorkerHttpError> {
+    let worker = authenticate(&state, &headers).await?;
+    verify_worker(&worker, &input.lease)?;
+    state
+        .events
+        .append(&worker, &input.lease, &input.event)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}

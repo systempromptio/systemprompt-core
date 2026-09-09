@@ -109,6 +109,7 @@ impl ClientCapabilitiesBuilder {
                 .supports_session_resume
                 .ok_or_else(|| invalid("supports_session_resume is required"))?,
         };
+        value.validate()?;
         Ok(value)
     }
 }
