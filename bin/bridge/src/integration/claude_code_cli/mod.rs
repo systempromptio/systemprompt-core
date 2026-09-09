@@ -232,22 +232,40 @@ fn mirror_marketplace(
             continue;
         };
         let src = ctx.org_plugins_root.join(id.as_str());
-        let mcp_servers = ctx
-            .plugin_mcp_servers
-            .get(id.as_str())
-            .map_or(&[][..], Vec::as_slice);
+        // Bundle references are catalogue-wide; only the user's signed
+        // manifest authorizes a connector on this client. Include unowned
+        // managed servers in the first plugin so unprivileged installs also
+        // receive services that have no plugin reference.
+        let primary = manifest.plugins.first().is_some_and(|p| p.id == *id);
+        let mcp_servers: Vec<String> = manifest
+            .managed_mcp_servers
+            .iter()
+            .filter(|server| {
+                let name = server.name.as_str();
+                let referenced = ctx
+                    .plugin_mcp_servers
+                    .get(id.as_str())
+                    .is_some_and(|names| names.iter().any(|n| n == name));
+                let unowned = !ctx
+                    .plugin_mcp_servers
+                    .values()
+                    .any(|names| names.iter().any(|n| n == name));
+                referenced || (primary && unowned)
+            })
+            .map(|server| server.name.to_string())
+            .collect();
         mirror_plugin(
             ctx.loopback,
             &src,
             &source_plugin_dir(plugins, &marketplace.id, id),
-            mcp_servers,
+            &mcp_servers,
             &ctx.manifest.skills,
         )?;
         mirror_plugin(
             ctx.loopback,
             &src,
             &cache_install_dir(plugins, &marketplace.id, id),
-            mcp_servers,
+            &mcp_servers,
             &ctx.manifest.skills,
         )?;
         entries.push(marketplace::entry_for(&src, id, version));
