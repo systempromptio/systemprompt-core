@@ -254,8 +254,8 @@ fn owner_sid(file: &File) -> io::Result<String> {
 // no longer names them can still be repaired by them, and only by them.
 pub(crate) fn repair_private(path: &Path, reader: &str) -> io::Result<()> {
     let before = super::describe(path).unwrap_or_else(|e| format!("<{e}>"));
-    let file = open_for_dac(path, Scope::File)?;
-    let owner = owner_sid(&file)?;
+    let file = open_for_dac(path, Scope::File).map_err(|e| step("open for WRITE_DAC", &e))?;
+    let owner = owner_sid(&file).map_err(|e| step("read owner", &e))?;
     if owner != reader {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
@@ -266,8 +266,8 @@ pub(crate) fn repair_private(path: &Path, reader: &str) -> io::Result<()> {
             ),
         ));
     }
-    set_dacl(&file, reader, Scope::File)?;
-    verify_private(&file, reader)?;
+    set_dacl(&file, reader, Scope::File).map_err(|e| step("set DACL", &e))?;
+    verify_private(&file, reader).map_err(|e| step("verify DACL", &e))?;
     tracing::warn!(
         path = %path.display(),
         before = %before,
@@ -275,4 +275,8 @@ pub(crate) fn repair_private(path: &Path, reader: &str) -> io::Result<()> {
         "repaired the access control list of a private file this user owns"
     );
     Ok(())
+}
+
+fn step(action: &str, e: &io::Error) -> io::Error {
+    io::Error::new(e.kind(), format!("repair private file: {action}: {e}"))
 }

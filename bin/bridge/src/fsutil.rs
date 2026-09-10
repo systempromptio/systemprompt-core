@@ -100,6 +100,7 @@ pub fn read_private(path: &Path) -> io::Result<Vec<u8>> {
             let reader = crate::windows_acl::current_sid()?;
             crate::windows_acl::repair_private(path, &reader)?;
             fs::read(path)
+                .map_err(|e| io::Error::new(e.kind(), format!("read after DACL repair: {e}")))
         },
         other => other,
     }
