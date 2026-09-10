@@ -47,6 +47,12 @@ mod vault_fixture;
 mod vault_kv;
 
 #[cfg(test)]
+mod vault_client_transport;
+
+#[cfg(test)]
+mod vault_provider_document;
+
+#[cfg(test)]
 mod config_loader_build;
 
 #[cfg(test)]
