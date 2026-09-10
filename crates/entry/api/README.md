@@ -78,7 +78,7 @@ src/
 
 ```toml
 [dependencies]
-systemprompt-api = "0.49"
+systemprompt-api = "0.50"
 ```
 
 ```rust

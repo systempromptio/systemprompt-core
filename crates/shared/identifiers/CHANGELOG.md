@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Changed
+
+- Module docs for the marketplace and plugin identifiers now describe the full identifier families they export.
+
 ## [0.49.0] - 2026-09-09
 
 ### Added

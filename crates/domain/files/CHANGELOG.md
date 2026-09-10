@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Changed
+
+- The files config validator passes the new bundle-root argument to `AppPaths::from_profile`, matching the loader's services-bundle composition.
+
 ## [0.44.0] - 2026-09-02
 
 ### Changed

@@ -2,7 +2,7 @@
 
 Upstream API, protocol, and runtime versions supported by each systemprompt.io release.
 
-## Current — 0.49.x
+## Current — 0.50.x
 
 ### AI Provider APIs
 
@@ -83,9 +83,9 @@ rather than as pre-built binaries. Other targets are buildable from source.
 
 | systemprompt version | Status |
 |----------------------|--------|
-| 0.49.x | Current supported line. |
-| 0.48.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
-| < 0.46 | No longer supported. |
+| 0.50.x | Current supported line. |
+| 0.49.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
+| < 0.47 | No longer supported. |
 
 Per-release detail is in `CHANGELOG.md`.
 
