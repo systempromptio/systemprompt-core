@@ -155,6 +155,9 @@ mod windows_private_files {
         String::from_utf8_lossy(&output.stdout).into_owned()
     }
 
+    // Why: a CI runner's temp files carry explicit entries as well as
+    // inherited ones, so dropping inheritance alone leaves them readable;
+    // every listed account is removed to reproduce the empty DACL.
     fn strip_every_ace(path: &std::path::Path) {
         let status = std::process::Command::new("icacls")
             .arg(path)
@@ -162,6 +165,29 @@ mod windows_private_files {
             .status()
             .expect("icacls runs");
         assert!(status.success(), "icacls /inheritance:r failed");
+        let shown = path.display().to_string();
+        let accounts: Vec<String> = icacls(path)
+            .lines()
+            .filter_map(|line| line.split_once(":(").map(|(account, _)| account))
+            .map(|account| {
+                account
+                    .trim()
+                    .strip_prefix(&shown)
+                    .unwrap_or(account)
+                    .trim()
+                    .to_owned()
+            })
+            .filter(|account| !account.is_empty())
+            .collect();
+        for account in accounts {
+            let status = std::process::Command::new("icacls")
+                .arg(path)
+                .arg("/remove:g")
+                .arg(&account)
+                .status()
+                .expect("icacls runs");
+            assert!(status.success(), "icacls /remove:g {account} failed");
+        }
     }
 
     #[test]
