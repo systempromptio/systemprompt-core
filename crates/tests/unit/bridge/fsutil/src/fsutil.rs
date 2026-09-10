@@ -155,6 +155,23 @@ mod windows_private_files {
         String::from_utf8_lossy(&output.stdout).into_owned()
     }
 
+    // Why: a file an elevated administrator creates is owned by the
+    // Administrators group; the bridge's files are owned by the user who
+    // minted them, which is the case the repair is written for.
+    fn own_as_current_user(path: &std::path::Path) {
+        let whoami = std::process::Command::new("whoami")
+            .output()
+            .expect("whoami runs");
+        let account = String::from_utf8_lossy(&whoami.stdout).trim().to_owned();
+        let status = std::process::Command::new("icacls")
+            .arg(path)
+            .arg("/setowner")
+            .arg(&account)
+            .status()
+            .expect("icacls runs");
+        assert!(status.success(), "icacls /setowner {account} failed");
+    }
+
     // Why: a CI runner's temp files carry explicit entries as well as
     // inherited ones, so dropping inheritance alone leaves them readable;
     // every listed account is removed to reproduce the empty DACL.
@@ -222,13 +239,15 @@ mod windows_private_files {
         let dir = tempdir().unwrap();
         let key = dir.path().join("bridge-install.id");
         fs::write(&key, b"yqasnH1BwF8").unwrap();
+        own_as_current_user(&key);
         strip_every_ace(&key);
         assert_eq!(
             fs::read(&key).map_err(|e| e.kind()),
             Err(ErrorKind::PermissionDenied)
         );
 
-        assert_eq!(read_private(&key).unwrap(), b"yqasnH1BwF8");
+        let repaired = read_private(&key).unwrap_or_else(|e| panic!("{e}; {}", icacls(&key)));
+        assert_eq!(repaired, b"yqasnH1BwF8");
 
         assert_eq!(fs::read(&key).unwrap(), b"yqasnH1BwF8");
         let listing = icacls(&key);
