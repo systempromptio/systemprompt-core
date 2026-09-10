@@ -2,12 +2,40 @@
 
 ## [0.50.0] - 2026-09-10
 
+A deployed instance stops being one immutable artifact. The services tree
+(marketplaces, plugins, skills, rules, access rules) can now arrive as signed
+bundles fetched at boot from any HTTPS or OCI location and composed into one
+root, so a marketplace change is a publish and a restart rather than a Rust
+build and a redeploy. Secrets can come from HashiCorp Vault or OpenBao at boot
+instead of being pushed as environment at deploy time. Both are host-agnostic
+and off by default: an empty `services.sources` and `secrets.source: file` or
+`env` behave exactly as before.
+
+Authorization projection learns ownership. Rules record which bundle wrote
+them, ingestion never overwrites a dashboard-authored rule, and pruning is
+bounded to a bundle's own rows inside the ids it declares, so one team's
+marketplace cannot revoke another's grants.
+
 ### Added
 
+- **Services:** `services.sources[]` in the profile lists signed bundles (`https:` or `oci:`), each verified by digest, ed25519 signature, per-file checksums and content hash before use; bundles compose by ownership with duplicate ids refused; `on_fetch_failure` selects fail-closed, last-good or the baked tree, each recorded in the active root's provenance. `GET /api/v1/admin/services/status` and `POST /api/v1/admin/services/refresh?restart=` expose the state and the manual trigger; refresh is single-flight and restarts through a graceful shutdown handle injected at the serve composition root.
+- **CLI:** `core marketplace import` maps an Anthropic-format Claude Code marketplace (with strict `.claude-plugin/systemprompt.yaml` sidecars) into the services tree; `core services validate|bundle|keygen|publish|refresh|inspect` build, sign, publish, fetch and inspect bundles, with `refresh` exiting 3 when it swapped; `admin config secret check` reports the resolved secret source and key names without values.
+- **Marketplace:** rules are a catalog component (`rules/<id>/config.yaml` plus markdown), selected per plugin and emitted into plugin bundles as `rules/<id>.md`.
+- **Secrets:** `secrets.source: vault` reads one KV v2 document in the `secrets.json` shape through token, AppRole or Kubernetes auth, with per-key overrides, CA pinning and bounded retries. A Vault failure fails the boot under every validation mode; subprocess children keep the environment contract and never see Vault credentials. `cloud deploy` pushes only the Vault bootstrap variables for such a profile and `cloud doctor` preflights the document.
+- **Security:** `access_control_rules.source` (migration 017); `authz::reconcile::{reconcile_services_authz, reconcile_composed_bundles}` replace the CLI-only reconcile body and are shared by the boot step and `core services refresh`; rules naming a role no user holds are reported as inert.
 - **Bridge:** the diagnostics bundle carries `registry.txt` (both policy hives with owner, DACL, last write and fingerprinted secrets; process elevation and SID; WebView2 version) and a `state.txt` that covers the org-plugins tree, every host profile file, the working directories, the single-instance lock and the update policy. `doctor` checks that every private file opens for the current user.
+
+### Changed
+
+- **Breaking:** `SecretsBootstrap::init` and `try_init` are `async`; callers add `.await`. `SecretsConfig.secrets_path` is optional and only required for `source: file`.
+- **Breaking:** `AppPaths::from_profile` takes a services-root override; `bind_and_serve` takes a `ShutdownRequest`; `IngestOptions` carries a `source`.
+- The backup tar extractor and the sync-route packer are one implementation in the loader's `bundle` module; `sync/files` no longer consults `SYSTEMPROMPT_SERVICES_PATH`.
+- Ingesting marketplace access no longer requires `access-control/roles.yaml` to exist.
 
 ### Fixed
 
+- **Marketplace:** a generated plugin bundle kebab-cased skill directories the loader could not accept back; the importer inverts that projection exactly.
+- **Security:** a grant that changed hands between bundles kept its old owner's label, leaving an orphan no bundle would prune; `source` is now part of the unchanged comparison.
 - **Gateway:** a Gemini function declaration whose parameter declares `items` beside an `anyOf` array variant, or an array without `items`, is rewritten to the shape Gemini accepts instead of failing the request with `items: field predicate failed: $type == Type.ARRAY`. `SchemaFeatures.loose_items` declares the capability per provider.
 - **Bridge (Windows):** the private config directory grants inheritable access, so files written by an earlier release keep their owner's access when the directory is protected; a private file the user owns but cannot read is repaired on read; a plugin directory the user cannot replace under the system org-plugins root triggers the elevated re-grant and a second apply.
 
