@@ -90,8 +90,6 @@ url = { workspace = true }
 rand = { workspace = true }
 indicatif = { workspace = true }
 regex = { workspace = true }
-flate2 = { workspace = true }
-tar = { workspace = true }
 semver = { workspace = true }
 tempfile = { workspace = true }
 
