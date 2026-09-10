@@ -19,13 +19,12 @@ use std::path::Path;
 use std::ptr::null_mut;
 use windows_sys::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::Security::Authorization::{
-    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo,
-    SE_FILE_OBJECT, SetSecurityInfo,
+    ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo, SE_FILE_OBJECT,
+    SetSecurityInfo,
 };
 use windows_sys::Win32::Security::{
     ACL, DACL_SECURITY_INFORMATION, GetSecurityDescriptorControl, GetSecurityDescriptorDacl,
-    OWNER_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION, SE_DACL_PROTECTED,
-    SECURITY_ATTRIBUTES,
+    PROTECTED_DACL_SECURITY_INFORMATION, SE_DACL_PROTECTED, SECURITY_ATTRIBUTES,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CREATE_NEW, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_BACKUP_SEMANTICS,
@@ -40,7 +39,7 @@ pub(crate) enum Scope {
     Directory,
 }
 
-fn private_descriptor(reader: &str, scope: Scope) -> io::Result<Descriptor> {
+pub(super) fn private_descriptor(reader: &str, scope: Scope) -> io::Result<Descriptor> {
     if !reader.starts_with("S-1-")
         || !reader
             .bytes()
@@ -70,7 +69,7 @@ fn private_descriptor(reader: &str, scope: Scope) -> io::Result<Descriptor> {
     Ok(Descriptor(descriptor))
 }
 
-fn descriptor_dacl(descriptor: &Descriptor) -> io::Result<*mut ACL> {
+pub(super) fn descriptor_dacl(descriptor: &Descriptor) -> io::Result<*mut ACL> {
     let (mut present, mut defaulted) = (0, 0);
     let mut acl = null_mut();
     // SAFETY: the descriptor is a live self-relative descriptor and the
@@ -141,9 +140,17 @@ fn verify_scope(file: &File, reader: &str, scope: Scope) -> io::Result<()> {
         ))?;
     }
     let actual = Descriptor(actual);
-    let expected_acl = descriptor_dacl(&expected)?;
+    compare_dacl(&actual, actual_acl, &expected)
+}
+
+pub(super) fn compare_dacl(
+    actual: &Descriptor,
+    actual_acl: *mut ACL,
+    expected: &Descriptor,
+) -> io::Result<()> {
+    let expected_acl = descriptor_dacl(expected)?;
     let (mut control, mut revision) = (0, 0);
-    // SAFETY: `actual` owns the descriptor GetSecurityInfo allocated.
+    // SAFETY: `actual` owns a live descriptor.
     unsafe {
         checked(GetSecurityDescriptorControl(
             actual.0,
@@ -192,9 +199,6 @@ fn set_dacl(file: &File, reader: &str, scope: Scope) -> io::Result<()> {
     }
 }
 
-// Why: a path-based metadata query opens the file itself, which an empty DACL
-// refuses; the handle is opened first with only the owner-implicit rights and
-// the reparse check is made through it.
 fn open_for_dac(path: &Path, scope: Scope) -> io::Result<File> {
     use std::os::windows::fs::OpenOptionsExt;
     let mut options = std::fs::OpenOptions::new();
@@ -220,67 +224,4 @@ pub(crate) fn protect_directory(path: &Path) -> io::Result<()> {
     let file = open_for_dac(path, Scope::Directory)?;
     set_dacl(&file, &reader, Scope::Directory)?;
     verify_scope(&file, &reader, Scope::Directory)
-}
-
-fn owner_sid(file: &File) -> io::Result<String> {
-    let mut descriptor = null_mut();
-    let mut owner = null_mut();
-    // SAFETY: the handle is live; the descriptor Windows allocates owns the
-    // SID for as long as `Descriptor` lives.
-    unsafe {
-        status(GetSecurityInfo(
-            file.as_raw_handle(),
-            SE_FILE_OBJECT,
-            OWNER_SECURITY_INFORMATION,
-            &raw mut owner,
-            null_mut(),
-            null_mut(),
-            null_mut(),
-            &raw mut descriptor,
-        ))?;
-        let descriptor = Descriptor(descriptor);
-        let mut text = null_mut();
-        checked(ConvertSidToStringSidW(owner, &raw mut text))?;
-        let allocation = Descriptor(text.cast());
-        let mut n = 0;
-        while *text.add(n) != 0 {
-            n += 1;
-        }
-        let result =
-            String::from_utf16(std::slice::from_raw_parts(text, n)).map_err(io::Error::other);
-        drop(allocation);
-        drop(descriptor);
-        result
-    }
-}
-
-// Why: an owner always holds READ_CONTROL and WRITE_DAC, so a file whose DACL
-// no longer names them can still be repaired by them, and only by them.
-pub(crate) fn repair_private(path: &Path, reader: &str) -> io::Result<()> {
-    let before = super::describe(path).unwrap_or_else(|e| format!("<{e}>"));
-    let file = open_for_dac(path, Scope::File).map_err(|e| step("open for WRITE_DAC", &e))?;
-    let owner = owner_sid(&file).map_err(|e| step("read owner", &e))?;
-    if owner != reader {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            format!(
-                "{} is owned by {owner}, not this user ({reader}); it cannot be repaired from \
-                 this account",
-                path.display()
-            ),
-        ));
-    }
-    set_dacl(&file, reader, Scope::File).map_err(|e| step("set DACL", &e))?;
-    verify_private(&file, reader).map_err(|e| step("verify DACL", &e))?;
-    tracing::warn!(
-        path = %path.display(),
-        before = %before,
-        after = %super::describe(path).unwrap_or_else(|e| format!("<{e}>")),
-        "repaired the access control list of a private file this user owns"
-    );
-    Ok(())
-}
-
-fn step(action: &str, e: &io::Error) -> io::Error {
-    io::Error::new(e.kind(), format!("repair private file: {action}: {e}"))
 }
