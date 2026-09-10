@@ -46,18 +46,22 @@ impl AuthFailedSource {
             Self::Keystore(_) | Self::Loopback(_) | Self::Custom(_) | Self::SignInRequired => true,
             Self::Gateway(g) => {
                 use crate::gateway::GatewayError as G;
-                matches!(
-                    g,
+                match g {
+                    // Why: only an explicit credential rejection is terminal. A 5xx,
+                    // 429 or 404 is the gateway being unwell, not the credential being
+                    // bad, and must stay retryable or a deploy blip locks the user out.
+                    G::HttpStatus { status, .. } => matches!(status.as_u16(), 401 | 403),
                     G::PubkeyMissing
-                        | G::UnsafePath(_)
-                        | G::PubkeyDecode(_)
-                        | G::ManifestDecode(_)
-                        | G::ManifestEnvelopeShape { .. }
-                        | G::WhoamiDecode(_)
-                        | G::ProfileDecode(_)
-                        | G::AuthDecode(_)
-                        | G::Serialize(_)
-                )
+                    | G::UnsafePath(_)
+                    | G::PubkeyDecode(_)
+                    | G::ManifestDecode(_)
+                    | G::ManifestEnvelopeShape { .. }
+                    | G::WhoamiDecode(_)
+                    | G::ProfileDecode(_)
+                    | G::AuthDecode(_)
+                    | G::Serialize(_) => true,
+                    _ => false,
+                }
             },
         }
     }

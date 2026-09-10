@@ -100,11 +100,15 @@ fn announce(app: &mut GuiApp) {
         _ => app.signal_cleared(Signal::GatewayUnreachable),
     }
 
-    let expiring = snap
-        .verified_identity
-        .as_ref()
-        .and_then(|id| id.exp_unix)
-        .is_some_and(|exp| exp.saturating_sub(now_unix()) <= SESSION_EXPIRY_WARN_SECS);
+    // Why: `exp_unix` is the short-lived access JWT, which a stored PAT renews
+    // unattended — warning on it fired seconds after every sign-in. Only a session
+    // with nothing to renew from is genuinely expiring.
+    let expiring = !snap.pat_present
+        && snap
+            .verified_identity
+            .as_ref()
+            .and_then(|id| id.exp_unix)
+            .is_some_and(|exp| exp.saturating_sub(now_unix()) <= SESSION_EXPIRY_WARN_SECS);
     if expiring {
         app.signal_raised(
             Signal::SessionExpiring,

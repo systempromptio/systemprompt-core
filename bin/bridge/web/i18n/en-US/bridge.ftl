@@ -65,7 +65,7 @@ purge-success = Removed everything. The bridge is back to a fresh install.
 purge-failure = Remove everything failed: { $error }
 logout-success = Signed out
 logout-failure = Could not sign out: { $error }
-session-rejected = { $gateway } no longer accepts this bridge's credentials ({ $reason }). Sign in again to resume.
+session-rejected = { $gateway } rejected this bridge's credentials ({ $reason }). Sign in again to resume.
 validate-result = { $checks } checks · { $failed } failed · { $warned } warnings
 validate-running = Re-checking…
 

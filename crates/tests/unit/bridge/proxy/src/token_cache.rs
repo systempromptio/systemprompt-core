@@ -263,6 +263,62 @@ fn the_refresh_tick_never_mints_from_an_empty_cache() {
 }
 
 #[test]
+fn an_unreachable_gateway_does_not_latch_and_recovers_by_itself() {
+    // Why: the 2026-09-10 astound incident. A refresh tick fired while the machine
+    // was waking, the PAT exchange could not reach the gateway, and the cache
+    // latched "sign in required" permanently — the latch releases only on a changed
+    // credential, so an unchanged, valid PAT could never clear it. The bridge
+    // served 503s for five hours after the network came back.
+    with_credentials(2, async {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_for_refresh = Arc::clone(&counter);
+        let refresh: RefreshFn = Arc::new(move |_| {
+            let attempt = counter_for_refresh.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async move {
+                if attempt < 2 {
+                    Err(ForwardError::AuthRetryable(
+                        "credential providers failed: pat: gateway PAT request failed: error \
+                         sending request for url"
+                            .into(),
+                    ))
+                } else {
+                    Ok(fake_token(3600))
+                }
+            })
+        });
+        let cache = TokenCache::new(refresh);
+
+        for attempt in 0..2 {
+            let err = cache
+                .current(300)
+                .await
+                .expect_err("gateway is unreachable");
+            assert!(
+                matches!(&err, ForwardError::AuthRetryable(d) if d.contains("error sending request")),
+                "attempt {attempt} keeps the provider's reason: {err:?}"
+            );
+            assert_eq!(err.status().as_u16(), 503);
+            assert!(
+                !cache.sign_in_required(),
+                "a network failure must never ask the user to sign in (attempt {attempt})"
+            );
+        }
+
+        let token = cache
+            .current(300)
+            .await
+            .expect("the network came back; the cache must mint without a sign-in");
+        assert_eq!(token.ttl, 3600);
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            3,
+            "every tick retries; the chain is not answered from a latch"
+        );
+        assert_eq!(*cache.auth_state().borrow(), AuthState::Ok);
+    });
+}
+
+#[test]
 fn an_exhausted_chain_latches_and_stops_calling_the_refresh_fn() {
     with_credentials(2, async {
         let counter = Arc::new(AtomicUsize::new(0));

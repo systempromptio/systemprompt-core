@@ -18,6 +18,7 @@ pub mod portfile;
 pub mod secret;
 pub mod server;
 pub mod session;
+pub mod sign_in_latch;
 pub mod token_cache;
 pub mod usage;
 

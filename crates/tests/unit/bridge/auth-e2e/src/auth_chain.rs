@@ -224,8 +224,12 @@ fn pat_exchange_http_failure_names_the_failed_provider() {
             let err = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
                 .expect_err("401 must not yield a bearer");
+            assert!(
+                err.is_terminal(),
+                "a 401 is the gateway rejecting the credential; retrying cannot help: {err:?}"
+            );
             match err {
-                ChainError::Providers(failures) => assert_eq!(
+                ChainError::Providers { failures, .. } => assert_eq!(
                     failures,
                     vec!["pat: gateway returned status 401 Unauthorized from pat".to_owned()],
                     "the rejected provider is named so the operator knows which credential failed"
@@ -262,8 +266,12 @@ fn pat_exchange_server_error_names_the_failed_provider() {
             let err = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
                 .expect_err("500 must not yield a bearer");
+            assert!(
+                !err.is_terminal(),
+                "a 500 is the gateway being unwell, not a bad credential: {err:?}"
+            );
             match err {
-                ChainError::Providers(failures) => {
+                ChainError::Providers { failures, .. } => {
                     assert_eq!(failures.len(), 1, "{failures:?}");
                     assert!(
                         failures[0].starts_with("pat: ") && failures[0].contains("500"),
@@ -272,6 +280,37 @@ fn pat_exchange_server_error_names_the_failed_provider() {
                 },
                 other => panic!("expected ChainError::Providers, got {other:?}"),
             }
+        });
+    });
+}
+
+#[test]
+fn pat_exchange_transport_failure_is_not_terminal() {
+    // Why: the 2026-09-10 astound incident. A refresh tick fired one second before
+    // the laptop finished waking, the PAT exchange failed to reach the gateway, and
+    // a terminal verdict here latched the bridge into "sign in required" for five
+    // hours with a perfectly valid PAT still on disk.
+    let home = TempDir::new().unwrap();
+    temp_env::with_vars(sandbox_vars(&home), || {
+        block_on(async {
+            let pat_path = home.path().join("pat.txt");
+            std::fs::write(&pat_path, "sp-live-secret-pat").unwrap();
+
+            let cfg = Config {
+                gateway_url: Some(ValidatedUrl::try_new("http://127.0.0.1:1").unwrap()),
+                pat: Some(PatConfig {
+                    file: Some(pat_path.to_string_lossy().into_owned()),
+                }),
+                ..Config::default()
+            };
+
+            let err = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
+                .await
+                .expect_err("an unreachable gateway must not yield a bearer");
+            assert!(
+                !err.is_terminal(),
+                "an unreachable gateway must stay retryable so the next tick recovers: {err:?}"
+            );
         });
     });
 }

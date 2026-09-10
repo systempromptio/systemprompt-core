@@ -12,7 +12,10 @@ fn code(actual: ExitCode) -> String {
 fn every_chain_failure_maps_to_a_distinct_operator_facing_outcome() {
     let cases: Vec<(ChainError, ExitCode, &str)> = vec![
         (
-            ChainError::Providers(vec!["pat: 401".to_owned(), "mtls: no cert".to_owned()]),
+            ChainError::Providers {
+                failures: vec!["pat: 401".to_owned(), "mtls: no cert".to_owned()],
+                terminal: true,
+            },
             ExitCode::FAILURE,
             "credential providers failed: pat: 401; mtls: no cert",
         ),
@@ -74,7 +77,10 @@ fn the_exit_codes_of_the_four_outcomes_are_not_all_the_same() {
     // Why: the negative control. A mapping that collapsed every variant onto
     // FAILURE would satisfy each test above that only checks the message.
     let codes: Vec<String> = vec![
-        ChainError::Providers(Vec::new()),
+        ChainError::Providers {
+            failures: Vec::new(),
+            terminal: true,
+        },
         ChainError::PreferredTransient {
             provider: "pat",
             source: AuthFailedSource::SignInRequired,

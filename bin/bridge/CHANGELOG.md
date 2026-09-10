@@ -13,6 +13,9 @@
 
 ### Fixed
 
+- A credential refresh that cannot reach the gateway no longer latches the bridge into "sign in required". Any failure used to latch, and the latch released only on a *changed* credential on disk — so a refresh tick that fired while a laptop was waking, with a valid PAT still in place, took the bridge out until the user re-authenticated by hand. Transport failures and gateway 5xx are now deferred and retried on the next tick; only an explicit 401/403, or a local credential the bridge cannot read, asks for a sign-in. The proxy reports the two apart, and MCP clients are no longer sent an OAuth challenge for a network blip.
+- "Session expires soon — sign in again" no longer fires seconds after every sign-in. It was raised on the short-lived access JWT, which a stored PAT renews unattended; it now only warns when there is nothing left to renew from.
+
 - Marketplace skills and counts remain visible during gateway probes and temporary outages. Signing back in reloads an unchanged manifest, stale listing replies cannot overwrite a newer session, and failed refreshes retain the previous list with a retry action.
 - `alert_user` no longer holds its caller until the dialog is dismissed. The macOS `osascript` dialog and the Windows `MessageBoxW` were both modal and blocking, so an installer path that raised one on an unattended host, or the native test job on a CI runner, waited forever; the dialog is now raised and reaped on its own thread. The Quality workflow's native bridge job also carries a 45-minute timeout.
 
