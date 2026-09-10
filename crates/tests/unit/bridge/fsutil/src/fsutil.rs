@@ -246,7 +246,25 @@ mod windows_private_files {
             Err(ErrorKind::PermissionDenied)
         );
 
-        let repaired = read_private(&key).unwrap_or_else(|e| panic!("{e}; {}", icacls(&key)));
+        let repaired = read_private(&key).unwrap_or_else(|e| {
+            let whoami = std::process::Command::new("whoami")
+                .output()
+                .expect("whoami");
+            let account = String::from_utf8_lossy(&whoami.stdout).trim().to_owned();
+            let grant = std::process::Command::new("icacls")
+                .arg(&key)
+                .arg("/grant")
+                .arg(format!("{account}:F"))
+                .output()
+                .expect("icacls runs");
+            panic!(
+                "{e}; listing: {}; owner grant probe as {account}: status {} stdout {} stderr {}",
+                icacls(&key),
+                grant.status,
+                String::from_utf8_lossy(&grant.stdout),
+                String::from_utf8_lossy(&grant.stderr)
+            )
+        });
         assert_eq!(repaired, b"yqasnH1BwF8");
 
         assert_eq!(fs::read(&key).unwrap(), b"yqasnH1BwF8");

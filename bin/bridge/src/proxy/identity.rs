@@ -155,7 +155,11 @@ fn load_or_mint() -> std::io::Result<String> {
             }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => mint(&path),
-        Err(e) => Err(crate::proxy::secret::unreadable(&path, e)),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            crate::proxy::secret::replace_unreadable(&path, &e)?;
+            mint(&path)
+        },
+        Err(e) => Err(e),
     }
 }
 
