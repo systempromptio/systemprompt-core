@@ -313,3 +313,6 @@ mod events_context_summary;
 
 #[cfg(test)]
 mod artifacts_message;
+
+#[cfg(test)]
+mod services_rules;

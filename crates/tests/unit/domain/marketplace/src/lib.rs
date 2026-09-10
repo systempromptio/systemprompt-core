@@ -13,11 +13,17 @@ mod errors;
 #[cfg(test)]
 mod helpers;
 #[cfg(test)]
+mod import_edges;
+#[cfg(test)]
+mod import_manifest_shapes;
+#[cfg(test)]
 mod import_round_trip;
 #[cfg(test)]
 mod import_strict;
 #[cfg(test)]
 mod import_tree;
+#[cfg(test)]
+mod import_warnings;
 #[cfg(test)]
 mod keep;
 #[cfg(test)]
