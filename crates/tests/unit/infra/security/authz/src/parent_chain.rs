@@ -253,6 +253,7 @@ fn plugin_config(id: &str, enabled: bool, skills: &[&str]) -> PluginConfig {
             ..Default::default()
         },
         agents: Default::default(),
+        rules: PluginComponentRef::default(),
         mcp_servers: Default::default(),
         content_sources: Default::default(),
         artifacts: Default::default(),

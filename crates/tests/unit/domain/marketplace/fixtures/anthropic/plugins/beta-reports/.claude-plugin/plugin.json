@@ -1,0 +1,6 @@
+{
+  "name": "beta-reports",
+  "description": "Weekly summaries for the delivery group.",
+  "version": "0.9.0",
+  "author": { "name": "Acme Field Team", "email": "field@acme.example" }
+}

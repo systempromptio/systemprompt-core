@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `authz::reconcile::reconcile_services_authz` is the one projection of a services tree into the authz tables: the gateway-route catalog first, then `access-control/roles.yaml` against it, then every marketplace `access` block. Route ids are content-addressed, so a rule naming a route the tree no longer defines is rejected rather than materialised.
+- `IngestScope` declares what one ingestion pass owns, by entity kind. A prune removes a row only when the row's source is the ingesting source *and* its entity falls inside that scope, so one services bundle cannot revoke another's grants and no pass touches what an operator authored in the dashboard.
+- `manifest_signing::sign_with_seed`, `pubkey_b64_from_seed`, `verify_with_pubkey`, `canonical_manifest_bytes` and `key_id_for_pubkey` sign and verify a detached ed25519 signature over a canonicalised manifest, for publisher keys held outside the instance. The instance signing seed is not reused for them.
+
+### Changed
+
+- **Breaking:** `access_control_rules` carries a `source` column, mirroring `access_control_entities`. Ingestion writes `bundle:<name>` for a fetched tree and `yaml` for the baked one; dashboard writers write `dashboard`, and ingestion never updates or deletes a `dashboard`-sourced row. Existing rows migrate to `yaml`.
+- Reconcile warns per rule when the role, group or project a rule names does not exist, so an inert rule is visible rather than silently granting nothing.
+
 ## [0.49.0] - 2026-09-09
 
 ### Fixed

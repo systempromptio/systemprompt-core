@@ -47,7 +47,10 @@ impl AppPaths {
     pub fn from_profile(
         paths: &PathsConfig,
         resolution: PathResolution,
+        services_root_override: Option<&Path>,
     ) -> Result<Self, PathError> {
+        let overridden = services_root_override.map(|root| paths.with_services_root(root));
+        let paths = overridden.as_ref().unwrap_or(paths);
         Ok(Self {
             system: SystemPaths::from_profile(paths, resolution)?,
             web: WebPaths::from_profile(paths),

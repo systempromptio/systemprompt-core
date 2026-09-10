@@ -157,16 +157,34 @@ pub(super) async fn init_credentials_gracefully(announce: bool) -> Result<()> {
     }
 }
 
-pub(super) fn init_secrets() -> Result<()> {
-    SecretsBootstrap::init().context("Secrets initialization failed")?;
+pub(super) async fn init_secrets() -> Result<()> {
+    SecretsBootstrap::init()
+        .await
+        .context("Secrets initialization failed")?;
     Ok(())
 }
 
-pub(super) fn init_paths() -> Result<()> {
+pub(super) async fn init_paths() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
-    let paths = AppPaths::from_profile(&profile.paths, profile.path_resolution())
-        .context("Failed to build paths")?;
-    systemprompt_config::try_init_config().context("Failed to initialize configuration")?;
+    let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
+        profile,
+        |name| {
+            SecretsBootstrap::get()
+                .ok()
+                .and_then(|s| s.get(name).cloned())
+        },
+        env!("CARGO_PKG_VERSION"),
+    )
+    .await
+    .context("Failed to resolve the services bundle sources")?;
+    let paths = AppPaths::from_profile(
+        &profile.paths,
+        profile.path_resolution(),
+        Some(active_root.path.as_path()),
+    )
+    .context("Failed to build paths")?;
+    systemprompt_config::try_init_config(Some(active_root.path.as_path()))
+        .context("Failed to initialize configuration")?;
     systemprompt_loader::ServicesBootstrap::try_init()
         .context("Failed to load the services configuration")?;
     FilesConfig::init(&paths).context("Failed to initialize files configuration")?;

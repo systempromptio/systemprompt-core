@@ -46,6 +46,7 @@ async fn orchestrator_with_config_or_skip(
         AppPaths::from_profile(
             &profile_paths(bootstrap),
             systemprompt_models::PathResolution::Canonicalize,
+            None,
         )
         .ok()?,
     );

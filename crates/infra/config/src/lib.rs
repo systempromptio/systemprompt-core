@@ -46,9 +46,11 @@ pub(crate) mod services;
 pub(crate) mod skill_validator;
 
 pub use bootstrap::{
-    MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap, ProfileBootstrapError, SecretsBootstrap,
-    SecretsBootstrapError, build_loaded_secrets_message, decode_seed, generate_seed,
+    MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap, ProfileBootstrapError, ResolvedSource,
+    SecretsBootstrap, SecretsBootstrapError, SecretsDocument, SecretsProvider, VaultError,
+    VaultKvProvider, build_loaded_secrets_message, decode_seed, generate_seed,
     load_secrets_from_path, log_secrets_issue, log_secrets_skip, log_secrets_warn, persist_seed,
+    resolve_source,
 };
 pub use config_loader::{
     build_from_profile, init_config, init_config_from_profile, resolve_instance_id,

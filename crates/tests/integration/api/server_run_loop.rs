@@ -19,7 +19,12 @@ async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Resu
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
     let ctx = fixture_app_context_with_config(&pool, config)?;
 
-    let early = bind_and_serve("127.0.0.1:0", None).await?;
+    let early = bind_and_serve(
+        "127.0.0.1:0",
+        None,
+        systemprompt_runtime::ShutdownRequest::default(),
+    )
+    .await?;
     let base = format!("http://{}", early.local_addr());
 
     let mut server = tokio::spawn(run_server((*ctx).clone(), None, early));
@@ -127,7 +132,12 @@ settings:
         config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
         let ctx = fixture_app_context_with_config(&pool, config)?;
 
-        let early = bind_and_serve("127.0.0.1:0", None).await?;
+        let early = bind_and_serve(
+            "127.0.0.1:0",
+            None,
+            systemprompt_runtime::ShutdownRequest::default(),
+        )
+        .await?;
 
         let result = tokio::time::timeout(
             Duration::from_secs(120),
@@ -161,7 +171,12 @@ settings:
         let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();
-        let early = bind_and_serve("127.0.0.1:0", None).await?;
+        let early = bind_and_serve(
+            "127.0.0.1:0",
+            None,
+            systemprompt_runtime::ShutdownRequest::default(),
+        )
+        .await?;
 
         let result = tokio::time::timeout(
             Duration::from_secs(120),
@@ -254,7 +269,12 @@ settings:
         let pool = fixture_db_pool(&b.database_url).await?;
         let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
 
-        let early = bind_and_serve("127.0.0.1:0", None).await?;
+        let early = bind_and_serve(
+            "127.0.0.1:0",
+            None,
+            systemprompt_runtime::ShutdownRequest::default(),
+        )
+        .await?;
 
         let result = tokio::time::timeout(
             Duration::from_secs(120),
@@ -282,7 +302,12 @@ settings:
         let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();
-        let early = bind_and_serve("127.0.0.1:0", None).await?;
+        let early = bind_and_serve(
+            "127.0.0.1:0",
+            None,
+            systemprompt_runtime::ShutdownRequest::default(),
+        )
+        .await?;
 
         let result = tokio::time::timeout(
             Duration::from_secs(120),

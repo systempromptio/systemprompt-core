@@ -95,7 +95,7 @@ async fn initialize_post_routing(
     }
 
     if desc.secrets() {
-        bootstrap::init_secrets()?;
+        bootstrap::init_secrets().await?;
     }
 
     if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_deployment_host {
@@ -105,7 +105,7 @@ async fn initialize_post_routing(
     }
 
     if desc.paths() {
-        bootstrap::init_paths()?;
+        bootstrap::init_paths().await?;
         if !desc.skip_validation() {
             bootstrap::run_validation()?;
         }

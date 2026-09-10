@@ -55,6 +55,7 @@ async fn live_setup_scoped_or_skip(
         AppPaths::from_profile(
             &profile_paths(bootstrap),
             systemprompt_models::PathResolution::Canonicalize,
+            None,
         )
         .ok()?,
     );

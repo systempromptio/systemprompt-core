@@ -14,7 +14,6 @@ use systemprompt_bridge::ids::{
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
@@ -37,7 +36,7 @@ fn ensure_bootstrap() {
                 "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
             );
         }
-        let _ = SecretsBootstrap::init();
+        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
     });
 }
 

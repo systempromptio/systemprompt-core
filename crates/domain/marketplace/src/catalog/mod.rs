@@ -17,6 +17,7 @@ mod fingerprint;
 mod hooks;
 mod mcp;
 mod plugins;
+mod rules;
 mod skills;
 
 pub use agents::load_agents;
@@ -29,4 +30,5 @@ pub use plugins::{
     artifact_owners, load_plugins, plugin_bundles, plugin_bundles_cached, selects_artifact,
     skill_owners,
 };
+pub use rules::{RuleEntry, load_rules};
 pub use skills::{load_skills, load_skills_traced};

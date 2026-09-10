@@ -15,6 +15,7 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
+use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -24,8 +25,8 @@ pub struct ValidateArgs {
 
 pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let plugins_path = std::path::PathBuf::from(profile.paths.plugins());
-    let skills_path = std::path::PathBuf::from(profile.paths.skills());
+    let plugins_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "plugins");
+    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
 
     let plugin_ids = match args.id {
         Some(id) => {

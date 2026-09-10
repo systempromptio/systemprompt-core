@@ -27,7 +27,12 @@ async fn make_dependencies_or_skip()
         geoip_database: None,
     };
     let app_paths = Arc::new(
-        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
+        AppPaths::from_profile(
+            &paths,
+            systemprompt_models::PathResolution::Canonicalize,
+            None,
+        )
+        .ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
     let database = DatabaseService::new(

@@ -20,7 +20,12 @@ async fn make_db_service_or_skip() -> Option<(DatabaseService, systemprompt_data
         geoip_database: None,
     };
     let app_paths = Arc::new(
-        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
+        AppPaths::from_profile(
+            &paths,
+            systemprompt_models::PathResolution::Canonicalize,
+            None,
+        )
+        .ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
     let svc = DatabaseService::new(

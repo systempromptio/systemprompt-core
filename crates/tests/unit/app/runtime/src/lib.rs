@@ -51,6 +51,10 @@ mod registry;
 #[cfg(test)]
 mod registry_populated;
 #[cfg(test)]
+mod services_reconcile_decision;
+#[cfg(test)]
+mod shutdown_request;
+#[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
 mod validate_database_path;

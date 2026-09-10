@@ -9,11 +9,12 @@
 
 use systemprompt::api::services::server::bind_and_serve;
 use systemprompt::prelude::Router;
+use systemprompt::system::ShutdownRequest;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     tracing_subscriber::fmt::init();
-    match bind_and_serve("127.0.0.1:0", None).await {
+    match bind_and_serve("127.0.0.1:0", None, ShutdownRequest::default()).await {
         Ok(early) => {
             tracing::info!(addr = %early.local_addr(), "listener bound, probes report starting");
             early.activate(Router::new());

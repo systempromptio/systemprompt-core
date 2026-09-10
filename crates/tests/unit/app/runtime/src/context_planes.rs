@@ -103,6 +103,7 @@ async fn plane_debug_impls_flag_optional_members() {
             AppPaths::from_profile(
                 &tmp_paths(),
                 systemprompt_models::PathResolution::Canonicalize,
+                None,
             )
             .expect("app paths"),
         ),
@@ -132,6 +133,7 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_models::profile::StorageBackend::Local,
             &std::env::temp_dir(),
         ),
+        shutdown: Default::default(),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

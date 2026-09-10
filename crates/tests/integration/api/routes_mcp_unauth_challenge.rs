@@ -59,6 +59,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )?);
 
     let ctx = Arc::new(AppContext::from_parts(
@@ -121,6 +122,7 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
                 systemprompt_models::profile::StorageBackend::Local,
                 &std::env::temp_dir(),
             ),
+            shutdown: Default::default(),
         },
     ));
     let router = setup_api_server(&ctx, None)

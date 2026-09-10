@@ -25,7 +25,7 @@ use systemprompt_cloud::{CloudPath, ProfilePath, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
-use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
+use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest, DeploySecretsSource};
 
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
@@ -76,7 +76,10 @@ pub(super) async fn execute(
         profile_name: profile.name.clone(),
         project_root: project.as_path().to_path_buf(),
         credentials: target.creds,
-        secrets_path: ProfilePath::Secrets.resolve(profile_dir),
+        secrets: DeploySecretsSource::from_profile(
+            profile.secrets.as_ref(),
+            ProfilePath::Secrets.resolve(profile_dir),
+        ),
         signing_key_path: super::doctor::resolve_signing_key_path(&profile, profile_dir),
         options: DeployOptions {
             skip_push: args.skip_push,

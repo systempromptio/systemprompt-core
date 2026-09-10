@@ -52,6 +52,7 @@ rsa = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-evaluation = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-content = { workspace = true }

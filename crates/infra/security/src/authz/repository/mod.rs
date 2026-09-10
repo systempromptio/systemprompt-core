@@ -4,9 +4,12 @@
 //! `access_control_entities` owns one row per `(entity_type, entity_id)` and
 //! carries the `default_included` flag plus a `source` provenance string.
 //! `access_control_rules` is the per-(entity, subject) grant table, with a
-//! foreign key back to the entity catalog. Callers fetch the entity row
-//! first (a `None` result signals an entity unknown to access control), then
-//! list rules for it, and hand both to [`super::resolver::resolve`].
+//! foreign key back to the entity catalog. Both tables carry a `source`
+//! provenance string; a rule row stamped `dashboard` is owned by the operator
+//! who wrote it and is never rewritten by YAML or bundle ingestion. Callers
+//! fetch the entity row first (a `None` result signals an entity unknown to
+//! access control), then list rules for it, and hand both to
+//! [`super::resolver::resolve`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,6 +45,7 @@ pub struct UpsertRuleParams<'a> {
     pub rule_value: &'a str,
     pub access: Access,
     pub justification: Option<&'a str>,
+    pub source: &'a str,
 }
 
 #[derive(Clone, Debug)]

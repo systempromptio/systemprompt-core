@@ -1,8 +1,8 @@
 //! Resolved catalogue shared by the manifest and byte-serving paths.
 //!
-//! [`CatalogContent`] owns the loaded skills, agents, and managed MCP servers
-//! plus the plugins root, and is the single place the three loaders run for
-//! bundle assembly. Both the signed-manifest projection and the gateway
+//! [`CatalogContent`] owns the loaded skills, rules, agents, and managed MCP
+//! servers plus the plugins root, and is the single place the three loaders run
+//! for bundle assembly. Both the signed-manifest projection and the gateway
 //! byte-serving path build their [`BundleContent`] from one of these, so the
 //! two paths cannot resolve the catalogue two different ways and drift.
 //!
@@ -22,8 +22,8 @@ use systemprompt_models::services::ServicesConfig;
 use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::catalog::{
-    disabled_mcp_server_names, load_agents, load_artifacts, load_managed_mcp_servers,
-    validate_artifact_tools,
+    RuleEntry, disabled_mcp_server_names, load_agents, load_artifacts, load_managed_mcp_servers,
+    load_rules, validate_artifact_tools,
 };
 use crate::error::MarketplaceError;
 
@@ -34,6 +34,7 @@ pub struct CatalogContent {
     managed_mcp_servers: Vec<ManagedMcpServer>,
     disabled_mcp_servers: BTreeSet<String>,
     artifacts: Vec<ArtifactEntry>,
+    rules: Vec<RuleEntry>,
     plugins_root: PathBuf,
 }
 
@@ -67,6 +68,7 @@ impl CatalogContent {
                 validate_artifact_tools(services, &artifacts)?;
                 artifacts
             },
+            rules: load_rules(services_root)?,
             plugins_root: services_root.join("plugins"),
         })
     }
@@ -109,6 +111,7 @@ impl CatalogContent {
             mcp_servers: &self.managed_mcp_servers,
             disabled_mcp_servers: &self.disabled_mcp_servers,
             artifacts: &self.artifacts,
+            rules: &self.rules,
             plugins_root: &self.plugins_root,
         }
     }
@@ -151,5 +154,6 @@ fn catalog_fingerprint(
     hasher.update(b"\0");
     hash_dir_metadata(&mut hasher, &services_root.join("skills"));
     hash_dir_metadata(&mut hasher, &services_root.join("artifacts"));
+    hash_dir_metadata(&mut hasher, &services_root.join("rules"));
     Ok(hasher.finalize().into())
 }

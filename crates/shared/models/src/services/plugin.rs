@@ -86,6 +86,8 @@ pub struct PluginConfig {
     pub skills: PluginComponentRef,
     pub agents: PluginComponentRef,
     #[serde(default)]
+    pub rules: PluginComponentRef,
+    #[serde(default)]
     pub mcp_servers: PluginComponentRef,
     #[serde(default)]
     pub content_sources: PluginComponentRef,
@@ -200,6 +202,7 @@ impl PluginConfig {
         Self::validate_component_ref(&self.skills, key, "skills")?;
         Self::validate_component_ref(&self.agents, key, "agents")?;
         Self::validate_component_ref(&self.artifacts, key, "artifacts")?;
+        Self::validate_component_ref(&self.rules, key, "rules")?;
 
         Ok(())
     }

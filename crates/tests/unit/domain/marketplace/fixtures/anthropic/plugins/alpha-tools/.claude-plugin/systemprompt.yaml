@@ -1,0 +1,14 @@
+schema: 1
+plugin:
+  category: business
+  enabled: true
+  mcp_servers:
+    source: explicit
+    include: [knowledge-bank]
+  hooks:
+    governance: false
+    comms: false
+    include: []
+  scripts:
+    - name: setup
+      source: scripts/setup.sh

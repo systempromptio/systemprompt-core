@@ -17,6 +17,7 @@ mod error;
 mod from_env;
 mod governance;
 mod info;
+mod oci_reference;
 mod paths;
 mod rate_limits;
 mod runtime;
@@ -28,6 +29,7 @@ mod site;
 mod storage;
 mod style;
 mod validation;
+mod vault;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::{DatabaseConfig, PoolConfig};
@@ -36,6 +38,7 @@ pub use governance::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
+pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
     RateLimitsConfig, default_agent_registry, default_agents, default_artifacts, default_burst,
@@ -51,10 +54,17 @@ pub use security::{
 pub use server::{
     ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,
 };
-pub use services::ServicesProfileConfig;
+pub use services::{
+    BundleVerification, FetchFailurePolicy, HttpsServicesSource, OciServicesSource,
+    ServicesProfileConfig, ServicesSource,
+};
 pub use site::SiteConfig;
 pub use storage::{StorageBackend, StorageConfig};
 pub use style::ProfileStyle;
+pub use vault::{
+    DEFAULT_VAULT_RETRIES, DEFAULT_VAULT_TIMEOUT_SECS, MAX_VAULT_RETRIES, MAX_VAULT_TIMEOUT_SECS,
+    VaultAuth, VaultKeyRef, VaultSecretsConfig,
+};
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -196,6 +206,10 @@ impl Profile {
                 })?;
 
         profile.paths.resolve_relative_to(profile_dir);
+
+        if let Some(secrets) = profile.secrets.as_ref() {
+            secrets.validate()?;
+        }
 
         Ok(profile)
     }

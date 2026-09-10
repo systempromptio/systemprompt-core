@@ -10,6 +10,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::AppPaths;
 
 pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
@@ -22,8 +23,12 @@ pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
     }
 
     let profile = ProfileBootstrap::get().context("Profile not initialized")?;
-    let paths = AppPaths::from_profile(&profile.paths, profile.path_resolution())
-        .map_err(|e| anyhow::anyhow!("Failed to build paths: {}", e))?;
+    let paths = AppPaths::from_profile(
+        &profile.paths,
+        profile.path_resolution(),
+        ServicesRootBootstrap::get().map(|r| r.path.as_path()),
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to build paths: {}", e))?;
     let exports_dir = paths.storage().exports().to_path_buf();
 
     Ok(exports_dir.join(user_path))

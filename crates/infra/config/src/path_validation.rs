@@ -9,29 +9,33 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::path::Path;
+
 use systemprompt_models::profile::Profile;
 use systemprompt_traits::validation_report::{
     ValidationError, ValidationReport, ValidationWarning,
 };
 
 #[must_use]
-pub fn validate_profile_paths(profile: &Profile, _profile_path: &str) -> ValidationReport {
+pub fn validate_profile_paths(
+    profile: &Profile,
+    _profile_path: &str,
+    services_root: Option<&Path>,
+) -> ValidationReport {
     let mut report = ValidationReport::new("paths");
+    let overridden = services_root.map(|root| profile.paths.with_services_root(root));
+    let paths = overridden.as_ref().unwrap_or(&profile.paths);
 
     validate_required_path(&mut report, "system", &profile.paths.system);
-    validate_required_path(&mut report, "services", &profile.paths.services);
+    validate_required_path(&mut report, "services", &paths.services);
     validate_required_path(&mut report, "bin", &profile.paths.bin);
 
-    validate_required_path(&mut report, "skills", &profile.paths.skills());
-    validate_required_path(&mut report, "config", &profile.paths.config());
-    validate_required_path(&mut report, "web_path", &profile.paths.web_path_resolved());
-    validate_required_path(&mut report, "web_config", &profile.paths.web_config());
-    validate_required_path(&mut report, "web_metadata", &profile.paths.web_metadata());
-    validate_required_path(
-        &mut report,
-        "content_config",
-        &profile.paths.content_config(),
-    );
+    validate_required_path(&mut report, "skills", &paths.skills());
+    validate_required_path(&mut report, "config", &paths.config());
+    validate_required_path(&mut report, "web_path", &paths.web_path_resolved());
+    validate_required_path(&mut report, "web_config", &paths.web_config());
+    validate_required_path(&mut report, "web_metadata", &paths.web_metadata());
+    validate_required_path(&mut report, "content_config", &paths.content_config());
 
     validate_optional_path(
         &mut report,
@@ -54,7 +58,7 @@ pub fn validate_required_path(report: &mut ValidationReport, field: &str, path: 
         return;
     }
 
-    if !std::path::Path::new(path).exists() {
+    if !Path::new(path).exists() {
         report.add_error(
             ValidationError::new(format!("paths.{field}"), "Path does not exist")
                 .with_path(path)
@@ -66,7 +70,7 @@ pub fn validate_required_path(report: &mut ValidationReport, field: &str, path: 
 pub fn validate_optional_path(report: &mut ValidationReport, field: &str, path: Option<&String>) {
     if let Some(p) = path
         && !p.is_empty()
-        && !std::path::Path::new(p).exists()
+        && !Path::new(p).exists()
     {
         report.add_warning(
             ValidationWarning::new(

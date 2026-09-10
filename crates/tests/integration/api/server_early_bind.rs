@@ -28,7 +28,12 @@ async fn starting_router_answers_health_and_rejects_everything_else() -> anyhow:
 
 #[tokio::test]
 async fn bind_and_serve_swaps_from_starting_to_activated_router() -> anyhow::Result<()> {
-    let server = bind_and_serve("127.0.0.1:0", None).await?;
+    let server = bind_and_serve(
+        "127.0.0.1:0",
+        None,
+        systemprompt_runtime::ShutdownRequest::default(),
+    )
+    .await?;
     let base = format!("http://{}", server.local_addr());
     let client = reqwest::Client::new();
 
@@ -54,9 +59,13 @@ async fn bind_and_serve_swaps_from_starting_to_activated_router() -> anyhow::Res
 async fn bind_and_serve_fails_when_port_is_taken() -> anyhow::Result<()> {
     let holder = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let taken = holder.local_addr()?;
-    let err = bind_and_serve(&taken.to_string(), None)
-        .await
-        .expect_err("second bind on the same port must fail");
+    let err = bind_and_serve(
+        &taken.to_string(),
+        None,
+        systemprompt_runtime::ShutdownRequest::default(),
+    )
+    .await
+    .expect_err("second bind on the same port must fail");
     assert!(err.to_string().contains("Failed to bind"), "{err}");
     Ok(())
 }

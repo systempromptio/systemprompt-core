@@ -16,7 +16,7 @@ use crate::boot::{BootOptions, boot};
 
 fn validated_config() -> Option<(crate::boot::BootFixture, Config)> {
     let fixture = boot(&BootOptions::default())?;
-    systemprompt_config::try_init_config().expect("init config from profile");
+    systemprompt_config::try_init_config(None).expect("init config from profile");
     Some((fixture, Config::get().expect("config installed").clone()))
 }
 
@@ -173,7 +173,7 @@ fn restrictive_rate_limits_surface_as_domain_warnings() {
     }) else {
         return;
     };
-    systemprompt_config::try_init_config().expect("init config from profile");
+    systemprompt_config::try_init_config(None).expect("init config from profile");
     let _fixture = fixture;
     let config = Config::get().expect("config installed").clone();
     set_startup_mode(true);

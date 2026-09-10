@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `ServicesSourceBootstrap` resolves the services root from bundle sources at boot: fetch, verify, compose, swap, record. An empty `services.sources` serves the tree at `paths.services`, which is unchanged behaviour. `ServicesRootBootstrap` holds the resulting `ActiveServicesRoot`, and `ConfigLoader` reads the active root rather than the profile path directly.
+- The `bundle` module packs, publishes, fetches and verifies a services bundle: `pack` and `extract` (both moved here, from the sync archive route and the CLI backup command respectively, and parameterised by the allowed directory list), `verify`, `cache`, `compose`, and `source` with HTTPS and OCI transports. OCI speaks the standard Bearer challenge and pulls a single layer of the bundle media type.
+- Verification is ordered and every step is fatal: archive digest, manifest signature, per-file checksums, content hash. A bundle that fails any step is never installed and never cached.
+- Composition is by id, not last-write-wins. Two bundles claiming the same marketplace, plugin, skill, rule, hook, artifact or base directory is a boot error naming both sources, because preferring one silently would make which access rules an instance enforces depend on the order of a YAML list.
+- `ServicesProvenance` records why the active root is what it is — `Bundled`, `Fetched`, `LastGood` or `BundledFallback` — carrying the failure text on the two fallbacks, so an instance serving yesterday's bundle does not read as healthy.
+- The cache is content-addressed under `<cache_dir>`, with `current` swapped by `rename` so a reader sees a whole composition or the previous one, never a half-copied tree. It keeps the last two versions per source and the last two composed roots, so a rollback needs no network.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

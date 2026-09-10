@@ -130,9 +130,10 @@ impl CloudProfileBuilder {
                 validation: CloudValidationMode::Strict,
             }),
             secrets: Some(SecretsConfig {
-                secrets_path: self.secrets_path.unwrap_or_else(String::new),
+                secrets_path: self.secrets_path,
                 validation: SecretsValidationMode::Strict,
                 source: SecretsSource::Env,
+                vault: None,
             }),
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),

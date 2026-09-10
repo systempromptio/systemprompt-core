@@ -107,6 +107,22 @@ pub enum ManifestSigningError {
 
     #[error("signing key missing after initialization")]
     KeyMissing,
+
+    #[error("invalid base64 in {field}: {message}")]
+    InvalidBase64 {
+        field: &'static str,
+        message: String,
+    },
+
+    #[error("{field} decoded to {actual} bytes, expected {expected}")]
+    InvalidKeyLength {
+        field: &'static str,
+        expected: usize,
+        actual: usize,
+    },
+
+    #[error("ed25519 signature verification failed")]
+    SignatureInvalid,
 }
 
 pub type AuthResult<T> = Result<T, AuthError>;

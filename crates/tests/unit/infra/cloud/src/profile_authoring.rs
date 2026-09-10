@@ -87,7 +87,7 @@ fn test_local_profile_cloud_and_secrets_sections() {
     assert!(matches!(cloud.validation, CloudValidationMode::Warn));
 
     let secrets = profile.secrets.as_ref().unwrap();
-    assert_eq!(secrets.secrets_path, "./secrets.json");
+    assert_eq!(secrets.secrets_path.as_deref(), Some("./secrets.json"));
     assert!(matches!(secrets.validation, SecretsValidationMode::Warn));
     assert!(matches!(secrets.source, SecretsSource::File));
 }
@@ -190,7 +190,7 @@ fn test_cloud_profile_custom_fields() {
     assert!(matches!(cloud.validation, CloudValidationMode::Strict));
 
     let secrets = profile.secrets.as_ref().unwrap();
-    assert_eq!(secrets.secrets_path, "./secrets.json");
+    assert_eq!(secrets.secrets_path.as_deref(), Some("./secrets.json"));
     assert!(matches!(secrets.validation, SecretsValidationMode::Strict));
     assert!(matches!(secrets.source, SecretsSource::Env));
 
@@ -202,10 +202,13 @@ fn test_cloud_profile_custom_fields() {
 }
 
 #[test]
-fn test_cloud_profile_secrets_path_defaults_to_empty() {
+fn test_cloud_profile_secrets_path_defaults_to_unset() {
     let profile = CloudProfileBuilder::new("prod").build();
     let secrets = profile.secrets.as_ref().unwrap();
-    assert_eq!(secrets.secrets_path, "");
+    assert!(
+        secrets.secrets_path.is_none(),
+        "a cloud profile carries no on-disk secrets path unless one is set"
+    );
 }
 
 #[test]

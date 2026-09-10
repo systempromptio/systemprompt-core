@@ -83,14 +83,14 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::Tools(args) => {
-            let result = tools::execute(args, ctx)
+            let result = Box::pin(tools::execute(args, ctx))
                 .await
                 .context("Failed to list MCP tools")?;
             render_result(&result, config);
             Ok(())
         },
         McpCommands::Call(args) => {
-            let result = call::execute(args, ctx)
+            let result = Box::pin(call::execute(args, ctx))
                 .await
                 .context("Failed to execute MCP tool")?;
             render_result(&result, config);

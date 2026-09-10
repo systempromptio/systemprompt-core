@@ -105,6 +105,7 @@ pub fn generate_plugin_json(
         hooks: None,
         keywords: plugin.keywords.clone(),
         installation_preference: None,
+        ..PluginManifest::default()
     };
 
     let plugin_json_path = claude_plugin_dir.join("plugin.json");

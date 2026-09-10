@@ -52,4 +52,16 @@ pub enum ProfileError {
 
     #[error("Invalid environment variable {name}: {message}")]
     InvalidEnvVar { name: &'static str, message: String },
+
+    #[error(
+        "secrets.source '{secrets_source}' requires secrets.secrets_path to point at the secrets.json \
+         location"
+    )]
+    SecretsPathRequired { secrets_source: &'static str },
+
+    #[error("secrets.source 'vault' requires a secrets.vault block")]
+    VaultBlockRequired,
+
+    #[error("secrets.vault is only valid with secrets.source 'vault', got '{secrets_source}'")]
+    VaultBlockUnexpected { secrets_source: &'static str },
 }

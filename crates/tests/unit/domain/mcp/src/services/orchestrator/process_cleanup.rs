@@ -53,6 +53,7 @@ async fn fixture_or_skip() -> Option<Fixture> {
         AppPaths::from_profile(
             &profile_paths(bootstrap),
             systemprompt_models::PathResolution::Canonicalize,
+            None,
         )
         .ok()?,
     );

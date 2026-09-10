@@ -94,6 +94,7 @@ fn plugin_config(id: &str, skills: PluginComponentRef, agents: PluginComponentRe
         description: format!("{id} description"),
         version: "1.0.0".to_owned(),
         enabled: true,
+        rules: PluginComponentRef::default(),
         author: PluginAuthor {
             name: "test".to_owned(),
             email: "test@example.com".to_owned(),
@@ -125,6 +126,7 @@ fn build_plugin_bundle_generates_manifest_and_layout() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let config = plugin_config(
@@ -163,6 +165,7 @@ fn build_plugin_bundle_instance_source_includes_all_minus_exclude() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config(
@@ -187,6 +190,7 @@ fn build_plugin_bundle_is_deterministic() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -207,6 +211,7 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -239,6 +244,7 @@ fn load_plugins_skips_spec_with_no_resolvable_content() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -275,6 +281,7 @@ fn plugin_bundles_skips_content_less_plugin() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -306,6 +313,7 @@ fn plugin_bundles_scopes_to_the_marketplace_include_list() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut mp = marketplace("only-a");
@@ -353,6 +361,7 @@ fn plugin_bundles_unions_enabled_marketplaces() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut alpha = marketplace("alpha");
@@ -399,6 +408,7 @@ fn manifest_entries_hash_the_served_bytes() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -453,6 +463,7 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -532,6 +543,7 @@ fn skill_md_carries_frontmatter_and_escapes_quotes() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -564,6 +576,7 @@ fn agent_referenced_skills_are_pulled_into_bundle() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["base_skill"]), explicit(&["dev"]));
@@ -588,6 +601,7 @@ fn invalid_explicit_skill_id_is_ignored() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -635,6 +649,7 @@ fn aux_files_are_collected_and_executable_bit_set() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["aux_skill"]), PluginComponentRef::default());
@@ -684,6 +699,7 @@ fn mcp_file_assembles_referenced_servers_only() {
         mcp_servers: &servers,
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -724,6 +740,7 @@ fn mcp_file_absent_when_no_servers_resolve() {
         mcp_servers: &servers,
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -751,6 +768,7 @@ fn mcp_file_omits_defined_but_disabled_server_without_error() {
         mcp_servers: &servers,
         disabled_mcp_servers: &disabled,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -789,6 +807,7 @@ fn mcp_file_absent_when_only_referenced_server_is_disabled() {
         mcp_servers: &[],
         disabled_mcp_servers: &disabled,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -816,6 +835,7 @@ fn agent_md_carries_model_when_set() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", PluginComponentRef::default(), explicit(&["modelled"]));
@@ -839,6 +859,7 @@ fn agent_with_empty_model_omits_model_line() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -865,6 +886,7 @@ fn skill_with_pathless_file_path_still_bundles_without_aux() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -922,6 +944,7 @@ fn aux_collection_skips_unreadable_files_and_directories() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -974,6 +997,7 @@ fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: dir.path(),
     };
     let mut services = ServicesConfig::default();
@@ -1028,6 +1052,7 @@ fn fingerprint_tolerates_a_dangling_symlink_under_plugins_root() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: dir.path(),
     };
     let mut services = ServicesConfig::default();
@@ -1063,6 +1088,7 @@ fn script_files_are_collected_and_generated_tracking_skipped() {
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
+        rules: &[],
         plugins_root: dir.path(),
     };
     let mut config = plugin_config(
@@ -1137,6 +1163,7 @@ fn editing_an_artifact_body_reships_the_bundle() {
             mcp_servers: &[],
             disabled_mcp_servers: &NO_DISABLED,
             artifacts,
+            rules: &[],
             plugins_root: Path::new("/nonexistent/plugins"),
         };
         let bundles = plugin_bundles_cached(&services, &content).expect("bundles");
@@ -1168,6 +1195,7 @@ fn bundle_with_artifacts(
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts,
+        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut config = plugin_config(

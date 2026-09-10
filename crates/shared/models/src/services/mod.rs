@@ -7,6 +7,7 @@ pub mod agent_config;
 pub mod ai;
 pub mod artifacts;
 pub mod bridge_policy;
+pub mod bundle;
 pub mod external_agent;
 pub mod frontmatter;
 pub mod gateway;
@@ -16,6 +17,7 @@ pub mod marketplace;
 pub mod mcp;
 pub mod plugin;
 pub mod providers;
+pub mod rules;
 pub mod runtime;
 pub mod scheduler;
 pub mod settings;
@@ -38,6 +40,12 @@ pub use ai::{
 };
 pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, DiskArtifactConfig};
 pub use bridge_policy::{AutoUpdatePolicy, BridgePolicyConfig};
+pub use bundle::{
+    BUNDLE_ALLOWED_DIRS, BUNDLE_FORMAT_VERSION, BUNDLE_MANIFEST_FILE, BUNDLE_MEDIA_TYPE,
+    BUNDLE_SIGNATURE_ALG, BundleOwnership, BundleSignature, BundleSourceInfo, BundleSourceState,
+    FileEntry, MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest, ServicesBundleState,
+    SignedBundleManifest,
+};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
@@ -62,6 +70,7 @@ pub use providers::{
     ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, ProviderRegistryError,
     ProviderRegistryResult, WireProtocol,
 };
+pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
 pub use settings::*;

@@ -289,6 +289,7 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
             IngestOptions {
                 override_existing: true,
                 delete_orphans: false,
+                ..IngestOptions::default()
             },
             &registered,
         )
@@ -322,6 +323,7 @@ async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_w
         IngestOptions {
             override_existing: true,
             delete_orphans: false,
+            ..IngestOptions::default()
         },
         &registered,
     )
@@ -345,6 +347,7 @@ async fn ingest_still_self_materializes_when_the_kind_is_not_enforced() {
         IngestOptions {
             override_existing: true,
             delete_orphans: false,
+            ..IngestOptions::default()
         },
         &RegisteredEntities::default(),
     )

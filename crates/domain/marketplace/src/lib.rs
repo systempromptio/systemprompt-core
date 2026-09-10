@@ -31,6 +31,9 @@
 //!   projections for the HTTP catalogue endpoints.
 //! - [`MarketplaceFilterRegistration`] / [`discover_filters`]: the inventory
 //!   slot and lookup used to wire an extension-supplied filter.
+//! - [`import`]: [`import_anthropic_tree`] translates a repository authored in
+//!   Anthropic `.claude-plugin` form into the services tree the loader reads,
+//!   taking everything that format cannot express from strict sidecars.
 //!
 //! ## Error model
 //!
@@ -54,6 +57,7 @@ mod candidate;
 pub mod catalog;
 mod error;
 mod filter;
+pub mod import;
 mod keep;
 mod manifest;
 mod membership;
@@ -67,9 +71,10 @@ pub use bundle::{
     BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
 pub use candidate::{EntryKeepSets, FilterContext, ManifestEntries, MarketplaceCandidate};
-pub use catalog::{CatalogContent, plugin_bundles, plugin_bundles_cached};
+pub use catalog::{CatalogContent, RuleEntry, plugin_bundles, plugin_bundles_cached};
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use filter::{AllowAllFilter, MarketplaceFilter};
+pub use import::{ImportOptions, ImportReport, ImportWarning, import_anthropic_tree};
 pub use keep::{KeepSetsSubject, keep_sets};
 pub use manifest::ManifestService;
 pub use membership::MarketplaceMembership;

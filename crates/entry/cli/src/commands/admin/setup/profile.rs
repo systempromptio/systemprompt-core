@@ -85,13 +85,17 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
             validation: CloudValidationMode::Skip,
         }),
         secrets: Some(SecretsConfig {
-            secrets_path: secrets_path.to_owned(),
+            secrets_path: Some(secrets_path.to_owned()),
             validation: SecretsValidationMode::Warn,
             source: SecretsSource::File,
+            vault: None,
         }),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),
-        services: systemprompt_models::profile::ServicesProfileConfig { port_offset },
+        services: systemprompt_models::profile::ServicesProfileConfig {
+            port_offset,
+            ..Default::default()
+        },
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),
             email: Some(admin_email.clone()),

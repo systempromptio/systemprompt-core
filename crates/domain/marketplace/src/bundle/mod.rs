@@ -5,8 +5,8 @@
 //! installable bundle: a `.claude-plugin/plugin.json` manifest rooted over
 //! `skills/<n>/SKILL.md`, `agents/<n>.md`,
 //! `artifacts/{manifest.json,<id>.html,<id>.json}`, `.mcp.json`,
-//! and plugin-local scripts. It is the single owner of the bundle contract —
-//! the gateway serve
+//! `rules/<id>.md`, and plugin-local scripts. It is the single owner of the
+//! bundle contract — the gateway serve
 //! path (manifest hashes *and* byte streaming), the CLI generator, and the
 //! marketplace export all consume it rather than re-implementing the layout.
 //!
@@ -39,11 +39,13 @@ use systemprompt_models::bridge::plugin_bundle::{
 };
 use systemprompt_models::services::PluginConfig;
 
+use crate::catalog::RuleEntry;
 use crate::error::MarketplaceError;
 
 mod agents;
 mod artifacts;
 mod mcp;
+mod rules;
 mod skills;
 
 pub(crate) use agents::resolve_agents;
@@ -64,6 +66,7 @@ pub struct BundleContent<'a> {
     pub mcp_servers: &'a [ManagedMcpServer],
     pub disabled_mcp_servers: &'a BTreeSet<String>,
     pub artifacts: &'a [ArtifactEntry],
+    pub rules: &'a [RuleEntry],
     pub plugins_root: &'a Path,
 }
 
@@ -79,6 +82,7 @@ pub fn build_plugin_bundle(
     skills::append_skill_files(config, content, &agent_ids, &mut bundle);
     agents::append_agent_files(content.agents, &agent_ids, &mut bundle);
     artifacts::append_artifact_files(config, content, &mut bundle);
+    rules::append_rule_files(config, content, &mut bundle);
     mcp::append_mcp_file(
         config,
         content.mcp_servers,
@@ -120,6 +124,7 @@ fn build_manifest(config: &PluginConfig, version: &str) -> PluginManifest {
         hooks: Some(HOOKS_RELPATH.to_owned()),
         keywords: config.keywords.clone(),
         installation_preference: None,
+        ..PluginManifest::default()
     }
 }
 

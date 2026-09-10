@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Changed
+
+- The generated Dockerfile creates the services cache directory, so an instance configured with bundle sources has somewhere to write on first boot. `COPY services` is kept, so an image still carries a baked tree to fall back to.
+- The profile builders emit the `secrets.vault` key explicitly rather than relying on the field's absence.
+
 ## [0.48.0] - 2026-09-08
 
 ### Fixed

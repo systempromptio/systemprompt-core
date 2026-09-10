@@ -3,7 +3,6 @@ use std::sync::Once;
 
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_identifiers::{MarketplaceId, UserId};
 use systemprompt_marketplace::{
     AllowAllFilter, EntryKeepSets, ManifestService, MarketplaceCandidate, MarketplaceFilter,
@@ -39,7 +38,7 @@ fn ensure_bootstrap() {
                 "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
             );
         }
-        let _ = SecretsBootstrap::init();
+        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
     });
 }
 
@@ -483,6 +482,7 @@ async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
                 ..Default::default()
             },
             agents: PluginComponentRef::default(),
+            rules: PluginComponentRef::default(),
             mcp_servers: PluginComponentRef::default(),
             content_sources: PluginComponentRef::default(),
             artifacts: PluginComponentRef {

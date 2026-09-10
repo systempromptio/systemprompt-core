@@ -178,6 +178,7 @@ async fn files_config_validator_validate_when_initialised() {
                 geoip_database: None,
             },
             systemprompt_models::PathResolution::Canonicalize,
+            None,
         )
         .expect("paths"),
     );

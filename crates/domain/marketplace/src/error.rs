@@ -35,6 +35,9 @@ pub enum MarketplaceError {
     #[error("manifest signing failed: {0}")]
     Signing(String),
 
+    #[error("import failed at {path}: {message}")]
+    Import { path: String, message: String },
+
     #[error(transparent)]
     Filter(#[from] MarketplaceFilterError),
 }

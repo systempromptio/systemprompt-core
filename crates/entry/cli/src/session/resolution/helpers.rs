@@ -159,7 +159,7 @@ pub fn resolve_profile_path_without_session(
         })
 }
 
-pub(super) fn initialize_profile_bootstraps(profile_path: &Path) -> Result<()> {
+pub(super) async fn initialize_profile_bootstraps(profile_path: &Path) -> Result<()> {
     if !ProfileBootstrap::is_initialized() {
         ProfileBootstrap::init_from_path(profile_path).with_context(|| {
             format!(
@@ -170,7 +170,9 @@ pub(super) fn initialize_profile_bootstraps(profile_path: &Path) -> Result<()> {
     }
 
     if !SecretsBootstrap::is_initialized() {
-        SecretsBootstrap::try_init().with_context(|| "Failed to initialize secrets for session")?;
+        SecretsBootstrap::try_init()
+            .await
+            .with_context(|| "Failed to initialize secrets for session")?;
     }
 
     Ok(())

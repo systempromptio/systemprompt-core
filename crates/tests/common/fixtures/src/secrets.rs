@@ -14,6 +14,26 @@ use systemprompt_config::SecretsBootstrap;
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_integration_tests_zzz";
 const TEST_MANIFEST_SIGNING_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
+pub fn block_on_secrets_init() -> Result<(), String> {
+    // The bootstrap is async only for the Vault source; these fixtures use the
+    // subprocess/env path, which never yields. A dedicated current-thread
+    // runtime keeps the call legal from inside an existing tokio worker.
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| e.to_string())?
+                    .block_on(SecretsBootstrap::try_init())
+                    .map(|_s| ())
+                    .map_err(|e| e.to_string())
+            })
+            .join()
+            .unwrap_or_else(|_e| Err("secrets bootstrap thread panicked".to_owned()))
+    })
+}
+
 pub fn ensure_test_secrets_bootstrap() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
@@ -27,6 +47,6 @@ pub fn ensure_test_secrets_bootstrap() {
                 env::set_var("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
             }
         }
-        SecretsBootstrap::try_init().expect("SecretsBootstrap::try_init should succeed in tests");
+        block_on_secrets_init().expect("SecretsBootstrap::try_init should succeed in tests");
     });
 }

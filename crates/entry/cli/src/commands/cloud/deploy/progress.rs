@@ -99,6 +99,11 @@ fn render_event(event: &DeployEvent<'_>) {
         DeployEvent::SecretsSynced { count } => {
             CliService::success(&format!("Synced {} secrets", count));
         },
+        DeployEvent::VaultBootstrapSynced { count } => {
+            CliService::success(&format!(
+                "Synced {count} Vault bootstrap variable(s); the instance fetches its own secrets"
+            ));
+        },
         DeployEvent::CredentialsSynced { count } => {
             CliService::success(&format!("Synced {} cloud credentials", count));
         },

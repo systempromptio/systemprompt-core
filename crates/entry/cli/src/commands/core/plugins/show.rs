@@ -11,6 +11,7 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
+use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -71,7 +72,10 @@ pub fn execute_with_path(args: &ShowArgs, plugins_path: &Path) -> Result<Command
 
 fn get_plugins_path() -> Result<std::path::PathBuf> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(std::path::PathBuf::from(profile.paths.plugins()))
+    Ok(ServicesRootBootstrap::active_path_or(
+        &profile.paths.services,
+        "plugins",
+    ))
 }
 
 fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_models::PluginConfigFile> {

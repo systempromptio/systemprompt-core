@@ -18,6 +18,7 @@ pub mod container {
     pub const BIN: &str = cloud_container::BIN;
     pub const LOGS: &str = cloud_container::LOGS;
     pub const SERVICES: &str = cloud_container::SERVICES;
+    pub const SERVICES_CACHE: &str = cloud_container::SERVICES_CACHE;
     pub const STORAGE: &str = cloud_container::STORAGE;
     pub const WEB: &str = cloud_container::WEB;
     pub const WEB_DIST: &str = cloud_container::WEB_DIST;

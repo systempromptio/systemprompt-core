@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
     -- access matrix tooltip and copied into governance_decisions.evaluated_rules
     -- when a rule decides. NULL is distinct from empty string.
     justification TEXT,
+    -- Provenance: 'yaml' (the baked services tree), 'bundle:<name>' (a fetched
+    -- services bundle) or 'dashboard' (an operator edit). Ingestion prunes and
+    -- overwrites only rows carrying its own source; 'dashboard' rows are never
+    -- touched by any ingestion pass.
+    source TEXT NOT NULL DEFAULT 'yaml',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(entity_type, entity_id, rule_type, rule_value),
@@ -33,3 +38,4 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
 
 CREATE INDEX IF NOT EXISTS idx_acl_entity ON access_control_rules(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_acl_rule ON access_control_rules(rule_type, rule_value);
+CREATE INDEX IF NOT EXISTS idx_access_control_rules_source ON access_control_rules(source);

@@ -4,8 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use systemprompt_cloud::constants::{container, paths};
 use systemprompt_cloud::deploy::{find_services_config, validate_profile_dockerfile};
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, DockerCli, secrets_env};
@@ -13,7 +14,7 @@ use systemprompt_loader::ConfigLoader;
 
 use super::artifacts::DeployArtifacts;
 use super::progress::{DeployEvent, DeployProgress};
-use super::request::{DeployReport, DeployRequest};
+use super::request::{DeployReport, DeployRequest, DeploySecretsSource};
 
 const SIGNING_KEY_ENV: &str = "SIGNING_KEY_PEM";
 const PROFILE_ENV: &str = "SYSTEMPROMPT_PROFILE";
@@ -125,25 +126,13 @@ async fn provision_secrets(
 ) -> Result<()> {
     progress.event(&DeployEvent::SecretsPhaseStarted);
 
-    let mut env_secrets = if request.secrets_path.exists() {
-        secrets_env::map_secrets_to_env_vars(secrets_env::load_secrets_json(&request.secrets_path)?)
-    } else {
-        progress.event(&DeployEvent::SecretsFileMissing);
-        HashMap::new()
-    };
-
-    if !env_secrets.contains_key(SIGNING_KEY_ENV)
-        && let Some(pem) = secrets_env::read_signing_key_pem(&request.signing_key_path)?
-    {
-        env_secrets.insert(SIGNING_KEY_ENV.to_owned(), pem);
-    }
-
-    if !env_secrets.is_empty() {
-        progress.event(&DeployEvent::SecretsSyncStarted);
-        let keys = api_client
-            .set_secrets(&request.tenant_id, env_secrets)
-            .await?;
-        progress.event(&DeployEvent::SecretsSynced { count: keys.len() });
+    match &request.secrets {
+        DeploySecretsSource::EnvFromFile { path } => {
+            push_file_secrets(api_client, request, path, progress).await?;
+        },
+        DeploySecretsSource::Vault { bootstrap_env } => {
+            push_vault_bootstrap(api_client, request, bootstrap_env, progress).await?;
+        },
     }
 
     progress.event(&DeployEvent::CredentialsSyncStarted);
@@ -166,6 +155,77 @@ async fn provision_secrets(
     progress.event(&DeployEvent::ProfilePathConfigured);
 
     Ok(())
+}
+
+async fn push_file_secrets(
+    api_client: &CloudApiClient,
+    request: &DeployRequest,
+    path: &Path,
+    progress: &dyn DeployProgress,
+) -> Result<()> {
+    let mut env_secrets = if path.exists() {
+        secrets_env::map_secrets_to_env_vars(secrets_env::load_secrets_json(path)?)
+    } else {
+        progress.event(&DeployEvent::SecretsFileMissing);
+        HashMap::new()
+    };
+
+    if !env_secrets.contains_key(SIGNING_KEY_ENV)
+        && let Some(pem) = secrets_env::read_signing_key_pem(&request.signing_key_path)?
+    {
+        env_secrets.insert(SIGNING_KEY_ENV.to_owned(), pem);
+    }
+
+    if !env_secrets.is_empty() {
+        progress.event(&DeployEvent::SecretsSyncStarted);
+        let keys = api_client
+            .set_secrets(&request.tenant_id, env_secrets)
+            .await?;
+        progress.event(&DeployEvent::SecretsSynced { count: keys.len() });
+    }
+    Ok(())
+}
+
+async fn push_vault_bootstrap(
+    api_client: &CloudApiClient,
+    request: &DeployRequest,
+    bootstrap_env: &[String],
+    progress: &dyn DeployProgress,
+) -> Result<()> {
+    let bootstrap = collect_bootstrap_env(bootstrap_env, |name| std::env::var(name).ok())?;
+    if bootstrap.is_empty() {
+        return Ok(());
+    }
+    progress.event(&DeployEvent::SecretsSyncStarted);
+    let keys = api_client
+        .set_secrets(&request.tenant_id, bootstrap)
+        .await?;
+    progress.event(&DeployEvent::VaultBootstrapSynced { count: keys.len() });
+    Ok(())
+}
+
+pub fn collect_bootstrap_env(
+    names: &[String],
+    lookup: impl Fn(&str) -> Option<String>,
+) -> Result<HashMap<String, String>> {
+    let mut collected = HashMap::new();
+    let mut missing = Vec::new();
+    for name in names {
+        match lookup(name).filter(|value| !value.trim().is_empty()) {
+            Some(value) => {
+                collected.insert(name.clone(), value);
+            },
+            None => missing.push(name.clone()),
+        }
+    }
+    if !missing.is_empty() {
+        bail!(
+            "The profile fetches its secrets from Vault, so the deploy pushes only the Vault \
+             bootstrap credentials. These are not set in this shell: {}.",
+            missing.join(", ")
+        );
+    }
+    Ok(collected)
 }
 
 fn credentials_env(creds: &CloudCredentials) -> HashMap<String, String> {

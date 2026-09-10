@@ -121,7 +121,7 @@ pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
 pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};
 pub use path::ValidatedFilePath;
-pub use plugin::PluginId;
+pub use plugin::{PluginId, PluginRuleId};
 pub use policy::{CallId, PolicyId, PolicyVersion, SecretPatternId};
 pub use profile::ProfileName;
 pub use provider_request::ProviderRequestId;

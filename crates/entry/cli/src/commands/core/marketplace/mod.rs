@@ -3,14 +3,19 @@
 //! [`MarketplaceCommands::Explain`] dry-runs the same assembly the bridge
 //! manifest endpoint performs and reports, per catalogue entry, whether it is
 //! delivered and — when it is not — the stage that dropped it and why.
+//! [`MarketplaceCommands::Import`] converts an Anthropic-format authoring
+//! repository into the services tree the loader discovers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+pub mod import;
 
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use serde::Serialize;
 use systemprompt_identifiers::UserId;
+use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_marketplace::{AllowAllFilter, ManifestService, ManifestTrace};
 
 use crate::context::CommandContext;
@@ -20,6 +25,9 @@ use crate::shared::{CommandOutput, render_result};
 pub enum MarketplaceCommands {
     #[command(about = "Explain which catalogue entries reach the bridge manifest and why")]
     Explain(ExplainArgs),
+
+    #[command(about = "Import an Anthropic-format authoring tree into a services tree")]
+    Import(import::ImportArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -50,6 +58,11 @@ pub async fn execute(command: MarketplaceCommands, ctx: &CommandContext) -> Resu
             render_result(&result, &ctx.cli);
             Ok(())
         },
+        MarketplaceCommands::Import(args) => {
+            let result = import::execute(&args)?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
     }
 }
 
@@ -57,7 +70,7 @@ pub async fn explain(args: &ExplainArgs) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let services =
         systemprompt_loader::ConfigLoader::load().context("Failed to load services config")?;
-    let services_root = std::path::PathBuf::from(profile.paths.services.clone());
+    let services_root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
     let user_id = UserId::new(
         args.user
             .clone()

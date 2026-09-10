@@ -8,7 +8,7 @@ use crate::interactive::{Prompter, confirm_optional};
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, ServiceCategory, validate_system};
+use systemprompt_runtime::{AppContext, ServiceCategory, ShutdownRequest, validate_system};
 use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
@@ -42,11 +42,13 @@ pub async fn execute_with_events(
 
     register_modules(events);
 
-    let early = bind_early(foreground, events).await?;
+    let shutdown = ShutdownRequest::default();
+    let early = bind_early(foreground, events, shutdown.clone()).await?;
 
     let ctx = Arc::new(
         AppContext::builder()
             .with_startup_warnings(true)
+            .with_shutdown(shutdown)
             .with_migrations(run_migrations)
             .build()
             .await
@@ -150,14 +152,16 @@ async fn ensure_port_free(
 async fn bind_early(
     foreground: bool,
     events: Option<&StartupEventSender>,
+    shutdown: ShutdownRequest,
 ) -> Result<Option<systemprompt_api::services::server::EarlyServer>> {
     if !foreground {
         return Ok(None);
     }
     let addr = get_api_addr().context("Profile not initialized; cannot determine bind address")?;
-    let early = systemprompt_api::services::server::bind_and_serve(&addr, events.cloned())
-        .await
-        .context("Failed to bind API listener")?;
+    let early =
+        systemprompt_api::services::server::bind_and_serve(&addr, events.cloned(), shutdown)
+            .await
+            .context("Failed to bind API listener")?;
     Ok(Some(early))
 }
 

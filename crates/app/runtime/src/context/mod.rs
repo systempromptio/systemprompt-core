@@ -31,6 +31,9 @@ use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
 mod debug_impls;
+mod shutdown;
+
+pub use shutdown::ShutdownRequest;
 
 use crate::builder::AppContextBuilder;
 use crate::error::RuntimeResult;
@@ -80,6 +83,7 @@ pub struct Subsystems {
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
+    pub shutdown: ShutdownRequest,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -259,5 +263,13 @@ impl AppContext {
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.subsystems.authz_hook
+    }
+
+    pub const fn shutdown_request(&self) -> &ShutdownRequest {
+        &self.subsystems.shutdown
+    }
+
+    pub fn request_restart(&self, reason: &str) {
+        self.subsystems.shutdown.request(reason);
     }
 }

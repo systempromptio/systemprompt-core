@@ -15,9 +15,12 @@ local-only engineering notes kept elsewhere in the repository, which are not pub
 - **Evaluating it?** [overview.md](overview.md) for scope and fit, then
   [security/](security/) for the threat model, compliance mapping, and stability contract.
 - **Operating it?** [guides/deploy-production.md](guides/deploy-production.md) and
-  [guides/operate.md](guides/operate.md), with [reference/configuration.md](reference/configuration.md).
+  [guides/operate.md](guides/operate.md), with [reference/configuration.md](reference/configuration.md);
+  [guides/services-bundles.md](guides/services-bundles.md) and [guides/vault-secrets.md](guides/vault-secrets.md)
+  decouple the services tree and secrets from the image.
 - **Building on it?** [concepts/](concepts/) for the model, then
-  [guides/authoring-extensions.md](guides/authoring-extensions.md) and [reference/](reference/).
+  [guides/authoring-extensions.md](guides/authoring-extensions.md),
+  [guides/marketplace-authoring.md](guides/marketplace-authoring.md), and [reference/](reference/).
 
 ## Layout
 
@@ -40,6 +43,9 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [guides/deploy-production.md](guides/deploy-production.md) — HA, backup, DR, key rotation, air-gap.
 - [guides/operate.md](guides/operate.md) — health, metrics, logging, troubleshooting, upgrades.
 - [guides/authoring-extensions.md](guides/authoring-extensions.md) — build an extension.
+- [guides/marketplace-authoring.md](guides/marketplace-authoring.md) — author a marketplace in Claude Code format and import it.
+- [guides/services-bundles.md](guides/services-bundles.md) — package, sign, publish and compose services bundles.
+- [guides/vault-secrets.md](guides/vault-secrets.md) — load secrets from Vault or OpenBao KV v2.
 - [guides/configure-providers.md](guides/configure-providers.md) — wire AI providers to the gateway.
 
 ### Reference

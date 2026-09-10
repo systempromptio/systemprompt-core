@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::Profile;
 use systemprompt_models::validators::WebConfigRaw;
 
@@ -26,14 +27,17 @@ impl WebPaths {
     }
 
     pub fn resolve_from_profile(profile: &Profile) -> Result<Self> {
-        let web_config_path = profile.paths.web_config();
-        let services_path = &profile.paths.services;
+        let services_root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
+        let web_config_path = services_root.join("web/config.yaml");
 
         let (templates_path, assets_path) = match fs::read_to_string(&web_config_path) {
             Ok(content) => {
                 let web_config: WebConfigRaw =
                     serde_yaml::from_str(&content).with_context(|| {
-                        format!("Failed to parse web config at {}", web_config_path)
+                        format!(
+                            "Failed to parse web config at {}",
+                            web_config_path.display()
+                        )
                     })?;
 
                 match web_config.paths {
@@ -56,12 +60,13 @@ impl WebPaths {
                 DEFAULT_ASSETS_PATH.to_owned(),
             ),
             Err(e) => {
-                return Err(e)
-                    .with_context(|| format!("Failed to read web config at {}", web_config_path));
+                return Err(e).with_context(|| {
+                    format!("Failed to read web config at {}", web_config_path.display())
+                });
             },
         };
 
-        let base = Path::new(services_path);
+        let base = services_root.as_path();
         let templates = normalize_under_services(&templates_path, base);
         let assets = normalize_under_services(&assets_path, base);
 

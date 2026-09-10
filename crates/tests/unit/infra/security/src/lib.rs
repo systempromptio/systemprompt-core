@@ -31,6 +31,8 @@ mod jwt_validate;
 #[cfg(test)]
 mod manifest_signing_jcs;
 #[cfg(test)]
+mod manifest_signing_keys;
+#[cfg(test)]
 mod policy_approval;
 #[cfg(test)]
 mod policy_audit;

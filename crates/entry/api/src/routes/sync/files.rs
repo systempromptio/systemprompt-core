@@ -16,7 +16,7 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
-use super::archive::{collect_files, create_tarball, get_services_path};
+use super::archive::{collect_manifest, create_tarball, get_services_path};
 use super::types::{ApiResult, FileManifest, FilesQuery, to_api_error};
 
 async fn run_blocking<T, F>(job: F) -> Result<T, ApiError>
@@ -39,7 +39,7 @@ pub(super) async fn manifest(
 
     let manifest = run_blocking(move || {
         let refs: Vec<&str> = directories.iter().map(String::as_str).collect();
-        collect_files(&services_path, &refs)
+        collect_manifest(&services_path, &refs)
     })
     .await?;
 
@@ -56,7 +56,7 @@ pub(super) async fn download(
 
     let (manifest, tarball) = run_blocking(move || {
         let refs: Vec<&str> = directories.iter().map(String::as_str).collect();
-        let manifest = collect_files(&services_path, &refs)?;
+        let manifest = collect_manifest(&services_path, &refs)?;
         if dry_run {
             return Ok((manifest, None));
         }

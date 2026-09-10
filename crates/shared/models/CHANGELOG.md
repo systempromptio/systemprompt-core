@@ -6,6 +6,12 @@
 
 - **Breaking:** `SchemaFeatures` gains `loose_items`, whether a provider accepts `items` beside a non-array type and arrays without `items`. Migrate by adding the field to struct literals (`true` for Anthropic and OpenAI, `false` for Gemini).
 
+### Added
+
+- `services::rules::DiskRuleConfig` is the on-disk descriptor for a rule a plugin ships, at `rules/<id>/config.yaml`, naming the markdown file that carries the rule text. It serialises as well as deserialises, so a producer and the loader share one shape.
+- `PluginConfig.rules` selects which rules a plugin ships. It defaults, so an existing plugin config parses unchanged.
+- `PluginManifest` accepts the inbound keys Claude Code permits but systemprompt derives from the tree — `skills`, `agents`, `commands`, `mcpServers` — plus `homepage`, `repository`, `license` and `category`. They are read only: none is serialised, so the manifest this crate emits is byte-identical.
+
 ### Fixed
 
 - The Gemini schema sanitizer moves an `items` schema declared beside `anyOf`/`oneOf`/`allOf` into each array variant that lacks one, infers `type: array` when only `items` is declared, drops `items` from non-array types and gives an untyped array an empty item schema. A tool parameter written that way failed the whole request with `items: field predicate failed: $type == Type.ARRAY`.

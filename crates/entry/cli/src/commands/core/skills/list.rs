@@ -11,6 +11,7 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
 use systemprompt_identifiers::SkillId;
+use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
 use crate::CliConfig;
@@ -66,7 +67,10 @@ pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOu
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(std::path::PathBuf::from(profile.paths.skills()))
+    Ok(ServicesRootBootstrap::active_path_or(
+        &profile.paths.services,
+        "skills",
+    ))
 }
 
 pub fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandOutput> {

@@ -67,8 +67,12 @@ fn app_paths_for(system: &std::path::Path) -> AppPaths {
         storage: Some(system.join("storage").display().to_string()),
         geoip_database: None,
     };
-    AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
-        .expect("app paths")
+    AppPaths::from_profile(
+        &paths,
+        systemprompt_models::PathResolution::Canonicalize,
+        None,
+    )
+    .expect("app paths")
 }
 
 fn valid_mmdb_path() -> String {

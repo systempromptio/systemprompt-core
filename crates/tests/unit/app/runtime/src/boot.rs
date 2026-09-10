@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use tempfile::TempDir;
 
@@ -133,7 +133,7 @@ pub fn boot(opts: &BootOptions) -> Option<BootFixture> {
     .expect("write profile.yaml");
 
     ProfileBootstrap::init_from_path(&profile_path).expect("init profile bootstrap");
-    SecretsBootstrap::init().expect("init secrets bootstrap");
+    systemprompt_test_fixtures::secrets::block_on_secrets_init().expect("init secrets bootstrap");
 
     Some(BootFixture {
         _tmp: tmp,

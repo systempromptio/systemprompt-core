@@ -10,19 +10,24 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod client;
-pub mod extract;
 
 use std::path::PathBuf;
 
 use anyhow::{Result, anyhow, bail};
+use systemprompt_loader::bundle::{ExtractOptions, TarLayout, extract_bytes};
 use systemprompt_logging::CliService;
 
 use client::BackupClient;
-use extract::extract_tarball;
 
 use super::deploy::{resolve_deploy_target, resolve_profile};
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
+
+const BACKUP_DIRS: &[&str] = &[
+    "agents", "skills", "content", "mcp", "ai", "config", "profiles",
+];
+
+const MAX_BACKUP_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 pub(super) struct BackupArgs {
     pub profile_name: Option<String>,
@@ -75,7 +80,16 @@ pub(super) async fn execute(
     let bundle = client.download_bundle().await?;
     spinner.finish_and_clear();
 
-    let count = extract_tarball(&bundle, &output)?;
+    let count = extract_bytes(
+        &bundle,
+        &output,
+        &ExtractOptions {
+            allowed_dirs: BACKUP_DIRS,
+            max_bytes: MAX_BACKUP_BYTES,
+            layout: TarLayout::Root,
+        },
+    )?
+    .len();
     CliService::success(&format!(
         "Backed up {} files from {} to {}",
         count,

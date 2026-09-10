@@ -1,0 +1,4 @@
+schema: 1
+marketplace:
+  visibility: private
+  version: 9.9.9

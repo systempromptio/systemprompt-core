@@ -33,6 +33,8 @@ mod hooks_and_composite;
 #[cfg(test)]
 mod ingestion_db;
 #[cfg(test)]
+mod ingestion_ownership;
+#[cfg(test)]
 mod ingestion_yaml_path;
 #[cfg(test)]
 mod marketplace_floor;
@@ -40,6 +42,10 @@ mod marketplace_floor;
 mod parent_chain;
 #[cfg(test)]
 mod profile_governance;
+#[cfg(test)]
+mod reconcile_bundles;
+#[cfg(test)]
+mod reconcile_services;
 #[cfg(test)]
 mod registered_entities;
 #[cfg(test)]

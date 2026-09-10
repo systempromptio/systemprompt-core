@@ -21,6 +21,7 @@ systemprompt-identifiers = { workspace = true }
 http = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
+base64 = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 tempfile = { workspace = true }

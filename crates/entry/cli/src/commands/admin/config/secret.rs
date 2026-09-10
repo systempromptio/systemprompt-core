@@ -32,6 +32,9 @@ const RESERVED: &[&str] = &[
 pub enum SecretCommands {
     #[command(about = "Set a provider or custom secret")]
     Set(SetArgs),
+
+    #[command(about = "Report the active secrets source, key names, and gaps")]
+    Check,
 }
 
 #[derive(Debug, Clone, Args)]
@@ -43,16 +46,20 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub fn execute(command: &SecretCommands, config: &CliConfig) -> Result<()> {
-    let SecretCommands::Set(args) = command;
+pub async fn execute(command: &SecretCommands, config: &CliConfig) -> Result<()> {
+    let args = match command {
+        SecretCommands::Set(args) => args,
+        SecretCommands::Check => return super::secret_check::execute(config).await,
+    };
 
     let profile_path = ProfileBootstrap::get_path()?;
     let profile = load_profile(profile_path)?;
     let secrets_rel = profile
         .secrets
         .as_ref()
-        .map(|s| s.secrets_path.clone())
-        .ok_or_else(|| anyhow::anyhow!("profile has no secrets section"))?;
+        .ok_or_else(|| anyhow::anyhow!("profile has no secrets section"))?
+        .secrets_path()?
+        .to_owned();
     let secrets_file = profile_dir(profile_path).join(&secrets_rel);
 
     set_secret(&secrets_file, &args.name, &args.value)?;

@@ -5,6 +5,7 @@
 //! - Type serialization and deserialization
 //! - Default implementations
 
+mod admin_services;
 mod agent;
 mod agent_responses;
 mod bridge_profile_models;

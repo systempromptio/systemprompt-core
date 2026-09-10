@@ -20,6 +20,9 @@ mod progress;
 mod request;
 
 pub use artifacts::DeployArtifacts;
-pub use orchestrator::DeployOrchestrator;
+pub use orchestrator::{DeployOrchestrator, collect_bootstrap_env};
 pub use progress::{DeployEvent, DeployProgress};
-pub use request::{DeployOptions, DeployReport, DeployRequest};
+pub use request::{
+    DeployOptions, DeployReport, DeployRequest, DeploySecretsSource, VAULT_ADDR_ENV,
+    VAULT_NAMESPACE_ENV, bootstrap_env_names,
+};

@@ -17,8 +17,11 @@ use crate::shared::CommandOutput;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs;
 
-pub(super) fn execute(_args: RotateSigningKeyArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    SecretsBootstrap::try_init()?;
+pub(super) async fn execute(
+    _args: RotateSigningKeyArgs,
+    _config: &CliConfig,
+) -> Result<CommandOutput> {
+    SecretsBootstrap::try_init().await?;
 
     let seed = SecretsBootstrap::rotate_manifest_signing_seed()?;
     let key = SigningKey::from_bytes(&seed);

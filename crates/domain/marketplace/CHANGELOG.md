@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `import_anthropic_tree` reads a repository authored in Claude Code's `.claude-plugin` format — `marketplace.json`, one `plugin.json` per plugin, `SKILL.md`, `rules/*.md`, `hooks/hooks.json` — and writes the services tree the loader discovers. Everything the Anthropic manifests already state is derived; everything they cannot express comes from two optional `.claude-plugin/systemprompt.yaml` sidecars that reject any key naming a derived fact, so no field has two authors. `ImportOptions.strict` turns each partial translation into an error and `dry_run` computes the same `ImportReport` while writing nothing. The source repository is never modified and stays installable by Claude Code.
+- `catalog::load_rules` and `RuleEntry` load `rules/<id>/config.yaml` plus the markdown it names, and `CatalogContent` carries them. A rule id must equal its directory name, and rule text is trimmed before hashing so a file differing only by a trailing newline leaves the bundle content version unchanged.
+- `build_plugin_bundle` emits `rules/<id>.md` for each rule a plugin selects, the layout a host reads plugin rules from.
+
+### Changed
+
+- `BundleContent` gains a `rules` field and the catalogue fingerprint covers `rules/`, so an edited rule invalidates the cache.
+
+### Fixed
+
+- Skill directory names are read as `snake_case` on import. A bundle this crate generates names skill directories in `kebab-case`, which the loader refuses as a skill id, so a generated bundle could not be imported back.
+
 ## [0.48.0] - 2026-09-08
 
 ### Added

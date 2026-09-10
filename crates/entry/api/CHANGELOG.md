@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `GET /api/v1/admin/services/status` reports the active services root, its provenance and the failure text behind any fallback, plus each source's digest, version, content hash and fetch time.
+- `POST /api/v1/admin/services/refresh` re-runs the boot-time resolution and reports whether the composition changed. The running process keeps its old root either way; `?restart=true` asks the supervisor to bring it back on the new composition, and only when something changed. A single-flight lock refuses a concurrent refresh with a conflict rather than queueing it behind a multi-megabyte download.
+
+### Changed
+
+- The sync archive route packs through the loader's bundle packer and shares `FileEntry` with the bundle manifest instead of declaring its own copy of the type.
+
 ## [0.49.0] - 2026-09-09
 
 ### Breaking

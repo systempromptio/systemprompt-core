@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `core marketplace import --from <dir> --into <dir> [--dry-run] [--strict]` converts a Claude Code `.claude-plugin` authoring tree into a services tree, deriving everything the Anthropic manifests state and taking the rest from strict sidecars.
+
+### Changed
+
+- **Breaking:** the commands that bootstrap secrets are `async` where they were not, following `SecretsBootstrap::init`. Behaviour is unchanged.
+- `admin config reconcile` delegates to `systemprompt_security::authz::reconcile`, so the command, a services refresh and the boot step run the same projection with the same ownership scoping.
+- The hardened tar extraction that backed `cloud backup` moved into the loader's bundle module and is shared with bundle extraction; the command calls it rather than carrying its own copy.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

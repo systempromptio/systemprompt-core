@@ -75,6 +75,7 @@ async fn ingest_config_inserts_updates_and_skips() {
             IngestOptions {
                 override_existing: true,
                 delete_orphans: false,
+                ..IngestOptions::default()
             },
             &RegisteredEntities::default(),
         )
@@ -91,6 +92,7 @@ async fn ingest_config_inserts_updates_and_skips() {
             IngestOptions {
                 override_existing: true,
                 delete_orphans: false,
+                ..IngestOptions::default()
             },
             &RegisteredEntities::default(),
         )
@@ -272,6 +274,7 @@ async fn slack_seed_updates_an_existing_deny_rule() {
             IngestOptions {
                 override_existing: true,
                 delete_orphans: false,
+                ..IngestOptions::default()
             },
         )
         .await

@@ -1,9 +1,28 @@
 //! Process-wide secrets bootstrap.
 //!
-//! Loads the secrets document referenced by the active profile (or
-//! the equivalent environment variables in subprocess/Fly.io modes),
-//! validates required fields, and exposes typed accessors for the
-//! manifest signing seed and database URLs.
+//! Loads the secrets document referenced by the active profile, validates
+//! required fields, and exposes typed accessors for the manifest signing seed
+//! and database URLs.
+//!
+//! Source precedence, highest first:
+//!
+//! | # | Condition | Source |
+//! |---|-----------|--------|
+//! | 1 | `SYSTEMPROMPT_SUBPROCESS` set and a valid pepper is in the environment | environment |
+//! | 2 | `secrets.source: vault` | Vault KV v2, on deployment hosts too |
+//! | 3 | deployment host, with a valid pepper or `secrets.source: env` | environment |
+//! | 4 | `secrets.source: env` running locally | file, then environment |
+//! | 5 | `secrets.source: file` | file |
+//!
+//! Vault is fail-closed under every
+//! [`systemprompt_models::profile::SecretsValidationMode`]: a failed fetch
+//! aborts the boot instead of falling back to the environment,
+//! because a fallback would start the process on whatever stale credentials the
+//! host happens to carry.
+//!
+//! A Vault token is never written into profile YAML — `${VAULT_TOKEN}`
+//! interpolation in `profile.yaml` is forbidden. The token comes from the
+//! process environment, a file, or an `AppRole` / Kubernetes login.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +30,10 @@
 mod io;
 mod loader;
 mod logging;
+mod provider;
+mod resolve;
+mod sources;
+mod vault;
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -27,6 +50,9 @@ pub use io::load_secrets_from_path;
 pub use logging::{
     build_loaded_secrets_message, log_secrets_issue, log_secrets_skip, log_secrets_warn,
 };
+pub use provider::{SecretsDocument, SecretsProvider};
+pub use resolve::{ResolvedSource, resolve_source};
+pub use vault::{VaultError, VaultKvProvider};
 
 static SECRETS: OnceLock<Secrets> = OnceLock::new();
 
@@ -55,6 +81,18 @@ pub enum SecretsBootstrapError {
 
     #[error("No secrets configured. Create a secrets.json file.")]
     NoSecretsConfigured,
+
+    #[error("Invalid secrets configuration in profile: {message}")]
+    SecretsConfigInvalid { message: String },
+
+    #[error(
+        "secrets.source is 'vault' but the profile has no secrets.vault block. Add one or switch \
+         secrets.source to 'file' or 'env'."
+    )]
+    VaultBlockMissing,
+
+    #[error(transparent)]
+    Vault(#[from] VaultError),
 
     #[error(
         "OAuth at-rest pepper is required. Add 'oauth_at_rest_pepper' (>= 32 chars) to your \
@@ -91,12 +129,12 @@ pub enum SecretsBootstrapError {
 }
 
 impl SecretsBootstrap {
-    pub fn init() -> ConfigResult<&'static Secrets> {
+    pub async fn init() -> ConfigResult<&'static Secrets> {
         if SECRETS.get().is_some() {
             return Err(SecretsBootstrapError::AlreadyInitialized.into());
         }
 
-        let secrets = loader::load_from_profile_config()?;
+        let secrets = loader::load_from_profile_config().await?;
         Self::validate_identity(&secrets)?;
 
         Self::log_loaded_secrets(&secrets);
@@ -174,7 +212,12 @@ impl SecretsBootstrap {
         let profile_dir = Path::new(profile_path)
             .parent()
             .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;
-        Ok(resolve_with_home(profile_dir, &secrets_config.secrets_path))
+        let secrets_path = secrets_config.secrets_path().map_err(|e| {
+            SecretsBootstrapError::SecretsConfigInvalid {
+                message: e.to_string(),
+            }
+        })?;
+        Ok(resolve_with_home(profile_dir, secrets_path))
     }
 
     pub fn database_url() -> Result<&'static str, SecretsBootstrapError> {
@@ -198,11 +241,11 @@ impl SecretsBootstrap {
         SECRETS.get().is_some()
     }
 
-    pub fn try_init() -> ConfigResult<&'static Secrets> {
+    pub async fn try_init() -> ConfigResult<&'static Secrets> {
         if SECRETS.get().is_some() {
             return Self::get().map_err(Into::into);
         }
-        Self::init()
+        Self::init().await
     }
 
     fn log_loaded_secrets(secrets: &Secrets) {

@@ -23,8 +23,12 @@ fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
         geoip_database: None,
     };
     Arc::new(
-        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
-            .expect("paths"),
+        AppPaths::from_profile(
+            &paths,
+            systemprompt_models::PathResolution::Canonicalize,
+            None,
+        )
+        .expect("paths"),
     )
 }
 
@@ -38,8 +42,12 @@ fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
         geoip_database: None,
     };
     Arc::new(
-        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
-            .expect("paths"),
+        AppPaths::from_profile(
+            &paths,
+            systemprompt_models::PathResolution::Canonicalize,
+            None,
+        )
+        .expect("paths"),
     )
 }
 

@@ -146,9 +146,53 @@ mod path_resolution {
     }
 
     #[test]
+    fn a_services_root_override_moves_every_derived_path() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let composed = std::path::Path::new("/srv/services-cache/current");
+        let paths = AppPaths::from_profile(&cfg, PathResolution::Lexical, Some(composed))
+            .expect("lexical resolve");
+
+        assert_eq!(paths.system().services(), composed);
+        assert_eq!(
+            paths.system().skills(),
+            std::path::Path::new("/srv/services-cache/current/skills"),
+            "a composed bundle root must own the derived subtrees, not the baked tree"
+        );
+        assert_eq!(
+            paths.system().settings(),
+            std::path::Path::new("/srv/services-cache/current/config/config.yaml")
+        );
+        assert_eq!(
+            paths.system().content_config(),
+            std::path::Path::new("/srv/services-cache/current/content/config.yaml")
+        );
+        assert_eq!(
+            paths.web().config(),
+            std::path::Path::new("/srv/services-cache/current/web/config.yaml")
+        );
+        assert_eq!(
+            paths.system().root(),
+            std::path::Path::new(CONTAINER_ROOT),
+            "the system root is not part of the services bundle"
+        );
+    }
+
+    #[test]
+    fn no_override_keeps_the_profile_services_tree() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let paths =
+            AppPaths::from_profile(&cfg, PathResolution::Lexical, None).expect("lexical resolve");
+        assert_eq!(
+            paths.system().services(),
+            std::path::Path::new("/srv/services")
+        );
+    }
+
+    #[test]
     fn lexical_accepts_absolute_path_that_does_not_exist() {
         let cfg = paths_config(CONTAINER_ROOT);
-        let paths = AppPaths::from_profile(&cfg, PathResolution::Lexical).expect("lexical resolve");
+        let paths =
+            AppPaths::from_profile(&cfg, PathResolution::Lexical, None).expect("lexical resolve");
         assert_eq!(
             paths.system().root(),
             std::path::Path::new(CONTAINER_ROOT),
@@ -159,7 +203,7 @@ mod path_resolution {
     #[test]
     fn canonicalize_rejects_a_path_that_does_not_exist() {
         let cfg = paths_config(CONTAINER_ROOT);
-        let err = AppPaths::from_profile(&cfg, PathResolution::Canonicalize)
+        let err = AppPaths::from_profile(&cfg, PathResolution::Canonicalize, None)
             .expect_err("canonicalize must fail on a missing path");
         assert!(
             matches!(
@@ -176,7 +220,7 @@ mod path_resolution {
     #[test]
     fn lexical_rejects_a_relative_path() {
         let cfg = paths_config("relative/container/app");
-        let err = AppPaths::from_profile(&cfg, PathResolution::Lexical)
+        let err = AppPaths::from_profile(&cfg, PathResolution::Lexical, None)
             .expect_err("lexical must reject a relative path");
         assert!(
             matches!(

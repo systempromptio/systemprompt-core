@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `PluginRuleId` names a rule a plugin ships. It is unrelated to `RuleId`, which names an authz rule row.
+
 ## [0.49.0] - 2026-09-09
 
 ### Added

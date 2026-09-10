@@ -115,7 +115,7 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
         AgentsCommands::Task(args) => task::execute(args, ctx)
             .await
             .context("Failed to get task details")?,
-        AgentsCommands::Tools(args) => tools::execute(args, ctx)
+        AgentsCommands::Tools(args) => Box::pin(tools::execute(args, ctx))
             .await
             .context("Failed to list agent tools")?,
         AgentsCommands::Run(args) => {

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `secrets.source: vault` loads the secrets document from a HashiCorp Vault or OpenBao KV v2 path instead of a file or the environment. `VaultKvProvider` implements the new `SecretsProvider` trait, authenticating by token, AppRole or Kubernetes service account, and one KV document holds the whole `secrets.json` shape. The profile's `keys:` map redirects individual entries to another KV path and field, so identity material shared across instances lives in one place.
+- `resolve_source` is the precedence decision as a pure function of the profile and three observed facts, so the ordering can be exercised without touching the environment, the filesystem or the network. Highest first: subprocess environment, `source: vault`, deployment-host environment, `source: env` locally with a file fallback, `source: file`. A Vault source deliberately outranks the deployment host so a container is never silently downgraded to whatever credentials the host carries.
+- `SecretsDocument` and the `sources::{env,file}` modules split the former monolithic loader into one module per source.
+
+### Changed
+
+- **Breaking:** `SecretsBootstrap::init` and `try_init` are `async`. Only the Vault source awaits anything; every other path resolves without yielding. Migrate by adding `.await` at the call site.
+- A Vault fetch failure aborts the boot under every `SecretsValidationMode`, including `skip`. There is no environment fallback: falling back would start the process on whatever stale credentials the host happened to carry, and start it successfully. `validation` governs how a loaded document is checked, not whether a source may be abandoned.
+- Vault errors never carry a response body or a token. They name the address, mount, path and auth method. The client follows no redirects, holds the token in zeroizing memory for the length of the fetch, and retries only connect failures, 5xx and 429.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

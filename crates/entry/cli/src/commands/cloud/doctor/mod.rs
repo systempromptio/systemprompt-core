@@ -1,8 +1,8 @@
 //! `cloud doctor`: pre-deploy preflight for runtime prerequisites.
 //!
 //! Validates the things that otherwise only surface as a post-deploy 500 — a
-//! valid profile (incl. `governance.authz`), a provisionable signing key,
-//! `secrets.json` with the required keys and provider credentials, a
+//! valid profile (incl. `governance.authz`), a reachable secrets source with
+//! the required keys and provider credentials, a
 //! `trusted_proxies` set that covers the Fly peer range — and probes
 //! database/hook reachability. The preflight runs automatically before
 //! `cloud deploy` builds an image, and is exposed standalone (`cloud doctor`)
@@ -13,6 +13,7 @@
 
 mod checks;
 pub mod distributed;
+pub mod vault_checks;
 
 pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
 pub use checks::{
@@ -28,6 +29,7 @@ use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
+use systemprompt_models::profile::SecretsSource;
 
 use super::deploy::resolve_profile;
 use crate::cli_settings::CliConfig;
@@ -86,24 +88,50 @@ fn resolve_services_config(profile: &Profile) -> PathBuf {
     declared
 }
 
+async fn resolve_secrets(
+    profile: &Profile,
+    profile_dir: &Path,
+    checks: &mut Vec<CheckResult>,
+) -> HashMap<String, String> {
+    let vault = profile
+        .secrets
+        .as_ref()
+        .filter(|config| matches!(config.source, SecretsSource::Vault))
+        .and_then(|config| config.vault.as_ref());
+
+    let Some(vault) = vault else {
+        let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
+        return load_secrets_json(&secrets_path).unwrap_or_else(|_e| {
+            checks.push(CheckResult::fail(
+                "secrets-file",
+                format!(
+                    "secrets.json not found or unreadable at {}",
+                    secrets_path.display()
+                ),
+            ));
+            HashMap::new()
+        });
+    };
+
+    let address = vault_checks::check_vault_address(vault);
+    let blocked = address.status == CheckStatus::Fail;
+    checks.push(address);
+    if blocked {
+        return HashMap::new();
+    }
+
+    let (document, values) = vault_checks::check_vault_document(vault).await;
+    checks.push(document);
+    values
+}
+
 pub(in crate::commands::cloud) async fn run(
     profile: &Profile,
     profile_dir: &Path,
     distributed: bool,
 ) -> DoctorReport {
     let mut checks = vec![check_profile_valid(profile)];
-
-    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
-    let secrets = load_secrets_json(&secrets_path).unwrap_or_else(|_| {
-        checks.push(CheckResult::fail(
-            "secrets-file",
-            format!(
-                "secrets.json not found or unreadable at {}",
-                secrets_path.display()
-            ),
-        ));
-        HashMap::new()
-    });
+    let secrets = resolve_secrets(profile, profile_dir, &mut checks).await;
 
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));

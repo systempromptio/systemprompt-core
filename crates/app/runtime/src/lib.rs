@@ -28,12 +28,13 @@ mod context_traits;
 mod database_context;
 mod error;
 mod registry;
+pub mod services_reconcile;
 mod startup_validation;
 mod validation;
 mod wellknown;
 
 pub use builder::AppContextBuilder;
-pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
+pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleType, WellKnownRoute};

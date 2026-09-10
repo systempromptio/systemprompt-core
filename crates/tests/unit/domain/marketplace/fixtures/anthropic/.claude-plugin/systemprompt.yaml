@@ -1,0 +1,15 @@
+schema: 1
+marketplace:
+  visibility: private
+  enabled: true
+  access:
+    default_included: false
+    roles: []
+    rules:
+      - rule_type: group
+        values: [field]
+        access: allow
+        justification: Field delivery group tooling
+  mcp_servers:
+    source: explicit
+    include: [knowledge-bank]

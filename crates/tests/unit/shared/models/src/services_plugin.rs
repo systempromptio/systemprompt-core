@@ -25,6 +25,7 @@ fn valid_plugin(id: &str) -> PluginConfig {
         category: "dev".to_owned(),
         skills: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
+        rules: PluginComponentRef::default(),
         mcp_servers: PluginComponentRef::default(),
         content_sources: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),

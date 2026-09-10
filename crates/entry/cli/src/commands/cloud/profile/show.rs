@@ -9,7 +9,7 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
 use systemprompt_logging::CliService;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig};
 
@@ -20,7 +20,7 @@ use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result, resolve_profile_path};
 
-pub(super) fn execute(
+pub(super) async fn execute(
     name: Option<&str>,
     filter: ShowFilter,
     json_output: bool,
@@ -31,13 +31,11 @@ pub(super) fn execute(
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
-    let config = Config::get().ok().or_else(|| {
-        if initialize_config_from_profile(&profile_path).is_ok() {
-            Config::get().ok()
-        } else {
-            None
-        }
-    });
+    let config = match Config::get().ok() {
+        Some(config) => Some(config),
+        None if initialize_config_from_profile(&profile_path).await.is_ok() => Config::get().ok(),
+        None => None,
+    };
 
     let services_config = ConfigLoader::load().ok();
 
@@ -49,19 +47,24 @@ pub(super) fn execute(
     Ok(())
 }
 
-fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> {
+async fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> {
     use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 
     ProfileBootstrap::init_from_path(profile_path)?;
-    SecretsBootstrap::init()?;
-    systemprompt_config::try_init_config()?;
+    SecretsBootstrap::init().await?;
+    systemprompt_config::try_init_config(ServicesRootBootstrap::get().map(|r| r.path.as_path()))?;
     Ok(())
 }
 
 fn current_app_paths() -> Option<AppPaths> {
-    ProfileBootstrap::get()
+    ProfileBootstrap::get().ok().and_then(|p| {
+        AppPaths::from_profile(
+            &p.paths,
+            p.path_resolution(),
+            ServicesRootBootstrap::get().map(|r| r.path.as_path()),
+        )
         .ok()
-        .and_then(|p| AppPaths::from_profile(&p.paths, p.path_resolution()).ok())
+    })
 }
 
 fn build_config_for_filter(

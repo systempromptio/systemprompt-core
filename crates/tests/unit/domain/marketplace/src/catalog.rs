@@ -454,6 +454,7 @@ fn load_plugins_empty_config_returns_empty() {
         mcp_servers: &[],
         disabled_mcp_servers: &no_disabled,
         artifacts: &[],
+        rules: &[],
         plugins_root: &plugins_root,
     };
     let plugins = load_plugins(&config, &content).expect("load plugins");

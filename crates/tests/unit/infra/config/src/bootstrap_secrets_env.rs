@@ -10,8 +10,8 @@ fn set_base_env() {
     fixture::set_env("MANIFEST_SIGNING_SECRET_SEED", fixture::SEED);
 }
 
-#[test]
-fn env_source_falls_back_to_environment_when_file_missing() {
+#[tokio::test]
+async fn env_source_falls_back_to_environment_when_file_missing() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     set_base_env();
@@ -19,7 +19,7 @@ fn env_source_falls_back_to_environment_when_file_missing() {
     fixture::set_env("GEMINI_API_KEY", "gem-key");
     fixture::set_env("ANTHROPIC_API_KEY", "ant-key");
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.database_url, ENV_DB_URL);
     assert_eq!(
@@ -34,8 +34,8 @@ fn env_source_falls_back_to_environment_when_file_missing() {
     );
 }
 
-#[test]
-fn env_source_prefers_file_when_present() {
+#[tokio::test]
+async fn env_source_prefers_file_when_present() {
     let fx = fixture::write_tree(
         fixture::ENV_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
@@ -43,19 +43,19 @@ fn env_source_prefers_file_when_present() {
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     set_base_env();
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.database_url, fixture::DB_URL);
 }
 
-#[test]
-fn env_source_missing_pepper_errors() {
+#[tokio::test]
+async fn env_source_missing_pepper_errors() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::remove_env("OAUTH_AT_REST_PEPPER");
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -63,15 +63,15 @@ fn env_source_missing_pepper_errors() {
     ));
 }
 
-#[test]
-fn env_source_empty_database_url_errors() {
+#[tokio::test]
+async fn env_source_empty_database_url_errors() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::set_env("OAUTH_AT_REST_PEPPER", fixture::PEPPER);
     fixture::set_env("MANIFEST_SIGNING_SECRET_SEED", fixture::SEED);
     fixture::set_env("DATABASE_URL", "");
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -79,15 +79,15 @@ fn env_source_empty_database_url_errors() {
     ));
 }
 
-#[test]
-fn fly_environment_loads_from_env_without_profile_secrets() {
+#[tokio::test]
+async fn fly_environment_loads_from_env_without_profile_secrets() {
     let fx = fixture::write_tree("", None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::set_env("FLY_APP_NAME", "cov-fly-app");
     set_base_env();
     fixture::set_env("SIGNING_KEY_PEM", fixture::SIGNING_KEY_PEM);
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.database_url, ENV_DB_URL);
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
@@ -97,8 +97,8 @@ fn fly_environment_loads_from_env_without_profile_secrets() {
     );
 }
 
-#[test]
-fn fly_environment_without_seed_refuses_to_boot() {
+#[tokio::test]
+async fn fly_environment_without_seed_refuses_to_boot() {
     let fx = fixture::write_tree("", None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::set_env("FLY_APP_NAME", "cov-fly-app");
@@ -106,7 +106,7 @@ fn fly_environment_without_seed_refuses_to_boot() {
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
     fixture::remove_env("MANIFEST_SIGNING_SECRET_SEED");
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
     fixture::remove_env("FLY_APP_NAME");
 
     assert!(
@@ -118,15 +118,15 @@ fn fly_environment_without_seed_refuses_to_boot() {
     );
 }
 
-#[test]
-fn fly_environment_with_env_source_and_no_pepper_errors() {
+#[tokio::test]
+async fn fly_environment_with_env_source_and_no_pepper_errors() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::set_env("FLY_APP_NAME", "cov-fly-app");
     fixture::remove_env("OAUTH_AT_REST_PEPPER");
     fixture::set_env("DATABASE_URL", ENV_DB_URL);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -134,8 +134,8 @@ fn fly_environment_with_env_source_and_no_pepper_errors() {
     ));
 }
 
-#[test]
-fn subprocess_mode_short_env_pepper_falls_back_to_file() {
+#[tokio::test]
+async fn subprocess_mode_short_env_pepper_falls_back_to_file() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
@@ -144,14 +144,14 @@ fn subprocess_mode_short_env_pepper_falls_back_to_file() {
     fixture::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
     fixture::set_env("OAUTH_AT_REST_PEPPER", "short");
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
     assert_eq!(secrets.database_url, fixture::DB_URL);
 }
 
-#[test]
-fn subprocess_mode_with_env_pepper_loads_env_secrets() {
+#[tokio::test]
+async fn subprocess_mode_with_env_pepper_loads_env_secrets() {
     let fx = fixture::write_tree("", None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     fixture::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
@@ -161,7 +161,7 @@ fn subprocess_mode_with_env_pepper_loads_env_secrets() {
     fixture::set_env("EXTERNAL_DATABASE_URL", "postgresql://e:e@localhost:5432/e");
     fixture::set_env("INTERNAL_DATABASE_URL", "postgresql://i:i@localhost:5432/i");
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.openai.as_deref(), Some("oai-key"));
     assert_eq!(secrets.github.as_deref(), Some("gh-token"));
@@ -175,8 +175,8 @@ fn subprocess_mode_with_env_pepper_loads_env_secrets() {
     );
 }
 
-#[test]
-fn env_source_reads_moonshot_and_qwen_alias_keys() {
+#[tokio::test]
+async fn env_source_reads_moonshot_and_qwen_alias_keys() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     set_base_env();
@@ -185,14 +185,14 @@ fn env_source_reads_moonshot_and_qwen_alias_keys() {
     fixture::remove_env("QWEN_API_KEY");
     fixture::set_env("DASHSCOPE_API_KEY", "dash-key");
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.moonshot.as_deref(), Some("kimi-key"));
     assert_eq!(secrets.qwen.as_deref(), Some("dash-key"));
 }
 
-#[test]
-fn env_source_collects_custom_secrets_from_listed_keys() {
+#[tokio::test]
+async fn env_source_collects_custom_secrets_from_listed_keys() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     set_base_env();
@@ -201,7 +201,7 @@ fn env_source_collects_custom_secrets_from_listed_keys() {
     fixture::set_env("COV_TWO", "two-value");
     fixture::remove_env("COV_ABSENT");
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.custom.len(), 2);
     assert_eq!(
@@ -214,15 +214,15 @@ fn env_source_collects_custom_secrets_from_listed_keys() {
     );
 }
 
-#[test]
-fn env_source_on_deployment_host_requires_signing_key_pem() {
+#[tokio::test]
+async fn env_source_on_deployment_host_requires_signing_key_pem() {
     let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
     set_base_env();
     fixture::set_env("SYSTEMPROMPT_DEPLOYMENT_HOST", "node-a");
     fixture::remove_env("SIGNING_KEY_PEM");
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
     fixture::remove_env("SYSTEMPROMPT_DEPLOYMENT_HOST");
 
     assert!(matches!(

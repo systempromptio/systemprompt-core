@@ -15,6 +15,10 @@
 //! - [`module_loader`] — `inventory`-driven extension discovery for the
 //!   compiled-in extension trait registry.
 //! - [`profile_loader`] — reads, validates, and writes profile YAML.
+//! - [`bundle`] — signed services bundles: fetch, verify, compose, and the boot
+//!   path that installs the active services root.
+//! - [`services_root`] — the process-wide cell naming the services root the
+//!   instance actually runs, with its provenance.
 //! - [`services_bootstrap`] — the process-wide cell holding the loaded services
 //!   config (provider catalog and gateway included), initialised right after
 //!   the profile at boot.
@@ -30,6 +34,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod bundle;
 pub mod config_loader;
 pub mod config_writer;
 pub mod error;
@@ -38,7 +43,9 @@ pub mod extension_registry;
 pub mod module_loader;
 pub mod profile_loader;
 pub mod services_bootstrap;
+pub mod services_root;
 
+pub use bundle::{BundleError, BundleResult, ServicesSourceBootstrap};
 pub use config_loader::ConfigLoader;
 pub use config_writer::ConfigWriter;
 pub use error::{
@@ -50,3 +57,4 @@ pub use extension_registry::ExtensionRegistry;
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
 pub use services_bootstrap::ServicesBootstrap;
+pub use services_root::{ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap};

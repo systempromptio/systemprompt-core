@@ -242,16 +242,17 @@ fn init_bootstrap_inner_expecting(
     }
 
     if !SecretsBootstrap::is_initialized() {
-        let _ = SecretsBootstrap::try_init();
+        let _ = crate::secrets::block_on_secrets_init();
     }
 
     if !Config::is_initialized() {
-        let _ = init_config_from_profile(profile);
+        let _ = init_config_from_profile(profile, None);
     }
 
     let app_paths = AppPaths::from_profile(
         &profile.paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("app paths");
     if FilesConfig::get_optional().is_none() {

@@ -1,0 +1,9 @@
+{
+  "name": "gamma",
+  "description": "Inline MCP servers and a forbidden sidecar key.",
+  "version": "1.0.0",
+  "author": { "name": "Acme Field Team", "email": "field@acme.example" },
+  "mcpServers": {
+    "local-tool": { "command": "node", "args": ["server.js"] }
+  }
+}

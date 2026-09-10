@@ -134,12 +134,13 @@ impl AccessControlRepository {
         let row = sqlx::query!(
             r#"
             INSERT INTO access_control_rules
-                (id, entity_type, entity_id, rule_type, rule_value, access, justification)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (id, entity_type, entity_id, rule_type, rule_value, access, justification, source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             ON CONFLICT (entity_type, entity_id, rule_type, rule_value)
             DO UPDATE SET
                 access = EXCLUDED.access,
                 justification = COALESCE(EXCLUDED.justification, access_control_rules.justification),
+                source = EXCLUDED.source,
                 updated_at = NOW()
             RETURNING id, rule_type, rule_value, access, justification
             "#,
@@ -150,6 +151,7 @@ impl AccessControlRepository {
             params.rule_value,
             access_str,
             params.justification,
+            params.source,
         )
         .fetch_one(&*self.write_pool)
         .await?;

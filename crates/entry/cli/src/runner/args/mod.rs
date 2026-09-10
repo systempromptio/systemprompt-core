@@ -167,10 +167,36 @@ impl DescribeCommand for Commands {
         match self {
             Self::Cloud(cmd) => cmd.descriptor(),
             Self::Plugins(cmd) => cmd.descriptor(),
-            Self::Admin(admin::AdminCommands::Setup(_)) => CommandDescriptor::NONE,
             Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.descriptor(),
             Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(_)))
             | Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
+            Self::Admin(admin::AdminCommands::Setup(_))
+            | Self::Core(
+                core::CoreCommands::Marketplace(core::marketplace::MarketplaceCommands::Import(_))
+                | core::CoreCommands::Services(
+                    core::services::ServicesCommands::Validate(_)
+                    | core::services::ServicesCommands::Bundle(_)
+                    | core::services::ServicesCommands::Keygen(_),
+                ),
+            ) => CommandDescriptor::NONE,
+            Self::Core(core::CoreCommands::Services(
+                core::services::ServicesCommands::Publish(args),
+            )) => {
+                if args.auth_secret.is_some() {
+                    CommandDescriptor::PROFILE_AND_SECRETS
+                } else {
+                    CommandDescriptor::NONE
+                }
+            },
+            Self::Core(core::CoreCommands::Services(
+                core::services::ServicesCommands::Inspect(args),
+            )) => {
+                if args.active {
+                    CommandDescriptor::PROFILE_SECRETS_AND_PATHS
+                } else {
+                    CommandDescriptor::NONE
+                }
+            },
             Self::Admin(admin::AdminCommands::Config(_))
             | Self::Web(_)
             | Self::Core(

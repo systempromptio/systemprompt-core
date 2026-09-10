@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::{AgentError, ProtocolError};
+use systemprompt_loader::BundleError;
 use systemprompt_marketplace::MarketplaceError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::ServiceError;
@@ -54,6 +55,7 @@ impl From<MarketplaceError> for ApiHttpError {
             },
             MarketplaceError::Validation(_) => ApiError::bad_request(err.to_string()),
             MarketplaceError::Catalog(_)
+            | MarketplaceError::Import { .. }
             | MarketplaceError::Signing(_)
             | MarketplaceError::Filter(_) => ApiError::internal_error(err.to_string()),
         };
@@ -145,6 +147,25 @@ impl From<ContextExtractionError> for ApiHttpError {
             ContextExtractionError::ForbiddenHeader { .. } => ApiError::forbidden(message),
             ContextExtractionError::UserNotFound(_) => ApiError::not_found(message),
             ContextExtractionError::DatabaseError { .. } => ApiError::internal_error(message),
+        };
+        Self(api)
+    }
+}
+
+impl From<BundleError> for ApiHttpError {
+    fn from(err: BundleError) -> Self {
+        let message = err.to_string();
+        let api = match err {
+            BundleError::Auth { .. } => ApiError::forbidden(message),
+            BundleError::Verify(_) | BundleError::Ownership { .. } => {
+                ApiError::bad_request(message)
+            },
+            BundleError::SourceMissing { .. } => ApiError::not_found(message),
+            BundleError::Fetch { .. }
+            | BundleError::Extract { .. }
+            | BundleError::Io(_)
+            | BundleError::Policy { .. }
+            | BundleError::TooLarge { .. } => ApiError::internal_error(message),
         };
         Self(api)
     }
