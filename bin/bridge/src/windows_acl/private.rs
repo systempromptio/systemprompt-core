@@ -192,14 +192,11 @@ fn set_dacl(file: &File, reader: &str, scope: Scope) -> io::Result<()> {
     }
 }
 
+// Why: a path-based metadata query opens the file itself, which an empty DACL
+// refuses; the handle is opened first with only the owner-implicit rights and
+// the reparse check is made through it.
 fn open_for_dac(path: &Path, scope: Scope) -> io::Result<File> {
     use std::os::windows::fs::OpenOptionsExt;
-    if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
-        return Err(io::Error::other(format!(
-            "private path {} is a link",
-            path.display()
-        )));
-    }
     let mut options = std::fs::OpenOptions::new();
     options.access_mode(READ_CONTROL | WRITE_DAC);
     match scope {
@@ -208,7 +205,14 @@ fn open_for_dac(path: &Path, scope: Scope) -> io::Result<File> {
             options.custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
         },
     };
-    options.open(path)
+    let file = options.open(path)?;
+    if file.metadata()?.file_type().is_symlink() {
+        return Err(io::Error::other(format!(
+            "private path {} is a link",
+            path.display()
+        )));
+    }
+    Ok(file)
 }
 
 pub(crate) fn protect_directory(path: &Path) -> io::Result<()> {
