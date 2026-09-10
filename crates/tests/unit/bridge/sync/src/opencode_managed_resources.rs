@@ -52,6 +52,7 @@ fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedM
         user: None,
         plugins: vec![],
         skills,
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: mcp,

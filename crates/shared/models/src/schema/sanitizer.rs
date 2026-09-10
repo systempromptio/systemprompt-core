@@ -35,10 +35,10 @@ impl SchemaSanitizer {
         Self::remove_metadata_fields(obj);
         Self::remove_extension_fields(obj);
         self.convert_const_to_enum(obj);
-        self.sanitize_nested_schemas(obj);
         if !self.capabilities.features.loose_items {
             Self::pin_items_to_arrays(obj);
         }
+        self.sanitize_nested_schemas(obj);
 
         sanitized
     }
@@ -215,7 +215,8 @@ impl SchemaSanitizer {
 
     // Why: Gemini rejects `items` on anything but an ARRAY and an ARRAY without
     // `items`, while JSON Schema allows `items` beside an `anyOf` whose array
-    // variant carries none.
+    // variant carries none. Runs before the nested pass so the outer `items`
+    // reaches a variant before that variant is given an empty one.
     fn pin_items_to_arrays(obj: &mut Map<String, Value>) {
         let declared = obj.get("type").and_then(Value::as_str).map(str::to_owned);
         if let Some(items) = obj.get("items").cloned()

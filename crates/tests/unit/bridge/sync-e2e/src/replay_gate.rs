@@ -45,6 +45,7 @@ fn manifest(now: chrono::DateTime<chrono::Utc>, not_before: &str) -> SignedManif
         user: None,
         plugins: vec![],
         skills: vec![],
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![],

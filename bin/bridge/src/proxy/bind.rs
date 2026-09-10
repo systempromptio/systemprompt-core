@@ -114,7 +114,17 @@ pub(super) fn portfile_port(ours: &InstallId) -> std::io::Result<Option<u16>> {
             "recorded proxy port {} belongs to an unidentified listener",
             record.port
         ))),
-        PeerIdentity::Ours(_) | PeerIdentity::Unreachable => Ok(Some(record.port)),
+        PeerIdentity::Ours(_) => Ok(Some(record.port)),
+        // Why: an unreachable port proves nothing about ownership, and trusting
+        // it is how a bridge came to attach to another install's proxy in
+        // production. Nothing is listening, so the default costs us nothing.
+        PeerIdentity::Unreachable => {
+            tracing::warn!(
+                port = record.port,
+                "our recorded proxy port is unreachable; abandoning the record",
+            );
+            Ok(None)
+        },
         PeerIdentity::Foreign(who) => {
             tracing::warn!(
                 port = record.port,

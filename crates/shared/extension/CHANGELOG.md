@@ -20,7 +20,7 @@
 
 ### Added
 
-- A migration slot can be declared spent. `NNN_<name>.tombstone` (or `NNN-MMM_<name>.tombstone` for a retired chain) records the number with no SQL and a prose body; `build.rs` treats the slot as occupied, so refilling a spent number fails the build rather than a deployment. A shipped migration keeps a tracking row in every established database forever, and deleting the file did not give the number back — refilling it looked exactly like editing the migration that used to live there, and the runner reported "has been edited since it was applied" naming a file nobody could find, with both offered remedies wrong.
+- `NNN_<name>.tombstone` and `NNN-MMM_<name>.tombstone` reserve retired migration slots without SQL. Build-time validation rejects reuse of those numbers.
 - `MigrationError::MigrationSlotReused` names the file that held the slot and the one that wants it. The recorded `name` of an applied version is finally compared against the file now occupying it; the mismatch is tolerated by `--allow-checksum-drift` the same way a checksum mismatch already is.
 
 ### Changed

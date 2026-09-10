@@ -5,15 +5,17 @@
 ### Added
 
 - `import_anthropic_tree` reads a repository authored in Claude Code's `.claude-plugin` format — `marketplace.json`, one `plugin.json` per plugin, `SKILL.md`, `rules/*.md`, `hooks/hooks.json` — and writes the services tree the loader discovers. Everything the Anthropic manifests already state is derived; everything they cannot express comes from two optional `.claude-plugin/systemprompt.yaml` sidecars that reject any key naming a derived fact, so no field has two authors. `ImportOptions.strict` turns each partial translation into an error and `dry_run` computes the same `ImportReport` while writing nothing. The source repository is never modified and stays installable by Claude Code.
-- `catalog::load_rules` and `RuleEntry` load `rules/<id>/config.yaml` plus the markdown it names, and `CatalogContent` carries them. A rule id must equal its directory name, and rule text is trimmed before hashing so a file differing only by a trailing newline leaves the bundle content version unchanged.
-- `build_plugin_bundle` emits `rules/<id>.md` for each rule a plugin selects, the layout a host reads plugin rules from.
+- Rules are a marketplace component. `catalog::load_rules` reads `rules/<id>/config.yaml` plus the markdown it names into a signed `systemprompt_models::bridge::manifest::RuleEntry` carrying the trimmed text's SHA-256, `PluginConfig.rules` selects them per plugin, and `bundle::rules` lays the selected rules out as `rules/<kebab-id>.md` with `name`/`description` frontmatter, filtered by the rule's `hosts`. A rule id must equal its directory name and its content file must exist; either fault fails the load rather than signing empty instructions. `MarketplaceCandidate::prune_orphaned_rules` drops a rule whose every shipping plugin was filtered out, the trace records it under `TraceKind::Rule`, and both the catalogue and bundle fingerprints cover rules so an edited rule invalidates the cache.
+- The sidecars accept `title`, the human display name a marketplace or plugin shows in the dashboard and bridge, and a `SKILL.md` may carry `title` and `display_category` beside Claude Code's slug `name`. Anthropic's `name` is the id, so without these a round trip through the importer replaced every display name with its id.
+- The importer writes `rules/<name>/` from `rules/*.md` at the repository root and inside each plugin, normalising a hyphenated file stem to the `snake_case` rule id so `my-rule.md` and `my_rule.md` are one rule and the duplicate check sees both.
 
 ### Changed
 
-- `BundleContent` gains a `rules` field and the catalogue fingerprint covers `rules/`, so an edited rule invalidates the cache.
+- `BundleContent` gains a `rules` field.
 
 ### Fixed
 
+- A marketplace-only import (no `systemprompt/` base tree) no longer writes a root `config/config.yaml`. The generated file made the bundle claim the `config` directory, which only the platform bundle may own, so `services validate --base` and boot-time composition refused every such tree.
 - Skill directory names are read as `snake_case` on import. A bundle this crate generates names skill directories in `kebab-case`, which the loader refuses as a skill id, so a generated bundle could not be imported back.
 
 ## [0.48.0] - 2026-09-08
@@ -79,7 +81,7 @@
 ### Changed
 
 - **Breaking:** `MarketplaceCandidate::new` is replaced by `into_manifest_parts() -> (ManifestEntries, FilterContext)`, which splits the wire payload from the filter context by type instead of by convention.
-- **Breaking:** `EntryKeepSets` holds typed entry ids instead of `HashSet<String>`, so a kind mismatch fails to compile rather than silently matching nothing.
+- **Breaking:** `EntryKeepSets` holds typed entry ids instead of `HashSet<String>`, so a kind mismatch fails to compile rather than matching nothing.
 
 ## [0.31.0] - 2026-08-18
 

@@ -55,6 +55,7 @@ pub async fn manifest(
     let systemprompt_marketplace::ManifestEntries {
         plugins,
         skills,
+        rules,
         agents,
         hooks,
         managed_mcp_servers,
@@ -81,6 +82,7 @@ pub async fn manifest(
         user,
         plugins,
         skills,
+        rules,
         agents,
         hooks,
         managed_mcp_servers,

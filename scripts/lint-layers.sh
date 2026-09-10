@@ -22,7 +22,7 @@
 # and build dependencies are considered: dev-dependencies may legitimately point
 # at test helpers in any layer and are not part of the shipped graph.
 #
-# Both properties were previously conventions enforced by review. They are cheap
+# These dependency properties are checked statically. They are cheap
 # and deterministic, so they are enforced here instead.
 
 set -euo pipefail

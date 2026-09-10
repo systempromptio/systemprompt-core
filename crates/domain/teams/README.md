@@ -7,11 +7,7 @@
 
 Microsoft Teams integration for [systemprompt.io](https://systemprompt.io).
 
-Every Teams message answers to the same audit pipeline as every other surface.
-Bot Framework activities (messages and invokes) delivered through the Azure Bot
-Service are token-verified, mapped to governed systemprompt identities,
-authorized against RBAC, dispatched to A2A agents, and answered back in Teams,
-under one governed path.
+Bot Framework activities pass token verification, identity resolution and authorization before dispatch to configured A2A agents.
 
 This crate is **fully opt-in**: it is excluded from the facade's `default` and
 `full` feature sets and only compiles under the `teams` feature.

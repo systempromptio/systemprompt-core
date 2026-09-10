@@ -29,8 +29,8 @@ fn a_rule_directory_loads_into_an_entry() {
 
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0].id.as_str(), "security");
-    assert_eq!(rules[0].name, "Security baseline");
-    assert_eq!(rules[0].content, "Never paste credentials.");
+    assert_eq!(rules[0].name.as_str(), "Security baseline");
+    assert_eq!(rules[0].instructions, "Never paste credentials.");
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn frontmatter_is_stripped_from_the_rule_body() {
     );
 
     let rules = load_rules(root.path()).expect("rules load");
-    assert_eq!(rules[0].content, "Never paste credentials.");
+    assert_eq!(rules[0].instructions, "Never paste credentials.");
 }
 
 #[test]
@@ -112,4 +112,20 @@ fn rules_load_in_directory_order() {
         rules.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
         vec!["alpha", "zeta"]
     );
+}
+
+#[test]
+fn a_rule_with_tags_and_hosts_carries_them_into_the_entry() {
+    let root = TempDir::new().expect("tempdir");
+    write_rule(
+        root.path(),
+        "security",
+        "id: security\nname: Security\ndescription: x\ntags: [baseline]\nhosts: [claude-code]\n",
+        Some("body\n"),
+    );
+
+    let rules = load_rules(root.path()).expect("rules load");
+    assert_eq!(rules[0].tags, vec!["baseline"]);
+    assert_eq!(rules[0].hosts, vec!["claude-code"]);
+    assert!(rules[0].plugins.is_empty());
 }

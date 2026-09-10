@@ -1,26 +1,3 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
-</picture>
-
-# systemprompt
-
-The governance engine behind AI infrastructure you actually own. One Rust binary, one PostgreSQL, every agent and tool call through one audited path. This is the facade crate: it re-exports the systemprompt-core workspace behind feature flags.
-
-[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg?style=flat-square)](https://crates.io/crates/systemprompt)
-[![Docs.rs](https://img.shields.io/docsrs/systemprompt?style=flat-square)](https://docs.rs/systemprompt)
-[![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
-[![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
-[![Rust 1.94+](https://img.shields.io/badge/rust-1.94+-f97316?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![PostgreSQL 18+](https://img.shields.io/badge/postgres-18+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://github.com/systempromptio/systemprompt-core/blob/main/documentation/overview.md) · [**Evaluation template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
 ## What this crate is
 
 `systemprompt` is the facade over the systemprompt-core workspace: one dependency and one feature matrix in place of thirty-odd `systemprompt-*` crates. Depend on it to build extensions, embed the governance pipeline, or drive the API server from your own binary.
@@ -66,10 +43,3 @@ Business Source License 1.1 (BSL-1.1). Source-available for evaluation, testing,
 Report vulnerabilities to **ed@systemprompt.io**, not via public issues. See [SECURITY.md](https://github.com/systempromptio/systemprompt-core/blob/main/SECURITY.md).
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt)** · **[docs.rs](https://docs.rs/systemprompt)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>Rent your control plane and you rent your audit trail. This one compiles.</sub>
-</div>

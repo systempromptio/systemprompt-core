@@ -181,6 +181,7 @@ fn manifest(plugins: Vec<PluginEntry>, marketplaces: Vec<ManifestMarketplace>) -
         user: None,
         plugins,
         skills: vec![],
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![],

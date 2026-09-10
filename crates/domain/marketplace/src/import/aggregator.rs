@@ -7,6 +7,11 @@
 //! that list; when it does not, the importer writes one naming every top-level
 //! YAML file in the directories it copied.
 //!
+//! A tree that copied no base directories is a marketplace-only tree. It gets
+//! no root config at all: the platform bundle it composes over supplies one,
+//! and a `config/` directory of its own would make the bundle claim a
+//! directory only the base may own, so it could never be composed.
+//!
 //! `web/` is excluded: the web domain reads its config file directly in an
 //! unwrapped shape that the aggregator cannot include.
 //!
@@ -39,7 +44,7 @@ pub(super) fn write_aggregator(
     sink: &Sink,
 ) -> Result<bool, MarketplaceError> {
     let rel = Path::new(AGGREGATOR_RELPATH);
-    if sink.exists(rel) {
+    if base_dirs.is_empty() || sink.exists(rel) {
         return Ok(false);
     }
 

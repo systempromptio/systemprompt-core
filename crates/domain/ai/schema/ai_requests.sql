@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     output_tokens INTEGER,
     cost_microdollars BIGINT NOT NULL DEFAULT 0,
     latency_ms INTEGER,
+    upstream_latency_ms INTEGER,
     cache_hit BOOLEAN NOT NULL DEFAULT FALSE,
     cache_read_tokens INTEGER,
     cache_creation_tokens INTEGER,

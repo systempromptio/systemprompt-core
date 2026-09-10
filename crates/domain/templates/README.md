@@ -1,35 +1,11 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Production infrastructure for AI agents
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
 # systemprompt-templates
-
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/domain-templates.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/domain-templates.svg">
-    <img alt="systemprompt-templates terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/domain-templates.svg" width="100%">
-  </picture>
-</div>
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-templates.svg?style=flat-square)](https://crates.io/crates/systemprompt-templates)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-templates?style=flat-square)](https://docs.rs/systemprompt-templates)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-The rendering layer for config-as-code deployments you own. A Handlebars template registry with provider plugins, priority resolution, and filesystem discovery, so the HTML your deployment serves is defined in your tree, not a hosted theme.
+Resolves Handlebars templates from registered providers and filesystem sources using configured priorities.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -110,11 +86,3 @@ Templates are resolved by priority where lower values take precedence:
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-templates)** · **[docs.rs](https://docs.rs/systemprompt-templates)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>Domain layer · Own how your organization uses AI.</sub>
-
-</div>

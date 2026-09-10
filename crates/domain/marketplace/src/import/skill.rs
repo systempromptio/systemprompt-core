@@ -4,6 +4,10 @@
 //! keys skills by directory and rejects a descriptor whose id disagrees with
 //! it, and Anthropic's `name` is a display string that may contain anything.
 //!
+//! The display name is the frontmatter `title` when present, else `name`:
+//! Claude Code constrains `name` to a kebab-case slug and ignores keys it does
+//! not know, so `title` and `display_category` ride in the same frontmatter.
+//!
 //! Skill ids are canonically `snake_case`, while Claude Code's bundle layout
 //! names the directory in `kebab-case`. A snake id contains no hyphens, so
 //! mapping `-` to `_` inverts that projection exactly and a bundle generated
@@ -50,11 +54,15 @@ struct SkillFrontmatter {
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
     description: Option<String>,
     #[serde(default)]
     tags: Option<TagList>,
     #[serde(default)]
     category: Option<String>,
+    #[serde(default)]
+    display_category: Option<String>,
     #[serde(default)]
     hosts: Vec<String>,
 }
@@ -108,7 +116,8 @@ pub(super) fn import_skill(
     let doc = SkillDoc {
         id: id.to_owned(),
         name: front
-            .name
+            .title
+            .or(front.name)
             .filter(|n| !n.trim().is_empty())
             .unwrap_or_else(|| id.replace(['_', '-'], " ")),
         description,
@@ -118,6 +127,7 @@ pub(super) fn import_skill(
         category: front
             .category
             .or_else(|| fallback_category.map(str::to_owned)),
+        display_category: front.display_category,
         hosts: front.hosts,
     };
 

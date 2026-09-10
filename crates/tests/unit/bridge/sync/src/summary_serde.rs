@@ -7,6 +7,7 @@ fn summary() -> SyncSummary {
         manifest_version: "41".into(),
         plugin_count: 2,
         skill_count: 3,
+        rule_count: 0,
         agent_count: 1,
         hook_count: 4,
         mcp_count: 5,

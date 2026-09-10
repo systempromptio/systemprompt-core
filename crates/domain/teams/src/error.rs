@@ -36,6 +36,9 @@ domain_error! {
         #[error("invalid outbound URL: {0}")]
         OutboundUrl(String),
 
+        #[error("guarded outbound http client is unavailable")]
+        ClientUnavailable,
+
         #[error("{0}")]
         Internal(String),
     }

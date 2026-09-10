@@ -4,10 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{Acquire, Postgres, Transaction};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
 use crate::error::Result;
 use crate::repository::UserRepository;
+
+const MERGE_TOOL_NAME: &str = "users.merge";
+const MERGE_POLICY: &str = "account_merge";
 
 #[derive(Debug, Clone, Copy)]
 pub struct MergeResult {
@@ -43,6 +46,7 @@ impl UserRepository {
         let mut total_rows = sessions + tasks;
         total_rows += transfer_audit_rows(&mut tx, source, target).await?;
         total_rows += transfer_content_rows(&mut tx, source, target).await?;
+        record_merge_attribution(&mut tx, source, target).await?;
 
         sqlx::query!(
             "UPDATE fingerprint_reputation SET associated_user_ids = \
@@ -103,6 +107,37 @@ async fn transfer_tasks(
     Ok(result.rows_affected())
 }
 
+// Why: governance_decisions is append-only — a decision is evidence of what was
+// authorised for whom at the time, so the merge is recorded as a new decision
+// rather than by re-attributing the source user's history to the target. A
+// reader following the target's trail finds this row and the source id in it.
+async fn record_merge_attribution(
+    tx: &mut Transaction<'_, Postgres>,
+    source: &str,
+    target: &str,
+) -> Result<()> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let context_id = ContextId::derived_from_session(&SessionId::new(id.clone()));
+    sqlx::query!(
+        "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, decision, policy, \
+         reason, actor_kind, actor_id, context_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, \
+         $10)",
+        id,
+        target,
+        id,
+        MERGE_TOOL_NAME,
+        "allow",
+        MERGE_POLICY,
+        format!("account merge: {source} merged into {target}"),
+        "system",
+        target,
+        context_id.as_str(),
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
 async fn transfer_audit_rows(
     tx: &mut Transaction<'_, Postgres>,
     source: &str,
@@ -143,14 +178,6 @@ async fn transfer_audit_rows(
     .rows_affected();
     moved += sqlx::query!(
         "UPDATE mcp_sessions SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE governance_decisions SET user_id = $1 WHERE user_id = $2",
         target,
         source
     )

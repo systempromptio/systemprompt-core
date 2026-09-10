@@ -100,6 +100,9 @@ pub enum McpTransportError {
     #[error("{0}")]
     Http(#[from] reqwest::Error),
 
+    #[error("guarded outbound http client is unavailable")]
+    ClientUnavailable,
+
     #[error(
         "authorization required{}: {reason}",
         if *enterprise_managed { " (enterprise-managed)" } else { "" }

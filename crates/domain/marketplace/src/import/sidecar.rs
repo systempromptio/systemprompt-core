@@ -1,12 +1,13 @@
 //! The two `systemprompt.yaml` sidecars an Anthropic tree may carry.
 //!
-//! A sidecar holds *only* what Anthropic's format has no slot for. Anything
-//! derivable from `marketplace.json` or `plugin.json` is forbidden here, so the
-//! importer never has two sources for one fact: the sidecar and the derived
-//! fields are a disjoint union, never a merge. [`FORBIDDEN_KEYS`] is that
-//! rejected set, checked before deserialisation so the error can name the key
-//! and say where the value actually comes from; `deny_unknown_fields` then
-//! rejects everything else unrecognised.
+//! A sidecar holds *only* what Anthropic's format has no slot for — including
+//! `title`, the human display name, because Anthropic's `name` is the id.
+//! Anything derivable from `marketplace.json` or `plugin.json` is forbidden
+//! here, so the importer never has two sources for one fact: the sidecar and
+//! the derived fields are a disjoint union, never a merge. [`FORBIDDEN_KEYS`]
+//! is that rejected set, checked before deserialisation so the error can name
+//! the key and say where the value actually comes from; `deny_unknown_fields`
+//! then rejects everything else unrecognised.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -51,6 +52,8 @@ pub struct MarketplaceSidecar {
 #[serde(deny_unknown_fields)]
 pub struct MarketplaceSidecarBody {
     #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
     pub visibility: MarketplaceVisibility,
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -85,6 +88,8 @@ pub struct PluginSidecar {
 #[serde(deny_unknown_fields)]
 pub struct PluginSidecarBody {
     #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
     pub category: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -116,6 +121,7 @@ impl Default for PluginSidecar {
 impl Default for MarketplaceSidecarBody {
     fn default() -> Self {
         Self {
+            title: None,
             visibility: MarketplaceVisibility::default(),
             enabled: true,
             access: MarketplaceAccess::default(),
@@ -129,6 +135,7 @@ impl Default for MarketplaceSidecarBody {
 impl Default for PluginSidecarBody {
     fn default() -> Self {
         Self {
+            title: None,
             category: None,
             enabled: true,
             mcp_servers: PluginComponentRef::default(),

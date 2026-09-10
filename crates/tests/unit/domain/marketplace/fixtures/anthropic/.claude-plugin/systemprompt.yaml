@@ -1,5 +1,6 @@
 schema: 1
 marketplace:
+  title: Acme Field Engineering
   visibility: private
   enabled: true
   access:

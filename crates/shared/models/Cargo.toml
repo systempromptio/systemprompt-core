@@ -44,6 +44,10 @@ http = { workspace = true }
 # URL parsing for outbound-endpoint (SSRF) validation
 url = { workspace = true }
 
+# Guarded outbound HTTP client: connect-time SSRF enforcement (see `net::client`)
+reqwest = { workspace = true }
+tokio = { workspace = true }
+
 # Typed CIDR ranges for trusted_proxies (parse-on-deserialize, fail-closed)
 ipnet = { workspace = true }
 

@@ -7,21 +7,26 @@
 //! nothing is listening on: the per-server loops run, and every connection
 //! attempt lands on the unreachable arm rather than the happy path.
 //!
-//! `plugins mcp tools` resolves a CLI session first, so it reaches its own body
-//! only since the bootstrap fixture started naming its tempdir something
-//! `ProfileName` accepts.
+//! `plugins mcp tools` resolves a CLI session before anything else, so this
+//! suite seeds one for the bootstrap profile. Without it the command dies on
+//! "No session for active profile" and never reaches the unreachable-server
+//! arm these tests assert on.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::{Arc, OnceLock};
 
 use clap::Parser;
+use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
+use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, free_port_in_range,
+    TestBootstrap, fixture_app_context, fixture_db_pool, fixture_user_id, free_port_in_range,
     init_services_bootstrap, install_test_signing_key,
 };
 
@@ -53,8 +58,49 @@ fn boot() -> &'static TestBootstrap {
     BOOT.get_or_init(|| {
         let b = init_services_bootstrap(&services_yaml());
         install_test_signing_key();
+        seed_cli_session(&b);
         b
     })
+}
+
+fn seed_cli_session(b: &TestBootstrap) {
+    let profile_dir = b
+        .profile_path
+        .parent()
+        .expect("the bootstrap profile.yaml has a parent directory");
+    let profile_name_str = profile_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .expect("the bootstrap profile directory has a usable name")
+        .to_owned();
+    let profile_name = ProfileName::try_new(profile_name_str.as_str())
+        .expect("the bootstrap profile directory name is a valid ProfileName");
+
+    let session = CliSession::builder(
+        SessionBinding::new(profile_name, "https://issuer.test".to_owned()),
+        SessionToken::new("fixture-session-token"),
+        SessionId::generate(),
+        ContextId::generate(),
+        SessionIdentity::new(
+            fixture_user_id(),
+            Email::try_new("fixture@example.com").expect("fixture email"),
+            UserType::Admin,
+        ),
+    )
+    .with_profile_path(&b.profile_path)
+    .build();
+
+    // Why: the store persists between runs, so a stale `active_profile_name`
+    // from an earlier fixture tempdir would not match this one and the session
+    // would be rejected before the command body runs. Claim both.
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
+    let mut store =
+        SessionStore::load_or_create(&sessions_dir).expect("load the CLI session store");
+    store.upsert_session(&SessionKey::Local, session);
+    store.set_active_with_profile(&SessionKey::Local, profile_name_str.as_str());
+    store
+        .save(&sessions_dir)
+        .expect("persist the CLI session store");
 }
 
 #[derive(Debug, Parser)]

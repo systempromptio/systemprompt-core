@@ -41,6 +41,7 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         user: None,
         plugins: vec![],
         skills: vec![],
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![],

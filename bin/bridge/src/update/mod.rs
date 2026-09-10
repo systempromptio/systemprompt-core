@@ -199,12 +199,10 @@ pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
     spawn_relaunch(installed, false)
 }
 
-/// Relaunch, telling the new process that this one is still exiting.
-///
-/// The successor holds off acquiring the single-instance lock and binding the
-/// proxy port until this process is gone. Without that wait it loses the race
-/// for both: it focuses a dying window instead of starting, and it binds a
-/// fallback port that every host profile written for the default rejects.
+// Why: the successor holds off acquiring the single-instance lock and binding
+// the proxy port until this process is gone. Without that wait it loses the
+// race for both: it focuses a dying window instead of starting, and it binds a
+// fallback port that every host profile written for the default rejects.
 pub fn spawn_successor(installed: &std::path::Path) -> Result<(), UpdateError> {
     spawn_relaunch(installed, true)
 }
@@ -283,14 +281,12 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str, http: &reqwest:
     tracing::info!(version = %manifest.version, "automatic update: relaunched");
 }
 
-/// The update policy the gateway last delivered on a signed manifest.
-///
-/// Org policy is the only source: there is no local preference to contradict
-/// it. A bridge that has never synced has no delivered policy and takes the
-/// default, which stages.
+// Why: org policy is the only source; there is no local preference to
+// contradict it. A bridge that has never synced has no delivered policy and
+// takes the default, which stages.
 #[must_use]
 pub fn auto_update_policy() -> AutoUpdatePolicy {
-    crate::sync::last_synced_auto_update_policy().unwrap_or_default()
+    crate::last_sync::last_synced_auto_update_policy().unwrap_or_default()
 }
 
 #[must_use]

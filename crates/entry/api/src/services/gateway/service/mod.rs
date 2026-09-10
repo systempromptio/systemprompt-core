@@ -29,7 +29,7 @@ use axum::response::Response;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::{GatewayConfig, ProviderRegistry};
+use systemprompt_models::services::{GatewayConfig, ProviderRegistry, QuotaFaultMode};
 
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::pricing::{dispatch_pricing, trace_dispatch};
@@ -75,7 +75,8 @@ impl GatewayService {
             forward_headers,
             identity_headers,
         } = inputs;
-        let (policy, evaluation_session) = dispatch_policy(repos, &ctx).await?;
+        let (policy, evaluation_session) =
+            dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
@@ -93,7 +94,7 @@ impl GatewayService {
             audit.set_route_match(descriptor).await;
         }
 
-        enforce_quota(db, repos, &ctx, &policy, &audit).await?;
+        enforce_quota(db, repos, &policy, &audit, config.quota_fault_mode).await?;
         enforce_request_guards(db, &ctx.user_id, &upstream, &request, &audit).await?;
 
         let prepared = PreparedDispatch::build(
@@ -132,6 +133,7 @@ impl GatewayService {
                 repos: repos.clone(),
                 ai_request_id: ai_request_id.clone(),
                 policy,
+                quota_fault_mode: config.quota_fault_mode,
                 inbound,
                 request_model: scanned.request_model().to_owned(),
                 stream_usage,
@@ -146,6 +148,7 @@ impl GatewayService {
 async fn dispatch_policy(
     repos: &super::GatewayRepositories,
     ctx: &GatewayRequestContext,
+    fault_mode: QuotaFaultMode,
 ) -> Result<(GatewayPolicySpec, bool), DispatchError> {
     if ctx.session_id.is_none() {
         return Err(DispatchError::PreAudit(anyhow!(
@@ -154,7 +157,10 @@ async fn dispatch_policy(
     }
 
     let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
-    let policy = resolver.resolve().await;
+    let policy = resolver
+        .resolve(fault_mode)
+        .await
+        .map_err(|e| DispatchError::PreAudit(anyhow!(PolicyDenied(e.to_string()))))?;
     let evaluation_session = super::evaluation::preflight(repos, ctx, &policy)
         .await
         .map_err(DispatchError::PreAudit)?;
@@ -186,15 +192,17 @@ async fn open_audit(
 async fn enforce_quota(
     db: &DbPool,
     repos: &super::GatewayRepositories,
-    ctx: &GatewayRequestContext,
     policy: &GatewayPolicySpec,
     audit: &GatewayAudit,
+    fault_mode: QuotaFaultMode,
 ) -> Result<(), DispatchError> {
+    let ctx = &audit.ctx;
     let reservation = quota::precheck_and_reserve(
         db,
         &repos.quota_buckets,
         &ctx.user_id,
         &policy.quota_windows,
+        fault_mode,
     )
     .await
     .map_err(DispatchError::Recorded)?;

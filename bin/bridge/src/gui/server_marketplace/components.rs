@@ -63,6 +63,14 @@ pub(super) fn list_skills(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
 }
 
 pub(super) fn list_agents(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
+    list_markdown_dir(dir)
+}
+
+pub(super) fn list_rules(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
+    list_markdown_dir(dir)
+}
+
+fn list_markdown_dir(dir: &Path) -> std::io::Result<Vec<MarketplaceItem>> {
     let rd = super::read_dir_optional(dir)?;
     let mut out = Vec::new();
     for entry in rd {

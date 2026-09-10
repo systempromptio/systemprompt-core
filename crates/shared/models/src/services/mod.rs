@@ -50,7 +50,7 @@ pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
     BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult,
-    GatewayRoute, GatewayState, OverrideRuleAction, ResponseFormatKind, RouteMatch,
+    GatewayRoute, GatewayState, OverrideRuleAction, QuotaFaultMode, ResponseFormatKind, RouteMatch,
     RouteRequirements, SystemPromptRule, slugify_pattern, synthesize_route_id,
 };
 pub use hooks::{

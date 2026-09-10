@@ -13,12 +13,13 @@ mod summary;
 
 use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
 use self::sentinel::persist_last_sync;
+pub use crate::last_sync::{
+    LastSyncState, ReplayStateError, last_synced_auto_update_policy, last_synced_enabled_hosts,
+    read_last_sync,
+};
 pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
-pub use replay::{
-    LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew,
-    last_synced_auto_update_policy, last_synced_enabled_hosts, read_last_sync,
-};
+pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use summary::SyncSummary;
 use summary::build_summary;
 

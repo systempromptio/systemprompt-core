@@ -97,7 +97,12 @@ pub(super) fn import_plugin(
 
     let config = PluginConfig {
         id: id.clone(),
-        name: id.as_str().to_owned(),
+        name: sidecar
+            .plugin
+            .title
+            .clone()
+            .filter(|t| !t.trim().is_empty())
+            .unwrap_or_else(|| id.as_str().to_owned()),
         description: description(&manifest, entry),
         version: version(&manifest, entry),
         enabled: sidecar.plugin.enabled,

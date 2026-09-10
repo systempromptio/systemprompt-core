@@ -3,7 +3,7 @@ use std::fs;
 
 use systemprompt_marketplace::catalog::{
     disabled_mcp_server_names, load_agents, load_artifacts, load_hooks, load_managed_mcp_servers,
-    load_plugins, load_skills,
+    load_plugins, load_rules, load_skills,
 };
 use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_models::auth::JwtAudience;
@@ -450,11 +450,11 @@ fn load_plugins_empty_config_returns_empty() {
     let no_disabled = std::collections::BTreeSet::new();
     let content = BundleContent {
         skills: &[],
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &no_disabled,
         artifacts: &[],
-        rules: &[],
         plugins_root: &plugins_root,
     };
     let plugins = load_plugins(&config, &content).expect("load plugins");
@@ -957,4 +957,61 @@ fn load_artifacts_drops_artifact_with_whitespace_only_content() {
         artifacts.is_empty(),
         "a present-but-whitespace-only content file is treated as empty and dropped",
     );
+}
+
+#[test]
+fn load_rules_no_rules_dir_returns_empty() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let result = load_rules(dir.path()).expect("no error when rules dir absent");
+    assert!(result.is_empty());
+}
+
+#[test]
+fn load_rules_disabled_rule_excluded() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let rule_dir = dir.path().join("rules").join("off_rule");
+    fs::create_dir_all(&rule_dir).expect("create rule dir");
+    fs::write(
+        rule_dir.join("config.yaml"),
+        "id: off_rule\nname: Off\ndescription: disabled\nenabled: false\n",
+    )
+    .expect("write config");
+
+    assert!(load_rules(dir.path()).expect("load rules").is_empty());
+}
+
+#[test]
+fn load_rules_reads_content_strips_frontmatter_and_hashes() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    for name in &["zebra_rule", "apple_rule"] {
+        let rule_dir = dir.path().join("rules").join(name);
+        fs::create_dir_all(&rule_dir).expect("create rule dir");
+        fs::write(
+            rule_dir.join("config.yaml"),
+            format!(
+                "id: {name}\nname: {name}\ndescription: a desc\nenabled: true\ntags:\n  - git\n"
+            ),
+        )
+        .expect("write config");
+        fs::write(
+            rule_dir.join("index.md"),
+            "---\ntitle: ignored\n---\nNever force-push a shared branch.\n",
+        )
+        .expect("write content");
+    }
+
+    let rules = load_rules(dir.path()).expect("load rules");
+    assert_eq!(rules.len(), 2);
+    assert_eq!(rules[0].id.as_str(), "apple_rule");
+    assert_eq!(rules[1].id.as_str(), "zebra_rule");
+
+    let rule = &rules[0];
+    assert_eq!(rule.description, "a desc");
+    assert_eq!(rule.tags, vec!["git".to_owned()]);
+    assert_eq!(
+        rule.instructions.trim(),
+        "Never force-push a shared branch."
+    );
+    assert!(!rule.instructions.contains("title: ignored"));
+    assert_eq!(rule.sha256.as_str().len(), 64);
 }

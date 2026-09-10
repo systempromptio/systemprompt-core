@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-api = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }

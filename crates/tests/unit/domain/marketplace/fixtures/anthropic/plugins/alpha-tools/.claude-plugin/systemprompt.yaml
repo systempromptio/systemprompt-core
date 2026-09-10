@@ -1,5 +1,6 @@
 schema: 1
 plugin:
+  title: Alpha Tools
   category: business
   enabled: true
   mcp_servers:

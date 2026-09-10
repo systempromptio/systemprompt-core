@@ -141,6 +141,7 @@ mod net;
 
 #[cfg(test)]
 mod subprocess;
+#[cfg(test)]
 mod subprocess_deployment_host;
 
 #[cfg(test)]
@@ -148,6 +149,7 @@ mod services_hooks;
 
 #[cfg(test)]
 mod services_other;
+#[cfg(test)]
 mod services_teams;
 
 #[cfg(test)]

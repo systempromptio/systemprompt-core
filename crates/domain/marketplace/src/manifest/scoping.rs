@@ -59,7 +59,13 @@ pub(super) fn prune_traced(filtered: &mut MarketplaceCandidate, trace: &mut dyn 
         .iter()
         .map(|a| a.id.as_str().to_owned())
         .collect();
+    let pre_prune_rules: Vec<String> = filtered
+        .rules
+        .iter()
+        .map(|r| r.id.as_str().to_owned())
+        .collect();
     filtered.prune_orphaned_artifacts();
+    filtered.prune_orphaned_rules();
     for id in pre_prune {
         if !filtered.artifacts.iter().any(|a| a.id.as_str() == id) {
             trace.record(TraceEvent {
@@ -67,6 +73,16 @@ pub(super) fn prune_traced(filtered: &mut MarketplaceCandidate, trace: &mut dyn 
                 id,
                 stage: TraceStage::OrphanPrune,
                 reason: "every plugin shipping this artifact was filtered out".to_owned(),
+            });
+        }
+    }
+    for id in pre_prune_rules {
+        if !filtered.rules.iter().any(|r| r.id.as_str() == id) {
+            trace.record(TraceEvent {
+                kind: TraceKind::Rule,
+                id,
+                stage: TraceStage::OrphanPrune,
+                reason: "every plugin shipping this rule was filtered out".to_owned(),
             });
         }
     }

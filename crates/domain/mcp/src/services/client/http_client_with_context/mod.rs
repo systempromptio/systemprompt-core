@@ -17,14 +17,15 @@ use rmcp::model::ClientCapabilities;
 use std::collections::HashMap;
 use systemprompt_models::RequestContext;
 use systemprompt_models::net::{
-    HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT, validate_outbound_url,
+    GuardedClientConfig, HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT,
+    guarded_client_builder, validate_outbound_url,
 };
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 use systemprompt_traits::ContextPropagation;
 
 #[derive(Clone, Debug)]
 pub struct HttpClientWithContext {
-    client: reqwest::Client,
+    client: Option<reqwest::Client>,
     context: RequestContext,
     forward_context: bool,
     outbound_headers: HashMap<HeaderName, HeaderValue>,
@@ -34,6 +35,12 @@ pub struct HttpClientWithContext {
 impl HttpClientWithContext {
     pub fn new(context: RequestContext) -> Self {
         Self::build(context, true, HashMap::new())
+    }
+
+    pub(super) fn client(&self) -> Result<&reqwest::Client, McpTransportError> {
+        self.client
+            .as_ref()
+            .ok_or(McpTransportError::ClientUnavailable)
     }
 
     async fn authorization_error(&self, header: &str) -> McpTransportError {
@@ -77,7 +84,15 @@ impl HttpClientWithContext {
             },
         };
 
-        let response = match self.client.get(url).send().await {
+        let Some(client) = self.client.as_ref() else {
+            tracing::error!(
+                metadata_url,
+                "no outbound http client for MCP resource metadata"
+            );
+            return None;
+        };
+
+        let response = match client.get(url).send().await {
             Ok(response) => response,
             Err(e) => {
                 tracing::debug!(
@@ -136,12 +151,17 @@ impl HttpClientWithContext {
         forward_context: bool,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
     ) -> Self {
-        let client = reqwest::Client::builder()
-            .connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT)
+        let config = GuardedClientConfig {
+            timeout: None,
+            connect_timeout: HTTP_STREAM_CONNECT_TIMEOUT,
+            ..GuardedClientConfig::default()
+        };
+        let client = guarded_client_builder(&config)
             .tcp_keepalive(Some(HTTP_KEEPALIVE))
             .pool_idle_timeout(HTTP_POOL_IDLE_TIMEOUT)
             .build()
-            .unwrap_or_else(|_| reqwest::Client::default());
+            .inspect_err(|e| tracing::error!(error = %e, "Guarded MCP client unavailable"))
+            .ok();
 
         Self {
             client,

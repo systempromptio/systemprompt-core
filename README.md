@@ -6,9 +6,7 @@
   <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
 </picture>
 
-# AI governance you compile into your own system.
-
-**Govern your AI. Build your own capabilities. Run it on your infrastructure.**
+# SystemPrompt Core
 
 SystemPrompt Core is the Rust library for a control plane you operate: identity, model access, MCP tool execution, policy and audit, with your domain capabilities compiled alongside them.
 
@@ -20,11 +18,11 @@ SystemPrompt Core is the Rust library for a control plane you operate: identity,
 
 </div>
 
-## Own the control boundary
+## Capabilities
 
 Connect supported AI clients to your gateway and expose governed MCP tools. Core binds requests to identity, evaluates access and records decisions and usage in PostgreSQL. You operate the runtime, choose the upstream providers and retain the audit data.
 
-| Capability | What it gives your system |
+| Capability | Interface |
 |---|---|
 | Identity | OAuth2/OIDC, authenticated sessions and access rules for users and resources. |
 | Model gateway | Anthropic-compatible `/v1/messages`, model discovery and configurable upstream routing. |
@@ -35,7 +33,7 @@ Connect supported AI clients to your gateway and expose governed MCP tools. Core
 
 Governance applies to traffic routed through these surfaces. Client-side tool execution needs the corresponding integration; a model gateway alone cannot govern every action on a laptop.
 
-## Core supplies primitives. You supply capability.
+## Extension model
 
 ```text
 SystemPrompt Core + your extensions + your configuration

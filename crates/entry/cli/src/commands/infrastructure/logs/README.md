@@ -1,23 +1,6 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### One audited path for every agent and tool call
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**CLI Reference**](https://github.com/systempromptio/systemprompt-core/tree/main/crates/entry/cli) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
-
 # Logs CLI Commands
 
-The log store is the record of what your agents actually did. Every AI request, tool call, and execution trace lands in one PostgreSQL table you own, and these commands read it back. This document is the complete reference for driving the logs CLI, and every command supports non-interactive mode for automation.
+Command reference for logs. Use the installed command’s `--help` output for its complete arguments and defaults.
 
 ---
 
@@ -921,14 +904,6 @@ sp --json infra logs trace list | jq '.data.traces[] | select(.status == "failed
 
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>CLI reference · Own how your organization uses AI.</sub>
-
-</div>
 
 ### logs governance report
 

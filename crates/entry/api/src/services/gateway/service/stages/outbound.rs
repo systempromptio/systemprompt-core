@@ -11,7 +11,7 @@ use systemprompt_models::services::providers::WireProtocol;
 use super::super::super::audit::GatewayAudit;
 use super::super::super::image_fetch::{ImageFetchPolicy, inline_url_images};
 use super::super::super::protocol::canonical::CanonicalRequest;
-use super::super::super::protocol::outbound::OutboundCtx;
+use super::super::super::protocol::outbound::{OutboundCtx, OutboundOutcome, PreparedBody};
 use super::super::DispatchError;
 use super::super::resolve::ResolvedUpstream;
 
@@ -94,6 +94,35 @@ pub(super) async fn resolve_url_images(
                 tracing::warn!(error = %e, "image-fetch audit fail failed");
             }
             Err(DispatchError::Recorded(failure.into()))
+        },
+    }
+}
+
+// Why: the upstream bracket closes here only for a buffered outcome. A streamed
+// one is still running when the adapter returns; the tap closes it when the
+// upstream event stream terminates.
+pub(super) async fn send_bracketed(
+    upstream: &ResolvedUpstream<'_>,
+    ctx: OutboundCtx<'_>,
+    body: &PreparedBody,
+    request_model: &str,
+    audit: &GatewayAudit,
+) -> Result<OutboundOutcome, DispatchError> {
+    audit.mark_upstream_start();
+    match upstream.adapter.send(ctx, body).await {
+        Ok(outcome) => {
+            if matches!(
+                outcome,
+                OutboundOutcome::Buffered(_) | OutboundOutcome::RawBuffered { .. }
+            ) {
+                audit.mark_upstream_end();
+            }
+            Ok(outcome)
+        },
+        Err(e) => {
+            audit.mark_upstream_end();
+            audit_upstream_failure(audit, upstream.provider.name.as_str(), request_model, &e).await;
+            Err(DispatchError::Recorded(e))
         },
     }
 }

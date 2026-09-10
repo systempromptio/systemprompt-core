@@ -4,8 +4,7 @@ Technical documentation for [systemprompt-core](https://systemprompt.io), a self
 for running governed AI agents (A2A agents, MCP servers, OAuth2/OIDC, and a provider
 gateway) on infrastructure you control.
 
-This set is committed with the repository and versioned alongside it. Every concrete
-claim is verified against the source it documents. It is the external counterpart to the
+This set is committed with the repository and versioned alongside it. Implementation references identify the source for each documented surface. It is the external counterpart to the
 local-only engineering notes kept elsewhere in the repository, which are not published.
 
 ## Start here
@@ -59,11 +58,10 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [security/threat-model.md](security/threat-model.md) — STRIDE analysis and residual risk.
 - [security/compliance-control-matrix.md](security/compliance-control-matrix.md) — HIPAA / SOC 2 / ISO 27001 mappings, with questionnaire pre-answers.
 - [security/stability-contract.md](security/stability-contract.md) — stable vs. tracking surface, versioning, deprecation.
-- [security/rfi-readiness-audit.md](security/rfi-readiness-audit.md) — posture snapshot for procurement, with known gaps.
+- [security/rfi-readiness-audit.md](security/rfi-readiness-audit.md) — implementation evidence and deployment requirements for security reviews.
 
 For a vendor evaluation, start with the compliance control matrix; it answers most standard
-security-questionnaire questions and cites the supporting code paths. Every claim here can be
-verified against the source under `crates/`.
+security-questionnaire questions and cites the supporting code paths. Use the referenced source and deployment configuration to verify applicable controls.
 
 Contact: **ed@systemprompt.io** for licensing, security, and RFI correspondence.
 

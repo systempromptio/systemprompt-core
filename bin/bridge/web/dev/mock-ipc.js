@@ -96,6 +96,10 @@ function defaultListing() {
     ...item(n, n.replace(/-/g, " "), `The ${n.replace(/-/g, " ")} dashboard`, `${state.plugins_dir}\\artifacts\\library.json`, "tenant"),
     plugins: ownersFor(i),
   }));
+  const rules = ["no-force-push", "typed-identifiers", "no-inline-comments"].map((n, i) => ({
+    ...item(n, n.replace(/-/g, " "), `The ${n.replace(/-/g, " ")} rule`, `${state.plugins_dir}\\rules\\${n}.md`, "org"),
+    plugins: ownersFor(i),
+  }));
   const plugins = PLUGIN_NAMES.slice(0, state.plugin_count || 0).map((n, i) => ({
     ...item(n, n, `${n} plugin`, `${state.plugins_dir}\\${n}`, "org"),
     version: `1.${i}.0`,
@@ -114,7 +118,7 @@ function defaultListing() {
   const agents = Array.from({ length: state.agent_count || 0 }, (_, i) =>
     item(`agent-${i + 1}`, `agent-${i + 1}`, null, `${state.plugins_dir}\\agents\\agent-${i + 1}`, "org"));
   return {
-    plugins, skills, agents, hooks: [], mcp, artifacts,
+    plugins, skills, rules, agents, hooks: [], mcp, artifacts,
     plugins_dir: state.plugins_dir || null,
     last_sync_diff: { installed: [], updated: [], removed: [] },
   };

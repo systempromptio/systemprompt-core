@@ -121,7 +121,9 @@ Patroni, Stolon, or a cloud-managed Postgres (RDS Multi-AZ, Cloud SQL HA, Azure 
 
 systemprompt connects with the role in `database_url`. Provision a least-privilege role for it. The platform issues only `INSERT` and `SELECT` against audit tables (`logs`, `analytics_events`, defined in `crates/infra/logging/schema/`) in normal operation — it never `UPDATE`s or `DELETE`s them.
 
-Grants are an **operator-provisioned control**, not shipped DDL: no migration or schema file in the codebase emits `GRANT`/`REVOKE`. Provision them yourself, for example:
+`governance_decisions` has a migration-installed `BEFORE UPDATE` trigger that rejects row updates while enabled. `DELETE` remains available for retention and erasure, subject to database grants. A table owner or superuser can disable the trigger; protect privileged credentials and use external retention where tamper resistance is required.
+
+Grants are otherwise an **operator-provisioned control**, not shipped DDL: no migration or schema file in the codebase emits `GRANT`/`REVOKE`. Provision them yourself, for example:
 
 ```sql
 -- Run as a database superuser the application does not use day-to-day
@@ -149,7 +151,7 @@ CREATE TRIGGER analytics_events_append_only
     FOR EACH ROW EXECUTE FUNCTION audit_tables_deny_update_delete();
 ```
 
-These triggers do not interfere with normal operation because the platform never issues `UPDATE`/`DELETE` on these tables.
+These triggers do not interfere with normal operation because the platform never issues `UPDATE`/`DELETE` on these tables. The equivalent trigger on `governance_decisions` is already installed by migration; do not add a second one.
 
 ### 3.4 Multi-replica and multi-region requirements
 
@@ -220,7 +222,7 @@ Run a DR drill annually. Capture per-step timing and update the runbook.
 | Key | Cadence | Procedure |
 |-----|---------|-----------|
 | Secrets-file envelope key (KMS / Vault / sops) | Per your key-management programme | Rotate in your KMS workflow; re-wrap the secrets file. The binary sees plaintext either way and does not participate in rotation. |
-| JWT signing key (RS256) | Annual, or on suspected compromise | Mint a new RSA-2048 keypair with `systemprompt admin keys generate`. New tokens carry the new `kid` and verify against the public set republished at `/.well-known/jwks.json`. Tokens under the previous `kid` validate until natural expiry while the JWKS retains the prior public key — no maintenance window for the rotation itself. |
+| JWT signing key (RS256) | Annual, or on suspected compromise | Mint a new RSA-2048 keypair with `systemprompt admin keys generate`. New tokens carry the new `kid` and verify against the public set republished at `/.well-known/jwks.json`. The in-process authority holds one active signing key. Replacing that key invalidates tokens with the previous `kid`; coordinate rotation with client reauthentication. |
 | OAuth at-rest pepper (`oauth_at_rest_pepper`) | Annual, or on suspected compromise | The pepper is the HMAC-SHA-256 key under which refresh-token ids and authorization codes are stored as digests. Rotating it invalidates every outstanding refresh token and pending authorization code; plan a maintenance window and force re-authentication, or stagger by issuing short-lived tokens before cutover. |
 | Trusted-issuer JWKS (federated subjects) | Tracked by the issuer, not this deployment | RFC 8693 subject tokens verify against the JWKS at each `security.trusted_issuers[*].jwks_uri`. The client refreshes entries on a bounded LRU; no local key material is held. |
 | MCP manifest-signing seed (`manifest_signing_secret_seed`) | On compromise, otherwise annual | Manifest signing is **Ed25519**. Rotate with `systemprompt admin bridge rotate-signing-key`, which writes a new base64 seed to the secrets file; re-sign and redeploy the manifest. Verification uses the corresponding Ed25519 public key, not the seed. This seed is distinct from the JWT signing key. |
@@ -231,7 +233,7 @@ Run a DR drill annually. Capture per-step timing and update the runbook.
 
 ### 7.1 Prometheus metrics
 
-The binary serves `GET /metrics` (Prometheus exposition, `text/plain; version=0.0.4`). The recorder is installed and the route mounted **unconditionally** — `/metrics` is always exposed on the API port (`crates/entry/api/src/services/server/metrics.rs`, `discovery.rs:160-172`). It carries no scrape authentication and sits on the public discovery router. **Restrict it at the reverse-proxy or network layer** — allow only your scrape mesh to reach `/metrics`, or front it with a proxy that requires a scrape token. Do not expose it to untrusted networks; route labels and traffic volume are visible to anyone who can reach the port.
+The Prometheus endpoint is served at `GET /metrics` on the separate listener configured by `server.metrics_port`. When that setting is unset, no metrics listener is started. The endpoint has no scrape authentication; restrict access to the configured port using network policy or an authenticated proxy.
 
 Recorded series (`metrics.rs:14-79`):
 

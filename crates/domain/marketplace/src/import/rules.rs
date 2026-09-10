@@ -2,7 +2,10 @@
 //!
 //! Rules may sit at the repo root or inside a plugin; both flatten into the one
 //! `rules/` directory the bundle format defines, so a name claimed twice is an
-//! error rather than a silent overwrite.
+//! error rather than a silent overwrite. Rule ids are canonically `snake_case`
+//! and the bundle lays them out as `rules/<kebab>.md`, so an imported file stem
+//! is normalised by replacing hyphens with underscores; `my-rule.md` and
+//! `my_rule.md` name the same rule and the duplicate check sees both.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +14,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use serde::Deserialize;
-use systemprompt_identifiers::PluginRuleId;
+use systemprompt_models::bridge::ids::RuleId;
 use systemprompt_models::services::frontmatter::split_frontmatter;
 use systemprompt_models::services::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig};
 
@@ -49,17 +52,18 @@ pub(super) fn import_rules_dir(
     files.sort();
 
     for path in files {
-        let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
             continue;
         };
-        if !seen.insert(name.to_owned()) {
+        let name = stem.replace('-', "_");
+        if !seen.insert(name.clone()) {
             return Err(MarketplaceError::Import {
                 path: path.display().to_string(),
                 message: format!("rule '{name}' is defined more than once in the tree"),
             });
         }
-        import_rule(name, &path, sink)?;
-        imported.push(name.to_owned());
+        import_rule(&name, &path, sink)?;
+        imported.push(name);
     }
 
     Ok(())
@@ -79,15 +83,21 @@ fn import_rule(name: &str, path: &Path, sink: &Sink) -> Result<(), MarketplaceEr
         None => RuleFrontmatter::default(),
     };
 
+    let id = RuleId::try_new(name).map_err(|e| MarketplaceError::Import {
+        path: path.display().to_string(),
+        message: e.to_string(),
+    })?;
     let doc = DiskRuleConfig {
-        id: PluginRuleId::new(name),
+        id,
         name: front
             .name
             .filter(|n| !n.trim().is_empty())
-            .unwrap_or_else(|| name.replace(['_', '-'], " ")),
+            .unwrap_or_else(|| name.replace('_', " ")),
         description: front.description.unwrap_or_default(),
         enabled: true,
         file: DEFAULT_RULE_CONTENT_FILE.to_owned(),
+        tags: Vec::new(),
+        hosts: Vec::new(),
     };
 
     let rel = Path::new("rules").join(name);

@@ -33,7 +33,7 @@ fn rehydrates_published_servers_from_fragment() {
 
     let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
-        rehydrate_from_disk(&slot);
+        rehydrate_from_disk(&slot).expect("rehydrate reads the on-disk fragment");
         let registry = snapshot(&slot);
         assert_eq!(registry.len(), 2);
         let first = registry.get("my-server").expect("normalized key present");
@@ -53,7 +53,7 @@ fn missing_fragment_leaves_registry_untouched() {
     let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
         let before = sorted_keys(&slot);
-        rehydrate_from_disk(&slot);
+        rehydrate_from_disk(&slot).expect("an absent fragment is not an error");
         assert_eq!(sorted_keys(&slot), before);
     });
 }
@@ -68,7 +68,9 @@ fn malformed_fragment_leaves_registry_untouched() {
     let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
         let before = sorted_keys(&slot);
-        rehydrate_from_disk(&slot);
+        let err = rehydrate_from_disk(&slot)
+            .expect_err("a malformed fragment is reported, not silently swallowed");
+        assert!(err.to_string().contains("mcp-servers.json"), "{err}");
         assert_eq!(sorted_keys(&slot), before);
     });
 }

@@ -4,6 +4,11 @@
 //! acquisition to a loopback mock; the reply target is the activity's
 //! `serviceUrl`, here the same mock. One server serves both `/token` and the
 //! Bot Connector activities endpoint so the full reply path is observable.
+//!
+//! `serviceUrl` is caller-supplied, so the reply travels on the guarded
+//! client: parse-time validation rejects a literal blocked address, and the
+//! connect-time resolver plus redirect policy reject a hop into a blocked
+//! range that parse-time validation cannot see.
 
 use systemprompt_identifiers::TeamsConversationId;
 use systemprompt_teams::TeamsError;
@@ -106,5 +111,32 @@ async fn reply_rejects_a_blocked_service_url_before_any_request() {
     assert!(
         matches!(err, TeamsError::OutboundUrl(_)),
         "expected OutboundUrl, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn reply_refuses_a_redirect_into_a_blocked_range() {
+    let server = MockServer::start().await;
+    mount_token(&server).await;
+    Mock::given(method("POST"))
+        .and(path("/v3/conversations/19:abc@thread.v2/activities"))
+        .respond_with(
+            ResponseTemplate::new(302)
+                .insert_header("location", "http://169.254.169.254/latest/meta-data"),
+        )
+        .mount(&server)
+        .await;
+
+    let attachments = systemprompt_teams::cards::render_card("hello");
+    let err = client(&server)
+        .reply(&server.uri(), &conversation(), attachments, 0)
+        .await
+        .expect_err("a redirect into a blocked range is refused");
+    let TeamsError::Http(source) = &err else {
+        panic!("expected Http, got {err:?}");
+    };
+    assert!(
+        source.is_redirect(),
+        "expected a redirect refusal, got {source}"
     );
 }

@@ -44,7 +44,7 @@
 ### Breaking
 
 - `File.metadata` is `sqlx::types::Json<FileMetadata>` (was `serde_json::Value`) and the fallible `File::metadata()` accessor is removed — use the typed field directly. `FileMetadata` gains a flattened `extra` map so historical metadata shapes decode losslessly.
-- `ContentFile.role` is `FileRole` (was `String`) and `parsed_role()` is removed. `FileRole` serde casing is now `snake_case`, so the OG-image role serializes as `"og_image"` (previously `"ogimage"`, which never matched the database representation).
+- `ContentFile.role` is `FileRole` (was `String`) and `parsed_role()` is removed. `FileRole` serde casing is now `snake_case`, so the OG-image role serializes as `"og_image"`.
 - `InsertFileRequest.metadata` is `FileMetadata`. Fields sourced from `systemprompt_traits::{InsertAiFileParams, AiGeneratedFile}` remain `serde_json::Value` at the trait boundary.
 
 ## [0.16.0] - 2026-06-22

@@ -1,11 +1,8 @@
-//! What the caller is told when a tapped stream ends.
+//! Terminal frames for completed and interrupted gateway streams.
 //!
-//! Two endings, and both used to be silence. A stream that stopped with no
-//! terminal event was audited as failed while the client saw only a closed
-//! socket, indistinguishable from a hang; a stream that ended cleanly on the
-//! Chat Completions surface still owed the caller its usage chunk and the
-//! `[DONE]` sentinel. Both are rendered here, through the inbound adapter, so
-//! each surface states them in its own wire's vocabulary.
+//! Uses the inbound adapter to render protocol-specific error, usage and
+//! completion frames. A stream without a terminal event is classified as
+//! aborted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

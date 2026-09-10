@@ -5,7 +5,7 @@ use systemprompt_marketplace::{
     MarketplaceCandidate, MarketplaceError, MarketplaceFilterError, MarketplaceMembership,
 };
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, SkillEntry,
+    AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
 use systemprompt_models::services::MarketplaceAccess;
 
@@ -557,4 +557,118 @@ fn retain_entries_leaves_skill_owners_untouched() {
         1,
         "ownership is assembly context, not an entry list"
     );
+}
+
+fn rule(id: &str) -> RuleEntry {
+    use systemprompt_models::bridge::ids::{RuleId, RuleName, Sha256Digest};
+    RuleEntry {
+        id: RuleId::try_new(id).expect("valid rule id"),
+        name: RuleName::try_new(id).expect("valid rule name"),
+        description: String::new(),
+        file_path: String::new(),
+        tags: vec![],
+        sha256: Sha256Digest::try_new(
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )
+        .expect("valid zero digest"),
+        instructions: String::new(),
+        hosts: Vec::new(),
+        plugins: Vec::new(),
+    }
+}
+
+fn candidate_with_rule_owners(
+    plugins: Vec<PluginEntry>,
+    rules: Vec<RuleEntry>,
+    owners: &[(&str, &[&str])],
+) -> MarketplaceCandidate {
+    use std::collections::{BTreeMap, BTreeSet as OwnerSet};
+    use systemprompt_models::bridge::ids::{PluginId, RuleId};
+
+    let rule_owners = owners
+        .iter()
+        .map(|(rule_id, plugin_ids)| {
+            (
+                RuleId::try_new(*rule_id).expect("valid rule id"),
+                plugin_ids
+                    .iter()
+                    .map(|p| PluginId::try_new(*p).expect("valid plugin id"))
+                    .collect::<OwnerSet<_>>(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    MarketplaceCandidate {
+        plugins,
+        rules,
+        rule_owners,
+        ..MarketplaceCandidate::default()
+    }
+}
+
+#[test]
+fn candidate_with_only_rules_is_not_empty() {
+    let c = MarketplaceCandidate {
+        rules: vec![rule("no-force-push")],
+        ..MarketplaceCandidate::default()
+    };
+    assert!(!c.is_empty());
+}
+
+#[test]
+fn prune_orphaned_rules_keeps_a_rule_with_a_surviving_owner() {
+    let mut c = candidate_with_rule_owners(
+        vec![plugin("kept-plugin")],
+        vec![rule("no-force-push")],
+        &[("no-force-push", &["kept-plugin", "filtered-plugin"])],
+    );
+
+    c.prune_orphaned_rules();
+
+    assert_eq!(c.rules.len(), 1);
+}
+
+#[test]
+fn prune_orphaned_rules_drops_a_rule_whose_every_owner_was_filtered_out() {
+    let mut c = candidate_with_rule_owners(
+        vec![plugin("kept-plugin")],
+        vec![rule("no-force-push")],
+        &[("no-force-push", &["filtered-plugin"])],
+    );
+
+    c.prune_orphaned_rules();
+
+    assert!(c.rules.is_empty());
+}
+
+#[test]
+fn prune_orphaned_rules_drops_a_rule_no_plugin_claims() {
+    let mut c =
+        candidate_with_rule_owners(vec![plugin("kept-plugin")], vec![rule("unowned-rule")], &[]);
+
+    c.prune_orphaned_rules();
+
+    assert!(c.rules.is_empty());
+}
+
+#[test]
+fn into_manifest_parts_stamps_surviving_owners_onto_each_rule() {
+    let c = candidate_with_rule_owners(
+        vec![plugin("kept-plugin")],
+        vec![rule("no-force-push")],
+        &[("no-force-push", &["kept-plugin", "filtered-plugin"])],
+    );
+
+    let (entries, context) = c.into_manifest_parts();
+
+    assert_eq!(entries.rules.len(), 1);
+    assert_eq!(
+        entries.rules[0]
+            .plugins
+            .iter()
+            .map(|p| p.as_str())
+            .collect::<Vec<_>>(),
+        vec!["kept-plugin"],
+    );
+    assert_eq!(context.rule_owners.len(), 1);
 }

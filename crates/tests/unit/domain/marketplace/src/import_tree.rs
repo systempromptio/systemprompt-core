@@ -166,7 +166,7 @@ fn the_imported_rules_load_through_the_rules_catalogue() {
         rules.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
         vec!["handover", "security"]
     );
-    assert!(rules[0].content.starts_with("A handover names"));
+    assert!(rules[0].instructions.starts_with("A handover names"));
 }
 
 #[test]
@@ -204,5 +204,62 @@ fn a_tree_without_a_marketplace_manifest_still_copies_the_base() {
         report
             .warnings
             .contains(&ImportWarning::NoMarketplaceManifest)
+    );
+}
+
+#[test]
+fn a_marketplace_only_tree_gets_no_root_config() {
+    let source = TempDir::new().expect("source tempdir");
+    let status = std::process::Command::new("cp")
+        .arg("-r")
+        .arg(fixture("anthropic"))
+        .arg(source.path().join("repo"))
+        .status()
+        .expect("copy fixture");
+    assert!(status.success());
+    let repo = source.path().join("repo");
+    std::fs::remove_dir_all(repo.join("systemprompt")).expect("drop the base tree");
+
+    let dest = TempDir::new().expect("tempdir");
+    let report = import_anthropic_tree(&repo, dest.path(), &ImportOptions::default())
+        .expect("import succeeds");
+
+    assert!(report.copied_base_dirs.is_empty());
+    assert!(
+        !dest.path().join("config").exists(),
+        "a tree that composes over a platform bundle must not claim config/"
+    );
+    assert!(
+        dest.path()
+            .join("marketplaces/acme-field/config.yaml")
+            .is_file()
+    );
+}
+
+#[test]
+fn sidecar_and_frontmatter_titles_become_display_names() {
+    let (dest, _report) = import_good();
+    let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
+        .expect("imported tree loads");
+
+    let marketplace = services
+        .marketplaces
+        .iter()
+        .find(|(id, _)| id.as_str() == "acme-field")
+        .map(|(_, m)| m)
+        .expect("marketplace");
+    assert_eq!(marketplace.name, "Acme Field Engineering");
+
+    let alpha = services.plugins.get("alpha-tools").expect("alpha plugin");
+    assert_eq!(alpha.name, "Alpha Tools");
+    let beta = services.plugins.get("beta-reports").expect("beta plugin");
+    assert_eq!(beta.name, "beta-reports", "no title falls back to the id");
+
+    let skill = dest.path().join("skills/alpha_discovery/config.yaml");
+    let text = std::fs::read_to_string(skill).expect("skill config");
+    assert!(text.contains("name: Alpha Discovery"), "{text}");
+    assert!(
+        text.contains("display_category: Field — Discovery"),
+        "{text}"
     );
 }

@@ -37,6 +37,7 @@ impl GatewayAudit {
         response_body: &Bytes,
     ) -> Result<i64> {
         let latency_ms = self.elapsed_ms();
+        let upstream_latency_ms = self.upstream_elapsed_ms();
         let effective_model = self.effective_model();
         usage.normalise_reasoning(&self.ctx.provider);
         let pricing_rates = self.completion_pricing(&effective_model);
@@ -51,6 +52,7 @@ impl GatewayAudit {
                 output_tokens: usage.output_tokens as i32,
                 cost_microdollars: cost,
                 latency_ms,
+                upstream_latency_ms,
                 cache_hit: usage.cache_read_tokens > 0,
                 cache_read_tokens: usage.cache_read_tokens as i32,
                 cache_creation_tokens: usage.cache_creation_tokens as i32,
@@ -78,6 +80,8 @@ impl GatewayAudit {
             tokens_used,
             cost_microdollars = cost,
             latency_ms,
+            upstream_latency_ms,
+            gateway_overhead_ms = upstream_latency_ms.map(|u| latency_ms.saturating_sub(u)),
             tool_calls = tool_calls.len(),
             "Gateway audit: request completed"
         );

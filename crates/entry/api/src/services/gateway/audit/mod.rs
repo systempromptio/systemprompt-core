@@ -7,6 +7,14 @@
 //! failed. [`GatewayRequestContext`] carries the identifiers and routing
 //! metadata bound to a single request.
 //!
+//! Two clocks run per request. `latency_ms` is the whole request as the caller
+//! experienced it; `upstream_latency_ms` brackets the provider call alone, so
+//! gateway overhead is the difference. The upstream bracket closes when the
+//! provider response is fully received — for a buffered outcome when the
+//! adapter returns, for a streamed one when the upstream event stream
+//! terminates — and never reopens, so a request that was retried or recovered
+//! reports the attempt that produced the response.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -70,6 +78,13 @@ pub struct GatewayAudit {
     pub ctx: GatewayRequestContext,
     served_model: Mutex<Option<String>>,
     started_at: Instant,
+    upstream: Mutex<UpstreamClock>,
+}
+
+#[derive(Debug, Default)]
+struct UpstreamClock {
+    started: Option<Instant>,
+    elapsed_ms: Option<i32>,
 }
 
 impl GatewayAudit {
@@ -83,6 +98,7 @@ impl GatewayAudit {
             ctx,
             served_model: Mutex::new(None),
             started_at: Instant::now(),
+            upstream: Mutex::new(UpstreamClock::default()),
         }
     }
 
@@ -158,7 +174,47 @@ impl GatewayAudit {
         Ok(())
     }
 
-    pub(crate) fn elapsed_ms(&self) -> i32 {
-        self.started_at.elapsed().as_millis().min(i32::MAX as u128) as i32
+    pub fn mark_upstream_start(&self) {
+        match self.upstream.lock() {
+            Ok(mut clock) => {
+                if clock.elapsed_ms.is_none() {
+                    clock.started = Some(Instant::now());
+                }
+            },
+            Err(e) => tracing::warn!(error = %e, "upstream clock mutex poisoned"),
+        }
     }
+
+    pub fn mark_upstream_end(&self) {
+        match self.upstream.lock() {
+            Ok(mut clock) => {
+                if clock.elapsed_ms.is_some() {
+                    return;
+                }
+                let Some(started) = clock.started else {
+                    return;
+                };
+                clock.elapsed_ms = Some(millis_i32(started));
+            },
+            Err(e) => tracing::warn!(error = %e, "upstream clock mutex poisoned"),
+        }
+    }
+
+    pub(crate) fn upstream_elapsed_ms(&self) -> Option<i32> {
+        match self.upstream.lock() {
+            Ok(clock) => clock.elapsed_ms,
+            Err(e) => {
+                tracing::warn!(error = %e, "upstream clock mutex poisoned");
+                None
+            },
+        }
+    }
+
+    pub(crate) fn elapsed_ms(&self) -> i32 {
+        millis_i32(self.started_at)
+    }
+}
+
+fn millis_i32(since: Instant) -> i32 {
+    since.elapsed().as_millis().min(i32::MAX as u128) as i32
 }

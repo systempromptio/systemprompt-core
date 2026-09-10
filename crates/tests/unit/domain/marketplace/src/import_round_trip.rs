@@ -1,13 +1,13 @@
 use std::path::Path;
 
-use systemprompt_identifiers::{MarketplaceId, PluginId, PluginRuleId};
+use systemprompt_identifiers::{MarketplaceId, PluginId};
 use systemprompt_loader::ConfigLoader;
-use systemprompt_marketplace::catalog::{RuleEntry, load_rules};
+use systemprompt_marketplace::catalog::load_rules;
 use systemprompt_marketplace::{
     BundleContent, ImportOptions, build_plugin_bundle, import_anthropic_tree,
 };
-use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
-use systemprompt_models::bridge::manifest::SkillEntry;
+use systemprompt_models::bridge::ids::{RuleId, RuleName, Sha256Digest, SkillId, SkillName};
+use systemprompt_models::bridge::manifest::{RuleEntry, SkillEntry};
 use systemprompt_models::services::marketplace::{
     MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceVisibility,
 };
@@ -105,15 +105,18 @@ fn skill_entry(id: &str, description: &str) -> SkillEntry {
 
 fn rule_entry(id: &str, body: &str) -> RuleEntry {
     RuleEntry {
-        id: PluginRuleId::new(id),
-        name: id.to_owned(),
+        id: RuleId::try_new(id).expect("rule id"),
+        name: RuleName::try_new(id).expect("rule name"),
         description: format!("{id} description"),
         file_path: format!("/nonexistent/rules/{id}/index.md"),
+        tags: Vec::new(),
         sha256: Sha256Digest::try_new(
             "0000000000000000000000000000000000000000000000000000000000000000",
         )
         .expect("zero digest"),
-        content: body.to_owned(),
+        instructions: body.to_owned(),
+        hosts: Vec::new(),
+        plugins: Vec::new(),
     }
 }
 
@@ -298,7 +301,7 @@ fn a_generated_tree_imports_back_to_the_configuration_it_came_from() {
         vec!["handover"]
     );
     assert_eq!(
-        round_tripped_rules[0].content,
+        round_tripped_rules[0].instructions,
         "A handover names the account owner."
     );
     assert_eq!(services.skills.skills.len(), plugin.skills.include.len());

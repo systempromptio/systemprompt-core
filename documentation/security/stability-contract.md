@@ -1,14 +1,12 @@
 # Stability Contract
 
-This document defines what is stable in systemprompt.io and what is not. It is the answer to "you're on 0.49.x — is this safe to build against?"
+This document defines what is stable in systemprompt.io and what is not. It describes compatibility expectations for consumers.
 
 ## Current Version
 
 `0.49.x` across the workspace. See root `Cargo.toml` for the exact current version.
 
-`1.0` has not been cut. The reason is specific: systemprompt integrates with AI provider APIs (Anthropic Messages API, OpenAI Chat Completions, Gemini, the MCP spec, the A2A protocol) that are themselves evolving rapidly, often under research-preview terms. Declaring `1.0` while the upstream surface is still in motion would claim a level of stability the full binary cannot honestly provide.
-
-The rest of this document separates the parts of systemprompt that **are** stable from the parts that track upstream and must be allowed to move. The customer-facing commitment is in §3.
+The workspace uses pre-1.0 versioning. The sections below distinguish maintained interfaces from provider and protocol adapters that track upstream changes. Version-specific breaking changes and migration requirements are recorded in the changelog.
 
 ## 1. Stable Surface
 
@@ -17,12 +15,13 @@ The following surfaces are considered stable today. Breaking changes to these re
 ### 1.1 Governance API (HTTP surface)
 
 - `POST /v1/messages` — Anthropic-dialect inference. Request and response shapes, error codes, HTTP semantics
-- `GET /health` and `GET /api/v1/health` — liveness probes (unauthenticated)
+- `GET /livez` and `GET /readyz` — liveness and readiness probes (unauthenticated)
+- `GET /health` and `GET /api/v1/health` — health summaries (unauthenticated)
 - `GET /api/v1/health/detail` — rich health detail (authenticated)
-- `GET /metrics` — Prometheus scrape format (metric names and labels); always mounted, restrict at the network/proxy layer
+- `GET /metrics` — Prometheus scrape format (metric names and labels); served on `server.metrics_port` when configured; restrict access to that listener
 - OAuth2/OIDC discovery and callback routes under `/api/v1/core/oauth` and `/.well-known/`
 
-There are no Kubernetes-style `/health/live` or `/health/ready` routes. `/ready` and `/healthz` appear in the session middleware's skip-list so that they never acquire a session if they are ever added, but **neither is routed today and both return 404** — do not wire a probe against them. Wire k8s liveness against `/health` (or `/api/v1/health`) and use `/api/v1/health/detail` for an authenticated readiness check.
+Use `/livez` for unauthenticated process liveness and `/readyz` for bootstrap, database and shutdown readiness. `/health` provides an operational summary; `/api/v1/health/detail` requires authentication.
 
 ### 1.2 Audit Event Schema
 
@@ -64,15 +63,10 @@ Public traits in `crates/shared/extension/`:
 - the `register_extension!` and `extension_migrations!` macro contracts
 - the capability traits an extension declares against (`HasConfig`, `HasDatabase`, `HasHttpClient`, `HasEventBus`, and peers in `capabilities.rs`) and the `ExtensionContext` trait
 
-> The earlier typed sub-traits — `SchemaExtensionTyped`, `ApiExtensionTyped`,
-> `JobExtensionTyped`, `ProviderExtensionTyped` — **no longer exist**. They were replaced by
-> the single `Extension` trait plus the capability traits above. This document listed them as
-> stable surface until 2026-08-28; that was a documentation error, not a stability break, and
-> the replacement had already shipped.
 
 ### 1.6 Typed Identifiers
 
-`crates/shared/identifiers/` — `UserId`, `TaskId`, `TenantId`, etc. Their wire format (string prefix + ULID/UUID) is stable.
+`crates/shared/identifiers/` — `UserId`, `TaskId`, `TenantId`, etc. Wire formats are type-specific; preserve each identifier's serialization contract when integrating.
 
 ### 1.7 CLI
 
@@ -108,9 +102,7 @@ can be pointed at systemprompt unchanged:
 
 - `POST /v1/messages` (Anthropic) is **Stable Surface** — see §1.1
 - `POST /v1/responses` and `POST /v1/chat/completions` (OpenAI) are **tracking surface**. They
-  mirror upstream OpenAI request/response shapes, so they move when those shapes move. The
-  Chat Completions surface shipped in 0.40.0 and has not yet completed a minor cycle
-  unchanged, which is one of the §4 conditions for `1.0`.
+  mirror upstream OpenAI request/response shapes, so they move when those shapes move.
 - `GET /v1/models` is tracking surface; the listing is filtered per `x-inference-protocol`
 
 ### 2.5 Newer Domains
@@ -145,16 +137,8 @@ For a customer on a supported version:
 - The A2A protocol tracked has reached a stable published version
 - Customer-facing upgrade friction has been demonstrably low across at least one minor transition
 
-At `1.0` the commitments in §3 become semver-formal. The date is outcome-driven, not calendar-driven, and the conditions above are not yet met — the MCP revision we track (`2026-07-28`) is still moving and the inbound dialect surface last grew in 0.40.0.
+A 1.0 release requires review of these criteria against the supported protocol revisions and upgrade tests.
 
 ## 5. Reporting Stability Issues
 
 If you find a stable-surface change that shipped without a `BREAKING` notice, report it via the SECURITY.md channel or open a GitHub issue. Undocumented stability breaks are treated as defects and fixed in the next point release.
-
-## 6. Revision
-
-| Date | Change |
-|------|--------|
-| 2026-04-23 | Initial public publication. |
-| 2026-05-22 | Replaced the non-existent `/health/live` and `/health/ready` entries with the real `/health`, `/api/v1/health`, `/api/v1/health/detail`, and `/metrics` surface. Corrected the config path to `crates/shared/models/src/config/mod.rs`. |
-| 2026-08-28 | Fidelity pass against `next` @ 0.41.0 after ~29 minors of drift. Re-pinned every version reference from 0.39.x to 0.41.x. Classified the inbound provider dialects (§2.4) — the OpenAI Chat Completions surface shipped in 0.40.0 with no stability classification at all. Classified the four post-0.12 domains (§2.5), previously unmentioned. Corrected §1.5, which promised stable surface for four typed extension sub-traits that have been removed from the codebase. Clarified that `/ready` and `/healthz` are session-skip-listed but not routed, so no probe should target them. Corrected the licence spelling to BUSL-1.1. Replaced the "second half of 2026" `1.0` target, which has arrived, with the outstanding conditions. | <!-- version-ok: revision log -->

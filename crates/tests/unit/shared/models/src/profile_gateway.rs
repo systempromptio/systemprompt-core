@@ -6,8 +6,8 @@ use systemprompt_models::profile::default_resource_audiences;
 use systemprompt_models::services::{
     ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
     ModelGovernance, ModelPricing, OverrideRuleAction, ProviderEntry, ProviderModel,
-    ProviderRegistry, ResponseFormatKind, RouteMatch, RouteRequirements, SystemPromptRule,
-    WireProtocol, slugify_pattern, synthesize_route_id,
+    ProviderRegistry, QuotaFaultMode, ResponseFormatKind, RouteMatch, RouteRequirements,
+    SystemPromptRule, WireProtocol, slugify_pattern, synthesize_route_id,
 };
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
@@ -547,6 +547,28 @@ fn gateway_spec_round_trips_default_provider() {
 }
 
 #[test]
+fn quota_fault_mode_defaults_to_open_and_parses_closed() {
+    let spec = GatewayConfigSpec::default();
+    assert_eq!(spec.quota_fault_mode, QuotaFaultMode::Open);
+    assert!(!spec.resolve().quota_fault_mode.is_closed());
+
+    let closed: GatewayConfigSpec =
+        serde_yaml::from_str("enabled: true\nquota_fault_mode: closed\n").expect("parse");
+    assert_eq!(closed.quota_fault_mode, QuotaFaultMode::Closed);
+    assert!(closed.resolve().quota_fault_mode.is_closed());
+}
+
+#[test]
+fn an_unknown_quota_fault_mode_is_refused_at_load() {
+    let err = serde_yaml::from_str::<GatewayConfigSpec>("quota_fault_mode: warn\n")
+        .expect_err("unknown mode must not be tolerated");
+    assert!(
+        err.to_string().contains("quota_fault_mode") || err.to_string().contains("variant"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
 fn exact_pattern_does_not_match_suffixed_alias() {
     assert!(!route("gpt-5.4").matches("gpt-5.4-mini"));
     assert!(route("gpt-*").matches("gpt-5.4-mini"));
@@ -1031,6 +1053,7 @@ fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
         default_provider: None,
         default_model: None,
         allow_unlisted_models: false,
+        quota_fault_mode: QuotaFaultMode::Open,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),
         system_prompt_overrides: Vec::new(),

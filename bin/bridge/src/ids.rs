@@ -6,7 +6,7 @@
 
 pub use systemprompt_models::bridge::ids::{
     IdValidationError, LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId,
-    Sha256Digest, SkillId, SkillName, ToolName, ToolPolicy,
+    RuleId, RuleName, Sha256Digest, SkillId, SkillName, ToolName, ToolPolicy,
 };
 
 #[macro_export]

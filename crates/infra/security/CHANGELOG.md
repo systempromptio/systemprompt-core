@@ -7,11 +7,16 @@
 - `authz::reconcile::reconcile_services_authz` is the one projection of a services tree into the authz tables: the gateway-route catalog first, then `access-control/roles.yaml` against it, then every marketplace `access` block. Route ids are content-addressed, so a rule naming a route the tree no longer defines is rejected rather than materialised.
 - `IngestScope` declares what one ingestion pass owns, by entity kind. A prune removes a row only when the row's source is the ingesting source *and* its entity falls inside that scope, so one services bundle cannot revoke another's grants and no pass touches what an operator authored in the dashboard.
 - `manifest_signing::sign_with_seed`, `pubkey_b64_from_seed`, `verify_with_pubkey`, `canonical_manifest_bytes` and `key_id_for_pubkey` sign and verify a detached ed25519 signature over a canonicalised manifest, for publisher keys held outside the instance. The instance signing seed is not reused for them.
+- Migration `018_governance_decisions_append_only` installs a `BEFORE UPDATE` trigger on `governance_decisions` that raises `restrict_violation` on every `UPDATE`, for every role including the table owner. A recorded decision is evidence of what was authorised for whom, so rewriting one is an audit-integrity failure; a backfill that genuinely must rewrite rows has to disable the trigger explicitly. `DELETE` is deliberately not blocked, because retention and erasure need it.
 
 ### Changed
 
 - **Breaking:** `access_control_rules` carries a `source` column, mirroring `access_control_entities`. Ingestion writes `bundle:<name>` for a fetched tree and `yaml` for the baked one; dashboard writers write `dashboard`, and ingestion never updates or deletes a `dashboard`-sourced row. Existing rows migrate to `yaml`.
 - Reconcile warns per rule when the role, group or project a rule names does not exist, so an inert rule is visible rather than silently granting nothing.
+
+### Fixed
+
+- The governance authz hook and the JWKS client build their outbound clients through `systemprompt_models::net::guarded_client`, so an issuer or hook URL whose hostname resolves into a blocked range is refused when the socket is opened rather than only when the URL is parsed. Redirects are re-checked on every hop.
 
 ## [0.49.0] - 2026-09-09
 
@@ -51,7 +56,7 @@
 - `ChainSources` is many-to-many: `marketplaces`, and a set of owning marketplaces per plugin and per member, replace the single active marketplace. `ParentChainIndex` loads every enabled marketplace in one bulk pair of queries and enumerates one chain per owner, so query count is still independent of catalogue size.
 - Marketplace `access.rules` are projected into `access_control_rules` alongside roles, one row per value in the extension subject-dimension band the rule names, honouring `access: deny`. Orphan deletion is scoped to the `(entity_id, rule_type)` pairs the config still declares. A band the config names is pruned to exactly what it names; a band it no longer mentions is left in place rather than swept up, so rows another writer owns survive. A malformed slug is rejected before the transaction opens.
 - `member_attribute_floor` merges the `access.attributes` bags of every enabled marketplace that includes the entity, in marketplace-id order with first key wins, and warns on a conflicting key rather than resolving it silently. It now returns an owned map.
-- The high-entropy secret backstop exempts provider-signed reasoning blobs. Every reasoning-capable provider hands the client an opaque signed blob and requires it back verbatim on the next turn — Gemini's `thoughtSignature`, Anthropic's `signature` on a `thinking` block and `data` on a `redacted_thinking` block, OpenAI's `encrypted_content` on a `reasoning` item — and all four are dense base64, so an enforcing `secret_scan` stage denied every multi-turn thinking continuation. `SignatureExemptions` suppresses the entropy detector at those JSON paths only: the two `thoughtSignature` spellings unconditionally, the three generically named keys only when the enclosing object declares the reasoning content type that owns them. Every vendor pattern still runs there, so a PEM block or an AWS key smuggled into one of those fields is still reported.
+- the entropy detector exempts provider-signed reasoning fields at their defined JSON paths and, for generic field names, only within the corresponding reasoning block type. Vendor-specific credential patterns still scan those fields.
 
 ### Changed
 
@@ -68,7 +73,7 @@
 
 ### Fixed
 
-- The high-entropy secret backstop no longer reports filesystem paths as credentials. `/` is a token character rather than a delimiter, so an absolute path was scored as one token; a macOS `$TMPDIR` (`/var/folders/<12>/<30>/T/`) then satisfied every check, its random segment supplying the entropy and its `/T/` segment the uppercase the shape test requires. The measured ratio falls either side of the 0.80 threshold depending on the machine's random segment, so identical code denied one Mac and not another. Path-shaped tokens are exempt now, scored per `/`-separated segment so key material inside a path is still reported, and a token carrying `+` or `=` stays in scope because those are base64's own characters.
+- entropy scanning evaluates filesystem paths per slash-separated segment. Path-shaped tokens are exempt from whole-token detection; tokens containing `+` or `=` remain eligible for base64 credential detection.
 
 ## [0.44.0] - 2026-09-02
 
@@ -144,7 +149,7 @@
 ### Fixed
 
 - The entropy backstop exonerates `sha256/384/512`-prefixed tokens only when the payload decodes to exactly the digest length — SRI hashes pass, smuggled credentials behind a digest prefix still deny. The structured-payload discriminator retries base64 after a short alphanumeric prefix.
-- `entropy_from_yaml` reports unknown keys and mistyped values at error level instead of silently falling back to defaults.
+- `entropy_from_yaml` reports unknown keys and mistyped values at error level instead of falling back to defaults.
 
 ## [0.38.0] - 2026-08-25
 
@@ -187,7 +192,7 @@
 
 ### Added
 
-- `governance.enabled: false` switches the whole chain off in one key, leaving the per-policy declarations intact so the configuration survives being turned back on. `GovernanceConfig::validate` is the strict boot-time loader — it returns the error so a misconfigured installation refuses to start, where `load` stays lenient for the request path. The fallback direction is deliberate: defaults enable every policy, so an unreadable file yields more enforcement than it declared, never less, and governance cannot be disabled by deleting the file.
+- `governance.enabled: false` disables the chain while retaining policy declarations. `GovernanceConfig::validate` rejects invalid startup configuration. Request-path `load` retains enforcement-enabled defaults when configuration cannot be read.
 - `secret_scan` takes an optional `entropy` block (`enabled`, `min_len`, `threshold`, `allowlist`) configuring the high-entropy backstop. An absent block, an absent key, or a key of the wrong shape falls back to the built-in default — a typo must not silently disable credential detection — and an `allowlist` regex that fails to compile is skipped with an error rather than failing the policy. `policy::secrets::detect_secrets_with` applies a caller-supplied `EntropyConfig`.
 - `GovernanceEngine::global` returns the process-wide engine, so every enforcement point charges one rate limiter. The buckets are instance-scoped, and a second engine gives its callers their own budget and silently doubles every operator limit — the MCP governance webhook and the inference gateway must share one. `GovernanceEngine::from_config` remains for tests and for callers that genuinely want an isolated chain.
 - `DecisionAudit.context_id` records the conversational context a governed call belongs to, omitted from the serialized blob when absent. The MCP webhook knows no context; the gateway does, and without it an inference decision cannot be joined back to the request it judged.

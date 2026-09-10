@@ -201,6 +201,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         }),
         plugins,
         skills: vec![],
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![

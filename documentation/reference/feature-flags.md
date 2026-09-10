@@ -1,87 +1,54 @@
-# Facade Feature Flags Reference
+# Facade feature flags
 
-Complete feature matrix for the `systemprompt` facade crate. Every flag below is defined in `systemprompt/Cargo.toml` under `[features]`. Features are additive: enabling a flag pulls in the listed dependency crates and any features it implies.
-
-The facade re-exports the workspace crates behind feature gates so a consumer depends on one crate and selects only the layers it needs.
-
-## Usage
+The `systemprompt` facade exposes additive Cargo features. The default is `core`.
+Disable defaults with `default-features = false` when selecting an independent feature.
 
 ```toml
 [dependencies]
 systemprompt = { version = "0.49", features = ["api"] }
 ```
 
-The default feature set is `core`. To take only a non-default layer, disable defaults:
+## Feature matrix
 
-```toml
-[dependencies]
-systemprompt = { version = "0.49", default-features = false, features = ["database"] }
-```
+Direct dependencies and feature implications from [the facade manifest](../../systemprompt/Cargo.toml).
+Cargo enables the transitive dependencies of each selected feature.
 
-## Flag matrix
-
-| Flag | Pulls in (crates) | Implies (features) | Enables |
-|------|-------------------|--------------------|---------|
-| `default` | — | `core` | Default build. |
-| `core` | `systemprompt-traits`, `systemprompt-models`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-template-provider` | — | Core traits, data models, typed identifiers, the extension framework, template provider traits. |
-| `database` | `systemprompt-database`, `sqlx` | — | SQLx database abstraction and the `DbPool`. |
-| `config` | `systemprompt-config` | — | Profile/secrets configuration loaders (bootstrap sequence). |
-| `mcp` | `rmcp` | — | MCP (Model Context Protocol) support via the `rmcp` crate, including `rmcp-macros`. |
-| `api` | `systemprompt-api`, `systemprompt-runtime`, `axum` | `core`, `database` | HTTP server, `AppContext`, runtime lifecycle. `systemprompt-runtime` is built with its `geolocation` feature. |
-| `cloud` | `systemprompt-cloud` | — | Cloud API client, credentials, OAuth. |
-| `logging` | `systemprompt-logging` | — | Tracing setup. |
-| `loader` | `systemprompt-loader` | — | File/module discovery. |
-| `events` | `systemprompt-events` | — | Event bus and SSE. |
-| `client` | `systemprompt-client` | — | HTTP API client. |
-| `security` | `systemprompt-security` | — | JWT, auth, manifest signing. |
-| `cli` | `systemprompt-cli` | — | CLI entry point for product binaries (standalone). |
-| `runtime` | `systemprompt-extension` | `cli` | Runtime builder for embedding systemprompt as a library. |
-| `full` | all domain crates + `systemprompt-files`, `systemprompt-generator` (with `image-processing`), `systemprompt-scheduler` | `api`, `mcp`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security`, plus `systemprompt-logging/cli` | Everything: all domain modules, all infrastructure layers, and the CLI. |
-
-The crate names map to the workspace layers in `crates/`: shared (`traits`, `models`, `identifiers`, `extension`, `template-provider`), infra (`database`, `config`, `cloud`, `logging`, `loader`, `events`, `client`, `security`), domain (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `marketplace`), app (`runtime`, `scheduler`, `generator`), entry (`api`, `cli`).
-
-## Inter-flag dependencies
-
-These implications are encoded directly in `[features]`; enabling the left brings in the right automatically.
-
-| Flag | Transitively enables |
-|------|----------------------|
+| Feature | Direct dependencies and feature implications |
+|---------|---------------------------------------------|
 | `default` | `core` |
-| `api` | `core`, `database` (and therefore `systemprompt-traits`, `systemprompt-models`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-template-provider`, `systemprompt-database`, `sqlx`) |
-| `runtime` | `cli` |
-| `full` | `api`, `mcp`, `cloud`, `cli`, `logging`, `config`, `loader`, `events`, `client`, `security` (and everything those imply) |
+| `core` | `dep:systemprompt-traits`, `dep:systemprompt-models`, `dep:systemprompt-identifiers`, `dep:systemprompt-extension`, `dep:systemprompt-template-provider` |
+| `database` | `dep:systemprompt-database`, `dep:sqlx` |
+| `config` | `dep:systemprompt-config` |
+| `mcp` | `dep:rmcp` |
+| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-runtime`, `dep:axum` |
+| `cloud` | `dep:systemprompt-cloud` |
+| `logging` | `dep:systemprompt-logging` |
+| `loader` | `dep:systemprompt-loader` |
+| `events` | `dep:systemprompt-events` |
+| `storage` | `dep:systemprompt-storage` |
+| `client` | `dep:systemprompt-client` |
+| `security` | `dep:systemprompt-security` |
+| `cli` | `dep:systemprompt-cli` |
+| `runtime` | `cli`, `dep:systemprompt-extension` |
+| `evaluation` | `dep:systemprompt-evaluation` |
+| `analytics` | `dep:systemprompt-analytics` |
+| `slack` | `dep:systemprompt-slack` |
+| `teams` | `dep:systemprompt-teams` |
+| `full` | `api`, `mcp`, `cloud`, `cli`, `dep:systemprompt-agent`, `dep:systemprompt-ai`, `dep:systemprompt-mcp`, `dep:systemprompt-oauth`, `dep:systemprompt-users`, `dep:systemprompt-content`, `analytics`, `evaluation`, `dep:systemprompt-marketplace`, `dep:systemprompt-scheduler`, `dep:systemprompt-generator`, `logging`, `systemprompt-logging/cli`, `config`, `dep:systemprompt-files`, `loader`, `events`, `storage`, `client`, `security` |
 
-`full` is the only flag that aggregates the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `analytics`, `marketplace`, `scheduler`, `generator`, `files`). There is no narrower flag that selects an individual domain crate through the facade.
+`dep:` selects an optional dependency; an unprefixed name selects another feature.
+`dependency/feature` enables a feature on that dependency. `full` excludes the opt-in
+`slack` and `teams` integrations. Enable them explicitly when required.
 
-## `docs.rs`
+The `mcp` feature exposes `rmcp`; the `systemprompt-mcp` domain crate is included by
+`full`. `runtime` enables the CLI-backed runtime builder. The `api` dependency on
+`systemprompt-runtime` enables its `geolocation` feature.
 
-The crate is documented on docs.rs with `all-features = true` and the `docsrs` cfg (`systemprompt/Cargo.toml:151`), so the published documentation reflects the `full` surface.
+## Examples and API documentation
 
-## Bundled examples
+The bundled `extension`, `database`, `api` and `cli` examples require `core`, `database`,
+`api` and `cli`, respectively. Published docs.rs documentation enables all features,
+including integrations excluded from `full`.
 
-Each example under `systemprompt/examples/` declares the feature it needs (`required-features`):
-
-| Example | Required feature |
-|---------|------------------|
-| `extension` | `core` |
-| `database` | `database` |
-| `api` | `api` |
-| `cli` | `cli` |
-
-## Selecting a flag set
-
-| Goal | Feature set |
-|------|-------------|
-| Author a compile-time extension (traits, models, identifiers) | `core` (default) |
-| Query the database directly | `database` |
-| Load a `profile.yaml` and secrets | `config` |
-| Embed the HTTP server and `AppContext` | `api` |
-| Build a standalone CLI binary | `cli` |
-| Embed the runtime builder as a library | `runtime` |
-| Everything (product binary) | `full` |
-
-## Related
-
-- [HTTP API reference](./http-api.md) — the routes the `api` feature mounts.
-- [Extensions](../concepts/extensions.md) — the framework the `core` feature provides.
-- [Profile configuration](./configuration.md) — the schema the `config` feature loads.
+See [extensions](../concepts/extensions.md) for registration contracts and
+[HTTP API](http-api.md) for server routes.

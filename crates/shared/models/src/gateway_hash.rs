@@ -4,7 +4,7 @@
 //!
 //! The hash is FNV-1a 64-bit over a length-prefixed sequence of
 //! `(label, bytes)` segments. It is **not** cryptographic — it is a
-//! collision-resistant cache key that the bridge proxy and the gateway
+//! non-cryptographic cache key that the bridge proxy and the gateway
 //! `InboundAdapter`s can compute independently and arrive at the same
 //! gateway conversation id for the same first turn of a conversation.
 //!

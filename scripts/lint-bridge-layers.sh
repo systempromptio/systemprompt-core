@@ -15,10 +15,10 @@ src="bin/bridge/src"
 
 order="brand ids basedirs windows_acl fsutil hash i18n sysproc winproc verdict user_alert stdio obs activity tasks progress web_assets ipc_types cowork_compat single_instance schedule probe_cache
 config
-claude_policy
+claude_policy webview2
 buildinfo window_state
 gateway
-mcp_registry
+mcp_registry last_sync
 auth
 validate update
 proxy_probe

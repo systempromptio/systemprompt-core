@@ -26,8 +26,8 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::bridge::ids::ManifestSignature;
 use crate::bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, PluginId, Sha256Digest, SkillId, SkillName, ToolName,
-    ToolPolicy,
+    LibraryArtifactId, ManagedMcpServerName, PluginId, RuleId, RuleName, Sha256Digest, SkillId,
+    SkillName, ToolName, ToolPolicy,
 };
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::bridge_policy::AutoUpdatePolicy;
@@ -77,6 +77,8 @@ pub struct SignedManifest {
     pub plugins: Vec<PluginEntry>,
     #[serde(default)]
     pub skills: Vec<SkillEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rules: Vec<RuleEntry>,
     #[serde(default)]
     pub agents: Vec<AgentEntry>,
     #[serde(default)]
@@ -156,6 +158,22 @@ pub struct ArtifactEntry {
 pub struct SkillEntry {
     pub id: SkillId,
     pub name: SkillName,
+    pub description: String,
+    pub file_path: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub sha256: Sha256Digest,
+    pub instructions: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugins: Vec<PluginId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuleEntry {
+    pub id: RuleId,
+    pub name: RuleName,
     pub description: String,
     pub file_path: String,
     #[serde(default)]

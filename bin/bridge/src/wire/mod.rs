@@ -1,9 +1,7 @@
-//! The GUI wire: every payload the webview is written against, exported to
-//! TypeScript by `just bridge-bindings` and checked by `bridge-bindings-check`.
+//! GUI payload types exported by `just bridge-bindings`.
 //!
-//! Nothing here touches winit, wry or the tray, so the module builds on every
-//! target — the front end used to be written against JSON that only a
-//! Windows or macOS build could name.
+//! `bridge-bindings-check` verifies the generated TypeScript definitions.
+//! The module is independent of platform GUI libraries.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

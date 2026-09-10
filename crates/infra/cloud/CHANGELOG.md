@@ -47,7 +47,7 @@
 
 - **Breaking:** The signup path is removed: the `checkout` module (Paddle checkout + provisioning watcher), `tenants::provisioning` (`TenantProvisioningService`, `swap_to_external_host`), the checkout/provisioning SSE streams, and the `create_checkout` / `get_plans` / `report_activity` / `restart_tenant` / `retry_provision` / `unset_secret` / `set_external_db_access` / `list_secrets` / custom-domain / `cancel_subscription` API methods. The `CheckoutFlow`, `SseStream`, and `ProvisioningFailed` error variants and the `constants::checkout` / `constants::regions` modules are gone.
 
-- **Breaking:** `SessionStore::load` returns `CloudResult<Option<Self>>`: a missing store file is `Ok(None)` and an unparseable one is the new `CloudError::SessionStoreCorrupted`, which names the file and the `admin session switch` recovery command. `load_or_create` now propagates that error instead of silently substituting an empty store. Migrate by handling the error, or use the new `load_or_reset` in flows that overwrite the store anyway.
+- **Breaking:** `SessionStore::load` returns `CloudResult<Option<Self>>`: a missing store file is `Ok(None)` and an unparseable one is the new `CloudError::SessionStoreCorrupted`, which names the file and the `admin session switch` recovery command. `load_or_create` now propagates that error instead of substituting an empty store. Migrate by handling the error, or use the new `load_or_reset` in flows that overwrite the store anyway.
 
 ### Added
 
@@ -90,7 +90,7 @@
 
 ### Security
 
-- Cloud trusted-proxy defaults trust Fly's public proxy range `66.241.64.0/18` (`proxies::FLY_PUBLIC_RANGES`) alongside the private `fc00::/7` peer range. Traffic entering through Fly's public edge appends a hop from that range to `X-Forwarded-For`; without it the resolver attributed every such session to the Fly proxy — an all-US geo skew observed in production on 2026-07-24. Existing cloud profiles are not regenerated automatically: add the range to `server.trusted_proxies`, or run `cloud doctor`, which now warns when it is missing.
+- Cloud trusted-proxy defaults include Fly’s public `66.241.64.0/18` range and private `fc00::/7` range. Existing profiles require an explicit `server.trusted_proxies` update; `cloud doctor` reports a missing public range.
 
 ### Fixed
 

@@ -25,6 +25,8 @@ mod entity_kinds;
 #[cfg(test)]
 mod entity_row;
 #[cfg(test)]
+mod governance_append_only;
+#[cfg(test)]
 mod governance_audit_repo;
 #[cfg(test)]
 mod hook_runtime;

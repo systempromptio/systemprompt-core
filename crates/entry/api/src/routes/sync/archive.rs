@@ -17,7 +17,7 @@ use systemprompt_runtime::AppContext;
 use super::types::FileManifest;
 
 const ALLOWED_DIRS: &[&str] = &[
-    "agents", "skills", "content", "mcp", "ai", "config", "profiles",
+    "agents", "skills", "rules", "content", "mcp", "ai", "config", "profiles",
 ];
 
 pub(super) fn get_services_path(ctx: &AppContext) -> Result<PathBuf, String> {

@@ -2,12 +2,7 @@
 
 Evaluation framework for the [systemprompt.io](https://systemprompt.io) platform.
 
-Every AI request the platform serves is already recorded — prompts, offered
-tool definitions, models, wire payloads, tool calls, cost, and latency. This
-crate closes the loop on that trace: it samples production requests, scores
-them against configurable rubrics with an LLM judge, and replays failures with
-a repair hint so the repaired trajectory is scored and recorded alongside the
-original.
+Evaluation services sample recorded requests, score them against rubrics and replay cases with repair hints. Experiment services support immutable inputs, worker leases, evidence validation and budget reservations. Available evidence depends on the recorded request path.
 
 ## What it provides
 

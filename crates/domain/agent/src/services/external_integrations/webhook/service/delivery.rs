@@ -22,8 +22,11 @@ impl WebhookService {
             .map_err(|e| IntegrationError::Webhook(format!("invalid webhook url: {e}")))?;
         let config = config.unwrap_or_else(WebhookConfig::default);
 
-        let mut request_builder = self
-            .http_client
+        let http_client = self.http_client.as_ref().ok_or_else(|| {
+            IntegrationError::Webhook("outbound http client unavailable".to_owned())
+        })?;
+
+        let mut request_builder = http_client
             .post(url)
             .json(&payload)
             .header("Content-Type", "application/json")

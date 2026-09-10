@@ -8,9 +8,7 @@ use std::sync::RwLock;
 
 /// Whether the periodic sync job is registered with the host scheduler.
 ///
-/// `Unknown` is a real answer, not a failure: the Settings pane previously
-/// hardcoded "manual", which became a lie the moment a schedule was installed,
-/// and guessing is how it got there.
+/// `Unknown` indicates that registration status could not be determined.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]

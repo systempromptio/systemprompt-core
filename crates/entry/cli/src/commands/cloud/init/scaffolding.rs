@@ -50,6 +50,7 @@ fn create_directories(services_dir: &Path, logs_dir: &Path) -> Result<()> {
     create_dir(&services_dir.join("content/blog/welcome"))?;
     create_dir(&services_dir.join("content/legal"))?;
     create_dir(&services_dir.join("skills"))?;
+    create_dir(&services_dir.join("rules"))?;
     create_dir(&services_dir.join("web"))?;
     create_dir(&services_dir.join("web/templates"))?;
     create_dir(&services_dir.join("web/assets"))?;

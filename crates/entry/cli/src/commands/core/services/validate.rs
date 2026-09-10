@@ -116,6 +116,15 @@ pub fn run(args: &ValidateArgs) -> Result<Vec<Finding>> {
 }
 
 fn load_findings(root: &Path) -> Vec<Finding> {
+    if !root.join(CONFIG_RELPATH).is_file() {
+        return vec![Finding::fail(
+            "config",
+            format!(
+                "no {CONFIG_RELPATH} in the composed root; a marketplace-only tree carries none, \
+                 so validate it with --base <platform bundle>"
+            ),
+        )];
+    }
     let services = match ConfigLoader::load_from_path(&root.join(CONFIG_RELPATH)) {
         Ok(services) => services,
         Err(err) => return vec![Finding::fail("config", err.to_string())],

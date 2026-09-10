@@ -377,10 +377,19 @@ deny:
         cargo deny --manifest-path "${w%/}/Cargo.toml" check
     done
 
-# RustSec advisory scanning lives in `just deny` (cargo-deny's `advisories` check
-# reads the same RustSec database). cargo-audit was dropped rather than run
-# alongside it because it keeps its own separate ignore file, and two ignore lists
-# for one set of advisories drift apart. `deny.toml` is the single source of truth.
+# Run cargo-audit across every workspace, on top of `just deny`.
+#
+# Both read the same RustSec database, but cargo-deny's `advisories` check does not
+# surface advisories flagged `informational = "unsound"`, so those were invisible.
+# cargo-audit does, and the script runs it with `--deny unsound` so a new one fails.
+#
+# The reason cargo-audit was dropped before — two ignore lists drifting apart — is
+# handled by generating the `--ignore` flags from `deny.toml` on every run. There is
+# still exactly one place a suppression is written down, and it is `deny.toml`.
+
+# Run cargo-audit across every workspace (catches `unsound` advisories cargo-deny hides)
+audit:
+    ./scripts/cargo-audit-all.sh {{ workspaces }}
 
 # Detect unused dependencies across every workspace
 machete:

@@ -17,6 +17,7 @@ use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
+use systemprompt_models::services::QuotaFaultMode;
 
 use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
 use self::finalize::finalize;
@@ -37,6 +38,7 @@ pub struct TapFinalizeCtx {
     pub db: DbPool,
     pub repos: crate::services::gateway::GatewayRepositories,
     pub policy: GatewayPolicySpec,
+    pub quota_fault_mode: QuotaFaultMode,
     pub ai_request_id: AiRequestId,
 }
 

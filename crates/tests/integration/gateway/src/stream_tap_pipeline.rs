@@ -117,6 +117,7 @@ fn tap_ctx(db: &DbPool, ai_request_id: &AiRequestId, policy: GatewayPolicySpec) 
         db: db.clone(),
         repos: gateway_repos(db),
         policy,
+        quota_fault_mode: systemprompt_models::services::QuotaFaultMode::Open,
         ai_request_id: ai_request_id.clone(),
     }
 }

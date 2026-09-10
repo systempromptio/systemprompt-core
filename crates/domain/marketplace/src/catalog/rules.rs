@@ -1,8 +1,11 @@
-//! Projects on-disk rule directories into the [`RuleEntry`] records the bundle
-//! assembler ships as `rules/<id>.md`.
+//! Projects on-disk rule directories into the signed `RuleEntry` records the
+//! manifest carries.
 //!
-//! Rule text is trimmed before it is hashed, so a file that differs only by a
-//! trailing newline does not change the bundle content version.
+//! A rule whose descriptor disagrees with its directory, or whose content file
+//! is missing, fails the load rather than being skipped: a signed entry with
+//! empty instructions would be a silent fail-open. Rule text is trimmed before
+//! it is hashed, so a file that differs only by a trailing newline does not
+//! change the bundle content version.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,35 +13,27 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::PluginRuleId;
-use systemprompt_models::bridge::ids::Sha256Digest;
+use systemprompt_models::bridge::ids::{RuleName, Sha256Digest};
+use systemprompt_models::bridge::manifest::RuleEntry;
 use systemprompt_models::services::{DiskRuleConfig, RULE_CONFIG_FILENAME, strip_frontmatter};
 
 use crate::error::MarketplaceError;
-
-/// One rule a plugin can ship: the descriptor at `rules/<id>/config.yaml`
-/// resolved against the markdown file it names.
-///
-/// `content` is the rule text with any frontmatter stripped, matching how
-/// [`SkillEntry`](systemprompt_models::bridge::manifest::SkillEntry) carries
-/// skill instructions, so the digest covers exactly the bytes the bundle emits.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RuleEntry {
-    pub id: PluginRuleId,
-    pub name: String,
-    pub description: String,
-    pub file_path: String,
-    pub sha256: Sha256Digest,
-    pub content: String,
-}
+use crate::trace::{NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};
 
 pub fn load_rules(services_root: &Path) -> Result<Vec<RuleEntry>, MarketplaceError> {
+    load_rules_traced(services_root, &mut NoopTrace)
+}
+
+pub fn load_rules_traced(
+    services_root: &Path,
+    trace: &mut dyn TraceSink,
+) -> Result<Vec<RuleEntry>, MarketplaceError> {
     let rules_dir = services_root.join("rules");
     if !rules_dir.is_dir() {
         return Ok(Vec::new());
     }
 
-    let mut dirs: Vec<(String, std::path::PathBuf)> = Vec::new();
+    let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
     let read =
         std::fs::read_dir(&rules_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     for entry in read {
@@ -55,18 +50,48 @@ pub fn load_rules(services_root: &Path) -> Result<Vec<RuleEntry>, MarketplaceErr
                 rule_dir = %path.display(),
                 "manifest: rule directory has no config.yaml; skipping"
             );
+            trace.record(TraceEvent {
+                kind: TraceKind::Rule,
+                id: dir_name.to_owned(),
+                stage: TraceStage::DiskScan,
+                reason: "rule directory has no config.yaml".to_owned(),
+            });
             continue;
         }
-        dirs.push((dir_name.to_owned(), path));
+        entries.push((dir_name.to_owned(), path));
     }
-    dirs.sort_by(|a, b| a.0.cmp(&b.0));
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut out = Vec::with_capacity(dirs.len());
-    for (dir_name, rule_dir) in dirs {
+    let mut out = Vec::with_capacity(entries.len());
+    for (dir_name, rule_dir) in entries {
         match build_rule_entry(&dir_name, &rule_dir) {
             Ok(Some(entry)) => out.push(entry),
-            Ok(None) => {},
-            Err(e) => return Err(e),
+            Ok(None) => {
+                tracing::info!(
+                    rule_dir = %rule_dir.display(),
+                    "manifest: rule is disabled; skipping"
+                );
+                trace.record(TraceEvent {
+                    kind: TraceKind::Rule,
+                    id: dir_name,
+                    stage: TraceStage::Disabled,
+                    reason: "rule config sets enabled: false".to_owned(),
+                });
+            },
+            Err(e) => {
+                tracing::error!(
+                    rule_dir = %rule_dir.display(),
+                    error = %e,
+                    "manifest: failed to build rule entry"
+                );
+                trace.record(TraceEvent {
+                    kind: TraceKind::Rule,
+                    id: dir_name,
+                    stage: TraceStage::Parse,
+                    reason: e.to_string(),
+                });
+                return Err(e);
+            },
         }
     }
     Ok(out)
@@ -92,6 +117,13 @@ fn build_rule_entry(
             config.id.as_str()
         )));
     }
+    let display_name = if config.name.is_empty() {
+        dir_name.replace('_', " ")
+    } else {
+        config.name.clone()
+    };
+    let name =
+        RuleName::try_new(display_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
 
     let content_path = rule_dir.join(config.content_file());
     if !content_path.exists() {
@@ -102,19 +134,22 @@ fn build_rule_entry(
     }
     let raw = std::fs::read_to_string(&content_path)
         .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
-    let content = strip_frontmatter(&raw).trim().to_owned();
+    let instructions = strip_frontmatter(&raw).trim().to_owned();
 
     let mut hasher = Sha256::new();
-    hasher.update(content.as_bytes());
+    hasher.update(instructions.as_bytes());
     let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))
         .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
 
     Ok(Some(RuleEntry {
         id: config.id,
-        name: config.name,
+        name,
         description: config.description,
         file_path: content_path.to_string_lossy().into_owned(),
+        tags: config.tags,
         sha256,
-        content,
+        instructions,
+        hosts: config.hosts,
+        plugins: Vec::new(),
     }))
 }

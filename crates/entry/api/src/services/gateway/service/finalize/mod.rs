@@ -24,11 +24,13 @@ use http::HeaderValue;
 use systemprompt_ai::{OverrideAction, OverrideContext, OverrideEngine};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
-use systemprompt_models::services::GatewayConfig;
+use systemprompt_models::services::{GatewayConfig, QuotaFaultMode};
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
 
+pub mod accounting;
 pub mod safety;
 
+pub use self::accounting::record_accounting_outcome;
 pub(in crate::services::gateway) use self::safety::{
     request_finding_blocks, run_request_safety_scan, run_response_safety_scan,
 };
@@ -49,6 +51,7 @@ pub(super) struct FinalizeCtx {
     pub(super) repos: crate::services::gateway::GatewayRepositories,
     pub(super) ai_request_id: AiRequestId,
     pub(super) policy: GatewayPolicySpec,
+    pub(super) quota_fault_mode: QuotaFaultMode,
     pub(super) inbound: Arc<dyn InboundAdapter>,
     pub(super) request_model: String,
     pub(super) stream_usage: bool,
@@ -85,6 +88,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         repos,
         ai_request_id,
         policy,
+        quota_fault_mode,
         inbound,
         request_model,
         stream_usage,
@@ -93,6 +97,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
         db,
         repos,
         policy,
+        quota_fault_mode,
         ai_request_id,
     };
     match outcome {
@@ -248,7 +253,7 @@ async fn buffered_completion(
             0
         },
     };
-    quota::post_update_tokens(
+    let accounting = quota::post_update_tokens(
         &ctx.db,
         &ctx.repos.quota_buckets,
         quota::PostUpdateParams {
@@ -260,6 +265,7 @@ async fn buffered_completion(
         },
     )
     .await;
+    record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
     if !response_scanned {
         run_response_safety_scan(
             &ctx.repos.safety_findings,

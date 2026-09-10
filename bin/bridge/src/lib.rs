@@ -42,6 +42,7 @@ pub mod i18n;
 pub mod ids;
 pub mod install;
 pub mod integration;
+pub mod last_sync;
 pub mod mcp_registry;
 pub mod obs;
 pub mod probe_cache;
@@ -59,6 +60,7 @@ pub mod user_alert;
 pub mod validate;
 pub mod verdict;
 pub mod web_assets;
+pub mod webview2;
 pub mod window_state;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;

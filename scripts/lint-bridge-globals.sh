@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
-# The bridge used to keep its service state in process statics: the proxy
-# handle, the tokio runtime, the loopback secret, the MCP registry, the
-# activity log, the gateway HTTP pool, the install id, the scheduler-status
-# cache. A static can hold one value per process, which is why one test crate
-# existed per proxy start outcome, and why a `sync` run in its own process
-# wrote a managed-MCP policy from a registry it had never loaded. All of that
-# now lives on `BridgeContext`, built once at the composition root and passed
-# down. This gate keeps it there: a new `static X: OnceLock<..>` (or LazyLock,
-# RwLock, Mutex, ArcSwap, Atomic*, Once) under bin/bridge/src is red unless it
-# is listed below with the reason it is not service state.
+# Reject unlisted process-global service state in bridge sources.
+# BridgeContext owns injected services; exceptions are declared below.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

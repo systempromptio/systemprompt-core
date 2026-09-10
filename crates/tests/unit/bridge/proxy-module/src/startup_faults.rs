@@ -130,6 +130,37 @@ fn a_recorded_port_held_by_an_unidentified_listener_is_not_followed() {
 }
 
 #[test]
+fn a_recorded_port_with_nothing_listening_is_abandoned() {
+    let config = tempfile::tempdir().expect("config tempdir");
+    let state = tempfile::tempdir().expect("state tempdir");
+    let Some((port, squatter)) = free_candidate_port() else {
+        panic!("no candidate port in {DEFAULT_PROXY_PORT}..={MAX_CANDIDATE_PORT} is bindable");
+    };
+    drop(squatter);
+
+    sandbox(&config, &state, || {
+        let ours = InstallId::establish().expect("the sandbox mints an install id");
+        portfile::write(port, &ours).expect("record a port nothing is serving");
+
+        let ctx = BridgeContext::start(ProxyMode::Attach)
+            .expect("an unreachable recorded port must not stop the start");
+
+        assert_eq!(
+            ctx.proxy.port(),
+            DEFAULT_PROXY_PORT,
+            "an unreachable port proves no ownership, so the record is abandoned"
+        );
+        assert!(
+            !ctx.startup_faults
+                .iter()
+                .any(|fault| fault.component == "proxy port file"),
+            "abandoning an unreachable record is routine, not a fault: {:?}",
+            ctx.startup_faults
+        );
+    });
+}
+
+#[test]
 fn a_clean_sandbox_starts_without_a_proxy_or_registry_fault() {
     // Why: the negative control for the three tests above — without it a
     // fault recorded on every start would pass them all.

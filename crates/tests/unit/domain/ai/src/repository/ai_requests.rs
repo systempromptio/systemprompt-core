@@ -132,6 +132,7 @@ async fn update_completion_sets_tokens_and_status() {
             output_tokens: 100,
             cost_microdollars: 9_000,
             latency_ms: 750,
+            upstream_latency_ms: Some(600),
             cache_hit: true,
             cache_read_tokens: 128,
             cache_creation_tokens: 0,
@@ -146,6 +147,7 @@ async fn update_completion_sets_tokens_and_status() {
     assert_eq!(updated.output_tokens, Some(100));
     assert_eq!(updated.cost_microdollars, 9_000);
     assert_eq!(updated.latency_ms, Some(750));
+    assert_eq!(updated.upstream_latency_ms, Some(600));
     assert!(updated.cache_hit);
     assert_eq!(updated.cache_read_tokens, Some(128));
     assert_eq!(

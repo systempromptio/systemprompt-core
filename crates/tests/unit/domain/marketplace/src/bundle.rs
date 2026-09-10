@@ -7,10 +7,10 @@ use systemprompt_marketplace::bundle::{
 };
 use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles, plugin_bundles_cached};
 use systemprompt_models::bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, Sha256Digest, SkillId, SkillName,
+    LibraryArtifactId, ManagedMcpServerName, RuleId, RuleName, Sha256Digest, SkillId, SkillName,
 };
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, ManagedMcpServer, SkillEntry,
+    AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
 use systemprompt_models::bridge::plugin_bundle::{
     PLUGIN_MANIFEST_RELPATH, PluginManifest, bundle_has_manifest,
@@ -122,11 +122,11 @@ fn build_plugin_bundle_generates_manifest_and_layout() {
     )];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &agents,
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let config = plugin_config(
@@ -161,11 +161,11 @@ fn build_plugin_bundle_instance_source_includes_all_minus_exclude() {
     ];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config(
@@ -186,11 +186,11 @@ fn build_plugin_bundle_is_deterministic() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -207,11 +207,11 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
     let skills = vec![skill_entry("use_dangerous_secret", "d", "x")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -240,11 +240,11 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
 fn load_plugins_skips_spec_with_no_resolvable_content() {
     let content = BundleContent {
         skills: &[],
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -277,11 +277,11 @@ fn bundle_has_manifest_detects_contract_path() {
 fn plugin_bundles_skips_content_less_plugin() {
     let content = BundleContent {
         skills: &[],
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -309,11 +309,11 @@ fn plugin_bundles_scopes_to_the_marketplace_include_list() {
     ];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut mp = marketplace("only-a");
@@ -357,11 +357,11 @@ fn plugin_bundles_unions_enabled_marketplaces() {
     ];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut alpha = marketplace("alpha");
@@ -404,11 +404,11 @@ fn manifest_entries_hash_the_served_bytes() {
     )];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &agents,
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -459,11 +459,11 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
     let agents = vec![agent_entry("cache_agent", "cacher", Some("You cache"))];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &agents,
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -539,11 +539,11 @@ fn skill_md_carries_frontmatter_and_escapes_quotes() {
     )];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -572,11 +572,11 @@ fn agent_referenced_skills_are_pulled_into_bundle() {
     let agents = vec![agent];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &agents,
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["base_skill"]), explicit(&["dev"]));
@@ -597,11 +597,11 @@ fn invalid_explicit_skill_id_is_ignored() {
     let skills = vec![skill_entry("good_skill", "g", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -645,11 +645,11 @@ fn aux_files_are_collected_and_executable_bit_set() {
     )];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["aux_skill"]), PluginComponentRef::default());
@@ -695,11 +695,11 @@ fn mcp_file_assembles_referenced_servers_only() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &servers,
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -736,11 +736,11 @@ fn mcp_file_absent_when_no_servers_resolve() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &servers,
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -764,11 +764,11 @@ fn mcp_file_omits_defined_but_disabled_server_without_error() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &servers,
         disabled_mcp_servers: &disabled,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -803,11 +803,11 @@ fn mcp_file_absent_when_only_referenced_server_is_disabled() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &disabled,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -831,11 +831,11 @@ fn agent_md_carries_model_when_set() {
     let agents = vec![agent];
     let content = BundleContent {
         skills: &[],
+        rules: &[],
         agents: &agents,
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", PluginComponentRef::default(), explicit(&["modelled"]));
@@ -855,11 +855,11 @@ fn agent_with_empty_model_omits_model_line() {
     let agents = vec![agent];
     let content = BundleContent {
         skills: &[],
+        rules: &[],
         agents: &agents,
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -882,11 +882,11 @@ fn skill_with_pathless_file_path_still_bundles_without_aux() {
     let skills = vec![skill_entry_at("lone_skill", "d", "body", "")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -940,11 +940,11 @@ fn aux_collection_skips_unreadable_files_and_directories() {
     )];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -993,11 +993,11 @@ fn plugin_with_unreadable_script_is_skipped_while_siblings_survive() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: dir.path(),
     };
     let mut services = ServicesConfig::default();
@@ -1048,11 +1048,11 @@ fn fingerprint_tolerates_a_dangling_symlink_under_plugins_root() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: dir.path(),
     };
     let mut services = ServicesConfig::default();
@@ -1084,11 +1084,11 @@ fn script_files_are_collected_and_generated_tracking_skipped() {
     let skills = vec![skill_entry("s", "d", "body")];
     let content = BundleContent {
         skills: &skills,
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts: &[],
-        rules: &[],
         plugins_root: dir.path(),
     };
     let mut config = plugin_config(
@@ -1159,11 +1159,11 @@ fn editing_an_artifact_body_reships_the_bundle() {
     let served = |artifacts: &[ArtifactEntry]| {
         let content = BundleContent {
             skills: &[],
+            rules: &[],
             agents: &[],
             mcp_servers: &[],
             disabled_mcp_servers: &NO_DISABLED,
             artifacts,
-            rules: &[],
             plugins_root: Path::new("/nonexistent/plugins"),
         };
         let bundles = plugin_bundles_cached(&services, &content).expect("bundles");
@@ -1191,11 +1191,11 @@ fn bundle_with_artifacts(
 ) -> PluginBundle {
     let content = BundleContent {
         skills: &[],
+        rules: &[],
         agents: &[],
         mcp_servers: &[],
         disabled_mcp_servers: &NO_DISABLED,
         artifacts,
-        rules: &[],
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut config = plugin_config(
@@ -1301,4 +1301,115 @@ fn a_bundle_ships_an_install_manifest_and_the_raw_page_beside_each_record() {
         "the install manifest never embeds HTML"
     );
     assert_eq!(raw["artifacts"][0]["isStarred"], true);
+}
+
+fn rule_entry(id: &str, description: &str, instructions: &str) -> RuleEntry {
+    RuleEntry {
+        id: RuleId::try_new(id).expect("rule id"),
+        name: RuleName::try_new(id.replace('_', " ")).expect("rule name"),
+        description: description.to_owned(),
+        file_path: format!("/nonexistent/rules/{id}/index.md"),
+        tags: vec![],
+        sha256: zero_digest(),
+        instructions: instructions.to_owned(),
+        hosts: Vec::new(),
+        plugins: Vec::new(),
+    }
+}
+
+fn bundle_with_rules(rules: &[RuleEntry], config: &PluginConfig) -> PluginBundle {
+    let content = BundleContent {
+        skills: &[],
+        rules,
+        agents: &[],
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        artifacts: &[],
+        plugins_root: Path::new("/nonexistent/plugins"),
+    };
+    build_plugin_bundle(config, &content).expect("build bundle")
+}
+
+#[test]
+fn build_plugin_bundle_emits_explicit_rules_as_kebab_markdown() {
+    let rules = vec![
+        rule_entry(
+            "no_force_push",
+            "never force-push",
+            "Use --force-with-lease.",
+        ),
+        rule_entry("unselected_rule", "not included", "ignored"),
+    ];
+    let mut config = plugin_config(
+        "demo-plugin",
+        PluginComponentRef::default(),
+        PluginComponentRef::default(),
+    );
+    config.rules = explicit(&["no_force_push"]);
+
+    let bundle = bundle_with_rules(&rules, &config);
+
+    let body = bundle
+        .get("rules/no-force-push.md")
+        .expect("selected rule is emitted at its kebab path");
+    let text = String::from_utf8(body.bytes.clone()).expect("utf8 rule body");
+    assert!(text.starts_with("---\nname: no-force-push\n"));
+    assert!(text.contains("description: \"never force-push\""));
+    assert!(text.contains("Use --force-with-lease."));
+    assert!(!body.executable);
+    assert!(!bundle.contains_key("rules/unselected-rule.md"));
+}
+
+#[test]
+fn build_plugin_bundle_instance_rules_honour_exclude() {
+    let rules = vec![
+        rule_entry("keep_me", "kept", "body"),
+        rule_entry("drop_me", "dropped", "body"),
+    ];
+    let mut config = plugin_config(
+        "demo-plugin",
+        PluginComponentRef::default(),
+        PluginComponentRef::default(),
+    );
+    config.rules = PluginComponentRef {
+        source: ComponentSource::Instance,
+        exclude: vec!["drop_me".to_owned()],
+        ..Default::default()
+    };
+
+    let bundle = bundle_with_rules(&rules, &config);
+
+    assert!(bundle.contains_key("rules/keep-me.md"));
+    assert!(!bundle.contains_key("rules/drop-me.md"));
+}
+
+#[test]
+fn build_plugin_bundle_skips_rules_targeting_only_non_bundle_hosts() {
+    let mut rule = rule_entry("codex_only", "codex", "body");
+    rule.hosts = vec!["codex-cli".to_owned()];
+    let mut config = plugin_config(
+        "demo-plugin",
+        PluginComponentRef::default(),
+        PluginComponentRef::default(),
+    );
+    config.rules = explicit(&["codex_only"]);
+
+    let bundle = bundle_with_rules(&[rule], &config);
+
+    assert!(!bundle.contains_key("rules/codex-only.md"));
+    assert!(!bundle_has_content(&bundle));
+}
+
+#[test]
+fn build_plugin_bundle_no_rules_selected_emits_no_rules_dir() {
+    let rules = vec![rule_entry("some_rule", "unused", "body")];
+    let config = plugin_config(
+        "demo-plugin",
+        PluginComponentRef::default(),
+        PluginComponentRef::default(),
+    );
+
+    let bundle = bundle_with_rules(&rules, &config);
+
+    assert!(!bundle.keys().any(|k| k.starts_with("rules/")));
 }

@@ -8201,6 +8201,7 @@ dependencies = [
  "futures",
  "sqlx",
  "systemprompt-agent",
+ "systemprompt-ai",
  "systemprompt-api",
  "systemprompt-database",
  "systemprompt-identifiers",
@@ -8544,6 +8545,7 @@ dependencies = [
  "ipnet",
  "libc",
  "regex",
+ "reqwest",
  "rmcp",
  "schemars",
  "semver",
@@ -8557,6 +8559,7 @@ dependencies = [
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "url",
  "uuid",
@@ -8573,6 +8576,7 @@ dependencies = [
  "futures",
  "http",
  "indexmap",
+ "reqwest",
  "rmcp",
  "serde_json",
  "serde_yaml_ng",
@@ -9072,6 +9076,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.19",
+ "tracing",
 ]
 
 [[package]]

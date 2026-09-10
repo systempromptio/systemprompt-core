@@ -34,11 +34,9 @@ pub struct ServedProxy {
 pub const DRAIN_DEADLINE: Duration = Duration::from_secs(5);
 
 impl ServedProxy {
-    /// Stop accepting, let in-flight requests finish, and release the port.
-    ///
-    /// Bounded rather than unconditional: a streaming response can outlive any
-    /// deadline, and the caller — a restart — has to make progress. Returns
-    /// whether the listener actually drained within `deadline`.
+    // Why: bounded rather than unconditional — a streaming response can outlive
+    // any deadline, and the caller, a restart, has to make progress. Returns
+    // whether the listener actually drained within the deadline.
     pub fn drain(&self, deadline: Duration) -> bool {
         if self.shutdown.send(true).is_err() {
             return self.drained.load(Ordering::Relaxed);

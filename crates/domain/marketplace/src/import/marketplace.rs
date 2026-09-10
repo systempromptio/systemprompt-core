@@ -35,7 +35,12 @@ pub(super) fn import_marketplace(
 
     let config = MarketplaceConfig {
         id: id.clone(),
-        name: manifest.name.clone(),
+        name: sidecar
+            .marketplace
+            .title
+            .clone()
+            .filter(|t| !t.trim().is_empty())
+            .unwrap_or_else(|| manifest.name.clone()),
         description: manifest.metadata.description.clone(),
         version,
         enabled: sidecar.marketplace.enabled,

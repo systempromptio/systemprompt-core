@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Changed
+
+- Merging an account records the merge as a new `governance_decisions` row naming the source and target ids, instead of running `UPDATE governance_decisions SET user_id = target WHERE user_id = source`. The table is append-only as of security migration 018, so that statement would now fail; re-attributing a decision would also misstate what was authorised for whom at the time. A reader following the target's trail finds the merge row and the source id in it. The row is no longer counted in `MergeResult.audit_rows`.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

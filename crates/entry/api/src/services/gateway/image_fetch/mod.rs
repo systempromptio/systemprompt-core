@@ -20,7 +20,7 @@ mod guard;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, trusted_http_hosts_from_env};
+use systemprompt_models::net::{GuardedConnectError, trusted_http_hosts_from_env};
 
 use super::protocol::canonical::{CanonicalContent, CanonicalRequest, ImageSource};
 
@@ -81,17 +81,6 @@ pub struct InlineImage {
     pub base64: String,
 }
 
-fn client() -> &'static reqwest::Client {
-    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
-    CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .connect_timeout(HTTP_CONNECT_TIMEOUT)
-            .build()
-            .unwrap_or_default()
-    })
-}
-
 pub async fn inline_url_images(
     request: &mut CanonicalRequest,
     policy: &ImageFetchPolicy,
@@ -131,41 +120,39 @@ pub async fn fetch(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, 
 type FetchError = (String, bool);
 
 async fn fetch_inner(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, FetchError> {
-    let mut next = guard::checked_url(url, &policy.trusted_hosts)
+    let checked = guard::checked_url(url, &policy.trusted_hosts).map_err(|e| (e, true))?;
+    let client = guard::client(policy).map_err(|e| (e, false))?;
+    let response = client
+        .get(checked)
+        .send()
         .await
-        .map_err(|e| (e, true))?;
-    for _ in 0..=policy.max_redirects {
-        let response = client()
-            .get(next.clone())
-            .send()
-            .await
-            .map_err(|e| (format!("request failed: {e}"), false))?;
-        if let Some(location) = redirect_target(&response) {
-            let joined = next
-                .join(&location)
-                .map_err(|e| (format!("invalid redirect target: {e}"), true))?;
-            next = guard::checked_url(joined.as_str(), &policy.trusted_hosts)
-                .await
-                .map_err(|e| (format!("redirect rejected: {e}"), true))?;
-            continue;
-        }
-        return read_image(response, policy).await;
-    }
-    Err((
-        format!("more than {} redirects", policy.max_redirects),
-        true,
-    ))
+        .map_err(|e| describe_send_error(&e, policy))?;
+    read_image(response, policy).await
 }
 
-fn redirect_target(response: &reqwest::Response) -> Option<String> {
-    if !response.status().is_redirection() {
-        return None;
+// Why: reqwest reports a refused redirect and a timeout as generic send
+// failures; the guard's verdict and the deadline sit in the source chain.
+fn describe_send_error(error: &reqwest::Error, policy: &ImageFetchPolicy) -> FetchError {
+    if error.is_timeout() {
+        return (format!("fetch exceeded {:?}", policy.timeout), false);
     }
-    response
-        .headers()
-        .get(reqwest::header::LOCATION)
-        .and_then(|v| v.to_str().ok())
-        .map(ToOwned::to_owned)
+    let mut source = std::error::Error::source(error);
+    while let Some(inner) = source {
+        if let Some(guarded) = inner.downcast_ref::<GuardedConnectError>() {
+            return match guarded {
+                GuardedConnectError::RedirectRefused { .. }
+                | GuardedConnectError::TooManyRedirects(_) => {
+                    (format!("redirect rejected: {guarded}"), true)
+                },
+                GuardedConnectError::Unresolvable(_)
+                | GuardedConnectError::BlockedAddress { .. } => {
+                    (format!("host rejected: {guarded}"), true)
+                },
+            };
+        }
+        source = inner.source();
+    }
+    (format!("request failed: {error}"), error.is_redirect())
 }
 
 async fn read_image(

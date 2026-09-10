@@ -13,6 +13,7 @@ use crate::routes::gateway::{TerminalOutcome, log_gateway_terminal};
 
 use super::super::audit::GatewayAudit;
 use super::super::quota;
+use super::super::service::finalize::record_accounting_outcome;
 use super::super::service::run_response_safety_scan;
 use super::super::signature_cache::ThoughtSignatureCache;
 use super::TapFinalizeCtx;
@@ -76,6 +77,7 @@ pub(super) fn finalize(
     ctx: TapFinalizeCtx,
     origin: &'static str,
 ) {
+    audit.mark_upstream_end();
     tokio::spawn(async move {
         capture_signatures(&ctx, &audit, &summary).await;
         if let Some(model) = summary.served_model.as_deref() {
@@ -120,7 +122,7 @@ pub(super) fn finalize(
                         0
                     },
                 };
-                quota::post_update_tokens(
+                let accounting = quota::post_update_tokens(
                     &ctx.db,
                     &ctx.repos.quota_buckets,
                     quota::PostUpdateParams {
@@ -132,6 +134,7 @@ pub(super) fn finalize(
                     },
                 )
                 .await;
+                record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
                 run_response_safety_scan(
                     &ctx.repos.safety_findings,
                     &ctx.ai_request_id,

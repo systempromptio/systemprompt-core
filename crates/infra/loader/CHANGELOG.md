@@ -21,7 +21,7 @@
 
 ### Changed
 
-- **Operator-visible:** a provider whose `api_key_secret` does not resolve in the secret store is demoted to `surface: backend` before validation, so its models leave `/v1/models` and every client picker instead of being offered and 502-ing on first use. Nine Vertex MaaS models were advertised by an instance that could not dispatch one of them. It is deliberately not a boot failure — an instance serving Anthropic must still start when an unrelated credential is absent — and an uninitialised secret store means "unknown", never "absent", because several entry points load services with no secrets at all and demoting there would empty the catalog. The demotion warning names the provider only: it also carried the missing secret's name, which the logging layer redacts on any field called `secret`, so it rendered as `[REDACTED]` and told the reader nothing while looking as though it had. `cloud doctor` names the secret in full.
+- providers with unresolved credential references are demoted to `surface: backend` before validation and omitted from model discovery. An uninitialized secret store remains an unknown state. Warnings identify the provider; `cloud doctor` reports missing secret names and checks the repository services tree outside a container.
 ## [0.44.0] - 2026-09-02
 
 ### Changed

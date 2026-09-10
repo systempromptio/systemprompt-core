@@ -24,6 +24,8 @@ pub(super) struct SkillDoc {
     pub tags: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_category: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub hosts: Vec<String>,
 }

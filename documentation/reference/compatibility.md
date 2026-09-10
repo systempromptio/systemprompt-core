@@ -42,7 +42,7 @@ code changes.
 | MCP (Model Context Protocol) | `2026-07-28` | Negotiated explicitly, not via `ProtocolVersion::LATEST`. Older revisions down to `2025-06-18` negotiate down. Streamable-HTTP and stdio transports; signed manifest allowlist for server identity. Carried by `rmcp` 3.1.3 |
 | A2A (Agent-to-Agent) | 0.3.0 | `A2A_PROTOCOL_VERSION`; Task / Message / TaskState types per the current public spec |
 | OAuth 2.x / OIDC | PKCE S256 (RFC 7636); OIDC 1.0 Core | PKCE mandatory for the authorisation code flow; `plain` is rejected. Discovery + standard claims. RFC 7009 revocation, RFC 9728 protected-resource metadata |
-| Prometheus exposition | 0.0.4 text format | via `/metrics` (always mounted) |
+| Prometheus exposition | 0.0.4 text format | via `/metrics` on the configured metrics listener |
 
 MCP revisions are **dates, not semantic versions** — `2026-07-28` is a protocol revision
 identifier, not a release number.
@@ -54,7 +54,7 @@ identifier, not a release number.
 | Rust toolchain | `nightly-2026-06-03`, pinned in `rust-toolchain.toml` |
 | Rust edition | 2024 |
 | Minimum supported Rust version (MSRV) | 1.96 — declared as `rust-version` and enforced by a dedicated CI job |
-| PostgreSQL | 18+ (see note below) |
+| PostgreSQL | 18+ |
 | Minimum glibc (Linux binaries) | 2.35 — release binaries build on `ubuntu-22.04` to pin the oldest supported runner glibc |
 | Tokio | 1.53 |
 | Axum | 0.8 |
@@ -65,11 +65,8 @@ identifier, not a release number.
 | webauthn-rs | 0.5 |
 
 > **Note on the PostgreSQL floor.** 18+ is the documented and supported requirement, and is
-> what the production deployment guide assumes. The CI test matrix currently provisions
-> PostgreSQL 16 containers, so the 18+ floor is not exercised by automated tests. Reconciling
-> the two — either raising the CI containers or lowering the documented floor to what is
-> actually tested — is tracked in
-> [rfi-readiness-audit.md §6](../security/rfi-readiness-audit.md).
+> what the production deployment guide assumes. The CI test matrix provisions PostgreSQL 18
+> containers, so the documented floor is the version the test suite actually runs against.
 
 ### Release Targets
 

@@ -142,7 +142,7 @@
 - Extracted span and event field helpers into `layer/proxy`.
 
 ### Fixed
-- Surface errors from `DatabaseLayer::flush` instead of silently dropping them when the `logs` table is missing.
+- Surface errors from `DatabaseLayer::flush` instead of dropping them when the `logs` table is missing.
 
 ## [0.1.18] - 2026-03-27
 

@@ -15,7 +15,7 @@ The authorization-code flow is hardened against code interception and replay:
 - **At-rest hardening.** Authorization codes and refresh-token identifiers are HMAC-SHA-256 peppered before storage, so a database snapshot yields opaque digests rather than usable secrets.
 - **Exact-match redirect URIs.** Redirect URIs are checked against an exact-match allowlist.
 
-> **Open item — PKCE is verified but not mandated.** A challenge is only verified when one was stored. An authorize request from a public client that omits `code_challenge` stores no challenge, and the subsequent exchange skips PKCE. There is no server-side requirement that public clients present a challenge. Treat PKCE enforcement for public clients as a hardening item, not a guarantee.
+PKCE is required for the authorization-code flow. Authorization rejects a missing challenge and accepts only S256.
 
 ## JWT validation
 
@@ -23,26 +23,26 @@ Every JWT is validated by `AuthValidationService` (`crates/infra/security/src/au
 
 | Check | Behaviour | Source |
 |-------|-----------|--------|
-| Algorithm | **RS256 only.** The header `alg` is read and any value other than `RS256` is rejected before verification — `none` and algorithm-confusion attempts are refused. There is no ES/EdDSA acceptance path. | `validation.rs:92` |
-| Key identifier | `kid` is required; the matching decoding key is resolved by `kid`. A missing or unknown `kid` is rejected. | `validation.rs:95` |
-| Time claims | `exp`, `nbf`, and `iat` are validated with a pinned 30-second leeway (set explicitly in code rather than inherited from the library default). | `validation.rs:100` |
-| Delegation chain | The `act` (actor) delegation chain depth is capped; a token whose chain exceeds the maximum is rejected. | `validation.rs:114` |
+| Algorithm | **RS256 only.** The header `alg` is read and any value other than `RS256` is rejected before verification — `none` and algorithm-confusion attempts are refused. There is no ES/EdDSA acceptance path. | `crates/infra/security/src/jwt/validate.rs` |
+| Key identifier | `kid` is required; the matching decoding key is resolved by `kid`. A missing or unknown `kid` is rejected. | `crates/infra/security/src/jwt/validate.rs` |
+| Time claims | `exp` and `nbf` are validated with a pinned 30-second leeway (set explicitly in code rather than inherited from the library default). | `crates/infra/security/src/jwt/validate.rs` |
+| Delegation chain | The `act` (actor) delegation chain depth is capped; a token whose chain exceeds the maximum is rejected. | `crates/infra/security/src/auth/validation.rs` |
 | User type | The principal's `user_type` is re-derived from the permission set and a disagreeing claim is rejected, catching forged or mis-minted tokens that signature checks alone would pass. | `crates/infra/security/src/jwt/decode.rs:43` |
 | Revocation | A JTI revocation check backed by the database (with a negative cache) runs on each request and fails closed: a lookup error returns 401, not an allow. | `crates/entry/api/src/services/middleware/jwt/revocation.rs:38` |
 
-The RS256 pin is the mitigation for the RUSTSEC-2023-0071 RSA timing class: the validator never enters a non-RS256 verification path, and there is no algorithm flexibility to exploit.
+First-party token verification uses the shared RS256 decoder. Dependency advisory exceptions and their recorded rationale are maintained in `deny.toml`.
 
-### Open item: audience is not enforced at the primary extractor
+### Audience policies
 
-The `aud` claim is validated on every first-party token, and validation is not optional: `decode_rs256_claims` applies the policy's audience list unconditionally (`crates/infra/security/src/jwt/validate.rs:87`) and rejects any policy that declares no audiences at all with `EmptyAudiencePolicy` (`crates/infra/security/src/jwt/validate.rs:65`). An "accept any audience" configuration therefore cannot be expressed. Surfaces are isolated by typed `JwtAudience` values — the hook-token path pins `aud=hook` (`crates/infra/security/src/auth/hook_token.rs:79`), and the MCP path additionally performs a per-server audience check (`crates/domain/mcp/src/middleware/rbac.rs:153`). A token minted for one surface is not accepted on another.
+The `aud` claim is validated on every first-party token, and validation is not optional: `decode_rs256_claims` applies the policy's audience list unconditionally (`crates/infra/security/src/jwt/validate.rs:87`) and rejects any policy that declares no audiences at all with `EmptyAudiencePolicy` (`crates/infra/security/src/jwt/validate.rs:65`). An "accept any audience" configuration therefore cannot be expressed. Surfaces are isolated by typed `JwtAudience` values — the hook-token path pins `aud=hook` (`crates/infra/security/src/auth/hook_token.rs:79`), and the MCP path additionally performs a per-server audience check (`crates/domain/mcp/src/middleware/rbac.rs:153`). Acceptance depends on the audience set selected by the receiving surface.
 
-Do not describe audience-based isolation between the gateway, dashboard, MCP, and A2A surfaces as enforced. It is a known open item.
+The session-context decoder accepts the `JwtAudience::FIRST_PARTY` set (`web`, `api`, `a2a`, `mcp`). Narrower surfaces apply their own policies and resource checks; membership in the first-party set does not by itself isolate those surfaces from one another.
 
 ## Scopes and RBAC
 
 Permissions travel in the token's `scope`/permission set and map to a user type. The principal types are `Admin`, `User`, `A2a`, `Mcp`, `Service`, and `Anon` (with an `Unknown` fallback). The user type is derived from permissions at validation time rather than trusted from the claim, so a permission set that includes the admin permission yields an `Admin` principal regardless of what the token asserts.
 
-There is currently no distinct `System`/platform principal. Internal callers (the scheduler, the publish pipeline, hook attribution) borrow a real admin user row, so audit rows for internal jobs are not distinguishable from human-admin actions. Note this where attribution matters.
+Audit attribution separates the accountable user from `ActorKind`, including system, job, MCP and agent operations. These actor categories do not add authorization tiers. See `crates/shared/identifiers/src/actor.rs`.
 
 ## The authorization hook
 

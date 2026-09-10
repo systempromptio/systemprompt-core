@@ -7,7 +7,7 @@ use crate::error::OauthResult as Result;
 use crate::models::cimd::CimdMetadata;
 use reqwest::Client;
 use systemprompt_identifiers::ClientId;
-use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
+use systemprompt_models::net::{GuardedClientConfig, HTTP_AUTH_VERIFY_TIMEOUT, guarded_client};
 
 #[derive(Debug)]
 pub struct CimdFetcher {
@@ -16,14 +16,14 @@ pub struct CimdFetcher {
 
 impl CimdFetcher {
     pub fn new() -> Result<Self> {
-        let client = Client::builder()
-            .timeout(HTTP_AUTH_VERIFY_TIMEOUT)
-            .user_agent(concat!("systemprompt.io-OS/", env!("CARGO_PKG_VERSION")))
-            .redirect(reqwest::redirect::Policy::limited(3))
-            .build()
-            .map_err(|e| {
-                crate::error::OauthError::CimdFetch(format!("Failed to build HTTP client: {}", e))
-            })?;
+        let client = guarded_client(
+            &GuardedClientConfig::default()
+                .with_timeout(HTTP_AUTH_VERIFY_TIMEOUT)
+                .with_user_agent(concat!("systemprompt.io-OS/", env!("CARGO_PKG_VERSION"))),
+        )
+        .map_err(|e| {
+            crate::error::OauthError::CimdFetch(format!("Failed to build HTTP client: {e}"))
+        })?;
 
         Ok(Self { client })
     }

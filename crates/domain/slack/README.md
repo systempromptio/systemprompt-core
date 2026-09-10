@@ -7,11 +7,7 @@
 
 Slack integration for [systemprompt.io](https://systemprompt.io).
 
-Every Slack message answers to the same audit pipeline as every other surface.
-Slack Events API messages, slash commands, and Block Kit interactions are
-signature-verified, mapped to governed systemprompt identities, authorized
-against RBAC, dispatched to A2A agents, and answered back in Slack, under one
-governed path.
+Slack Events API messages, slash commands and Block Kit interactions pass signature verification, identity resolution and authorization before dispatch to configured A2A agents.
 
 ## Configuration
 

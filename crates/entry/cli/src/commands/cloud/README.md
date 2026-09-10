@@ -1,22 +1,6 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Production infrastructure for AI agents
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**CLI Reference**](https://github.com/systempromptio/systemprompt-core/tree/main/crates/entry/cli) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
 # Cloud CLI Commands
 
-The `cloud` command tree covers two concerns:
+Command reference for cloud. Use the installed command’s `--help` output for its complete arguments and defaults.
 
 1. **Local project management** — initializing the `.systemprompt/` project
    structure, creating tenants backed by a local Docker Postgres or an
@@ -81,11 +65,3 @@ systemprompt --json cloud tenant list | jq '.tenants[].id'
 ```
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>CLI reference · Own how your organization uses AI.</sub>
-
-</div>

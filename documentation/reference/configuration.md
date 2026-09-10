@@ -139,7 +139,7 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 | `signing_key_path` | `signing_key_path` | path | no | `signing_key.pem` | Path to the RS256 signing key (PEM). |
 | `trusted_issuers` | `trusted_issuers` | list of object | no | `[]` | Federated issuers accepted in addition to `jwt_issuer`. |
 
-`validate_aud` is currently `false` in the validation plane; audience isolation is not enforced. Do not configure on the assumption it is.
+Audience validation requires a nonempty policy. The first-party session policy accepts the standard first-party audience set; use resource-specific policies where narrower audience isolation is required.
 
 ### `security.trusted_issuers[]`
 
@@ -321,7 +321,7 @@ result against the merged registry, and never touch the profile.
 | `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |
 
 Every provider endpoint is validated through the shared outbound-URL guard
-(`validate_outbound_url`, `crates/shared/models/src/net.rs`), which rejects loopback,
+(`validate_outbound_url`, `crates/shared/models/src/net/mod.rs`), which rejects loopback,
 private-network, link-local and CGNAT destinations so the proxy cannot become an SSRF primitive.
 `!include <file>` in a `system_prompt_overrides[].prompt` resolves relative to the file that
 carries the `gateway:` block.

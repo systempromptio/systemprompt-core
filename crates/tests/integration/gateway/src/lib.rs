@@ -12,6 +12,8 @@ mod context_id_derivation;
 #[cfg(test)]
 mod payload_truncation;
 #[cfg(test)]
+mod quota_accounting;
+#[cfg(test)]
 mod stream_tap_pipeline;
 #[cfg(test)]
 mod support;

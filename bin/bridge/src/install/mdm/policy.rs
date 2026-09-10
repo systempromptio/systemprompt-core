@@ -1,18 +1,7 @@
-//! The Claude Desktop managed policy: one key set, rendered per platform.
+//! Claude Desktop managed-policy construction and platform rendering.
 //!
-//! The policy Cowork reads is a single set of keys in the
-//! `com.anthropic.claudefordesktop` domain, but it used to be written three
-//! separate times — as registry values on Windows, and as hand-written plist
-//! XML in both the `install --apply` templates and the GUI host profile. The
-//! three drifted: only Windows carried `allowedWorkspaceFolders`, only the GUI
-//! profile carried `inferenceModels`, and the macOS MCP block published the
-//! upstream URL with no credential where Windows published the loopback proxy
-//! and its bearer.
-//!
-//! [`claude_desktop_policy`] is now the only place the key set is decided.
-//! `reg_values` and [`plist_body`] render it; a template supplies the
-//! surrounding document and nothing else. Both renderers are platform-neutral,
-//! so the macOS plist can be tested from any host — it previously could not be.
+//! `claude_desktop_policy` defines the keys; registry and plist renderers
+//! serialize them for the target platform.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

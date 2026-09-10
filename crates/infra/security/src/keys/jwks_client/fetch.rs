@@ -107,9 +107,12 @@ impl JwksClient {
     }
 
     async fn fetch_remote(&self, url: &Url) -> Result<(Jwks, Duration), JwksClientError> {
+        let http = self
+            .http
+            .as_ref()
+            .ok_or(JwksClientError::ClientUnavailable)?;
         let response =
-            self.http
-                .get(url.clone())
+            http.get(url.clone())
                 .send()
                 .await
                 .map_err(|source| JwksClientError::Http {

@@ -14,8 +14,8 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
 pub use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
-    ManifestMarketplace, PluginEntry, PluginFile, SignedManifest, SignedManifestEnvelope,
-    SkillEntry, UserInfo, bridge_version_is_supported,
+    ManifestMarketplace, PluginEntry, PluginFile, RuleEntry, SignedManifest,
+    SignedManifestEnvelope, SkillEntry, UserInfo, bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::services::{AutoUpdatePolicy, PluginComponentRef};
@@ -123,6 +123,7 @@ pub struct SignedManifestBuilder {
     user: Option<UserInfo>,
     plugins: Vec<PluginEntry>,
     skills: Vec<SkillEntry>,
+    rules: Vec<RuleEntry>,
     agents: Vec<AgentEntry>,
     hooks: Vec<HookEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
@@ -152,6 +153,7 @@ impl SignedManifestBuilder {
             user: None,
             plugins: Vec::new(),
             skills: Vec::new(),
+            rules: Vec::new(),
             agents: Vec::new(),
             hooks: Vec::new(),
             managed_mcp_servers: Vec::new(),
@@ -217,6 +219,12 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
+    pub fn with_rules(mut self, rules: Vec<RuleEntry>) -> Self {
+        self.rules = rules;
+        self
+    }
+
+    #[must_use]
     pub fn with_agents(mut self, agents: Vec<AgentEntry>) -> Self {
         self.agents = agents;
         self
@@ -265,6 +273,7 @@ impl SignedManifestBuilder {
             user: self.user,
             plugins: self.plugins,
             skills: self.skills,
+            rules: self.rules,
             agents: self.agents,
             hooks: self.hooks,
             managed_mcp_servers: self.managed_mcp_servers,

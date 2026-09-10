@@ -1,19 +1,8 @@
-//! Which calls `require_approval` holds, and on what.
+//! Tool-name and argument-condition rules for approval holds.
 //!
-//! A rule is a tool-name match, optionally narrowed by conditions on the call's
-//! own arguments. Without conditions it is the original behaviour: name
-//! matches, call holds. With them the hold is reserved for the calls that
-//! actually warrant a human — an `email_send` leaving our domain rather than
-//! every `email_send`.
-//!
-//! The two failure directions are deliberately opposite, and the reason is
-//! worth stating because it looks inconsistent otherwise. A rule that fails to
-//! *parse* is dropped: a config typo must never conjure a hold nobody
-//! configured, which is the same posture as `patterns` defaulting to empty. A
-//! rule that parses but cannot be *evaluated* — a path that addresses nothing,
-//! a number compared against a string — holds: at that point an operator has
-//! declared the field decides safety, and the honest answer to "I cannot tell"
-//! from an escalation policy is to ask the human.
+//! Rules without conditions match by tool name. Invalid rule definitions are
+//! discarded. A valid rule whose conditions cannot be evaluated requires
+//! approval.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -17,11 +17,9 @@ use systemprompt_identifiers::SessionId;
 
 const AUTO_UPDATE_INTERVAL: Duration = Duration::from_hours(6);
 
-/// The periodic org-policy update check.
-///
-/// Staging only: the check leads to a download and an on-disk swap, never a
-/// restart. Called from the one-second event-loop pass, so the policy read —
-/// which touches the last-sync sentinel — sits behind the interval test.
+// Why: staging only — the check leads to a download and an on-disk swap, never
+// a restart. Called from the one-second event-loop pass, so the policy read,
+// which touches the last-sync sentinel, sits behind the interval test.
 pub(crate) fn maybe_auto_check(app: &mut GuiApp, woke_from_sleep: bool) {
     if app.auto_update_pending {
         return;

@@ -29,6 +29,11 @@ export const MKT_KIND = {
     singular: "Agent",
     glyph: `<svg ${STROKE}><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
   },
+  rules: {
+    label: "Rules",
+    singular: "Rule",
+    glyph: `<svg ${STROKE}><path d="M4 4h16"/><path d="M4 9h10"/><path d="M4 14h16"/><path d="M4 19h10"/></svg>`,
+  },
   artifacts: {
     label: "Artifacts",
     singular: "Artifact",
@@ -42,10 +47,11 @@ export const MKT_KIND_L10N = {
   hooks: "marketplace-cat-hooks",
   mcp: "marketplace-cat-mcp",
   agents: "marketplace-cat-agents",
+  rules: "marketplace-cat-rules",
   artifacts: "marketplace-cat-artifacts",
 };
 
-export const MKT_CHILD_KIND_ORDER = ["skills", "agents", "mcp", "hooks"];
+export const MKT_CHILD_KIND_ORDER = ["skills", "rules", "agents", "mcp", "hooks"];
 
 export function mktKindSingular(kind) {
   return (MKT_KIND[kind] || {}).singular || kind;

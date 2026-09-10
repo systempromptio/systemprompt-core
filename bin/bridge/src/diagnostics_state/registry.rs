@@ -31,7 +31,7 @@ pub(crate) fn render() -> String {
     }
     out.push(format!(
         "webview2 runtime: {}",
-        crate::gui::webview2::runtime_version().unwrap_or_else(|| "<absent>".to_owned())
+        crate::webview2::runtime_version().unwrap_or_else(|| "<absent>".to_owned())
     ));
     out.join("\n") + "\n"
 }

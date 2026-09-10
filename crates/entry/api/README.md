@@ -1,35 +1,11 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Production infrastructure for AI agents
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
 # systemprompt-api
-
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/entry-api.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/entry-api.svg">
-    <img alt="systemprompt-api terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/entry-api.svg" width="100%">
-  </picture>
-</div>
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-api.svg?style=flat-square)](https://crates.io/crates/systemprompt-api)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-api?style=flat-square)](https://docs.rs/systemprompt-api)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-One audited path for every agent call, tool invocation, and model request your organization makes. This is the Axum server that runs it: governed agents, MCP, A2A, OAuth, the Claude gateway, marketplace, sync, analytics, and admin endpoints, all composed behind a single middleware stack with authentication, rate limiting, RBAC, content negotiation, and security headers.
+Composes Axum routes and middleware for authentication, agents, MCP, inference, marketplace, analytics and administration. Enforcement and authentication requirements are specific to each route.
 
 **Layer**: Entry — application boundary. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -170,11 +146,3 @@ The API server is configured through `systemprompt-runtime::Config` and the acti
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-api)** · **[docs.rs](https://docs.rs/systemprompt-api)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>Entry layer · Own how your organization uses AI.</sub>
-
-</div>

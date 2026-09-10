@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `AiRequest.upstream_latency_ms` and `UpdateCompletionParams.upstream_latency_ms`, persisted by migration `022_ai_requests_upstream_latency`. `latency_ms` measures the whole request as the caller experienced it, so gateway overhead — governance, quota, protocol translation, audit — could not be derived from it; the new column brackets the provider call alone and the difference is the overhead. The completion update writes it through `COALESCE`, so a caller that does not supply one leaves any existing value alone. It is NULL for a request that never reached a provider and for every row written before the migration, which does not backfill.
+
 ## [0.48.0] - 2026-09-08
 
 ### Added
@@ -14,8 +20,8 @@
 
 ### Added
 
-- `CanonicalUsage` and `CanonicalUsageUpdate` carry `reasoning_tokens`, parsed on every wire in both modes: Gemini `usageMetadata.thoughtsTokenCount`, OpenAI Responses `usage.output_tokens_details.reasoning_tokens`, OpenAI Chat `usage.completion_tokens_details.reasoning_tokens`. Anthropic bills thinking as ordinary output tokens and reports no separate count, so it stays 0. Reasoning is a breakdown *of* `output_tokens`, never an addition: OpenAI already folds it in, Gemini's adapter adds it into output, and billing needs no per-provider arithmetic. Before this the count was dropped by construction — a `gemini-2.5-flash` turn that burned a 200-token thinking budget recorded and billed 6 output tokens.
-- The internal AI path records reasoning tokens too. The count was dropped between `CanonicalUsage` and the INSERT, so the gateway wrote the column and the internal half of the product wrote NULL. It is threaded through `AiResponse`, `StreamChunk::Usage`, the stream accumulator, `TokenInfo` and the INSERT. `AiRequestBuilder` gains a separate `reasoning()` setter rather than widening `tokens()`, which is a public const fn an arity change would break. `tokens_used` stays input + output throughout, because reasoning is already inside output and summing it double-counts.
+- `CanonicalUsage` and `CanonicalUsageUpdate` carry provider reasoning counts as a subset of output usage on buffered and streaming paths. Billing uses normalized input and output totals.
+- Internal AI requests propagate reasoning counts through response, stream, accumulator and persistence types. `AiRequestBuilder::reasoning` sets the count separately from `tokens`; total usage remains input plus output.
 - `AuditLookupResult` carries `reasoning_tokens`, and `update_error`'s `RETURNING` list includes the column.
 
 ### Changed

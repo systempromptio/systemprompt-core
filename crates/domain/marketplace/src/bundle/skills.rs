@@ -36,7 +36,7 @@ const BINARY_EXTS: &[&str] = &[
 
 const BUNDLE_HOSTS: &[&str] = &["cowork", "claude-desktop", "claude-code"];
 
-fn targets_bundle_hosts(hosts: &[String]) -> bool {
+pub(super) fn targets_bundle_hosts(hosts: &[String]) -> bool {
     hosts.is_empty() || hosts.iter().any(|h| BUNDLE_HOSTS.contains(&h.as_str()))
 }
 

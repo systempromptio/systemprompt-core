@@ -1,9 +1,10 @@
 //! The bundle of catalogue items handed to a [`crate::MarketplaceFilter`].
 //!
-//! Ownership maps (`skill_owners`, `artifact_owners`) drive the per-plugin
-//! access cascade and orphan pruning. They are not serialised as maps, but
-//! [`MarketplaceCandidate::into_manifest_parts`] stamps each entry's surviving
-//! owners onto `SkillEntry::plugins` / `ArtifactEntry::plugins` so the bridge
+//! Ownership maps (`skill_owners`, `rule_owners`, `artifact_owners`) drive the
+//! per-plugin access cascade and orphan pruning. They are not serialised as
+//! maps, but [`MarketplaceCandidate::into_manifest_parts`] stamps each entry's
+//! surviving owners onto `SkillEntry::plugins` / `RuleEntry::plugins` /
+//! `ArtifactEntry::plugins` so the bridge
 //! can group its Marketplace listing without a second request. The same pass
 //! narrows each `ManifestMarketplace` to its surviving plugins and drops a
 //! marketplace left with none, so a client mirrors exactly the marketplaces
@@ -15,10 +16,10 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use systemprompt_identifiers::{AgentId, HookId, MarketplaceId, McpServerId};
-use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, SkillId};
+use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId, RuleId, SkillId};
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, ManifestMarketplace, PluginEntry,
-    SkillEntry,
+    RuleEntry, SkillEntry,
 };
 
 use crate::membership::MarketplaceMembership;
@@ -41,11 +42,13 @@ pub struct EntryKeepSets {
 pub struct MarketplaceCandidate {
     pub plugins: Vec<PluginEntry>,
     pub skills: Vec<SkillEntry>,
+    pub rules: Vec<RuleEntry>,
     pub agents: Vec<AgentEntry>,
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
     pub artifacts: Vec<ArtifactEntry>,
     pub marketplaces: Vec<ManifestMarketplace>,
+    pub rule_owners: BTreeMap<RuleId, BTreeSet<PluginId>>,
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub membership: MarketplaceMembership,
@@ -57,6 +60,7 @@ pub struct MarketplaceCandidate {
 pub struct ManifestEntries {
     pub plugins: Vec<PluginEntry>,
     pub skills: Vec<SkillEntry>,
+    pub rules: Vec<RuleEntry>,
     pub agents: Vec<AgentEntry>,
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
@@ -68,6 +72,7 @@ pub struct ManifestEntries {
 /// Assembly context consumed by filtering, never serialised to the manifest.
 #[derive(Debug, Clone, Default)]
 pub struct FilterContext {
+    pub rule_owners: BTreeMap<RuleId, BTreeSet<PluginId>>,
     pub skill_owners: BTreeMap<SkillId, BTreeSet<PluginId>>,
     pub artifact_owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>>,
     pub membership: MarketplaceMembership,
@@ -79,11 +84,13 @@ impl MarketplaceCandidate {
         let Self {
             plugins,
             skills,
+            rules,
             agents,
             hooks,
             managed_mcp_servers,
             artifacts,
             marketplaces,
+            rule_owners,
             skill_owners,
             artifact_owners,
             membership,
@@ -102,6 +109,10 @@ impl MarketplaceCandidate {
         for skill in &mut skills {
             skill.plugins = owned(skill_owners.get(&skill.id));
         }
+        let mut rules = rules;
+        for rule in &mut rules {
+            rule.plugins = owned(rule_owners.get(&rule.id));
+        }
         let mut artifacts = artifacts;
         for artifact in &mut artifacts {
             artifact.plugins = owned(artifact_owners.get(&artifact.id));
@@ -115,6 +126,7 @@ impl MarketplaceCandidate {
             ManifestEntries {
                 plugins,
                 skills,
+                rules,
                 agents,
                 hooks,
                 managed_mcp_servers,
@@ -123,6 +135,7 @@ impl MarketplaceCandidate {
                 diagnostics,
             },
             FilterContext {
+                rule_owners,
                 skill_owners,
                 artifact_owners,
                 membership,
@@ -133,6 +146,12 @@ impl MarketplaceCandidate {
     #[must_use]
     pub fn with_skill_owners(mut self, owners: BTreeMap<SkillId, BTreeSet<PluginId>>) -> Self {
         self.skill_owners = owners;
+        self
+    }
+
+    #[must_use]
+    pub fn with_rule_owners(mut self, owners: BTreeMap<RuleId, BTreeSet<PluginId>>) -> Self {
+        self.rule_owners = owners;
         self
     }
 
@@ -161,6 +180,7 @@ impl MarketplaceCandidate {
         self.managed_mcp_servers
             .retain(|m| keep.mcp_servers.contains(&m.id));
         self.prune_orphaned_artifacts();
+        self.prune_orphaned_rules();
     }
 
     pub fn prune_orphaned_artifacts(&mut self) {
@@ -180,10 +200,28 @@ impl MarketplaceCandidate {
         });
     }
 
+    pub fn prune_orphaned_rules(&mut self) {
+        let surviving: BTreeSet<&PluginId> = self.plugins.iter().map(|p| &p.id).collect();
+        let owners = &self.rule_owners;
+        self.rules.retain(|r| {
+            let kept = owners
+                .get(&r.id)
+                .is_some_and(|o| o.iter().any(|p| surviving.contains(p)));
+            if !kept {
+                tracing::warn!(
+                    rule_id = %r.id.as_str(),
+                    "marketplace: every plugin shipping this rule was filtered out; dropping"
+                );
+            }
+            kept
+        });
+    }
+
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.plugins.is_empty()
             && self.skills.is_empty()
+            && self.rules.is_empty()
             && self.agents.is_empty()
             && self.hooks.is_empty()
             && self.managed_mcp_servers.is_empty()

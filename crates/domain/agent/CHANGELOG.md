@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Fixed
+
+- `tasks/pushNotificationConfig/set` validates the callback URL through the shared SSRF guard and answers JSON-RPC `-32602` instead of storing it. The URL is chosen by whoever calls the A2A server, and the stored config is what webhook delivery later posts to.
+- Webhook delivery uses a guarded outbound client, so a destination whose hostname resolves into a blocked range is refused at connect time and on every redirect hop. `WebhookService::http_client` is optional: a client that cannot be built disables delivery with an error, rather than falling back to an unguarded `Client::new()` as it did before.
+
 ## [0.48.0] - 2026-09-08
 
 ### Removed

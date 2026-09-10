@@ -41,6 +41,7 @@ fn manifest_with(
         user: None,
         plugins: vec![],
         skills,
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: mcp,

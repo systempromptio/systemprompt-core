@@ -14,6 +14,7 @@ An extension is a Rust type that implements the `Extension` trait and is registe
 # Cargo.toml
 [dependencies]
 systemprompt = { version = "0.49", features = ["core"] }
+inventory = "0.3"
 ```
 
 The trait, the macro, and the value types are re-exported through the facade prelude:
@@ -22,7 +23,7 @@ The trait, the macro, and the value types are re-exported through the facade pre
 use systemprompt::extension::prelude::*;
 ```
 
-This brings `Extension`, `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter`, `Migration`, `register_extension!`, `extension_migrations!`, the typed sub-traits, and the `ExtensionContext` trait into scope (`crates/shared/extension/src/lib.rs:105`).
+This brings `Extension`, `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter`, `Migration`, `register_extension!`, `extension_migrations!`, the capability traits, and the `ExtensionContext` trait into scope (`crates/shared/extension/src/lib.rs:105`).
 
 ## Step 1 — Implement the `Extension` trait
 
@@ -53,7 +54,7 @@ impl Extension for DemoExtension {
 }
 ```
 
-The type must be `Send + Sync + 'static`. The `register_extension!($type)` form constructs the extension with `Default::default()`, so deriving `Default` is required when you register by type (`crates/shared/extension/src/traits/register.rs:3`).
+The type must be `Send + Sync + 'static`. The `register_extension!($type)` form constructs the extension with `Default::default()`, so implementing or deriving `Default` is required when you register by type (`crates/shared/extension/src/traits/register.rs:3`).
 
 ## Step 2 — Register the extension
 
@@ -66,7 +67,7 @@ register_extension!(DemoExtension);
 Two forms are accepted (`crates/shared/extension/src/traits/register.rs`):
 
 - `register_extension!(DemoExtension)` — constructs via `Default`.
-- `register_extension!(DemoExtension::with_config(cfg))` — registers a value you build.
+- `register_extension!(DemoExtension::default())` — registers a factory expression. The expression runs in a noncapturing factory and cannot refer to local variables.
 
 The complete minimal extension is the facade example `systemprompt/examples/extension.rs`, runnable with:
 
@@ -204,10 +205,6 @@ trait itself. Extensions that participate in gateway request governance addition
 implement `GatewayRequestGuard` (`crates/shared/extension/src/gateway_guard.rs:62`) and
 register it with `register_gateway_guard`.
 
-> **Removed.** Earlier releases offered typed sub-traits — `SchemaExtensionTyped`,
-> `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`, `ConfigExtensionTyped`,
-> and `ApiExtensionTypedDyn` — built on an `ExtensionMeta` supertrait. None of them exist any
-> more. Use `Extension` plus the capability traits above.
 
 ## How discovery works
 
@@ -220,7 +217,7 @@ cargo build -p <your-extension-crate>
 cargo run -p systemprompt --example extension --features core
 ```
 
-A clean build of a crate that links your extension is sufficient to confirm registration; there is no separate load step to check.
+Build the host binary and verify that startup discovers the extension and accepts its dependencies. Compilation alone does not verify runtime initialization.
 
 ## Related pages
 

@@ -4,19 +4,19 @@
 
 ## What This Crate Does
 
-systemprompt-core is the governance engine behind [systemprompt.io](https://systemprompt.io). It evaluates every AI tool call through a synchronous four-layer pipeline (scope check, secret scan, blocklist, rate limit) before the call executes. Every decision produces a structured JSON audit event with end-to-end trace linking from user identity through agent, permission grant, tool call, result, and cost.
+systemprompt-core is the governance engine behind [systemprompt.io](https://systemprompt.io). It evaluates calls routed through its governance integrations using configured scope, secret-scan, blocklist and rate-limit policies before dispatch. Audit records correlate identity, policy decisions, requests, results and recorded usage.
 
-This is a library, not a framework. You compile it into your binary and extend it at compile time. There is no runtime plugin loading, no reflection, no dynamic dispatch at the governance boundary.
+This is a library, not a framework. You compile it into your binary and extend it at compile time. There is no runtime plugin loading, no runtime shared-library discovery; extension and governance contracts use Rust traits.
 
 ## Crate Architecture
 
-33-crate Rust workspace, published to crates.io as `systemprompt` with feature flags:
+34-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
 
 ```
 Shared (7)     identifiers, provider-contracts, traits, extension,
                models, client, template-provider
 
-Infra (7)      database, logging, config, events, security, cloud, loader
+Infra (8)      database, logging, config, events, security, cloud, loader, storage
 
 Domain (13)    users, oauth, files, analytics, content, mcp, ai, agent,
                templates, marketplace, slack, teams, evaluation
@@ -43,21 +43,21 @@ Requires PostgreSQL 18+ at runtime.
 
 ## Governance Pipeline
 
-Every tool call passes through four synchronous layers:
+Governed calls evaluate the configured policy chain before dispatch. Built-in policies include:
 
-1. **Scope check** — RBAC evaluation against six tiers (admin, user, a2a, mcp, service, anonymous) with department scoping and per-entity allow/deny rules
-2. **Secret scan** — 35+ patterns detect API keys, tokens, passwords, private keys, and connection strings in both requests and responses
+1. **Scope check** — RBAC evaluation against principal categories (admin, user, a2a, mcp, service, anonymous) with extension-provided attributes and per-entity allow/deny rules
+2. **Secret scan** — credential patterns detect API keys, tokens, passwords, private keys and connection strings on supported scan surfaces; response handling depends on the integration
 3. **Blocklist** — explicit deny rules for specific actions, tools, or content patterns
 4. **Rate limit** — per-agent, per-tool, per-department quotas with configurable windows
 
-The pipeline is synchronous: the tool call does not execute until all four layers pass. This is real-time enforcement, not retroactive analysis.
+Enforcing denials prevent dispatch. Warn mode records findings and permits execution; disabled policies are skipped. Client-local actions require an integration that routes them through governance.
 
 ## Key Technical Facts
 
-- **Performance:** p50 < 5ms, p99 < 12ms governance overhead per request
-- **Typed identifiers:** zero raw String IDs anywhere. Every boundary crossing uses typed identifiers (TraceId, ContextId, TaskId, UserId)
-- **Compile-time extensions:** the `inventory` crate registers extensions at compile time. No runtime plugin loading, no dynamic dispatch at the governance boundary
-- **Audit events:** sixteen event hooks covering sessions, tool calls, prompts, permission grants/denials, configuration changes, and subagent lifecycle. Five-point trace: identity, agent, permission, tool call, result, cost
+- **Performance:** measure governance latency with the deployed policy chain, workload and database; report percentiles with reproducible benchmark conditions
+- **Typed identifiers:** internal identifiers use dedicated types such as TraceId, ContextId, TaskId and UserId; external protocol values and partial CLI lookups have separate boundary rules
+- **Compile-time extensions:** the `inventory` crate registers extensions at compile time. No runtime shared-library loading; registered implementations may use trait objects
+- **Audit events:** typed events cover sessions, tool calls, prompts, permission decisions, configuration and agent lifecycle; trace fields correlate the emitting operation and actor
 - **SIEM-ready:** structured JSON events for direct ingestion by Splunk, ELK, Datadog, Sumo Logic. Three integration paths: log forwarding (stdout/file), real-time SSE streaming, CLI queries
 - **MCP-native:** governance is the MCP transport layer. Per-server OAuth2. Central registry with no local configuration drift
 - **Provider-agnostic:** one governance layer across Anthropic Claude, OpenAI, Google Gemini, and local models
@@ -89,6 +89,23 @@ just build && just setup-local <api-key> && just start
 
 Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read `src/` and the published docs at [docs.rs/systemprompt-core](https://docs.rs/systemprompt-core).
 
+## Documentation standard
+
+Describe supported behavior, interfaces, configuration and operational constraints in
+precise, neutral language. Verify factual claims against the relevant source, manifest or
+workflow. Scope measurements to a revision, workload and reproducible command. Distinguish
+configured checks from observed results and software controls from external assessments.
+
+Keep current references in the present tense. Remove resolved-issue narratives, debugging
+chronology, moral judgments, promotional superlatives and commentary about earlier wording.
+Document current limitations with their conditions and operational consequences. Changelogs
+retain versions, dates, concise technical changes and required migration instructions.
+Historical behavior belongs only where needed to explain release compatibility.
+
+Review documentation and examples when changing their contracts. Public links must resolve
+without access to ignored internal documents. Keep legal terms and disclosure requirements
+intact; do not infer certification or contractual commitments from implementation details.
+
 ## Production Rust Comments
 
 The default is no inline comment. Express internal rules through names, types,
@@ -114,8 +131,8 @@ and Rustdoc placement; assess necessity and accuracy during code review.
 
 If you are an agent working in this repository:
 
-- **All work lands on `next`** — the default branch. Push freely; no gates run
-  automatically.
+- **All work lands on `next`** — the default branch. Pushes and pull requests targeting `next` run
+  the configured CI, Quality and Supply Chain workflows.
 - **`main` is protected and release-only.** A ruleset requires a pull request
   and grants no bypass to anyone; a direct `git push origin main` is refused
   for agents and admins alike. Never target `main`.

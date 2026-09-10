@@ -7,6 +7,7 @@ const KIND_EMPTY_L10N = {
   hooks: "marketplace-empty-hooks",
   mcp: "marketplace-empty-mcp",
   agents: "marketplace-empty-agents",
+  rules: "marketplace-empty-rules",
   artifacts: "marketplace-empty-artifacts",
 };
 
@@ -16,6 +17,7 @@ const KIND_EMPTY_TITLE = {
   hooks: "No hooks yet",
   mcp: "No MCP servers yet",
   agents: "No agents yet",
+  rules: "No rules yet",
   artifacts: "No artifacts yet",
 };
 

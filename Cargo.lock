@@ -5169,6 +5169,7 @@ dependencies = [
  "ipnet",
  "libc",
  "regex",
+ "reqwest",
  "rmcp",
  "schemars",
  "semver",
@@ -5183,6 +5184,7 @@ dependencies = [
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.19",
+ "tokio",
  "tracing",
  "url",
  "uuid",
@@ -5393,6 +5395,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.19",
+ "tracing",
 ]
 
 [[package]]

@@ -33,6 +33,7 @@ jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
 
 # systemprompt.io integration
+tracing = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-extension = { workspace = true }

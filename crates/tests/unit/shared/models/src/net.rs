@@ -458,11 +458,106 @@ mod ssrf_adversarial_tests {
 
     #[test]
     fn hostnames_are_not_resolved_at_validation_time() {
-        // `example.com` is public-looking; the guard accepts it without doing
-        // a DNS lookup. This is the documented behaviour.
+        // The parse-time guard is a pre-filter only: a public-looking name is
+        // accepted here and rejected at connect time by `GuardedResolver`
+        // (see `guarded_client_tests`).
         assert!(validate_outbound_url("https://example.com/h").is_ok());
-        // A name designed to resolve to 127.0.0.1 in a public resolver (the
-        // "localtest.me" / "lvh.me" pattern) would also pass — this test does
-        // NOT exercise DNS, it pins the policy that the guard is name-based.
+    }
+}
+
+mod guarded_client_tests {
+    use std::io::Error as IoError;
+
+    use reqwest::dns::Resolve;
+    use systemprompt_models::net::{GuardedClientConfig, GuardedResolver, guarded_client};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    fn resolved(resolver: &GuardedResolver, host: &str) -> Result<Vec<String>, String> {
+        let name = host.parse().map_err(|_| "bad name".to_owned())?;
+        let fut = Resolve::resolve(resolver, name);
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e: IoError| e.to_string())?
+            .block_on(fut)
+            .map(|addrs| addrs.map(|a| a.ip().to_string()).collect())
+            .map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn a_name_resolving_into_a_blocked_range_is_refused() {
+        let resolver = GuardedResolver::new(Vec::new());
+        let err = resolved(&resolver, "localhost").expect_err("loopback must be refused");
+        assert!(
+            err.contains("blocked address"),
+            "expected a blocked-address refusal, got {err}"
+        );
+    }
+
+    #[test]
+    fn a_trusted_name_resolving_into_a_blocked_range_is_allowed() {
+        let resolver = GuardedResolver::new(vec!["localhost".to_owned()]);
+        let addrs = resolved(&resolver, "localhost").expect("trusted host must resolve");
+        assert!(!addrs.is_empty());
+    }
+
+    #[test]
+    fn loopback_stays_resolvable_under_the_default_config() {
+        let config = GuardedClientConfig::default();
+        assert!(config.allow_loopback);
+        let resolver = GuardedResolver::new(vec!["localhost".to_owned()]);
+        assert!(resolved(&resolver, "localhost").is_ok());
+    }
+
+    #[test]
+    fn denying_loopback_removes_the_localhost_exemption() {
+        let config = GuardedClientConfig::default().deny_loopback();
+        assert!(!config.allow_loopback);
+    }
+
+    async fn redirect_once_to(target: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 1024];
+                let _read = socket.read(&mut buf).await;
+                let response = format!(
+                    "HTTP/1.1 302 Found\r\nLocation: {target}\r\nContent-Length: 0\r\n\r\n"
+                );
+                let _written = socket.write_all(response.as_bytes()).await;
+            }
+        });
+        format!("http://{addr}/start")
+    }
+
+    #[tokio::test]
+    async fn a_redirect_to_a_blocked_address_is_refused() {
+        let url = redirect_once_to("http://169.254.169.254/latest/meta-data").await;
+        let client = guarded_client(&GuardedClientConfig::default()).expect("client");
+        let err = client.get(&url).send().await.expect_err("must be refused");
+        assert!(err.is_redirect(), "expected a redirect refusal, got {err}");
+    }
+
+    #[tokio::test]
+    async fn a_zero_redirect_cap_surfaces_the_redirect_unfollowed() {
+        let url = redirect_once_to("https://example.com/next").await;
+        let client =
+            guarded_client(&GuardedClientConfig::default().with_max_redirects(0)).expect("client");
+        let response = client
+            .get(&url)
+            .send()
+            .await
+            .expect("the 3xx is the answer");
+        assert_eq!(response.status(), reqwest::StatusCode::FOUND);
+        assert_eq!(
+            response
+                .headers()
+                .get("location")
+                .and_then(|v| v.to_str().ok()),
+            Some("https://example.com/next"),
+            "nothing was followed, so the caller sees where it would have gone"
+        );
     }
 }
