@@ -14,13 +14,37 @@ use windows_sys::Win32::Security::{
     AccessCheck, DACL_SECURITY_INFORMATION, DuplicateToken, GENERIC_MAPPING,
     GROUP_SECURITY_INFORMATION, GetTokenInformation, OWNER_SECURITY_INFORMATION,
     SecurityImpersonation, TOKEN_LINKED_TOKEN, TokenElevationType, TokenElevationTypeFull,
-    TokenLinkedToken,
+    TokenElevationTypeLimited, TokenLinkedToken,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     DELETE, FILE_ALL_ACCESS, FILE_GENERIC_EXECUTE, FILE_GENERIC_READ, FILE_GENERIC_WRITE,
 };
 
 use super::{Descriptor, checked, process_token, status, wide};
+
+pub(crate) fn elevation_summary() -> io::Result<String> {
+    let token = process_token()?;
+    let mut elevation = 0u32;
+    let mut size = 0;
+    // SAFETY: the output has the size of the selected token information class.
+    unsafe {
+        checked(GetTokenInformation(
+            token.as_raw_handle(),
+            TokenElevationType,
+            (&raw mut elevation).cast(),
+            size_of::<u32>() as u32,
+            &raw mut size,
+        ))?;
+    }
+    let kind = if elevation == TokenElevationTypeFull as u32 {
+        "elevated (full administrator token)"
+    } else if elevation == TokenElevationTypeLimited as u32 {
+        "not elevated (limited token; UAC available)"
+    } else {
+        "default token (no UAC split)"
+    };
+    Ok(format!("{kind}; sid {}", super::current_sid()?))
+}
 
 fn unelevated_token() -> io::Result<OwnedHandle> {
     let token = process_token()?;

@@ -11,6 +11,7 @@ mod replay;
 mod sentinel;
 mod summary;
 
+use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
 use self::sentinel::persist_last_sync;
 pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
@@ -125,7 +126,7 @@ pub async fn run_once(
         check_skew(&synced.not_before, now)?;
     }
 
-    let report = apply::apply_manifest(
+    let report = match apply::apply_manifest(
         &fetch.client,
         fetch.bearer.expose(),
         bridge,
@@ -133,7 +134,29 @@ pub async fn run_once(
         &location,
     )
     .await
-    .map_err(SyncError::ApplyFailed)?;
+    {
+        Ok(report) => report,
+        Err(e) if denied_inside_system_root(&e, &location) => {
+            let healed = heal_org_plugins_scope(bridge, std::sync::Arc::clone(&operation))
+                .await?
+                .ok_or_else(|| org_plugins_denied(&e, &location))?;
+            tracing::warn!(
+                path = %healed.path.display(),
+                error = %e,
+                "org-plugins re-granted after a denied plugin replacement; applying again"
+            );
+            apply::apply_manifest(
+                &fetch.client,
+                fetch.bearer.expose(),
+                bridge,
+                &synced,
+                &healed,
+            )
+            .await
+            .map_err(|e| org_plugins_denied(&e, &healed))?
+        },
+        Err(e) => return Err(SyncError::ApplyFailed(e)),
+    };
 
     if !report.host_failures.is_empty() || !report.malformed.is_empty() {
         return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
@@ -213,50 +236,6 @@ fn check_org_plugins_scope(
         });
     }
     Ok(())
-}
-
-#[cfg(target_os = "windows")]
-async fn heal_org_plugins_scope(
-    bridge: &crate::context::BridgeContext,
-    operation: std::sync::Arc<tokio::sync::OwnedMutexGuard<()>>,
-) -> Result<Option<paths::OrgPluginsLocation>, SyncError> {
-    if bridge
-        .elevation_attempted
-        .swap(true, std::sync::atomic::Ordering::SeqCst)
-    {
-        return Ok(None);
-    }
-    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-        .map_err(|e| SyncError::Network(format!("org-plugins provisioning: {e}")))?;
-    let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    fs::create_dir_all(&stage_dir)
-        .map_err(|e| SyncError::Network(format!("create {}: {e}", stage_dir.display())))?;
-    tracing::info!(
-        path = %org.path.display(),
-        "requesting one-time administrator approval to provision org-plugins for Cowork"
-    );
-    let job = crate::install::elevated_job::ElevatedJob {
-        clear_values: Vec::new(),
-        bridge_values: Vec::new(),
-        managed_files: Vec::new(),
-        remove_files: Vec::new(),
-        reg_path: None,
-        org_plugins: Some(org),
-    };
-    let outcome = tokio::task::spawn_blocking(move || {
-        let _operation = operation;
-        crate::install::elevated_job::elevate_and_run(&stage_dir, &job)
-    })
-    .await;
-    let receipt = outcome
-        .map_err(|e| SyncError::Network(format!("org-plugins provisioning task: {e}")))?
-        .map_err(|e| SyncError::Network(format!("org-plugins provisioning: {e}")))?;
-    for step in receipt.steps() {
-        bridge
-            .activity
-            .append(format!("verified {} {}", step.operation, step.target));
-    }
-    Ok(paths::org_plugins_effective().filter(|l| l.scope == paths::Scope::System))
 }
 
 #[cfg(not(target_os = "windows"))]

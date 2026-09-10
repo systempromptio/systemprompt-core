@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- **Bridge:** the diagnostics bundle carries `registry.txt` (both policy hives with owner, DACL, last write and fingerprinted secrets; process elevation and SID; WebView2 version) and a `state.txt` that covers the org-plugins tree, every host profile file, the working directories, the single-instance lock and the update policy. `doctor` checks that every private file opens for the current user.
+
+### Fixed
+
+- **Gateway:** a Gemini function declaration whose parameter declares `items` beside an `anyOf` array variant, or an array without `items`, is rewritten to the shape Gemini accepts instead of failing the request with `items: field predicate failed: $type == Type.ARRAY`. `SchemaFeatures.loose_items` declares the capability per provider.
+- **Bridge (Windows):** the private config directory grants inheritable access, so files written by an earlier release keep their owner's access when the directory is protected; a private file the user owns but cannot read is repaired on read; a plugin directory the user cannot replace under the system org-plugins root triggers the elevated re-grant and a second apply.
+
 ## [0.49.0] - 2026-09-09
 
 The evaluation domain becomes something a fleet of workers can actually run

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Breaking
+
+- **Breaking:** `SchemaFeatures` gains `loose_items`, whether a provider accepts `items` beside a non-array type and arrays without `items`. Migrate by adding the field to struct literals (`true` for Anthropic and OpenAI, `false` for Gemini).
+
+### Fixed
+
+- The Gemini schema sanitizer moves an `items` schema declared beside `anyOf`/`oneOf`/`allOf` into each array variant that lacks one, infers `type: array` when only `items` is declared, drops `items` from non-array types and gives an untyped array an empty item schema. A tool parameter written that way failed the whole request with `items: field predicate failed: $type == Type.ARRAY`.
+
 ## [0.49.0] - 2026-09-09
 
 ### Added

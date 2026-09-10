@@ -36,6 +36,7 @@ pub struct SchemaFeatures {
     pub exclusive_bounds: bool,
     pub property_names: bool,
     pub tuple_items: bool,
+    pub loose_items: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +63,7 @@ impl ProviderCapabilities {
                 exclusive_bounds: true,
                 property_names: true,
                 tuple_items: true,
+                loose_items: true,
             },
         }
     }
@@ -83,6 +85,7 @@ impl ProviderCapabilities {
                 exclusive_bounds: true,
                 property_names: true,
                 tuple_items: true,
+                loose_items: true,
             },
         }
     }
@@ -104,6 +107,7 @@ impl ProviderCapabilities {
                 exclusive_bounds: false,
                 property_names: false,
                 tuple_items: false,
+                loose_items: false,
             },
         }
     }

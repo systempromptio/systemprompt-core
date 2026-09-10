@@ -15,5 +15,7 @@ pub fn cmd_diagnostics(ctx: &crate::context::BridgeContext) -> ExitCode {
     stdio::print_str(&render());
     stdio::print_str("\n");
     stdio::print_str(&crate::diagnostics_state::render(ctx));
+    stdio::print_str("\n");
+    stdio::print_str(&crate::diagnostics_state::registry::render());
     ExitCode::SUCCESS
 }

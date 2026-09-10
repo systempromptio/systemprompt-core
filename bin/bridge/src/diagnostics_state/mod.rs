@@ -1,12 +1,19 @@
-//! The local state a diagnostics bundle must carry to explain a broken proxy:
-//! which process owns the port, what the key files look like, and what the
-//! machine policy currently says.
+//! The local state a diagnostics bundle must carry to explain a broken proxy.
+//!
+//! Which process owns the port, what the key files look like, how every host
+//! profile and the org-plugins tree are protected, and what the machine policy
+//! currently says. `registry` renders the Windows policy hives separately.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod files;
+mod hosts;
+pub(crate) mod registry;
+
 use std::path::Path;
 
+use self::files::{append_dir, append_file};
 use crate::context::BridgeContext;
 use crate::proxy::peer::{self, PeerIdentity};
 use crate::proxy::{DEFAULT_PROXY_PORT, ProxyRole};
@@ -56,6 +63,16 @@ pub fn render(ctx: &BridgeContext) -> String {
             out.push("  <no config dir>".to_owned());
         },
     }
+    out.push(String::new());
+    hosts::append_org_plugins(&mut out);
+    out.push(String::new());
+    hosts::append_host_profiles(&mut out, ctx);
+    out.push(String::new());
+    hosts::append_working_dirs(&mut out);
+    out.push(String::new());
+    hosts::append_single_instance(&mut out);
+    out.push(String::new());
+    hosts::append_update(&mut out);
     out.push(String::new());
     out.push("claude desktop policy:".to_owned());
     for line in crate::integration::claude_desktop::policy_summary() {
@@ -110,84 +127,4 @@ fn describe_peer(peer: PeerIdentity) -> String {
         PeerIdentity::Unknown => "held by an unidentified listener".to_owned(),
         PeerIdentity::Unreachable => "nothing listening".to_owned(),
     }
-}
-
-fn append_file(out: &mut Vec<String>, path: &Path) {
-    out.push(format!("  {}", path.display()));
-    match std::fs::read_to_string(path) {
-        Ok(body) => {
-            for line in body.lines() {
-                out.push(format!("    {line}"));
-            }
-        },
-        Err(e) => {
-            out.push(format!("    <{e}>"));
-        },
-    }
-}
-
-fn append_dir(out: &mut Vec<String>, dir: &Path) {
-    out.push(format!("  {}", dir.display()));
-    out.push(format!("    {}", describe_access(dir)));
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(e) => {
-            out.push(format!("    <{e}>"));
-            return;
-        },
-    };
-    let mut names: Vec<_> = entries.flatten().map(|e| e.path()).collect();
-    names.sort();
-    for path in names {
-        let name = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        let size = std::fs::metadata(&path).map_or_else(
-            |e| format!("<{e}>"),
-            |m| {
-                if m.is_dir() {
-                    "dir".to_owned()
-                } else {
-                    format!("{} bytes", m.len())
-                }
-            },
-        );
-        let readable = if path.is_dir() {
-            String::new()
-        } else {
-            match std::fs::File::open(&path) {
-                Ok(_) => " readable".to_owned(),
-                Err(e) => format!(" UNREADABLE: {e}"),
-            }
-        };
-        out.push(format!("  {name}: {size}{readable}"));
-        out.push(format!("    {}", describe_access(&path)));
-    }
-}
-
-#[cfg(target_os = "windows")]
-fn describe_access(path: &Path) -> String {
-    crate::windows_acl::describe(path).unwrap_or_else(|e| format!("acl: <{e}>"))
-}
-
-#[cfg(unix)]
-fn describe_access(path: &Path) -> String {
-    use std::os::unix::fs::MetadataExt;
-    std::fs::metadata(path).map_or_else(
-        |e| format!("mode: <{e}>"),
-        |m| {
-            format!(
-                "mode {:o} uid {} gid {}",
-                m.mode() & 0o7777,
-                m.uid(),
-                m.gid()
-            )
-        },
-    )
-}
-
-#[cfg(not(any(unix, target_os = "windows")))]
-fn describe_access(_path: &Path) -> String {
-    String::new()
 }

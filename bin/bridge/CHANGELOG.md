@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `doctor` gains a `private files` check that opens the config, PAT, loopback key, install id and port file as the current user and prints the owner and DACL of any it cannot.
+- The diagnostics bundle and `diagnostics` carry `registry.txt`: both hives of `SOFTWARE\Policies\Claude` and the bridge policy key, value by value with secrets as fingerprints, each key's owner, DACL and last write, the process token's elevation and SID, and the WebView2 runtime version. `state.txt` gains the org-plugins root with each plugin directory's ACL, every host profile's state, keys and file ACL, the staging and metadata directories, the single-instance lock and the update policy. `bridge-proxy.json`, `bridge-install.id` and `last-sync.json` are included verbatim.
+
+### Changed
+
+- The `install identity` startup fault carries the same path and remedy as the loopback secret fault.
+
+### Fixed
+
+- **Windows:** the private config directory grants inheritable access to the user, SYSTEM and Administrators. Protecting it with non-inheritable entries left files written by an earlier release (`bridge-loopback.key`, `bridge-install.id`) with an empty DACL that denied even their owner, so the proxy failed before binding and every host sync failed at "read loopback secret". The first start of this version restores access to those files and keeps the existing secret, so installed host profiles stay valid without a re-apply.
+- **Windows:** a private file this user owns but cannot read is repaired in place on read and logged at WARN with its descriptor before and after; a file owned by another account is reported as such, with the reset remedy.
+- **Windows:** a plugin directory under the system org-plugins root that the current user cannot replace triggers the one-time elevated Modify re-grant on the tree, and the manifest is applied again; a second failure names the directory and the `icacls` remedy instead of `remove old <plugin>: Access is denied`.
+
 ## [0.49.0] - 2026-09-09
 
 ### Breaking

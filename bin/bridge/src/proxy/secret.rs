@@ -24,7 +24,7 @@ pub fn secret_path() -> Option<PathBuf> {
 }
 
 pub fn load(path: &std::path::Path) -> std::io::Result<Option<LoopbackSecret>> {
-    match fs::read(path) {
+    match crate::fsutil::read_private(path) {
         Ok(bytes) => {
             let s = String::from_utf8(bytes)
                 .map_err(std::io::Error::other)?
@@ -79,19 +79,19 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
     Ok(secret)
 }
 
-// Why: the key is minted by this user and never touched again, so a read the
-// OS refuses means its ACL no longer names them. Nothing re-mints it on its
-// own (only a missing file does), so the error has to carry the remedy.
-fn unreadable(path: &std::path::Path, e: std::io::Error) -> std::io::Error {
+// Why: a denied read has already been through the owner repair, so what is
+// left is a file another account minted. Nothing re-mints it on its own (only
+// a missing file does), so the error has to carry the remedy.
+pub(crate) fn unreadable(path: &std::path::Path, e: std::io::Error) -> std::io::Error {
     if e.kind() != std::io::ErrorKind::PermissionDenied {
         return e;
     }
     std::io::Error::new(
         e.kind(),
         format!(
-            "{} cannot be read ({e}); this user no longer has access to the local proxy secret. \
-             Use \"Reset local proxy secret\" in the app or delete the file (as an \
-             administrator if needed), start the bridge again, then repair each agent",
+            "{} cannot be read ({e}); this account does not own the file and \
+             cannot repair it. Use \"Reset local proxy secret\" in the app or delete the file \
+             (as an administrator if needed), start the bridge again, then repair each agent",
             path.display()
         ),
     )

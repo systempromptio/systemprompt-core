@@ -108,6 +108,7 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.extend(cowork::check_cowork_enable());
     checks.extend(cowork::check_plugin_installation_preference());
     checks.extend(cowork::check_personal_session_sentinel());
+    checks.push(filesystem::check_private_files());
     checks.push(filesystem::check_bridge_working_dir());
     checks.push(filesystem::check_org_plugins_writable());
     checks.push(auth::check_credential_store());
