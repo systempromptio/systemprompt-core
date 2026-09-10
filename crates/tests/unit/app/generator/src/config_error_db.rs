@@ -120,6 +120,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> AppPaths {
             geoip_database: None,
         },
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("paths")
 }

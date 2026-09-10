@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use systemprompt_models::net::{GuardedClientConfig, guarded_client};
 
 use super::audit::{AuthzAuditSink, AuthzSource, NullAuditSink};
 use super::error::AuthzResult;
@@ -109,7 +110,7 @@ pub struct WebhookHook {
 
 impl WebhookHook {
     pub fn new(url: String, timeout: Duration, sink: Arc<dyn AuthzAuditSink>) -> AuthzResult<Self> {
-        let client = reqwest::Client::builder().timeout(timeout).build()?;
+        let client = guarded_client(&GuardedClientConfig::default().with_timeout(timeout))?;
         Ok(Self {
             url,
             timeout,

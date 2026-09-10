@@ -1,16 +1,9 @@
-//! Creation of CLI sessions for local and cloud-tenant profiles.
+//! CLI session creation for local and cloud-tenant profiles.
 //!
-//! Resolves an admin user, mints a session token, and records the session row
-//! plus context for both the local (`create_local_session`) and tenant
-//! (`create_session_for_tenant`) paths.
-//!
-//! The local-trial path *resolves* rather than provisions, and does so by
-//! `system_admin.username`. It previously looked the admin up by a hardcoded
-//! `admin@localhost.dev` and created one on a miss, which turned `users.email`
-//! into a key shared with a migration instead of a fact about a person — and
-//! surfaced as a fabricated identity on the bridge device-link consent screen.
-//! Cloud and tenant paths still key on email, because there the address comes
-//! from real credentials.
+//! Resolves the user, mints a token and records session context. Local sessions
+//! resolve the configured administrator by username without provisioning a
+//! user; cloud and tenant sessions resolve identities from credential email
+//! addresses.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

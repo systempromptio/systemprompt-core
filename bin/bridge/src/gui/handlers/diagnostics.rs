@@ -142,6 +142,16 @@ fn build_bundle(ctx: &crate::context::BridgeContext) -> io::Result<PathBuf> {
     zip.start_file("state.txt", opts)?;
     zip.write_all(crate::diagnostics_state::render(ctx).as_bytes())?;
 
+    zip.start_file("registry.txt", opts)?;
+    zip.write_all(crate::diagnostics_state::registry::render().as_bytes())?;
+
+    for (name, path) in state_files() {
+        if let Ok(bytes) = fs::read(&path) {
+            zip.start_file(name, opts)?;
+            zip.write_all(&bytes)?;
+        }
+    }
+
     if let Some(yaml) = crate::config::redaction::redacted_config() {
         zip.start_file("config.redacted.toml", opts)?;
         zip.write_all(yaml.as_bytes())?;
@@ -149,6 +159,26 @@ fn build_bundle(ctx: &crate::context::BridgeContext) -> io::Result<PathBuf> {
 
     zip.finish()?;
     Ok(zip_path)
+}
+
+// Why: these hold no secret, and a bundle that carries them verbatim lets the
+// port record, install identity and sync checkpoint be compared across
+// bundles without asking the user for another export.
+fn state_files() -> Vec<(&'static str, PathBuf)> {
+    let mut files = Vec::new();
+    if let Some(path) = crate::proxy::portfile::portfile_path() {
+        files.push(("bridge-proxy.json", path));
+    }
+    if let Some(path) = crate::proxy::identity::install_id_path() {
+        files.push(("bridge-install.id", path));
+    }
+    if let Some(meta) = crate::config::paths::bridge_metadata_dir() {
+        files.push((
+            "last-sync.json",
+            meta.join(crate::config::paths::LAST_SYNC_SENTINEL),
+        ));
+    }
+    files
 }
 
 fn add_file(

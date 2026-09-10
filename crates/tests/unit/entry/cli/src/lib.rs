@@ -32,7 +32,11 @@ mod cloud_tenant_docker;
 #[cfg(test)]
 mod commands;
 #[cfg(test)]
+mod deploy_vault_secrets;
+#[cfg(test)]
 mod descriptor;
+#[cfg(test)]
+mod doctor_vault_checks;
 #[cfg(test)]
 mod env_overrides;
 #[cfg(test)]
@@ -55,6 +59,34 @@ mod presentation_tables;
 mod runner_args;
 #[cfg(test)]
 mod runner_routing;
+#[cfg(test)]
+mod secret_check;
+#[cfg(test)]
+mod secret_check_flows;
+#[cfg(test)]
+mod services_bundle;
+#[cfg(test)]
+mod services_command_parsing;
+#[cfg(test)]
+mod services_import;
+#[cfg(test)]
+mod services_inspect_active;
+#[cfg(test)]
+mod services_inspect_flows;
+#[cfg(test)]
+mod services_profile_fixture;
+#[cfg(test)]
+mod services_publish;
+#[cfg(test)]
+mod services_reconcile;
+#[cfg(test)]
+mod services_refresh;
+#[cfg(test)]
+mod services_refresh_flows;
+#[cfg(test)]
+mod services_validate;
+#[cfg(test)]
+mod services_validate_flows;
 #[cfg(test)]
 mod session_creation_admin_db;
 #[cfg(test)]

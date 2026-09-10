@@ -33,6 +33,14 @@ impl PathsConfig {
         self.web_path = self.web_path.as_ref().map(|p| resolve_path(base, p));
     }
 
+    #[must_use]
+    pub fn with_services_root(&self, root: &Path) -> Self {
+        Self {
+            services: root.to_string_lossy().into_owned(),
+            ..self.clone()
+        }
+    }
+
     pub fn skills(&self) -> String {
         format!("{}/skills", self.services)
     }

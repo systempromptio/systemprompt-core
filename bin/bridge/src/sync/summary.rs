@@ -14,6 +14,7 @@ pub struct SyncSummary {
     pub manifest_version: String,
     pub plugin_count: usize,
     pub skill_count: usize,
+    pub rule_count: usize,
     pub agent_count: usize,
     pub hook_count: usize,
     pub mcp_count: usize,
@@ -69,13 +70,14 @@ impl SyncSummary {
         };
         format!(
             "{status} ({}): {} plugins ({} new, {} updated, {} removed), {} skills installed, {} \
-             agents, {} hooks, {} MCP, {} artifacts — manifest {}{}{}{}",
+             rules, {} agents, {} hooks, {} MCP, {} artifacts — manifest {}{}{}{}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
             self.updated.len(),
             self.removed.len(),
             self.skill_count,
+            self.rule_count,
             self.agent_count,
             self.hook_count,
             self.mcp_count,
@@ -115,6 +117,7 @@ pub(super) fn build_summary(manifest: &SignedManifest, report: apply::ApplyRepor
         manifest_version: manifest.manifest_version.to_string(),
         plugin_count: manifest.plugins.len(),
         skill_count: bundled_skills,
+        rule_count: bundled_rule_count(manifest),
         agent_count: manifest.agents.len(),
         hook_count: manifest.hooks.len(),
         mcp_count: manifest.managed_mcp_servers.len(),
@@ -126,6 +129,20 @@ pub(super) fn build_summary(manifest: &SignedManifest, report: apply::ApplyRepor
         host_failures: report.host_failures,
         diagnostics,
     }
+}
+
+fn bundled_rule_count(manifest: &SignedManifest) -> usize {
+    let mut files = std::collections::BTreeSet::new();
+    for plugin in &manifest.plugins {
+        for file in &plugin.files {
+            if let Some(rest) = file.path.strip_prefix("rules/")
+                && !rest.contains('/')
+            {
+                files.insert(rest.to_owned());
+            }
+        }
+    }
+    files.len()
 }
 
 fn bundled_skill_count(manifest: &SignedManifest) -> usize {

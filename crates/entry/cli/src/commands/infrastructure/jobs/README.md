@@ -1,23 +1,6 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Production infrastructure for AI agents
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**CLI Reference**](https://github.com/systempromptio/systemprompt-core/tree/main/crates/entry/cli) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
-
 # Jobs CLI Commands
 
-Scheduled work runs on infrastructure you own, on a schedule you set. List, run, enable, and audit every job through one path, non-interactively, so an agent can drive it without a hosted dashboard in the way.
+Command reference for jobs. Use the installed command’s `--help` output for its complete arguments and defaults.
 
 ---
 
@@ -606,11 +589,3 @@ CREATE TABLE scheduled_jobs (
 
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>CLI reference · Own how your organization uses AI.</sub>
-
-</div>

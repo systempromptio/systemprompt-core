@@ -116,6 +116,9 @@ fn mcp_auth_challenge(
     path: &str,
     gateway_base: &systemprompt_identifiers::ValidatedUrl,
 ) -> Option<Response<ProxyBody>> {
+    // Why: AuthRetryable is a network blip, not a credential the client can fix by
+    // re-authenticating; challenging on it would send clients into a pointless
+    // OAuth round trip while the bridge is already retrying.
     if !matches!(
         err,
         forward::ForwardError::Auth(_) | forward::ForwardError::AuthTimeout

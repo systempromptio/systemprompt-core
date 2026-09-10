@@ -1,19 +1,7 @@
-//! Helpers minting CLI session rows and their analytics context.
+//! User resolution for CLI session creation.
 //!
-//! A local install's admin is resolved by **name**, never by email. An email is
-//! an attribute of a person, not a key: the local-trial path used to look up
-//! the literal `admin@localhost.dev`, which forced a migration to write that
-//! same string into `users.email` so the two would meet, and the address was
-//! then displayed as the operator's identity — including on the bridge
-//! device-link consent screen, immediately above a button that mints a durable
-//! personal access token. `system_admin.username` is the key the runtime
-//! already resolves on, so resolving by it agrees with the runtime by
-//! construction and leaves `email` free to hold something true. That path
-//! deliberately does not provision: on a local install a missing admin means
-//! bootstrap has not run, and inventing one is what produced the fabricated
-//! identity in the first place. Every address returned by
-//! `resolve_credentialed_user_email` comes from a session hint or from cloud
-//! credentials — real data either way.
+//! Local administrator lookup uses the configured username. Credentialed
+//! paths resolve email addresses from session hints or cloud credentials.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

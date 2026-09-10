@@ -27,7 +27,6 @@ tempfile = { workspace = true }
 base64 = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-security = { workspace = true }
-flate2 = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }

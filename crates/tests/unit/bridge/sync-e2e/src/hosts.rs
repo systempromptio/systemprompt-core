@@ -201,6 +201,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         }),
         plugins,
         skills: vec![],
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![
@@ -214,6 +215,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts,
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

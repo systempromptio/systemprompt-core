@@ -6,6 +6,7 @@ fn summary() -> SyncSummary {
         manifest_version: "2026-05-01T12:00:00Z-deadbeef".into(),
         plugin_count: 2,
         skill_count: 3,
+        rule_count: 6,
         agent_count: 1,
         hook_count: 4,
         mcp_count: 5,
@@ -28,7 +29,7 @@ fn a_clean_sync_renders_ok_with_every_count() {
         "{line}"
     );
     assert!(
-        line.contains("3 skills installed, 1 agents, 4 hooks, 5 MCP, 7 artifacts"),
+        line.contains("3 skills installed, 6 rules, 1 agents, 4 hooks, 5 MCP, 7 artifacts"),
         "{line}"
     );
     assert!(

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
@@ -13,6 +14,34 @@ use crate::gui::{GuiApp, emit};
 use crate::update::{self, UpdateUiState};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use systemprompt_identifiers::SessionId;
+
+const AUTO_UPDATE_INTERVAL: Duration = Duration::from_hours(6);
+
+// Why: staging only — the check leads to a download and an on-disk swap, never
+// a restart. Called from the one-second event-loop pass, so the policy read,
+// which touches the last-sync sentinel, sits behind the interval test.
+pub(crate) fn maybe_auto_check(app: &mut GuiApp, woke_from_sleep: bool) {
+    if app.auto_update_pending {
+        return;
+    }
+    let due = woke_from_sleep
+        || app
+            .last_update_check_at
+            .is_none_or(|at| at.elapsed() >= AUTO_UPDATE_INTERVAL);
+    if !due {
+        return;
+    }
+    let snap = app.state.snapshot();
+    if !snap.signed_in() || snap.update.in_progress() || snap.update.can_restart() {
+        return;
+    }
+    if !update::auto_update_policy().stages() {
+        return;
+    }
+    app.last_update_check_at = Some(Instant::now());
+    app.auto_update_pending = true;
+    on_update_check_requested(app, None);
+}
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_update_check_requested(app: &GuiApp, reply_to: ReplyId) {
@@ -39,9 +68,17 @@ pub(crate) fn on_update_check_finished(
             tracing::debug!(error = %e, "update check failed");
         },
     }
+    let staging = std::mem::take(&mut app.auto_update_pending)
+        && app.state.snapshot().update.can_install()
+        && update::auto_update_policy().stages();
     app.refresh_ui();
     emit::emit_state(app);
     reply(app, reply_to, result, "update check");
+    if staging {
+        app.append_log("a newer release is available; staging it for the next restart");
+        app.proxy
+            .send_event(UiEvent::UpdateInstallRequested { reply_to: None });
+    }
 }
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -137,7 +174,18 @@ pub(crate) fn on_update_restart_requested(app: &GuiApp) {
             return;
         },
     };
-    if let Err(e) = update::spawn_installed(&installed) {
+    // Why: the successor binds the default proxy port, so this instance stops
+    // serving before it is spawned; host profiles written for 48217 are
+    // rejected against any other port.
+    let drained = app
+        .ctx
+        .proxy
+        .served()
+        .is_none_or(|served| served.drain(crate::proxy::DRAIN_DEADLINE));
+    if !drained {
+        app.append_log("restart: proxy requests were still in flight at the drain deadline");
+    }
+    if let Err(e) = update::spawn_successor(&installed) {
         tracing::error!(error = %e, "update: relaunch failed; leaving this instance running");
         app.append_log(format!(
             "restart failed: {e}; the update is installed — reopen manually"

@@ -19,7 +19,7 @@ use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
-pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
+pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
     let config = &ctx.cli;
     let project = ProjectContext::discover();
     let profiles_dir = project.profiles_dir();
@@ -60,7 +60,8 @@ pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
                 &profiles,
                 current_profile_name.as_ref(),
                 ctx,
-            )?;
+            )
+            .await?;
         } else {
             render_profile_lines(&profiles, current_profile_name.as_ref());
         }
@@ -126,7 +127,7 @@ fn profile_label(name: &str, has_secrets: bool, current: Option<&String>) -> Str
     format!("{}{} [secrets: {}]", name, current_marker, secrets_marker)
 }
 
-fn run_profile_picker(
+async fn run_profile_picker(
     prompter: &dyn Prompter,
     profiles: &[(String, bool, PathBuf)],
     current: Option<&String>,
@@ -148,7 +149,7 @@ fn run_profile_picker(
         }
 
         let (profile_name, _, _) = &profiles[selection];
-        show::execute(Some(profile_name), ShowFilter::All, false, false, ctx)?;
+        show::execute(Some(profile_name), ShowFilter::All, false, false, ctx).await?;
     }
 
     Ok(())

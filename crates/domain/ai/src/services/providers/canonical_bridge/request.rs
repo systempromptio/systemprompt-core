@@ -1,11 +1,7 @@
-//! Builds a [`CanonicalRequest`] from the agent's generation parameters.
+//! Canonical request construction from agent generation parameters.
 //!
-//! This owns the per-provider sampling and reasoning *policy* that the deleted
-//! per-provider request builders used to carry: Anthropic extended-thinking for
-//! the claude-3-5 family, `OpenAI` reasoning effort for the o1/o3 families, and
-//! the `OpenAI` streaming temperature default. Vendor wire rendering itself
-//! lives in [`systemprompt_models::wire`]; this module only assembles the
-//! canonical request the codec consumes.
+//! Applies provider-specific sampling and reasoning settings. Vendor wire
+//! serialization is implemented by `systemprompt_models::wire`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -2,7 +2,7 @@
 
 How systemprompt-core lets downstream projects add capabilities — schemas, routes, jobs, providers — at compile time, through link-time discovery rather than runtime plugin loading.
 
-systemprompt-core is a library you compile into your binary, not a framework you drop plugins into. Extensions are Rust types that implement the `Extension` trait and register themselves at compile time. There is no runtime plugin loading, no reflection, and no dynamic dispatch at the governance boundary — an extension's capabilities are linked into the binary and discovered when the process starts.
+systemprompt-core is a library you compile into your binary, not a framework you drop plugins into. Extensions are Rust types that implement the `Extension` trait and register themselves at compile time. Extensions are linked into the binary and discovered at startup through registered factories. The registry stores trait objects; adding compiled code requires rebuilding.
 
 ## The `Extension` trait
 
@@ -44,9 +44,6 @@ rather than implementing separate typed sub-traits:
 These live in `crates/shared/extension/src/capabilities.rs`, with `FullContext` bundling the
 complete set. Extensions that govern gateway requests also implement `GatewayRequestGuard`
 (`crates/shared/extension/src/gateway_guard.rs`).
-
-> **Removed.** The typed sub-traits `SchemaExtensionTyped`, `ApiExtensionTyped`,
-> `JobExtensionTyped`, `ProviderExtensionTyped` and `ConfigExtensionTyped` no longer exist.
 
 ## Registration and link-time discovery
 

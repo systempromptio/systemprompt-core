@@ -130,6 +130,7 @@ extensions:
     let app_paths = AppPaths::from_profile(
         &profile.paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("app paths");
 

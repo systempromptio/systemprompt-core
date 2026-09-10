@@ -159,6 +159,7 @@ fn fixture_app_context_assembled(
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )?);
 
     let analytics_repositories =
@@ -218,6 +219,7 @@ fn fixture_app_context_assembled(
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
             file_storage,
+            shutdown: Default::default(),
         },
     );
 

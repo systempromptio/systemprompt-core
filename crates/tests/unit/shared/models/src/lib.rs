@@ -71,6 +71,18 @@ mod profile;
 mod profile_gateway;
 
 #[cfg(test)]
+mod profile_secrets_vault;
+
+#[cfg(test)]
+mod profile_services_sources;
+
+#[cfg(test)]
+mod oci_reference;
+
+#[cfg(test)]
+mod services_bundle;
+
+#[cfg(test)]
 mod provider_catalog_parity;
 #[cfg(test)]
 mod provider_model_lookup;
@@ -129,6 +141,7 @@ mod net;
 
 #[cfg(test)]
 mod subprocess;
+#[cfg(test)]
 mod subprocess_deployment_host;
 
 #[cfg(test)]
@@ -136,6 +149,7 @@ mod services_hooks;
 
 #[cfg(test)]
 mod services_other;
+#[cfg(test)]
 mod services_teams;
 
 #[cfg(test)]
@@ -299,3 +313,6 @@ mod events_context_summary;
 
 #[cfg(test)]
 mod artifacts_message;
+
+#[cfg(test)]
+mod services_rules;

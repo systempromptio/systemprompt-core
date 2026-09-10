@@ -22,6 +22,7 @@ fn broken_storage_root_reports_storage_errors_with_suggestion() {
     let app_paths = AppPaths::from_profile(
         &profile.paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("app paths");
     FilesConfig::init(&app_paths).expect("init files config");

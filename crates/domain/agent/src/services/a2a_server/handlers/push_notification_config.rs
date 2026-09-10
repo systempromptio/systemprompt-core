@@ -13,6 +13,7 @@ use axum::http::StatusCode;
 use serde_json::json;
 use std::sync::Arc;
 use systemprompt_identifiers::TaskId;
+use systemprompt_models::net::validate_outbound_url;
 
 use crate::models::a2a::protocol::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
@@ -25,6 +26,21 @@ pub async fn handle_set_push_notification_config(
     request: SetTaskPushNotificationConfigRequest,
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Setting push notification config");
+
+    if let Err(e) = validate_outbound_url(&request.config.url) {
+        tracing::warn!(task_id = %request.task_id, error = %e, "Rejected push notification config url");
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32602,
+                    "message": "Invalid push notification config url",
+                    "data": e.to_string()
+                }
+            })),
+        ));
+    }
 
     let repo = &state.agent_state.repositories().push_notification_configs;
 

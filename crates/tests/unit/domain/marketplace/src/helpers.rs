@@ -79,6 +79,7 @@ pub fn plugin_shipping_artifacts(id: &str, skill_id: &str, artifact_ids: &[&str]
         category: "test".into(),
         skills: include(&[skill_id]),
         agents: Default::default(),
+        rules: PluginComponentRef::default(),
         mcp_servers: Default::default(),
         content_sources: Default::default(),
         artifacts: include(artifact_ids),

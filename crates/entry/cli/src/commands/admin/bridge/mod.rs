@@ -72,7 +72,7 @@ pub async fn execute(cmd: BridgeCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         BridgeCommands::RotateSigningKey(args) => {
-            let result = rotate_signing_key::execute(args, &ctx.cli)?;
+            let result = rotate_signing_key::execute(args, &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

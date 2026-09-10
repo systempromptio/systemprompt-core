@@ -141,11 +141,12 @@ fn reset_replaces_the_secret_and_names_the_stale_profiles() {
 }
 
 // Why: the incident this guards against was a key file the user could no
-// longer read; the proxy failed with a bare "Access is denied" and nothing
-// said which file or what to do about it.
+// longer read; the proxy failed with a bare "Access is denied". The file is
+// this user's to delete, so a fresh key is minted and the profiles pick it up
+// on the next sync.
 #[cfg(unix)]
 #[test]
-fn an_unreadable_secret_fails_proxy_init_with_the_file_and_the_remedy() {
+fn an_unreadable_secret_that_can_be_removed_is_minted_afresh() {
     use std::os::unix::fs::PermissionsExt;
     config_sandbox(|root| {
         let dir = root.join("systemprompt");
@@ -153,12 +154,45 @@ fn an_unreadable_secret_fails_proxy_init_with_the_file_and_the_remedy() {
         let path = dir.join("bridge-loopback.key");
         std::fs::write(&path, "sealed").unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
-        let err = secret::proxy_init().expect_err("unreadable must not mint over the file");
+        let minted = secret::proxy_init().expect("unreadable but removable re-mints");
+        let on_disk = secret::load(&path).unwrap().expect("fresh key is readable");
+        assert_eq!(on_disk.as_str(), minted.as_str());
+        assert_ne!(
+            on_disk.as_str(),
+            "sealed",
+            "the unreadable file was replaced"
+        );
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600,
+            "the fresh key is private"
+        );
+    });
+}
+
+// Why: only a file that cannot be removed either is left to the operator, and
+// then the error must name the file and the remedy rather than "Access is
+// denied".
+#[cfg(unix)]
+#[test]
+fn an_unreadable_secret_that_cannot_be_removed_fails_with_the_file_and_the_remedy() {
+    use std::os::unix::fs::PermissionsExt;
+    config_sandbox(|root| {
+        let dir = root.join("systemprompt");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("bridge-loopback.key");
+        std::fs::write(&path, "sealed").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).unwrap();
+        let err = secret::proxy_init().expect_err("undeletable must not mint over the file");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
         assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
         let msg = err.to_string();
         assert!(
-            msg.contains(&path.display().to_string()) && msg.contains("Reset local proxy secret"),
+            msg.contains(&path.display().to_string())
+                && msg.contains("could not be removed either")
+                && msg.contains("Reset local proxy secret"),
             "{msg}"
         );
         assert_eq!(

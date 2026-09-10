@@ -3,6 +3,36 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod bundle_bootstrap;
+#[cfg(test)]
+mod bundle_cache;
+#[cfg(test)]
+mod bundle_cache_edges;
+#[cfg(test)]
+mod bundle_compose;
+#[cfg(test)]
+mod bundle_extract;
+#[cfg(test)]
+mod bundle_https;
+#[cfg(test)]
+mod bundle_oci;
+#[cfg(test)]
+mod bundle_oci_auth;
+#[cfg(test)]
+mod bundle_oci_push;
+#[cfg(test)]
+mod bundle_pack_extract;
+#[cfg(test)]
+mod bundle_profile;
+#[cfg(test)]
+mod bundle_source_select;
+#[cfg(test)]
+mod bundle_support;
+#[cfg(test)]
+mod bundle_verify;
+#[cfg(test)]
+mod bundle_verify_edges;
+#[cfg(test)]
 mod config_loader_apps;
 #[cfg(test)]
 mod config_loader_discovery;
@@ -34,3 +64,5 @@ mod profile_loader;
 mod services_catalog;
 #[cfg(test)]
 mod services_loader;
+#[cfg(test)]
+mod services_root_cell;

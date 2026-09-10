@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `ShutdownRequest` on `AppContext`, with `AppContext::request_restart`, lets a request handler ask the process to shut down cleanly so a supervisor brings it back. It is how an admin services refresh rolls onto a new composition.
+- `services_reconcile` projects a freshly fetched composition into the authz tables once at boot, one pass per configured source in profile order, each carrying that source's name and an `IngestScope` built from what its manifest claims. An instance that swapped in a new composition and failed to reconcile is refused a boot rather than serving the old grants against the new catalog.
+
+### Changed
+
+- The core builder resolves the services root through `ServicesSourceBootstrap` before deriving `AppPaths`, so every path follows the composed tree when bundle sources are configured.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

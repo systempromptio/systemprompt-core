@@ -9,14 +9,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use systemprompt_models::services::{SlackAppConfig, TeamsAppConfig};
 
 use super::super::error::AuthzResult;
 use super::super::types::{EntityKind, RuleType};
-use super::upsert::{Target, UpsertOutcome, upsert_entity_row, upsert_target};
-use super::{AccessControlIngestionService, IngestOptions, IngestReport};
+use super::subjects::{SubjectMention, find_unknown_subjects};
+use super::upsert::{Target, upsert_entity_row, upsert_target};
+use super::{AccessControlIngestionService, IngestOptions, IngestReport, tally};
 
 struct AppSeed {
     entity_id: String,
@@ -68,7 +69,11 @@ impl AccessControlIngestionService {
         let mut tx = self.write_pool.begin().await?;
         let mut report = IngestReport::default();
 
-        let ingested_ids: Vec<String> = seeds.iter().map(|s| s.entity_id.clone()).collect();
+        let ingested_ids: Vec<String> = seeds
+            .iter()
+            .filter(|s| options.scope.owns(kind, &s.entity_id))
+            .map(|s| s.entity_id.clone())
+            .collect();
 
         if options.delete_orphans && !ingested_ids.is_empty() {
             let res = sqlx::query!(
@@ -76,16 +81,19 @@ impl AccessControlIngestionService {
                 DELETE FROM access_control_rules
                 WHERE rule_type = 'role'
                   AND entity_type = $1
+                  AND source = $3
                   AND entity_id = ANY($2::text[])
                 "#,
                 kind.as_str(),
                 &ingested_ids,
+                options.source,
             )
             .execute(&mut *tx)
             .await?;
             report.deleted = res.rows_affected() as usize;
         }
 
+        let mut mentions = BTreeSet::new();
         for seed in &seeds {
             let source = format!("{source_prefix}:{}", seed.entity_id);
             upsert_entity_row(&mut tx, kind, &seed.entity_id, false, &source).await?;
@@ -97,14 +105,19 @@ impl AccessControlIngestionService {
                     rule_value: role.as_str(),
                     access: "allow",
                     justification: None,
+                    source: &options.source,
                 };
-                match upsert_target(&mut tx, &target, options.override_existing).await? {
-                    UpsertOutcome::Inserted => report.inserted += 1,
-                    UpsertOutcome::Updated => report.updated += 1,
-                    UpsertOutcome::Skipped => report.skipped += 1,
-                }
+                let outcome = upsert_target(&mut tx, &target, options.override_existing).await?;
+                tally(&mut report, outcome);
+                mentions.insert(SubjectMention {
+                    rule_type: RuleType::ROLE.to_string(),
+                    value: role.clone(),
+                    entity: format!("{}:{}", kind.as_str(), seed.entity_id),
+                });
             }
         }
+
+        report.unknown_subjects = find_unknown_subjects(&mut tx, &mentions).await?;
 
         tx.commit().await?;
 
@@ -115,6 +128,9 @@ impl AccessControlIngestionService {
             updated = report.updated,
             skipped = report.skipped,
             deleted = report.deleted,
+            protected = report.protected,
+            unknown_subjects = report.unknown_subjects.len(),
+            source = %options.source,
             "messaging app authz seeds ingested",
         );
 

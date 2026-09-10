@@ -26,11 +26,27 @@ serde = { workspace = true }
 serde_yaml = { workspace = true }
 
 # Async
+tokio = { workspace = true, features = ["fs"] }
+reqwest = { workspace = true }
+
+# Archives and hashing
+tar = { workspace = true }
+flate2 = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+url = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-config = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-security = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
 [features]
 default = []

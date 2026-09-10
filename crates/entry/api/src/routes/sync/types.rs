@@ -22,7 +22,7 @@ pub(super) struct FilesQuery {
 impl FilesQuery {
     pub(super) fn directories(&self) -> Vec<&str> {
         const ALL_DIRS: &[&str] = &[
-            "agents", "skills", "content", "mcp", "ai", "config", "profiles",
+            "agents", "skills", "rules", "content", "mcp", "ai", "config", "profiles",
         ];
 
         self.filter.as_ref().map_or_else(
@@ -38,12 +38,7 @@ impl FilesQuery {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct FileEntry {
-    pub path: String,
-    pub checksum: String,
-    pub size: u64,
-}
+pub(super) use systemprompt_models::services::FileEntry;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct FileManifest {

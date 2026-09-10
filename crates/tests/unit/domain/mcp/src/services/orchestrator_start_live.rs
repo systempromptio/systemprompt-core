@@ -73,6 +73,7 @@ async fn live_server_or_skip(prefix: &str) -> Option<LiveServer> {
         AppPaths::from_profile(
             &profile_paths(bootstrap),
             systemprompt_models::PathResolution::Canonicalize,
+            None,
         )
         .ok()?,
     );

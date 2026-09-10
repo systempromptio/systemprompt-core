@@ -15,6 +15,7 @@ pub mod files;
 pub mod hooks;
 pub mod marketplace;
 pub mod plugins;
+pub mod services;
 pub mod skills;
 
 use anyhow::Result;
@@ -47,6 +48,12 @@ pub enum CoreCommands {
 
     #[command(subcommand, about = "Hook validation and inspection")]
     Hooks(hooks::HooksCommands),
+
+    #[command(
+        subcommand,
+        about = "Services bundles: validate, pack, sign, publish, refresh, inspect"
+    )]
+    Services(services::ServicesCommands),
 }
 
 pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
@@ -64,5 +71,6 @@ pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
         CoreCommands::Plugins(cmd) => plugins::execute(cmd, ctx),
         CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, ctx).await,
         CoreCommands::Hooks(cmd) => hooks::execute(cmd, ctx),
+        CoreCommands::Services(cmd) => Box::pin(services::execute(cmd, ctx)).await,
     }
 }

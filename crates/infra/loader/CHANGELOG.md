@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `ServicesSourceBootstrap` resolves the services root from bundle sources at boot: fetch, verify, compose, swap, record. An empty `services.sources` serves the tree at `paths.services`, which is unchanged behaviour. `ServicesRootBootstrap` holds the resulting `ActiveServicesRoot`, and `ConfigLoader` reads the active root rather than the profile path directly.
+- The `bundle` module packs, publishes, fetches and verifies a services bundle: `pack` and `extract` (both moved here, from the sync archive route and the CLI backup command respectively, and parameterised by the allowed directory list), `verify`, `cache`, `compose`, and `source` with HTTPS and OCI transports. OCI speaks the standard Bearer challenge and pulls a single layer of the bundle media type.
+- Verification is ordered and every step is fatal: archive digest, manifest signature, per-file checksums, content hash. A bundle that fails any step is never installed and never cached.
+- Composition is by id, not last-write-wins. Two bundles claiming the same marketplace, plugin, skill, rule, hook, artifact or base directory is a boot error naming both sources, because preferring one silently would make which access rules an instance enforces depend on the order of a YAML list.
+- `ServicesProvenance` records why the active root is what it is — `Bundled`, `Fetched`, `LastGood` or `BundledFallback` — carrying the failure text on the two fallbacks, so an instance serving yesterday's bundle does not read as healthy.
+- The cache is content-addressed under `<cache_dir>`, with `current` swapped by `rename` so a reader sees a whole composition or the previous one, never a half-copied tree. It keeps the last two versions per source and the last two composed roots, so a rollback needs no network.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed
@@ -10,7 +21,7 @@
 
 ### Changed
 
-- **Operator-visible:** a provider whose `api_key_secret` does not resolve in the secret store is demoted to `surface: backend` before validation, so its models leave `/v1/models` and every client picker instead of being offered and 502-ing on first use. Nine Vertex MaaS models were advertised by an instance that could not dispatch one of them. It is deliberately not a boot failure — an instance serving Anthropic must still start when an unrelated credential is absent — and an uninitialised secret store means "unknown", never "absent", because several entry points load services with no secrets at all and demoting there would empty the catalog. The demotion warning names the provider only: it also carried the missing secret's name, which the logging layer redacts on any field called `secret`, so it rendered as `[REDACTED]` and told the reader nothing while looking as though it had. `cloud doctor` names the secret in full.
+- providers with unresolved credential references are demoted to `surface: backend` before validation and omitted from model discovery. An uninitialized secret store remains an unknown state. Warnings identify the provider; `cloud doctor` reports missing secret names and checks the repository services tree outside a container.
 ## [0.44.0] - 2026-09-02
 
 ### Changed

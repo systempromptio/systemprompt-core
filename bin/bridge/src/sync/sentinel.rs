@@ -26,11 +26,13 @@ pub(super) fn persist_last_sync(
         removed_plugins: &report.removed,
         mcp_server_count: manifest.managed_mcp_servers.len(),
         skill_count: manifest.skills.len(),
+        rule_count: manifest.rules.len(),
         agent_count: manifest.agents.len(),
         hook_count: manifest.hooks.len(),
         user: manifest.user.as_ref().map(|u| u.email.as_str()),
         enabled_hosts: &manifest.enabled_hosts,
         host_model_protocols: &manifest.host_model_protocols,
+        auto_update: manifest.auto_update,
     };
     let bytes = serde_json::to_vec_pretty(&sentinel).map_err(|e| SyncError::Persistence {
         path: path.to_owned(),
@@ -53,11 +55,13 @@ struct LastSyncSentinel<'a> {
     removed_plugins: &'a [String],
     mcp_server_count: usize,
     skill_count: usize,
+    rule_count: usize,
     agent_count: usize,
     hook_count: usize,
     user: Option<&'a str>,
     enabled_hosts: &'a [String],
     host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
+    auto_update: crate::gateway::manifest::AutoUpdatePolicy,
 }
 
 fn current_iso8601() -> String {

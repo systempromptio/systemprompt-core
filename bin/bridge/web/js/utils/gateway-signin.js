@@ -94,7 +94,14 @@ export async function connectGatewayWithPat(component) {
   component.pending = true; component._pendingSince = Date.now(); component.error = ""; component.invalidate();
   armPendingTimer(component);
   try {
-    if (component.patSaved) { await bridge.gatewayProbe(); return; }
+    // Why: the probe resolves its base URL from the config file, not from this
+    // field. Probing before the save health-checked whatever gateway the file
+    // still held and reported that stale host back at the user.
+    if (component.patSaved) {
+      await bridge.gatewaySet(gw);
+      await bridge.gatewayProbe();
+      return;
+    }
     const token = (component.pat || "").trim();
     if (!token) {
       resolveGatewayPending(component);

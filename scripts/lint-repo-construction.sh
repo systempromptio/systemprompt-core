@@ -44,6 +44,10 @@ ALLOWED_FILES=(
   crates/infra/events/src/services/bridge.rs
   crates/infra/events/src/services/routing.rs
   crates/infra/logging/src/services/database_log.rs
+  # the services-tree authz reconcile is called from the CLI, a services
+  # refresh and a boot step; it takes a pool because none of those three has an
+  # AppContext to take the repository from.
+  crates/infra/security/src/authz/reconcile.rs
   crates/infra/logging/src/services/maintenance.rs
   crates/infra/logging/src/services/retention/scheduler.rs
   # scheduler-owned repos (SchedulerRepository, JobRepository,

@@ -9,6 +9,13 @@
 //! serve path, the bridge sync, the CLI generator, and the marketplace export
 //! never drift on the contract.
 //!
+//! The manifest is also an *inbound* shape: the importer reads manifests
+//! authored for Claude Code, which permit component keys systemprompt derives
+//! from the tree instead (`skills`, `agents`, `commands`) and inline MCP server
+//! definitions. Those keys are accepted as opaque `serde_json::Value` — an
+//! external-format boundary whose shape Anthropic owns — and are never
+//! serialised back out, so the bundle contract this crate emits is unchanged.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,7 +27,7 @@ pub const PLUGIN_MANIFEST_DIRS: &[&str] = &[".claude-plugin", "claude-plugin"];
 
 pub const PLUGIN_MANIFEST_FILE: &str = "plugin.json";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PluginManifest {
     pub name: String,
     #[serde(default)]
@@ -39,6 +46,35 @@ pub struct PluginManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub installation_preference: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skills: Option<serde_json::Value>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agents: Option<serde_json::Value>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub commands: Option<serde_json::Value>,
+
+    #[serde(
+        default,
+        rename = "mcpServers",
+        alias = "mcp_servers",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub mcp_servers: Option<serde_json::Value>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub homepage: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

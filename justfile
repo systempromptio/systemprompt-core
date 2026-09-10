@@ -163,8 +163,16 @@ check-release-tag:
 check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
 
+# Every published version string must match [workspace.package].version
+check-version-strings:
+    ./scripts/check-version-strings.sh
+
+# Tracked lockfiles must resolve systemprompt crates from the workspace or crates.io
+check-lockfile-registry:
+    ./scripts/check-lockfile-registry.sh
+
 # Check without building
-check: lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check: check-version-strings check-lockfile-registry lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
     cargo check --workspace
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -369,10 +377,19 @@ deny:
         cargo deny --manifest-path "${w%/}/Cargo.toml" check
     done
 
-# RustSec advisory scanning lives in `just deny` (cargo-deny's `advisories` check
-# reads the same RustSec database). cargo-audit was dropped rather than run
-# alongside it because it keeps its own separate ignore file, and two ignore lists
-# for one set of advisories drift apart. `deny.toml` is the single source of truth.
+# Run cargo-audit across every workspace, on top of `just deny`.
+#
+# Both read the same RustSec database, but cargo-deny's `advisories` check does not
+# surface advisories flagged `informational = "unsound"`, so those were invisible.
+# cargo-audit does, and the script runs it with `--deny unsound` so a new one fails.
+#
+# The reason cargo-audit was dropped before — two ignore lists drifting apart — is
+# handled by generating the `--ignore` flags from `deny.toml` on every run. There is
+# still exactly one place a suppression is written down, and it is `deny.toml`.
+
+# Run cargo-audit across every workspace (catches `unsound` advisories cargo-deny hides)
+audit:
+    ./scripts/cargo-audit-all.sh {{ workspaces }}
 
 # Detect unused dependencies across every workspace
 machete:
@@ -1710,7 +1727,7 @@ gate REF="":
     REF="{{REF}}"; [ -n "$REF" ] || REF=$(git rev-parse origin/next)
     REF=$(git rev-parse "$REF")
     echo "Gating ${REF:0:9} on $REPO"
-    WFS=(ci.yml quality.yml)
+    WFS=(ci.yml quality.yml coverage.yml)
     [ -f .github/workflows/supply-chain.yml ] && WFS+=(supply-chain.yml)
     for wf in "${WFS[@]}"; do
         gh workflow run "$wf" --ref "$(git rev-parse --abbrev-ref HEAD)" -f ref="$REF"

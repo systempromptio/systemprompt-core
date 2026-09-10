@@ -1,12 +1,12 @@
 # systemprompt-bridge
 
-The one process that keeps a desktop Claude install governed by your gateway without your credentials ever leaving the host. Credential helper, signed-manifest sync agent, and local inference proxy in a single binary.
+A desktop integration process connecting supported clients to a configured gateway. Credential helper, signed-manifest sync agent, and local inference proxy in a single binary.
 
 Three roles:
 
 1. **Credential helper.** Emits a JSON envelope matching Anthropic's `inferenceCredentialHelper` contract, `{ "token": "...", "ttl": 3600, "headers": {} }`, to stdout.
 2. **Sync agent.** Pulls the user's signed plugin, skill, agent, and MCP allowlist manifest from the gateway into the `org-plugins/` mount.
-3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. The Claude Desktop profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; the bridge swaps the bearer for a fresh JWT before forwarding upstream. JWT rotation never leaves the host.
+3. **Local inference proxy.** Loopback HTTP/1.1 proxy on `127.0.0.1:48217`. The Claude Desktop profile pins it as `inferenceGatewayBaseUrl` with a long-lived loopback secret; the bridge swaps the bearer for a fresh JWT before forwarding upstream. The proxy sends the gateway JWT to the configured gateway; clients use the local loopback credential.
 
 Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on success.
 
@@ -14,9 +14,9 @@ Diagnostics on stderr. `tracing` JSON via `SP_BRIDGE_LOG_FORMAT=json`. Exit 0 on
 
 ## Status
 
-Independent semver, separate from the systemprompt-core workspace. Latest release **0.21.0**. See [`CHANGELOG.md`](CHANGELOG.md) for what each release changed.
+Independent semver, separate from the systemprompt-core workspace. The version is declared in `Cargo.toml`. See [`CHANGELOG.md`](CHANGELOG.md) for what each release changed.
 
-Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). Sigstore-signed; SBOM attached to every release.
+Released artifacts: macOS (arm64, x86_64), Windows (x86_64), Linux (x86_64). The release workflow defines artifact checksums and Sigstore signing; inspect a release’s attachments for available verification material.
 
 ---
 
@@ -58,7 +58,7 @@ The modules are layered bottom-up and `just lint-bridge-layers` refuses an upwar
 | `validate` | End-to-end self-check (paths, gateway, creds, signatures) |
 | `doctor` | Diagnose common failure modes (config, creds, gateway, loopback secret, pinned pubkey), one line per check |
 | `credential-helper --host <id>` | Emit per-host bearer credentials on stdout (git/Anthropic credential-helper protocol) |
-| `diagnostics` | Print the version and build-provenance banner |
+| `diagnostics` | Collect version, build provenance and diagnostic state |
 | `uninstall [--purge]` | Reverse install; `--purge` also clears credentials |
 
 Exit codes: `0` success, `2` emit error, `3` whoami error, `5` no credential source succeeded, `8` pubkey not pinned, `10` transient failure on preferred provider.
@@ -67,12 +67,12 @@ Exit codes: `0` success, `2` emit error, `3` whoami error, `5` no credential sou
 
 ## Security posture
 
-- **Out-of-band manifest pubkey pinning.** `bridge install --apply --pubkey <base64>` writes the pin to `HKCU\SOFTWARE\Policies\Claude` (Windows) or the `com.anthropic.claudefordesktop` Managed Preferences plist (macOS) for MDM rollout. `bridge sync` is fail-closed without a pin unless `--allow-tofu`.
-- **Distinct JWT audience.** Bridge tokens are minted with `audience: Bridge`. A stolen bridge JWT cannot call generic API endpoints.
+- **Manifest trust.** `install --apply --pubkey <base64>` provisions administrator trust in the brand’s policy location. Operator trust uses a gateway-bound `[sync.trust]` record. Review `src/config/trust/` for precedence and legacy-pin adoption.
+- **Distinct JWT audience.** Bridge tokens use the audiences selected by the gateway credential exchange. Acceptance is determined by the receiving route’s audience and authorization policies.
 - **Replay protection.** Manifests carry a signed `not_before` field; sync rejects `manifest_version` ≤ last applied or `not_before` outside ±5 min skew.
 - **RFC 8785 (JCS) canonical JSON** for signature input. Field-order stability is contract, not coincidence.
-- **Loopback proxy** validates a constant-time-compared shared secret on every inbound request and rejects non-loopback `Host` headers.
-- **mTLS-preferred chain.** When mTLS is configured, a transient gateway failure no longer silently downgrades to PAT; it exits `10`, distinct from the "no credential source" `5`.
+- **Loopback proxy** validates a constant-time-compared shared secret on protected inbound paths and rejects non-loopback `Host` headers.
+- **mTLS-preferred chain.** When mTLS is configured, a transient gateway failure returns an unavailable result; it exits `10`, distinct from the "no credential source" `5`.
 
 ---
 
@@ -96,8 +96,6 @@ The webview is Windows/macOS only — `mod gui` is `#[cfg(any(target_os = "windo
 target_os = "macos"))]`, wry is not even a Linux dependency, and `gui` on Linux
 prints *"gui not supported on this platform"*. Assets never travel over HTTP
 either: they reach the webview through a wry custom protocol (`sp://app/…`).
-Front-end work here used to mean editing blind and shipping to Windows to look
-at it.
 
 `dev-web` serves the same web tree over plain HTTP so any browser — or
 Playwright — can render it:
@@ -120,7 +118,7 @@ just bridge-preview 4399       # another port
   A switcher across the bottom of the page moves between fixtures.
 - Add a state by dropping another JSON file in `web/dev/fixtures/`. It is one
   `state.snapshot` reply — the shape is `StatePayload` in
-  `src/gui/server_json.rs` with `HostsPayload` (`src/gui/hosts/serde.rs`)
+  `src/wire/payloads.rs` with `HostsPayload` (`src/wire/hosts.rs`)
   flattened in.
 
 All of it is behind the `dev-preview` cargo feature, which is not in `default`,

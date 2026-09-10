@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Added
+
+- `core services validate` names the missing root config and points at `--base` when a marketplace-only tree is validated on its own, instead of failing inside the loader.
+- `core marketplace import --from <dir> --into <dir> [--dry-run] [--strict]` converts a Claude Code `.claude-plugin` authoring tree into a services tree, deriving everything the Anthropic manifests state and taking the rest from strict sidecars.
+- `rules` is scaffolded by `cloud init` and is an allowed top-level directory for bundle extraction, alongside `agents` and `skills`.
+
+### Changed
+
+- **Breaking:** the commands that bootstrap secrets are `async` where they were not, following `SecretsBootstrap::init`. Behaviour is unchanged.
+- `admin config reconcile` delegates to `systemprompt_security::authz::reconcile`, so the command, a services refresh and the boot step run the same projection with the same ownership scoping.
+- The hardened tar extraction that backed `cloud backup` moved into the loader's bundle module and is shared with bundle extraction; the command calls it rather than carrying its own copy.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed
@@ -14,14 +28,14 @@
 
 ### Added
 
-- A migration slot can be declared spent. `NNN_<name>.tombstone` (or `NNN-MMM_<name>.tombstone` for a retired chain) records a number with no SQL and a prose body; `build.rs` treats it as occupied, so reusing it fails the build rather than a deployment. The runner never executes, records or checksums a tombstoned slot, and fresh-install stamping skips it. Refilling a spent number previously looked exactly like editing the migration that used to live there, and the operator was told a file nobody could find had been edited since it was applied — with both offered remedies wrong, since `--reconcile-only --apply` rewrites the checksum so the new DDL never runs and `--apply` re-executes it out of order.
+- Migration tombstones reserve single numbers or ranges without SQL. Builds reject reuse, runtime migration execution ignores tombstones and fresh-install stamping skips them.
 - `infra logs audit <id>` carries `reasoning_tokens`, and `infra logs request list` renders it as a share of the output figure (`27/200(194r)`) because it sits inside `output_tokens`, not beside it.
 - `analytics costs summary` and `analytics requests stats` report `reasoning_tokens`, `cache_read_tokens` and `cache_creation_tokens`.
 
 ### Fixed
 
 - **Security:** admin provisioning validates the address before any lookup or write. `get_or_create_admin` accepted any string, so an unvalidated value became an admin identity on the path that mints admin-tier session tokens. It goes through `Email::try_new`, the same validator `--admin-email` already used.
-- `migrate-repair` refuses a reused migration slot instead of stamping one migration's checksum onto a row describing another, which permanently silenced that row's drift detector. `status()` separates slot collisions from checksum drift, both repair paths refuse when a collision is present and point at the tombstone mechanism, and the refusal fires on the dry run as well as under `--apply`. `migrate-status` labels and warns about collision rows, and reports applied versions no file claims any more as `orphaned` — warned at boot, never fatal, since every database predating this carries rows for since-deleted migrations.
+- Migration status distinguishes slot collisions, checksum drift and orphaned applied versions. Both repair modes reject collisions in dry-run and apply operations and identify the tombstone mechanism. Orphans produce nonfatal warnings.
 - `migrate-repair --apply` no longer reports success for work it did not do. It printed `0 migration(s) re-applied` because `migrations_run` counted newly-applied pending migrations rather than the drifted ones it had just re-executed; `RepairResult` carries `reapplied` separately, and the reconcile-only path states plainly that no SQL was executed.
 - `PendingMigration.no_tx` was hardcoded `false` at both construction sites, so every no-transaction migration was reported as transactional.
 - `--content-types ""` no longer writes a template bound to a single empty-string content type. `resolve_content_types` guarded against an empty list, but both paths end in `str::split(',')`, which yields one empty element for an empty string rather than an empty `Vec`, so the guard could never fire. Empties are dropped before the check, which makes the existing refusal reachable.
@@ -54,7 +68,7 @@
 
 ### Fixed
 
-- **Security:** environment-bound arguments carrying a secret or PII no longer render their live value in `--help`. clap interpolates the variable's current contents, and MCP servers are spawned with the provider keys and `DATABASE_URL` in their environment, so `admin setup --help` printed a live key to whatever ran it. `--db-password`, `--db-user`, `--admin-email`, the four provider-key flags on `admin setup` and `cloud profile create`, `issue-plugin-token --email` and the global `--database-url` are now name-only. A test walks the built command tree and fails on any future argument that reintroduces the leak, so the rule does not depend on anyone remembering it.
+- **Security:** CLI help displays only environment variable names for secret and PII arguments, including database credentials, admin email, provider keys, plugin-token email and the global database URL. Command-tree tests check this rule.
 - A cloud profile that resolves to no instance id refuses to boot instead of taking a fresh random identity on every restart.
 - MCP child processes are passed `HOSTNAME`, so a spawned server resolves the same replica identity as its parent.
 - The service state verifier is scoped by instance; it was judging another replica's rows as stale and rewriting them.
@@ -126,7 +140,7 @@
 
 ### Fixed
 
-- A session store that exists but cannot be parsed now fails profile resolution with a message naming the store file and `admin session switch <profile>`, instead of silently falling back to profile discovery and reporting "Multiple profiles found". `admin session switch`, `session login`, and the session display commands still recover over a corrupt store.
+- A session store that exists but cannot be parsed now fails profile resolution with a message naming the store file and `admin session switch <profile>`, instead of falling back to profile discovery and reporting "Multiple profiles found". `admin session switch`, `session login`, and the session display commands still recover over a corrupt store.
 
 ## [0.31.0] - 2026-08-18
 

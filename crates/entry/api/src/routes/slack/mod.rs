@@ -40,7 +40,7 @@ use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCom
 use systemprompt_traits::{FederatedIdentityClaims, SenderIdentity};
 
 use crate::routes::messaging::{
-    DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging, http_client,
+    DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging, guarded_http_client,
 };
 
 use verify::{bot_token, resolve_app, verify_any_app, verify_app};
@@ -220,18 +220,20 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig)
             },
         };
         let blocks = systemprompt_slack::blockkit::render_blocks(&text);
+        let Some(http) = guarded_http_client() else {
+            tracing::error!("no guarded http client; cannot post slack reply");
+            return;
+        };
         let result = match &inbound.reply {
             ReplyTarget::Channel { id } => {
                 let Some(token) = bot_token else {
                     tracing::warn!(channel = %id, "no slack bot token configured; cannot post reply");
                     return;
                 };
-                SlackClient::new(http_client(), token)
-                    .post_message(id, blocks)
-                    .await
+                SlackClient::new(http, token).post_message(id, blocks).await
             },
             ReplyTarget::Url { url } => {
-                SlackClient::new(http_client(), String::new())
+                SlackClient::new(http, String::new())
                     .respond(url, blocks, ephemeral)
                     .await
             },
@@ -243,7 +245,11 @@ fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig)
 }
 
 async fn workspace_sender(bot_token: &str, slack_user_id: &SlackUserId) -> SenderIdentity {
-    match SlackClient::new(http_client(), bot_token.to_owned())
+    let Some(http) = guarded_http_client() else {
+        tracing::error!("no guarded http client; cannot read slack profile");
+        return SenderIdentity::Unlinked;
+    };
+    match SlackClient::new(http, bot_token.to_owned())
         .user_info(slack_user_id)
         .await
     {

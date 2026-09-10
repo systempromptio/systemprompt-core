@@ -20,3 +20,36 @@ mod experiments;
 
 #[cfg(test)]
 mod execution_builder;
+
+#[cfg(test)]
+mod repository_runs;
+
+#[cfg(test)]
+mod repository_evidence;
+
+#[cfg(test)]
+mod repository_budget;
+
+#[cfg(test)]
+mod repository_gateway;
+
+#[cfg(test)]
+mod repository_workers;
+
+#[cfg(test)]
+mod repository_leases;
+
+#[cfg(test)]
+mod repository_events;
+
+#[cfg(test)]
+mod repository_capabilities;
+
+#[cfg(test)]
+mod repository_assignments;
+
+#[cfg(test)]
+mod experiments_execution;
+
+#[cfg(test)]
+mod experiments_builders;

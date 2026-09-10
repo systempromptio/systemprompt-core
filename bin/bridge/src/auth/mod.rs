@@ -21,8 +21,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ChainError {
-    #[error("credential providers failed: {}", .0.join("; "))]
-    Providers(Vec<String>),
+    #[error("credential providers failed: {}", .failures.join("; "))]
+    Providers {
+        failures: Vec<String>,
+        terminal: bool,
+    },
     #[error("credential cache: {0}")]
     Cache(#[from] std::io::Error),
     #[error("no credential source succeeded")]
@@ -37,10 +40,19 @@ pub enum ChainError {
 
 impl ChainError {
     #[must_use]
+    pub const fn is_terminal(&self) -> bool {
+        match self {
+            Self::Providers { terminal, .. } => *terminal,
+            Self::Cache(_) | Self::NoneSucceeded => true,
+            Self::PreferredTransient { .. } => false,
+        }
+    }
+
+    #[must_use]
     pub fn exit_report(&self) -> (std::process::ExitCode, String) {
         let bin = crate::brand::brand().binary_name;
         match self {
-            Self::Providers(_) | Self::Cache(_) => {
+            Self::Providers { .. } | Self::Cache(_) => {
                 (std::process::ExitCode::FAILURE, self.to_string())
             },
             Self::PreferredTransient { provider, source } => (
@@ -208,6 +220,10 @@ pub async fn evaluate_chain(
     http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
     let mut failures = Vec::new();
+    // Why: one retryable provider is enough to keep the whole outcome retryable —
+    // latching sign-in on a chain that merely could not reach the gateway locks the
+    // user out until they re-authenticate by hand.
+    let mut terminal = true;
     for p in chain {
         match p.authenticate(session_id, http).await {
             Ok(out) => return Ok(out),
@@ -220,6 +236,7 @@ pub async fn evaluate_chain(
                     ));
                     return Err(ChainError::PreferredTransient { provider, source });
                 }
+                terminal &= source.is_terminal();
                 failures.push(format!("{provider}: {source}"));
             },
         }
@@ -227,6 +244,6 @@ pub async fn evaluate_chain(
     if failures.is_empty() {
         Err(ChainError::NoneSucceeded)
     } else {
-        Err(ChainError::Providers(failures))
+        Err(ChainError::Providers { failures, terminal })
     }
 }

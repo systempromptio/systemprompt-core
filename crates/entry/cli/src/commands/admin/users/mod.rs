@@ -27,7 +27,7 @@ mod update;
 mod webauthn;
 
 use crate::context::CommandContext;
-use crate::shared::render_result;
+use crate::shared::{CommandOutput, render_result};
 use anyhow::{Result, bail};
 use clap::Subcommand;
 
@@ -104,24 +104,40 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
         bail!("Write operations require full profile context");
     }
 
-    let output = match cmd {
-        UsersCommands::Bulk(cmd) => return bulk::execute(cmd, ctx).await,
-        UsersCommands::Role(cmd) => return role::execute(cmd, ctx).await,
-        UsersCommands::Session(cmd) => return session::execute(cmd, ctx).await,
-        UsersCommands::Ban(cmd) => return ban::execute(cmd, ctx).await,
-        UsersCommands::Webauthn(cmd) => return webauthn::execute(cmd, ctx).await,
-        UsersCommands::List(args) => list::execute(args, ctx).await?,
-        UsersCommands::Show(args) => show::execute(args, ctx).await?,
-        UsersCommands::Search(args) => search::execute(args, ctx).await?,
-        UsersCommands::Create(args) => create::execute(args, ctx).await?,
-        UsersCommands::Update(args) => update::execute(args, ctx).await?,
-        UsersCommands::Delete(args) => delete::execute(args, ctx).await?,
-        UsersCommands::Count(args) => count::execute(args, ctx).await?,
-        UsersCommands::Export(args) => export::execute(args, ctx).await?,
-        UsersCommands::Stats => stats::execute(ctx).await?,
-        UsersCommands::Merge(args) => merge::execute(args, ctx).await?,
-        UsersCommands::ApiKey(cmd) => apikey::execute(cmd, ctx).await?,
-    };
-    render_result(&output, &ctx.cli);
-    Ok(())
+    match cmd {
+        UsersCommands::Bulk(cmd) => Box::pin(bulk::execute(cmd, ctx)).await,
+        UsersCommands::Role(cmd) => Box::pin(role::execute(cmd, ctx)).await,
+        UsersCommands::Session(cmd) => Box::pin(session::execute(cmd, ctx)).await,
+        UsersCommands::Ban(cmd) => Box::pin(ban::execute(cmd, ctx)).await,
+        UsersCommands::Webauthn(cmd) => Box::pin(webauthn::execute(cmd, ctx)).await,
+        other => {
+            let output = Box::pin(render_output(other, ctx)).await?;
+            render_result(&output, &ctx.cli);
+            Ok(())
+        },
+    }
+}
+
+async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<CommandOutput> {
+    match cmd {
+        UsersCommands::List(args) => list::execute(args, ctx).await,
+        UsersCommands::Show(args) => show::execute(args, ctx).await,
+        UsersCommands::Search(args) => search::execute(args, ctx).await,
+        UsersCommands::Create(args) => create::execute(args, ctx).await,
+        UsersCommands::Update(args) => update::execute(args, ctx).await,
+        UsersCommands::Delete(args) => delete::execute(args, ctx).await,
+        UsersCommands::Count(args) => count::execute(args, ctx).await,
+        UsersCommands::Export(args) => export::execute(args, ctx).await,
+        UsersCommands::Stats => stats::execute(ctx).await,
+        UsersCommands::Merge(args) => merge::execute(args, ctx).await,
+        UsersCommands::ApiKey(cmd) => apikey::execute(cmd, ctx).await,
+        UsersCommands::Bulk(_)
+        | UsersCommands::Role(_)
+        | UsersCommands::Session(_)
+        | UsersCommands::Ban(_)
+        | UsersCommands::Webauthn(_) => bail!(
+            "internal: a users subgroup reached the rendering dispatch, which only serves \
+             commands that produce a single output"
+        ),
+    }
 }

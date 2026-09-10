@@ -192,6 +192,7 @@ async fn delete_orphans_drops_roles_absent_from_the_new_pass() {
             IngestOptions {
                 override_existing: true,
                 delete_orphans: true,
+                ..IngestOptions::default()
             },
         )
         .await
@@ -232,6 +233,7 @@ async fn override_existing_updates_justification() {
             IngestOptions {
                 override_existing: true,
                 delete_orphans: false,
+                ..IngestOptions::default()
             },
         )
         .await
@@ -321,7 +323,7 @@ async fn delete_orphans_only_touches_declared_bands() {
         MarketplaceRuleAccess::Allow,
     )];
     service
-        .ingest_marketplace_access(&one(&f.id, block), options)
+        .ingest_marketplace_access(&one(&f.id, block), options.clone())
         .await
         .expect("first ingest");
 

@@ -10,6 +10,8 @@ mod credential_helper;
 #[cfg(test)]
 mod diagnostics;
 #[cfg(test)]
+mod diagnostics_state;
+#[cfg(test)]
 mod doctor;
 #[cfg(test)]
 mod doctor_auth;

@@ -8,63 +8,56 @@ How to run a deployed systemprompt instance day to day: probe its health, scrape
 - Network reachability to the API port (default `8080`) from your probe, scrape, and operator tooling.
 - A Prometheus-compatible scraper and a log forwarder (Fluent Bit, Vector, or equivalent) if you forward logs off-host.
 
-## 1. Wire liveness and readiness probes
+## 1. Configure liveness and readiness probes
 
-The binary exposes three health surfaces. There are no `/livez`, `/readyz`, `/healthz`, or `/health/live`/`/health/ready` aliases — wire orchestrator probes against the real endpoints (`crates/entry/api/src/services/server/discovery.rs:166-167,177`).
+| Endpoint | Authentication | Behavior |
+|----------|----------------|----------|
+| `GET /livez` | None | Returns 200 once the listener is bound, independently of database availability |
+| `GET /readyz` | None | Returns 503 during bootstrap, shutdown or database-probe failure; returns 200 when ready |
+| `GET /health`, `GET /api/v1/health` | None | Operational health summary; returns a starting response during bootstrap |
+| `GET /api/v1/health/detail` | Required | Database, storage and process diagnostics |
 
-| Endpoint | Auth | Cost | Returns |
-|----------|------|------|---------|
-| `GET /health` | none | `SELECT 1` round-trip | `200` with `{"status":"healthy"}`, or `503` with `{"status":"unhealthy"}` if the DB is unreachable |
-| `GET /api/v1/health` | none | `SELECT 1` round-trip | same as `/health` |
-| `GET /api/v1/health/detail` | authenticated | DB size and latency, top-15 table sizes, process memory, disk usage | rich JSON |
-
-`/health` runs a `SELECT 1` against the database on every call (`crates/entry/api/src/services/server/health.rs:185-198`). A `200` therefore means the process is up *and* the database is reachable, so the same endpoint serves as both the liveness and the readiness signal.
-
-```bash
-curl -fsS http://127.0.0.1:8080/health
-# {"status":"healthy"}
-```
-
-Kubernetes probes target `/health` for both checks:
+Use dedicated probes so a database outage removes a replica from service without causing
+liveness-driven restart loops. See `crates/entry/api/src/services/server/probes.rs` and
+`startup.rs`.
 
 ```yaml
 livenessProbe:
-  httpGet: { path: /health, port: 8080 }
+  httpGet: { path: /livez, port: 8080 }
   periodSeconds: 10
 readinessProbe:
-  httpGet: { path: /health, port: 8080 }
+  httpGet: { path: /readyz, port: 8080 }
   periodSeconds: 5
 ```
 
-`/api/v1/health/detail` requires authentication and is not usable as an unauthenticated probe. Use it for operator dashboards and deeper checks, not for the load balancer:
-
 ```bash
+curl -fsS http://127.0.0.1:8080/readyz
 curl -fsS -H "Authorization: Bearer $TOKEN" \
   http://127.0.0.1:8080/api/v1/health/detail
 ```
 
-The detail handler reports `degraded` when the static-content files (`index.html`, `sitemap.xml`) are absent from the web dist directory. A headless, API-only deployment that serves no static site therefore reports `degraded` while being fully functional; treat `degraded` from a headless deployment as expected, and alert on the `/health` `503` instead.
+Interpret detailed health fields against the enabled deployment features. For example,
+missing static-site artifacts require investigation only when the deployment serves them.
 
-## 2. Account for the absence of graceful shutdown
+## 2. Configure shutdown and draining
 
-The main HTTP API server calls `axum::serve` without a graceful-shutdown future (`crates/entry/api/src/services/server/builder.rs`). On `SIGTERM` — container stop, rolling deploy, `systemctl restart` — the process terminates mid-flight: in-flight requests are dropped and Server-Sent Events (SSE) connections are severed without notice. The readiness flag is never flipped, so a load balancer relying on an in-process draining signal does not get one.
+Ctrl-C or Unix SIGTERM marks the API unready and starts graceful connection draining.
+The connection drain has a 10-second limit. Teardown then stops the scheduler and
+terminates registered children, with a 5-second child grace period and a separate
+10-second forced-exit deadline covering teardown. A second signal exits immediately.
+See `crates/entry/api/src/services/server/shutdown.rs`.
 
-Mitigate at the orchestration layer until graceful shutdown is wired:
+Allow at least 30 seconds for termination and increase it to include any orchestrator
+`preStop` delay. Remove the replica from load-balancer admission before replacement.
+SSE clients must reconnect and fetch canonical state if their stream outlasts the drain.
 
-1. Set a `preStop` hook (or an equivalent drain delay) that removes the replica from the load balancer and waits before `SIGTERM` is sent. Size the delay to cover your longest expected non-stream request, plus margin; this bounds request loss.
-2. Keep the readiness probe pointed at `/health`. Combined with the `preStop` drain, the load balancer stops sending new traffic before the process exits.
-3. Treat SSE streams as transient across deploys: clients re-fetch canonical state on reconnect (see §6 on SSE replay).
-
-The A2A (agent-to-agent) agent server does wire graceful shutdown; this caveat is specific to the main API surface.
 
 ## 3. Scrape Prometheus metrics
 
-The binary serves `GET /metrics` in Prometheus exposition format (`text/plain; version=0.0.4; charset=utf-8`). The recorder is installed and the route mounted unconditionally — `/metrics` is always exposed on the API port (`crates/entry/api/src/services/server/metrics.rs:19-31`, `discovery.rs:160-161`).
-
-The endpoint carries no scrape authentication and sits on the public discovery router. Restrict it at the reverse-proxy or network layer: allow only your scrape mesh to reach `/metrics`, or front it with a proxy that requires a scrape token. Route labels and traffic volume are visible to anyone who can reach the port.
+The Prometheus endpoint is served at `GET /metrics` on the separate listener configured by `server.metrics_port`. When that setting is unset, no metrics listener is started. The endpoint has no scrape authentication; restrict access to the configured port using network policy or an authenticated proxy.
 
 ```bash
-curl -fsS http://127.0.0.1:8080/metrics | head
+curl -fsS http://127.0.0.1:9100/metrics | head
 ```
 
 Recorded series (`metrics.rs:14-79`):
@@ -110,7 +103,7 @@ Forward logs off-host by one of:
 
 ## 5. Ingest OpenTelemetry (OTLP)
 
-The gateway exposes an OTLP ingest endpoint at `POST /otel` (and `POST /otel/{*rest}`) that decodes OTLP trace, log, and metric envelopes and persists spans and logs as rows in the `logs` table (`crates/entry/api/src/routes/gateway/otel/`). It accepts protobuf envelopes up to 4 MiB and auto-detects the envelope type. The endpoint is unauthenticated by design: it is gated to a loopback origin by the bridge proxy, which is the only intended client. Do not expose `/otel` to untrusted networks.
+The gateway exposes an OTLP ingest endpoint at `POST /otel` (and `POST /otel/{*rest}`) that decodes OTLP trace, log, and metric envelopes and persists spans and logs as rows in the `logs` table (`crates/entry/api/src/routes/gateway/otel/`). It accepts protobuf envelopes up to 4 MiB and auto-detects the envelope type. Review the gateway route authentication and restrict telemetry ingress to intended clients. The bridge enforces its local proxy origin before forwarding; that control does not restrict direct network access to the API.
 
 Two limits to account for when planning telemetry:
 
@@ -129,8 +122,8 @@ A slow or briefly disconnected SSE client silently misses events. SSE alone is n
 
 The JWT plane is RS256-only. Tokens signed with any other algorithm, or presenting `alg: none`, are rejected (`crates/infra/security/src/auth/validation.rs`). Common causes:
 
-- **Wrong or missing `kid`.** The verifier requires a `kid` header and matches it against the published JWKS at `/.well-known/jwks.json`. After a signing-key rotation, a token minted under the old `kid` validates only while the JWKS still carries the prior public key.
-- **Clock skew.** `exp`/`nbf`/`iat` are checked with a 30-second leeway. A client clock more than 30 seconds off produces spurious 401s; sync NTP.
+- **Wrong or missing `kid`.** The verifier requires a `kid` header and matches it against the published JWKS at `/.well-known/jwks.json`. The in-process authority accepts one active signing key. Tokens with the previous `kid` require reauthentication after key replacement.
+- **Clock skew.** `exp`/`nbf` are checked with a 30-second leeway. A client clock more than 30 seconds off produces spurious 401s; sync NTP.
 - **Authorization denied (403).** Authorization is fail-closed. If the `governance.authz` hook is in `webhook` mode and the policy endpoint returns a transport error, a non-2xx, or an undecodable body, the request is denied. Check the authz hook's reachability and the audit log for the decision.
 - **Open registration disabled.** If `security.allow_registration` is `false`, registration attempts are rejected by design.
 
@@ -156,12 +149,12 @@ Gateway requests to `/v1/messages` map upstream failures as follows (`crates/ent
 
 | Symptom | Cause | Action |
 |---------|-------|--------|
-| `404 Gateway not enabled` | `gateway.enabled` is `false` or absent | Enable the gateway in the profile (see [configure-providers.md](configure-providers.md)). |
+| `404 Gateway not enabled` | `gateway.enabled` is `false` or absent | Enable the gateway in services configuration (see [configure-providers.md](configure-providers.md)). |
 | `404 No gateway route matches model` | No `routes[*].model_pattern` matches the requested model | Add or widen a route pattern. |
 | `403` policy denied | The requested model is not in the gateway policy's allowed list | Adjust the gateway policy. |
 | `429` quota exceeded | A per-user quota window is exhausted; a `retry-after` header is set | Back off until the window resets, or raise the quota. |
 | `502 Bad Gateway` | The upstream provider returned a non-2xx or the connection failed | Inspect the gateway access log for the upstream status and body; verify `api_key_secret` and `endpoint`. |
-| `503 Profile not ready` / API key secret not configured | The named `api_key_secret` is missing from the secrets document | Add the secret and reload. |
+| `503 Profile not ready` / API key secret not configured | The named `api_key_secret` is missing from the secrets document | Add the secret and restart the affected process. |
 
 Every gateway request is access-logged with method, path, status, and elapsed time to both stdout and the `logs` table (`crates/entry/api/src/routes/gateway/mod.rs:29-85`), keyed by an `x-systemprompt-request-id` response header for correlation.
 
@@ -172,15 +165,15 @@ Every gateway request is access-logged with method, path, status, and elapsed ti
 1. Obtain and verify the new release through your supply-chain process.
 2. Review [CHANGELOG.md](../../CHANGELOG.md) for the target version; scan for breaking-change entries.
 3. Preview migrations with `systemprompt infra db migrate-plan`, then apply with `systemprompt infra db migrate`.
-4. Replace one replica at a time. Wait for `GET /health` to return `200` before proceeding to the next, and use a `preStop` drain (§2) to bound request loss during each replacement.
+4. Replace one replica at a time. Wait for `GET /readyz` to return `200` before proceeding to the next, and use a `preStop` drain (§2) to bound request loss during each replacement.
 
 ### Roll back
 
-Migrations are additive-only within a minor version, so rolling back by one minor is supported:
+Check the target release’s migration and rollback requirements before changing binaries:
 
 1. Replace the binary with the previous version.
 2. Rolling-restart, draining each replica first.
-3. Columns added by the newer version are ignored by the older binary.
+3. Confirm that the older binary accepts the resulting schema and configuration; apply documented down migrations or restore a backup when required.
 
 Rolling back across more than one minor version requires a point-in-time restore from backup; see [deploy-production.md](deploy-production.md).
 

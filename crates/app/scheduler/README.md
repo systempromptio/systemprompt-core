@@ -1,35 +1,11 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Production infrastructure for AI agents
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
 # systemprompt-scheduler
-
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-scheduler.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/app-scheduler.svg">
-    <img alt="systemprompt-scheduler terminal demo" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/app-scheduler.svg" width="100%">
-  </picture>
-</div>
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-scheduler.svg?style=flat-square)](https://crates.io/crates/systemprompt-scheduler)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-scheduler?style=flat-square)](https://docs.rs/systemprompt-scheduler)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-The maintenance and enforcement work that keeps a self-hosted deployment healthy runs here, inside your own binary. Session cleanup, orphaned-record reaping, and malicious-IP blacklisting run as background jobs on cron schedules, discovered at compile time through the `inventory` crate and dispatched with panic isolation on a Tokio runtime.
+Schedules and dispatches background jobs, including session cleanup, service reconciliation and maintenance, using compile-time job registration and Tokio execution.
 
 **Layer**: App, orchestrates domain modules. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -82,7 +58,7 @@ Each job implements the `Job` trait from `systemprompt-traits` and is registered
 
 ```toml
 [dependencies]
-systemprompt-scheduler = "0.49"
+systemprompt-scheduler = "0.50"
 ```
 
 ### Job Discovery
@@ -127,11 +103,3 @@ service.start().await?;
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-scheduler)** · **[docs.rs](https://docs.rs/systemprompt-scheduler)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>App layer · Own how your organization uses AI.</sub>
-
-</div>

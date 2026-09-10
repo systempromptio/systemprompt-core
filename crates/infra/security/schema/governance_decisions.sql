@@ -41,3 +41,22 @@ CREATE INDEX IF NOT EXISTS idx_governance_decisions_trace ON governance_decision
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_policy_created ON governance_decisions(policy, created_at);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_tool_name ON governance_decisions(tool_name);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_client ON governance_decisions(client_id);
+
+-- Append-only enforcement. A recorded decision is evidence; rewriting one is an
+-- audit-integrity failure, so UPDATE is refused for every role including the
+-- table owner. A future schema backfill that genuinely must rewrite rows has to
+-- disable this trigger explicitly, which is the point: it becomes a deliberate,
+-- reviewable act rather than an ordinary statement. DELETE is deliberately not
+-- blocked here — retention and erasure need it — and stays an operator grant.
+CREATE OR REPLACE FUNCTION governance_decisions_deny_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'governance_decisions is append-only: UPDATE is refused'
+        USING ERRCODE = 'restrict_violation';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER governance_decisions_append_only
+    BEFORE UPDATE ON governance_decisions
+    FOR EACH ROW
+    EXECUTE FUNCTION governance_decisions_deny_update();

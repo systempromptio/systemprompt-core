@@ -1,13 +1,29 @@
 #[cfg(test)]
 mod bundle;
 #[cfg(test)]
+mod bundle_rules;
+#[cfg(test)]
 mod candidate;
 #[cfg(test)]
 mod catalog;
 #[cfg(test)]
+mod catalog_rules;
+#[cfg(test)]
 mod errors;
 #[cfg(test)]
 mod helpers;
+#[cfg(test)]
+mod import_edges;
+#[cfg(test)]
+mod import_manifest_shapes;
+#[cfg(test)]
+mod import_round_trip;
+#[cfg(test)]
+mod import_strict;
+#[cfg(test)]
+mod import_tree;
+#[cfg(test)]
+mod import_warnings;
 #[cfg(test)]
 mod keep;
 #[cfg(test)]

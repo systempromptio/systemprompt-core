@@ -1,144 +1,91 @@
-//! File and environment loaders for the secrets singleton.
-//!
-//! Resolves the secrets document from the active profile, falling back
-//! to environment variables in subprocess and deployment-host modes.
+//! Dispatcher from the resolved source to the loader that serves it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::path::Path;
+use systemprompt_models::profile::{SecretsValidationMode, VaultSecretsConfig};
+use systemprompt_models::secrets::{OAUTH_AT_REST_PEPPER_MIN_LENGTH, Secrets};
 
-use systemprompt_models::paths::constants::env_vars;
-use systemprompt_models::profile::{SecretsSource, resolve_with_home};
-use systemprompt_models::read_env_optional;
-use systemprompt_models::secrets::Secrets;
-
-use systemprompt_models::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
-
-use super::SecretsBootstrapError;
 use super::io::handle_load_error;
+use super::provider::SecretsProvider;
+use super::resolve::{ResolvedSource, resolve_source};
+use super::vault::VaultKvProvider;
+use super::{SecretsBootstrapError, log_secrets_issue};
 use crate::bootstrap::profile::ProfileBootstrap;
+use crate::bootstrap::secrets::sources::{env, file};
 use crate::error::{ConfigError, ConfigResult};
 
-pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
+pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
     let is_deployment_host =
         systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
     let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
+    let has_valid_pepper_in_env = std::env::var("OAUTH_AT_REST_PEPPER")
+        .is_ok_and(|pepper| pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH);
 
-    if (is_subprocess || is_deployment_host)
-        && let Ok(pepper) = std::env::var("OAUTH_AT_REST_PEPPER")
-        && pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH
-    {
-        tracing::debug!("Using OAUTH_AT_REST_PEPPER from environment (subprocess/container mode)");
-        return load_from_env();
-    }
+    let secrets_config = match ProfileBootstrap::get() {
+        Ok(profile) => profile.secrets.as_ref(),
+        Err(_e) if (is_subprocess || is_deployment_host) && has_valid_pepper_in_env => None,
+        Err(_e) => return Err(SecretsBootstrapError::ProfileNotInitialized.into()),
+    };
+    let validation = secrets_config.map_or_else(SecretsValidationMode::default, |c| c.validation);
 
-    let profile =
-        ProfileBootstrap::get().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
-
-    let secrets_config = profile
-        .secrets
-        .as_ref()
-        .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
-
-    let is_deployment_host =
-        systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
-
-    match secrets_config.source {
-        SecretsSource::Env if is_deployment_host => {
-            tracing::debug!("Loading secrets from environment (deployment host)");
-            load_from_env()
-        },
-        SecretsSource::Env => {
-            tracing::debug!("Profile source is 'env' but running locally, trying file first...");
-            resolve_and_load_file(&secrets_config.secrets_path).or_else(|_| {
-                tracing::debug!("File load failed, falling back to environment");
-                load_from_env()
-            })
-        },
-        SecretsSource::File => {
-            tracing::debug!("Loading secrets from file (profile source: file)");
-            resolve_and_load_file(&secrets_config.secrets_path)
-                .or_else(|e| handle_load_error(e, secrets_config.validation))
-        },
-    }
-}
-
-fn resolve_and_load_file(path_str: &str) -> ConfigResult<Secrets> {
-    let profile_path =
-        ProfileBootstrap::get_path().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
-
-    let profile_dir = Path::new(profile_path)
-        .parent()
-        .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;
-
-    let resolved_path = resolve_with_home(profile_dir, path_str);
-    load_from_file(&resolved_path)
-}
-
-fn load_from_file(path: &Path) -> ConfigResult<Secrets> {
-    if !path.exists() {
-        return Err(SecretsBootstrapError::FileNotFound {
-            path: path.display().to_string(),
-        }
-        .into());
-    }
-
-    let content = std::fs::read_to_string(path)?;
-
-    let secrets =
-        Secrets::parse(&content).map_err(|e| SecretsBootstrapError::InvalidSecretsFile {
-            message: e.to_string(),
-        })?;
-
-    tracing::debug!(path = %path.display(), "loaded secrets");
-
-    Ok(secrets)
-}
-
-fn load_from_env() -> ConfigResult<Secrets> {
-    let oauth_at_rest_pepper = read_env_required(
-        "OAUTH_AT_REST_PEPPER",
-        SecretsBootstrapError::OauthAtRestPepperRequired,
+    let resolved = resolve_source(
+        secrets_config,
+        is_subprocess,
+        is_deployment_host,
+        has_valid_pepper_in_env,
     )?;
-    let database_url =
-        read_env_required("DATABASE_URL", SecretsBootstrapError::DatabaseUrlRequired)?;
 
-    let custom = read_env_optional(env_vars::CUSTOM_SECRETS).map_or_else(HashMap::new, |keys| {
-        keys.split(',')
-            .filter_map(|key| {
-                let key = key.trim();
-                read_env_optional(key).map(|v| (key.to_owned(), v))
+    match resolved {
+        ResolvedSource::SubprocessEnv | ResolvedSource::DeploymentHostEnv => {
+            tracing::debug!("Loading secrets from environment");
+            env::load_from_env()
+        },
+        ResolvedSource::LocalEnvWithFileFallback(path) => {
+            tracing::debug!("Profile source is 'env' but running locally, trying file first");
+            file::resolve_and_load_file(path).or_else(|_e| {
+                tracing::debug!("File load failed, falling back to environment");
+                env::load_from_env()
             })
-            .collect()
-    });
+        },
+        ResolvedSource::File(path) => {
+            tracing::debug!("Loading secrets from file (profile source: file)");
+            file::resolve_and_load_file(path).or_else(|e| handle_load_error(e, validation))
+        },
+        ResolvedSource::Vault(cfg) => load_from_vault(cfg, validation).await,
+    }
+}
 
-    let secrets = Secrets {
-        oauth_at_rest_pepper,
-        manifest_signing_secret_seed: read_env_optional("MANIFEST_SIGNING_SECRET_SEED"),
-        signing_key_pem: read_env_optional("SIGNING_KEY_PEM"),
-        database_url,
-        database_write_url: read_env_optional("DATABASE_WRITE_URL"),
-        external_database_url: read_env_optional("EXTERNAL_DATABASE_URL"),
-        internal_database_url: read_env_optional("INTERNAL_DATABASE_URL"),
-        gemini: read_env_optional("GEMINI_API_KEY"),
-        anthropic: read_env_optional("ANTHROPIC_API_KEY"),
-        openai: read_env_optional("OPENAI_API_KEY"),
-        github: read_env_optional("GITHUB_TOKEN"),
-        moonshot: read_env_optional("MOONSHOT_API_KEY")
-            .or_else(|| read_env_optional("KIMI_API_KEY")),
-        qwen: read_env_optional("QWEN_API_KEY").or_else(|| read_env_optional("DASHSCOPE_API_KEY")),
-        custom,
+async fn load_from_vault(
+    cfg: &VaultSecretsConfig,
+    validation: SecretsValidationMode,
+) -> ConfigResult<Secrets> {
+    // Why: a Vault failure is never rescued by the environment — a downgraded
+    // boot would run on whatever stale credentials the host happens to carry.
+    let provider = match VaultKvProvider::from_config(cfg, |name| std::env::var(name).ok()) {
+        Ok(provider) => provider,
+        Err(e) => return Err(fail_closed(SecretsBootstrapError::from(e), validation)),
     };
 
-    secrets.validate()?;
-    Ok(secrets)
+    tracing::debug!(source = %provider.describe(), "loading secrets from vault");
+
+    let document = match provider.fetch().await {
+        Ok(document) => document,
+        Err(e) => return Err(fail_closed(e, validation)),
+    };
+    let key_names = document.key_names();
+
+    match document.into_secrets() {
+        Ok(secrets) => {
+            tracing::debug!(keys = ?key_names, "vault secrets document parsed");
+            Ok(secrets)
+        },
+        Err(e) => Err(fail_closed(e, validation)),
+    }
 }
 
-fn read_env_required(name: &str, missing: SecretsBootstrapError) -> ConfigResult<String> {
-    match std::env::var(name) {
-        Ok(v) if !v.is_empty() => Ok(v),
-        Ok(_) | Err(_) => Err(missing.into()),
-    }
+fn fail_closed(e: SecretsBootstrapError, validation: SecretsValidationMode) -> ConfigError {
+    let error = ConfigError::from(e);
+    log_secrets_issue(&error, validation);
+    error
 }

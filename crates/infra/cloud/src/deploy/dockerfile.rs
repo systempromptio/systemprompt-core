@@ -75,7 +75,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR {app}
 
-RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads} {web}{extension_dirs}
+RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads} {web} {services_cache}{extension_dirs}
 
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
@@ -111,6 +111,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             web = container::WEB,
             web_dist = container::WEB_DIST,
             services_path = container::SERVICES,
+            services_cache = container::SERVICES_CACHE,
             profiles = container::PROFILES,
             images = storage::IMAGES,
             generated = storage::GENERATED,

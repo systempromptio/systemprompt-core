@@ -20,6 +20,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-config = { workspace = true }
+systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-files = { workspace = true }

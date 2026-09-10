@@ -8,6 +8,9 @@ target/
 
 # Bridge release packaging artifact
 /systemprompt-bridge.zip
+
+# Bridge diagnostics bundles (may contain logs, tokens and host paths)
+/astound-bridge-diagnostics-*.zip
 docs
 docs/
 docs/*
@@ -129,6 +132,8 @@ scripts/*
 !scripts/lint-layers.sh
 !scripts/check-release-tag.sh
 !scripts/check-crate-changelogs.sh
+!scripts/check-version-strings.sh
+!scripts/check-lockfile-registry.sh
 !scripts/lint-bridge-css-tokens.sh
 !scripts/lint-bridge-i18n.sh
 !scripts/lint-bridge-js-imports.sh
@@ -139,6 +144,9 @@ scripts/*
 !scripts/lint-bridge-file-size.sh
 !scripts/lint-bridge-no-window.sh
 !scripts/lint-test-seams.sh
+# ...and the supply-chain advisory scanner run by CI (.github/workflows/supply-chain.yml)
+# via the `just audit` recipe.
+!scripts/cargo-audit-all.sh
 
 # Local-only review notes
 review/

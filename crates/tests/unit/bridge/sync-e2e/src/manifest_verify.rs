@@ -40,6 +40,7 @@ fn manifest() -> SignedManifest {
         user: None,
         plugins: vec![],
         skills: vec![],
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![],
@@ -48,6 +49,7 @@ fn manifest() -> SignedManifest {
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

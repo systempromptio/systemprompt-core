@@ -21,7 +21,7 @@ use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_users::UserService;
 
-use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
+use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
 use crate::registry::ModuleApiRegistry;
 use core_layer::{CoreLayer, init_core, init_extensions};
@@ -42,6 +42,7 @@ pub struct AppContextBuilder {
     authz_hook: Option<SharedAuthzHook>,
     install_schemas: bool,
     migration_config: MigrationConfig,
+    shutdown: Option<ShutdownRequest>,
 }
 
 impl std::fmt::Debug for AppContextBuilder {
@@ -53,6 +54,7 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("authz_hook", &self.authz_hook.is_some())
             .field("install_schemas", &self.install_schemas)
             .field("migration_config", &self.migration_config)
+            .field("shutdown", &self.shutdown.is_some())
             .finish()
     }
 }
@@ -103,12 +105,19 @@ impl AppContextBuilder {
     }
 
     #[must_use]
+    pub fn with_shutdown(mut self, shutdown: ShutdownRequest) -> Self {
+        self.shutdown = Some(shutdown);
+        self
+    }
+
+    #[must_use]
     pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
         self.migration_config = config;
         self
     }
 
     pub async fn build(self) -> RuntimeResult<AppContext> {
+        let shutdown = self.shutdown.unwrap_or_default();
         let CoreLayer {
             config,
             app_paths,
@@ -157,22 +166,22 @@ impl AppContextBuilder {
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
+        let subsystems = build_subsystems(
+            system_admin,
+            authz_hook,
+            geoip_reader,
+            file_storage,
+            shutdown,
+        );
+
         Ok(AppContext::from_parts(
-            DataPlane {
+            build_data_plane(
                 database,
                 analytics_service,
                 fingerprint_repo,
-                user_service: Some(user_service),
-                a2a_repositories: repositories.a2a,
-                content_repositories: repositories.content,
-                oauth_repositories: repositories.oauth,
-                user_repository: repositories.users,
-                service_repository: repositories.services,
-                ai_repositories: repositories.ai,
-                analytics_repositories: repositories.analytics,
-                file_repository: repositories.files,
-                mcp_session_repository: repositories.mcp_sessions,
-            },
+                user_service,
+                repositories,
+            ),
             ConfigPlane {
                 config,
                 app_paths,
@@ -185,8 +194,32 @@ impl AppContextBuilder {
                 mcp_registry,
                 marketplace_filter,
             },
-            build_subsystems(system_admin, authz_hook, geoip_reader, file_storage),
+            subsystems,
         ))
+    }
+}
+
+fn build_data_plane(
+    database: Arc<systemprompt_database::Database>,
+    analytics_service: Arc<systemprompt_analytics::AnalyticsService>,
+    fingerprint_repo: Option<Arc<systemprompt_analytics::FingerprintRepository>>,
+    user_service: Arc<UserService>,
+    repositories: RepositoryBundles,
+) -> DataPlane {
+    DataPlane {
+        database,
+        analytics_service,
+        fingerprint_repo,
+        user_service: Some(user_service),
+        a2a_repositories: repositories.a2a,
+        content_repositories: repositories.content,
+        oauth_repositories: repositories.oauth,
+        user_repository: repositories.users,
+        service_repository: repositories.services,
+        ai_repositories: repositories.ai,
+        analytics_repositories: repositories.analytics,
+        file_repository: repositories.files,
+        mcp_session_repository: repositories.mcp_sessions,
     }
 }
 
@@ -195,6 +228,7 @@ fn build_subsystems(
     authz_hook: SharedAuthzHook,
     geoip_reader: Option<systemprompt_analytics::GeoIpReader>,
     file_storage: Arc<dyn systemprompt_traits::FileStorage>,
+    shutdown: ShutdownRequest,
 ) -> Subsystems {
     Subsystems {
         system_admin,
@@ -202,6 +236,7 @@ fn build_subsystems(
         event_bridge: Arc::new(OnceLock::new()),
         geoip_reader,
         file_storage,
+        shutdown,
     }
 }
 

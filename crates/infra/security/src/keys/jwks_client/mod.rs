@@ -21,6 +21,7 @@ use std::time::Duration;
 
 use lru::LruCache;
 use reqwest::Client;
+use systemprompt_models::net::{GuardedClientConfig, guarded_client};
 
 use self::cache::CachedJwks;
 
@@ -59,12 +60,14 @@ pub enum JwksClientError {
         #[source]
         source: reqwest::Error,
     },
+    #[error("guarded outbound http client is unavailable")]
+    ClientUnavailable,
     #[error("issuer '{issuer}' has no key with kid '{kid}'")]
     KeyNotFound { issuer: String, kid: String },
 }
 
 pub struct JwksClient {
-    pub(super) http: Client,
+    pub(super) http: Option<Client>,
     pub(super) allowed_hosts: Vec<String>,
     pub(super) cache: Mutex<LruCache<String, CachedJwks>>,
     pub(super) min_refresh_interval: Duration,
@@ -89,7 +92,9 @@ impl JwksClient {
     pub fn with_capacity(allowed_hosts: Vec<String>, capacity: usize) -> Self {
         let cap = NonZeroUsize::new(capacity.max(1)).unwrap_or(NonZeroUsize::MIN);
         Self {
-            http: Client::new(),
+            http: guarded_client(&GuardedClientConfig::default())
+                .inspect_err(|e| tracing::error!(error = %e, "Guarded JWKS client unavailable"))
+                .ok(),
             allowed_hosts,
             cache: Mutex::new(LruCache::new(cap)),
             min_refresh_interval: DEFAULT_MIN_REFRESH_INTERVAL,
@@ -100,7 +105,7 @@ impl JwksClient {
     }
 
     pub fn with_http_client(mut self, client: Client) -> Self {
-        self.http = client;
+        self.http = Some(client);
         self
     }
 

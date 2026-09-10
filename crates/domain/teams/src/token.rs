@@ -3,8 +3,13 @@
 //! Replying to a Teams activity requires an `OAuth2` client-credentials access
 //! token minted against the Bot Framework login authority. Tokens are cached
 //! in-process and refreshed shortly before expiry, so a burst of replies shares
-//! a single token. The login URL passes the shared SSRF guard before any
-//! request is made.
+//! a single token.
+//!
+//! The login URL is operator-configured — [`BOT_FRAMEWORK_TOKEN_URL`] by
+//! default, or an explicit override for a sovereign cloud — and is never read
+//! from an inbound payload. It passes the shared parse-time SSRF guard, which
+//! is the appropriate depth for a value the operator sets; the caller-supplied
+//! reply path in [`crate::client`] carries the connect-time guard as well.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

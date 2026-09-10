@@ -269,7 +269,8 @@ fn seed_registry(state: &std::path::Path, names: &[&str]) {
         serde_json::to_vec(&servers).expect("servers json"),
     )
     .expect("write fragment");
-    systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY);
+    systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY)
+        .expect("rehydrate reads the seeded fragment");
 }
 
 #[test]

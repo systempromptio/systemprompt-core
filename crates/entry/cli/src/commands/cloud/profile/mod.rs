@@ -62,7 +62,7 @@ async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<b
                 .map(|()| true)
         },
         ProfileCommands::List => {
-            let result = list::execute(ctx)?;
+            let result = list::execute(ctx).await?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
@@ -71,7 +71,9 @@ async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<b
             filter,
             json,
             yaml,
-        } => show::execute(name.as_deref(), filter, json, yaml, ctx).map(|()| false),
+        } => show::execute(name.as_deref(), filter, json, yaml, ctx)
+            .await
+            .map(|()| false),
         ProfileCommands::Delete(args) => {
             let result = delete::execute(&args, ctx.prompter(), &ctx.cli)?;
             render_result(&result, &ctx.cli);

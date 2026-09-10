@@ -1,15 +1,6 @@
-//! One answer to "what may this binary do with this host id".
+//! Host resolution for GUI operations.
 //!
-//! Three of the four [`ResolvedHost`] states are ordinary and must not reach a
-//! user as an error. A sync-only agent (`claude-code`) is governed from the
-//! gateway and installs nothing here; a suppressed host is one a white-label
-//! build deliberately does not offer; only an id belonging to neither the
-//! registry nor `KNOWN_HOSTS` is a caller error.
-//!
-//! Every per-host handler used to re-derive that itself, and v0.43.0 shipped
-//! with all seven of them answering `unknown host: claude-code` — a toast
-//! naming the agent most readers are running. This is the single place that
-//! decision is made, so the eighth handler cannot regress it.
+//! Distinguishes installable, sync-only and suppressed hosts from unknown IDs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

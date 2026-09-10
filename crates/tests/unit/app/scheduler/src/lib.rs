@@ -22,6 +22,12 @@ mod dispatch_scope_db;
 #[cfg(test)]
 mod error_variants;
 #[cfg(test)]
+mod evaluation_loop_job;
+#[cfg(test)]
+mod evaluator_client;
+#[cfg(test)]
+mod evaluator_container;
+#[cfg(test)]
 mod extended_jobs;
 #[cfg(test)]
 mod job_config;

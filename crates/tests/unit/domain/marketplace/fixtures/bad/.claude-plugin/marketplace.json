@@ -1,0 +1,14 @@
+{
+  "name": "bad-tree",
+  "owner": { "name": "Acme Field Team", "email": "field@acme.example" },
+  "metadata": { "description": "A tree that violates the sidecar contract.", "version": "1.0.0" },
+  "plugins": [
+    {
+      "name": "gamma",
+      "source": "./plugins/gamma",
+      "description": "Inline MCP servers and a forbidden sidecar key.",
+      "version": "1.0.0",
+      "category": "business"
+    }
+  ]
+}

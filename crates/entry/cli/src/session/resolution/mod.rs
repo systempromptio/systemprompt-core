@@ -49,7 +49,7 @@ async fn get_session_for_profile(
     }
 
     if !SecretsBootstrap::is_initialized() {
-        SecretsBootstrap::try_init().with_context(
+        SecretsBootstrap::try_init().await.with_context(
             || "Failed to initialize secrets. Check your profile's secrets configuration.",
         )?;
     }
@@ -153,7 +153,7 @@ async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliS
         )
     })?;
 
-    initialize_profile_bootstraps(&profile_path)?;
+    initialize_profile_bootstraps(&profile_path).await?;
 
     let session_ctx = get_session_for_loaded_profile(&profile, &profile_path, ctx).await?;
     Ok(Some(session_ctx))

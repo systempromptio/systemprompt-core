@@ -70,6 +70,7 @@ pub(super) fn plugin_inclusion_diagnostics(
 
 pub(super) struct CandidateSnapshot {
     skills: Vec<String>,
+    rules: Vec<String>,
     agents: Vec<String>,
     mcp_servers: Vec<String>,
     artifacts: Vec<String>,
@@ -82,6 +83,11 @@ pub(super) fn snapshot(candidate: &MarketplaceCandidate) -> CandidateSnapshot {
             .skills
             .iter()
             .map(|s| s.id.as_str().to_owned())
+            .collect(),
+        rules: candidate
+            .rules
+            .iter()
+            .map(|r| r.id.as_str().to_owned())
             .collect(),
         agents: candidate
             .agents
@@ -113,8 +119,9 @@ pub(super) fn record_removed(
     reason: &str,
     trace: &mut dyn TraceSink,
 ) {
-    let sections: [(TraceKind, &Vec<String>, &Vec<String>); 5] = [
+    let sections: [(TraceKind, &Vec<String>, &Vec<String>); 6] = [
         (TraceKind::Skill, &before.skills, &after.skills),
+        (TraceKind::Rule, &before.rules, &after.rules),
         (TraceKind::Agent, &before.agents, &after.agents),
         (
             TraceKind::McpServer,

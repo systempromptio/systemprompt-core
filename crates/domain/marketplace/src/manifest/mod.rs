@@ -33,7 +33,9 @@ use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
-use crate::catalog::{CatalogContent, artifact_owners, load_hooks, load_plugins, skill_owners};
+use crate::catalog::{
+    CatalogContent, artifact_owners, load_hooks, load_plugins, rule_owners, skill_owners,
+};
 use crate::error::MarketplaceError;
 use crate::filter::MarketplaceFilter;
 use crate::membership::MarketplaceMembership;
@@ -105,8 +107,9 @@ impl ManifestService {
         let hooks = load_hooks(services_root)?;
         let plugins = load_plugins(services, &catalog.as_content())?;
         let skill_owners = skill_owners(services, &catalog.as_content())?;
+        let rule_owners = rule_owners(services, &catalog.as_content())?;
         let selected_skills: BTreeSet<SkillId> = skill_owners.keys().cloned().collect();
-        let (skills, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
+        let (skills, rules, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
 
         let enabled = services.enabled_marketplaces();
         let marketplaces = listed_marketplaces(services, &enabled)?;
@@ -125,6 +128,7 @@ impl ManifestService {
         let candidate = MarketplaceCandidate {
             plugins,
             skills,
+            rules,
             agents,
             hooks,
             managed_mcp_servers,
@@ -133,6 +137,7 @@ impl ManifestService {
             ..MarketplaceCandidate::default()
         }
         .with_artifact_owners(owners)
+        .with_rule_owners(rule_owners)
         .with_skill_owners(skill_owners)
         .with_membership(membership);
 

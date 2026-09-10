@@ -27,7 +27,7 @@ use systemprompt_security::policy::{ChainEntryResult, SECRET_SCAN_ID};
 pub(in crate::services::gateway::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
 use self::outbound::{
-    CtxParts, audit_upstream_failure, outbound_ctx, resolve_url_images, strip_caller_identity,
+    CtxParts, outbound_ctx, resolve_url_images, send_bracketed, strip_caller_identity,
 };
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
@@ -283,18 +283,13 @@ impl ScannedDispatch {
                 raw_body: None,
             },
         );
-        match upstream.adapter.send(ctx, &prepared.body).await {
-            Ok(o) => Ok(o),
-            Err(e) => {
-                audit_upstream_failure(
-                    audit,
-                    upstream.provider.name.as_str(),
-                    &prepared.request.model,
-                    &e,
-                )
-                .await;
-                Err(DispatchError::Recorded(e))
-            },
-        }
+        send_bracketed(
+            upstream,
+            ctx,
+            &prepared.body,
+            &prepared.request.model,
+            audit,
+        )
+        .await
     }
 }

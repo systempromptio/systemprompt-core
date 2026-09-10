@@ -36,6 +36,9 @@ pub enum DeployEvent<'a> {
     SecretsSynced {
         count: usize,
     },
+    VaultBootstrapSynced {
+        count: usize,
+    },
     CredentialsSyncStarted,
     CredentialsSynced {
         count: usize,

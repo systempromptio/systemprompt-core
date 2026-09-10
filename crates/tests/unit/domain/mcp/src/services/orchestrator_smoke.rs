@@ -26,7 +26,12 @@ async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
         geoip_database: None,
     };
     let app_paths = Arc::new(
-        AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize).ok()?,
+        AppPaths::from_profile(
+            &paths,
+            systemprompt_models::PathResolution::Canonicalize,
+            None,
+        )
+        .ok()?,
     );
     let registry = RegistryService::new(fixture_user_id());
     let service_repo = ServiceRepository::new(

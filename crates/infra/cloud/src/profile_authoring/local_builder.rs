@@ -106,9 +106,10 @@ impl LocalProfileBuilder {
                 validation: CloudValidationMode::Warn,
             }),
             secrets: Some(SecretsConfig {
-                secrets_path: self.secrets_path,
+                secrets_path: Some(self.secrets_path),
                 validation: SecretsValidationMode::Warn,
                 source: SecretsSource::File,
+                vault: None,
             }),
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),

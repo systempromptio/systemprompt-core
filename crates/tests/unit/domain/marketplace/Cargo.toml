@@ -13,13 +13,14 @@ workspace = true
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-marketplace = { workspace = true }
+systemprompt-loader = { workspace = true }
+serde_yaml = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-security = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-database = { workspace = true }
-systemprompt-config = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

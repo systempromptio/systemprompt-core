@@ -10,7 +10,7 @@ pub mod skills;
 
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
 use systemprompt_models::{AgentConfig, ServicesConfig};
 
 use crate::error::{AgentError, AgentResult};
@@ -213,11 +213,11 @@ fn build_extensions(
 }
 
 fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill> {
-    let skills_path = ProfileBootstrap::get().map_or_else(|_| String::new(), |p| p.paths.skills());
-    if skills_path.is_empty() {
+    let Ok(profile) = ProfileBootstrap::get() else {
         return Vec::new();
-    }
-    load_agent_skills_from_dir(agent, Path::new(&skills_path))
+    };
+    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
+    load_agent_skills_from_dir(agent, &skills_path)
 }
 
 #[doc(hidden)]

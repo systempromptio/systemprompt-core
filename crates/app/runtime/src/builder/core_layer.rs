@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{
     Database, MigrationConfig, PoolConfig, install_extension_schemas_full,
     validate_write_pool_is_primary,
@@ -36,14 +36,26 @@ pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
 ) -> RuntimeResult<CoreLayer> {
     let profile = ProfileBootstrap::get()?;
+    let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
+        profile,
+        |name| {
+            SecretsBootstrap::get()
+                .ok()
+                .and_then(|s| s.get(name).cloned())
+        },
+        env!("CARGO_PKG_VERSION"),
+    )
+    .await
+    .map_err(|err| RuntimeError::Internal(format!("services bundle init: {err}")))?;
     let app_paths = Arc::new(AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
+        Some(active_root.path.as_path()),
     )?);
     systemprompt_files::FilesConfig::init(&app_paths)?;
-    systemprompt_config::try_init_config()
+    systemprompt_config::try_init_config(Some(active_root.path.as_path()))
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
-    systemprompt_loader::ServicesBootstrap::try_init()
+    let services = systemprompt_loader::ServicesBootstrap::try_init()
         .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
@@ -65,6 +77,14 @@ pub(super) async fn init_core(
     );
 
     validate_write_pool_is_primary(&database).await?;
+
+    crate::services_reconcile::reconcile_fetched_services(
+        profile,
+        active_root,
+        services,
+        &database,
+    )
+    .await?;
 
     let authz_audit_pool = database.write_pool_arc().ok();
     let authz_hook = systemprompt_security::authz::build_authz_hook(

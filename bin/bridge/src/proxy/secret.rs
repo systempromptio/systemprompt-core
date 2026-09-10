@@ -24,7 +24,7 @@ pub fn secret_path() -> Option<PathBuf> {
 }
 
 pub fn load(path: &std::path::Path) -> std::io::Result<Option<LoopbackSecret>> {
-    match fs::read(path) {
+    match crate::fsutil::read_private(path) {
         Ok(bytes) => {
             let s = String::from_utf8(bytes)
                 .map_err(std::io::Error::other)?
@@ -64,7 +64,15 @@ fn mint(path: &std::path::Path) -> std::io::Result<LoopbackSecret> {
 pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    let secret = if let Some(s) = load(&path).map_err(|e| unreadable(&path, e))? {
+    let loaded = match load(&path) {
+        Ok(loaded) => loaded,
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            replace_unreadable(&path, &e)?;
+            None
+        },
+        Err(e) => return Err(unreadable(&path, e)),
+    };
+    let secret = if let Some(s) = loaded {
         s
     } else {
         let s = mint(&path)?;
@@ -79,19 +87,45 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
     Ok(secret)
 }
 
-// Why: the key is minted by this user and never touched again, so a read the
-// OS refuses means its ACL no longer names them. Nothing re-mints it on its
-// own (only a missing file does), so the error has to carry the remedy.
-fn unreadable(path: &std::path::Path, e: std::io::Error) -> std::io::Error {
+// Why: a denied read has already been through the owner repair. The file is
+// this user's to delete (the directory grants it), and every host profile is
+// re-applied on the next sync, so a fresh key recovers without a hand-run
+// reset; only a file that cannot be deleted either is left to the operator.
+pub(crate) fn replace_unreadable(
+    path: &std::path::Path,
+    cause: &std::io::Error,
+) -> std::io::Result<()> {
+    crate::fsutil::remove_verified(path).map_err(|e| {
+        unreadable(
+            path,
+            std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!("{cause}; it could not be removed either: {e}"),
+            ),
+        )
+    })?;
+    tracing::warn!(
+        path = %path.display(),
+        error = %cause,
+        remediation = %reapply_hint(),
+        "private file was unreadable and could not be repaired; removed so it is minted afresh"
+    );
+    Ok(())
+}
+
+// Why: a denied read has already been through the owner repair and the
+// removal, so what is left is a file another account holds. Nothing re-mints it
+// on its own (only a missing file does), so the error has to carry the remedy.
+pub(crate) fn unreadable(path: &std::path::Path, e: std::io::Error) -> std::io::Error {
     if e.kind() != std::io::ErrorKind::PermissionDenied {
         return e;
     }
     std::io::Error::new(
         e.kind(),
         format!(
-            "{} cannot be read ({e}); this user no longer has access to the local proxy secret. \
-             Use \"Reset local proxy secret\" in the app or delete the file (as an \
-             administrator if needed), start the bridge again, then repair each agent",
+            "{} cannot be read ({e}); this account does not own the file and \
+             cannot repair it. Use \"Reset local proxy secret\" in the app or delete the file \
+             (as an administrator if needed), start the bridge again, then repair each agent",
             path.display()
         ),
     )

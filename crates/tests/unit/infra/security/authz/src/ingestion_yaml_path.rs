@@ -164,6 +164,7 @@ async fn delete_orphans_clears_stale_role_grants_before_reapplying_the_config() 
             IngestOptions {
                 override_existing: true,
                 delete_orphans: true,
+                ..IngestOptions::default()
             },
             &RegisteredEntities::default(),
         )

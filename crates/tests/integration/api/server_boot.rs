@@ -45,6 +45,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )?);
 
     let ctx = Arc::new(AppContext::from_parts(
@@ -107,6 +108,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 systemprompt_models::profile::StorageBackend::Local,
                 &std::env::temp_dir(),
             ),
+            shutdown: Default::default(),
         },
     ));
 

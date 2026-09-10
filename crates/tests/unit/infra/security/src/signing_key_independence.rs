@@ -23,7 +23,7 @@ fn ensure_bootstrap() {
             );
             std::env::set_var("MANIFEST_SIGNING_SECRET_SEED", SEED_B64);
         }
-        let _ = SecretsBootstrap::init();
+        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
     });
 }
 

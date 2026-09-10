@@ -1,5 +1,9 @@
 //! Graceful shutdown: signal wait, child termination, forced-exit backstop.
 //!
+//! The wait resolves on `SIGTERM`, `Ctrl-C`, or the [`ShutdownRequest`] the
+//! listener was bound with — the handle an admin action raises when it needs
+//! the supervisor to restart the process on new content.
+//!
 //! Ordering matters. Axum starts draining connections only once
 //! `shutdown_signal` resolves, so the run loop bounds that drain with
 //! [`join_within_drain_grace`] and arms the hard `arm_forced_exit` deadline
@@ -11,20 +15,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};
 
 pub const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
 pub const AXUM_DRAIN_GRACE_MS: u64 = 10_000;
 const FORCED_SHUTDOWN_GRACE_MS: u64 = 10_000;
 
-pub(super) async fn shutdown_signal() {
-    wait_for_signal().await;
+pub(super) async fn shutdown_signal(restart: ShutdownRequest) {
+    wait_for_signal(&restart).await;
     super::readiness::signal_shutdown();
-    arm_exit_on_second_signal();
+    arm_exit_on_second_signal(restart);
 }
 
-async fn wait_for_signal() {
+async fn wait_for_signal(restart: &ShutdownRequest) {
+    let restart_requested = restart.requested();
+
     let ctrl_c = async {
         if let Err(e) = tokio::signal::ctrl_c().await {
             tracing::error!(error = %e, "Failed to install Ctrl-C handler");
@@ -51,12 +57,13 @@ async fn wait_for_signal() {
     tokio::select! {
         () = ctrl_c => tracing::info!("Received Ctrl-C, shutting down"),
         () = terminate => tracing::info!("Received SIGTERM, shutting down"),
+        () = restart_requested => tracing::info!("Restart requested in-process, shutting down"),
     }
 }
 
-fn arm_exit_on_second_signal() {
-    tokio::spawn(async {
-        wait_for_signal().await;
+fn arm_exit_on_second_signal(restart: ShutdownRequest) {
+    tokio::spawn(async move {
+        wait_for_signal(&restart).await;
         tracing::warn!("Second shutdown signal received, forcing immediate exit");
         force_exit();
     });

@@ -19,6 +19,7 @@ export class SpToast extends SpElement {
     this._lastMessage = "";
     this._lastAt = 0;
     this.offerReauth = false;
+    this.gatewayError = false;
     this.registerAction("dismiss", () => this.hide());
     this.registerAction("reauth", () => {
       this.hide();
@@ -34,6 +35,10 @@ export class SpToast extends SpElement {
       // A rejected credential is the one error the user can act on from here;
       // every other toast is informational.
       this.offerReauth = err && err.code === "unauthorized";
+      // Why: a gateway that came back answers this toast as completely as a
+      // fresh sign-in answers the credential one. Without this it outlived the
+      // recovery and kept naming a host we no longer talk to.
+      this.gatewayError = Boolean(err && err.scope === "gateway" && err.code === "unreachable");
       // An error the user has to read must not time out (WCAG 2.2.1). The
       // `unauthorized` case already had no timeout; every error now behaves the
       // same way and is dismissed deliberately.
@@ -46,11 +51,14 @@ export class SpToast extends SpElement {
     this.useSnapshot((snap) => {
       const identity = (snap && snap.verified_identity) || null;
       if (this.visible && this.offerReauth && identity && identity.user_id) { this.hide(); }
+      const gateway = (snap && snap.gateway_status) || null;
+      if (this.visible && this.gatewayError && gateway && gateway.tone === "ok") { this.hide(); }
     });
     this._unsubs.push(onBridgeEvent("sp:toast", (e) => {
       const d = (e && e.detail) || {};
       if (!d.message) { return; }
       this.offerReauth = false;
+      this.gatewayError = false;
       this.show(d.message, d.kind || "info", d.durationMs === undefined ? 6000 : d.durationMs, d.key || d.message);
     }));
   }
@@ -75,6 +83,7 @@ export class SpToast extends SpElement {
 
   hide() {
     this.visible = false;
+    this.gatewayError = false;
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
   }
 

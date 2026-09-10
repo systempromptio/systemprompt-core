@@ -124,6 +124,8 @@ macro_rules! shared_non_empty_id {
 shared_non_empty_id!(PluginId);
 shared_non_empty_id!(SkillId);
 shared_non_empty_id!(SkillName);
+shared_non_empty_id!(RuleId);
+shared_non_empty_id!(RuleName);
 shared_non_empty_id!(ManagedMcpServerName);
 shared_non_empty_id!(ToolName);
 shared_non_empty_id!(LibraryArtifactId);

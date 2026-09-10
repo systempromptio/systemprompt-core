@@ -175,6 +175,7 @@ fn open_server_log_creates_log_directory_and_file() {
         AppPaths::from_profile(
             &paths_config,
             systemprompt_models::PathResolution::Canonicalize,
+            None,
         )
         .expect("paths"),
     );

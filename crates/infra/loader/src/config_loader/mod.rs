@@ -41,6 +41,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::services::{ApiSurface, ServicesConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
+use crate::services_root::ServicesRootBootstrap;
 
 use discovery::{discover_marketplaces, discover_plugins, discover_skills};
 use includes::resolve_includes_recursively;
@@ -68,8 +69,8 @@ impl ConfigLoader {
 
     pub fn for_active_profile() -> ConfigLoadResult<Self> {
         let profile = ProfileBootstrap::get()?;
-        let config_path = PathBuf::from(profile.paths.config());
-        Ok(Self::new(config_path))
+        let root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
+        Ok(Self::new(root.join("config").join("config.yaml")))
     }
 
     pub fn load() -> ConfigLoadResult<ServicesConfig> {

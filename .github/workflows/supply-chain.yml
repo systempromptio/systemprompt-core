@@ -35,3 +35,17 @@ jobs:
         with:
           tool: cargo-deny
       - run: just deny
+
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - run: rustup show
+      - uses: extractions/setup-just@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: just audit

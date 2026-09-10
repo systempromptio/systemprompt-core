@@ -29,6 +29,30 @@ mod bootstrap_secrets;
 mod bootstrap_secrets_env;
 
 #[cfg(test)]
+mod bootstrap_secrets_vault;
+
+#[cfg(test)]
+mod secrets_resolve_source;
+
+#[cfg(test)]
+mod vault_address;
+
+#[cfg(test)]
+mod vault_auth;
+
+#[cfg(test)]
+mod vault_fixture;
+
+#[cfg(test)]
+mod vault_kv;
+
+#[cfg(test)]
+mod vault_client_transport;
+
+#[cfg(test)]
+mod vault_provider_document;
+
+#[cfg(test)]
 mod config_loader_build;
 
 #[cfg(test)]

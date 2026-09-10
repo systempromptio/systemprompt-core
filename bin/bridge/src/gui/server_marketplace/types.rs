@@ -121,6 +121,7 @@ pub struct MarketplaceListing {
     pub(crate) mcp: Vec<MarketplaceItem>,
     pub(crate) agents: Vec<MarketplaceItem>,
     pub(crate) artifacts: Vec<MarketplaceItem>,
+    pub(crate) rules: Vec<MarketplaceItem>,
     pub(crate) plugins_dir: Option<String>,
     pub(crate) last_sync_diff: MarketplaceDiff,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1,35 +1,11 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Config-as-code templates for AI governance you own
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
 # systemprompt-template-provider
-
-<div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/light/00-overview.svg">
-    <img alt="systemprompt-template-provider — systemprompt-core workspace" src="https://raw.githubusercontent.com/systempromptio/systemprompt-core/main/assets/readme/terminals/dark/00-overview.svg" width="100%">
-  </picture>
-</div>
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-template-provider.svg?style=flat-square)](https://crates.io/crates/systemprompt-template-provider)
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-template-provider?style=flat-square)](https://docs.rs/systemprompt-template-provider)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Your templates are config, versioned in your own repository, not entries in someone else's dashboard. This crate defines the traits that load them. Templates compile into the binary or resolve from the filesystem at runtime, and every provider passes through one typed contract.
+Defines template-provider contracts for compiled and filesystem-backed template sources.
 
 **Layer**: Shared. Foundational types and traits with no dependencies on other layers. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -61,7 +37,7 @@ The rendering pipeline talks to templates through traits, never through a concre
 
 ```toml
 [dependencies]
-systemprompt-template-provider = "0.49"
+systemprompt-template-provider = "0.50"
 ```
 
 ```rust
@@ -111,11 +87,3 @@ fn register(provider: Arc<dyn TemplateProvider>) -> DynTemplateProvider {
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[crates.io](https://crates.io/crates/systemprompt-template-provider)** · **[docs.rs](https://docs.rs/systemprompt-template-provider)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>Shared layer · Own how your organization governs AI.</sub>
-
-</div>

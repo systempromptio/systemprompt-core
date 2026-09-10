@@ -16,6 +16,28 @@
 //! Nothing is written when that check fails: resolution runs inside the
 //! transaction but before every write, so the error rolls back an empty one.
 //!
+//! # Ownership
+//!
+//! Every rule row records the pass that wrote it in `access_control_rules
+//! .source` — `yaml` for the baked services tree, `bundle:<name>` for a
+//! fetched services bundle, `dashboard` for an operator edit. Three rules
+//! follow from that column:
+//!
+//! * a `dashboard` row is never updated and never pruned by ingestion; it is
+//!   reported as [`IngestReport::protected`] and left exactly as the operator
+//!   left it;
+//! * `delete_orphans` prunes only rows whose `source` is this pass's own and
+//!   whose entity falls inside the caller's [`IngestScope`], so one bundle
+//!   cannot revoke another's grants;
+//! * `rule_type = 'user'` rows are runtime state and stay untouched everywhere,
+//!   as before.
+//!
+//! After the writes, every `role` value the pass mentioned is checked against
+//! the users table and the ones nobody holds are warned about and returned in
+//! [`IngestReport::unknown_subjects`]. Only the role dimension is checkable in
+//! core: roles live in the users table, while group and project dimensions are
+//! extension-owned and have no core table to check against.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,56 +45,70 @@ mod catalog;
 pub mod glob;
 mod marketplace;
 mod messaging;
+mod resolve;
+mod scope;
+mod subjects;
 mod upsert;
 
-use std::collections::HashMap;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
-use super::config::{AccessControlConfig, RuleEntry, RuleTarget};
+use super::config::AccessControlConfig;
 use super::error::{AuthzError, AuthzResult};
-use super::types::{Access, EntityKind, RuleType};
+use super::types::RuleType;
 
 pub use catalog::RegisteredEntities;
-use glob::glob_matches;
+use resolve::{prune_role_rules, resolve_rules};
+pub use scope::IngestScope;
+pub use subjects::UnknownSubject;
+use subjects::{SubjectMention, find_unknown_subjects};
+pub use upsert::{DASHBOARD_SOURCE, YAML_SOURCE};
 use upsert::{SOURCE_LABEL, Target, UpsertOutcome, upsert_entity_row, upsert_target};
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone)]
 pub struct IngestOptions {
     pub override_existing: bool,
     pub delete_orphans: bool,
+    pub source: String,
+    pub scope: IngestScope,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+impl Default for IngestOptions {
+    fn default() -> Self {
+        Self {
+            override_existing: false,
+            delete_orphans: false,
+            source: YAML_SOURCE.to_owned(),
+            scope: IngestScope::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct IngestReport {
     pub inserted: usize,
     pub updated: usize,
     pub skipped: usize,
     pub deleted: usize,
+    pub protected: usize,
+    pub unknown_subjects: Vec<UnknownSubject>,
+}
+
+const fn tally(report: &mut IngestReport, outcome: UpsertOutcome) {
+    match outcome {
+        UpsertOutcome::Inserted => report.inserted += 1,
+        UpsertOutcome::Updated => report.updated += 1,
+        UpsertOutcome::Skipped => report.skipped += 1,
+        UpsertOutcome::Protected => report.protected += 1,
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct AccessControlIngestionService {
     write_pool: Arc<PgPool>,
-}
-
-struct ResolvedRule<'a> {
-    entity_kind: EntityKind,
-    ids: Vec<String>,
-    access: &'static str,
-    default_included: bool,
-    roles: &'a [String],
-    justification: Option<&'a str>,
-}
-
-struct ValidatedRules<'a>(Vec<ResolvedRule<'a>>);
-
-impl<'a> ValidatedRules<'a> {
-    fn rules(&self) -> &[ResolvedRule<'a>] {
-        &self.0
-    }
 }
 
 impl AccessControlIngestionService {
@@ -114,35 +150,15 @@ impl AccessControlIngestionService {
         cfg.validate()?;
 
         let mut tx = self.write_pool.begin().await?;
-        let validated = Self::resolve_rules(&mut tx, &cfg.rules, registered).await?;
+        let validated = resolve_rules(&mut tx, &cfg.rules, registered).await?;
         let resolved = validated.rules();
         let mut report = IngestReport::default();
 
         if options.delete_orphans {
-            let mut entity_types: Vec<String> = Vec::new();
-            let mut entity_ids: Vec<String> = Vec::new();
-            for rule in resolved {
-                for id in &rule.ids {
-                    entity_types.push(rule.entity_kind.as_str().to_owned());
-                    entity_ids.push(id.clone());
-                }
-            }
-            let res = sqlx::query!(
-                r#"
-                DELETE FROM access_control_rules
-                WHERE rule_type = 'role'
-                  AND (entity_type, entity_id) IN (
-                      SELECT * FROM UNNEST($1::text[], $2::text[])
-                  )
-                "#,
-                &entity_types,
-                &entity_ids,
-            )
-            .execute(&mut *tx)
-            .await?;
-            report.deleted = res.rows_affected() as usize;
+            report.deleted = prune_role_rules(&mut tx, resolved, &options).await?;
         }
 
+        let mut mentions = BTreeSet::new();
         for rule in resolved {
             for id in &rule.ids {
                 upsert_entity_row(
@@ -161,15 +177,21 @@ impl AccessControlIngestionService {
                         rule_value: role,
                         access: rule.access,
                         justification: rule.justification,
+                        source: &options.source,
                     };
-                    match upsert_target(&mut tx, &target, options.override_existing).await? {
-                        UpsertOutcome::Inserted => report.inserted += 1,
-                        UpsertOutcome::Updated => report.updated += 1,
-                        UpsertOutcome::Skipped => report.skipped += 1,
-                    }
+                    let outcome =
+                        upsert_target(&mut tx, &target, options.override_existing).await?;
+                    tally(&mut report, outcome);
+                    mentions.insert(SubjectMention {
+                        rule_type: RuleType::ROLE.to_string(),
+                        value: role.clone(),
+                        entity: format!("{}:{id}", rule.entity_kind.as_str()),
+                    });
                 }
             }
         }
+
+        report.unknown_subjects = find_unknown_subjects(&mut tx, &mentions).await?;
 
         tx.commit().await?;
 
@@ -179,72 +201,14 @@ impl AccessControlIngestionService {
             updated = report.updated,
             skipped = report.skipped,
             deleted = report.deleted,
+            protected = report.protected,
+            unknown_subjects = report.unknown_subjects.len(),
+            source = %options.source,
             override_existing = options.override_existing,
             delete_orphans = options.delete_orphans,
             "access-control YAML ingested",
         );
 
         Ok(report)
-    }
-
-    async fn resolve_rules<'a>(
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        rules: &'a [RuleEntry],
-        registered: &RegisteredEntities,
-    ) -> AuthzResult<ValidatedRules<'a>> {
-        let mut catalog_cache: HashMap<EntityKind, Vec<String>> = HashMap::new();
-        let mut out = Vec::with_capacity(rules.len());
-
-        for rule in rules {
-            let access = match rule.access {
-                Access::Allow => "allow",
-                Access::Deny => "deny",
-            };
-            let ids = match &rule.target {
-                RuleTarget::Id(id) => {
-                    registered.require(rule.entity_type, id)?;
-                    vec![id.clone()]
-                },
-                RuleTarget::Match(pattern) => {
-                    if let std::collections::hash_map::Entry::Vacant(entry) =
-                        catalog_cache.entry(rule.entity_type)
-                    {
-                        entry.insert(Self::list_entity_ids(tx, rule.entity_type).await?);
-                    }
-                    catalog_cache[&rule.entity_type]
-                        .iter()
-                        .filter(|id| glob_matches(pattern, id))
-                        .cloned()
-                        .collect()
-                },
-            };
-            out.push(ResolvedRule {
-                entity_kind: rule.entity_type,
-                ids,
-                access,
-                default_included: rule.default_included,
-                roles: &rule.roles,
-                justification: rule.justification.as_deref(),
-            });
-        }
-
-        Ok(ValidatedRules(out))
-    }
-
-    async fn list_entity_ids(
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        kind: EntityKind,
-    ) -> AuthzResult<Vec<String>> {
-        let rows = sqlx::query!(
-            r#"
-            SELECT entity_id
-            FROM access_control_entities
-            WHERE entity_type = $1
-            "#,
-            kind.as_str(),
-        )
-        .fetch_all(&mut **tx)
-        .await?;
-        Ok(rows.into_iter().map(|row| row.entity_id).collect())
     }
 }

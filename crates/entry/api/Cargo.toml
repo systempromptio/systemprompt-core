@@ -105,8 +105,6 @@ webauthn-rs = { workspace = true }
 nix = { workspace = true }
 
 # Sync/compression
-flate2 = { workspace = true }
-tar = { workspace = true }
 
 # OTel ingest (OTLP/HTTP Protobuf)
 prost = { workspace = true }

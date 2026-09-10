@@ -28,25 +28,28 @@ struct BuildConfigPaths {
     web_metadata: String,
 }
 
-pub fn init_config() -> ConfigResult<()> {
+pub fn init_config(services_root: Option<&Path>) -> ConfigResult<()> {
     let profile = ProfileBootstrap::get()?;
-    let config = build_from_profile(profile)?;
+    let config = build_from_profile(profile, services_root)?;
     Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
     Ok(())
 }
 
-pub fn try_init_config() -> ConfigResult<()> {
+pub fn try_init_config(services_root: Option<&Path>) -> ConfigResult<()> {
     if Config::is_initialized() {
         return Ok(());
     }
-    init_config()
+    init_config(services_root)
 }
 
-pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
+pub fn build_from_profile(profile: &Profile, services_root: Option<&Path>) -> ConfigResult<Config> {
     let profile_path =
         ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_owned(), str::to_owned);
 
-    let path_report = validate_profile_paths(profile, &profile_path);
+    let overridden = services_root.map(|root| profile.paths.with_services_root(root));
+    let paths_config = overridden.as_ref().unwrap_or(&profile.paths);
+
+    let path_report = validate_profile_paths(profile, &profile_path, services_root);
     if path_report.has_errors() {
         return Err(ConfigError::ProfilePathReport {
             message: format_path_errors(&path_report, &profile_path),
@@ -55,13 +58,13 @@ pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
 
     let system_path = canonicalize_path(&profile.paths.system, "system")?;
 
-    let skills_path = profile.paths.skills();
-    let settings_path = require_yaml_path("config", Some(&profile.paths.config()))?;
+    let skills_path = paths_config.skills();
+    let settings_path = require_yaml_path("config", Some(&paths_config.config()))?;
     let content_config_path =
-        require_yaml_path("content_config", Some(&profile.paths.content_config()))?;
-    let web_path = profile.paths.web_path_resolved();
-    let web_config_path = require_yaml_path("web_config", Some(&profile.paths.web_config()))?;
-    let web_metadata_path = require_yaml_path("web_metadata", Some(&profile.paths.web_metadata()))?;
+        require_yaml_path("content_config", Some(&paths_config.content_config()))?;
+    let web_path = paths_config.web_path_resolved();
+    let web_config_path = require_yaml_path("web_config", Some(&paths_config.web_config()))?;
+    let web_metadata_path = require_yaml_path("web_metadata", Some(&paths_config.web_metadata()))?;
 
     let paths = BuildConfigPaths {
         system: system_path,
@@ -72,14 +75,17 @@ pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
         web_config: web_config_path,
         web_metadata: web_metadata_path,
     };
-    let config = build_config(profile, paths)?;
+    let config = build_config(profile, paths, paths_config.services.clone())?;
 
     validate_database_config(&config)?;
     Ok(config)
 }
 
-pub fn init_config_from_profile(profile: &Profile) -> ConfigResult<()> {
-    let config = build_from_profile(profile)?;
+pub fn init_config_from_profile(
+    profile: &Profile,
+    services_root: Option<&Path>,
+) -> ConfigResult<()> {
+    let config = build_from_profile(profile, services_root)?;
     Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
     Ok(())
 }
@@ -132,7 +138,11 @@ pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<String> {
     }
 }
 
-fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Config> {
+fn build_config(
+    profile: &Profile,
+    paths: BuildConfigPaths,
+    services_path: String,
+) -> ConfigResult<Config> {
     let secrets = SecretsBootstrap::get()?;
     let system_admin_username = resolve_system_admin_username(profile)?;
 
@@ -153,7 +163,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
             .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_owned()),
         github_token: secrets.github.clone(),
         system_path: paths.system.clone(),
-        services_path: profile.paths.services.clone(),
+        services_path,
         bin_path: profile.paths.bin.clone(),
         skills_path: paths.skills,
         settings_path: paths.settings,

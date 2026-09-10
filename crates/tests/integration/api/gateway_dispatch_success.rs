@@ -203,6 +203,15 @@ async fn the_tool_call_the_model_asked_for_survives_the_round_trip() -> Result<(
     Ok(())
 }
 
+type SettledAuditRow = (
+    String,
+    Option<i32>,
+    Option<i32>,
+    i64,
+    Option<i32>,
+    Option<i32>,
+);
+
 #[tokio::test]
 async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()> {
     let (app, pool) = app().await?;
@@ -215,11 +224,12 @@ async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()>
     // The completion audit is written after the response is handed back, so
     // the row settles a moment later.
     let pg = pool.pool_arc()?;
-    let mut settled = None;
+    let mut settled: Option<SettledAuditRow> = None;
     for _ in 0..100 {
-        let row: Option<(String, Option<i32>, Option<i32>, i64)> = sqlx::query_as(
-            "SELECT status, input_tokens, output_tokens, cost_microdollars FROM ai_requests \
-             WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
+        let row: Option<SettledAuditRow> = sqlx::query_as(
+            "SELECT status, input_tokens, output_tokens, cost_microdollars, latency_ms, \
+                 upstream_latency_ms FROM ai_requests WHERE user_id = $1 \
+                 ORDER BY created_at DESC LIMIT 1",
         )
         .bind(cred.user_id.as_str())
         .fetch_optional(pg.as_ref())
@@ -233,7 +243,7 @@ async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()>
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
-    let (req_status, input, output, cost) =
+    let (req_status, input, output, cost, latency_ms, upstream_latency_ms) =
         settled.expect("a dispatched request must settle as a completed audit row");
     assert_eq!(req_status, "completed", "the row must record the outcome");
     assert_eq!(input, Some(11), "the upstream's token counts are recorded");
@@ -241,6 +251,13 @@ async fn a_completed_request_is_recorded_with_its_usage_and_cost() -> Result<()>
     assert!(
         cost > 0,
         "a priced model must bill something, or usage reporting is blind"
+    );
+    let upstream =
+        upstream_latency_ms.expect("upstream time must be bracketed, or overhead is underivable");
+    let total = latency_ms.expect("the request-wide clock is recorded");
+    assert!(
+        upstream <= total,
+        "upstream time cannot exceed the request it sits inside: {upstream} > {total}"
     );
     Ok(())
 }
@@ -438,9 +455,9 @@ mod streaming {
         let pg = pool.pool_arc()?;
         let mut settled = None;
         for _ in 0..100 {
-            let row: Option<(String, bool)> = sqlx::query_as(
-                "SELECT status, is_streaming FROM ai_requests WHERE user_id = $1 \
-                 ORDER BY created_at DESC LIMIT 1",
+            let row: Option<(String, bool, Option<i32>, Option<i32>)> = sqlx::query_as(
+                "SELECT status, is_streaming, latency_ms, upstream_latency_ms FROM ai_requests \
+                 WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
             )
             .bind(cred.user_id.as_str())
             .fetch_optional(pg.as_ref())
@@ -454,12 +471,19 @@ mod streaming {
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
 
-        let (status, is_streaming) =
+        let (status, is_streaming, latency_ms, upstream_latency_ms) =
             settled.expect("a streamed request must settle as a completed audit row");
         assert_eq!(status, "completed");
         assert!(
             is_streaming,
             "the audit row must record that this was a stream, or usage reporting mislabels it"
+        );
+        let upstream = upstream_latency_ms
+            .expect("a stream brackets upstream time from dispatch to the last event");
+        let total = latency_ms.expect("the request-wide clock is recorded");
+        assert!(
+            upstream <= total,
+            "upstream time cannot exceed the request it sits inside: {upstream} > {total}"
         );
         Ok(())
     }

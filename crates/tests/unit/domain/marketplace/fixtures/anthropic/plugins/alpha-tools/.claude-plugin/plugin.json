@@ -1,0 +1,9 @@
+{
+  "name": "alpha-tools",
+  "description": "Discovery and reporting for field engagements.",
+  "version": "1.4.0",
+  "author": { "name": "Acme Field Team", "email": "field@acme.example" },
+  "keywords": ["field", "discovery"],
+  "homepage": "https://acme.example/alpha-tools",
+  "license": "proprietary"
+}

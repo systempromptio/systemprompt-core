@@ -20,6 +20,7 @@ pub struct UpdateCompletionParams {
     pub output_tokens: i32,
     pub cost_microdollars: i64,
     pub latency_ms: i32,
+    pub upstream_latency_ms: Option<i32>,
     pub cache_hit: bool,
     pub cache_read_tokens: i32,
     pub cache_creation_tokens: i32,
@@ -38,11 +39,12 @@ impl AiRequestRepository {
             UPDATE ai_requests
             SET tokens_used = $1, input_tokens = $2, output_tokens = $3,
                 cost_microdollars = $4, latency_ms = $5,
-                cache_hit = $6, cache_read_tokens = $7, cache_creation_tokens = $8,
-                reasoning_tokens = $9,
-                status = $10,
+                upstream_latency_ms = COALESCE($6, upstream_latency_ms),
+                cache_hit = $7, cache_read_tokens = $8, cache_creation_tokens = $9,
+                reasoning_tokens = $10,
+                status = $11,
                 completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $11
+            WHERE id = $12
             RETURNING id as "id!: AiRequestId",
                       request_id as "request_id!: AiRequestId",
                       user_id as "user_id!: UserId",
@@ -53,7 +55,7 @@ impl AiRequestRepository {
                       provider_request_id as "provider_request_id: ProviderRequestId",
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
-                      input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
+                      input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, reasoning_tokens,
                       is_streaming, status,
                       error_message, created_at, updated_at, completed_at
@@ -63,6 +65,7 @@ impl AiRequestRepository {
             params.output_tokens,
             params.cost_microdollars,
             params.latency_ms,
+            params.upstream_latency_ms,
             params.cache_hit,
             params.cache_read_tokens,
             params.cache_creation_tokens,
@@ -103,7 +106,7 @@ impl AiRequestRepository {
                       provider_request_id as "provider_request_id: ProviderRequestId",
                       trace_id as "trace_id: TraceId",
                       provider, model, temperature, top_p, max_tokens, tokens_used,
-                      input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
+                      input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, reasoning_tokens,
                       is_streaming, status,
                       error_message, created_at, updated_at, completed_at

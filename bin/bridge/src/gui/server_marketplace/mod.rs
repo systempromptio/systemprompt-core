@@ -50,12 +50,13 @@ pub fn build_listing(
         Err(e) => (None, Some(e.to_string())),
     };
 
-    let (mut plugins, skills, hooks, mcp, agents) = match loc {
+    let (mut plugins, skills, hooks, mcp, agents, rules) = match loc {
         Some(loc) => {
             let plugins = plugins::list_plugins(&loc.path)?;
             let mut skills = Vec::new();
             let mut agents = Vec::new();
             let mut hooks = Vec::new();
+            let mut rules = Vec::new();
             for dir in plugins::plugin_dirs(&loc.path)? {
                 let owner = dir
                     .file_name()
@@ -74,6 +75,7 @@ pub fn build_listing(
                 skills.extend(own(components::list_skills(&dir.join("skills"))?));
                 agents.extend(own(components::list_agents(&dir.join("agents"))?));
                 hooks.extend(own(hooks::list_hooks(&dir.join("hooks"))));
+                rules.extend(own(components::list_rules(&dir.join("rules"))?));
             }
             let mcp = components::list_registry_mcp(loopback, registry);
             (
@@ -82,20 +84,29 @@ pub fn build_listing(
                 dedup_by_id(hooks),
                 mcp,
                 dedup_by_id(agents),
+                dedup_by_id(rules),
             )
         },
-        None => (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+        None => (
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        ),
     };
 
     let mut skills = skills;
     let mut hooks = hooks;
     let mut mcp = mcp;
     let mut agents = agents;
+    let mut rules = rules;
     let last_sync_diff = last_sync
         .as_ref()
         .map_or_else(MarketplaceDiff::default, |state| {
             let diff = plugins::annotate_plugins_with_diff(&mut plugins, state);
-            for items in [&mut skills, &mut hooks, &mut mcp, &mut agents] {
+            for items in [&mut skills, &mut hooks, &mut mcp, &mut agents, &mut rules] {
                 plugins::annotate_with_diff(items, state);
             }
             diff
@@ -117,6 +128,7 @@ pub fn build_listing(
             MarketplaceCategory::Artifacts,
             &ctx,
         ),
+        rules: merge_external(rules, MarketplaceCategory::Rules, &ctx),
         plugins_dir,
         last_sync_diff,
         last_sync_error,

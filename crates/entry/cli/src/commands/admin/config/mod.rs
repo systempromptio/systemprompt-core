@@ -21,6 +21,7 @@ pub mod rate_limits;
 pub mod reconcile;
 pub mod runtime;
 pub mod secret;
+pub mod secret_check;
 pub mod security;
 pub mod server;
 pub mod services;
@@ -113,6 +114,6 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
         ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, &ctx.cli).await,
         ConfigCommands::Governance(ref cmd) => governance::execute(cmd, &ctx.cli),
         ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, &ctx.cli).await,
-        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli),
+        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli).await,
     }
 }

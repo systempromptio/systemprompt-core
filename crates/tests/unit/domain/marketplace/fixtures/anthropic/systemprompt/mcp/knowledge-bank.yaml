@@ -1,0 +1,16 @@
+mcp_servers:
+  knowledge-bank:
+    type: internal
+    binary: systemprompt-mcp-knowledge-bank
+    package: knowledge-bank
+    port: 5030
+    enabled: true
+    display_in_web: false
+    removable: true
+    description: Shared project knowledge bank
+    oauth:
+      required: true
+      scopes:
+      - user
+      audience: mcp
+      client_id: null

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Fixed
+
+- `CimdFetcher` builds its client through `guarded_client`, so client-metadata fetched from a URL the client itself supplies is checked against the SSRF block list at connect time and on each of the three permitted redirect hops.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed
@@ -152,7 +158,7 @@
 
 ### Changed
 
-- `DynamicRegistrationRequest::get_grant_types` and `get_response_types` now return `Vec<String>` infallibly and apply the RFC 7591 §2 server defaults — `["authorization_code"]` and `["code"]` respectively — when the request omits the field or supplies an empty array. The previous `Result<Vec<String>, String>` shape rejected spec-compliant minimal registrations from MCP clients with `invalid_client_metadata`. Call sites in `entry/api` drop the `?` propagation. The repository layer's own omission defaults are unchanged; the handler now always passes the resolved arrays through, so persisted state and the response echo agree.
+- Dynamic registration grant and response getters return `Vec<String>` infallibly, applying `["authorization_code"]` and `["code"]` defaults to absent or empty arrays. Callers remove result propagation and persist the resolved arrays.
 
 ## [0.12.0] - 2026-05-27
 

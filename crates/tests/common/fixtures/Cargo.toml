@@ -29,6 +29,7 @@ systemprompt-users = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-storage = { workspace = true }
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt"] }
 uuid = { workspace = true }
 chrono = { workspace = true }
 jsonwebtoken = { workspace = true }

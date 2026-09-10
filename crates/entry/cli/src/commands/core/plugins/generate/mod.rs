@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
+use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::PluginConfigFile;
 
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};
@@ -44,9 +45,9 @@ pub struct PluginGenerateContext<'a> {
 
 pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let plugins_path = PathBuf::from(profile.paths.plugins());
-    let skills_path = PathBuf::from(profile.paths.skills());
-    let services_path = PathBuf::from(&profile.paths.services);
+    let plugins_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "plugins");
+    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
+    let services_path = ServicesRootBootstrap::active_root_or(&profile.paths.services);
 
     let plugin_ids = match &args.id {
         Some(id) => {

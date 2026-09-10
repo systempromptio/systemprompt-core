@@ -1,23 +1,6 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Production infrastructure for AI agents
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**CLI Reference**](https://github.com/systempromptio/systemprompt-core/tree/main/crates/entry/cli) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
-
 # Config CLI Commands
 
-`admin config` reads and edits the active profile YAML, the single source of truth for how the instance runs. Every group below writes back to that profile. All commands support non-interactive mode for automation.
+Command reference for config. Use the installed command’s `--help` output for its complete arguments and defaults.
 
 ---
 
@@ -672,11 +655,3 @@ sp admin config rate-limits reset --yes
 
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>CLI reference · Own how your organization uses AI.</sub>
-
-</div>

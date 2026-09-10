@@ -7,9 +7,9 @@ use systemprompt_config::{
 
 use crate::fixture;
 
-fn boot(fx: &fixture::Fixture) {
+async fn boot(fx: &fixture::Fixture) {
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
-    SecretsBootstrap::init().unwrap();
+    SecretsBootstrap::init().await.unwrap();
 }
 
 fn file_fixture() -> fixture::Fixture {
@@ -19,12 +19,12 @@ fn file_fixture() -> fixture::Fixture {
     )
 }
 
-#[test]
-fn build_from_profile_resolves_paths_and_secrets() {
+#[tokio::test]
+async fn build_from_profile_resolves_paths_and_secrets() {
     let fx = file_fixture();
-    boot(&fx);
+    boot(&fx).await;
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap();
+    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
 
     let root = std::fs::canonicalize(fx.tmp.path()).unwrap();
     assert_eq!(
@@ -46,37 +46,37 @@ fn build_from_profile_resolves_paths_and_secrets() {
     );
 }
 
-#[test]
-fn init_config_installs_global_and_try_init_is_idempotent() {
+#[tokio::test]
+async fn init_config_installs_global_and_try_init_is_idempotent() {
     let fx = file_fixture();
-    boot(&fx);
+    boot(&fx).await;
 
-    init_config().unwrap();
+    init_config(None).unwrap();
 
     assert!(systemprompt_models::Config::is_initialized());
-    try_init_config().unwrap();
+    try_init_config(None).unwrap();
 
-    let err = init_config().unwrap_err();
+    let err = init_config(None).unwrap_err();
     assert!(matches!(err, ConfigError::AlreadyInitialized));
 }
 
-#[test]
-fn try_init_config_initializes_when_uninitialized() {
+#[tokio::test]
+async fn try_init_config_initializes_when_uninitialized() {
     let fx = file_fixture();
-    boot(&fx);
+    boot(&fx).await;
 
-    try_init_config().unwrap();
+    try_init_config(None).unwrap();
 
     assert!(systemprompt_models::Config::is_initialized());
 }
 
-#[test]
-fn build_from_profile_reports_missing_paths() {
+#[tokio::test]
+async fn build_from_profile_reports_missing_paths() {
     let fx = file_fixture();
-    boot(&fx);
+    boot(&fx).await;
     std::fs::remove_dir_all(fx.tmp.path().join("bin")).unwrap();
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap_err();
+    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
 
     match err {
         ConfigError::ProfilePathReport { message } => {
@@ -87,17 +87,17 @@ fn build_from_profile_reports_missing_paths() {
     }
 }
 
-#[test]
-fn build_from_profile_rejects_invalid_yaml_config_file() {
+#[tokio::test]
+async fn build_from_profile_rejects_invalid_yaml_config_file() {
     let fx = file_fixture();
-    boot(&fx);
+    boot(&fx).await;
     std::fs::write(
         fx.tmp.path().join("services/web/config.yaml"),
         ": not: [valid yaml",
     )
     .unwrap();
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap_err();
+    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
 
     match err {
         ConfigError::InvalidProfileYaml { field, path, .. } => {
@@ -108,15 +108,15 @@ fn build_from_profile_rejects_invalid_yaml_config_file() {
     }
 }
 
-#[test]
-fn build_from_profile_reports_unreadable_yaml_path() {
+#[tokio::test]
+async fn build_from_profile_reports_unreadable_yaml_path() {
     let fx = file_fixture();
-    boot(&fx);
+    boot(&fx).await;
     let metadata = fx.tmp.path().join("services/web/metadata.yaml");
     std::fs::remove_file(&metadata).unwrap();
     std::fs::create_dir(&metadata).unwrap();
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap_err();
+    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
 
     match err {
         ConfigError::ReadProfilePath { field, path, .. } => {
@@ -127,19 +127,19 @@ fn build_from_profile_reports_unreadable_yaml_path() {
     }
 }
 
-#[test]
-fn system_admin_env_override_wins_over_profile() {
+#[tokio::test]
+async fn system_admin_env_override_wins_over_profile() {
     let fx = file_fixture();
-    boot(&fx);
+    boot(&fx).await;
     fixture::set_env("SYSTEMPROMPT_SYSTEM_ADMIN", "  env_admin  ");
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap();
+    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
 
     assert_eq!(config.system_admin_username, "env_admin");
 }
 
-#[test]
-fn blank_system_admin_without_override_errors() {
+#[tokio::test]
+async fn blank_system_admin_without_override_errors() {
     let fx = file_fixture();
     let yaml = std::fs::read_to_string(&fx.profile_path).unwrap();
     std::fs::write(
@@ -147,16 +147,16 @@ fn blank_system_admin_without_override_errors() {
         yaml.replace("username: testadmin", "username: ' '"),
     )
     .unwrap();
-    boot(&fx);
+    boot(&fx).await;
     fixture::remove_env("SYSTEMPROMPT_SYSTEM_ADMIN");
 
-    let err = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap_err();
+    let err = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap_err();
 
     assert!(matches!(err, ConfigError::MissingSystemAdmin));
 }
 
-#[test]
-fn absolute_signing_key_path_is_kept_verbatim() {
+#[tokio::test]
+async fn absolute_signing_key_path_is_kept_verbatim() {
     let fx = file_fixture();
     let yaml = std::fs::read_to_string(&fx.profile_path).unwrap();
     std::fs::write(
@@ -167,18 +167,18 @@ fn absolute_signing_key_path_is_kept_verbatim() {
         ),
     )
     .unwrap();
-    boot(&fx);
+    boot(&fx).await;
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap();
+    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
 
     assert_eq!(config.signing_key_path, PathBuf::from("/etc/keys/sp.pem"));
 }
 
-#[test]
-fn validate_database_config_rejects_unsupported_type() {
+#[tokio::test]
+async fn validate_database_config_rejects_unsupported_type() {
     let fx = file_fixture();
-    boot(&fx);
-    let mut config = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap();
+    boot(&fx).await;
+    let mut config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
     config.database_type = "mysql".to_owned();
 
     let err = validate_database_config(&config).unwrap_err();
@@ -189,11 +189,11 @@ fn validate_database_config_rejects_unsupported_type() {
     }
 }
 
-#[test]
-fn validate_database_config_rejects_invalid_urls() {
+#[tokio::test]
+async fn validate_database_config_rejects_invalid_urls() {
     let fx = file_fixture();
-    boot(&fx);
-    let good = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap();
+    boot(&fx).await;
+    let good = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
 
     let mut bad_read = good.clone();
     bad_read.database_url = "mysql://nope".to_owned();
@@ -214,8 +214,8 @@ fn validate_database_config_rejects_invalid_urls() {
     validate_database_config(&postgresql_type).unwrap();
 }
 
-#[test]
-fn blank_instance_id_falls_back_to_generated_default() {
+#[tokio::test]
+async fn blank_instance_id_falls_back_to_generated_default() {
     let fx = file_fixture();
     let yaml = std::fs::read_to_string(&fx.profile_path).unwrap();
     std::fs::write(
@@ -223,9 +223,9 @@ fn blank_instance_id_falls_back_to_generated_default() {
         yaml.replace("instance_id: null", "instance_id: '  '"),
     )
     .unwrap();
-    boot(&fx);
+    boot(&fx).await;
 
-    let config = build_from_profile(ProfileBootstrap::get().unwrap()).unwrap();
+    let config = build_from_profile(ProfileBootstrap::get().unwrap(), None).unwrap();
 
     assert!(!config.instance_id.trim().is_empty());
 }

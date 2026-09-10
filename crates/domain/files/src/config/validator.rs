@@ -44,11 +44,9 @@ impl DomainConfig for FilesConfigValidator {
         let profile = ProfileBootstrap::get().map_err(|e| DomainConfigError::LoadError {
             message: e.to_string(),
         })?;
-        let paths =
-            AppPaths::from_profile(&profile.paths, profile.path_resolution()).map_err(|e| {
-                DomainConfigError::LoadError {
-                    message: e.to_string(),
-                }
+        let paths = AppPaths::from_profile(&profile.paths, profile.path_resolution(), None)
+            .map_err(|e| DomainConfigError::LoadError {
+                message: e.to_string(),
             })?;
         let yaml_config =
             FilesConfig::load_yaml_config(&paths).map_err(|e| DomainConfigError::LoadError {

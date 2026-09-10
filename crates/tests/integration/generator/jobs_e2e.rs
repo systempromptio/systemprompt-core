@@ -34,8 +34,12 @@ fn paths_in(tmp: &TempDir) -> AppPaths {
     };
     std::fs::create_dir_all(root.join("storage/files")).expect("mkdir storage/files");
 
-    AppPaths::from_profile(&paths, systemprompt_models::PathResolution::Canonicalize)
-        .expect("from_profile")
+    AppPaths::from_profile(
+        &paths,
+        systemprompt_models::PathResolution::Canonicalize,
+        None,
+    )
+    .expect("from_profile")
 }
 
 #[tokio::test]

@@ -62,7 +62,13 @@ async fn starting_router_returns_503_for_other_paths() {
 
 #[tokio::test]
 async fn early_server_swaps_full_router_on_same_listener() {
-    let early = bind_and_serve("127.0.0.1:0", None).await.expect("bind");
+    let early = bind_and_serve(
+        "127.0.0.1:0",
+        None,
+        systemprompt_runtime::ShutdownRequest::default(),
+    )
+    .await
+    .expect("bind");
     let addr = early.local_addr();
 
     let starting = http_get(addr, "/api/v1/health").await;

@@ -21,6 +21,7 @@ fn make_app_paths(tmp: &TempDir) -> AppPaths {
             geoip_database: None,
         },
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("paths")
 }

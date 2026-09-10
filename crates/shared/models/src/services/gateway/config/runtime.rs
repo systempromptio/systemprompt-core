@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use systemprompt_identifiers::{ProviderId, RouteId};
 
 use crate::services::gateway::config::{
-    BridgeReleasesSpec, DEFAULT_ROUTE_PATTERN, GatewayConfigSpec, default_auth_scheme,
-    default_inference_path_prefix,
+    BridgeReleasesSpec, DEFAULT_ROUTE_PATTERN, GatewayConfigSpec, QuotaFaultMode,
+    default_auth_scheme, default_inference_path_prefix,
 };
 use crate::services::gateway::override_rule::SystemPromptRule;
 use crate::services::gateway::route::GatewayRoute;
@@ -30,6 +30,7 @@ pub struct GatewayConfig {
     pub default_provider: Option<ProviderId>,
     pub default_model: Option<String>,
     pub allow_unlisted_models: bool,
+    pub quota_fault_mode: QuotaFaultMode,
     pub auth_scheme: String,
     pub inference_path_prefix: String,
     pub system_prompt_overrides: Vec<SystemPromptRule>,
@@ -44,6 +45,7 @@ impl Default for GatewayConfig {
             default_provider: None,
             default_model: None,
             allow_unlisted_models: false,
+            quota_fault_mode: QuotaFaultMode::default(),
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
             system_prompt_overrides: Vec::new(),
@@ -132,6 +134,7 @@ impl GatewayConfig {
             default_provider: self.default_provider.clone(),
             default_model: self.default_model.clone(),
             allow_unlisted_models: self.allow_unlisted_models,
+            quota_fault_mode: self.quota_fault_mode,
             auth_scheme: self.auth_scheme.clone(),
             inference_path_prefix: self.inference_path_prefix.clone(),
             system_prompt_overrides: self.system_prompt_overrides.clone(),

@@ -3,10 +3,13 @@
 //! [`PolicyResolver`] loads the global policy rows in ascending
 //! `(priority, name)` order and merges them into a single
 //! [`GatewayPolicySpec`] — each non-empty section overrides the previous, so
-//! the highest-priority row wins. The result is cached for a short TTL; a DB
-//! error or
-//! a malformed spec degrades to a permissive policy rather than failing the
-//! request.
+//! the highest-priority row wins. The result is cached for a short TTL.
+//!
+//! A DB error is a fault governed by [`QuotaFaultMode`]: under `Open` the
+//! resolver degrades to a permissive policy, which drops quota windows *and*
+//! safety scanning for the request; under `Closed` it returns
+//! [`PolicyUnavailable`] and the request is denied. A malformed spec row is
+//! always skipped — the remaining rows still merge.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,10 +18,17 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
+use systemprompt_models::services::QuotaFaultMode;
 
 pub use systemprompt_ai::{GatewayPolicySpec, QuotaMode, QuotaWindow, SafetyConfig};
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
+
+#[derive(Debug, thiserror::Error)]
+#[error("gateway policy unavailable: {reason}")]
+pub struct PolicyUnavailable {
+    pub reason: String,
+}
 
 #[derive(Clone)]
 pub struct PolicyResolver {
@@ -46,19 +56,37 @@ impl PolicyResolver {
         }
     }
 
-    pub async fn resolve(&self) -> GatewayPolicySpec {
+    pub async fn resolve(
+        &self,
+        fault_mode: QuotaFaultMode,
+    ) -> Result<GatewayPolicySpec, PolicyUnavailable> {
         if let Ok(cache) = self.cache.read()
             && let Some(entry) = cache.as_ref()
             && entry.fetched_at.elapsed() < CACHE_TTL
         {
-            return entry.spec.clone();
+            return Ok(entry.spec.clone());
         }
 
         let rows = match self.repo.list_for_global().await {
             Ok(r) => r,
             Err(e) => {
-                tracing::warn!(error = %e, "policy resolve DB error — falling back to permissive");
-                return GatewayPolicySpec::permissive();
+                if fault_mode.is_closed() {
+                    tracing::error!(
+                        error = %e,
+                        fault_mode = fault_mode.as_str(),
+                        "Gateway policy read failed; denying the request"
+                    );
+                    return Err(PolicyUnavailable {
+                        reason: e.to_string(),
+                    });
+                }
+                tracing::warn!(
+                    error = %e,
+                    fault_mode = fault_mode.as_str(),
+                    "Gateway policy read failed; falling back to a permissive policy \
+                     (quota windows and safety scanning are not applied)"
+                );
+                return Ok(GatewayPolicySpec::permissive());
             },
         };
 
@@ -69,7 +97,7 @@ impl PolicyResolver {
                 fetched_at: Instant::now(),
             });
         }
-        spec
+        Ok(spec)
     }
 }
 

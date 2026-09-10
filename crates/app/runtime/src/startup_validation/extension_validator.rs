@@ -56,7 +56,12 @@ pub(super) fn validate_extensions(
     let paths_result = ProfileBootstrap::get()
         .map_err(|e| e.to_string())
         .and_then(|p| {
-            AppPaths::from_profile(&p.paths, p.path_resolution()).map_err(|e| e.to_string())
+            AppPaths::from_profile(
+                &p.paths,
+                p.path_resolution(),
+                systemprompt_loader::ServicesRootBootstrap::get().map(|r| r.path.as_path()),
+            )
+            .map_err(|e| e.to_string())
         });
 
     match paths_result {

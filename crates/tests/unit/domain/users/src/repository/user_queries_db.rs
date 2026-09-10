@@ -365,6 +365,72 @@ async fn merge_users_transfers_sessions_and_removes_source() {
 }
 
 #[tokio::test]
+async fn merge_users_appends_a_governance_record_instead_of_rewriting_history() {
+    let Some(ctx) = setup_or_skip().await else {
+        return;
+    };
+    let url = fixture_database_url().expect("url");
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pg = pool.write_pool_arc().expect("write pool");
+    let source = create_user(&ctx, "merge-audit-src").await;
+    let target = create_user(&ctx, "merge-audit-dst").await;
+    let decision_id = Uuid::new_v4().to_string();
+    sqlx::query(
+        "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, decision, policy, \
+         reason, actor_kind, actor_id, context_id) VALUES ($1, $2, $3, $4, 'deny', 'p', 'r', \
+         'user', $2, $5)",
+    )
+    .bind(&decision_id)
+    .bind(source.id.as_str())
+    .bind(SessionId::generate().as_str())
+    .bind("merge-audit-tool")
+    .bind(format!("ctx-{decision_id}"))
+    .execute(pg.as_ref())
+    .await
+    .expect("seed a historical decision for the source user");
+
+    ctx.service
+        .merge_users(&source.id, &target.id)
+        .await
+        .expect("merge");
+
+    let historical: (String,) =
+        sqlx::query_as("SELECT user_id FROM governance_decisions WHERE id = $1")
+            .bind(&decision_id)
+            .fetch_one(pg.as_ref())
+            .await
+            .expect("the historical decision is still there");
+    assert_eq!(
+        historical.0,
+        source.id.as_str(),
+        "a recorded decision keeps the user it was recorded against"
+    );
+
+    let appended: (String, String) = sqlx::query_as(
+        "SELECT reason, actor_kind FROM governance_decisions WHERE tool_name = 'users.merge' \
+         AND user_id = $1",
+    )
+    .bind(target.id.as_str())
+    .fetch_one(pg.as_ref())
+    .await
+    .expect("the merge is recorded as a new decision");
+    assert!(
+        appended.0.contains(source.id.as_str()) && appended.0.contains(target.id.as_str()),
+        "the merge record names both sides, got: {}",
+        appended.0
+    );
+    assert_eq!(appended.1, "system");
+
+    sqlx::query("DELETE FROM governance_decisions WHERE id = $1 OR user_id = $2")
+        .bind(&decision_id)
+        .bind(target.id.as_str())
+        .execute(pg.as_ref())
+        .await
+        .expect("cleanup");
+    ctx.service.delete(&target.id).await.expect("cleanup");
+}
+
+#[tokio::test]
 async fn cleanup_old_anonymous_spares_users_with_open_sessions() {
     let Some(ctx) = setup_or_skip().await else {
         return;

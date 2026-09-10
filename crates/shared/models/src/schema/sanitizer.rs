@@ -35,6 +35,9 @@ impl SchemaSanitizer {
         Self::remove_metadata_fields(obj);
         Self::remove_extension_fields(obj);
         self.convert_const_to_enum(obj);
+        if !self.capabilities.features.loose_items {
+            Self::pin_items_to_arrays(obj);
+        }
         self.sanitize_nested_schemas(obj);
 
         sanitized
@@ -208,6 +211,39 @@ impl SchemaSanitizer {
         });
         let first = kinds.next()?;
         kinds.all(|k| k == first).then_some(first)
+    }
+
+    // Why: Gemini rejects `items` on anything but an ARRAY and an ARRAY without
+    // `items`, while JSON Schema allows `items` beside an `anyOf` whose array
+    // variant carries none. Runs before the nested pass so the outer `items`
+    // reaches a variant before that variant is given an empty one.
+    fn pin_items_to_arrays(obj: &mut Map<String, Value>) {
+        let declared = obj.get("type").and_then(Value::as_str).map(str::to_owned);
+        if let Some(items) = obj.get("items").cloned()
+            && declared.as_deref() != Some("array")
+        {
+            let mut has_variants = false;
+            for keyword in ["anyOf", "oneOf", "allOf"] {
+                if let Some(Value::Array(variants)) = obj.get_mut(keyword) {
+                    has_variants = true;
+                    for variant in variants.iter_mut().filter_map(Value::as_object_mut) {
+                        if variant.get("type").and_then(Value::as_str) == Some("array")
+                            && !variant.contains_key("items")
+                        {
+                            variant.insert("items".to_owned(), items.clone());
+                        }
+                    }
+                }
+            }
+            if declared.is_none() && !has_variants {
+                obj.insert("type".to_owned(), json!("array"));
+            } else {
+                obj.remove("items");
+            }
+        }
+        if obj.get("type").and_then(Value::as_str) == Some("array") && !obj.contains_key("items") {
+            obj.insert("items".to_owned(), Value::Object(Map::new()));
+        }
     }
 
     fn sanitize_nested_schemas(&self, obj: &mut Map<String, Value>) {

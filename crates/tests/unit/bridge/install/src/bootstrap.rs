@@ -173,11 +173,13 @@ fn a_sudo_user_install_leaves_the_tree_owned_by_that_user_root_and_children_alik
     let dirs = Dirs::new();
     let root = dirs.org_plugins();
     dirs.run(Some(&me), || {
-        install(&options(), &bridge()).expect("install completes for a resolvable SUDO_USER");
+        let _first =
+            install(&options(), &bridge()).expect("install completes for a resolvable SUDO_USER");
         // Why: ownership is verified on the root *and* a sampled child; an
         // empty tree would pass that check without ever reading a child.
         std::fs::create_dir_all(root.join("an-existing-plugin")).expect("seed a child");
-        install(&options(), &bridge()).expect("a second install re-verifies the populated tree");
+        let _second = install(&options(), &bridge())
+            .expect("a second install re-verifies the populated tree");
     });
 
     let expected = std::fs::metadata(dirs.data.path()).expect("data dir metadata");

@@ -38,7 +38,7 @@
 ### Fixed
 
 - `cleanup_empty_contexts` no longer collects a context holding `mcp_tool_executions` or `governance_decisions` rows — a context carrying audit data is not empty regardless of age. Its default window is 24 hours (was 1), overridable per deployment via the `retention_hours` parameter.
-- `JobConfig.parameters` now reaches scheduled and bootstrap runs; previously only manual/API runs received a populated map, so no cron-scheduled job could ever read a parameter.
+- `JobConfig.parameters` now reaches scheduled and bootstrap runs.
 
 ### Added
 

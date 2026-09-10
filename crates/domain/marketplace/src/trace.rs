@@ -42,6 +42,7 @@ impl fmt::Display for TraceStage {
 #[serde(rename_all = "kebab-case")]
 pub enum TraceKind {
     Skill,
+    Rule,
     Agent,
     McpServer,
     Artifact,
@@ -52,6 +53,7 @@ impl fmt::Display for TraceKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let label = match self {
             Self::Skill => "skill",
+            Self::Rule => "rule",
             Self::Agent => "agent",
             Self::McpServer => "mcp-server",
             Self::Artifact => "artifact",

@@ -20,6 +20,7 @@ fn all_disabled() -> ProviderCapabilities {
             exclusive_bounds: false,
             property_names: false,
             tuple_items: false,
+            loose_items: false,
         },
     }
 }
@@ -41,6 +42,7 @@ fn all_enabled() -> ProviderCapabilities {
             exclusive_bounds: true,
             property_names: true,
             tuple_items: true,
+            loose_items: true,
         },
     }
 }
@@ -565,5 +567,71 @@ mod enum_type_inference {
         let out =
             SchemaSanitizer::new(ProviderCapabilities::anthropic()).sanitize(json!({"const": "x"}));
         assert_eq!(out, json!({"const": "x"}));
+    }
+}
+
+mod typed_items {
+    use super::*;
+
+    #[test]
+    fn gemini_moves_items_into_array_variants_and_drops_the_outer_copy() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "source_types": {
+                    "items": {"type": "string"},
+                    "anyOf": [{"type": "array"}, {"type": "string"}]
+                }
+            }
+        });
+
+        let out = sanitizer.sanitize(schema);
+        let prop = &out["properties"]["source_types"];
+
+        assert!(prop.get("items").is_none());
+        assert_eq!(
+            prop["anyOf"][0],
+            json!({"type": "array", "items": {"type": "string"}})
+        );
+        assert_eq!(prop["anyOf"][1], json!({"type": "string"}));
+    }
+
+    #[test]
+    fn gemini_gives_an_untyped_array_an_item_schema() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
+        let out = sanitizer.sanitize(json!({"type": "array"}));
+        assert_eq!(out, json!({"type": "array", "items": {}}));
+    }
+
+    #[test]
+    fn gemini_infers_array_when_only_items_is_declared() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
+        let out = sanitizer.sanitize(json!({"items": {"type": "integer"}}));
+        assert_eq!(out, json!({"type": "array", "items": {"type": "integer"}}));
+    }
+
+    #[test]
+    fn gemini_drops_items_from_a_non_array_type() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::gemini());
+        let out = sanitizer.sanitize(json!({"type": "string", "items": {"type": "string"}}));
+        assert_eq!(out, json!({"type": "string"}));
+    }
+
+    #[test]
+    fn anthropic_keeps_items_beside_any_of() {
+        let sanitizer = SchemaSanitizer::new(ProviderCapabilities::anthropic());
+        let schema = json!({
+            "items": {"type": "string"},
+            "anyOf": [{"type": "array"}, {"type": "string"}]
+        });
+        assert_eq!(sanitizer.sanitize(schema.clone()), schema);
+    }
+
+    #[test]
+    fn loose_items_is_false_only_for_gemini() {
+        assert!(!ProviderCapabilities::gemini().features.loose_items);
+        assert!(ProviderCapabilities::anthropic().features.loose_items);
+        assert!(ProviderCapabilities::openai().features.loose_items);
     }
 }

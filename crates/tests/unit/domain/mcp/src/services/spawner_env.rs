@@ -386,6 +386,7 @@ fn lexical_paths(root: &Path) -> systemprompt_models::AppPaths {
             geoip_database: None,
         },
         systemprompt_models::PathResolution::Lexical,
+        None,
     )
     .expect("paths")
 }

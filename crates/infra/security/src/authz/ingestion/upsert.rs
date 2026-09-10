@@ -7,6 +7,12 @@
 //! flag; [`upsert_target`] performs the idempotent insert-or-update and reports
 //! the [`UpsertOutcome`].
 //!
+//! Every rule row carries the provenance of the pass that wrote it. A row
+//! stamped [`DASHBOARD_SOURCE`] was authored by an operator through the admin
+//! surface and outranks the file that ingestion is projecting: ingestion
+//! reports it as [`UpsertOutcome::Protected`] and leaves it alone, whatever
+//! `override_existing` says.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,6 +23,10 @@ use crate::authz::types::{EntityKind, RuleType};
 
 pub(super) const SOURCE_LABEL: &str = "ingestion:access_control_config";
 
+pub const DASHBOARD_SOURCE: &str = "dashboard";
+
+pub const YAML_SOURCE: &str = "yaml";
+
 #[derive(Debug)]
 pub(super) struct Target<'a> {
     pub(super) entity_kind: EntityKind,
@@ -25,6 +35,7 @@ pub(super) struct Target<'a> {
     pub(super) rule_value: &'a str,
     pub(super) access: &'static str,
     pub(super) justification: Option<&'a str>,
+    pub(super) source: &'a str,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -32,6 +43,7 @@ pub(super) enum UpsertOutcome {
     Inserted,
     Updated,
     Skipped,
+    Protected,
 }
 
 pub(super) async fn upsert_entity_row(
@@ -90,7 +102,7 @@ pub(super) async fn upsert_target(
 ) -> AuthzResult<UpsertOutcome> {
     let existing = sqlx::query!(
         r#"
-        SELECT id, access, justification
+        SELECT id, access, justification, source
         FROM access_control_rules
         WHERE entity_type = $1 AND entity_id = $2
           AND rule_type = $3 AND rule_value = $4
@@ -104,11 +116,19 @@ pub(super) async fn upsert_target(
     .await?;
 
     if let Some(row) = existing {
+        if row.source == DASHBOARD_SOURCE {
+            return Ok(UpsertOutcome::Protected);
+        }
         if !override_existing {
             return Ok(UpsertOutcome::Skipped);
         }
-        let unchanged =
-            row.access == target.access && row.justification.as_deref() == target.justification;
+        // Why: a row whose content matches but whose source does not is a grant
+        // that changed hands. Leaving the old source on it strands the row —
+        // the bundle that now declares it will not prune it, and the bundle
+        // that used to may never run again.
+        let unchanged = row.access == target.access
+            && row.justification.as_deref() == target.justification
+            && row.source == target.source;
         if unchanged {
             return Ok(UpsertOutcome::Skipped);
         }
@@ -117,12 +137,14 @@ pub(super) async fn upsert_target(
             UPDATE access_control_rules
             SET access = $2,
                 justification = $3,
+                source = $4,
                 updated_at = NOW()
             WHERE id = $1
             "#,
             row.id,
             target.access,
             target.justification,
+            target.source,
         )
         .execute(&mut **tx)
         .await?;
@@ -132,8 +154,8 @@ pub(super) async fn upsert_target(
         sqlx::query!(
             r#"
             INSERT INTO access_control_rules
-                (id, entity_type, entity_id, rule_type, rule_value, access, justification)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (id, entity_type, entity_id, rule_type, rule_value, access, justification, source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
             id.as_str(),
             target.entity_kind.as_str(),
@@ -142,6 +164,7 @@ pub(super) async fn upsert_target(
             target.rule_value,
             target.access,
             target.justification,
+            target.source,
         )
         .execute(&mut **tx)
         .await?;

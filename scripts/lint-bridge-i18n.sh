@@ -3,13 +3,7 @@
 # every catalogue key must be referenced, and every literal `t("id")` must carry
 # an English fallback.
 #
-# `web/js/i18n.js`'s `t()` used to return the *id* when a key was missing. An id
-# is a truthy string, so all 117 `t("id") || "English"` fallbacks in the tree were
-# unreachable and a missing key rendered its own id at the user -- which is what
-# `status-cloud-reach-label` and `status-cloud-identity-label` did on the shipped
-# Status pane, printing "status-cloud-reach-label" where "Reachability" belongs.
-# `t()` now returns undefined, so the fallbacks work; this gate is what keeps them
-# present and keeps the catalogue and the tree in agreement.
+# Literal translation calls require an English fallback for unavailable keys.
 #
 # The catalogue is shared with Rust (`src/i18n.rs` embeds it via include_str!),
 # so references are collected from `src/**.rs` as well as the web tree.

@@ -5,7 +5,7 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use hyper::server::conn::http1;
@@ -27,6 +27,29 @@ pub struct ServedProxy {
     pub(crate) tasks: Arc<crate::tasks::TaskOwner>,
     pub port: u16,
     pub stats: Arc<ProxyStats>,
+    shutdown: tokio::sync::watch::Sender<bool>,
+    drained: Arc<AtomicBool>,
+}
+
+pub const DRAIN_DEADLINE: Duration = Duration::from_secs(5);
+
+impl ServedProxy {
+    // Why: bounded rather than unconditional — a streaming response can outlive
+    // any deadline, and the caller, a restart, has to make progress. Returns
+    // whether the listener actually drained within the deadline.
+    pub fn drain(&self, deadline: Duration) -> bool {
+        if self.shutdown.send(true).is_err() {
+            return self.drained.load(Ordering::Relaxed);
+        }
+        let started = std::time::Instant::now();
+        while started.elapsed() < deadline {
+            if self.drained.load(Ordering::Relaxed) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        self.drained.load(Ordering::Relaxed)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -112,8 +135,16 @@ pub fn start_with_listener(
         deps,
     };
 
+    let (shutdown, shutdown_rx) = tokio::sync::watch::channel(false);
+    let drained = Arc::new(AtomicBool::new(false));
+
     let tasks = Arc::new(crate::tasks::TaskOwner::new(rt, ctx.deps.activity.clone()));
-    tasks.spawn(run_listener(listener, ctx));
+    tasks.spawn(run_listener(
+        listener,
+        ctx,
+        shutdown_rx,
+        Arc::clone(&drained),
+    ));
     tasks.spawn(heartbeat::run_loop(
         Arc::clone(&runtime_config),
         Arc::clone(&token_cache),
@@ -131,6 +162,8 @@ pub fn start_with_listener(
         tasks,
         port: bound_port,
         stats,
+        shutdown,
+        drained,
     })
 }
 
@@ -145,10 +178,16 @@ fn build_upstream_client() -> std::io::Result<reqwest::Client> {
         .map_err(|e| std::io::Error::other(format!("upstream client build failed: {e}")))
 }
 
-async fn run_listener(listener: TcpListener, ctx: ProxyContext) {
+async fn run_listener(
+    listener: TcpListener,
+    ctx: ProxyContext,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
+    drained: Arc<AtomicBool>,
+) {
     let mut connections = tokio::task::JoinSet::new();
     loop {
         let accepted = tokio::select! {
+            _ = shutdown.changed() => break,
             result = connections.join_next(), if !connections.is_empty() => {
                 if let Some(Err(e)) = result { ctx.deps.activity.append_error(format!("proxy connection task: {e}")); }
                 continue;
@@ -190,6 +229,21 @@ async fn run_listener(listener: TcpListener, ctx: ProxyContext) {
                 }
             }
         });
+    }
+
+    // Why: dropping the listener is what frees the port for a successor
+    // process, so it happens before the in-flight wait rather than after it.
+    drop(listener);
+    let all_finished = async { while connections.join_next().await.is_some() {} };
+    if tokio::time::timeout(DRAIN_DEADLINE, all_finished)
+        .await
+        .is_ok()
+    {
+        drained.store(true, Ordering::Relaxed);
+    } else {
+        ctx.deps
+            .activity
+            .append_error("proxy drain: connections were still open at the deadline".to_owned());
     }
 }
 

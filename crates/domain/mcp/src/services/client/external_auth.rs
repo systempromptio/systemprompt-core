@@ -56,14 +56,14 @@ pub async fn fetch_external_bearer(
     jwt: &str,
     server: &str,
 ) -> McpDomainResult<String> {
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|error| {
-            McpDomainError::Transport(format!(
-                "token accessor client failed for '{server}': {error}"
-            ))
-        })?;
+    let client = systemprompt_models::net::guarded_client(
+        &systemprompt_models::net::GuardedClientConfig::default().with_max_redirects(0),
+    )
+    .map_err(|error| {
+        McpDomainError::Transport(format!(
+            "token accessor client failed for '{server}': {error}"
+        ))
+    })?;
     let mut request = client
         .get(accessor)
         .header("Authorization", format!("Bearer {jwt}"));

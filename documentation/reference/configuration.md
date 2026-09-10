@@ -26,7 +26,8 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `system_admin` | object | yes | — | Platform owner identity. See [`system_admin`](#system_admin). |
 | `runtime` | object | no | all-defaults | Environment, log level, output. See [`runtime`](#runtime). |
 | `cloud` | object | no | absent | Cloud tenant binding. See [`cloud`](#cloud). |
-| `secrets` | object | no | absent | Pointer to the secrets document. See [`secrets`](#secrets). |
+| `secrets` | object | no | absent | Where secrets come from: a file, the environment, or Vault. See [`secrets`](#secrets). |
+| `services` | object | no | all-defaults | Where the services tree comes from. See [`services`](#services). |
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
 
@@ -138,7 +139,7 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 | `signing_key_path` | `signing_key_path` | path | no | `signing_key.pem` | Path to the RS256 signing key (PEM). |
 | `trusted_issuers` | `trusted_issuers` | list of object | no | `[]` | Federated issuers accepted in addition to `jwt_issuer`. |
 
-`validate_aud` is currently `false` in the validation plane; audience isolation is not enforced. Do not configure on the assumption it is.
+Audience validation requires a nonempty policy. The first-party session policy accepts the standard first-party audience set; use resource-specific policies where narrower audience isolation is required.
 
 ### `security.trusted_issuers[]`
 
@@ -212,9 +213,63 @@ replica count.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `secrets_path` | string | yes | — | Path to the secrets file, resolved relative to the profile directory (with `~/` home expansion). |
-| `source` | enum `file` \| `env` | yes | — | Where to read secrets from. `file` reads `secrets_path`; `env` reads environment variables (with a file-first fallback when not in a Fly.io container — `secrets/loader.rs:44`). |
-| `validation` | enum `strict` \| `warn` \| `skip` | no | `warn` | How a failed file load is handled. |
+| `source` | enum `file` \| `env` \| `vault` | yes | — | Where to read secrets from. `file` reads `secrets_path`; `env` reads environment variables (with a file-first fallback when not on a deployment host); `vault` reads a KV v2 document. |
+| `secrets_path` | string | for `file` | — | Path to the secrets file, resolved relative to the profile directory (with `~/` home expansion). Required for `source: file`; unused for `source: vault`. |
+| `validation` | enum `strict` \| `warn` \| `skip` | no | `warn` | How a loaded document is checked. It does not govern whether a source may be abandoned: a Vault fetch failure aborts the boot under every mode. |
+| `vault` | object | for `vault` | absent | KV v2 access. Required when `source: vault`, and refused for the other two sources. See [`secrets.vault`](#secretsvault). |
+
+### `secrets.vault`
+
+`crates/shared/models/src/profile/vault.rs`. See [`guides/vault-secrets.md`](../guides/vault-secrets.md) for the task-oriented version.
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `address` | string | yes | — | Vault or OpenBao base URL. Validated by the outbound-URL guard, so a private literal needs the host in `SYSTEMPROMPT_TRUSTED_HTTP_HOSTS`. Redirects are not followed. |
+| `mount` | string | no | `secret` | KV v2 mount name. |
+| `path` | string | yes | — | Path of the document holding the `secrets.json` shape. |
+| `namespace` | string | no | absent | Sent as `X-Vault-Namespace`. |
+| `auth` | object | yes | — | Login method; tagged by `method`. See below. |
+| `keys` | map of string → `{path, field}` | no | `{}` | Per-key overrides read after the base document. Each names a KV path and the field to take from it. A named field that does not exist is an error. |
+| `ca_cert_path` | string | no | absent | PEM bundle for a private CA. There is no TLS-verification bypass; `deny_unknown_fields` makes `skip_verify` a parse error. |
+| `timeout_secs` | integer | no | `10` | Per-request timeout; maximum `120`. |
+| `retries` | integer | no | `3` | Bounded retries on connect failures, 5xx and 429 only; maximum `10`. |
+
+`auth.method` is one of:
+
+| `method` | Keys | Defaults |
+|-----|------|----------|
+| `token` | `token_env`, `token_file` | `VAULT_TOKEN`; `token_file` absent |
+| `approle` | `role_id_env`, `secret_id_env`, `mount` | `VAULT_ROLE_ID`, `VAULT_SECRET_ID`, `approle` |
+| `kubernetes` | `role` (required), `jwt_path`, `mount` | `/var/run/secrets/kubernetes.io/serviceaccount/token`, `kubernetes` |
+
+The token is never a profile key. Writing `${VAULT_TOKEN}` into `profile.yaml` is forbidden; the token comes from the environment, a file, or a login. Child processes are handed the resolved secrets and never inherit Vault credentials.
+
+**Source precedence** (`crates/infra/config/src/bootstrap/secrets/resolve.rs`), highest first: subprocess environment; `source: vault`, including on deployment hosts; deployment host environment; `source: env` locally, file first; `source: file`.
+
+## `services`
+
+`crates/shared/models/src/profile/services.rs`. Where the services tree comes from. An absent block, or one with no `sources`, serves the tree at `paths.services` — the default. See [`guides/services-bundles.md`](../guides/services-bundles.md).
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `sources` | list of object | no | `[]` | Bundles composed, in order, into the served tree. Empty means the baked tree. |
+| `cache_dir` | string | no | `<paths.system>/services-cache` | Where fetched and composed bundles live. Must be absolute, and under `/app` for `target: cloud`. |
+| `on_fetch_failure` | enum `fail_closed` \| `use_last_good` \| `use_bundled` | no | `use_last_good` | What to serve when a source cannot be fetched or fails verification. Every path logs the failure and is reported by the status endpoint's provenance. |
+| `port_offset` | integer | no | `0` | Added to every port the services tree declares. |
+
+Each entry in `sources`:
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `name` | string | yes | — | Unique per profile. Keys the cache and labels every status row and log line. |
+| `https` | object | one of | absent | `url`, plus optional `auth_secret` and `verify`. |
+| `oci` | object | one of | absent | `reference`, plus optional `auth_secret` and `verify`. |
+
+Naming both `https` and `oci`, or neither, is a profile error. `auth_secret` names a key in the secrets document, never a value.
+
+`verify` takes `sha256` (a 64-hex archive digest) and `ed25519_public_keys` (base64 32-byte keys). At least one is required for every source; an empty `verify` is refused. Verification is fatal at every step and runs in order: archive digest, manifest signature, per-file checksums, content hash.
+
+Only the first source may be a base bundle. Every later source must own nothing but `marketplaces`, `plugins`, `skills`, `rules`, `hooks` and `artifacts`. Two sources claiming the same id, or the same base directory, is a boot error naming both.
 
 ## `extensions`
 
@@ -266,7 +321,7 @@ result against the merged registry, and never touch the profile.
 | `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |
 
 Every provider endpoint is validated through the shared outbound-URL guard
-(`validate_outbound_url`, `crates/shared/models/src/net.rs`), which rejects loopback,
+(`validate_outbound_url`, `crates/shared/models/src/net/mod.rs`), which rejects loopback,
 private-network, link-local and CGNAT destinations so the proxy cannot become an SSRF primitive.
 `!include <file>` in a `system_prompt_overrides[].prompt` resolves relative to the file that
 carries the `gateway:` block.
@@ -366,8 +421,8 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 Configuration is assembled in a fixed sequence; later stages depend on earlier ones (`crates/infra/config/src/bootstrap/`). The type-state `BootstrapSequence` enforces that secrets cannot initialize before the profile (`bootstrap/mod.rs:48-93`).
 
 1. **ProfileBootstrap** — reads `profile.yaml`, performs `${VAR}` interpolation, resolves relative paths, deserializes into `Profile`.
-2. **ServicesBootstrap** — loads the services tree at `paths.services` through the services loader (`crates/infra/loader/src/services_bootstrap.rs`): merges every include, resolves the gateway spec to its runtime form, validates the provider registry and the gateway's references into it. A tree that does not load is a boot failure.
-3. **SecretsBootstrap** — loads the secrets document referenced by the profile (file or env), validates required fields (e.g. the 32-char pepper), ensures the manifest signing seed.
+2. **ServicesBootstrap** — resolves the services root first: with `services.sources` configured, each bundle is fetched, verified, composed and swapped in before paths are derived; otherwise the root is `paths.services`. It then loads the tree through the services loader (`crates/infra/loader/src/services_bootstrap.rs`): merges every include, resolves the gateway spec to its runtime form, validates the provider registry and the gateway's references into it. A tree that does not load is a boot failure.
+3. **SecretsBootstrap** — loads the secrets document from the resolved source (file, environment, or Vault KV v2), validates required fields (e.g. the 32-char pepper), ensures the manifest signing seed. A Vault fetch that fails aborts the boot under every validation mode.
 4. **CredentialsBootstrap** — loads cloud credentials (file, or environment in a Fly.io container) and validates them against the cloud API for `cloud` targets (`crates/infra/cloud/src/credentials_bootstrap/`).
 5. **Config** — composes the validated profile and resolved secrets into the runtime config.
 6. **AppContext** — constructs the application context (database pool, services, resolved system admin) consumed by the API and CLI.

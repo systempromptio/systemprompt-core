@@ -128,6 +128,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )?);
 
     let registry = ExtensionRegistry::discover_and_merge(injected)
@@ -193,6 +194,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                 systemprompt_models::profile::StorageBackend::Local,
                 &std::env::temp_dir(),
             ),
+            shutdown: Default::default(),
         },
     ));
 

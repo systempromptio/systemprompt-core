@@ -1,17 +1,6 @@
-//! Base-directory lookups that honour the same overrides on every platform.
+//! Base-directory resolution with explicit environment overrides.
 //!
-//! `dirs` resolves per platform: `XDG_*` on Linux, `~/Library/Application
-//! Support` on macOS, and the known-folder API on Windows, which consults
-//! neither `HOME` nor `XDG_*`. So a caller that redirects those variables
-//! redirects Linux alone and silently keeps reading the real user profile on
-//! the other two — which is how the macOS and Windows bridge suites came to
-//! assert against a live machine while appearing to run sandboxed.
-//!
-//! Every base-directory lookup in the bridge goes through this module, which
-//! reads the override variable first and falls back to `dirs` when it is
-//! absent. On Linux that first read is what `dirs` would have done anyway, so
-//! behaviour there is unchanged; on macOS and Windows it becomes an override
-//! that was previously impossible to express.
+//! Checks the configured override before platform-specific `dirs` defaults.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

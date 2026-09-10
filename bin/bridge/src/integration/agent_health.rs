@@ -1,15 +1,6 @@
-//! The single derivation of what a host's state *means* to the reader.
+//! Agent-health classification from typed integration state.
 //!
-//! This used to live in JavaScript, three times over: the Agents list, the
-//! Status summary card and the overall badge each folded the same snapshot
-//! their own way, with their own `|| "absent"` fallback and their own view of
-//! whether the proxy mattered. They disagreed — the Agents tab could report
-//! "Not working" while the summary card said "all configured".
-//!
-//! So the verdict is computed here, once, over the typed inputs Rust already
-//! owns, and the GUI renders it. Every enum serialises to a kebab code that is
-//! also the localisation key suffix, which keeps user-facing copy in the FTL
-//! catalogue while leaving no branching in the renderer.
+//! Serialized verdict codes select localized GUI messages.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -49,6 +49,7 @@ async fn upsert_rule(repo: &AccessControlRepository, entity_id: &str, value: &st
         rule_value: value,
         access: Access::Allow,
         justification: None,
+        source: "yaml",
     })
     .await
     .expect("upsert rule");
@@ -116,6 +117,7 @@ async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
             rule_value: "auditor",
             access: Access::Allow,
             justification: None,
+            source: "yaml",
         })
         .await
         .expect("rule");

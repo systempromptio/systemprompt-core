@@ -136,6 +136,7 @@ mod resolution {
                     ..Default::default()
                 },
                 agents: PluginComponentRef::default(),
+                rules: PluginComponentRef::default(),
                 mcp_servers: PluginComponentRef::default(),
                 content_sources: PluginComponentRef::default(),
                 artifacts: PluginComponentRef::default(),

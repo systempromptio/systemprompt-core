@@ -2,18 +2,18 @@
 
 What systemprompt-core is, what it does, and when to deploy it.
 
-systemprompt-core is a self-hosted system for running AI agents and MCP servers under a single governed boundary. It compiles to one Rust binary that you run on infrastructure you control, backed by a PostgreSQL database you own. Every request that reaches an AI provider, an agent, or a tool passes through one authenticated, authorized, audited path.
+systemprompt-core is a self-hosted system for running AI agents and MCP servers under a single governed boundary. It compiles to one Rust binary that you run on infrastructure you control, backed by a PostgreSQL database you own. The gateway, MCP and agent interfaces apply their configured authentication, authorization and audit controls. Enforcement applies to traffic routed through those interfaces.
 
-It is built for organizations that need to put AI agents in front of internal systems without surrendering control of identity, secrets, or the audit record. The binary does not phone home, and the only durable state is your database.
+Operators configure identity, secrets, provider endpoints and storage. Enabled providers and integrations can send requests to external services. PostgreSQL stores application records; profiles, secrets and file-backed artifacts also require deployment storage.
 
 ## What it does
 
 systemprompt-core provides five capabilities behind one HTTP surface:
 
 - **A2A (agent-to-agent) protocol.** A standalone agent server speaks the A2A JSON-RPC protocol with server-sent-event streaming and `.well-known` discovery. Agents are described as configuration and registered in a central registry.
-- **MCP (Model Context Protocol) servers.** MCP servers are hosted natively over streamable HTTP, not proxied to a separate process. Each server has its own scoped tool exposure, OAuth2, and access log, discoverable through a central registry.
+- **MCP (Model Context Protocol) servers.** MCP servers use streamable HTTP and can run as managed subprocesses behind the API proxy. Each server has its own scoped tool exposure, OAuth2, and access log, discoverable through a central registry.
 - **OAuth2 / OIDC authorization server.** A built-in authorization server issues and validates tokens for the system's own surfaces. It supports OIDC discovery, PKCE (S256), and WebAuthn. The JWT plane is RS256.
-- **Provider gateway.** A provider-facing proxy exposes a stable `/v1` surface (`POST /v1/messages`, `GET /v1/models`) and routes each model pattern to a configured upstream provider. The upstream is selected in configuration, not in code.
+- **Provider gateway.** A provider-facing proxy exposes a stable `/v1` surface (`POST /v1/messages`, `POST /v1/chat/completions`, `POST /v1/responses`, `GET /v1/models`) and routes each model pattern to a configured upstream provider. The upstream is selected in configuration, not in code.
 - **Compile-time extensions.** Functionality is extended in Rust through the `Extension` trait, registered at compile time with the `inventory` crate. There is no runtime plugin loader and no `dlopen`; extension code compiles into your binary.
 
 Across all five, the request path enforces authorization through a fail-closed authorization hook (default deny), rate limiting, and structured audit logging. Decisions are recorded with a `trace_id` so a single agent action can be reconstructed end to end.
@@ -23,7 +23,7 @@ Across all five, the request path enforces authorization through a fail-closed a
 Deploy systemprompt-core when you need to:
 
 - Run AI agents or MCP tools against internal systems and retain the audit record on your own infrastructure.
-- Keep provider credentials and other secrets out of the inference path and under your own key-management lifecycle.
+- Manage provider credentials and deployment secrets under your own key-management lifecycle.
 - Standardize many AI clients (Claude Code, an Anthropic-SDK application, any MCP host) on one governed endpoint.
 - Switch inference providers without changing application code.
 
@@ -31,10 +31,11 @@ It is not a hosted SaaS and not a sidecar. It is a binary plus a database that y
 
 ## Deployment model
 
-The deployment has two durable parts that you own:
+The deployment comprises:
 
-1. **The binary.** A stateless Rust process. It holds no durable state of its own, so you can run more than one replica behind a load balancer. The same binary serves the HTTP API, the agent server, and the MCP servers.
-2. **PostgreSQL 18+.** The only durable state. Configuration, identities, tasks, contexts, artifacts, and the audit log all live here.
+1. **Runtime processes.** The API and managed agent/MCP processes use configured ports and storage paths. Multiple API replicas require shared database access, coordinated jobs and appropriate routing.
+2. **PostgreSQL 18+.** Application records, identities, tasks, contexts and audit data.
+3. **Configuration and file storage.** Profiles, secrets and file-backed artifacts need explicit persistence and backup policies.
 
 Secrets are customer-owned. The binary performs no symmetric at-rest encryption of the secrets file; it receives plaintext only after your own tooling (KMS, HSM, Vault, or sops) opens the envelope. The master key never enters the binary.
 
@@ -47,7 +48,7 @@ Configuration is a profile — a `profile.yaml` document plus a referenced secre
         │                   │    Gemini, custom)
         ▼                   │
   ┌──────────────────────────────────┐
-  │        systemprompt-core          │   one stateless binary
+  │        systemprompt-core          │   configured runtime
   │  auth → authz hook → rate limit   │   (run N replicas)
   │  → audit → A2A / MCP / OAuth      │
   └──────────────────────────────────┘

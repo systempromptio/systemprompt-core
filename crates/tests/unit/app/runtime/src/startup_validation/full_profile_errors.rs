@@ -20,7 +20,7 @@ fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
     }) else {
         return;
     };
-    systemprompt_config::try_init_config().expect("init config from profile");
+    systemprompt_config::try_init_config(None).expect("init config from profile");
     let config = Config::get().expect("config installed").clone();
 
     let mut validator = StartupValidator::new();
@@ -66,7 +66,7 @@ fn skill_missing_content_file_errors_in_verbose_mode() {
     let Some(_fixture) = boot(&BootOptions::default()) else {
         return;
     };
-    systemprompt_config::try_init_config().expect("init config from profile");
+    systemprompt_config::try_init_config(None).expect("init config from profile");
     let config = Config::get().expect("config installed").clone();
     systemprompt_logging::set_startup_mode(true);
 
@@ -101,7 +101,7 @@ fn quiet_mode_validate_reports_the_same_extension_failures() {
     let Some(_fixture) = boot(&BootOptions::default()) else {
         return;
     };
-    systemprompt_config::try_init_config().expect("init config from profile");
+    systemprompt_config::try_init_config(None).expect("init config from profile");
     let config = Config::get().expect("config installed").clone();
 
     let mut config = config;

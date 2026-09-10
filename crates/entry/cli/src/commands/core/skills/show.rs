@@ -10,6 +10,7 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 
 use super::list::show_skill_detail;
+use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -24,5 +25,8 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(std::path::PathBuf::from(profile.paths.skills()))
+    Ok(ServicesRootBootstrap::active_path_or(
+        &profile.paths.services,
+        "skills",
+    ))
 }

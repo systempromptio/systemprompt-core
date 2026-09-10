@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::SkillId;
+use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::{
     AgUiEventBuilder, DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter,
@@ -156,7 +157,10 @@ fn resolve_skills_root() -> Result<PathBuf> {
     let profile = ProfileBootstrap::get().map_err(|e| {
         AgentServiceError::Internal(format!("Profile not initialized for SkillService: {e}"))
     })?;
-    Ok(PathBuf::from(profile.paths.skills()))
+    Ok(ServicesRootBootstrap::active_path_or(
+        &profile.paths.services,
+        "skills",
+    ))
 }
 
 fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskSkill> {

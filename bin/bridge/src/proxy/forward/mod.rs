@@ -34,6 +34,8 @@ pub enum ForwardError {
     Routing(String),
     #[error("authentication unavailable: {0}")]
     Auth(String),
+    #[error("authentication temporarily unavailable, retrying: {0}")]
+    AuthRetryable(String),
     #[error("authentication timed out after 10s")]
     AuthTimeout,
     #[error("invalid request method {method}: {source}")]
@@ -57,7 +59,9 @@ pub enum ForwardError {
 impl ForwardError {
     pub const fn status(&self) -> StatusCode {
         match self {
-            Self::Auth(_) | Self::AuthTimeout | Self::Routing(_) => StatusCode::SERVICE_UNAVAILABLE,
+            Self::Auth(_) | Self::AuthRetryable(_) | Self::AuthTimeout | Self::Routing(_) => {
+                StatusCode::SERVICE_UNAVAILABLE
+            },
             Self::BodyTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Self::BadMethod { .. } | Self::BadHeader(_) => StatusCode::BAD_REQUEST,
             Self::Upstream(_) | Self::BuildResponse(_) | Self::ReadBody(_) => {

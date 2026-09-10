@@ -1,11 +1,8 @@
 //! Cached gateway JWT with background refresh ahead of expiry.
 //!
-//! The cache also owns the *sign-in-required* latch. Once the gateway has
-//! rejected a freshly minted token, or the provider chain has nothing left to
-//! mint from, every background caller (refresh tick, heartbeat, comms stream,
-//! forwarded requests) is answered from the latch without touching the
-//! network, and the transition is published on a watch channel so the GUI can
-//! tell the user exactly once. Only an explicit sign-in re-arms minting.
+//! Minting is guarded by the shared [`SignInLatch`]: a terminal failure latches
+//! and every later caller is answered locally, while a failure that merely
+//! could not reach the gateway is deferred and retried on the next tick.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,13 +12,16 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use tokio::sync::{Mutex, watch};
+use tokio::sync::Mutex;
 
 use systemprompt_identifiers::SessionId;
 
 use crate::gateway::types::HelperOutput;
 use crate::proxy::forward::{ForwardError, ForwardResult};
+use crate::proxy::sign_in_latch::{CredentialStamp, SignInLatch, capture_stamp};
 use crate::{auth, config};
+
+pub use crate::proxy::sign_in_latch::AuthState;
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
 const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
@@ -30,29 +30,6 @@ const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
 // keychain call on the hot path; once per interval catches a rotated
 // credential within seconds without paying for it per request.
 const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum AuthState {
-    #[default]
-    Ok,
-    SignInRequired {
-        reason: String,
-    },
-}
-
-impl AuthState {
-    #[must_use]
-    pub const fn sign_in_required(&self) -> bool {
-        matches!(self, Self::SignInRequired { .. })
-    }
-}
-
-type CredentialStamp = auth::cache::CredentialBinding;
-
-fn capture_stamp() -> ForwardResult<CredentialStamp> {
-    let cfg = config::load().map_err(|e| ForwardError::Auth(e.to_string()))?;
-    CredentialStamp::capture(&cfg).map_err(|e| ForwardError::Auth(e.to_string()))
-}
 
 pub type RefreshFn = Arc<
     dyn Fn(u64) -> Pin<Box<dyn Future<Output = ForwardResult<HelperOutput>> + Send>> + Send + Sync,
@@ -76,8 +53,7 @@ pub struct TokenCache {
     cached: Mutex<Option<CachedEntry>>,
     refresh_lock: Mutex<()>,
     refresh: RefreshFn,
-    auth_state: watch::Sender<AuthState>,
-    latched_stamp: parking_lot::Mutex<Option<CredentialStamp>>,
+    latch: SignInLatch,
 }
 
 impl TokenCache {
@@ -87,53 +63,18 @@ impl TokenCache {
             cached: Mutex::new(None),
             refresh_lock: Mutex::new(()),
             refresh,
-            auth_state: watch::Sender::new(AuthState::Ok),
-            latched_stamp: parking_lot::Mutex::new(None),
+            latch: SignInLatch::default(),
         }
     }
 
     #[must_use]
-    pub fn auth_state(&self) -> watch::Receiver<AuthState> {
-        self.auth_state.subscribe()
+    pub fn auth_state(&self) -> tokio::sync::watch::Receiver<AuthState> {
+        self.latch.subscribe()
     }
 
     #[must_use]
     pub fn sign_in_required(&self) -> bool {
-        if !self.auth_state.borrow().sign_in_required() {
-            return false;
-        }
-        let stamped = self.latched_stamp.lock().clone();
-        if stamped.is_some_and(|stamp| capture_stamp().is_ok_and(|current| stamp != current)) {
-            tracing::info!("credentials changed on disk; sign-in latch released");
-            self.unlatch();
-            return false;
-        }
-        true
-    }
-
-    fn latch(&self, reason: &str) {
-        if self.auth_state.borrow().sign_in_required() {
-            return;
-        }
-        tracing::warn!(reason, "token cache latched: sign-in required");
-        let (stamp, reason) = match capture_stamp() {
-            Ok(stamp) => (Some(stamp), reason.to_owned()),
-            Err(e) => (
-                None,
-                format!("{reason}; credential identity unavailable: {e}"),
-            ),
-        };
-        *self.latched_stamp.lock() = stamp;
-        self.auth_state
-            .send_replace(AuthState::SignInRequired { reason });
-    }
-
-    fn unlatch(&self) {
-        *self.latched_stamp.lock() = None;
-        if self.auth_state.borrow().sign_in_required() {
-            tracing::info!("token cache re-armed");
-            self.auth_state.send_replace(AuthState::Ok);
-        }
+        self.latch.engaged()
     }
 
     pub async fn refresh_if_cached(&self, refresh_threshold_secs: u64) -> ForwardResult<()> {
@@ -152,7 +93,7 @@ impl TokenCache {
                 let cfg = config::load().map_err(|e| ForwardError::Auth(e.to_string()))?;
                 auth::read_or_refresh(&cfg, threshold, &session_id, &http)
                     .await
-                    .map_err(|e| ForwardError::Auth(e.to_string()))
+                    .map_err(|e| chain_error(&e))
             })
         }))
     }
@@ -183,8 +124,9 @@ impl TokenCache {
         let token = tokio::time::timeout(REFRESH_TIMEOUT, refresh(refresh_threshold_secs))
             .await
             .map_err(|_elapsed| ForwardError::AuthTimeout)?
-            .inspect_err(|e| {
-                self.latch(&e.to_string());
+            .inspect_err(|e| match e {
+                ForwardError::AuthRetryable(reason) => self.latch.defer(reason),
+                terminal => self.latch.engage(&terminal.to_string()),
             })?;
         if capture_stamp()? != stamp {
             return Err(ForwardError::Auth(
@@ -193,7 +135,8 @@ impl TokenCache {
         }
 
         tracing::info!("token cache refresh");
-        self.unlatch();
+        self.latch.clear_deferral();
+        self.latch.release();
 
         let mut guard = self.cached.lock().await;
         *guard = Some(CachedEntry {
@@ -220,7 +163,7 @@ impl TokenCache {
         };
         if entry.minted_at.elapsed() <= FRESH_REJECTION_WINDOW {
             drop(guard);
-            self.latch(&format!(
+            self.latch.engage(&format!(
                 "{endpoint} rejected a credential issued {}s ago",
                 entry.minted_at.elapsed().as_secs()
             ));
@@ -231,7 +174,7 @@ impl TokenCache {
 
     pub async fn reset(&self) {
         self.invalidate().await;
-        self.unlatch();
+        self.latch.release();
     }
 
     #[expect(
@@ -280,6 +223,14 @@ impl TokenCache {
                 Ok(None)
             },
         }
+    }
+}
+
+fn chain_error(e: &auth::ChainError) -> ForwardError {
+    if e.is_terminal() {
+        ForwardError::Auth(e.to_string())
+    } else {
+        ForwardError::AuthRetryable(e.to_string())
     }
 }
 

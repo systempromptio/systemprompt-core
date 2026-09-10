@@ -95,7 +95,7 @@ pub enum SyncError {
     )]
     PubkeyNotPinned,
     #[error("replay state corrupt: {0}")]
-    ReplayStateCorrupt(#[from] crate::sync::replay::ReplayStateError),
+    ReplayStateCorrupt(#[from] crate::last_sync::ReplayStateError),
 }
 
 #[derive(Debug, thiserror::Error)]

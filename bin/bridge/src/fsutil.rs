@@ -89,6 +89,28 @@ pub fn verify_contents(path: &Path, expected: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
+// Why: a private file this user owns can lose every DACL entry (an upgrade
+// that re-protected its directory did exactly that); the owner can still
+// rewrite the DACL, so a denied read is repaired once and retried before it
+// is reported.
+#[cfg(target_os = "windows")]
+pub fn read_private(path: &Path) -> io::Result<Vec<u8>> {
+    match fs::read(path) {
+        Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+            let reader = crate::windows_acl::current_sid()?;
+            crate::windows_acl::repair_private(path, &reader)?;
+            fs::read(path)
+                .map_err(|e| io::Error::new(e.kind(), format!("read after DACL repair: {e}")))
+        },
+        other => other,
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn read_private(path: &Path) -> io::Result<Vec<u8>> {
+    fs::read(path)
+}
+
 pub fn read_optional(path: &Path) -> io::Result<Option<String>> {
     match fs::read_to_string(path) {
         Ok(s) => Ok(Some(s)),

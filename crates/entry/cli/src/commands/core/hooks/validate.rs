@@ -9,6 +9,7 @@ use std::path::Path;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
+use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
 use super::types::{HookValidateEntry, HookValidateOutput};
@@ -20,7 +21,7 @@ pub struct ValidateArgs;
 
 pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let hooks_path = std::path::PathBuf::from(profile.paths.hooks());
+    let hooks_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "hooks");
 
     let results = validate_all_hooks(&hooks_path)?;
     let output = HookValidateOutput { results };

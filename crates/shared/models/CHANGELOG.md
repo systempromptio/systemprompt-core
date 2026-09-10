@@ -1,9 +1,28 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Breaking
+
+- **Breaking:** `SchemaFeatures` gains `loose_items`, whether a provider accepts `items` beside a non-array type and arrays without `items`. Migrate by adding the field to struct literals (`true` for Anthropic and OpenAI, `false` for Gemini).
+
+### Added
+
+- `PluginManifest` accepts the inbound keys Claude Code permits but systemprompt derives from the tree — `skills`, `agents`, `commands`, `mcpServers` — plus `homepage`, `repository`, `license` and `category`. They are read only: none is serialised, so the manifest this crate emits is byte-identical.
+- `GatewayConfigSpec.quota_fault_mode` (`QuotaFaultMode`: `open` or `closed`, defaulting to `open`) selects what the gateway does when it cannot evaluate a quota window or read its policy row. It lives in file config rather than in the policy spec because one of the faults it governs is the failure to read that spec.
+- `net::client`: `guarded_client` and `guarded_client_builder` build a reqwest client that enforces the SSRF block list at connect time. `GuardedResolver` filters every address a hostname resolves to through `is_blocked_ip` before a socket is opened, and the redirect policy re-runs `validate_outbound_url_with_trust` on each hop, so a scheme downgrade or a name resolving into a blocked range is refused. `GuardedClientConfig` carries the trusted-host allowance, the loopback allowance, the redirect cap (`DEFAULT_MAX_REDIRECTS`, 3) and the timeouts; `GuardedConnectError` says why a connection was refused. `net.rs` becomes the `net` module directory. The crate takes `reqwest` and `tokio` dependencies for this.
+- `bridge::manifest::RuleEntry` and `SignedManifest.rules`, with `RuleId` and `RuleName` in `bridge::ids`. The field is skipped when empty, so a manifest carrying no rules is byte-identical to one built before this release.
+- `services::rules`: `DiskRuleConfig` is the `rules/<id>/config.yaml` descriptor for a marketplace rule, keyed by `bridge::ids::RuleId`, with `tags` and `hosts`; it serialises as well as deserialises so the importer and the loader share one shape. `RULE_CONFIG_FILENAME` and `DEFAULT_RULE_CONTENT_FILE` (`index.md`, matching skills). `PluginConfig.rules` selects rules per plugin, defaults so an existing plugin config parses unchanged, and is validated like the other component refs.
+
+### Fixed
+
+- The Gemini schema sanitizer moves an `items` schema declared beside `anyOf`/`oneOf`/`allOf` into each array variant that lacks one, infers `type: array` when only `items` is declared, drops `items` from non-array types and gives an untyped array an empty item schema. A tool parameter written that way failed the whole request with `items: field predicate failed: $type == Type.ARRAY`.
+
 ## [0.49.0] - 2026-09-09
 
 ### Added
 
+- `BridgePolicyConfig.auto_update` (`AutoUpdatePolicy`: `disabled` or `staged`, defaulting to `staged`) and the matching `SignedManifest.auto_update`. Whether an installed bridge keeps itself current is instance policy delivered on the signed manifest, not a client-side preference.
 - `subprocess::spawn_owned_supervised` returns an owned child using the existing supervised spawning thread and parent-death handling.
 - `Deployment.connector` (`ConnectorConfig`), the outbound personal-account OAuth settings for an external MCP server, validated at config load: a generic connector requires an HTTPS resource, and a client secret requires a client id. It is separate from `external_auth`, which governs inbound access, and is refused on internal servers.
 
@@ -22,7 +41,7 @@
 
 ### Breaking
 
-- **Breaking:** `ModelPricing::cache_read_per_million` and `cache_write_per_million` are `Option<f64>`. An absent rate and a declared free rate must not look alike: `input_tokens` is now exclusive of cache reads, so a forgotten rate silently bills the cached slice at zero. `GatewayConfig` validation refuses boot with `RouteModelCacheRateUndeclared` when a route can dispatch a token-billed model that declares no cache-read rate; an explicit `0.0` passes as a deliberate statement that the provider bills none. Migrate by reading the rates through `cache_read_rate()` / `cache_write_rate()` and declaring the rate on every priced model. The seeded default catalog declares one for every model.
+- **Breaking:** cache-read and cache-write prices are `Option<f64>`. `GatewayConfig` rejects token-priced routes without a declared cache-read rate using `RouteModelCacheRateUndeclared`; explicit `0.0` declares free cache reads. Use `cache_read_rate`/`cache_write_rate` and configure rates on priced models.
 - **Breaking:** `CanonicalUsage` is the only usage type. `CapturedUsage`, `CostTokens` and the internal `TokenUsage` builder are deleted, and `ModelPricing::cost_microdollars(&CanonicalUsage)` is the one cost function for both the gateway and the internal agent path — which therefore bills cache tokens now, and reports zero with a warning for an unknown provider instead of fabricating $1/$1 per million. `CanonicalUsage::billable_total` is the single definition of `tokens_used`.
 - **Breaking:** every wire's `parse_response` returns `Result<_, WireParseError>`. All four buffered parsers turned a top-level deserialisation failure into an empty canonical response — a successful request with no content and zero usage, and nothing logged. Migrate by propagating the error; per-field `serde(default)` leniency is unchanged, so only a body the wire cannot read at all is an error.
 - **Breaking:** `AnthropicStreamState::events_from_sse` replaces the free `events_from_sse`. The function was stateless per frame and so could not know a `tool_use` block had been opened several frames earlier. The state also absorbs the message-id tracking all three callers did by hand. Migrate by threading one state struct instead of a `(buf, msg_id)` tuple.
@@ -30,7 +49,7 @@
 ### Added
 
 - `CanonicalUsage.reasoning_tokens`, parsed on every wire, buffered and streamed: Gemini `usageMetadata.thoughtsTokenCount`, OpenAI responses `usage.output_tokens_details.reasoning_tokens`, OpenAI chat `usage.completion_tokens_details.reasoning_tokens`. Reasoning is a breakdown *of* `output_tokens`, never an addition, so cost needs no per-provider arithmetic. Anthropic `usage.output_tokens_details.thinking_tokens` (adaptive thinking on Claude 5 models) is read the same way, buffered and on the trailing `message_delta`; it is already inside `output_tokens`, so cost is unchanged. `AiResponse` and `StreamChunk::Usage` carry it too, so the internal path records what the gateway records.
-- `CanonicalUsage::normalise_reasoning` enforces that invariant at runtime rather than assuming it. A breakdown that exceeds its parent, or a wire total that overshoots `input + output` by exactly the reasoning count, folds the count into `output_tokens` and warns with the provider named — so an OpenAI-compatible third party that reports additively announces itself in the log rather than in the bill. `CanonicalUsageUpdate` carries the wire's own total when a frame states one, so the total-based clause fires on streams as well.
+- `CanonicalUsage::normalise_reasoning` folds additive reasoning reports into output when the breakdown exceeds output or the wire total exceeds input plus output by that amount. It logs the provider; stream updates retain reported totals for this check.
 - `buffered_body_defect` separates "nothing came back" from "the model legitimately produced no text". A JSON array or scalar, an error object delivered under a success status, or an object with neither a non-empty content array nor a usage object is a defect the gateway can reject, instead of defaulting into a well-formed empty turn the audit row records as completed.
 - `ModelCapabilities.reasoning` declares that a model emits hidden reasoning tokens, so a reader comparing output against visible text knows why they differ. Declarative only; the runtime guard enforces the accounting.
 - `ProviderEntry::upstream_model_for` resolves the upstream name for a request: an operator's route override wins, otherwise the catalog's per-model mapping applies. A route matches a whole glob, so it cannot carry a different upstream name per model, which is what Vertex MaaS needs.
@@ -46,8 +65,8 @@
 ### Fixed
 
 - A marketplace's plugin list in the signed manifest is ordered by id. `marketplace_plugin_configs` iterated the plugin map, so `plugin_ids` came out in hash order and flipped between runs.
-- A streamed Chat Completions turn reported zero usage to a client that asked for it. The codec ended the canonical turn on sight of `finish_reason`, but this wire sends usage in a chunk of its own after that one, so the terminal was rendered before its counts existed. The reason is held until the stream states its end, and the closing frames are the contract's usage-only chunk followed by `[DONE]`, emitted only when the caller sent `stream_options.include_usage`. The Anthropic surface had the same defect in a different shape: its terminal `message_delta` stated a hardcoded `output_tokens: 0`.
-- `input_tokens` is exclusive of cache reads on every wire. OpenAI chat, OpenAI responses and Gemini report `cached_tokens` as a subset of the prompt count while Anthropic reports the two disjoint, and all four adapters mapped them as disjoint, so every cached OpenAI, Gemini and Cerebras turn was charged for its cached slice twice. Gemini's stream also carries the cached count it previously dropped, and the buffered Anthropic inbound render emits the cache counts its streaming render already did.
+- Chat Completions holds the finish reason until stream completion and emits the usage-only chunk before `[DONE]` when requested. Anthropic terminal deltas report accumulated output usage.
+- **Breaking (wire semantics):** normalized `input_tokens` excludes cache reads for every provider. Buffered and streaming adapters separate cached tokens from total prompt usage; Anthropic response rendering includes cache counts.
 - An explicit `null` no longer blanks a completion. `serde(default)` covers an absent field, not a null, and Vertex MaaS sends `"tool_calls": null` and `"prompt_tokens_details": null` on ordinary completions; either failed the whole `ChatCompletion` and the parser absorbed it as an empty answer with zero tokens billed. The affected fields deserialise through `Option`, and the fallback logs the deserializer's own error with a truncated payload.
 - Every terminal signal that silently discarded a tool call is corrected through one rule, `CanonicalStopReason::with_tool_use`: a generic end-of-turn beside a tool call becomes `ToolUse`, and truncation always wins, because a call cut mid-arguments carries unparseable JSON. It applies to openai_chat buffered and streaming, anthropic buffered, gemini and openai_responses — the last two resolved tool use before truncation, so a call cut off at the token cap was reported as runnable.
 - Anthropic streaming reports `tool_use` to the client, not only to the audit path. The bytes rendered to the client never passed through the stream tap's accumulator, so the audit read `tool_use` while the client read `finish_reason: "stop"` beside a fully formed tool-call delta and dropped the call.
@@ -76,7 +95,7 @@
 
 ### Changed
 
-- **Breaking:** `cowork` is no longer in `bridge::profile::KNOWN_HOSTS`. Cowork is a mode of the Claude desktop app, not a host of its own; both of its sync emitters write into Claude Desktop's directories and now key on `claude-desktop`. A profile or `enabled_hosts` request naming `cowork` is rejected rather than silently ignored — drop it.
+- **Breaking:** `cowork` is no longer in `bridge::profile::KNOWN_HOSTS`. Cowork is a mode of the Claude desktop app, not a host of its own; both of its sync emitters write into Claude Desktop's directories and now key on `claude-desktop`. A profile or `enabled_hosts` request naming `cowork` is rejected rather than ignored — drop it.
 - `opencode` joins `KNOWN_HOSTS`, and that constant is now the single list the gateway accepts from a bridge; it was a private constant in the API route.
 
 ## [0.42.0] - 2026-08-31
@@ -232,7 +251,7 @@
 - `wire::inspect`: `string_leaves` collects every string in a JSON body, `sse_string_leaves` does the same across concatenated SSE frames under one shared budget, and `SurfaceBudget` bounds the walk on depth, leaf count, total bytes, and per-leaf size. The walk is iterative — a recursive one over caller-controlled JSON is a stack-overflow primitive well inside the body limit — and a budget stop marks the result truncated rather than reporting a complete surface.
 - `wire::anthropic::strip_user_id` removes `metadata.user_id` from a request body object, dropping `metadata` once it empties rather than sending `{}`. Both the canonical and byte-passthrough lanes strip through this one function.
 - `ModelPricing::is_billable` reports whether rates can produce a non-zero bill: a token model needs both an input and an output rate, while an image model prices per image and is legitimately zero on both token rates.
-- `GatewayConfig::validate` rejects a route that cannot be costed. A route carrying its own `pricing:` override must make that override billable; otherwise every registry model the pattern reaches must carry usable rates, and the pattern must reach at least one — which is what catches a glob route aimed at a catalog that has fallen behind the models actually in use. `GatewayProfileError` gains `RouteModelUnpriced` and `RouteReachesNoPricedModel`. Uncosted inference is a configuration bug rather than a runtime warning: the request bills at zero and the gap stays invisible until someone reads the ledger.
+- Gateway validation requires billable route overrides or usable prices for every matched registry model. It returns `RouteModelUnpriced` or `RouteReachesNoPricedModel` when those requirements fail.
 - `McpExtensionId::EnterpriseManagedAuth` names `io.modelcontextprotocol/enterprise-managed-authorization`, previously spelled as a bare string constant at each use site.
 - The default provider catalog carries cache read and write rates on every Anthropic, OpenAI, and Gemini model, adds `claude-opus-5`, `claude-sonnet-5`, `claude-fable-5`, and `claude-haiku-4-5`, and gives the dated model ids `aliases` so `claude-opus-4-5` and `claude-opus-4-5-20251101` resolve to one entry. Sonnet 4.6's context window and output ceiling are corrected to 1M/128k.
 ## [0.27.0] - 2026-07-29
@@ -254,7 +273,7 @@
 
 - **Breaking:** `ChartArtifact` serializes `chart_type`, `title`, `x_axis_label`, `y_axis_label`, `x_axis_type`, and `y_axis_type` with the payload, and the fields are public. They were `#[serde(skip)]` and only ever surfaced through the schema's `x-chart-hints` block, which nothing on the stored-artifact path read. The `x-chart-hints` block is gone from `to_schema`; the fields appear in `properties` instead. Payloads stored before this release deserialize to the defaults.
 - **Breaking:** `DashboardArtifact.hints` serializes with the payload and is public, and `DashboardHints::generate_schema` is deleted along with the schema's `x-dashboard-hints` block — layout travels in the artifact itself rather than in a side channel the renderer never received.
-- **Breaking:** `CanonicalContent::Thinking` gains `id` and `encrypted_content`, and `ContentBlockKind::Thinking` gains `id`. OpenAI Responses reasoning items carry a provider id and an opaque `encrypted_content` blob that must be replayed verbatim for stateless reasoning continuity — the canonical model previously had no channel for either, so the gateway emitted id-less reasoning items upstream and lost continuity every turn. `CanonicalEvent` gains an `EncryptedContentDelta` variant carrying the blob when it arrives at `output_item.done`. Migrate constructors by supplying `None` and exhaustive matches with a no-op arm.
+- **Breaking:** canonical thinking content gains `id` and `encrypted_content`; thinking block kinds gain `id`, and events gain `EncryptedContentDelta` for Responses reasoning blobs. Initialize optional fields with `None` and handle the added event variant.
 
 ### Added
 
@@ -262,9 +281,9 @@
 
 ### Fixed
 
-- Gemini thought parts round-trip. `GeminiPart::Text` now models the part-level `thought` flag and `thoughtSignature`, so thought summaries parse to `CanonicalContent::Thinking` (streamed as real thinking blocks with `ThinkingDelta`/`SignatureDelta`) instead of leaking to clients as ordinary answer text with the signature silently dropped. The request encoder replays `Thinking` as `{"thought": true}` parts with signatures — the documented "return the entire response with all parts back" contract — where it previously discarded thinking entirely, and `thinkingConfig.includeThoughts` is set whenever thinking is enabled so Gemini returns thought parts at all.
+- Gemini thought flags and signatures map to canonical thinking and streamed thinking/signature deltas. Replay emits signed thought parts; thinking-enabled requests set `includeThoughts`.
 - The Anthropic upstream body never carries an unsigned thinking block. Anthropic rejects a replayed thinking block without its signature; a block arriving signatureless (cross-provider history, or a client that dropped it) is now omitted — and a message reduced to zero blocks is dropped rather than sent empty — degrading reasoning continuity instead of failing the request.
-- OpenAI Responses reasoning items are emitted one per `Thinking` part with their provider `id` and `encrypted_content` (previously all parts collapsed into a single id-less summary item, which the API rejects), and reasoning-enabled request bodies send `store: false` so encrypted reasoning content is returned for stateless replay. A `Thinking` part with no provider id emits nothing rather than a malformed item.
+- OpenAI Responses reasoning items are emitted one per `Thinking` part with their provider `id` and `encrypted_content`, and reasoning-enabled request bodies send `store: false` so encrypted reasoning content is returned for stateless replay. A `Thinking` part with no provider id emits nothing rather than a malformed item.
 - The Anthropic upstream request body no longer carries the gateway's vendor-extension fields. `build_request_body` shared its block renderer with the client-facing render, so `signature` on `tool_use` and `structuredContent`/`_meta` on `tool_result` — fields the gateway adds for its own clients — went to the real Anthropic API, which rejects unknown keys in content blocks. The client-facing `content_to_anthropic_block` still emits them; the upstream body does not.
 - Gemini `functionResponse.name` carries the declared function name rather than the gateway-minted `tool_use` id. Gemini's function call has no id, so the canonical `ToolResult` only holds the minted one; the encoder now recovers the name from the matching `ToolUse` earlier in the same replayed history, falling back to the id only when no match exists.
 
@@ -273,12 +292,12 @@
 ### Added
 
 - `CanonicalRequest::latest_message_text` flattens the newest message of a role, and `CanonicalRequest::message_units` flattens the system prompt and each message into its own string. A safety scanner that judges `flatten_text` re-reads the whole conversation on every turn, and a detector that slides a window over it sees two unrelated messages as one; these are the primitives that let a caller scope to the newest turn and respect message boundaries.
-- `systemprompt_models::mime` is the single source of truth for extension↔MIME mapping. `from_path` and `from_extension` give the parameterless essence to store or validate against an allowlist, `http_content_type` gives the served form carrying `charset=utf-8` on the `text/*` types, `extension_for` inverts the mapping tolerating parameters and aliases, and `essence_of` strips parameters from a client-supplied type. Six independent tables previously disagreed about `woff`, `yaml`, and whether a charset was emitted, and a format missing from one of them was served as `application/octet-stream`.
-- `subprocess::spawn_supervised` is the sanctioned way to start an agent or MCP child. It spawns every child from one dedicated, never-joined thread and arms `prctl(PR_SET_PDEATHSIG, SIGTERM)` in the forked child, so a supervisor that is `SIGKILL`ed or panics no longer strands children holding ports 8080/5010/9101/9102 for the next boot to reclaim. The dedicated thread is load-bearing: the death signal fires when the *forking thread* exits, so forking from a tokio worker would tie a live agent's lifetime to whichever worker happened to poll the spawn.
+- `systemprompt_models::mime` centralizes MIME mapping. `from_path` and `from_extension` return the essence, `http_content_type` adds text charsets, `extension_for` handles aliases and parameters, and `essence_of` removes parameters.
+- `subprocess::spawn_supervised` starts children from a dedicated thread and configures Linux `PR_SET_PDEATHSIG` with SIGTERM. The thread remains alive because the kernel associates the death signal with the forking thread.
 
 ### Changed
 
-- Child supervision is documented as Linux-only, matching where the server runs. The identity and reap checks read `/proc` and the death signal is `prctl`; on other platforms `live_pid_is_subprocess` now logs a WARN naming the consequence — the process will not be signalled and must be stopped by hand — instead of silently returning `false`.
+- Child supervision is documented as Linux-only, matching where the server runs. The identity and reap checks read `/proc` and the death signal is `prctl`; on other platforms `live_pid_is_subprocess` now logs a WARN naming the consequence — the process will not be signalled and must be stopped by hand — instead of returning `false`.
 
 ## [0.24.0] - 2026-07-26
 
@@ -676,7 +695,7 @@
 ## [0.0.11] - 2026-01-26
 
 ### Breaking
-- **Breaking:** `ToolResponse::to_json` and the `Artifact::to_json_value` trait method now return `Result<JsonValue, serde_json::Error>` instead of silently returning `Null` on error. Migrate by handling the `Err` arm at call sites.
+- **Breaking:** `ToolResponse::to_json` and the `Artifact::to_json_value` trait method now return `Result<JsonValue, serde_json::Error>` instead of returning `Null` on error. Migrate by handling the `Err` arm at call sites.
 
 ## [0.0.7] - 2026-01-23
 

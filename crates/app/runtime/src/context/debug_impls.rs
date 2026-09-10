@@ -81,6 +81,7 @@ impl std::fmt::Debug for Subsystems {
             .field("event_bridge", &self.event_bridge.get().is_some())
             .field("geoip_reader", &self.geoip_reader.is_some())
             .field("file_storage", &"FileStorage")
+            .field("shutdown", &"ShutdownRequest")
             .finish()
     }
 }

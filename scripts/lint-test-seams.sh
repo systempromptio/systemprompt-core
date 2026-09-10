@@ -6,7 +6,7 @@ set -uo pipefail
 # A test-only seam — a `test*` Cargo feature, a `cfg(feature = "test-…")`
 # branch, a `test_api` module, an `unreachable_pub` suppression, or an
 # env-driven test redirect — makes the released artifact differ from the one
-# the suite exercises. Tests live in `crates/tests` and reach honest `pub`
+# the suite exercises. Tests live in `crates/tests` and reach public `pub`
 # items; collaborators are injected through constructors or config.
 #
 # Checks:

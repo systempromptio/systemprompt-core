@@ -2,19 +2,18 @@ use std::sync::Once;
 
 use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ArtifactEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
-    PluginEntry, PluginFile, SignedManifest, SignedManifestEnvelope, SkillEntry, TenantId,
-    UserInfo, ValidatedUrl, verify_envelope,
+    PluginEntry, PluginFile, RuleEntry, SignedManifest, SignedManifestEnvelope, SkillEntry,
+    TenantId, UserInfo, ValidatedUrl, verify_envelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId,
-    SkillName,
+    LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId, RuleId, RuleName,
+    Sha256Digest, SkillId, SkillName,
 };
 
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_security::manifest_signing;
 use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
@@ -37,7 +36,7 @@ fn ensure_bootstrap() {
                 "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
             );
         }
-        let _ = SecretsBootstrap::init();
+        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
     });
 }
 
@@ -77,6 +76,17 @@ fn sample_manifest() -> SignedManifest {
             tags: vec!["a".into(), "b".into()],
             sha256: Sha256Digest::try_new(FAKE_SHA_C).unwrap(),
             instructions: "do the thing".into(),
+            hosts: Vec::new(),
+            plugins: Vec::new(),
+        }],
+        rules: vec![RuleEntry {
+            id: RuleId::try_new("rule_one").unwrap(),
+            name: RuleName::try_new("Rule One").unwrap(),
+            description: "first rule".into(),
+            file_path: "/rules/one.md".into(),
+            tags: vec!["git".into()],
+            sha256: Sha256Digest::try_new(FAKE_SHA_C).unwrap(),
+            instructions: "never force-push".into(),
             hosts: Vec::new(),
             plugins: Vec::new(),
         }],
@@ -128,6 +138,7 @@ fn sample_manifest() -> SignedManifest {
             plugins: Vec::new(),
         }],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

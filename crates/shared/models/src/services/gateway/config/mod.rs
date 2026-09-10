@@ -22,6 +22,35 @@ pub use runtime::GatewayConfig;
 
 pub(crate) const DEFAULT_ROUTE_PATTERN: &str = "*";
 
+/// What the gateway does when it cannot evaluate a quota or policy.
+///
+/// The switch lives in file config rather than in `GatewayPolicySpec` because
+/// one of the faults it governs is the failure to read that policy row.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum QuotaFaultMode {
+    #[default]
+    Open,
+    Closed,
+}
+
+impl QuotaFaultMode {
+    #[must_use]
+    pub const fn is_closed(self) -> bool {
+        matches!(self, Self::Closed)
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Closed => "closed",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayConfigSpec {
@@ -35,6 +64,8 @@ pub struct GatewayConfigSpec {
     pub default_model: Option<String>,
     #[serde(default)]
     pub allow_unlisted_models: bool,
+    #[serde(default)]
+    pub quota_fault_mode: QuotaFaultMode,
     #[serde(default = "default_auth_scheme")]
     pub auth_scheme: String,
     #[serde(default = "default_inference_path_prefix")]
@@ -86,6 +117,7 @@ impl Default for GatewayConfigSpec {
             default_provider: None,
             default_model: None,
             allow_unlisted_models: false,
+            quota_fault_mode: QuotaFaultMode::default(),
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
             system_prompt_overrides: Vec::new(),
@@ -111,6 +143,7 @@ impl GatewayConfigSpec {
             default_provider,
             default_model,
             allow_unlisted_models,
+            quota_fault_mode,
             auth_scheme,
             inference_path_prefix,
             system_prompt_overrides,
@@ -123,6 +156,7 @@ impl GatewayConfigSpec {
             default_provider,
             default_model,
             allow_unlisted_models,
+            quota_fault_mode,
             auth_scheme,
             inference_path_prefix,
             system_prompt_overrides,

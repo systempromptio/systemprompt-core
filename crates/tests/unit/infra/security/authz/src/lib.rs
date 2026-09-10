@@ -25,6 +25,8 @@ mod entity_kinds;
 #[cfg(test)]
 mod entity_row;
 #[cfg(test)]
+mod governance_append_only;
+#[cfg(test)]
 mod governance_audit_repo;
 #[cfg(test)]
 mod hook_runtime;
@@ -33,6 +35,8 @@ mod hooks_and_composite;
 #[cfg(test)]
 mod ingestion_db;
 #[cfg(test)]
+mod ingestion_ownership;
+#[cfg(test)]
 mod ingestion_yaml_path;
 #[cfg(test)]
 mod marketplace_floor;
@@ -40,6 +44,10 @@ mod marketplace_floor;
 mod parent_chain;
 #[cfg(test)]
 mod profile_governance;
+#[cfg(test)]
+mod reconcile_bundles;
+#[cfg(test)]
+mod reconcile_services;
 #[cfg(test)]
 mod registered_entities;
 #[cfg(test)]

@@ -20,11 +20,7 @@ pub enum GatewayCode {
 
 /// Whether this bridge is signed in, and if not, why.
 ///
-/// `TokenRejected` and `Verifying` used to be the same fact read two ways:
-/// Setup called a stored-but-unverified token rejected, Status called it
-/// "verifying", and both were looking at `pat_present && !verified`. The
-/// gateway probe is the tie-breaker — unverified against a reachable gateway
-/// is a rejection; unverified while the probe is still out is not.
+/// Distinguishes rejected credentials from verification in progress.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]

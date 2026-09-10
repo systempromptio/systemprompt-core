@@ -4,9 +4,9 @@
 //! containing allow-listed directories, then drives the manifest and download
 //! handlers so the internal `collect_files` and `create_tarball` helpers run.
 //!
-//! `get_services_path` honours `SYSTEMPROMPT_SERVICES_PATH` first, so the test
-//! drives the path purely through the context's `app_paths` (no env mutation,
-//! which the workspace forbids under `unsafe_code = "deny"`).
+//! `get_services_path` reads the context's `app_paths` only, so the test drives
+//! the path purely through the context (no env mutation, which the workspace
+//! forbids under `unsafe_code = "deny"`).
 
 use std::sync::Arc;
 

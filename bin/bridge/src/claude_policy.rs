@@ -1,10 +1,6 @@
-//! The Claude Code enterprise policy files: their names, the
-//! `managed-settings.json` keys the bridge used to own, and how those keys are
-//! stripped from a document without touching anything else in it.
+//! Claude Code enterprise policy paths and managed-key removal.
 //!
-//! This is a leaf so that `install`, which writes and clears the files, and
-//! `validate`, which reports on them, can ask the same question without either
-//! naming the other.
+//! Shared by installation and validation to identify bridge-managed settings.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

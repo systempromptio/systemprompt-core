@@ -33,9 +33,25 @@ use identity::resolve_or_link_user;
 
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
+static GUARDED_CLIENT: LazyLock<Option<reqwest::Client>> = LazyLock::new(|| {
+    systemprompt_models::net::guarded_client(
+        &systemprompt_models::net::GuardedClientConfig::default(),
+    )
+    .inspect_err(|e| tracing::error!(error = %e, "Guarded outbound http client unavailable"))
+    .ok()
+});
+
 #[must_use]
 pub fn http_client() -> reqwest::Client {
     CLIENT.clone()
+}
+
+// Why: Slack replies target a caller-supplied `response_url`, so they must go
+// through the connect-time SSRF guard rather than the plain client the
+// operator-configured Teams endpoints use.
+#[must_use]
+pub fn guarded_http_client() -> Option<reqwest::Client> {
+    GUARDED_CLIENT.clone()
 }
 
 #[derive(Debug, Clone)]

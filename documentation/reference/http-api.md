@@ -12,7 +12,7 @@ A2A is the agent-to-agent protocol; MCP is the Model Context Protocol. The gatew
 
 ### Authentication
 
-The token plane is JWT, RS256 only. Alg-confusion and `none` are rejected; `kid` is required; `exp`/`nbf`/`iat` are validated with 30 s leeway; the `act` delegation chain is depth-capped (`crates/infra/security/src/auth/validation.rs`). There is no ES256/ES384/EdDSA verification path. Audience validation (`validate_aud`) is currently disabled — do not rely on audience isolation.
+The token plane is JWT, RS256 only. Alg-confusion and `none` are rejected; `kid` is required; `exp`/`nbf` are validated with 30 s leeway; the `act` delegation chain is depth-capped (`crates/infra/security/src/auth/validation.rs`). There is no ES256/ES384/EdDSA verification path. Audience validation is required by the selected validation policy. First-party session decoding accepts the standard first-party audience set; it does not isolate each API surface by audience.
 
 Authorization runs through a fail-closed authorization hook (default deny). Each route group is mounted with one of these policies:
 

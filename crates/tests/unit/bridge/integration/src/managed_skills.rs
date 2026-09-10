@@ -93,6 +93,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         user: None,
         plugins: vec![],
         skills,
+        rules: vec![],
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![],
@@ -101,6 +102,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         host_model_protocols: BTreeMap::new(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

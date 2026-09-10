@@ -108,6 +108,7 @@ fn ensure_storage_structure_reports_uncreatable_root() {
     let paths = AppPaths::from_profile(
         &profile.paths,
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("app paths");
     let cfg = FilesConfig::from_profile(&paths).expect("from_profile");

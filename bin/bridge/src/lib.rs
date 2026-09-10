@@ -42,6 +42,7 @@ pub mod i18n;
 pub mod ids;
 pub mod install;
 pub mod integration;
+pub mod last_sync;
 pub mod mcp_registry;
 pub mod obs;
 pub mod probe_cache;
@@ -59,6 +60,7 @@ pub mod user_alert;
 pub mod validate;
 pub mod verdict;
 pub mod web_assets;
+pub mod webview2;
 pub mod window_state;
 #[cfg(target_os = "windows")]
 pub(crate) mod winproc;
@@ -195,9 +197,18 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     }
     brand::warn_if_version_drifts();
     purge_legacy_agents_state();
+    await_predecessor_exit();
     update::sweep_leftovers();
     cli::run()
 }
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn await_predecessor_exit() {
+    single_instance::await_predecessor_exit();
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+const fn await_predecessor_exit() {}
 
 fn purge_legacy_agents_state() {
     let Some(base) = basedirs::config_dir() else {

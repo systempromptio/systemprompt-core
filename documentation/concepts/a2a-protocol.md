@@ -76,7 +76,7 @@ Because agent work is long-running, progress is delivered incrementally over SSE
 
 The streaming channel is best-effort on its final hop. Cross-replica fan-out is durable — events are appended to a Postgres outbox and announced via `NOTIFY`, and peer replicas re-inject them locally — but delivery to a connected client uses a bounded per-connection channel with no per-connection replay. A slow or briefly disconnected client can miss events; the canonical state is re-fetchable through the resource endpoints. SSE alone is therefore not an at-least-once channel. Design clients to reconcile against the task/context resources rather than assuming every event arrives.
 
-The A2A agent server, unlike the main API server, wires graceful shutdown, so an agent process drains in-flight streaming work on stop.
+The A2A agent server and main API handle graceful shutdown. Clients must reconnect and reconcile task state when a stream is interrupted during a deployment.
 
 ## Agent cards and discovery
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Fixed
+
+- Replies go out on a guarded client. `serviceUrl` is read from the inbound activity payload, so it is chosen by the sender; the guarded resolver refuses a hostname that resolves into a blocked range, which the parse-time `validate_outbound_url` check cannot see. `TeamsError::ClientUnavailable` reports a guarded client that could not be built. Token acquisition stays on the injected client, because its URL is operator-configured and never caller-supplied.
+
 ## [0.48.0] - 2026-09-08
 
 ### Added

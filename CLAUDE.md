@@ -11,7 +11,7 @@ entry (api, cli) → app (runtime, scheduler, generator) → domain → infra �
 ```
 
 - **shared** — models, traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider
-- **infra** — database (SQLx), events, security (JWT/authz), config, logging, loader, cloud
+- **infra** — database (SQLx), events, security (JWT/authz), config, logging, loader, cloud, storage
 - **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams, evaluation. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
 - **app** — runtime (`AppContext`), scheduler, generator
 - **entry** — api (HTTP server), cli
@@ -93,7 +93,7 @@ No new folders or process docs enter git without explicit user approval. Before 
 
 **MANDATORY**: the marketplace skill `rust-coding-standards` is canonical; `internal/guides/rust.md` and this file mirror it — when they diverge, the skill wins.
 
-- **Inline `//` comments**: banned for WHAT-comments. Permitted only for a non-obvious *why* (hidden constraint, invariant, bug-workaround), and rarely — the default is no comment.
+- **Inline `//` comments**: banned for WHAT-comments. Use `// Why:` only for an externally imposed protocol, vendor, platform or toolchain constraint that code cannot express. Preserve required `// SAFETY:` and `// JSON:` annotations. The default is no inline comment; follow AGENTS.md.
 - **`///` rustdoc**: uniform across all production crates incl. `entry/*`. `//!` blocks on `lib.rs` and significant `pub mod` files; per-item `///` only on **pub traits, top-level types, and `mod` declarations** (and only for non-obvious value) — banned on fns, methods, consts, fields, variants, and macros (gate: `scripts/lint-inline-comments.sh`). `///` is banned inside `crates/tests/**`.
 - **Typed identifiers**: no raw String IDs in struct fields or service args — use `systemprompt_identifiers` wrappers. Construct via `Id::new(s)` / `Id::try_new(s)?` / `Id::generate()`; never `.into()` or `::from()` at call sites (convention, reviewer-enforced).
 - **Repository pattern**: services never run SQL directly; all queries via compile-time macros (`sqlx::query!` family). Runtime `sqlx::query(_)` only in `infra/database/src/admin/**`, `infra/database/src/services/postgres/{introspection,query_executor,transaction,ext,mod}.rs`, and `entry/cli/src/commands/admin/setup/**` (bootstrap DDL).
@@ -103,7 +103,7 @@ No new folders or process docs enter git without explicit user approval. Before 
 - **Logging**: `tracing` with structured fields. `println!`/`eprintln!`/`dbg!` banned in libraries (carve-outs: CLI display sinks in `infra/logging/services/cli/**`, `infra/database/src/services/display.rs`, `cargo:` build-script directives).
 - **No domain→domain deps**: cross-domain capability flows through shared-layer traits (`DynAiProvider`, `ToolProvider`, `SessionUsageCounters`, provider-contracts) or infra, wired at app/entry composition roots. Enforced by `just lint-layers`; its allowlist is empty by design.
 - **No legacy code**: no shims, dual paths, or `Option<T>` migration stubs — land the new form and delete the old in the same PR.
-- **One compiled shape**: no `test*` Cargo features, `test_api` modules, `unreachable_pub` suppressions, or env-driven test redirects in production crates. Tests reach honest `pub` items; collaborators are injected through constructors or config; test conveniences live in `crates/tests/`. Gate: `just lint-test-seams`.
+- **One compiled shape**: no `test*` Cargo features, `test_api` modules, `unreachable_pub` suppressions, or env-driven test redirects in production crates. Tests reach public items; collaborators are injected through constructors or config; test conveniences live in `crates/tests/`. Gate: `just lint-test-seams`.
 - **Naming**: `*Service` default, `*Handler` for HTTP/RPC handlers, `*Orchestrator` for cross-domain workflows. Avoid `*Manager`.
 - **Schema DDL & migrations**: DDL in `{crate}/schema/*.sql` embedded via `include_str!()` in `extension.rs`; migrations in `{crate}/schema/migrations/NNN_<name>.sql`, discovered by `build.rs` (`systemprompt_extension::build::emit_migrations()`) and returned via `extension_migrations!()`. Never inline SQL constants or hand-written migration lists. Gate: `just lint-extensions`.
 

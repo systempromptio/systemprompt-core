@@ -79,6 +79,7 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
             geoip_database: None,
         },
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("paths");
 
@@ -115,6 +116,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
             geoip_database: None,
         },
         systemprompt_models::PathResolution::Canonicalize,
+        None,
     )
     .expect("paths");
     fs::create_dir_all(paths.web().dist()).unwrap();

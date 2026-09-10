@@ -15,6 +15,7 @@ systemprompt-scheduler = { workspace = true }
 systemprompt-runtime = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-evaluation = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
@@ -30,5 +31,6 @@ sqlx = { workspace = true }
 
 [dev-dependencies]
 systemprompt-ai = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }

@@ -34,7 +34,15 @@ jobs:
       - uses: actions/checkout@v4
       # keyring → dbus-secret-service → libdbus-sys builds from pkg-config;
       # ubuntu-latest no longer ships libdbus-1-dev.
-      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
       - run: rustup show
       # Scope the gate to the bridge package: `--all` formats/lints the whole
       # enclosing workspace, so unrelated crates (committed by other work, and
@@ -68,7 +76,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install libdbus (linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: |
+          # A mirror hiccup is infrastructure, not a code failure; three
+          # bounded attempts, then the step still fails.
+          n=0
+          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
       - run: rustup show
       - run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
@@ -171,8 +187,8 @@ jobs:
           BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
         run: |
           if [ -z "$BUCKET_TOKEN" ]; then
-            echo "::warning::SCOOP_BUCKET_TOKEN not set — skipping Scoop bump"
-            exit 0
+            echo "::error::SCOOP_BUCKET_TOKEN not set — the Scoop bucket cannot be bumped"
+            exit 1
           fi
           tag="${{ steps.tag.outputs.tag }}"
           version="${{ steps.tag.outputs.version }}"
@@ -196,3 +212,18 @@ jobs:
           git config user.email "bot@systemprompt.io"
           git add bucket/bridge.json
           git diff --cached --quiet || { git commit -m "bridge: update to ${version}"; git push; }
+
+      # The published manifest is read back through the contents API rather than
+      # raw.githubusercontent, which serves a cached blob for minutes after a
+      # push and would confirm the bump that did not happen.
+      - name: Verify published manifest
+        env:
+          GH_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          version="${{ steps.tag.outputs.version }}"
+          published=$(gh api repos/systempromptio/scoop-bucket/contents/bucket/bridge.json --jq .content | base64 -d | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+          if [ "$published" != "$version" ]; then
+            echo "::error::Scoop bucket publishes $published, expected $version"
+            exit 1
+          fi
+          echo "Scoop bucket publishes $published"

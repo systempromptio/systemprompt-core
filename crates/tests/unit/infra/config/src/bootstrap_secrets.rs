@@ -10,15 +10,15 @@ fn init_profile(fx: &fixture::Fixture) {
     ProfileBootstrap::init_from_path(&fx.profile_path).unwrap();
 }
 
-#[test]
-fn init_loads_secrets_from_file_with_seed() {
+#[tokio::test]
+async fn init_loads_secrets_from_file_with_seed() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     init_profile(&fx);
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
     assert_eq!(secrets.database_url, fixture::DB_URL);
@@ -35,21 +35,21 @@ fn init_loads_secrets_from_file_with_seed() {
     assert!(SecretsBootstrap::is_initialized());
 }
 
-#[test]
-fn init_errors_before_profile_bootstrap() {
-    let err = SecretsBootstrap::init().unwrap_err();
+#[tokio::test]
+async fn init_errors_before_profile_bootstrap() {
+    let err = SecretsBootstrap::init().await.unwrap_err();
     assert!(matches!(
         err,
         ConfigError::Secrets(SecretsBootstrapError::ProfileNotInitialized)
     ));
 }
 
-#[test]
-fn init_errors_when_profile_has_no_secrets_section() {
+#[tokio::test]
+async fn init_errors_when_profile_has_no_secrets_section() {
     let fx = fixture::write_tree("", None);
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -57,12 +57,12 @@ fn init_errors_when_profile_has_no_secrets_section() {
     ));
 }
 
-#[test]
-fn init_errors_when_secrets_file_missing_strict() {
+#[tokio::test]
+async fn init_errors_when_secrets_file_missing_strict() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, None);
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::FileNotFound { path }) => {
@@ -72,13 +72,13 @@ fn init_errors_when_secrets_file_missing_strict() {
     }
 }
 
-#[test]
-fn init_errors_when_secrets_file_missing_warn_mode() {
+#[tokio::test]
+async fn init_errors_when_secrets_file_missing_warn_mode() {
     let section = "secrets:\n  secrets_path: secrets.json\n  source: file\n  validation: warn\n";
     let fx = fixture::write_tree(section, None);
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -86,13 +86,13 @@ fn init_errors_when_secrets_file_missing_warn_mode() {
     ));
 }
 
-#[test]
-fn init_errors_when_secrets_file_missing_skip_mode() {
+#[tokio::test]
+async fn init_errors_when_secrets_file_missing_skip_mode() {
     let section = "secrets:\n  secrets_path: secrets.json\n  source: file\n  validation: skip\n";
     let fx = fixture::write_tree(section, None);
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -100,12 +100,12 @@ fn init_errors_when_secrets_file_missing_skip_mode() {
     ));
 }
 
-#[test]
-fn init_errors_on_invalid_secrets_json() {
+#[tokio::test]
+async fn init_errors_on_invalid_secrets_json() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some("not json"));
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile { message }) => {
@@ -118,8 +118,8 @@ fn init_errors_on_invalid_secrets_json() {
     }
 }
 
-#[test]
-fn init_errors_on_short_pepper() {
+#[tokio::test]
+async fn init_errors_on_short_pepper() {
     let body = format!(
         "{{\"oauth_at_rest_pepper\": \"short\", \"database_url\": \"{}\"}}",
         fixture::DB_URL
@@ -127,7 +127,7 @@ fn init_errors_on_short_pepper() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile { message }) => {
@@ -137,15 +137,15 @@ fn init_errors_on_short_pepper() {
     }
 }
 
-#[test]
-fn init_errors_on_invalid_manifest_seed() {
+#[tokio::test]
+async fn init_errors_on_invalid_manifest_seed() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some("not-base64!!!"))),
     );
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
         ConfigError::Secrets(SecretsBootstrapError::ManifestSeedInvalid { message }) => {
@@ -155,12 +155,12 @@ fn init_errors_on_invalid_manifest_seed() {
     }
 }
 
-#[test]
-fn init_errors_when_seed_missing() {
+#[tokio::test]
+async fn init_errors_when_seed_missing() {
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&fixture::secrets_json(None)));
     init_profile(&fx);
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
 
     assert!(matches!(
         err,
@@ -174,8 +174,8 @@ fn init_errors_when_seed_missing() {
     );
 }
 
-#[test]
-fn init_errors_when_signing_key_pem_missing_on_deployment_host() {
+#[tokio::test]
+async fn init_errors_when_signing_key_pem_missing_on_deployment_host() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
@@ -184,7 +184,7 @@ fn init_errors_when_signing_key_pem_missing_on_deployment_host() {
     fixture::set_env("SYSTEMPROMPT_DEPLOYMENT_HOST", "node-a");
     fixture::remove_env("OAUTH_AT_REST_PEPPER");
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
     fixture::remove_env("SYSTEMPROMPT_DEPLOYMENT_HOST");
 
     assert!(matches!(
@@ -193,21 +193,21 @@ fn init_errors_when_signing_key_pem_missing_on_deployment_host() {
     ));
 }
 
-#[test]
-fn init_accepts_missing_signing_key_pem_on_local_profile() {
+#[tokio::test]
+async fn init_accepts_missing_signing_key_pem_on_local_profile() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     init_profile(&fx);
 
-    let secrets = SecretsBootstrap::init().unwrap();
+    let secrets = SecretsBootstrap::init().await.unwrap();
 
     assert!(secrets.signing_key_pem.is_none());
 }
 
-#[test]
-fn accessors_error_before_init() {
+#[tokio::test]
+async fn accessors_error_before_init() {
     assert!(matches!(
         SecretsBootstrap::get().unwrap_err(),
         SecretsBootstrapError::NotInitialized
@@ -219,19 +219,19 @@ fn accessors_error_before_init() {
     assert!(!SecretsBootstrap::is_initialized());
 }
 
-#[test]
-fn try_init_is_idempotent() {
+#[tokio::test]
+async fn try_init_is_idempotent() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     init_profile(&fx);
 
-    let first = SecretsBootstrap::try_init().unwrap();
-    let second = SecretsBootstrap::try_init().unwrap();
+    let first = SecretsBootstrap::try_init().await.unwrap();
+    let second = SecretsBootstrap::try_init().await.unwrap();
     assert!(std::ptr::eq(first, second));
 
-    let err = SecretsBootstrap::init().unwrap_err();
+    let err = SecretsBootstrap::init().await.unwrap_err();
     assert!(matches!(
         err,
         ConfigError::Secrets(SecretsBootstrapError::AlreadyInitialized)
@@ -239,8 +239,8 @@ fn try_init_is_idempotent() {
     assert!(std::ptr::eq(SecretsBootstrap::require().unwrap(), first));
 }
 
-#[test]
-fn signing_key_pem_round_trips_and_rejects_bad_encodings() {
+#[tokio::test]
+async fn signing_key_pem_round_trips_and_rejects_bad_encodings() {
     let pem = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n";
     let encoded = base64::engine::general_purpose::STANDARD.encode(pem);
     let body = format!(
@@ -252,7 +252,7 @@ fn signing_key_pem_round_trips_and_rejects_bad_encodings() {
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     init_profile(&fx);
-    SecretsBootstrap::init().unwrap();
+    SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(
         SecretsBootstrap::signing_key_pem().unwrap().as_deref(),
@@ -260,8 +260,8 @@ fn signing_key_pem_round_trips_and_rejects_bad_encodings() {
     );
 }
 
-#[test]
-fn signing_key_pem_invalid_base64_errors() {
+#[tokio::test]
+async fn signing_key_pem_invalid_base64_errors() {
     let body = format!(
         "{{\"oauth_at_rest_pepper\": \"{}\", \"database_url\": \"{}\", \
          \"manifest_signing_secret_seed\": \"{}\", \"signing_key_pem\": \"%%%not-b64\"}}",
@@ -271,7 +271,7 @@ fn signing_key_pem_invalid_base64_errors() {
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     init_profile(&fx);
-    SecretsBootstrap::init().unwrap();
+    SecretsBootstrap::init().await.unwrap();
 
     let err = SecretsBootstrap::signing_key_pem().unwrap_err();
     assert!(matches!(
@@ -280,8 +280,8 @@ fn signing_key_pem_invalid_base64_errors() {
     ));
 }
 
-#[test]
-fn signing_key_pem_invalid_utf8_errors() {
+#[tokio::test]
+async fn signing_key_pem_invalid_utf8_errors() {
     let encoded = base64::engine::general_purpose::STANDARD.encode([0xff, 0xfe, 0x00, 0x9f]);
     let body = format!(
         "{{\"oauth_at_rest_pepper\": \"{}\", \"database_url\": \"{}\", \
@@ -292,7 +292,7 @@ fn signing_key_pem_invalid_utf8_errors() {
     );
     let fx = fixture::write_tree(fixture::FILE_SECRETS, Some(&body));
     init_profile(&fx);
-    SecretsBootstrap::init().unwrap();
+    SecretsBootstrap::init().await.unwrap();
 
     let err = SecretsBootstrap::signing_key_pem().unwrap_err();
     match err {
@@ -303,14 +303,14 @@ fn signing_key_pem_invalid_utf8_errors() {
     }
 }
 
-#[test]
-fn signing_key_pem_absent_returns_none() {
+#[tokio::test]
+async fn signing_key_pem_absent_returns_none() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     init_profile(&fx);
-    SecretsBootstrap::init().unwrap();
+    SecretsBootstrap::init().await.unwrap();
 
     assert_eq!(SecretsBootstrap::signing_key_pem().unwrap(), None);
 }
@@ -320,14 +320,14 @@ fn signing_key_pem_absent_returns_none() {
 // a constant non-zero seed passes it, and would look like success to an
 // operator replacing a key they believe is compromised — while leaving every
 // manifest signed by the same key as before.
-#[test]
-fn rotating_twice_yields_a_different_seed_each_time() {
+#[tokio::test]
+async fn rotating_twice_yields_a_different_seed_each_time() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     init_profile(&fx);
-    SecretsBootstrap::init().unwrap();
+    SecretsBootstrap::init().await.unwrap();
 
     let first = SecretsBootstrap::rotate_manifest_signing_seed().unwrap();
     let second = SecretsBootstrap::rotate_manifest_signing_seed().unwrap();
@@ -346,14 +346,14 @@ fn rotating_twice_yields_a_different_seed_each_time() {
     );
 }
 
-#[test]
-fn rotate_manifest_signing_seed_persists_new_seed() {
+#[tokio::test]
+async fn rotate_manifest_signing_seed_persists_new_seed() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     init_profile(&fx);
-    SecretsBootstrap::init().unwrap();
+    SecretsBootstrap::init().await.unwrap();
 
     let rotated = SecretsBootstrap::rotate_manifest_signing_seed().unwrap();
 

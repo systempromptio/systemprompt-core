@@ -8,6 +8,7 @@
 
 mod network;
 mod security;
+mod services;
 
 use super::{Profile, ProfileError, ProfileResult};
 
@@ -27,6 +28,8 @@ impl Profile {
         self.validate_governance(&mut errors, is_cloud);
         self.validate_storage(&mut errors);
         self.validate_external_url_is_reachable(&mut errors, is_cloud);
+        self.validate_services_sources(&mut errors, is_cloud);
+        self.validate_secrets(&mut errors);
 
         if errors.is_empty() {
             Ok(())

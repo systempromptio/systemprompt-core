@@ -24,6 +24,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_runtime::ShutdownRequest;
 use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 use tokio::task::JoinHandle;
 use tower::ServiceExt;
@@ -50,7 +51,11 @@ impl EarlyServer {
     }
 }
 
-pub async fn bind_and_serve(addr: &str, events: Option<StartupEventSender>) -> Result<EarlyServer> {
+pub async fn bind_and_serve(
+    addr: &str,
+    events: Option<StartupEventSender>,
+    shutdown: ShutdownRequest,
+) -> Result<EarlyServer> {
     if let Some(ref tx) = events
         && tx
             .unbounded_send(StartupEvent::ServerBinding {
@@ -82,7 +87,7 @@ pub async fn bind_and_serve(addr: &str, events: Option<StartupEventSender>) -> R
             listener,
             outer.into_make_service_with_connect_info::<SocketAddr>(),
         )
-        .with_graceful_shutdown(super::shutdown::shutdown_signal())
+        .with_graceful_shutdown(super::shutdown::shutdown_signal(shutdown))
         .await
         .map_err(Into::into)
     });

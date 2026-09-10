@@ -1,11 +1,4 @@
-//! The process composition root: one tokio runtime and the proxy handle, built
-//! once and injected everywhere below.
-//!
-//! Every module under this one used to reach the same state through a
-//! process-global: `proxy::handle()`, `proxy::block_on`, `resolved_port()`. A
-//! global can hold one value per process, which is why one test crate existed
-//! per proxy start outcome. The context is one value per *context*; a test
-//! builds as many as it needs.
+//! Process composition root for the Tokio runtime and injected bridge services.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

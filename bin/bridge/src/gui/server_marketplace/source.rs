@@ -2,7 +2,7 @@
 //!
 //! White-label crates register a [`MarketplaceSource`] via
 //! [`register_marketplace_source!`](crate::register_marketplace_source) to
-//! inject branded items into any of the six marketplace categories, without
+//! inject branded items into any of the seven marketplace categories, without
 //! editing core's built-in scanners. Sources are consulted during
 //! [`super::build_listing`]. A source carries a `priority` (default 0):
 //! higher-priority source items are merged first, and each category is deduped
@@ -26,6 +26,7 @@ pub enum MarketplaceCategory {
     Mcp,
     Agents,
     Artifacts,
+    Rules,
 }
 
 #[derive(Debug)]

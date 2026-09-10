@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Fixed
+
+- The MCP HTTP transport and the external bearer-accessor call run on guarded outbound clients, so an external server address that resolves into a blocked range is refused when the socket is opened. `McpTransportError::ClientUnavailable` reports a client that could not be built; the transport previously fell back to `reqwest::Client::default()`, which carried no guard and no configured timeouts.
+
 ## [0.49.0] - 2026-09-09
 
 ### Added
@@ -29,7 +35,7 @@
 
 ### Fixed
 
-- Artifacts render dense enough to read in a chat column. A blank line became a full-height `<p>&nbsp;</p>` while `.text-content` also carried `white-space: pre-wrap`, so one blank line in the source cost roughly two on screen; separation now comes from `p + p`, which is one gap however many were typed. `format_prose` renders the three markdown constructs tools actually emit — `**bold**`, `` `code` `` and `- ` bullets — instead of showing them to a reader verbatim, and the result table no longer lets one long cell set the width of every column.
+- Artifact prose rendering supports bold, inline code and bullet lists with paragraph-based spacing. Result-table cells wrap without forcing all columns to the width of the longest value.
 
 ## [0.44.0] - 2026-09-02
 
@@ -141,7 +147,7 @@
 
 - **Breaking:** `McpToolExecutor::execute` and `McpResponseBuilder::new` take a `&ClientProfile` describing the negotiated client. Migrate by building one inside `call_tool` with `client_profile_from_peer(&context)`, or from persisted `initialize` params with `client_profile_from_stored`.
 - **Breaking:** tool results are shaped per client. The embedded `ui://` resource and `io.systemprompt/ui-resource-uri` are sent only to hosts that negotiated the `io.modelcontextprotocol/ui` extension; `structuredContent` only to clients on protocol `2025-06-18` or later; any other client — including one whose `initialize` declaration is unknown — receives text content only, with the artifact body folded into the text block.
-- **Breaking:** `McpResponseBuilder::new` takes a `ToolIdentity` naming the server and the tool instead of a bare tool name. Migrate by passing `ToolIdentity::new(server_name, tool_name)`. The executor previously passed the tool name where the artifact path expected the server, so `ui://` resource URIs were minted as `ui://<tool-name>/…` and every widget resolution failed; migration `002_artifact_server_name_repair` rewrites the affected `mcp_artifacts.server_name` rows from the execution record.
+- **Breaking:** `McpResponseBuilder::new` accepts `ToolIdentity::new(server_name, tool_name)`. Migration `002_artifact_server_name_repair` updates stored artifact server names from execution records.
 - **Breaking:** `structuredContent` and the advertised `outputSchema` carry the tool's typed output directly instead of the `ToolResponse` envelope, and execution provenance (including `artifact_id` and `mcp_execution_id`) moves to `_meta["io.systemprompt/execution"]`. Bare snake_case `_meta` keys are gone — MCP reserves unprefixed `_meta` keys. Migrate consumers by reading the payload from `structuredContent` and identifiers from the meta key.
 
 ### Added
@@ -191,7 +197,7 @@
 
 ### Breaking
 
-- **Breaking:** the dashboard and chart renderers consume the typed artifact models via the same typed-payload path as card/message/media. The dashboard renderer previously parsed a loose dialect (`type`, top-level `id`/`width`, flat `metrics`/`items` arrays) that no producer emitted — the typed models serialize `section_type`, `section_id`, `layout`, and nested `data` structs, so every typed dashboard rendered with empty section bodies. The loose dialect is deleted; a section whose `data` does not match its declared `section_type` is a render error rather than an empty body.
+- **Breaking:** dashboard and chart renderers consume typed artifact models with `section_type`, `section_id`, `layout` and nested `data`. Mismatched section data is a render error. The transformer does not emit chart/dashboard `rendering_hints`.
 - **Breaking:** charts are inline SVG rendered by the new `chart_svg` module rather than Chart.js. Neither renderer loads a script from `cdn.jsdelivr.net` any more, so both emit a plain strict CSP in place of one exempting that host, and `assets/js/chart.js` is deleted. A rendered artifact now draws identically with no network. Anything asserting on the old `<canvas>`, on `window.CHART_CONFIG`, or on the CDN in a CSP header needs updating.
 
 ### Added
@@ -329,7 +335,7 @@
 
 - `mcp::Deployment.endpoint` is now `Option<String>`. For `internal` servers it must be a relative path (e.g. `/api/v1/mcp/<name>/mcp`) or omitted; absolute URLs are rejected at config-load time. The gateway derives the public URL from `server.api_external_url + endpoint`. `external` MCP servers continue to accept absolute upstream URLs.
 - `Deployment.mcp_servers` and related catalog lists adopt `PluginComponentRef { source, include, exclude }` for uniformity with the rest of the services config; flat-list YAML is rejected.
-- `port_probe::is_port_in_use` is now bound by a 1 s connect timeout; previously a stuck SYN could hang the bootstrap probe indefinitely.
+- `port_probe::is_port_in_use` is now bound by a 1 s connect timeout.
 - `BridgeHookError::HookTokenRejected { status, body }` is now a typed variant on the bridge hook path, replacing the prior stringly-typed wrapping; lets the API gateway surface the upstream rejection body to clients.
 
 ## [0.12.0] - 2026-05-27

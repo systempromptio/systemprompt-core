@@ -32,6 +32,7 @@ pub mod cloud_container {
     pub const APP_ROOT: &str = "/app";
     pub const BIN: &str = "/app/bin";
     pub const SERVICES: &str = "/app/services";
+    pub const SERVICES_CACHE: &str = "/app/services-cache";
     pub const LOGS: &str = "/app/logs";
     pub const STORAGE: &str = "/app/storage";
     pub const WEB: &str = "/app/web";

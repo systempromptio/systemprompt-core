@@ -54,8 +54,9 @@ pub(super) fn load_geoip_database(
 #[cfg(not(feature = "geolocation"))]
 #[expect(
     clippy::missing_const_for_fn,
-    reason = "mirrors the geolocation loader signature; const would propagate a \
-              feature-forked constness to callers"
+    clippy::unnecessary_wraps,
+    reason = "mirrors the geolocation loader signature; const or an unwrapped \
+              return would propagate a feature-forked shape to callers"
 )]
 pub(super) fn load_geoip_database(
     _config: &Config,

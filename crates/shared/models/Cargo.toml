@@ -44,6 +44,10 @@ http = { workspace = true }
 # URL parsing for outbound-endpoint (SSRF) validation
 url = { workspace = true }
 
+# Guarded outbound HTTP client: connect-time SSRF enforcement (see `net::client`)
+reqwest = { workspace = true }
+tokio = { workspace = true }
+
 # Typed CIDR ranges for trusted_proxies (parse-on-deserialize, fail-closed)
 ipnet = { workspace = true }
 
@@ -58,7 +62,10 @@ schemars = { workspace = true }
 # Regex
 regex = { workspace = true }
 
-# Crypto (manifest signing seed: random generation + base64 persistence)
+# Crypto (services-bundle content hashing + ed25519 public-key validation)
+sha2 = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
 
 # Async streaming
 futures = { workspace = true }

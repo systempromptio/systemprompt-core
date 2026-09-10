@@ -138,7 +138,7 @@ pub fn is_known(id: &str) -> bool {
 fn load_or_mint() -> std::io::Result<String> {
     let path = install_id_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    match fs::read(&path) {
+    match crate::fsutil::read_private(&path) {
         Ok(bytes) => {
             let s = String::from_utf8(bytes)
                 .map_err(std::io::Error::other)?
@@ -155,6 +155,10 @@ fn load_or_mint() -> std::io::Result<String> {
             }
         },
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => mint(&path),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            crate::proxy::secret::replace_unreadable(&path, &e)?;
+            mint(&path)
+        },
         Err(e) => Err(e),
     }
 }

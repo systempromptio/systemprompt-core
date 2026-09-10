@@ -18,11 +18,13 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 
 [dev-dependencies]
+chrono = { workspace = true }
 async-trait = { workspace = true }
 inventory = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sqlx = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }

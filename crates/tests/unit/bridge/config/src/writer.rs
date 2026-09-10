@@ -17,7 +17,7 @@ fn setting_pinned_pubkey_keeps_sections_that_follow_sync() {
         "gateway_url = \"https://gateway.example.com\"\n\n\
          [sync]\npinned_pubkey = \"old\"\n\n\
          [claude]\nauth_scheme = \"bearer\"\nmodels = [\"claude-opus-4\"]\n\n\
-         [update]\nautomatic = true\n",
+         [session]\nenabled = true\n",
     );
 
     write::edit_file(&path, |doc| {
@@ -34,10 +34,10 @@ fn setting_pinned_pubkey_keeps_sections_that_follow_sync() {
     );
     assert!(after.contains("auth_scheme = \"bearer\""), "{after}");
     assert!(
-        after.contains("[update]"),
-        "update section dropped: {after}"
+        after.contains("[session]"),
+        "session section dropped: {after}"
     );
-    assert!(after.contains("automatic = true"), "{after}");
+    assert!(after.contains("enabled = true"), "{after}");
 }
 
 #[test]
@@ -48,11 +48,11 @@ fn editing_preserves_comments_and_unknown_keys() {
         "# operator note: do not remove\n\
          gateway_url = \"https://gateway.example.com\"\n\
          a_key_this_build_does_not_know = 7\n\n\
-         [update]\n# keep updates manual on this fleet\nautomatic = false\n",
+         [session]\n# keep sessions off on this fleet\nenabled = false\n",
     );
 
     write::edit_file(&path, |doc| {
-        write::set(doc, &["update", "automatic"], true)?;
+        write::set(doc, &["session", "enabled"], true)?;
         Ok(())
     })
     .expect("write toggle");
@@ -60,14 +60,14 @@ fn editing_preserves_comments_and_unknown_keys() {
     let after = fs::read_to_string(&path).expect("read back");
     assert!(after.contains("# operator note: do not remove"), "{after}");
     assert!(
-        after.contains("# keep updates manual on this fleet"),
+        after.contains("# keep sessions off on this fleet"),
         "{after}"
     );
     assert!(
         after.contains("a_key_this_build_does_not_know = 7"),
         "{after}"
     );
-    assert!(after.contains("automatic = true"), "{after}");
+    assert!(after.contains("enabled = true"), "{after}");
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn editing_a_malformed_file_reports_rather_than_overwriting() {
     let path = write_file(&dir, body);
 
     let err = write::edit_file(&path, |doc| {
-        write::set(doc, &["update", "automatic"], true)?;
+        write::set(doc, &["session", "enabled"], true)?;
         Ok(())
     })
     .expect_err("malformed config must not be silently rewritten");

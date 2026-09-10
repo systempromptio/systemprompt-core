@@ -1,19 +1,3 @@
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
-  <img src="https://systemprompt.io/files/images/logo.svg" alt="systemprompt.io" width="180">
-</picture>
-
-### Production infrastructure for AI agents
-
-[**Website**](https://systemprompt.io) · [**Documentation**](https://systemprompt.io/documentation/) · [**Guides**](https://systemprompt.io/guides) · [**Core**](https://github.com/systempromptio/systemprompt-core) · [**Template**](https://github.com/systempromptio/systemprompt-template) · [**Discord**](https://discord.gg/wkAbSuPWpr)
-
-</div>
-
----
-
 # Agent Schema
 
 PostgreSQL schema for the `systemprompt-agent` crate. The tables persist A2A (agent-to-agent) protocol state: contexts, tasks, messages, artifacts, execution steps, and push-notification configuration. Each table lives in its own `.sql` file and is embedded at compile time via `include_str!` in `extension.rs`; versioned migrations live under `schema/migrations/` and are discovered by `build.rs`.
@@ -80,11 +64,3 @@ The crate's `build.rs` calls `systemprompt_extension::build::emit_migrations()`,
 - [PostgreSQL JSON functions](https://www.postgresql.org/docs/current/functions-json.html)
 
 ---
-
-<div align="center">
-
-**[systemprompt.io](https://systemprompt.io)** · **[Documentation](https://systemprompt.io/documentation/)** · **[Guides](https://systemprompt.io/guides)** · **[Live Demo](https://systemprompt.io/features/demo)** · **[Template](https://github.com/systempromptio/systemprompt-template)** · **[Discord](https://discord.gg/wkAbSuPWpr)**
-
-<sub>Agent schema reference · Own how your organization uses AI.</sub>
-
-</div>

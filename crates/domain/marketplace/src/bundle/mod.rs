@@ -3,10 +3,10 @@
 //! [`build_plugin_bundle`] turns a [`PluginConfig`] spec plus the instance's
 //! already-resolved catalogue ([`BundleContent`]) into the canonical
 //! installable bundle: a `.claude-plugin/plugin.json` manifest rooted over
-//! `skills/<n>/SKILL.md`, `agents/<n>.md`,
+//! `skills/<n>/SKILL.md`, `rules/<n>.md`, `agents/<n>.md`,
 //! `artifacts/{manifest.json,<id>.html,<id>.json}`, `.mcp.json`,
-//! and plugin-local scripts. It is the single owner of the bundle contract —
-//! the gateway serve
+//! `rules/<id>.md`, and plugin-local scripts. It is the single owner of the
+//! bundle contract — the gateway serve
 //! path (manifest hashes *and* byte streaming), the CLI generator, and the
 //! marketplace export all consume it rather than re-implementing the layout.
 //!
@@ -32,7 +32,7 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, ManagedMcpServer, SkillEntry,
+    AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
 use systemprompt_models::bridge::plugin_bundle::{
     ManifestAuthor, PLUGIN_MANIFEST_RELPATH, PluginManifest, bundle_has_manifest,
@@ -44,9 +44,11 @@ use crate::error::MarketplaceError;
 mod agents;
 mod artifacts;
 mod mcp;
+mod rules;
 mod skills;
 
 pub(crate) use agents::resolve_agents;
+pub(crate) use rules::resolve_rule_ids;
 pub(crate) use skills::resolve_skill_ids;
 
 #[derive(Debug, Clone)]
@@ -60,6 +62,7 @@ pub type PluginBundle = BTreeMap<String, BundleFile>;
 #[derive(Debug)]
 pub struct BundleContent<'a> {
     pub skills: &'a [SkillEntry],
+    pub rules: &'a [RuleEntry],
     pub agents: &'a [AgentEntry],
     pub mcp_servers: &'a [ManagedMcpServer],
     pub disabled_mcp_servers: &'a BTreeSet<String>,
@@ -77,8 +80,10 @@ pub fn build_plugin_bundle(
 
     let agent_ids = resolve_agents(config, content.agents);
     skills::append_skill_files(config, content, &agent_ids, &mut bundle);
+    rules::append_rule_files(config, content, &mut bundle);
     agents::append_agent_files(content.agents, &agent_ids, &mut bundle);
     artifacts::append_artifact_files(config, content, &mut bundle);
+    rules::append_rule_files(config, content, &mut bundle);
     mcp::append_mcp_file(
         config,
         content.mcp_servers,
@@ -120,6 +125,7 @@ fn build_manifest(config: &PluginConfig, version: &str) -> PluginManifest {
         hooks: Some(HOOKS_RELPATH.to_owned()),
         keywords: config.keywords.clone(),
         installation_preference: None,
+        ..PluginManifest::default()
     }
 }
 

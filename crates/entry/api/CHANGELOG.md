@@ -1,19 +1,46 @@
 # Changelog
 
+## [0.50.0] - 2026-09-10
+
+### Breaking
+
+- **Breaking:** `quota::precheck_and_reserve` takes a trailing `QuotaFaultMode`, and `PolicyResolver::resolve` takes one and returns `Result<GatewayPolicySpec, PolicyUnavailable>`. Migrate by passing `config.quota_fault_mode` and handling the error.
+- **Breaking:** `quota::post_update_tokens` returns `AccountingOutcome` instead of `()`. Migrate by passing the result to `record_accounting_outcome`.
+
+### Added
+
+- `GET /api/v1/admin/services/status` reports the active services root, its provenance and the failure text behind any fallback, plus each source's digest, version, content hash and fetch time.
+- `POST /api/v1/admin/services/refresh` re-runs the boot-time resolution and reports whether the composition changed. The running process keeps its old root either way; `?restart=true` asks the supervisor to bring it back on the new composition, and only when something changed. A single-flight lock refuses a concurrent refresh with a conflict rather than queueing it behind a multi-megabyte download.
+- `GatewayAudit::mark_upstream_start` and `mark_upstream_end` bracket the provider call, and the terminal `ai_requests` row carries the result as `upstream_latency_ms`. The completion log line adds `gateway_overhead_ms`. The bracket closes when the adapter returns for a buffered outcome and when the tapped stream terminates for a streamed one, and never reopens.
+- The `sync` file routes and the `rules` marketplace component: `rules` joins the allowed service directories served by `/sync/files` and the archive, and `/bridge/manifest` carries the manifest's `rules` entries.
+
+### Changed
+
+- The sync archive route packs through the loader's bundle packer and shares `FileEntry` with the bundle manifest instead of declaring its own copy of the type.
+- A quota window the gateway cannot evaluate — the subject attribute provider errored, answered with no value, or is not registered — is logged with the subject and window, and under `gateway.quota_fault_mode: closed` denies the request instead of being skipped.
+- A failed gateway policy read is logged with `quota_fault_mode`; under `closed` the request is denied rather than served under a permissive policy. The permissive fallback drops safety scanning as well as quota windows, so `open` deployments serve those requests unscanned.
+- A failed post-response quota accounting write is reported through `AccountingOutcome`; under `closed` the request is additionally recorded as failed, since the response has already been served and cannot be denied.
+
+### Fixed
+
+- `QuotaWindow.max_input_tokens` and `max_output_tokens` are enforced in the gateway pre-check alongside `max_requests` and `max_cost_microdollars`. They were accumulated into the bucket but never compared, so a configured token ceiling had no effect.
+- Slack replies and Slack profile reads use a guarded outbound client. A reply targets the caller-supplied `response_url`, so it needs the connect-time SSRF guard rather than the plain client the operator-configured endpoints use; the reply is abandoned with an error log when no guarded client can be built.
+- Gateway image fetching relies on the guarded client's resolver instead of resolving the hostname itself, so every redirect hop is checked as well as the first connection.
+
 ## [0.49.0] - 2026-09-09
 
 ### Breaking
 
 - **Breaking:** Gateway authentication takes an injected execution-capability repository and exposes an execution principal variant.
-
 - **Breaking:** `gateway::pricing::resolve` returns `Result<ModelPricing, MissingPricing>`. Migrate by handling missing prices explicitly.
 
 ### Added
 
+- The bridge release feed caches its GitHub resolution per platform for five minutes behind one shared HTTP client, and serves the last resolved release when GitHub fails. A fleet checking for updates on a timer used to cost two GitHub calls per bridge per check, and an upstream blip was a 502 for every bridge at once.
+- `/bridge/manifest` carries the instance's `bridge_policy.auto_update`.
 - Authenticated evaluation workers can retrieve frozen assignments and submit ordered execution events through `/assignment` and `/events`; assignment responses disable caching.
 
 - Added the authenticated evaluation worker access endpoint and execution-only gateway authentication. Evaluation audit records carry job attribution.
-
 - Environment-scoped evaluation worker endpoints authenticate credentials and reject foreign or stale lease mutations.
 
 ### Changed
@@ -24,7 +51,6 @@
 ### Fixed
 
 - A completion whose model has no configured pricing still writes its terminal `ai_requests` row. Resolving pricing at completion had become fallible and returned before the update, so a request already spent upstream was left in `processing` with no cost, no tokens and no response recorded. Dispatch refuses an unpriced model before the audit is opened, so a miss at completion means the rates moved mid-request; it is now warned about and billed at zero rather than erasing the record.
-
 - Reject missing gateway pricing before dispatch instead of reporting an unknown charge as zero.
 
 ## [0.48.0] - 2026-09-08
@@ -49,21 +75,21 @@
 
 ### Added
 
-- The gateway retries a transient upstream `429` or `503` up to four times with exponential backoff from 1s, a 30s ceiling and 25% jitter, honouring `retry-after` when it asks for longer than the curve. Retrying is safe only at this point: no response byte has been relayed and neither the buffered nor the streaming lane has begun. Vertex MaaS sheds load with 429, and relaying it straight through failed `deepseek.v3.2` on every capacity blip. Every other status, and the final 429/503 once the budget is spent, still relays verbatim with its body and headers untouched. The policy and the retry count ride on task-locals, and retries increment `gateway_upstream_retries_total`.
-- A URL image in a Gemini request is fetched and inlined by the dispatch pipeline instead of being downgraded to a text part by the codec, which had left the model answering about a prompt that lost one of its inputs. The fetch is bounded by a whole-operation timeout, a 5 MiB cap enforced while the body streams, a content-type allowlist of what Gemini decodes, and manual redirect following so every hop is re-checked. The SSRF guard reuses `validate_outbound_url_with_trust` and the shared block list, tightened for a caller-supplied URL: loopback is no longer an implicit allow, and a hostname is resolved so the DNS answer is checked too. A failed fetch fails the request with the URL named, split 400/502 on whether the caller could have fixed it. Only the Gemini wire pays this latency; Anthropic and OpenAI accept a URL natively.
-- A Google service-account secret is exchanged via RFC 7523 for an OAuth access token, cached per secret and retired early so one cannot expire in flight. Vertex rejects API-key auth as a class, so nine Vertex MaaS models were configured and could never dispatch. Detection is by content — the key's own `type: service_account` — and anything else is sent verbatim as before. The credential resolver returns how the value should be presented alongside the value, so a minted token goes out as a bearer and an API key on `x-goog-api-key`; the streaming lane shares the one request builder and is fixed with the buffered one.
+- upstream `429` and `503` responses receive up to four total attempts before any response bytes are relayed. Backoff starts at 1s, caps at 30s, adds 25% jitter and honors longer `retry-after` values. Other and exhausted responses relay verbatim. `gateway_upstream_retries_total` records retries.
+- Gemini URL-image fetches enforce timeout, a streaming 5 MiB limit, content-type validation, resolved-address checks and per-hop redirect validation. Loopback is not implicitly trusted. Fetch failures distinguish caller errors (400) from upstream failures (502); other provider wires retain native URLs.
+- Google secrets with `type: service_account` use RFC 7523 token exchange, per-secret caching and early expiry. Exchanged tokens use bearer authorization; API keys use `x-goog-api-key` on buffered and streaming requests.
 - `GET /v1/bridge/manifest` carries `marketplaces` for each enabled marketplace with the plugin ids that survive the per-user filter, and manifest assembly unions every enabled marketplace instead of resolving one active one. Two enabled marketplaces without a default selector now assemble rather than failing closed.
 - `reasoning_tokens` is persisted on `ai_requests` by the gateway audit and read back through the log surfaces, so thinking spend is visible where cost is read.
 
 ### Fixed
 
 - **Security:** admin provisioning validates the address it is handed. `get_or_create_admin` looked up, provisioned and assigned the `admin` role on whatever string reached it, so `resolve_admin_with_fallback` with `"not-an-address"` created that literal as a user and made it an admin. This is the path that mints admin-tier session tokens. It validates through `Email::try_new` before any lookup or write, the validator the rest of the CLI already applies to `--admin-email`.
-- An upstream 2xx whose body carries no turn is a `502`, not a successful empty answer. The buffered wire parsers are total by design, so a Vertex MaaS body with no choices, no usage and no error deserialised into a well-formed canonical response and the gateway relayed a turn in which the model said nothing, recorded as completed. `buffered_body_defect` runs before the parse and separates "nothing came back" from "the model legitimately produced no text": a JSON array or scalar, an error object delivered with a success status, or an object with neither a non-empty content array nor a usage object. The raw upstream body is relayed, the audit row is failed with the body excerpt in `error_message`, and the first 512 bytes are warned. A turn that stopped immediately but reports usage is left alone.
+- `buffered_body_defect` rejects malformed or empty upstream success bodies with 502 and a failed audit record containing an excerpt. Objects with valid usage but no text remain supported; warnings include at most 512 body bytes.
 - A reply the wire cannot parse is an upstream error rather than a free empty turn. All four buffered parsers turned a top-level deserialisation failure into an empty canonical response, charging nothing and logging nothing; `parse_response` returns `Result` and the gateway maps it to a `502` with the wire named and a body excerpt logged. Per-field `serde(default)` leniency is unchanged.
-- A stream that ends with no terminal event now says so on every inbound surface. The caller previously saw only a closed socket, indistinguishable from a hang, and waited out its own timeout on a turn the gateway had already finished. Anthropic callers get `event: error`, Chat Completions callers an error chunk closed by `[DONE]`, and Responses callers `response.failed`, on both the translated and byte-passthrough lanes. Two codecs were also swallowing the upstream's own explanation: Gemini's `{"error": ...}` chunk and blocked-prompt feedback, and Chat Completions' error chunk whose `[DONE]` then synthesised a clean `stop` over the failure.
-- **Breaking (wire semantics):** `input_tokens` is exclusive of cache reads on every wire. OpenAI chat, OpenAI responses and Gemini report `cached_tokens` as a subset of the prompt count while Anthropic reports the two disjoint, and all four adapters mapped them as disjoint — so every cached OpenAI, Gemini and Cerebras turn was charged for the cached slice twice, once at the input rate and again at the cache-read rate. Six sites subtract, buffered and streamed alike; Gemini's stream carries the cached count it previously dropped, and the buffered Anthropic inbound render emits the cache counts its streaming render already did.
-- A streamed Chat Completions turn reported zero usage. The finish chunk carried zeroed counts and no usage-only chunk followed, so a client sending `stream_options.include_usage` read the turn as free. The codec now holds the finish reason until the stream states its end, and the closing frames are the contract's usage-only chunk followed by `[DONE]`, emitted only when the caller asked for usage. The Anthropic surface had the same defect in a different shape: its terminal `message_delta` stated a hardcoded `output_tokens: 0`.
-- **Breaking (request validation):** a `tool_choice` outside a surface's grammar is rejected instead of silently dropped. A string `"required"` on the Anthropic Messages surface returned 200 and dispatched, spending the caller's quota on a request the real API would have refused. Anthropic accepts only an object of type `auto|any|none|tool`; Chat Completions accepts the three strings or a `function` object with `function.name`; Responses accepts the three strings, a `function` object with `name`, and the hosted-tool types it does not proxy. `render_error` takes its error type from the status, so a client mistake reads as `invalid_request_error` rather than `api_error`.
+- Streams lacking a terminal event emit dialect-specific failure: Anthropic `event: error`, Chat Completions error plus `[DONE]`, or Responses `response.failed`. Translation and passthrough preserve upstream errors and blocked-prompt feedback.
+- **Breaking (wire semantics):** normalized `input_tokens` excludes cache reads for every provider. Buffered and streaming adapters separate cached tokens from total prompt usage; Anthropic response rendering includes cache counts.
+- Chat Completions holds the finish reason until stream completion and emits the usage-only chunk before `[DONE]` when requested. Anthropic terminal deltas report accumulated output usage.
+- **Breaking (request validation):** unsupported `tool_choice` values return `invalid_request_error`. Callers must use the grammar of their selected inbound API surface.
 - Every terminal signal that silently discarded a tool call is closed. `CanonicalStopReason::with_tool_use` is the single rule — a generic end-of-turn beside a tool call becomes `ToolUse`, and truncation always wins, because a call cut mid-arguments carries unparseable JSON. It is applied at openai_chat buffered and streaming, anthropic buffered, gemini and openai_responses (both of which resolved tool use before truncation), the stream tap's accumulator, and the tap's repeat-stop guard, which covered only the terminal render and let an Anthropic upstream end the turn twice with the second frame saying `end_turn`. Streamed `reasoning_content` on openai_chat is also parsed on the delta path, where a thinking model's entire trace was being dropped.
 - The Anthropic streaming codec carries block state, so a `tool_use` block opened several frames earlier is known at the terminal. The bytes rendered to the client never pass through the audit accumulator, so the audit read `tool_use` while the client read `finish_reason: "stop"` beside a fully-formed `tool_calls` delta and dropped the call. `AnthropicStreamState` also absorbs the message-id tracking all three callers were doing by hand.
 - Same-wire Anthropic passthrough declares tool use. The lane relays the upstream body unparsed, so the canonical correction never ran there and an upstream declaring `end_turn` beside a `tool_use` block reached the client as a finished turn. The lane stays byte-faithful and rewrites exactly the `stop_reason` token when the body contradicts itself, buffered and streaming alike.
@@ -101,7 +127,7 @@
 ### Fixed
 
 - **Security:** the admin CLI gateway no longer logs raw argv. `admin config secret set <name> <value>` takes the secret as a positional argument, so every secret set through this route landed in the log store in plaintext. The argv is passed through `sanitize::redact_argv`, which replaces inline flag values, the element following a sensitive flag, the `secret set` positional and any URL with embedded credentials, while keeping the flag and secret names.
-- A streamed gateway response that failed mid-body was recorded in the access log as the 200 its headers promised. `streaming_response` sets 200 before the body exists and the access-log middleware reads the status the moment the head is ready, so an upstream `529 Overloaded` arriving mid-stream left an access-log line saying 200 beside an audit row saying `failed`, with `elapsed_ms` covering only time-to-headers. Every gateway request now writes two records: `phase: headers` as before, and `phase: terminal` emitted from the stream tap once the body finishes, carrying the outcome, the full elapsed time and the upstream error. A mid-stream failure has no upstream HTTP status to relay — the provider already sent 200 — so the terminal status is derived: 502 for an upstream stream error, 499 for a client hang-up.
+- Gateway access logs include header and terminal phases. Terminal records capture total duration and streaming outcomes, using 502 for upstream stream failures and 499 for client disconnection.
 - `GatewayAudit::complete` logged `cost_microdollars` computed from four token buckets while omitting `cache_creation_tokens`, so a cost driven by cache writes could not be reconciled against its own log line. It now logs `cache_creation_tokens` and `tokens_used`.
 - `GatewayAudit::fail` logged at `info` with neither latency nor a status. It logs at `warn` with `latency_ms`, the `RequestStatus`, `wire_protocol`, the served model alongside the requested one, and `tokens_recorded: false` — `update_error` writes no usage columns, so the zeros on a failed row mean "not recorded", not "nothing consumed".
 - `FinalizeDecision::Fail` carries a `FailCause` instead of a bare string, separating an upstream mid-stream failure from a stream truncated without a stop event.
@@ -110,7 +136,7 @@
 
 ### Fixed
 
-- **Security:** `GET /v1/bridge/plugins/{id}/{*path}` authorizes the caller, it no longer merely authenticates them. It checked for a valid token and then served any plugin's bytes, so any authenticated user could pull an admin plugin's bundle by path and read skills and dashboards their signed manifest never offered. The endpoint now resolves the caller's own manifest candidate through the same `ManifestService` and marketplace filter the manifest endpoint uses, and 404s a plugin that candidate does not carry.
+- **Security:** `GET /v1/bridge/plugins/{id}/{*path}` authorizes plugin access through the caller's manifest candidate and marketplace filter. Plugins absent from that candidate return 404.
 
 ### Added
 
@@ -120,7 +146,7 @@
 
 ### Changed
 
-- Establishing a session is bounded and degrades instead of failing. It reads and writes the database and runs as a global layer over every route including static content, so a database fault held each request for the pool's full 30-second acquire timeout and then returned `500` — for a public page view as much as for an API call. A request whose session cannot be established within two seconds is now served with an untracked, actor-less context and a throttled warning naming the path. Nothing is escalated by that context: it carries no auth token and no user, so every gate above `public` still refuses it, and `is_tracked` is false so the analytics sinks record no visit they cannot attribute. Measured against the live site with Postgres stopped: a page went from `500` after 30s to `200` in 2s.
+- Session establishment has a two-second timeout. Database failure or timeout produces an untracked context without a user or token and a throttled warning. Public routes can continue; protected routes still require authentication and untracked visits are excluded from analytics.
 - The health probe is bounded and reports which version answered.
 - Gateway model resolution honours the server-side default model.
 
@@ -159,7 +185,7 @@
 
 ### Changed
 
-- **Breaking:** `SafetyScannerRegistry::get(name)` is `create(name, &SafetyConfig)` and returns an owned scanner. `heuristic` is a registered built-in rather than a special case in `finalize`, `names()` is sorted, and an extension registering under a built-in's name is rejected and logged instead of silently shadowing it.
+- **Breaking:** `SafetyScannerRegistry::get(name)` is `create(name, &SafetyConfig)` and returns an owned scanner. `heuristic` is a registered built-in rather than a special case in `finalize`, `names()` is sorted, and an extension registering under a built-in's name is rejected and logged instead of shadowing it.
 
 ## [0.33.0] - 2026-08-20
 
@@ -232,7 +258,6 @@
 
 - Gateway request guards receive the resolved request (requested model, route id, provider, streaming flag) and a `Forbidden` denial now renders a 403 without `retry-after`; quota-kind denials keep the 429 + `retry-after` path. Guard denials were previously all funnelled through the quota response, so an entitlement denial invited clients to retry forever.
 - Gateway quota windows resolve their bucket subject per `QuotaWindow.subject`: `user` (default) keys on the requesting user; an extension dimension (e.g. `organization`) resolves through the registered `SubjectAttributeProvider`, first value wins, and a window whose subject cannot be resolved is skipped. `precheck_and_reserve` additionally denies once a window's `max_cost_microdollars` ceiling is spent, and `post_update_tokens` records the request cost computed by the audit (`GatewayAudit::complete` returns it).
-
 - WebAuthn registration promotes a prior anonymous session's full history onto the new account via `UserService::promote_anonymous` (transactional, all user-data tables) instead of moving `user_sessions` rows alone. Promotion stays best-effort: registration never fails on a merge error, which remains repairable via `admin users merge`.
 
 ### Fixed
@@ -246,7 +271,7 @@
 
 - The Anthropic-protocol inbound parser drops content blocks it does not model (`redacted_thinking`, `document`, `server_tool_use`, `web_search_tool_result`) instead of rejecting the whole request with a 400 — mirroring the response-side parse, which strips the same types before a client ever sees them. A client replaying history from a direct Anthropic session (web search especially) now degrades instead of failing. Unknown roles still reject.
 - The OpenAI Responses inbound adapter round-trips reasoning items: the provider `id` and `encrypted_content` a client sends are parsed into the canonical model (an encrypted-only item with an empty summary is kept rather than vanishing), and rendered reasoning items carry the real upstream id on all three render paths — buffered, block-start, and terminal — falling back to the synthetic `rs_…` only when no provider id exists. The stream accumulator captures `encrypted_content` arriving at `output_item.done`, so terminal renders and the audit trail carry it.
-- Gemini multi-turn tool calls survive strict Anthropic clients. Gemini's `thoughtSignature` must be echoed back verbatim on the turn after a function call, and the gateway carried it to the client as a non-standard `signature` field on the `tool_use` block — a channel any faithful Anthropic SDK client strips when replaying history, at which point Gemini rejects the signatureless replay. The new `ThoughtSignatureCache` captures signatures server-side as responses pass through (buffered and streamed alike) and re-injects them on inbound requests whose `tool_use` blocks arrive without one; a client that does round-trip the field still wins over the cache. Entries are keyed by conversation and `tool_use` id — the ids on inbound requests are client-supplied, so an unscoped key would let one caller read another conversation's cached signatures — and expire an hour after last use. The cache is per-process; multi-replica gateways need sticky routing for signature recovery to hit.
+- `ThoughtSignatureCache` stores Gemini signatures by conversation and tool-use ID and restores omitted signatures. Supplied signatures take precedence; entries expire after one hour of inactivity. This release’s process-local cache requires sticky routing for multi-replica recovery.
 
 ## [0.25.0] - 2026-07-27
 
@@ -258,13 +283,13 @@
 
 - One safety finding no longer denies the rest of a conversation. `enforce_request_safety` matched `block_categories` against a bare category string with no notion of which turn raised the finding, so anything the built-in scanner found in the conversation history denied the current request. Blocking is now phase-aware: only a finding against the newest turn denies, unless `safety.history` is set to `block`.
 - Duplicate `ai_safety_findings` rows are collapsed. A scanner emits one finding per match, so a message tripping two jailbreak phrases wrote two rows; findings are deduplicated by phase, category and scanner before persistence, on both the request and response paths.
-- Gateway requests are attributed to their caller in the `logs` table. The gateway router is nested without the context middleware — it authenticates inside the handler — so the access log ran before any principal existed and recorded every request as the platform owner. A single rejected request read back as two users acting at the same instant. The handler hands the resolved principal back on the response and the access log uses it, falling back to the platform actor only when the request never authenticated. These rows carry `"kind": "access_log"`.
+- Gateway responses carry the authenticated principal to access-log middleware. Requests rejected before authentication use the platform fallback actor. Access records include `kind: access_log` for filtering.
 - A request rejected before it authenticated no longer warns about a skipped audit row. It has no principal by construction, and forcing an `ai_requests` row would let anything probing `/v1/messages` write unbounded rows; the access-log entry records the rejection and its status, and the message drops to `DEBUG`.
 - The rejection record writes `NULL` for provider and model rather than the literal `"unknown"`, and is stamped `rejected`.
 - The `null` scanner resolves from the gateway scanner registry. It was exported and documented as the scanner to name when scanning is disabled but never registered, so naming it silently ran nothing.
 - Static assets with a `webp`, `gif`, or `avif` extension are served with their image type instead of `application/octet-stream`. Core already classified `.webp` as a static asset, accepted `image/webp` on upload, and recorded it as such, but the serving table could not name the type it had just ingested. Because the same response sets `x-content-type-options: nosniff`, the browser is forbidden from recovering by sniffing, so such an image returned a clean 200 and silently never decoded.
 - `.woff` is served as `font/woff`. It was served as `font/woff2`, a different format.
-- Shutdown no longer strands MCP and agent child processes. The forced-exit deadline was armed when the first signal landed, which is *before* axum begins draining connections, so a long-lived SSE stream could consume the whole grace window and kill the process before any child was signalled. The connection drain is now bounded separately and abandoned on expiry, and the hard deadline is armed only once the drain has returned, so child termination always gets its full grace. A second signal still exits immediately.
+- Shutdown bounds connection draining separately from child teardown. The forced-exit deadline starts after drain completion or expiry, preserving the child-termination grace period. A second signal exits immediately.
 - The scheduler startup event reports the configured job count alongside the discovered one.
 
 ## [0.24.0] - 2026-07-26
@@ -355,7 +380,7 @@
 
 ### Fixed
 
-- A managed service's configured `audience` is now enforced against the caller's token; previously it was declared but not checked.
+- A managed service's configured `audience` is now enforced against the caller's token.
 - API startup no longer aborts when an external MCP server is enabled: reconciliation counts only the servers core spawns toward the running-process total, so an external (remote) server no longer registers as a missing required service.
 
 ## [0.16.0] - 2026-06-22
@@ -394,10 +419,10 @@
 
 ### Changed
 
-- `routes::oauth::endpoints::register::register_client` applies RFC 7591 §2 defaults when the dynamic-client-registration request omits `grant_types` or `response_types`: missing or empty arrays resolve to `["authorization_code"]` and `["code"]` respectively. The same defaulted values flow into the repository insert and the response body, keeping the persisted client and the registration echo in sync. Spec-compliant MCP clients (Cowork, Claude Code DCR, MCP Inspector) no longer hit `400 invalid_client_metadata` on minimal registration payloads.
+- OAuth dynamic client registration defaults missing or empty `grant_types` to `["authorization_code"]` and `response_types` to `["code"]`. Storage and responses use the resolved values. Clients must request `refresh_token` explicitly.
 - `routes::gateway::bridge_data::load_managed_mcp_servers` synthesises the public MCP URL from `api_external_url + /api/v1/mcp/<name>/mcp` whenever the deployment's `endpoint` is absent or relative. Absolute URLs are only honoured for `external` servers; absolute endpoints on `internal` servers are rejected at config-load time.
 - `services::proxy::auth::OAuthChallengeBuilder` distinguishes the no-credentials case from the bad-credentials case on `/api/v1/mcp/*` 401 responses. When no `Authorization` header is present, the `WWW-Authenticate: Bearer` challenge omits `error=` per RFC 6750 §3 — the spec-compliant signal that clients should begin the OAuth flow rather than treat the response as a token rejection. When a malformed or invalid token is present, the previous `error="invalid_token"` form is retained.
-- `services::proxy::auth::OAuthChallengeBuilder` derives the `WWW-Authenticate: Bearer resource_metadata="…"` URL from the incoming request's `Host` header through the same `RequestBaseUrl` resolver the `.well-known/oauth-protected-resource` body uses, closing the host-of-truth gap that left the discovery body and the 401 challenge advertising different hosts on RFC 9728 dual-self-identity gateways. Host-header injection is bounded by the configured-host allowlist (with loopback aliases when applicable); non-allowlisted hosts fall back to `api_external_url`.
+- `OAuthChallengeBuilder` and protected-resource discovery use `RequestBaseUrl` to resolve the incoming host against configured and permitted loopback hosts. Unrecognized hosts fall back to `api_external_url`.
 - Route-mount context middleware is now four typed sibling layers — `PublicContextMiddleware`, `UserOnlyContextMiddleware`, `A2AContextMiddleware`, `McpContextMiddleware` — each implementing the new sealed `ContextLayer` trait that `RouterExt::with_auth` accepts. Each flavour's contract (Anon admission, optional-header merge, body-rebuild, MCP session-context fallback) is expressed at the type level rather than via a runtime `ContextRequirement` enum branch.
 - `extraction_error_to_api_error` is now a module-level free function in `services::middleware::context::middleware`. It does not depend on the middleware instance.
 - `client_credentials` no longer intersects service-tier scopes (`hook:govern`, `hook:track`, `service`, `a2a`, `mcp`) with the OAuth client owner's roles. RFC 6749 §4.4 has no resource owner in the loop; service-tier scopes are statically granted to the client at registration and the `owner_user_id` is retained for audit attribution only. User-tier scopes (`admin`, `user`, `anonymous`) continue to require both the client grant and the owner's roles, matching the on-behalf-of delegation contract. `ClientCredentialsError::InvalidScope` now names the actual deficit — `requested scopes not in client grant: …` or `delegated scopes not held by owner: …` — instead of the generic `scopes not allowed for both client and owner`.
@@ -409,7 +434,7 @@
 
 ### Fixed
 
-- `/api/v1/mcp/*` mounts under `AuthzPolicy::public()` so the proxy handler (`services/proxy/auth.rs::AccessValidator`) can answer unauthenticated requests with the RFC 9728 `WWW-Authenticate: Bearer resource_metadata="…"` 401 challenge it already builds. v0.11.0 inserted a redundant `AuthzPolicy::restricted_to([User, Admin, Mcp, Service])` gate above the proxy, which short-circuited the request to a generic 403 (`caller type 'anon' is not authorized for this route`) and prevented spec-compliant MCP clients from starting their OAuth discovery handshake. Regression coverage: unit tests on `AuthzPolicy`/`authz_gate` in `crates/tests/unit/entry/api/src/middleware/authz_policy.rs` and an integration test driving the full mounted router in `crates/tests/integration/api/routes_mcp_unauth_challenge.rs`.
+- Unauthenticated `/api/v1/mcp/*` requests reach the proxy’s HTTP 401 challenge with `WWW-Authenticate: Bearer resource_metadata="…"`, enabling RFC 9728 discovery.
 - Unauthenticated or malformed-bearer requests to `/api/v1/mcp/<unknown>/…` now receive the RFC 9728 401 challenge instead of `404 Service not found`. `services::proxy::engine::proxy_request` intercepts `ServiceNotFound` on the MCP branch and promotes it to the existing `OAuthChallengeBuilder` challenge whenever the request was not properly authenticated; authenticated callers continue to receive 404 for a genuinely unknown service. Required so spec-compliant MCP clients can begin OAuth discovery against any `/api/v1/mcp/*` path.
 
 ## [0.12.1] - 2026-05-27

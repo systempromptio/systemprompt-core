@@ -38,6 +38,7 @@ pub mod ingestion;
 pub mod keep;
 pub mod marketplace_floor;
 pub mod parent_chain;
+pub mod reconcile;
 pub mod registry;
 pub mod repository;
 pub mod resolver;
@@ -58,13 +59,15 @@ pub use extension::AuthzExtension;
 pub use gateway_entities::{GatewayReconcileReport, reconcile_gateway_entities_exact};
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
 pub use ingestion::{
-    AccessControlIngestionService, IngestOptions, IngestReport, RegisteredEntities,
+    AccessControlIngestionService, DASHBOARD_SOURCE, IngestOptions, IngestReport, IngestScope,
+    RegisteredEntities, UnknownSubject, YAML_SOURCE,
 };
 pub use keep::{BulkKeepQuery, allowed_ids};
 pub use marketplace_floor::member_attribute_floor;
 pub use parent_chain::{
     ChainIndexCache, ChainSources, LoadedParent, MarketplaceSource, ParentChainIndex, ResolveBase,
 };
+pub use reconcile::{ReconcileReport, reconcile_composed_bundles, reconcile_services_authz};
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};
 pub use repository::{AccessControlRepository, ChainFingerprint, UpsertRuleParams};
 pub use rule_based::RuleBasedHook;

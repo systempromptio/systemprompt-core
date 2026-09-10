@@ -6,7 +6,7 @@ MCP (Model Context Protocol) is how the platform exposes tools and resources to 
 
 ## MCP servers and their lifecycle
 
-An MCP server provides tools and resources. The platform manages servers as processes through a lifecycle and monitoring layer (`crates/domain/mcp/src/services/{lifecycle,process,monitoring}`). Servers are spawned as subprocesses with configuration and secrets passed explicitly through environment variables — there is no fuzzy profile discovery inside a subprocess, and the JWT secret must be identical across parent and child for token validation to hold.
+An MCP server provides tools and resources. The platform manages servers as processes through a lifecycle and monitoring layer (`crates/domain/mcp/src/services/{lifecycle,process,monitoring}`). Servers are spawned as subprocesses with configuration and secrets passed explicitly through environment variables — subprocesses receive the selected profile and must use compatible issuer and signing-key configuration.
 
 A process monitor reconciles database-recorded service PIDs against live processes on a periodic loop and marks crashes, so a server that dies is observed rather than silently absent. The MCP orchestrator daemon handles its own shutdown signal, draining cleanly on stop.
 
@@ -22,7 +22,7 @@ MCP servers are reached over a streamable-HTTP transport, mounted per server at:
 /api/v1/mcp/{server}/mcp
 ```
 
-A request names the target server in the path; the platform resolves it through the registry and proxies to the running server process. RBAC is enforced on this path — and notably the MCP RBAC layer does validate the token audience, unlike the primary API extractor (see [authentication.md](authentication.md)).
+A request names the target server in the path; the platform resolves it through the registry and proxies to the running server process. RBAC and per-server audience checks are enforced on this path (see [authentication.md](authentication.md)).
 
 Tool executions are logged at the server, not the client. The MCP client in core deliberately does no execution logging; the server records each call (input, output, structured content, timing, status) to `mcp_tool_executions`. This keeps a single source of truth with the complete payload, and links each execution back to the originating AI tool call through shared identifiers (`ai_tool_call_id`, `mcp_execution_id`) carried in the request context.
 

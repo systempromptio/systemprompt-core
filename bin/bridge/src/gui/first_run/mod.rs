@@ -1,10 +1,7 @@
-//! One-time provisioning after the first device link.
+//! Initial provisioning after device linking.
 //!
-//! Linking a device used to leave the app unusable until the user found the
-//! agents tab and ran the install by hand. This module runs that install
-//! automatically the first time a device is linked — probe every registered
-//! host, generate and install its profile, then sync — and reports progress
-//! into the setup wizard so a failure is visible rather than silent.
+//! Probes registered hosts, installs their profiles and synchronizes
+//! configuration. Progress and failures are reported to the setup wizard.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -234,6 +234,7 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
             IngestOptions {
                 override_existing: true,
                 delete_orphans: true,
+                ..IngestOptions::default()
             },
         )
         .await
