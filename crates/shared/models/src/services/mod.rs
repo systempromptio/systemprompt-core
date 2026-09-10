@@ -37,7 +37,7 @@ pub use ai::{
     ModelGovernance, ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig,
 };
 pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, DiskArtifactConfig};
-pub use bridge_policy::BridgePolicyConfig;
+pub use bridge_policy::{AutoUpdatePolicy, BridgePolicyConfig};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{

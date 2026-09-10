@@ -12,6 +12,10 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::Duration;
 
+mod handoff;
+
+pub(crate) use handoff::{await_predecessor_exit, record_handoff};
+
 pub(crate) enum SingletonResult {
     Acquired(SingletonGuard),
     AlreadyRunning,

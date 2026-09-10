@@ -2,6 +2,14 @@
 
 ## [0.49.0] - 2026-09-09
 
+### Breaking
+
+- **Breaking:** the `[update] automatic` config key and `config::UpdateConfig` are removed. Whether a bridge updates itself is `bridge_policy.auto_update` on the gateway, delivered on the signed manifest; `update::automatic_enabled` reads that. Migrate by setting the policy on the gateway and deleting the local key.
+
+### Added
+
+- The bridge checks for a newer release every six hours and after waking from sleep, and — when instance policy says `staged`, the default — downloads it, verifies its digest and swaps it on disk without restarting. The next launch runs the new version. Until now the only periodic check ran in the settings window's JavaScript, so a bridge sitting in the tray never checked at all and stayed on its installed version indefinitely.
+
 ### Changed
 
 - A pre-0.48 `[sync] pinned_pubkey` is adopted as operator trust for the configured gateway (and dropped, like any operator pin, when it recorded another), and the first sync that verifies against it rewrites it as `[sync.trust]`. 0.48.0 reported it stale and blocked every sync with a remedy only an administrator could run; an install that had synced the day before was left with no in-app way back.
@@ -15,6 +23,8 @@
 
 - A credential refresh that cannot reach the gateway no longer latches the bridge into "sign in required". Any failure used to latch, and the latch released only on a *changed* credential on disk — so a refresh tick that fired while a laptop was waking, with a valid PAT still in place, took the bridge out until the user re-authenticated by hand. Transport failures and gateway 5xx are now deferred and retried on the next tick; only an explicit 401/403, or a local credential the bridge cannot read, asks for a sign-in. The proxy reports the two apart, and MCP clients are no longer sent an OAuth challenge for a network blip.
 - "Session expires soon — sign in again" no longer fires seconds after every sign-in. It was raised on the short-lived access JWT, which a stored PAT renews unattended; it now only warns when there is nothing left to renew from.
+
+- **Restart to finish updating** no longer races its own successor. The proxy stops accepting and drains in-flight requests before the new process is spawned, and the new process waits for the old one to release the single-instance lock. Previously the successor could lose the lock race and merely focus the dying window, or bind a fallback port that every host profile written for 48217 rejects.
 
 - Marketplace skills and counts remain visible during gateway probes and temporary outages. Signing back in reloads an unchanged manifest, stale listing replies cannot overwrite a newer session, and failed refreshes retain the previous list with a retry action.
 - `alert_user` no longer holds its caller until the dialog is dismissed. The macOS `osascript` dialog and the Windows `MessageBoxW` were both modal and blocking, so an installer path that raised one on an unattended host, or the native test job on a CI runner, waited forever; the dialog is now raised and reaped on its own thread. The Quality workflow's native bridge job also carries a 45-minute timeout.

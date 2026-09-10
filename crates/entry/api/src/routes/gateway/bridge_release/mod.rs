@@ -6,10 +6,18 @@
 //! proxies the bytes. Resolution happening here is also what lets an operator
 //! pin or stage a rollout without shipping a new client.
 //!
+//! Every bridge in the fleet reads this feed on a timer, so resolution is
+//! cached per platform for [`CACHE_TTL`] against a shared HTTP client: GitHub
+//! sees a couple of dozen calls an hour no matter how large the fleet. A
+//! resolution that fails while a previous answer is still held serves that
+//! answer — a GitHub blip must not turn into a failed update check for
+//! everyone at once.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::Json;
 use axum::body::Body;
@@ -21,15 +29,18 @@ use systemprompt_identifiers::JwtToken;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_models::services::BridgeReleasesSpec;
 
+mod feed;
 mod github;
 
+pub use self::feed::{ReleaseFeed, ResolvedAsset, ResolvedRelease};
 pub use self::github::parse_sha256sums;
 
-use self::github::{asset_digest, github, resolve_release};
+use self::github::github;
 
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
 
+pub const CACHE_TTL: Duration = Duration::from_secs(300);
 
 #[derive(Debug, Deserialize)]
 pub struct LatestQuery {
@@ -40,7 +51,7 @@ pub struct LatestQuery {
 ///
 /// Keep the two in lockstep: this is a wire contract with an already-shipped
 /// binary, so a renamed field silently breaks every bridge in the field.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ReleaseManifest {
     pub version: String,
     pub sha256: String,
@@ -51,76 +62,29 @@ pub struct ReleaseManifest {
 
 pub async fn latest(
     jwt_extractor: Arc<JwtContextExtractor>,
+    feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Query(query): Query<LatestQuery>,
 ) -> Result<Json<ReleaseManifest>, (StatusCode, String)> {
     authenticate(&jwt_extractor, &headers).await?;
     let spec = releases_spec()?;
-
-    let asset_name = spec.assets.get(&query.platform).ok_or_else(|| {
-        (
-            StatusCode::NOT_FOUND,
-            format!("no published build for platform {}", query.platform),
-        )
-    })?;
-
-    let release = resolve_release(&spec).await?;
-    let asset = release
-        .assets
-        .iter()
-        .find(|a| a.name == *asset_name)
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                format!("release {} has no asset {asset_name}", release.tag_name),
-            )
-        })?;
-
-    let version = release
-        .tag_name
-        .strip_prefix(&spec.tag_prefix)
-        .unwrap_or(&release.tag_name)
-        .to_owned();
-    let sha256 = asset_digest(&spec, &release, asset_name).await?;
-
-    Ok(Json(ReleaseManifest {
-        version,
-        sha256,
-        size: asset.size,
-        notes_url: release.html_url.clone(),
-    }))
+    let resolved = feed.resolve(&spec, &query.platform).await?;
+    Ok(Json(resolved.manifest))
 }
 
 pub async fn download(
     jwt_extractor: Arc<JwtContextExtractor>,
+    feed: Arc<ReleaseFeed>,
     headers: HeaderMap,
     Path(platform): Path<String>,
 ) -> Result<Response, (StatusCode, String)> {
     authenticate(&jwt_extractor, &headers).await?;
     let spec = releases_spec()?;
-
-    let asset_name = spec.assets.get(&platform).ok_or_else(|| {
-        (
-            StatusCode::NOT_FOUND,
-            format!("no published build for platform {platform}"),
-        )
-    })?;
-
-    let release = resolve_release(&spec).await?;
-    let asset = release
-        .assets
-        .iter()
-        .find(|a| a.name == *asset_name)
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                format!("release {} has no asset {asset_name}", release.tag_name),
-            )
-        })?;
+    let asset = feed.resolve_asset(&spec, &platform).await?;
 
     // Why: GitHub's asset API returns JSON metadata unless Accept is
     // application/octet-stream.
-    let upstream = github(&spec, &asset.url)
+    let upstream = github(feed.http(), &spec, &asset.url)
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
@@ -140,7 +104,7 @@ pub async fn download(
             (header::CONTENT_TYPE, "application/octet-stream".to_owned()),
             (
                 header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{asset_name}\""),
+                format!("attachment; filename=\"{}\"", asset.name),
             ),
         ],
         body,

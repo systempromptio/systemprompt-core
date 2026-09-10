@@ -18,7 +18,7 @@ pub use systemprompt_models::bridge::manifest::{
     SkillEntry, UserInfo, bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
-pub use systemprompt_models::services::PluginComponentRef;
+pub use systemprompt_models::services::{AutoUpdatePolicy, PluginComponentRef};
 
 pub use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
 
@@ -131,6 +131,7 @@ pub struct SignedManifestBuilder {
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
     allow_claude_ai_connectors: bool,
+    auto_update: AutoUpdatePolicy,
     marketplaces: Vec<ManifestMarketplace>,
 }
 
@@ -159,6 +160,7 @@ impl SignedManifestBuilder {
             host_model_protocols: std::collections::BTreeMap::new(),
             artifacts: Vec::new(),
             allow_claude_ai_connectors: false,
+            auto_update: AutoUpdatePolicy::default(),
             marketplaces: Vec::new(),
         }
     }
@@ -166,6 +168,12 @@ impl SignedManifestBuilder {
     #[must_use]
     pub const fn with_allow_claude_ai_connectors(mut self, allow: bool) -> Self {
         self.allow_claude_ai_connectors = allow;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_auto_update(mut self, policy: AutoUpdatePolicy) -> Self {
+        self.auto_update = policy;
         self
     }
 
@@ -265,6 +273,7 @@ impl SignedManifestBuilder {
             host_model_protocols: self.host_model_protocols,
             artifacts: self.artifacts,
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
+            auto_update: self.auto_update,
             diagnostics: Vec::new(),
             marketplaces: self.marketplaces,
         }

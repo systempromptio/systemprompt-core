@@ -128,6 +128,7 @@ fn sample_manifest() -> SignedManifest {
             plugins: Vec::new(),
         }],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

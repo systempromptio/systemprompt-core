@@ -19,6 +19,7 @@ use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
+use systemprompt_models::services::BridgePolicyConfig;
 use systemprompt_runtime::AppContext;
 
 use super::bridge::instance_enabled_hosts;
@@ -48,7 +49,7 @@ pub async fn manifest(
     })?;
     let instance_hosts = instance_enabled_hosts(&services);
 
-    let (candidate, allow_claude_ai_connectors) =
+    let (candidate, bridge_policy) =
         assemble_candidate(&ctx, profile, &claims.user_id, services).await?;
     let (entries, _filter_context) = candidate.into_manifest_parts();
     let systemprompt_marketplace::ManifestEntries {
@@ -87,7 +88,8 @@ pub async fn manifest(
         enabled_hosts,
         host_model_protocols,
         artifacts,
-        allow_claude_ai_connectors,
+        allow_claude_ai_connectors: bridge_policy.allow_claude_ai_connectors,
+        auto_update: bridge_policy.auto_update,
         diagnostics,
         marketplaces,
     };
@@ -100,10 +102,8 @@ async fn assemble_candidate(
     profile: &systemprompt_models::Profile,
     user_id: &UserId,
     services: systemprompt_models::services::ServicesConfig,
-) -> Result<(MarketplaceCandidate, bool), (StatusCode, String)> {
-    let allow_claude_ai_connectors = services
-        .bridge_policy
-        .is_some_and(|p| p.allow_claude_ai_connectors);
+) -> Result<(MarketplaceCandidate, BridgePolicyConfig), (StatusCode, String)> {
+    let bridge_policy = services.bridge_policy.unwrap_or_default();
 
     let services_root = ctx.app_paths().system().services();
     let catalog =
@@ -121,7 +121,7 @@ async fn assemble_candidate(
         &mut NoopTrace,
     )
     .await
-    .map(|candidate| (candidate, allow_claude_ai_connectors))
+    .map(|candidate| (candidate, bridge_policy))
     .map_err(|e| {
         tracing::warn!(error = %e, "manifest: candidate assembly failed");
         (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))

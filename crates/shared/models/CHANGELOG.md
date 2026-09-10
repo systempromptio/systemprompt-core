@@ -4,6 +4,8 @@
 
 ### Added
 
+- `BridgePolicyConfig.auto_update` (`AutoUpdatePolicy`: `disabled` or `staged`, defaulting to `staged`) and the matching `SignedManifest.auto_update`. Whether an installed bridge keeps itself current is instance policy delivered on the signed manifest, not a client-side preference.
+
 - `subprocess::spawn_owned_supervised` returns an owned child using the existing supervised spawning thread and parent-death handling.
 - `Deployment.connector` (`ConnectorConfig`), the outbound personal-account OAuth settings for an external MCP server, validated at config load: a generic connector requires an HTTPS resource, and a client secret requires a client id. It is separate from `external_auth`, which governs inbound access, and is refused on internal servers.
 

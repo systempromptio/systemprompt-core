@@ -386,3 +386,135 @@ async fn a_download_whose_asset_fetch_fails_upstream_is_a_bad_gateway() -> anyho
     );
     Ok(())
 }
+
+fn spec(api_base: &str) -> systemprompt_models::services::BridgeReleasesSpec {
+    serde_json::from_value(serde_json::json!({
+        "repo": "systempromptio/systemprompt-core",
+        "tag_prefix": "bridge-v",
+        "api_base": api_base,
+        "assets": { "darwin-arm64": ASSET },
+    }))
+    .expect("spec must build")
+}
+
+async fn mount_sums() {
+    Mock::given(method("GET"))
+        .and(path("/sums"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(format!("{DIGEST}  {ASSET}\n")))
+        .mount(server().await)
+        .await;
+}
+
+async fn github_calls(route: &str) -> usize {
+    server()
+        .await
+        .received_requests()
+        .await
+        .unwrap_or_default()
+        .iter()
+        .filter(|r| r.url.path().ends_with(route))
+        .count()
+}
+
+// Why: every bridge in the fleet reads this feed on a timer, and each
+// uncached /latest costs two calls against a 5000/hour GitHub budget. Without
+// the cache the ceiling on fleet size is GitHub's rate limit.
+#[tokio::test]
+async fn a_whole_fleet_checking_at_once_costs_one_github_round_trip() -> anyhow::Result<()> {
+    let base = server().await.uri();
+    mount_releases(serde_json::json!([release(
+        &base,
+        "bridge-v0.32.0",
+        false,
+        false
+    )]))
+    .await;
+    mount_sums().await;
+
+    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::default();
+    let spec = spec(&base);
+    for _ in 0..5u8 {
+        let resolved = feed
+            .resolve(&spec, "darwin-arm64")
+            .await
+            .map_err(|(status, body)| anyhow::anyhow!("{status}: {body}"))?;
+        assert_eq!(resolved.manifest.version, "0.32.0");
+    }
+
+    assert_eq!(
+        github_calls("/releases").await,
+        1,
+        "release list was refetched"
+    );
+    assert_eq!(github_calls("/sums").await, 1, "SHA256SUMS was refetched");
+    Ok(())
+}
+
+// Why: a GitHub outage previously turned into a 502 for every bridge at once.
+// The last resolved release is still the right answer — nothing about it
+// changed because GitHub is down.
+#[tokio::test]
+async fn a_github_outage_serves_the_last_known_release_rather_than_failing() -> anyhow::Result<()> {
+    let base = server().await.uri();
+    mount_releases(serde_json::json!([release(
+        &base,
+        "bridge-v0.32.0",
+        false,
+        false
+    )]))
+    .await;
+    mount_sums().await;
+
+    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::with_ttl(
+        std::time::Duration::ZERO,
+    );
+    let spec = spec(&base);
+    let first = feed
+        .resolve(&spec, "darwin-arm64")
+        .await
+        .map_err(|(status, body)| anyhow::anyhow!("{status}: {body}"))?;
+    assert_eq!(first.manifest.version, "0.32.0");
+
+    let s = server().await;
+    s.reset().await;
+    Mock::given(method("GET"))
+        .and(path("/repos/systempromptio/systemprompt-core/releases"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(s)
+        .await;
+
+    let served = feed
+        .resolve(&spec, "darwin-arm64")
+        .await
+        .map_err(|(status, body)| anyhow::anyhow!("{status}: {body}"))?;
+
+    assert_eq!(
+        served.manifest.version, "0.32.0",
+        "an upstream blip must not fail every bridge's update check"
+    );
+    Ok(())
+}
+
+// Why: serving stale is only safe when there is something to serve. A gateway
+// that has never resolved must report the upstream failure, not a silence the
+// bridge would read as "no update".
+#[tokio::test]
+async fn an_outage_with_nothing_cached_still_reports_the_failure() -> anyhow::Result<()> {
+    let base = server().await.uri();
+    let s = server().await;
+    s.reset().await;
+    Mock::given(method("GET"))
+        .and(path("/repos/systempromptio/systemprompt-core/releases"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(s)
+        .await;
+
+    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::default();
+    let err = feed
+        .resolve(&spec(&base), "darwin-arm64")
+        .await
+        .expect_err("no cached release means the failure is the answer");
+
+    assert_eq!(err.0.as_u16(), 502, "{}", err.1);
+    Ok(())
+}

@@ -49,6 +49,7 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         host_model_protocols: Default::default(),
         artifacts,
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

@@ -10,6 +10,9 @@
 
 ### Added
 
+- The bridge release feed caches its GitHub resolution per platform for five minutes behind one shared HTTP client, and serves the last resolved release when GitHub fails. A fleet checking for updates on a timer used to cost two GitHub calls per bridge per check, and an upstream blip was a 502 for every bridge at once.
+- `/bridge/manifest` carries the instance's `bridge_policy.auto_update`.
+
 - Authenticated evaluation workers can retrieve frozen assignments and submit ordered execution events through `/assignment` and `/events`; assignment responses disable caching.
 
 - Added the authenticated evaluation worker access endpoint and execution-only gateway authentication. Evaluation audit records carry job attribution.

@@ -53,6 +53,7 @@ fn manifest(now: chrono::DateTime<chrono::Utc>, not_before: &str) -> SignedManif
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

@@ -195,9 +195,18 @@ pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     }
     brand::warn_if_version_drifts();
     purge_legacy_agents_state();
+    await_predecessor_exit();
     update::sweep_leftovers();
     cli::run()
 }
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn await_predecessor_exit() {
+    single_instance::await_predecessor_exit();
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+const fn await_predecessor_exit() {}
 
 fn purge_legacy_agents_state() {
     let Some(base) = basedirs::config_dir() else {

@@ -30,6 +30,7 @@ use crate::bridge::ids::{
     ToolPolicy,
 };
 use crate::bridge::manifest_version::ManifestVersion;
+use crate::services::bridge_policy::AutoUpdatePolicy;
 use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
 use systemprompt_identifiers::{
@@ -90,6 +91,8 @@ pub struct SignedManifest {
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]
     pub allow_claude_ai_connectors: bool,
+    #[serde(default)]
+    pub auto_update: AutoUpdatePolicy,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostics: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

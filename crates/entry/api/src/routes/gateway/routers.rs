@@ -126,20 +126,25 @@ pub(super) fn bridge_auth_routes(
 pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
     let jwt_latest = Arc::clone(jwt_extractor);
     let jwt_download = Arc::clone(jwt_extractor);
+    let feed = Arc::new(bridge_release::ReleaseFeed::default());
+    let feed_latest = Arc::clone(&feed);
+    let feed_download = feed;
 
     Router::new()
         .route(
             "/bridge/latest",
             get(move |headers, query| {
                 let extractor = Arc::clone(&jwt_latest);
-                async move { bridge_release::latest(extractor, headers, query).await }
+                let feed = Arc::clone(&feed_latest);
+                async move { bridge_release::latest(extractor, feed, headers, query).await }
             }),
         )
         .route(
             "/bridge/download/{platform}",
             get(move |headers, path| {
                 let extractor = Arc::clone(&jwt_download);
-                async move { bridge_release::download(extractor, headers, path).await }
+                let feed = Arc::clone(&feed_download);
+                async move { bridge_release::download(extractor, feed, headers, path).await }
             }),
         )
 }

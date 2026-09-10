@@ -331,6 +331,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
         };
@@ -491,6 +492,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
         };
@@ -549,6 +551,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
         };
@@ -604,6 +607,7 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }
@@ -794,6 +798,7 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }
@@ -1244,6 +1249,7 @@ fn empty_manifest() -> SignedManifest {
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

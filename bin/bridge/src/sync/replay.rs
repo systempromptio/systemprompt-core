@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::error::SyncError;
+use crate::gateway::manifest::AutoUpdatePolicy;
 use crate::gateway::manifest_version::ManifestVersion;
 use serde::Deserialize;
 use std::fs;
@@ -25,13 +26,28 @@ pub struct LastSyncState {
     pub removed_plugins: Vec<String>,
     #[serde(default)]
     pub enabled_hosts: Vec<String>,
+    #[serde(default)]
+    pub auto_update: AutoUpdatePolicy,
 }
 
 #[must_use]
 pub fn last_synced_enabled_hosts() -> Option<Vec<String>> {
+    read_last_sync_state().map(|state| state.enabled_hosts)
+}
+
+/// The update policy the gateway last delivered on a signed manifest.
+///
+/// A bridge that has never completed a sync has no delivered policy, so the
+/// caller decides what an unmanaged install does rather than this returning a
+/// default that looks authoritative.
+#[must_use]
+pub fn last_synced_auto_update_policy() -> Option<AutoUpdatePolicy> {
+    read_last_sync_state().map(|state| state.auto_update)
+}
+
+fn read_last_sync_state() -> Option<LastSyncState> {
     let meta = crate::config::paths::bridge_metadata_dir()?;
-    let state = read_last_sync(&meta.join(crate::config::paths::LAST_SYNC_SENTINEL)).ok()??;
-    Some(state.enabled_hosts)
+    read_last_sync(&meta.join(crate::config::paths::LAST_SYNC_SENTINEL)).ok()?
 }
 
 #[derive(Debug, thiserror::Error)]

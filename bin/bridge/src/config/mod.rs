@@ -52,15 +52,7 @@ pub struct Config {
     #[serde(default)]
     pub cowork: Option<CoworkConfig>,
     #[serde(default)]
-    pub update: Option<UpdateConfig>,
-    #[serde(default)]
     pub deployment_organization_uuid: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
-pub struct UpdateConfig {
-    #[serde(default)]
-    pub automatic: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

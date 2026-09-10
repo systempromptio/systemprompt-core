@@ -28,7 +28,7 @@ use identity::InstallId;
 
 pub use handle::{ProxyDeps, ProxyHandle, ProxyRole};
 pub use loopback::LoopbackEndpoint;
-pub use server::{ProxyContext, ProxyStats, ServedProxy};
+pub use server::{DRAIN_DEADLINE, ProxyContext, ProxyStats, ServedProxy};
 
 pub const DEFAULT_PROXY_PORT: u16 = 48217;
 pub(crate) const REFRESH_TICK: Duration = Duration::from_mins(1);

@@ -31,6 +31,7 @@ pub(super) fn persist_last_sync(
         user: manifest.user.as_ref().map(|u| u.email.as_str()),
         enabled_hosts: &manifest.enabled_hosts,
         host_model_protocols: &manifest.host_model_protocols,
+        auto_update: manifest.auto_update,
     };
     let bytes = serde_json::to_vec_pretty(&sentinel).map_err(|e| SyncError::Persistence {
         path: path.to_owned(),
@@ -58,6 +59,7 @@ struct LastSyncSentinel<'a> {
     user: Option<&'a str>,
     enabled_hosts: &'a [String],
     host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
+    auto_update: crate::gateway::manifest::AutoUpdatePolicy,
 }
 
 fn current_iso8601() -> String {

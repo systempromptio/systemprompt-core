@@ -32,6 +32,7 @@ pub(super) struct GhAsset {
 }
 
 pub(super) async fn resolve_release(
+    http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
 ) -> Result<GhRelease, (StatusCode, String)> {
     if let Some(pinned) = spec.pinned_version.as_deref() {
@@ -41,7 +42,7 @@ pub(super) async fn resolve_release(
             spec.api_base(),
             spec.repo
         );
-        return fetch_json::<GhRelease>(spec, &url).await;
+        return fetch_json::<GhRelease>(http, spec, &url).await;
     }
 
     let url = format!(
@@ -49,7 +50,7 @@ pub(super) async fn resolve_release(
         spec.api_base(),
         spec.repo
     );
-    let releases = fetch_json::<Vec<GhRelease>>(spec, &url).await?;
+    let releases = fetch_json::<Vec<GhRelease>>(http, spec, &url).await?;
     releases
         .into_iter()
         .find(|r| !r.draft && !r.prerelease && r.tag_name.starts_with(&spec.tag_prefix))
@@ -61,23 +62,21 @@ pub(super) async fn resolve_release(
         })
 }
 
-pub(super) async fn asset_digest(
-    spec: &BridgeReleasesSpec,
-    release: &GhRelease,
-    asset_name: &str,
-) -> Result<String, (StatusCode, String)> {
-    let sums = release
+pub(super) fn sums_url(release: &GhRelease) -> Option<&str> {
+    release
         .assets
         .iter()
         .find(|a| a.name == "SHA256SUMS")
-        .ok_or_else(|| {
-            (
-                StatusCode::BAD_GATEWAY,
-                format!("release {} publishes no SHA256SUMS", release.tag_name),
-            )
-        })?;
+        .map(|a| a.url.as_str())
+}
 
-    let body = github(spec, &sums.url)
+pub(super) async fn asset_digest(
+    http: &reqwest::Client,
+    spec: &BridgeReleasesSpec,
+    sums_url: &str,
+    asset_name: &str,
+) -> Result<String, (StatusCode, String)> {
+    let body = github(http, spec, sums_url)
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
@@ -103,10 +102,11 @@ pub fn parse_sha256sums(body: &str, asset_name: &str) -> Option<String> {
 }
 
 async fn fetch_json<T: serde::de::DeserializeOwned>(
+    http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
     url: &str,
 ) -> Result<T, (StatusCode, String)> {
-    let resp = github(spec, url)
+    let resp = github(http, spec, url)
         .send()
         .await
         .map_err(|e| (StatusCode::BAD_GATEWAY, format!("github request: {e}")))?;
@@ -121,8 +121,12 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
         .map_err(|e| (StatusCode::BAD_GATEWAY, format!("github decode: {e}")))
 }
 
-pub(super) fn github(spec: &BridgeReleasesSpec, url: &str) -> reqwest::RequestBuilder {
-    let mut req = reqwest::Client::new()
+pub(super) fn github(
+    http: &reqwest::Client,
+    spec: &BridgeReleasesSpec,
+    url: &str,
+) -> reqwest::RequestBuilder {
+    let mut req = http
         .get(url)
         // Why: GitHub rejects requests that send no User-Agent.
         .header(header::USER_AGENT, "systemprompt-gateway")
