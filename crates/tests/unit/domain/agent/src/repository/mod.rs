@@ -10,6 +10,7 @@ mod batch_builders;
 mod context;
 mod context_notifications;
 mod execution;
+mod execution_mutation_faults;
 mod message;
 mod message_sequence_lock;
 mod message_tx;

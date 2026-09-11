@@ -23,11 +23,23 @@ fn property(shape: Value) -> Value {
 #[test]
 fn the_checker_names_each_rejection_gemini_makes() {
     let cases: Vec<(&str, Value)> = vec![
-        ("items on a non-array", json!({"type": "string", "items": {}})),
+        (
+            "items on a non-array",
+            json!({"type": "string", "items": {}}),
+        ),
         ("array without an items object", json!({"type": "array"})),
-        ("type is a list", json!({"type": ["array", "null"], "items": {}})),
-        ("variant without a type", json!({"anyOf": [{"minItems": 1}]})),
-        ("unknown keyword prefixItems", json!({"type": "array", "items": {}, "prefixItems": []})),
+        (
+            "type is a list",
+            json!({"type": ["array", "null"], "items": {}}),
+        ),
+        (
+            "variant without a type",
+            json!({"anyOf": [{"minItems": 1}]}),
+        ),
+        (
+            "unknown keyword prefixItems",
+            json!({"type": "array", "items": {}, "prefixItems": []}),
+        ),
         ("unknown keyword $ref", json!({"$ref": "#/x"})),
     ];
     for (expected, schema) in cases {
@@ -104,7 +116,11 @@ fn the_atlassian_search_declarations_sanitise_cleanly() {
     ]);
     for declaration in catalog.as_array().expect("array") {
         let out = gemini().sanitize(declaration.clone());
-        assert_eq!(gemini_declaration_violations(&out), Vec::<String>::new(), "{out}");
+        assert_eq!(
+            gemini_declaration_violations(&out),
+            Vec::<String>::new(),
+            "{out}"
+        );
     }
 }
 
@@ -140,7 +156,10 @@ fn an_untyped_variant_is_typed_from_what_it_says_or_dropped() {
 fn the_gemini_rewrites_do_not_apply_to_other_providers() {
     let schema = json!({"type": ["array", "string"], "items": {"type": "integer"},
                         "anyOf": [{"minItems": 1}]});
-    for caps in [ProviderCapabilities::anthropic(), ProviderCapabilities::openai()] {
+    for caps in [
+        ProviderCapabilities::anthropic(),
+        ProviderCapabilities::openai(),
+    ] {
         let out = SchemaSanitizer::new(caps).sanitize(schema.clone());
         assert_eq!(out["type"], json!(["array", "string"]));
         assert_eq!(out["anyOf"], json!([{"minItems": 1}]));

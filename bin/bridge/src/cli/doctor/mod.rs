@@ -14,6 +14,7 @@ use crate::{config, stdio};
 pub mod auth;
 pub mod cowork;
 pub mod filesystem;
+pub mod hooks;
 pub mod marketplace;
 pub mod proxy;
 #[cfg(target_os = "windows")]
@@ -93,6 +94,9 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.push(auth::check_loopback_secret());
     checks.push(proxy::check_proxy_listening(proxy));
     checks.extend(proxy::check_proxy_client_config(&env));
+    if let Some(check) = hooks::check_hook_urls(proxy.port()) {
+        checks.push(check);
+    }
     if let Some(check) = proxy::check_proxy_service() {
         checks.push(check);
     }

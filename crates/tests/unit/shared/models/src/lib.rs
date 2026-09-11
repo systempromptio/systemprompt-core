@@ -88,9 +88,9 @@ mod provider_catalog_parity;
 mod provider_model_lookup;
 
 #[cfg(test)]
-mod provider_protocol_filter;
-#[cfg(test)]
 mod provider_project_placeholder;
+#[cfg(test)]
+mod provider_protocol_filter;
 
 #[cfg(test)]
 mod wire_codec;
@@ -242,9 +242,9 @@ mod services_includable;
 mod paths_tests;
 
 #[cfg(test)]
-mod schema_sanitizer;
-#[cfg(test)]
 mod schema_gemini_invariants;
+#[cfg(test)]
+mod schema_sanitizer;
 
 #[cfg(test)]
 mod validators_driven;

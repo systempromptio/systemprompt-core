@@ -64,5 +64,7 @@ fn the_registry_refuses_a_catalog_that_names_a_project() {
             "https://us-central1-aiplatform.googleapis.com/v1/projects/{PROJECT_PLACEHOLDER}/locations/us-central1/publishers/google"
         ))],
     };
-    placeholder.validate().expect("a placeholder endpoint is valid");
+    placeholder
+        .validate()
+        .expect("a placeholder endpoint is valid");
 }

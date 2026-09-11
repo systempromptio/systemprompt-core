@@ -61,3 +61,23 @@ async fn the_job_is_scheduled_daily_and_describes_its_parameters() {
         );
     }
 }
+
+#[tokio::test]
+async fn a_context_with_a_pool_but_no_app_context_fails_and_names_it() {
+    let pool: systemprompt_database::DbPool = systemprompt_test_fixtures::closed_db_pool().await;
+
+    let error = EvaluationLoopJob
+        .execute(&context(Arc::new(pool), Arc::new(())))
+        .await
+        .expect_err("the job must not run without the application context");
+
+    let message = error.to_string();
+    assert!(
+        message.contains("AppContext"),
+        "the failure must name the missing collaborator, got: {message}"
+    );
+    assert!(
+        !message.contains("DbPool"),
+        "the pool was supplied, so it must not be blamed: {message}"
+    );
+}

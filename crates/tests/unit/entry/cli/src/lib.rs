@@ -29,6 +29,8 @@ mod cloud_profile_show_types;
 #[cfg(test)]
 mod cloud_tenant_docker;
 #[cfg(test)]
+mod cloud_tenant_local_guards;
+#[cfg(test)]
 #[cfg(test)]
 mod commands;
 #[cfg(test)]

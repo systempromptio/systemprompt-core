@@ -92,7 +92,10 @@ fn the_project_segment_is_filled_from_the_service_account_and_never_guessed() {
     );
     let refused = fill_project(vertex, None).unwrap_err().to_string();
     assert!(refused.contains("project_id"), "{refused}");
-    assert!(fill_project(vertex, Some("")).is_err(), "an empty project is no project");
+    assert!(
+        fill_project(vertex, Some("")).is_err(),
+        "an empty project is no project"
+    );
     assert_eq!(
         fill_project("https://api.anthropic.com/v1", None).unwrap(),
         "https://api.anthropic.com/v1",

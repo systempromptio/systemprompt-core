@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Fixed
+
+- **Doctor:** hook URLs baked into mirrored `hooks/hooks.json` files that name a port the proxy no longer holds are now reported as a failing check; the check existed but was never run, so a moved proxy surfaced only as `ECONNREFUSED` on every tool call.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

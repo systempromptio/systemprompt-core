@@ -298,3 +298,124 @@ fn emit_migrations_panics_on_no_transaction_with_down() {
         ],
     );
 }
+
+#[test]
+fn tombstone_scenarios() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+
+    // --- a single spent slot emits one tombstone and no SQL include ---
+    {
+        let manifest = TempDir::new().expect("manifest tmp");
+        let out = TempDir::new().expect("out tmp");
+        let body = run(&manifest, &out, &[("020_dropped_table.tombstone", "")]);
+        assert!(
+            body.contains("Migration::tombstone(20, \"dropped_table\")"),
+            "a spent slot is emitted as a tombstone, got:\n{body}"
+        );
+        assert!(
+            !body.contains("include_str!"),
+            "a tombstone has no SQL to embed, got:\n{body}"
+        );
+    }
+
+    // --- a range tombstone is expanded to one entry per covered version ---
+    {
+        let manifest = TempDir::new().expect("manifest tmp");
+        let out = TempDir::new().expect("out tmp");
+        let body = run(&manifest, &out, &[("021-023_reclaimed.tombstone", "")]);
+        for version in 21..=23 {
+            assert!(
+                body.contains(&format!("Migration::tombstone({version}, \"reclaimed\")")),
+                "version {version} of the range must get its own entry, got:\n{body}"
+            );
+        }
+        assert_eq!(
+            body.matches("Migration::").count(),
+            3,
+            "the range covers exactly three slots, got:\n{body}"
+        );
+    }
+
+    // --- tombstones and live migrations are emitted together, in order ---
+    {
+        let manifest = TempDir::new().expect("manifest tmp");
+        let out = TempDir::new().expect("out tmp");
+        let body = run(
+            &manifest,
+            &out,
+            &[
+                ("030_spent.tombstone", ""),
+                ("031_live.sql", "CREATE TABLE live (id TEXT);"),
+            ],
+        );
+        let spent = body
+            .find("Migration::tombstone(30, \"spent\")")
+            .expect("tombstone present");
+        let live = body
+            .find("Migration::new(31, \"live\"")
+            .expect("live migration present");
+        assert!(
+            spent < live,
+            "the merged list stays version-ordered, got:\n{body}"
+        );
+    }
+}
+
+#[test]
+#[should_panic(expected = "the slot is already spent")]
+fn refilling_a_tombstoned_slot_is_rejected() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    run(
+        &manifest,
+        &out,
+        &[
+            ("040_spent.tombstone", ""),
+            ("040_reused.sql", "CREATE TABLE reused (id TEXT);"),
+        ],
+    );
+}
+
+#[test]
+#[should_panic(expected = "the slot is already spent")]
+fn a_migration_inside_a_tombstoned_range_is_rejected() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    run(
+        &manifest,
+        &out,
+        &[
+            ("050-052_spent.tombstone", ""),
+            ("051_inside.sql", "CREATE TABLE inside (id TEXT);"),
+        ],
+    );
+}
+
+#[test]
+#[should_panic(expected = "may not name a version range")]
+fn a_live_migration_may_not_claim_a_version_range() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    run(
+        &manifest,
+        &out,
+        &[("060-062_ranged.sql", "CREATE TABLE ranged (id TEXT);")],
+    );
+}
+
+#[test]
+#[should_panic(expected = "descending version range")]
+fn a_descending_tombstone_range_is_rejected() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    run(&manifest, &out, &[("070-068_backwards.tombstone", "")]);
+}

@@ -477,10 +477,14 @@ mod nullable_normalisation_tests {
     }
 
     #[test]
-    fn leaves_type_array_without_null_untouched() {
+    fn splits_a_type_array_without_null_into_typed_variants() {
         let schema = json!({"type": ["string", "integer"]});
         let out = gemini().sanitize(schema);
-        assert_eq!(out["type"], json!(["string", "integer"]));
+        assert!(out.get("type").is_none());
+        assert_eq!(
+            out["anyOf"],
+            json!([{"type": "string"}, {"type": "integer"}])
+        );
         assert!(out.get("nullable").is_none());
     }
 

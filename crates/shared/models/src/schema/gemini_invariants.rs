@@ -26,8 +26,6 @@ const UNKNOWN_KEYWORDS: [&str; 9] = [
     "const",
 ];
 
-/// Every way `schema` would be refused as a Gemini function declaration, with
-/// the JSON path of each offence. Empty means the declaration is acceptable.
 #[must_use]
 pub fn gemini_declaration_violations(schema: &Value) -> Vec<String> {
     let mut out = Vec::new();

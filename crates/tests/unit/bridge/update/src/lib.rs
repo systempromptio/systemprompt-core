@@ -1,6 +1,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod automatic;
+#[cfg(test)]
 mod cli_args;
 #[cfg(test)]
 mod compare;

@@ -227,8 +227,6 @@ impl ProviderRegistry {
     }
 }
 
-/// The endpoint segment the gateway fills from the credential's own
-/// `project_id` when the secret is a Google service account.
 pub const PROJECT_PLACEHOLDER: &str = "{project}";
 
 // Why: a Google Cloud project id is a tenant identifier, and Vertex reports it

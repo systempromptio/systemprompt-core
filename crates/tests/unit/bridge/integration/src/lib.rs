@@ -50,6 +50,8 @@ mod profile_state_verdicts;
 #[cfg(test)]
 mod proxy_probe;
 #[cfg(test)]
+mod purge_state;
+#[cfg(test)]
 mod reapply;
 #[cfg(test)]
 mod reapply_decision;

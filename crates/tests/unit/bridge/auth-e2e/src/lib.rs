@@ -6,3 +6,5 @@ mod auth_chain;
 mod doctor_happy;
 #[cfg(test)]
 mod validate_doctor;
+#[cfg(all(test, unix))]
+mod validate_state;
