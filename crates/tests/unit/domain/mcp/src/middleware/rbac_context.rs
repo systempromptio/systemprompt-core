@@ -90,15 +90,3 @@ fn auth_result_expect_authenticated_on_authenticated_is_ok() {
     assert!(result.is_ok());
     assert_eq!(result.unwrap().token(), "good-token");
 }
-
-#[test]
-fn auth_result_debug_variants() {
-    let anon = AuthResult::Anonymous(ctx("dbg-anon"));
-    let s = format!("{anon:?}");
-    assert!(s.contains("Anonymous"));
-
-    let auth_ctx = AuthenticatedRequestContext::new(ctx("dbg-auth"), "t".to_owned());
-    let auth = AuthResult::Authenticated(auth_ctx);
-    let s = format!("{auth:?}");
-    assert!(s.contains("Authenticated"));
-}

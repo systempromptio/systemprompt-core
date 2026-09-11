@@ -116,3 +116,23 @@ async fn replica_status_reports_a_primary_with_no_lag() {
         "a primary replays nothing, so it reports no lag"
     );
 }
+
+#[tokio::test]
+async fn a_dead_pool_fails_the_connection_check_with_a_boot_facing_message() {
+    let db = systemprompt_test_fixtures::closed_db_pool().await;
+    let pg = db
+        .write_pool_arc()
+        .expect("a closed pool still has a handle");
+    let provider = PostgresProvider::from_pool(pg);
+
+    let error = validate_database_connection(&provider)
+        .await
+        .expect_err("boot must not proceed against a pool that cannot answer");
+
+    assert!(
+        error
+            .to_string()
+            .contains("Failed to establish database connection"),
+        "the pre-flight failure must read as a connection problem, not a driver trace: {error}"
+    );
+}

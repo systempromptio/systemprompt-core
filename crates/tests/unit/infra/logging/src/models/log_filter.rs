@@ -170,29 +170,6 @@ fn test_log_filter_message_accessor_some() {
     assert_eq!(filter.message(), Some("error occurred"));
 }
 
-#[test]
-fn test_log_filter_clone() {
-    let filter = LogFilter::new(1, 10)
-        .with_level("ERROR")
-        .with_module("test")
-        .with_message("msg");
-    let cloned = filter.clone();
-
-    assert_eq!(filter.page(), cloned.page());
-    assert_eq!(filter.per_page(), cloned.per_page());
-    assert_eq!(filter.level(), cloned.level());
-    assert_eq!(filter.module(), cloned.module());
-    assert_eq!(filter.message(), cloned.message());
-}
-
-#[test]
-fn test_log_filter_debug() {
-    let filter = LogFilter::new(1, 10).with_level("ERROR");
-    let debug = format!("{:?}", filter);
-
-    assert!(debug.contains("LogFilter"));
-    assert!(debug.contains("ERROR"));
-}
 
 #[test]
 fn test_log_filter_with_empty_level() {

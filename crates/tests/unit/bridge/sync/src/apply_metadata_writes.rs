@@ -7,6 +7,10 @@ use systemprompt_bridge::gateway::manifest::UserInfo;
 use systemprompt_bridge::sync::apply::{prepare_dirs, write_mcp_servers, write_user};
 use systemprompt_identifiers::UserId;
 
+fn gateway() -> systemprompt_identifiers::ValidatedUrl {
+    systemprompt_identifiers::ValidatedUrl::new("https://gw.example.com")
+}
+
 fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
     let home = tempfile::TempDir::new().expect("home");
     let state = tempfile::TempDir::new().expect("state");
@@ -150,14 +154,19 @@ fn writing_the_user_fragment_into_a_directory_that_is_not_there_reports_the_path
 fn an_empty_managed_server_list_writes_an_empty_json_array() {
     sandbox(|home| {
         let (meta, _) = prepare_dirs(&home.join("org-plugins")).expect("prepare");
-        write_mcp_servers(&meta, &[]).expect("write no servers");
+        write_mcp_servers(&meta, &gateway(), &[]).expect("write no servers");
 
         let text = std::fs::read_to_string(meta.join("mcp-servers.json")).expect("read back");
         let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid json");
         assert_eq!(
-            parsed.as_array().map(Vec::len),
+            parsed["servers"].as_array().map(Vec::len),
             Some(0),
             "an empty list is an empty array, not null or a missing file"
+        );
+        assert_eq!(
+            parsed["gateway"].as_str(),
+            Some("https://gw.example.com"),
+            "the fragment names the gateway that delivered it"
         );
     });
 }
@@ -166,7 +175,8 @@ fn an_empty_managed_server_list_writes_an_empty_json_array() {
 fn writing_the_server_fragment_into_a_directory_that_is_not_there_reports_the_path() {
     sandbox(|home| {
         let absent = home.join("no-such-metadata-dir");
-        let err = write_mcp_servers(&absent, &[]).expect_err("the directory does not exist");
+        let err =
+            write_mcp_servers(&absent, &gateway(), &[]).expect_err("the directory does not exist");
         assert!(
             err.to_string().contains("mcp-servers.json"),
             "the error must name the fragment it failed to write, got {err}"
@@ -178,8 +188,8 @@ fn writing_the_server_fragment_into_a_directory_that_is_not_there_reports_the_pa
 fn rewriting_a_fragment_replaces_it_rather_than_appending() {
     sandbox(|home| {
         let (meta, _) = prepare_dirs(&home.join("org-plugins")).expect("prepare");
-        write_mcp_servers(&meta, &[]).expect("first write");
-        write_mcp_servers(&meta, &[]).expect("second write");
+        write_mcp_servers(&meta, &gateway(), &[]).expect("first write");
+        write_mcp_servers(&meta, &gateway(), &[]).expect("second write");
 
         let text = std::fs::read_to_string(meta.join("mcp-servers.json")).expect("read back");
         serde_json::from_str::<serde_json::Value>(&text)

@@ -6,10 +6,12 @@
 //! - Default implementations
 
 mod admin_services;
+mod admin_services_refresh;
 mod agent;
 mod agent_responses;
 mod bridge_profile_models;
 mod evaluation_worker;
+mod gateway_auth_provision_client;
 mod gateway_auth_responses;
 mod gateway_auth_shapes;
 mod gateway_authz_request;
@@ -18,11 +20,14 @@ mod gateway_bridge_release_feed;
 mod gateway_bridge_release_sums;
 mod gateway_extract_credential;
 mod gateway_messages_auth;
+mod gateway_messages_auth_execution;
+mod gateway_messages_authenticate;
 mod gateway_messages_dispatch_errors;
 mod gateway_messages_extract;
 mod gateway_otel_convert;
 mod gateway_otel_ingest;
 mod gateway_upstream_status_mapping;
+mod marketplace_yaml;
 mod oauth;
 mod proxy_mcp_metadata;
 mod sync_types;
@@ -35,4 +40,5 @@ mod mcp_registry_handler;
 mod content_blog;
 mod content_links_redirect;
 mod gateway_auth_mtls;
+mod gateway_auth_mtls_enrolled;
 mod wellknown_agent_cards;

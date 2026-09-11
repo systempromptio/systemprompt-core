@@ -109,21 +109,6 @@ fn test_agent_service_error_capacity() {
     assert!(error.to_string().contains("Connection pool exhausted"));
 }
 
-#[test]
-fn test_agent_service_error_debug_database() {
-    let error = AgentServiceError::Database("test".to_string());
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("Database"));
-}
-
-#[test]
-fn test_agent_service_error_debug_validation() {
-    let error = AgentServiceError::Validation("field".to_string(), "reason".to_string());
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("Validation"));
-    assert!(debug_str.contains("field"));
-    assert!(debug_str.contains("reason"));
-}
 
 #[test]
 fn test_agent_service_error_debug_timeout() {

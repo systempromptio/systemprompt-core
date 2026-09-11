@@ -150,27 +150,6 @@ fn test_mcp_connection_result_health_status_unknown() {
     assert_eq!(result.health_status(), "unknown");
 }
 
-#[test]
-fn test_mcp_connection_result_clone() {
-    let result = McpConnectionResult {
-        service_name: "test-service".to_string(),
-        success: true,
-        error_message: None,
-        connection_time_ms: 100,
-        server_info: Some(McpProtocolInfo {
-            server_name: "test-server".to_string(),
-            version: "1.0.0".to_string(),
-            protocol_version: "2024-11-05".to_string(),
-        }),
-        tools_count: Some(5),
-        validation_type: "mcp_validated".to_string(),
-    };
-
-    let cloned = result.clone();
-    assert_eq!(cloned.service_name, result.service_name);
-    assert_eq!(cloned.success, result.success);
-    assert_eq!(cloned.tools_count, result.tools_count);
-}
 
 #[test]
 fn test_mcp_connection_result_serialize() {

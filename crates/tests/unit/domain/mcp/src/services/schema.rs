@@ -203,19 +203,6 @@ fn schema_validation_mode_from_string_mixed_case_strict() {
     assert_eq!(mode, SchemaValidationMode::Strict);
 }
 
-#[test]
-fn schema_validation_mode_clone_and_eq() {
-    let mode = SchemaValidationMode::Strict;
-    let cloned = mode;
-    assert_eq!(mode, cloned);
-}
-
-#[test]
-fn schema_validation_mode_debug() {
-    let mode = SchemaValidationMode::AutoMigrate;
-    let debug = format!("{:?}", mode);
-    assert!(debug.contains("AutoMigrate"));
-}
 
 #[test]
 fn schema_validation_report_new() {

@@ -31,7 +31,6 @@ pub struct A2ARepositories {
     pub context_notifications: context::ContextNotificationRepository,
     pub artifacts: content::ArtifactRepository,
     pub execution_steps: execution::ExecutionStepRepository,
-    pub push_notification_configs: content::PushNotificationConfigRepository,
 }
 
 impl A2ARepositories {
@@ -47,7 +46,6 @@ impl A2ARepositories {
             .map_err(|e| AgentError::Init(e.to_string()))?;
         let artifacts = content::ArtifactRepository::new(db)?;
         let execution_steps = execution::ExecutionStepRepository::new(db)?;
-        let push_notification_configs = content::PushNotificationConfigRepository::new(db)?;
 
         Ok(Self {
             db_pool: Arc::clone(db),
@@ -57,7 +55,6 @@ impl A2ARepositories {
             context_notifications,
             artifacts,
             execution_steps,
-            push_notification_configs,
         })
     }
 

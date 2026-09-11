@@ -52,36 +52,52 @@ fn unelevated_token() -> io::Result<OwnedHandle> {
     let mut size = 0;
     // SAFETY: each output has the size of the selected token information class.
     unsafe {
-        checked(GetTokenInformation(
-            token.as_raw_handle(),
-            TokenElevationType,
-            (&raw mut elevation).cast(),
-            size_of::<u32>() as u32,
-            &raw mut size,
-        ))?;
-        let base = if elevation == TokenElevationTypeFull as u32 {
+        step(
+            GetTokenInformation(
+                token.as_raw_handle(),
+                TokenElevationType,
+                (&raw mut elevation).cast(),
+                size_of::<u32>() as u32,
+                &raw mut size,
+            ),
+            "GetTokenInformation(TokenElevationType)",
+        )?;
+        if elevation == TokenElevationTypeFull as u32 {
+            // Why: the linked token comes back as an impersonation token at
+            // SecurityIdentification level for any caller without SeTcb (an
+            // elevated administrator included). AccessCheck accepts that
+            // level as-is; asking DuplicateToken for SecurityImpersonation
+            // requests a higher level than the source and fails with
+            // ERROR_BAD_IMPERSONATION_LEVEL (1346).
             let mut linked = TOKEN_LINKED_TOKEN {
                 LinkedToken: null_mut(),
             };
-            checked(GetTokenInformation(
-                token.as_raw_handle(),
-                TokenLinkedToken,
-                (&raw mut linked).cast(),
-                size_of::<TOKEN_LINKED_TOKEN>() as u32,
-                &raw mut size,
-            ))?;
-            OwnedHandle::from_raw_handle(linked.LinkedToken)
-        } else {
-            token
-        };
+            step(
+                GetTokenInformation(
+                    token.as_raw_handle(),
+                    TokenLinkedToken,
+                    (&raw mut linked).cast(),
+                    size_of::<TOKEN_LINKED_TOKEN>() as u32,
+                    &raw mut size,
+                ),
+                "GetTokenInformation(TokenLinkedToken)",
+            )?;
+            return Ok(OwnedHandle::from_raw_handle(linked.LinkedToken));
+        }
         let mut impersonation = null_mut();
-        checked(DuplicateToken(
-            base.as_raw_handle(),
-            SecurityImpersonation,
-            &raw mut impersonation,
-        ))?;
+        step(
+            DuplicateToken(
+                token.as_raw_handle(),
+                SecurityImpersonation,
+                &raw mut impersonation,
+            ),
+            "DuplicateToken(SecurityImpersonation)",
+        )?;
         Ok(OwnedHandle::from_raw_handle(impersonation))
     }
+}
+fn step(value: i32, name: &str) -> io::Result<()> {
+    checked(value).map_err(|e| io::Error::new(e.kind(), format!("{name}: {e}")))
 }
 pub(crate) fn verify_modify_tree(path: &Path) -> io::Result<()> {
     let token = unelevated_token()?;
@@ -113,7 +129,8 @@ fn verify_modify(path: &Path, token: &OwnedHandle) -> io::Result<()> {
             null_mut(),
             null_mut(),
             &raw mut descriptor,
-        ))?;
+        ))
+        .map_err(|e| io::Error::new(e.kind(), format!("GetNamedSecurityInfoW: {e}")))?;
         let descriptor = Descriptor(descriptor);
         let mapping = GENERIC_MAPPING {
             GenericRead: FILE_GENERIC_READ,
@@ -125,16 +142,19 @@ fn verify_modify(path: &Path, token: &OwnedHandle) -> io::Result<()> {
         let mut privileges = vec![0usize; 128];
         let mut length = (privileges.len() * size_of::<usize>()) as u32;
         let (mut granted, mut allowed) = (0, 0);
-        checked(AccessCheck(
-            descriptor.0,
-            token.as_raw_handle(),
-            desired,
-            &raw const mapping,
-            privileges.as_mut_ptr().cast(),
-            &raw mut length,
-            &raw mut granted,
-            &raw mut allowed,
-        ))?;
+        step(
+            AccessCheck(
+                descriptor.0,
+                token.as_raw_handle(),
+                desired,
+                &raw const mapping,
+                privileges.as_mut_ptr().cast(),
+                &raw mut length,
+                &raw mut granted,
+                &raw mut allowed,
+            ),
+            "AccessCheck",
+        )?;
         if allowed == 0 || granted & desired != desired {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,

@@ -28,24 +28,6 @@ fn test_retry_configuration_custom() {
     assert_eq!(config.exponential_base, 3);
 }
 
-#[test]
-fn test_retry_configuration_clone() {
-    let config = RetryConfiguration::default();
-    let cloned = config;
-
-    assert_eq!(cloned.max_attempts, config.max_attempts);
-    assert_eq!(cloned.initial_delay, config.initial_delay);
-}
-
-#[test]
-fn test_retry_configuration_debug() {
-    let config = RetryConfiguration::default();
-    let debug_str = format!("{:?}", config);
-
-    assert!(debug_str.contains("RetryConfiguration"));
-    assert!(debug_str.contains("max_attempts"));
-    assert!(debug_str.contains("initial_delay"));
-}
 
 #[test]
 fn test_exponential_delay_doubles() {

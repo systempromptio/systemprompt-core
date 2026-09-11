@@ -216,7 +216,10 @@ fn guarded_redirect_policy(
     max_redirects: usize,
 ) -> reqwest::redirect::Policy {
     reqwest::redirect::Policy::custom(move |attempt| {
-        if attempt.previous().len() >= max_redirects {
+        // Why: reqwest pushes the URL being left onto `previous` before asking,
+        // so the first hop already sees one entry; `>` follows exactly
+        // `max_redirects` hops, matching `Policy::limited`.
+        if attempt.previous().len() > max_redirects {
             return attempt.error(GuardedConnectError::TooManyRedirects(max_redirects));
         }
         match validate_outbound_url_with_trust(attempt.url().as_str(), &trusted) {

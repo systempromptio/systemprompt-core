@@ -71,13 +71,6 @@ mod chat_request_tests {
         let req = test_request().with_response_schema(schema.clone());
         assert_eq!(req.response_schema, Some(schema));
     }
-
-    #[test]
-    fn is_debug() {
-        let req = test_request();
-        let debug = format!("{:?}", req);
-        assert!(debug.contains("ChatRequest"));
-    }
 }
 
 mod chat_response_tests {

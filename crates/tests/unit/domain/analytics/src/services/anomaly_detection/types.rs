@@ -18,16 +18,6 @@ mod anomaly_threshold_config_tests {
         assert!((config.warning_threshold - 10.0).abs() < f64::EPSILON);
         assert!((config.critical_threshold - 25.0).abs() < f64::EPSILON);
     }
-
-    #[test]
-    fn config_is_debug() {
-        let config = AnomalyThresholdConfig {
-            warning_threshold: 5.0,
-            critical_threshold: 10.0,
-        };
-        let debug_str = format!("{:?}", config);
-        assert!(debug_str.contains("AnomalyThresholdConfig"));
-    }
 }
 
 mod anomaly_event_tests {
@@ -45,16 +35,6 @@ mod anomaly_event_tests {
         assert_eq!(event.timestamp, now);
         assert!((event.value - 42.5).abs() < f64::EPSILON);
     }
-
-    #[test]
-    fn event_is_debug() {
-        let event = AnomalyEvent {
-            timestamp: Utc::now(),
-            value: 15.0,
-        };
-        let debug_str = format!("{:?}", event);
-        assert!(debug_str.contains("AnomalyEvent"));
-    }
 }
 
 mod anomaly_level_tests {
@@ -65,12 +45,6 @@ mod anomaly_level_tests {
         assert_ne!(AnomalyLevel::Normal, AnomalyLevel::Warning);
         assert_ne!(AnomalyLevel::Warning, AnomalyLevel::Critical);
         assert_ne!(AnomalyLevel::Normal, AnomalyLevel::Critical);
-    }
-
-    #[test]
-    fn level_is_debug() {
-        let debug_str = format!("{:?}", AnomalyLevel::Warning);
-        assert!(debug_str.contains("Warning"));
     }
 }
 
@@ -130,12 +104,5 @@ mod anomaly_check_result_tests {
             .message
             .as_ref()
             .expect("critical should have message");
-    }
-
-    #[test]
-    fn result_is_debug() {
-        let result = create_result("test_metric", 10.0, AnomalyLevel::Normal);
-        let debug_str = format!("{:?}", result);
-        assert!(debug_str.contains("AnomalyCheckResult"));
     }
 }

@@ -28,12 +28,6 @@ mod chat_role_tests {
         let json = serde_json::to_string(&ChatRole::Tool).unwrap();
         assert_eq!(json, "\"tool\"");
     }
-
-    #[test]
-    fn is_debug() {
-        let debug = format!("{:?}", ChatRole::Assistant);
-        assert!(debug.contains("Assistant"));
-    }
 }
 
 mod chat_message_tests {

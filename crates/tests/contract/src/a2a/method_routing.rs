@@ -73,78 +73,22 @@ fn get_extended_agent_card_routes_correctly() {
 }
 
 #[test]
-fn subscribe_to_task_routes_correctly() {
-    let req = make_request(
-        "SubscribeToTask",
-        serde_json::json!({
-            "task_id": "task-1",
-            "config": {
-                "url": "https://example.com/webhook"
-            }
-        }),
-    );
-    let result = req.parse_request();
-    assert!(matches!(
-        result,
-        Ok(A2aRequestParams::TaskResubscription(_))
-    ));
-}
-
-#[test]
-fn create_push_notification_config_routes_correctly() {
-    let req = make_request(
+fn push_notification_config_methods_are_not_served() {
+    for method in [
         "CreateTaskPushNotificationConfig",
-        serde_json::json!({
-            "task_id": "task-1",
-            "config": {
-                "url": "https://example.com/webhook"
-            }
-        }),
-    );
-    let result = req.parse_request();
-    assert!(matches!(
-        result,
-        Ok(A2aRequestParams::SetTaskPushNotificationConfig(_))
-    ));
-}
-
-#[test]
-fn get_push_notification_config_routes_correctly() {
-    let req = make_request(
         "GetTaskPushNotificationConfig",
-        serde_json::json!({"task_id": "task-1"}),
-    );
-    let result = req.parse_request();
-    assert!(matches!(
-        result,
-        Ok(A2aRequestParams::GetTaskPushNotificationConfig(_))
-    ));
-}
-
-#[test]
-fn list_push_notification_configs_routes_correctly() {
-    let req = make_request(
         "ListTaskPushNotificationConfigs",
-        serde_json::json!({"task_id": "task-1"}),
-    );
-    let result = req.parse_request();
-    assert!(matches!(
-        result,
-        Ok(A2aRequestParams::ListTaskPushNotificationConfig(_))
-    ));
-}
-
-#[test]
-fn delete_push_notification_config_routes_correctly() {
-    let req = make_request(
         "DeleteTaskPushNotificationConfig",
-        serde_json::json!({"task_id": "task-1"}),
-    );
-    let result = req.parse_request();
-    assert!(matches!(
-        result,
-        Ok(A2aRequestParams::DeleteTaskPushNotificationConfig(_))
-    ));
+    ] {
+        let req = make_request(method, serde_json::json!({"task_id": "task-1"}));
+        assert!(
+            matches!(
+                req.parse_request(),
+                Err(A2aParseError::UnsupportedMethod { method: m }) if m == method
+            ),
+            "{method} must be an unsupported method"
+        );
+    }
 }
 
 #[test]

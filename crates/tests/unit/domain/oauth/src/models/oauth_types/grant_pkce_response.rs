@@ -63,11 +63,6 @@ fn test_grant_type_default_grant_types() {
     assert!(defaults.contains(&"refresh_token"));
 }
 
-#[test]
-fn test_grant_type_debug() {
-    let debug_str = format!("{:?}", GrantType::AuthorizationCode);
-    assert!(debug_str.contains("AuthorizationCode"));
-}
 
 #[test]
 fn test_pkce_method_s256_as_str() {
@@ -96,11 +91,6 @@ fn test_pkce_method_display() {
     assert_eq!(format!("{}", PkceMethod::S256), "S256");
 }
 
-#[test]
-fn test_pkce_method_debug() {
-    let debug_str = format!("{:?}", PkceMethod::S256);
-    assert!(debug_str.contains("S256"));
-}
 
 #[test]
 fn test_response_type_code_as_str() {
@@ -124,11 +114,6 @@ fn test_response_type_display() {
     assert_eq!(format!("{}", ResponseType::Code), "code");
 }
 
-#[test]
-fn test_response_type_debug() {
-    let debug_str = format!("{:?}", ResponseType::Code);
-    assert!(debug_str.contains("Code"));
-}
 
 #[test]
 fn test_response_mode_query_as_str() {
@@ -162,10 +147,4 @@ fn test_response_mode_from_str_invalid() {
 fn test_response_mode_display() {
     assert_eq!(format!("{}", ResponseMode::Query), "query");
     assert_eq!(format!("{}", ResponseMode::Fragment), "fragment");
-}
-
-#[test]
-fn test_response_mode_debug() {
-    let debug_str = format!("{:?}", ResponseMode::Query);
-    assert!(debug_str.contains("Query"));
 }

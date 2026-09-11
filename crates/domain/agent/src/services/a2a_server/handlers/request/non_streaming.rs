@@ -87,12 +87,6 @@ pub(super) async fn handle_non_streaming_request(
                 Err(e) => Err(format!("Failed to look up task: {e}").into()),
             }
         },
-        A2aRequestParams::SetTaskPushNotificationConfig(_)
-        | A2aRequestParams::GetTaskPushNotificationConfig(_)
-        | A2aRequestParams::ListTaskPushNotificationConfig(_)
-        | A2aRequestParams::DeleteTaskPushNotificationConfig(_) => {
-            Err("Push notification config requests should be handled before this point".into())
-        },
         _ => {
             tracing::warn!(request = ?request, "Unsupported A2A request type");
             Err("Unsupported request type".into())

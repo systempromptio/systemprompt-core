@@ -234,18 +234,4 @@ mod error_helper_tests {
         assert!(format!("{}", err).contains("Invalid argument"));
         assert!(format!("{}", err).contains("bad value"));
     }
-
-    #[test]
-    fn missing_field_error_is_debug() {
-        let err = AnalyticsError::missing_field("fingerprint");
-        let dbg = format!("{:?}", err);
-        assert!(dbg.contains("MissingField"));
-    }
-
-    #[test]
-    fn invalid_argument_error_is_debug() {
-        let err = AnalyticsError::invalid_argument("out of range");
-        let dbg = format!("{:?}", err);
-        assert!(dbg.contains("InvalidArgument"));
-    }
 }

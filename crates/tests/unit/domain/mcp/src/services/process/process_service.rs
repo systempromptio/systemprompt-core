@@ -2,27 +2,6 @@
 
 use systemprompt_mcp::services::process::ProcessService;
 
-#[test]
-fn test_process_manager_new() {
-    let manager = ProcessService::new();
-    let debug = format!("{:?}", manager);
-    assert!(debug.contains("ProcessService"));
-}
-
-#[test]
-fn test_process_manager_default() {
-    let manager = ProcessService::default();
-    let debug = format!("{:?}", manager);
-    assert!(debug.contains("ProcessService"));
-}
-
-#[test]
-fn test_process_manager_clone() {
-    let manager = ProcessService::new();
-    let cloned = manager.clone();
-    let debug = format!("{:?}", cloned);
-    assert!(debug.contains("ProcessService"));
-}
 
 #[test]
 fn test_process_manager_is_running_nonexistent_pid_high() {

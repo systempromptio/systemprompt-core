@@ -471,6 +471,12 @@ unit-check:
 unit-test-crate CRATE *ARGS:
     cargo test --manifest-path crates/tests/Cargo.toml -p {{CRATE}} {{ARGS}}
 
+# Real-DNS SSRF cases (security test 02): resolve cloud-metadata hostnames and
+# assert the guarded resolver refuses them. Needs outbound DNS; skipped otherwise.
+test-ssrf-live:
+    SP_SSRF_NET_TESTS=1 cargo nextest run --manifest-path crates/tests/Cargo.toml \
+        -p systemprompt-models-tests -E 'test(ssrf)' --no-capture
+
 # Run property-based tests (proptest)
 property-test *ARGS:
     cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-property-tests {{ARGS}}

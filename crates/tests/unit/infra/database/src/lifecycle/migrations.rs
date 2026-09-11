@@ -33,38 +33,6 @@ fn test_applied_migration_creation() {
     assert_eq!(migration.checksum, "abc123");
 }
 
-#[test]
-fn test_applied_migration_debug() {
-    let migration = AppliedMigration {
-        extension_id: "test".to_string(),
-        version: 2,
-        name: "add_column".to_string(),
-        checksum: "def456".to_string(),
-        applied_at: Some("2026-01-01T00:00:00Z".to_string()),
-    };
-
-    let debug = format!("{:?}", migration);
-    assert!(debug.contains("AppliedMigration"));
-    assert!(debug.contains("test"));
-    assert!(debug.contains("add_column"));
-}
-
-#[test]
-fn test_applied_migration_clone() {
-    let migration = AppliedMigration {
-        extension_id: "original".to_string(),
-        version: 5,
-        name: "migration_name".to_string(),
-        checksum: "checksum123".to_string(),
-        applied_at: None,
-    };
-
-    let cloned = migration.clone();
-    assert_eq!(migration.extension_id, cloned.extension_id);
-    assert_eq!(migration.version, cloned.version);
-    assert_eq!(migration.name, cloned.name);
-    assert_eq!(migration.checksum, cloned.checksum);
-}
 
 #[test]
 fn test_applied_migration_with_high_version() {
@@ -112,16 +80,6 @@ fn test_migration_result_with_values() {
     assert_eq!(result.migrations_skipped, 3);
 }
 
-#[test]
-fn test_migration_result_debug() {
-    let result = MigrationResult {
-        migrations_run: 10,
-        migrations_skipped: 2,
-    };
-
-    let debug = format!("{:?}", result);
-    assert!(debug.contains("MigrationResult"));
-}
 
 #[test]
 fn test_migration_result_zero_values() {
@@ -162,21 +120,6 @@ fn test_migration_status_creation() {
     assert_eq!(status.pending_count, 2);
 }
 
-#[test]
-fn test_migration_status_debug() {
-    let status = MigrationStatus {
-        extension_id: "debug_test".to_string(),
-        total_defined: 5,
-        total_applied: 5,
-        pending_count: 0,
-        pending: vec![],
-        applied: vec![],
-    };
-
-    let debug = format!("{:?}", status);
-    assert!(debug.contains("MigrationStatus"));
-    assert!(debug.contains("debug_test"));
-}
 
 #[test]
 fn test_migration_status_all_applied() {

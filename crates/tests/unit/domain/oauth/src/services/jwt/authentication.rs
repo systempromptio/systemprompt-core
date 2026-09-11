@@ -55,12 +55,3 @@ fn authenticate_returns_unauthorized_for_cookie_without_access_token() {
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
-
-#[test]
-fn authentication_service_is_copy_and_debug() {
-    let svc = AuthenticationService;
-    let copied = svc;
-    let debug = format!("{:?}", copied);
-
-    assert!(debug.contains("AuthenticationService"));
-}

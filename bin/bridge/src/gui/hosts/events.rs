@@ -50,7 +50,7 @@ pub enum HostUiEvent {
     },
     ProfileInstallFinished {
         host_id: HostId,
-        result: Result<String, Arc<GuiError>>,
+        result: Result<(String, Vec<String>), Arc<GuiError>>,
         reply_to: ReplyId,
     },
     ProxyProbeRequested {

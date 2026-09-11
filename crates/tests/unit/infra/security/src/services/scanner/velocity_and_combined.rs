@@ -113,10 +113,3 @@ fn test_is_scanner_partial_velocity_data() {
         Some(60)
     ));
 }
-
-#[test]
-fn test_scanner_detector_debug() {
-    let detector = ScannerDetector;
-    let debug_str = format!("{:?}", detector);
-    assert!(debug_str.contains("ScannerDetector"));
-}

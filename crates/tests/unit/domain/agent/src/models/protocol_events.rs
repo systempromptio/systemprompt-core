@@ -200,17 +200,3 @@ fn test_service_status_params_optional_fields() {
     assert!(params.port.is_none());
     assert!(params.pid.is_none());
 }
-
-#[test]
-fn test_service_status_params_debug() {
-    let params = ServiceStatusParams {
-        status: "running".to_string(),
-        default: true,
-        port: None,
-        pid: None,
-    };
-
-    let debug = format!("{:?}", params);
-    assert!(debug.contains("ServiceStatusParams"));
-    assert!(debug.contains("running"));
-}

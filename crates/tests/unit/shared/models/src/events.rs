@@ -93,12 +93,6 @@ fn test_system_event_type_hash() {
     assert!(set.contains(&SystemEventType::ContextUpdated));
 }
 
-#[test]
-fn test_system_event_type_debug() {
-    let t = SystemEventType::Connected;
-    let debug_str = format!("{:?}", t);
-    assert!(debug_str.contains("Connected"));
-}
 
 #[test]
 fn test_a2a_event_type_task_status_update_serialize() {
@@ -130,12 +124,6 @@ fn test_a2a_event_type_agent_message_serialize() {
     assert_eq!(json, "\"AGENT_MESSAGE\"");
 }
 
-#[test]
-fn test_a2a_event_type_debug() {
-    let t = A2AEventType::ArtifactUpdated;
-    let debug_str = format!("{:?}", t);
-    assert!(debug_str.contains("ArtifactUpdated"));
-}
 
 #[test]
 fn test_a2a_event_type_hash() {

@@ -17,13 +17,19 @@ use crate::{config, i18n, sync};
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     if app.state.snapshot().sync_in_flight {
-        if let Some(id) = reply_to {
-            let err = BridgeError::new(
-                ErrorScope::Marketplace,
-                ErrorCode::Conflict,
-                "sync already in flight",
-            );
-            emit::send_reply_payload(app, id, &IpcReplyPayload::err(err));
+        // Why: a request with no reply channel comes from login or a gateway
+        // change, and dropping it left the new gateway unsynced behind a run
+        // for the old one. It waits for that run to finish instead.
+        match reply_to {
+            Some(id) => {
+                let err = BridgeError::new(
+                    ErrorScope::Marketplace,
+                    ErrorCode::Conflict,
+                    "sync already in flight",
+                );
+                emit::send_reply_payload(app, id, &IpcReplyPayload::err(err));
+            },
+            None => app.state.set_sync_pending(true),
         }
         return;
     }
@@ -95,6 +101,9 @@ pub(crate) fn on_sync_finished(
                     failures.join("; ")
                 ));
             }
+            for warning in &summary.host_warnings {
+                app.append_log_warn(format!("[{}] {}", warning.host_id, warning.message));
+            }
             emit::emit_sync_progress(app, "completed", Some(&line));
             structured = Some(summary);
             Ok(json!({ "summary": line }))
@@ -104,6 +113,20 @@ pub(crate) fn on_sync_finished(
             app.append_log(&line);
             emit::emit_sync_progress(app, "cancelled", Some(&line));
             Ok(json!({ "cancelled": true }))
+        },
+        Err(msg)
+            if matches!(
+                msg.as_ref(),
+                GuiError::Sync(sync::SyncError::Superseded { .. })
+            ) =>
+        {
+            // Why: the run belonged to a gateway the user has left; its
+            // outcome is not this gateway's sync failing.
+            let line = msg.to_string();
+            tracing::info!(%line, "sync superseded");
+            app.append_log(&line);
+            emit::emit_sync_progress(app, "cancelled", Some(&line));
+            Ok(json!({ "superseded": true }))
         },
         Err(msg) => {
             if let GuiError::Sync(sync::SyncError::Partial(summary)) = msg.as_ref() {
@@ -192,6 +215,11 @@ pub(crate) fn on_sync_finished(
         app.proxy.send_event(UiEvent::OpenSettings);
     }
     finish_value(app, bridge_result, reply_to);
+    if app.state.take_sync_pending() {
+        app.append_log("Sync requested during the previous run; starting it now…");
+        app.proxy
+            .send_event(UiEvent::SyncRequested { reply_to: None });
+    }
 }
 
 fn finish_value(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, reply_to: ReplyId) {

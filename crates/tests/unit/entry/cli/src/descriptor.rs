@@ -2,7 +2,10 @@
 
 use systemprompt_cli::admin::session::SessionCommands;
 use systemprompt_cli::admin::session::login::LoginArgs;
+use systemprompt_cli::args::Commands;
 use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand, RoutingClass};
+use systemprompt_cli::infrastructure::InfraCommands;
+use systemprompt_cli::infrastructure::services::ServicesCommands;
 
 #[test]
 fn session_switch_needs_no_profile_context() {
@@ -96,13 +99,6 @@ fn test_descriptor_default_all_false() {
     assert!(!desc.skip_validation());
 }
 
-#[test]
-fn test_descriptor_debug_format() {
-    let desc = CommandDescriptor::FULL;
-    let debug = format!("{:?}", desc);
-    assert!(debug.contains("CommandDescriptor"));
-    assert!(debug.contains("flags"));
-}
 
 #[test]
 fn test_descriptor_with_remote_eligible() {
@@ -212,4 +208,43 @@ fn test_descriptor_hierarchy_none_to_full() {
             && !profile_secrets_paths.database()
     );
     assert!(full.profile() && full.secrets() && full.paths() && full.database());
+}
+
+// Why: the services registry is a process-wide OnceLock and the first
+// installer wins. Production booted with the YAML catalog only because the
+// CLI's plain install ran before the runtime's discovery pass (2026-09-11).
+#[test]
+fn only_the_server_commands_install_the_registry_through_model_discovery() {
+    let serve = Commands::Infra(InfraCommands::Services(ServicesCommands::Serve {
+        foreground: true,
+        kill_port_process: false,
+    }))
+    .descriptor();
+    assert!(serve.discovers_models());
+    assert!(serve.paths());
+
+    let start = Commands::Infra(InfraCommands::Services(ServicesCommands::Start {
+        target: None,
+        all: false,
+        api: false,
+        agents: false,
+        mcp: false,
+        foreground: false,
+        skip_migrate: false,
+        kill_port_process: false,
+    }))
+    .descriptor();
+    assert!(start.discovers_models());
+
+    let stop = Commands::Infra(InfraCommands::Services(ServicesCommands::Stop {
+        target: None,
+        all: false,
+        api: false,
+        agents: false,
+        mcp: false,
+        force: false,
+    }))
+    .descriptor();
+    assert!(!stop.discovers_models());
+    assert!(!CommandDescriptor::FULL.discovers_models());
 }

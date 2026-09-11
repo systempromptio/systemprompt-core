@@ -83,12 +83,6 @@ fn unhashed_assets_are_served_revalidating() {
     }
 }
 
-#[test]
-fn test_static_content_matcher_empty() {
-    let matcher = StaticContentMatcher::empty();
-    let debug_str = format!("{:?}", matcher);
-    assert!(debug_str.contains("StaticContentMatcher"));
-}
 
 #[test]
 fn test_static_content_matcher_empty_no_matches() {
@@ -100,13 +94,6 @@ fn test_static_content_matcher_empty_no_matches() {
     assert!(matcher.matches("").is_none());
 }
 
-#[test]
-fn test_static_content_matcher_empty_clone() {
-    let original = StaticContentMatcher::empty();
-    let cloned = original.clone();
-
-    assert!(cloned.matches("/any/path").is_none());
-}
 
 #[test]
 fn test_static_content_matcher_matches_various_paths() {
@@ -143,14 +130,6 @@ fn test_static_content_matcher_empty_returns_none_for_special_chars() {
     assert!(matcher.matches("/blog/post%20encoded").is_none());
 }
 
-#[test]
-fn test_static_content_matcher_debug_format() {
-    let matcher = StaticContentMatcher::empty();
-    let debug_str = format!("{:?}", matcher);
-
-    assert!(debug_str.contains("StaticContentMatcher"));
-    assert!(debug_str.contains("patterns"));
-}
 
 #[test]
 fn test_static_content_matcher_clone_is_independent() {

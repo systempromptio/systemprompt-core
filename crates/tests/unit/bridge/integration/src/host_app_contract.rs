@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use systemprompt_bridge::gateway::model_view::{effective_surfaces, has_surface_override};
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    HostKind, ProbeEnv, ProfileGenInputs, ProfileRemoval, ProfileState,
+    HostKind, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::services::ApiSurface;
@@ -49,8 +49,8 @@ impl HostApp for BareHost {
         ))
     }
 
-    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
-        Ok(())
+    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+        Ok(ProfileInstalled::ok())
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -176,4 +176,20 @@ fn an_override_of_only_unknown_tags_yields_no_surfaces_at_all() {
         effective_surfaces("codex-cli", &[ApiSurface::Anthropic], &overrides).is_empty(),
         "an override that names nothing recognisable narrows to nothing"
     );
+}
+
+#[test]
+fn claude_desktop_is_the_only_narrowing_host() {
+    for host in systemprompt_bridge::integration::host_apps() {
+        if host.accepted_surfaces().is_empty() {
+            continue;
+        }
+        assert_eq!(
+            host.id(),
+            "claude-desktop",
+            "every host is offered the whole advertised catalog; Claude Desktop is the \
+             single carve-out because it rejects non-Claude ids in inferenceModels"
+        );
+        assert_eq!(host.accepted_surfaces(), &[ApiSurface::Anthropic]);
+    }
 }

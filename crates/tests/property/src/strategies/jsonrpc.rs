@@ -20,10 +20,6 @@ pub fn arb_a2a_method() -> impl Strategy<Value = String> {
         Just("CancelTask".to_string()),
         Just("GetExtendedAgentCard".to_string()),
         Just("SubscribeToTask".to_string()),
-        Just("CreateTaskPushNotificationConfig".to_string()),
-        Just("GetTaskPushNotificationConfig".to_string()),
-        Just("ListTaskPushNotificationConfigs".to_string()),
-        Just("DeleteTaskPushNotificationConfig".to_string()),
     ]
 }
 

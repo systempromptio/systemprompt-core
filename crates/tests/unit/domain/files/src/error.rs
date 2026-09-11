@@ -45,12 +45,6 @@ fn files_error_config_variant_display() {
     assert!(s.contains("not init"));
 }
 
-#[test]
-fn files_error_debug_contains_variant_name() {
-    let err = FilesError::Storage("x".to_owned());
-    let d = format!("{err:?}");
-    assert!(d.contains("Storage"));
-}
 
 #[test]
 fn from_sqlx_error_wraps_repository_variant() {

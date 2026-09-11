@@ -114,16 +114,3 @@ pub struct ExecutionStepBatchRow {
     pub duration_ms: Option<i32>,
     pub error_message: Option<String>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub(crate) struct PushNotificationConfigRow {
-    pub id: String,
-    pub task_id: TaskId,
-    pub url: String,
-    pub endpoint: String,
-    pub token: Option<String>,
-    pub headers: Option<serde_json::Value>,
-    pub authentication: Option<serde_json::Value>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}

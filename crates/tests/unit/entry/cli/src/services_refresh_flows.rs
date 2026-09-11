@@ -120,3 +120,60 @@ async fn a_profile_with_no_sources_reports_nothing_to_do() {
         .await
         .expect("an empty source list is not a failure");
 }
+
+#[tokio::test]
+async fn a_swapped_composition_refuses_to_finish_without_a_database() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let tree_root = dir.path().join("tree");
+    std::fs::create_dir_all(tree_root.join("config")).expect("mkdir");
+    std::fs::write(tree_root.join("config/config.yaml"), "settings: {}\n").expect("write");
+    let archive = dir.path().join("bundle.tar.gz");
+    systemprompt_cli::core::services::bundle::pack_bundle(
+        &systemprompt_cli::core::services::bundle::BundleArgs {
+            root: tree_root,
+            out: archive.clone(),
+            version: "1.0.0".to_owned(),
+            sign_key: None,
+            source_repo: None,
+            source_commit: None,
+            workflow_run: None,
+            marketplace_only: false,
+        },
+        None,
+    )
+    .expect("pack succeeds");
+    let body = std::fs::read(&archive).expect("read archive");
+    let sha256 = {
+        use sha2::Digest;
+        sha2::Sha256::digest(&body)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>()
+    };
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(body))
+        .mount(&server)
+        .await;
+
+    let profile_tree = fx::write_tree(
+        &format!(
+            "services:\n  sources:\n    - name: base\n      https:\n        url: \
+             {}/bundle.tar.gz\n        verify:\n          sha256: {sha256}\n",
+            server.uri()
+        ),
+        "secrets:\n  secrets_path: secrets.json\n  source: env\n",
+    );
+    fx::set_env("SYSTEMPROMPT_TRUSTED_HTTP_HOSTS", "127.0.0.1,localhost");
+    ProfileBootstrap::init_from_path(&profile_tree.profile_path).expect("profile installs");
+
+    let error = execute(&RefreshArgs { check: false }, &ctx())
+        .await
+        .expect_err("projecting access rules needs a database");
+    let rendered = format!("{error:#}");
+    assert!(
+        rendered.contains("services refresh needs a database to project access rules"),
+        "the swap did not reach the reconcile step: {rendered}"
+    );
+}

@@ -47,7 +47,7 @@ pub fn pending_composed_hash<'a>(
     }
 }
 
-pub(crate) async fn reconcile_fetched_services(
+pub async fn reconcile_fetched_services(
     profile: &Profile,
     root: &ActiveServicesRoot,
     services: &ServicesConfig,

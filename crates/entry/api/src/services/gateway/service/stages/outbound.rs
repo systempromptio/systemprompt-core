@@ -30,7 +30,7 @@ pub(super) fn outbound_ctx<'a>(
 ) -> OutboundCtx<'a> {
     OutboundCtx {
         route: upstream.route.as_ref(),
-        endpoint: &upstream.provider.endpoint,
+        endpoint: &upstream.endpoint,
         api_key: &upstream.api_key,
         api_key_is_bearer: upstream.api_key_is_bearer,
         request,

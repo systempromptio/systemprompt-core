@@ -30,7 +30,7 @@ pub use install::{install_profile_into, remove_profile_from};
 
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileGenInputs, ProfileRemoval, ProfileState,
+    ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -80,8 +80,8 @@ impl HostApp for HermesHost {
         install::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<()> {
-        install::install_profile(path)
+    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+        install::install_profile(path).map(|()| ProfileInstalled::ok())
     }
 
     fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
@@ -117,10 +117,6 @@ impl HostApp for HermesHost {
 
     fn download_url(&self) -> &'static str {
         "https://nousresearch.com/"
-    }
-
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
-        &[systemprompt_models::services::ApiSurface::OpenAi]
     }
 }
 

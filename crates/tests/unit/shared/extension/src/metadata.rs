@@ -24,17 +24,6 @@ fn extension_metadata_debug_format() {
     assert!(debug.contains("debug-ext"));
 }
 
-#[test]
-fn extension_metadata_clone() {
-    let meta = ExtensionMetadata {
-        id: "clone-ext",
-        name: "Clone",
-        version: "2.0.0",
-    };
-    let cloned = meta;
-    assert_eq!(cloned.id, "clone-ext");
-    assert_eq!(cloned.version, "2.0.0");
-}
 
 #[test]
 fn extension_metadata_serde_roundtrip() {

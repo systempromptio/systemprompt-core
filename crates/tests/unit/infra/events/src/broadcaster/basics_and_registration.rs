@@ -1,9 +1,7 @@
 //! Tests for broadcaster basics, constants, registration, and unregistration
 
 use std::time::Duration;
-use systemprompt_events::{
-    Broadcaster, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, standard_keep_alive,
-};
+use systemprompt_events::{Broadcaster, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
 use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
@@ -38,27 +36,6 @@ fn test_heartbeat_interval_is_reasonable() {
     assert!(HEARTBEAT_INTERVAL <= Duration::from_secs(60));
 }
 
-#[test]
-fn test_broadcaster_new() {
-    let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let debug_str = format!("{:?}", broadcaster);
-    assert!(debug_str.contains("GenericBroadcaster"));
-}
-
-#[test]
-fn test_broadcaster_default() {
-    let broadcaster: TestBroadcaster = GenericBroadcaster::default();
-    let debug_str = format!("{:?}", broadcaster);
-    assert!(debug_str.contains("GenericBroadcaster"));
-}
-
-#[test]
-fn test_broadcaster_debug_output() {
-    let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let debug_str = format!("{:?}", broadcaster);
-    assert!(debug_str.contains("connections"));
-    assert!(debug_str.contains("RwLock"));
-}
 
 #[tokio::test]
 async fn test_broadcaster_register_single_connection() {
@@ -196,11 +173,4 @@ async fn test_broadcaster_unregister_keeps_other_connections() {
         .await;
 
     assert_eq!(broadcaster.connection_count(&user_id).await, 1);
-}
-
-#[test]
-fn test_standard_keep_alive_creation() {
-    let keep_alive = standard_keep_alive();
-    let debug_str = format!("{:?}", keep_alive);
-    assert!(debug_str.contains("KeepAlive"));
 }

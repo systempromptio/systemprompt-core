@@ -17,6 +17,9 @@
 //! - [`profile_loader`] — reads, validates, and writes profile YAML.
 //! - [`bundle`] — signed services bundles: fetch, verify, compose, and the boot
 //!   path that installs the active services root.
+//! - [`vertex_discovery`] — boot-time catalog discovery: each provider's
+//!   credential decides which `CatalogSource` may list it, and every priced,
+//!   serverless model it returns is folded into the provider registry.
 //! - [`services_root`] — the process-wide cell naming the services root the
 //!   instance actually runs, with its provenance.
 //! - [`services_bootstrap`] — the process-wide cell holding the loaded services
@@ -44,6 +47,7 @@ pub mod module_loader;
 pub mod profile_loader;
 pub mod services_bootstrap;
 pub mod services_root;
+pub mod vertex_discovery;
 
 pub use bundle::{BundleError, BundleResult, ServicesSourceBootstrap};
 pub use config_loader::ConfigLoader;

@@ -17,6 +17,7 @@ fn entry(name: &str) -> McpServerEntry {
         name: name.to_owned(),
         url: format!("http://127.0.0.1:48217/mcp/{name}"),
         bearer: "Bearer loopback-secret".to_owned(),
+        tool_policy: Default::default(),
     }
 }
 
@@ -142,6 +143,7 @@ fn xml_special_characters_in_a_server_name_are_escaped() {
         name: "a&b<c".to_owned(),
         url: "http://127.0.0.1:48217/mcp/a".to_owned(),
         bearer: "Bearer x".to_owned(),
+        tool_policy: Default::default(),
     }];
     let body = plist_body(&policy_with(&servers), "  ");
     assert!(body.contains("a&amp;b&lt;c"));

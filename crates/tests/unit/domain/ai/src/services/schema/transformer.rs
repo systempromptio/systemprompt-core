@@ -2,7 +2,7 @@
 
 use serde_json::json;
 use systemprompt_ai::models::tools::McpTool;
-use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaTransformer, TransformedTool};
+use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaTransformer};
 use systemprompt_identifiers::McpServerId;
 
 fn create_test_tool(name: &str, description: &str, schema: serde_json::Value) -> McpTool {
@@ -294,24 +294,6 @@ mod function_name_tests {
 
         let result = transformer.transform(&tool).unwrap();
         assert_eq!(result[0].name, "valid_tool-name");
-    }
-}
-
-mod transformed_tool_tests {
-    use super::*;
-
-    #[test]
-    fn transformed_tool_is_debug() {
-        let tool = TransformedTool {
-            name: "test".to_string(),
-            description: "Test description".to_string(),
-            input_schema: json!({}),
-            original_name: "test".to_string(),
-            discriminator_value: None,
-        };
-
-        let debug = format!("{:?}", tool);
-        assert!(debug.contains("test"));
     }
 }
 

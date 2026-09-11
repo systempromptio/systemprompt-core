@@ -28,6 +28,8 @@ use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 use systemprompt_models::artifacts::ListItem;
 
+pub use super::catalog_discovery::discovery_rows;
+
 #[derive(Debug, Subcommand)]
 pub enum CatalogCommands {
     #[command(subcommand, about = "Manage registry providers")]
@@ -35,6 +37,9 @@ pub enum CatalogCommands {
 
     #[command(subcommand, about = "Manage the models a provider serves")]
     Model(ModelCommands),
+
+    #[command(about = "Show what Vertex model discovery found")]
+    Discovery,
 }
 
 #[derive(Debug, Subcommand)]
@@ -103,6 +108,10 @@ pub struct ModelAddArgs {
 pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()> {
     match command {
         CatalogCommands::Provider(ProviderCommands::List) => list_providers(config),
+        CatalogCommands::Discovery => {
+            super::catalog_discovery::show_discovery(config);
+            Ok(())
+        },
         CatalogCommands::Provider(ProviderCommands::Add(args)) => {
             apply(config, |registry| {
                 ProviderCatalogService::upsert_provider(registry, provider_spec(args)?);

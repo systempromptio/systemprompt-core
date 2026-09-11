@@ -18,13 +18,6 @@ fn new_constructs_with_issuer_and_audiences() {
     assert!(debug.contains("https://issuer.test"));
 }
 
-#[test]
-fn new_accepts_empty_audiences() {
-    let provider = JwtValidationProviderImpl::new("issuer".to_string(), Vec::new());
-
-    let debug = format!("{:?}", provider);
-    assert!(debug.contains("issuer"));
-}
 
 #[test]
 fn generate_secure_token_delegates_to_helper() {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Added
+
+- `vertex_discovery`: boot-time catalog discovery. `ServicesBootstrap::try_init_with_discovery(augment)` installs the registry through a `DiscoveryFuture` and `ServicesBootstrap::discovery_report()` exposes what it found. `discover(providers, secret, timeout)` decides per provider which `CatalogSource` may list it from the `ProviderCredential` its secret parses into, lists every publisher the embedded `VertexRateCard` names (paged `GET /v1beta1/publishers/{p}/models`, authenticated with the provider's service account), keeps serverless entries, and merges each one the card prices and the documentation still supports into the provider; an explicit catalog declaration always wins and one past the card's retirement line is kept and warned about. `ServicesConfig` is validated again after the merge so an unpriced route is never installed. `discover_with(providers, secret, timeout, Catalog { sources, card }, report)` is the injectable form; `default_sources(card)` builds the shipped source list. `CatalogSource`, `CatalogListing`, `DiscoveredModel`, `LaunchStage`, `DiscoveryError` and `SecretLookup` are public, and `merge::record_unseen` is generic over the set's hasher.
+- The rate card is both price list and chat-capable allowlist: the publisher listing is Google's global catalog, not the project's entitlements, and no model is ever called to find any of this out. Unpriced, unpublished, retiring and failed publishers land in the `DiscoveryReport`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

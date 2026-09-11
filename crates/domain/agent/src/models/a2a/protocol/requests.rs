@@ -8,11 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::push_notification::{
-    DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
-    ListTaskPushNotificationConfigRequest, PushNotificationConfig,
-    SetTaskPushNotificationConfigRequest, TaskResubscriptionRequest,
-};
 use crate::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 use crate::models::a2a::{AgentCard, Task, TaskState};
 use serde::{Deserialize, Serialize};
@@ -31,7 +26,6 @@ pub struct MessageSendParams {
 pub struct MessageSendConfiguration {
     pub accepted_output_modes: Option<Vec<String>>,
     pub history_length: Option<u32>,
-    pub push_notification_config: Option<PushNotificationConfig>,
     pub blocking: Option<bool>,
 }
 
@@ -91,18 +85,6 @@ impl A2aJsonRpcRequest {
             methods::SUBSCRIBE_TO_TASK => {
                 Ok(A2aRequestParams::TaskResubscription(self.parse_params()?))
             },
-            methods::CREATE_TASK_PUSH_NOTIFICATION_CONFIG => Ok(
-                A2aRequestParams::SetTaskPushNotificationConfig(self.parse_params()?),
-            ),
-            methods::GET_TASK_PUSH_NOTIFICATION_CONFIG => Ok(
-                A2aRequestParams::GetTaskPushNotificationConfig(self.parse_params()?),
-            ),
-            methods::LIST_TASK_PUSH_NOTIFICATION_CONFIGS => Ok(
-                A2aRequestParams::ListTaskPushNotificationConfig(self.parse_params()?),
-            ),
-            methods::DELETE_TASK_PUSH_NOTIFICATION_CONFIG => Ok(
-                A2aRequestParams::DeleteTaskPushNotificationConfig(self.parse_params()?),
-            ),
             _ => Err(A2aParseError::UnsupportedMethod {
                 method: self.method.clone(),
             }),
@@ -125,10 +107,11 @@ pub enum A2aRequestParams {
     GetAuthenticatedExtendedCard(serde_json::Value),
     SendStreamingMessage(MessageSendParams),
     TaskResubscription(TaskResubscriptionRequest),
-    SetTaskPushNotificationConfig(SetTaskPushNotificationConfigRequest),
-    GetTaskPushNotificationConfig(GetTaskPushNotificationConfigRequest),
-    ListTaskPushNotificationConfig(ListTaskPushNotificationConfigRequest),
-    DeleteTaskPushNotificationConfig(DeleteTaskPushNotificationConfigRequest),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct TaskResubscriptionRequest {
+    pub task_id: TaskId,
 }
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]

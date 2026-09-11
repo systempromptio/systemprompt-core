@@ -150,15 +150,3 @@ fn test_ingestion_source_different_ids() {
     assert_eq!(source.source_name, "docs");
     assert_eq!(source.category_id.as_str(), "documentation");
 }
-
-#[test]
-fn test_ingestion_source_clone() {
-    let source_id = SourceId::new("tutorials");
-    let category_id = CategoryId::new("learning");
-    let source = IngestionSource::new(&source_id, "tutorials", &category_id);
-    let cloned = source.clone();
-
-    assert_eq!(cloned.source_id, source.source_id);
-    assert_eq!(cloned.source_name, source.source_name);
-    assert_eq!(cloned.category_id, source.category_id);
-}

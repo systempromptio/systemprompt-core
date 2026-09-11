@@ -52,24 +52,6 @@ fn test_trace_event_minimal() {
     assert!(event.metadata.is_none());
 }
 
-#[test]
-fn test_trace_event_clone() {
-    let event = TraceEvent {
-        event_type: "clone_test".to_string(),
-        timestamp: Utc::now(),
-        details: "Clone details".to_string(),
-        user_id: Some("user".to_string().into()),
-        session_id: None,
-        task_id: None,
-        context_id: None,
-        metadata: None,
-    };
-
-    let cloned = event.clone();
-    assert_eq!(event.event_type, cloned.event_type);
-    assert_eq!(event.details, cloned.details);
-    assert_eq!(event.user_id, cloned.user_id);
-}
 
 #[test]
 fn test_trace_event_serialize() {

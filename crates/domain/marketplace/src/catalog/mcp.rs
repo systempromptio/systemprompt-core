@@ -4,10 +4,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::{McpServerId, ValidatedUrl};
-use systemprompt_models::bridge::ids::ManagedMcpServerName;
+use systemprompt_models::bridge::ids::{ManagedMcpServerName, ToolName, ToolPolicy};
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::ServicesConfig;
@@ -51,7 +51,11 @@ pub fn load_managed_mcp_servers(
             transport: Some("http".to_owned()),
             headers: None,
             oauth: Some(deployment.oauth.required),
-            tool_policy: None,
+            tool_policy: Some(BTreeMap::from([(
+                ToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD)
+                    .map_err(|e| MarketplaceError::Catalog(e.to_string()))?,
+                deployment.tool_policy.unwrap_or(ToolPolicy::Allow),
+            )])),
         });
     }
     Ok(out)

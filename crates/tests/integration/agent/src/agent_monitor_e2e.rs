@@ -5,23 +5,6 @@ use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use crate::common::Fixture;
 
-#[tokio::test]
-async fn agent_monitor_new_succeeds() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let monitor = AgentMonitor::new(
-        AgentServiceRepository::new(
-            &fx.db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo"),
-    )
-    .expect("monitor");
-    let dbg = format!("{:?}", monitor);
-    assert!(dbg.contains("AgentMonitor"));
-    fx.cleanup().await?;
-    Ok(())
-}
 
 #[tokio::test]
 async fn agent_monitor_monitor_all_agents_with_none_returns_empty_report() -> Result<()> {

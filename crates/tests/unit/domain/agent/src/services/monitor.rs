@@ -25,30 +25,6 @@ fn health_check_result_unhealthy() {
     assert!(result.message.contains("refused"));
 }
 
-#[test]
-fn health_check_result_debug() {
-    let result = HealthCheckResult {
-        healthy: true,
-        message: "ok".to_string(),
-        response_time_ms: 10,
-    };
-    let dbg = format!("{:?}", result);
-    assert!(dbg.contains("HealthCheckResult"));
-    assert!(dbg.contains("true"));
-}
-
-#[test]
-fn health_check_result_clone() {
-    let result = HealthCheckResult {
-        healthy: false,
-        message: "timeout".to_string(),
-        response_time_ms: 5000,
-    };
-    let cloned = result.clone();
-    assert_eq!(cloned.healthy, result.healthy);
-    assert_eq!(cloned.message, result.message);
-    assert_eq!(cloned.response_time_ms, result.response_time_ms);
-}
 
 #[test]
 fn monitoring_report_new_is_empty() {
@@ -109,14 +85,6 @@ fn monitoring_report_healthy_percentage_zero_agents() {
     assert!((report.healthy_percentage() - 0.0).abs() < f64::EPSILON);
 }
 
-#[test]
-fn monitoring_report_debug() {
-    let mut report = MonitoringReport::new();
-    report.healthy.push("agent1".to_string());
-    let dbg = format!("{:?}", report);
-    assert!(dbg.contains("MonitoringReport"));
-    assert!(dbg.contains("agent1"));
-}
 
 #[test]
 fn monitoring_report_one_of_three_healthy() {

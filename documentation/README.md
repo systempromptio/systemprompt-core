@@ -58,6 +58,7 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [security/threat-model.md](security/threat-model.md) — STRIDE analysis and residual risk.
 - [security/compliance-control-matrix.md](security/compliance-control-matrix.md) — HIPAA / SOC 2 / ISO 27001 mappings, with questionnaire pre-answers.
 - [security/stability-contract.md](security/stability-contract.md) — stable vs. tracking surface, versioning, deprecation.
+- [security/outbound-egress-controls.md](security/outbound-egress-controls.md) — the two-layer SSRF guard, its exemptions, and which surface uses which layer.
 - [security/rfi-readiness-audit.md](security/rfi-readiness-audit.md) — implementation evidence and deployment requirements for security reviews.
 
 For a vendor evaluation, start with the compliance control matrix; it answers most standard

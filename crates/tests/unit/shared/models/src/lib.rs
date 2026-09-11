@@ -86,7 +86,11 @@ mod services_bundle;
 mod provider_catalog_parity;
 #[cfg(test)]
 mod provider_model_lookup;
+#[cfg(test)]
+mod vertex_rate_card;
 
+#[cfg(test)]
+mod provider_project_placeholder;
 #[cfg(test)]
 mod provider_protocol_filter;
 
@@ -195,6 +199,9 @@ mod bridge_manifest_version;
 mod mcp_deployment;
 
 #[cfg(test)]
+mod mcp_deployment_connector;
+
+#[cfg(test)]
 mod errors_models;
 
 #[cfg(test)]
@@ -236,6 +243,8 @@ mod services_includable;
 #[cfg(test)]
 mod paths_tests;
 
+#[cfg(test)]
+mod schema_gemini_invariants;
 #[cfg(test)]
 mod schema_sanitizer;
 

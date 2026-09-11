@@ -26,6 +26,7 @@ mod parse;
 mod pricing;
 mod pricing_cache_table;
 mod registry;
+mod route_match_descriptor;
 mod route_requirements;
 mod safety;
 mod signature_cache;

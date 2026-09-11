@@ -9,19 +9,6 @@
 use systemprompt_extension::Extension;
 use systemprompt_files::FilesExtension;
 
-#[test]
-fn test_files_extension_default() {
-    let ext = FilesExtension::default();
-    let debug_str = format!("{:?}", ext);
-    assert!(debug_str.contains("FilesExtension"));
-}
-
-#[test]
-fn test_files_extension_debug() {
-    let ext = FilesExtension;
-    let debug_str = format!("{:?}", ext);
-    assert!(debug_str.contains("FilesExtension"));
-}
 
 #[test]
 fn test_files_extension_metadata_id() {

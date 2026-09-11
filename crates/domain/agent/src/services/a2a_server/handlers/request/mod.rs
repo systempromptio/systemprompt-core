@@ -26,7 +26,7 @@ use crate::models::a2a::A2aRequestParams;
 use crate::services::a2a_server::auth::validate_oauth_for_request;
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
-use helpers::{handle_push_notification_requests, handle_streaming_path, parse_a2a_request};
+use helpers::{handle_streaming_path, parse_a2a_request};
 use non_streaming::handle_non_streaming_request;
 use validation::should_require_oauth;
 
@@ -88,12 +88,6 @@ pub async fn handle_agent_request(
     if is_streaming {
         return handle_streaming_path(a2a_request, state, request_id, enriched_context, start_time)
             .await;
-    }
-
-    if let Some(response) =
-        handle_push_notification_requests(&a2a_request, &state, &request_id, start_time).await
-    {
-        return response;
     }
 
     let response_result =

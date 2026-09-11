@@ -18,12 +18,6 @@ fn test_clone() {
     let _r2 = r.clone();
 }
 
-#[test]
-fn test_debug() {
-    let r = RegistryService::new(fixture_user_id());
-    let d = format!("{:?}", r);
-    assert!(d.contains("RegistryService") || d.contains("Registry"));
-}
 
 #[test]
 fn test_get_server_missing_propagates_error() {

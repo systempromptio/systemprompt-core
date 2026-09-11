@@ -1,35 +1,18 @@
-// Tests for the A2A request-dispatch helpers: routing push-notification
-// config requests (set/get/delete answered, list and non-push declined, and
-// the request-id injection into the JSON-RPC envelope) and the streaming
-// path's concurrency-cap rejection (zero permits yields 503 + Retry-After).
+// Tests for the A2A streaming dispatch path: the concurrency-cap rejection
+// (zero permits yields 503 + Retry-After) and the validation-error stream for
+// an unknown context.
 
 use std::sync::Arc;
 
 use axum::http::StatusCode;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
-use systemprompt_agent::models::a2a::protocol::{
-    DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
-    ListTaskPushNotificationConfigRequest, MessageSendParams, PushNotificationConfig,
-    SetTaskPushNotificationConfigRequest,
-};
+use systemprompt_agent::models::a2a::protocol::MessageSendParams;
 use systemprompt_agent::models::a2a::{A2aRequestParams, Message, MessageRole, Part, TextPart};
-use systemprompt_agent::services::a2a_server::handlers::request::helpers::{
-    handle_push_notification_requests, handle_streaming_path,
-};
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_agent::services::a2a_server::handlers::request::helpers::handle_streaming_path;
+use systemprompt_identifiers::{ContextId, MessageId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
-
-fn push_config(url: &str) -> PushNotificationConfig {
-    PushNotificationConfig {
-        endpoint: String::new(),
-        headers: None,
-        url: url.to_owned(),
-        token: None,
-        authentication: None,
-    }
-}
 
 fn send_params(ctx: &ContextId) -> MessageSendParams {
     MessageSendParams {
@@ -48,80 +31,6 @@ fn send_params(ctx: &ContextId) -> MessageSendParams {
         configuration: None,
         metadata: None,
     }
-}
-
-#[tokio::test]
-async fn push_dispatch_set_get_delete_answer_with_request_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let repos = repos(&pool);
-    let (user, session) = seed_user_and_session(&pool).await;
-    let (_ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
-
-    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 4);
-    let request_id = NumberOrString::String("req-push-1".to_owned());
-    let start = std::time::Instant::now();
-
-    let set =
-        A2aRequestParams::SetTaskPushNotificationConfig(SetTaskPushNotificationConfigRequest {
-            task_id: task_id.clone(),
-            config: push_config("https://example.invalid/hook"),
-        });
-    let response = handle_push_notification_requests(&set, &state, &request_id, start)
-        .await
-        .expect("set is a push request");
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let numeric_id = NumberOrString::Number(7);
-    let get =
-        A2aRequestParams::GetTaskPushNotificationConfig(GetTaskPushNotificationConfigRequest {
-            task_id: task_id.clone(),
-        });
-    let response = handle_push_notification_requests(&get, &state, &numeric_id, start)
-        .await
-        .expect("get is a push request");
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let del = A2aRequestParams::DeleteTaskPushNotificationConfig(
-        DeleteTaskPushNotificationConfigRequest {
-            task_id: task_id.clone(),
-        },
-    );
-    let response = handle_push_notification_requests(&del, &state, &request_id, start)
-        .await
-        .expect("delete is a push request");
-    assert_eq!(response.status(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn push_dispatch_declines_list_and_non_push_requests() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 4);
-    let request_id = NumberOrString::Number(1);
-    let start = std::time::Instant::now();
-
-    let list =
-        A2aRequestParams::ListTaskPushNotificationConfig(ListTaskPushNotificationConfigRequest {
-            task_id: TaskId::generate(),
-            limit: None,
-            offset: None,
-        });
-    assert!(
-        handle_push_notification_requests(&list, &state, &request_id, start)
-            .await
-            .is_none()
-    );
-
-    let ctx = ContextId::generate();
-    let send = A2aRequestParams::SendMessage(send_params(&ctx));
-    assert!(
-        handle_push_notification_requests(&send, &state, &request_id, start)
-            .await
-            .is_none()
-    );
 }
 
 #[tokio::test]

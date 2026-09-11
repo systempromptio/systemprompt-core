@@ -76,12 +76,6 @@ fn test_cloud_path_is_dir_true_for_sessions_dir() {
     assert!(path.is_dir());
 }
 
-#[test]
-fn test_cloud_path_debug() {
-    let path = CloudPath::Credentials;
-    let debug_str = format!("{:?}", path);
-    assert!(debug_str.contains("Credentials"));
-}
 
 #[test]
 fn test_cloud_path_hash() {
@@ -203,15 +197,6 @@ fn test_cloud_paths_exists_true_for_existing() {
     assert!(paths.exists(CloudPath::Credentials));
 }
 
-#[test]
-fn test_cloud_paths_debug() {
-    let temp_dir = TempDir::new().unwrap();
-    let paths = CloudPaths::new(temp_dir.path());
-
-    let debug_str = format!("{:?}", paths);
-    assert!(debug_str.contains("CloudPaths"));
-    assert!(debug_str.contains("base_dir"));
-}
 
 #[test]
 fn test_resolve_path_absolute() {

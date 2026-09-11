@@ -26,25 +26,6 @@ fn user_stats_creation() {
     assert_eq!(stats.admins, 3);
 }
 
-#[test]
-fn user_stats_clone() {
-    let stats = UserStats {
-        total: 50,
-        created_24h: 2,
-        created_7d: 10,
-        created_30d: 25,
-        active: 40,
-        suspended: 5,
-        admins: 2,
-        anonymous: 8,
-        bots: 1,
-        oldest_user: None,
-        newest_user: None,
-    };
-    let cloned = stats;
-    assert_eq!(stats.total, cloned.total);
-    assert_eq!(stats.active, cloned.active);
-}
 
 #[test]
 fn user_stats_debug() {

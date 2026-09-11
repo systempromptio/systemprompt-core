@@ -44,6 +44,12 @@ pub(crate) fn on_gateway_probe_finished(
         }
         return;
     };
+    if matches!(outcome.status, GatewayStatus::Reachable { .. }) && outcome.identity.is_some() {
+        // Why: a token just minted at this gateway is proof the credential
+        // works; a latched proxy would otherwise keep refusing traffic while
+        // the window shows the user signed in.
+        app.ctx.proxy.credential_proven();
+    }
     let bridge_result = match &outcome.status {
         GatewayStatus::Reachable { latency_ms } => Ok(json!({
             "state": "reachable",
@@ -89,6 +95,14 @@ fn announce(app: &mut GuiApp) {
     let snap = app.state.snapshot();
     let app_name = crate::brand::brand().app_name;
     match &snap.gateway_status {
+        // Why: "ungoverned until it comes back" is about a gateway agents were
+        // routed through, and only a synced gateway ever was. A URL that has
+        // never synced — including one still being typed into the setup form,
+        // whose save has just dropped the previous gateway's sentinel — has
+        // nothing to come back to; the form shows its own probe result.
+        GatewayStatus::Unreachable { .. } if snap.last_sync_summary.is_none() => {
+            app.signal_cleared(Signal::GatewayUnreachable);
+        },
         GatewayStatus::Unreachable { reason } => {
             let reason = reason.clone();
             app.signal_raised(
@@ -127,10 +141,11 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::GatewayProbe);
     let http = app.ctx.http.clone();
+    let latched = app.ctx.proxy.sign_in_required();
     app.ctx.spawn(async move {
         let outcome = tokio::select! {
             () = token.cancelled() => None,
-            outcome = run_probe(&http) => Some(outcome),
+            outcome = run_probe(&http, latched) => Some(outcome),
         };
         proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
     });
@@ -146,7 +161,7 @@ fn unreachable_outcome(reason: String) -> GatewayProbeOutcome {
     }
 }
 
-async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
+async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome {
     let cfg = match config::load() {
         Ok(cfg) => cfg,
         Err(e) => return unreachable_outcome(e.to_string()),
@@ -172,7 +187,7 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
     let identity = if matches!(status, GatewayStatus::Reachable { .. })
         && crate::auth::has_credential_source(&cfg)
     {
-        match obtain_live_token(&cfg, http).await {
+        match obtain_live_token(&cfg, http, latched).await {
             Ok(tok) => decode_jwt_identity_unverified(tok.expose()),
             Err(e) => {
                 credential_error = Some(format!("authentication: {e}"));
@@ -211,11 +226,18 @@ async fn run_probe(http: &reqwest::Client) -> GatewayProbeOutcome {
     }
 }
 
+// Why: while the proxy is latched on a rejected credential, a cached token
+// proves nothing; only a fresh mint at the gateway can lift the latch.
 async fn obtain_live_token(
     cfg: &config::Config,
     http: &reqwest::Client,
+    fresh: bool,
 ) -> Result<crate::auth::secret::Secret, crate::auth::ChainError> {
-    crate::auth::obtain_live_token(cfg, &systemprompt_identifiers::SessionId::generate(), http)
-        .await
-        .map(|out| out.token)
+    let session_id = systemprompt_identifiers::SessionId::generate();
+    let out = if fresh {
+        crate::auth::mint_fresh(cfg, &session_id, http).await
+    } else {
+        crate::auth::obtain_live_token(cfg, &session_id, http).await
+    };
+    out.map(|out| out.token)
 }

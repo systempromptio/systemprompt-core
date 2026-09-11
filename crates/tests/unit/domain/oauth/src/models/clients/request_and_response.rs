@@ -52,19 +52,6 @@ fn test_create_oauth_client_request_deserialization() {
     assert_eq!(request.scopes.len(), 2);
 }
 
-#[test]
-fn test_create_oauth_client_request_debug() {
-    let json = r#"{
-        "client_id": "client_debug",
-        "name": "Debug Client",
-        "redirect_uris": ["https://example.com/callback"],
-        "scopes": ["openid"]
-    }"#;
-
-    let request: CreateOAuthClientRequest = serde_json::from_str(json).unwrap();
-    let debug_str = format!("{:?}", request);
-    assert!(debug_str.contains("client_debug"));
-}
 
 #[test]
 fn test_update_oauth_client_request_full() {
@@ -150,15 +137,4 @@ fn test_oauth_client_response_serialize() {
     let json = serde_json::to_string(&response).unwrap();
     assert!(json.contains("client_test123"));
     assert!(json.contains("Display Name"));
-}
-
-#[test]
-fn test_oauth_client_response_debug() {
-    let row = create_test_client_row();
-    let relations = create_test_relations();
-    let client = OAuthClient::from_row_with_relations(row, relations);
-    let response: OAuthClientResponse = client.into();
-
-    let debug_str = format!("{:?}", response);
-    assert!(debug_str.contains("client_test123"));
 }

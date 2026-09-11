@@ -93,12 +93,6 @@ mod funnel_stats_tests {
         assert_eq!(stats.step_stats[2].step_order, 2);
     }
 
-    #[test]
-    fn stats_is_debug() {
-        let stats = create_funnel_stats("fnl_debug", "Debug Test", 50, 25, 0.5);
-        let debug_str = format!("{:?}", stats);
-        assert!(debug_str.contains("FunnelStats"));
-    }
 
     #[test]
     fn stats_serializes() {
@@ -201,12 +195,6 @@ mod funnel_with_steps_tests {
         assert_eq!(fws.steps[1].step_order, 1);
     }
 
-    #[test]
-    fn funnel_with_steps_is_debug() {
-        let fws = create_funnel_with_steps();
-        let debug_str = format!("{:?}", fws);
-        assert!(debug_str.contains("FunnelWithSteps"));
-    }
 
     #[test]
     fn funnel_with_steps_serializes() {

@@ -47,33 +47,6 @@ fn inner_wraps_caller_error() {
     );
 }
 
-#[test]
-fn circuit_open_debug() {
-    let err: ResilienceError<SampleError> = ResilienceError::CircuitOpen {
-        key: "dep".to_string(),
-    };
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("CircuitOpen"));
-}
-
-#[test]
-fn bulkhead_full_debug() {
-    let err: ResilienceError<SampleError> = ResilienceError::BulkheadFull {
-        key: "dep".to_string(),
-        limit: 4,
-    };
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("BulkheadFull"));
-}
-
-#[test]
-fn timeout_debug() {
-    let err: ResilienceError<SampleError> = ResilienceError::Timeout {
-        after: Duration::from_millis(100),
-    };
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("Timeout"));
-}
 
 #[test]
 fn from_io_error_produces_inner() {

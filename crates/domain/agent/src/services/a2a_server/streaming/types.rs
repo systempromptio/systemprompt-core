@@ -13,7 +13,6 @@ use crate::error::AgentResult;
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;
@@ -26,7 +25,6 @@ pub struct StreamInput {
     pub state: Arc<AgentHandlerState>,
     pub request_id: NumberOrString,
     pub context: RequestContext,
-    pub callback_config: Option<PushNotificationConfig>,
     pub registry: AgentResult<AgentRegistry>,
 }
 

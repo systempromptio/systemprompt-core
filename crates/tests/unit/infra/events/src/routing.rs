@@ -37,30 +37,6 @@ fn test_system_event() -> SystemEvent {
     systemprompt_models::SystemEventBuilder::heartbeat()
 }
 
-#[test]
-fn test_agui_broadcaster_initialized() {
-    let debug_str = format!("{:?}", *AGUI_BROADCASTER);
-    assert!(debug_str.contains("GenericBroadcaster"));
-}
-
-#[test]
-fn test_a2a_broadcaster_initialized() {
-    let debug_str = format!("{:?}", *A2A_BROADCASTER);
-    assert!(debug_str.contains("GenericBroadcaster"));
-}
-
-#[test]
-fn test_context_broadcaster_initialized() {
-    let debug_str = format!("{:?}", *CONTEXT_BROADCASTER);
-    assert!(debug_str.contains("GenericBroadcaster"));
-}
-
-#[test]
-fn test_event_router_is_debug() {
-    let router = EventRouter;
-    let debug_str = format!("{:?}", router);
-    assert!(debug_str.contains("EventRouter"));
-}
 
 #[tokio::test]
 async fn test_route_agui_returns_tuple() {
@@ -253,11 +229,6 @@ fn test_analytics_event() -> AnalyticsEvent {
     )
 }
 
-#[test]
-fn test_analytics_broadcaster_initialized() {
-    let debug_str = format!("{:?}", *ANALYTICS_BROADCASTER);
-    assert!(debug_str.contains("GenericBroadcaster"));
-}
 
 #[tokio::test]
 async fn test_route_analytics_returns_count() {

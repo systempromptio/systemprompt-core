@@ -125,7 +125,20 @@ pub async fn run_loop(
     let mut backoff = RETRY_MIN;
     loop {
         let cfg = runtime_config.load_full();
-        match subscribe_once(cfg.gateway_base.as_ref(), token_cache.as_ref(), &client).await {
+        let mut generation = token_cache.generation();
+        generation.mark_unchanged();
+        let outcome = tokio::select! {
+            outcome = subscribe_once(cfg.gateway_base.as_ref(), token_cache.as_ref(), &client) => outcome,
+            // Why: the stream belongs to the gateway it was opened against; a
+            // swap means that gateway is no longer this bridge's, however
+            // healthy the connection still is.
+            _ = generation.changed() => {
+                tracing::info!(gateway = %cfg.gateway_base, "comms stream dropped: runtime config swapped");
+                backoff = RETRY_MIN;
+                continue;
+            }
+        };
+        match outcome {
             Ok(()) => {
                 tracing::info!("comms stream closed by the gateway; reconnecting");
                 backoff = RETRY_MIN;

@@ -31,4 +31,10 @@ mod schedule;
 #[cfg(test)]
 mod summary;
 #[cfg(test)]
+mod tool_catalog;
+#[cfg(test)]
+mod tool_permissions;
+#[cfg(test)]
+mod uninstall;
+#[cfg(test)]
 mod user_alert;

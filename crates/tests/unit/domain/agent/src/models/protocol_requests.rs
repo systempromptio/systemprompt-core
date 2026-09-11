@@ -2,8 +2,8 @@ use serde_json::json;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::protocol::{
     A2aJsonRpcRequest, A2aParseError, A2aRequestParams, A2aResponse, MessageSendConfiguration,
-    MessageSendParams, PushNotificationConfig, TaskIdParams, TaskNotCancelableError,
-    TaskNotFoundError, TaskQueryParams, UnsupportedOperationError,
+    MessageSendParams, TaskIdParams, TaskNotCancelableError, TaskNotFoundError, TaskQueryParams,
+    UnsupportedOperationError,
 };
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
@@ -157,14 +157,6 @@ fn a2a_parse_error_invalid_params_display() {
     assert!(err.to_string().contains("missing field"));
 }
 
-#[test]
-fn a2a_parse_error_clone_and_eq() {
-    let err1 = A2aParseError::UnsupportedMethod {
-        method: "a/b".to_string(),
-    };
-    let err2 = err1.clone();
-    assert_eq!(err1, err2);
-}
 
 #[test]
 fn a2a_response_send_message_constructor() {
@@ -192,14 +184,12 @@ fn message_send_configuration_serde_roundtrip() {
     let config = MessageSendConfiguration {
         accepted_output_modes: Some(vec!["text/plain".to_string()]),
         history_length: Some(10),
-        push_notification_config: None,
         blocking: Some(true),
     };
     let json = serde_json::to_string(&config).unwrap();
     let de: MessageSendConfiguration = serde_json::from_str(&json).unwrap();
     assert_eq!(de.history_length, Some(10));
     assert_eq!(de.blocking, Some(true));
-    assert!(de.push_notification_config.is_none());
 }
 
 #[test]
@@ -207,7 +197,6 @@ fn message_send_configuration_all_none_serde() {
     let config = MessageSendConfiguration {
         accepted_output_modes: None,
         history_length: None,
-        push_notification_config: None,
         blocking: None,
     };
     let json = serde_json::to_string(&config).unwrap();
@@ -230,17 +219,6 @@ fn task_not_found_error_serde_roundtrip() {
     assert_eq!(de.code, -32001);
 }
 
-#[test]
-fn task_not_found_error_clone_and_eq() {
-    let err = TaskNotFoundError {
-        task_id: TaskId::new("t-1"),
-        message: "not found".to_string(),
-        code: -32001,
-        data: json!(null),
-    };
-    let cloned = err.clone();
-    assert_eq!(err, cloned);
-}
 
 #[test]
 fn task_not_cancelable_error_serde_roundtrip() {
@@ -257,18 +235,6 @@ fn task_not_cancelable_error_serde_roundtrip() {
     assert_eq!(de.code, -32002);
 }
 
-#[test]
-fn task_not_cancelable_error_debug() {
-    let err = TaskNotCancelableError {
-        task_id: TaskId::new("t-2"),
-        state: TaskState::Canceled,
-        message: "Already canceled".to_string(),
-        code: -32002,
-        data: json!({}),
-    };
-    let debug_str = format!("{:?}", err);
-    assert!(debug_str.contains("TaskNotCancelableError"));
-}
 
 #[test]
 fn unsupported_operation_error_serde_roundtrip() {
@@ -289,13 +255,6 @@ fn message_send_params_with_configuration() {
     let config = MessageSendConfiguration {
         accepted_output_modes: Some(vec!["text/plain".to_string(), "text/markdown".to_string()]),
         history_length: Some(5),
-        push_notification_config: Some(PushNotificationConfig {
-            url: "https://hook.example.com".to_string(),
-            token: None,
-            authentication: None,
-            endpoint: String::new(),
-            headers: None,
-        }),
         blocking: Some(false),
     };
     let params = MessageSendParams {
@@ -307,10 +266,7 @@ fn message_send_params_with_configuration() {
     let de: MessageSendParams = serde_json::from_str(&json).unwrap();
     let cfg = de.configuration.unwrap();
     assert_eq!(cfg.history_length, Some(5));
-    let push = cfg
-        .push_notification_config
-        .expect("push config round-trips");
-    assert_eq!(push.url, "https://hook.example.com");
+    assert_eq!(cfg.blocking, Some(false));
 }
 
 #[test]
@@ -335,23 +291,11 @@ fn task_query_params_with_history_length() {
     assert_eq!(de.history_length, Some(20));
 }
 
-#[test]
-fn a2a_jsonrpc_request_debug_and_clone() {
-    let req = send_message_request(string_id("dbg-1"));
-    let cloned = req.clone();
-    let debug_str = format!("{:?}", req);
-    assert!(debug_str.contains("A2aJsonRpcRequest"));
-    assert_eq!(cloned.method, req.method);
-}
 
 #[test]
 fn parse_subscribe_to_task_method() {
     let params = json!({
-        "task_id": "task-sub",
-        "config": {
-            "url": "https://hook.example.com",
-            "endpoint": ""
-        }
+        "task_id": "task-sub"
     });
     let req = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),

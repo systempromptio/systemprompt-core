@@ -29,6 +29,8 @@ mod cloud_profile_show_types;
 #[cfg(test)]
 mod cloud_tenant_docker;
 #[cfg(test)]
+mod cloud_tenant_local_guards;
+#[cfg(test)]
 #[cfg(test)]
 mod commands;
 #[cfg(test)]
@@ -59,6 +61,8 @@ mod presentation_tables;
 mod runner_args;
 #[cfg(test)]
 mod runner_routing;
+#[cfg(test)]
+mod runner_routing_stores;
 #[cfg(test)]
 mod secret_check;
 #[cfg(test)]

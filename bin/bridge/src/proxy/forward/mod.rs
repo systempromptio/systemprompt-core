@@ -1,5 +1,7 @@
-//! Request forwarding to the gateway: hop-by-hop header stripping and auth
-//! injection.
+//! Request forwarding to the gateway: hop-by-hop header stripping, auth
+//! injection, and one replay when the upstream socket turns out to be dead.
+//!
+//! The replay policy and its rationale live in [`replay`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,10 +23,13 @@ use crate::proxy::token_cache::TokenCache;
 use crate::proxy::{keepalive, usage};
 
 mod headers;
+pub mod replay;
 mod route;
 
 use headers::{build_upstream_headers, copy_response_headers};
-use route::{Route, RouteResolution, resolve_route};
+pub use replay::{Replay, describe, replay_policy, should_replay};
+use replay::{UpstreamRequest, send_with_replay};
+use route::{Route, RouteResolution, resolve_route, same_origin_as};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
 
@@ -46,7 +51,7 @@ pub enum ForwardError {
     },
     #[error("invalid header value: {0}")]
     BadHeader(String),
-    #[error("upstream request failed: {0}")]
+    #[error("upstream request failed: {}", describe(.0))]
     Upstream(#[from] reqwest::Error),
     #[error("response build failed: {0}")]
     BuildResponse(#[from] http::Error),
@@ -166,7 +171,7 @@ pub(crate) async fn forward(
         }
     })?;
 
-    let (upstream_body, gateway_conversation_id) =
+    let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context).await?;
 
     let upstream_headers = build_upstream_headers(
@@ -177,12 +182,15 @@ pub(crate) async fn forward(
         &route.extra_headers,
     )?;
 
-    let upstream_response = client
-        .request(method, &route.url)
-        .headers(upstream_headers)
-        .body(upstream_body)
-        .send()
-        .await?;
+    let upstream_response = send_with_replay(UpstreamRequest {
+        client: &client,
+        method: &method,
+        url: &route.url,
+        headers: &upstream_headers,
+        body: &buffered_body,
+        policy: replay_policy(&request_path, &buffered_body),
+    })
+    .await?;
 
     let status = StatusCode::from_u16(upstream_response.status().as_u16())
         .unwrap_or(StatusCode::BAD_GATEWAY);
@@ -196,8 +204,18 @@ pub(crate) async fn forward(
         if status == StatusCode::UNAUTHORIZED {
             if let Some(plugin_id) = hook_plugin.as_ref() {
                 plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
-            } else {
+            } else if same_origin_as(&route.url, gateway_base) {
                 token_cache.reject_upstream(&request_path).await;
+            } else {
+                // Why: only the gateway that minted the credential can say it
+                // is bad. A managed MCP upstream elsewhere (or a stale entry
+                // for a previous gateway) rejecting it is not a sign-out.
+                tracing::warn!(
+                    upstream = %route.url,
+                    gateway = %gateway_base,
+                    "401 from a non-gateway upstream; not treated as a credential rejection"
+                );
+                token_cache.invalidate().await;
             }
         }
     }
@@ -246,14 +264,14 @@ fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {
 async fn prepare_upstream_body(
     body: Incoming,
     session_context: &SessionContext,
-) -> ForwardResult<(reqwest::Body, Option<GatewayConversationId>)> {
+) -> ForwardResult<(Bytes, Option<GatewayConversationId>)> {
     let buffered = collect_body(body).await?;
     let id = session::derive_gateway_conversation_id(&buffered)
         .map(|hash| session_context.context_for_prefix(hash));
     if let Some(ref c) = id {
         tracing::Span::current().record("gateway_conversation_id", tracing::field::display(c));
     }
-    Ok((reqwest::Body::from(buffered), id))
+    Ok((buffered, id))
 }
 
 async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {
@@ -272,7 +290,7 @@ pub fn is_client_disconnect(err: &ForwardError) -> bool {
     matches!(
         err,
         ForwardError::Upstream(e)
-            if e.is_request() && e.to_string().contains("connection closed")
+            if e.is_request() && describe(e).contains("connection closed")
     )
 }
 

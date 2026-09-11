@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod catalog;
+pub mod catalog_discovery;
 pub mod config_section;
 pub mod gateway;
 pub mod governance;

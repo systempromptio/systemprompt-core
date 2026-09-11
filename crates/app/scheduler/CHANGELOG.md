@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Added
+
+- `VertexDiscoveryJob` (`vertex_discovery`, `0 30 4 * * *`) re-lists the Vertex publishers against a throwaway clone of the booted registry and warns when a restart would serve more models; the served catalog itself is fixed at boot. It also warns `LIFECYCLE_NOTICE_DAYS` (60) ahead of any served rate-card model's documented `retires_on` or `price_until`. `jobs::vertex_discovery::latest_report` exposes the last report this process produced and `lifecycle_notices` the dated notices, for `admin config catalog discovery`.
+
 ## [0.49.0] - 2026-09-09
 
 ### Added

@@ -40,11 +40,14 @@ impl ProbeEnv {
     }
 }
 
+/// Inputs a host renders its profile from. `default_model` is the gateway's
+/// configured default only when it is one of `models`.
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
     pub gateway_base_url: String,
     pub api_key: String,
     pub models: Vec<String>,
+    pub default_model: Option<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,
     pub mcp_servers: Vec<crate::install::mdm::policy::McpServerEntry>,
@@ -113,13 +116,37 @@ pub enum ProfileRemoval {
     ManualStepRequired { instruction: String },
 }
 
+/// Outcome of a successful profile install.
+///
+/// A warning is a check that could not confirm something the install itself
+/// already did (the policy is written, the directory exists) — the host counts
+/// as installed and the operator sees the text without a failed step.
+#[derive(Debug, Default)]
+pub struct ProfileInstalled {
+    pub warnings: Vec<String>,
+}
+
+impl ProfileInstalled {
+    #[must_use]
+    pub fn ok() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub fn with_warning(warning: String) -> Self {
+        Self {
+            warnings: vec![warning],
+        }
+    }
+}
+
 pub trait HostApp: Send + Sync + 'static {
     fn id(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
     fn config_schema(&self) -> &'static HostConfigSchema;
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot;
     fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile>;
-    fn install_profile(&self, path: &str) -> std::io::Result<()>;
+    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled>;
     fn install_action_label(&self) -> &'static str;
 
     fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {

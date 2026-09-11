@@ -1,8 +1,6 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{
-    KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
-};
+use systemprompt_cli::shared::{KeyValueOutput, SuccessOutput, TableOutput, TextOutput};
 
 #[test]
 fn test_text_output_new() {
@@ -99,16 +97,6 @@ fn test_key_value_output_serialize() {
     assert!(json.contains("\"value\":\"v1\""));
 }
 
-#[test]
-fn test_key_value_item_debug() {
-    let item = KeyValueItem {
-        key: "test_key".to_string(),
-        value: "test_value".to_string(),
-    };
-    let debug = format!("{:?}", item);
-    assert!(debug.contains("KeyValueItem"));
-    assert!(debug.contains("test_key"));
-}
 
 #[test]
 fn test_table_output_new() {

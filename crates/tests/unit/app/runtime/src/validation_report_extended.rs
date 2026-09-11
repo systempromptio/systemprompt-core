@@ -232,13 +232,6 @@ fn test_domain_config_registry_default_is_empty() {
     assert!(registry.validators_sorted().is_empty());
 }
 
-#[test]
-fn test_domain_config_registry_debug() {
-    let registry = DomainConfigRegistry::new();
-    let debug_str = format!("{:?}", registry);
-    assert!(debug_str.contains("DomainConfigRegistry"));
-    assert!(debug_str.contains("validator_count"));
-}
 
 #[derive(Debug)]
 struct TestValidator {

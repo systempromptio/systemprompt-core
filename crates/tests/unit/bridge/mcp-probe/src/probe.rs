@@ -264,13 +264,18 @@ fn seed_registry(state: &std::path::Path, names: &[&str]) {
             })
         })
         .collect();
+    let gateway = "http://127.0.0.1:1";
     std::fs::write(
         meta.join("mcp-servers.json"),
-        serde_json::to_vec(&servers).expect("servers json"),
+        serde_json::to_vec(&serde_json::json!({ "gateway": gateway, "servers": servers }))
+            .expect("servers json"),
     )
     .expect("write fragment");
-    systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY)
-        .expect("rehydrate reads the seeded fragment");
+    systemprompt_bridge::mcp_registry::rehydrate_from_disk(
+        &REGISTRY,
+        &systemprompt_identifiers::ValidatedUrl::new(gateway),
+    )
+    .expect("rehydrate reads the seeded fragment");
 }
 
 #[test]
@@ -358,6 +363,7 @@ async fn coverage_probe_slug_only_contacts_registered_servers_and_forwards_the_s
             headers: Default::default(),
             display_name: "Present".into(),
             transport: None,
+            tool_policy: Default::default(),
         },
     );
     let result = probe_slug(&endpoint, &registry, "present").await.unwrap();

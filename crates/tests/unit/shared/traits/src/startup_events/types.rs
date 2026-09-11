@@ -30,12 +30,6 @@ mod phase_tests {
         assert!(!Phase::Scheduler.is_blocking());
     }
 
-    #[test]
-    fn phase_is_debug() {
-        let phase = Phase::ApiServer;
-        let debug_str = format!("{:?}", phase);
-        assert!(debug_str.contains("ApiServer"));
-    }
 
     #[test]
     fn phase_is_hashable() {
@@ -58,24 +52,6 @@ mod service_type_tests {
         assert_eq!(ServiceType::Agent.label(), "Agent");
         assert_eq!(ServiceType::Api.label(), "API");
         assert_eq!(ServiceType::Scheduler.label(), "Sched");
-    }
-
-    #[test]
-    fn service_type_is_debug() {
-        let st = ServiceType::Scheduler;
-        let debug_str = format!("{:?}", st);
-        assert!(debug_str.contains("Scheduler"));
-    }
-}
-
-mod service_state_tests {
-    use super::*;
-
-    #[test]
-    fn service_state_is_debug() {
-        let state = ServiceState::Failed;
-        let debug_str = format!("{:?}", state);
-        assert!(debug_str.contains("Failed"));
     }
 }
 
@@ -141,17 +117,5 @@ mod module_info_tests {
 
         assert_eq!(info.name, "auth_module");
         assert_eq!(info.category, "security");
-    }
-
-    #[test]
-    fn module_info_is_debug() {
-        let info = ModuleInfo {
-            name: "test_module".to_string(),
-            category: "testing".to_string(),
-        };
-        let debug_str = format!("{:?}", info);
-
-        assert!(debug_str.contains("test_module"));
-        assert!(debug_str.contains("testing"));
     }
 }

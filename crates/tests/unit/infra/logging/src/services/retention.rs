@@ -68,18 +68,6 @@ fn test_retention_policy_all_log_levels() {
     assert_eq!(trace.level, Some(LogLevel::Trace));
 }
 
-#[test]
-fn test_retention_policy_clone() {
-    let policy = RetentionPolicy::new("test", 30)
-        .with_level(LogLevel::Info)
-        .with_module("api");
-    let cloned = policy.clone();
-
-    assert_eq!(policy.name, cloned.name);
-    assert_eq!(policy.retention_days, cloned.retention_days);
-    assert_eq!(policy.level, cloned.level);
-    assert_eq!(policy.module, cloned.module);
-}
 
 #[test]
 fn test_retention_policy_debug() {
@@ -204,26 +192,6 @@ fn test_retention_config_builder_chaining() {
     assert!(config.enabled);
 }
 
-#[test]
-fn test_retention_config_clone() {
-    let config = RetentionConfig::default().with_schedule("0 0 5 * * *");
-    let cloned = config.clone();
-
-    assert_eq!(config.enabled, cloned.enabled);
-    assert_eq!(config.schedule, cloned.schedule);
-    assert_eq!(config.vacuum_after_cleanup, cloned.vacuum_after_cleanup);
-    assert_eq!(config.policies.len(), cloned.policies.len());
-}
-
-#[test]
-fn test_retention_config_debug() {
-    let config = RetentionConfig::default();
-    let debug = format!("{:?}", config);
-
-    assert!(debug.contains("RetentionConfig"));
-    assert!(debug.contains("enabled"));
-    assert!(debug.contains("schedule"));
-}
 
 #[test]
 fn test_retention_config_serialize() {

@@ -24,15 +24,6 @@ fn make_msg(text: &str, ctx: &ContextId, task_id: &TaskId, role: MessageRole) ->
     }
 }
 
-#[tokio::test]
-async fn message_repository_new_succeeds() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let repo = MessageRepository::new(&fx.db)?;
-    let dbg = format!("{:?}", repo);
-    assert!(dbg.contains("MessageRepository"));
-    fx.cleanup().await?;
-    Ok(())
-}
 
 #[tokio::test]
 async fn message_repository_get_by_task_returns_persisted() -> Result<()> {

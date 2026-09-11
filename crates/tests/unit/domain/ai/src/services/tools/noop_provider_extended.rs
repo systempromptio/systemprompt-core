@@ -17,15 +17,6 @@ mod noop_default_tests {
         assert_eq!(debug_new, debug_default);
     }
 
-    #[test]
-    fn is_clone() {
-        let provider = NoopToolProvider::new();
-        let cloned = provider.clone();
-
-        let debug_original = format!("{:?}", provider);
-        let debug_cloned = format!("{:?}", cloned);
-        assert_eq!(debug_original, debug_cloned);
-    }
 
     #[test]
     fn is_copy() {

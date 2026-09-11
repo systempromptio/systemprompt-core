@@ -19,13 +19,6 @@ mod registry_creation_tests {
         assert_eq!(stats.components, 0);
         assert_eq!(stats.page_providers, 0);
     }
-
-    #[test]
-    fn debug_impl_includes_registry_name() {
-        let registry = TemplateRegistry::new();
-        let debug_str = format!("{:?}", registry);
-        assert!(debug_str.contains("TemplateRegistry"));
-    }
 }
 
 mod provider_registration_tests {

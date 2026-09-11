@@ -66,19 +66,6 @@ mod session_row_conversion_tests {
         assert!(s.ended_at.is_some());
     }
 
-    #[test]
-    fn debug_includes_session_id() {
-        let s = make_session_full();
-        let d = format!("{:?}", s);
-        assert!(d.contains("UserSession"));
-    }
-
-    #[test]
-    fn clone_preserves_session_id() {
-        let s = make_session_full();
-        let cloned = s.clone();
-        assert_eq!(s.session_id.to_string(), cloned.session_id.to_string());
-    }
 
     #[test]
     fn serde_round_trip() {

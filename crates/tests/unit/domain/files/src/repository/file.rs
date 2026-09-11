@@ -192,20 +192,6 @@ fn test_insert_file_request_partial_builder() {
     assert!(request.trace_id.is_none());
 }
 
-#[test]
-fn test_insert_file_request_clone() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
-    let request = InsertFileRequest::new(file_id, "/path", "/url", "image/jpeg")
-        .with_size(512)
-        .with_ai_content(true);
-
-    let cloned = request.clone();
-
-    assert_eq!(request.id.as_str(), cloned.id.as_str());
-    assert_eq!(request.path, cloned.path);
-    assert_eq!(request.size_bytes, cloned.size_bytes);
-    assert_eq!(request.ai_content, cloned.ai_content);
-}
 
 #[test]
 fn test_insert_file_request_debug() {

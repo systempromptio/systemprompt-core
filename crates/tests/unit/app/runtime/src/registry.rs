@@ -13,12 +13,6 @@ use systemprompt_runtime::{
     ModuleApiRegistration, ModuleApiRegistry, ModuleType, ServiceCategory, WellKnownRoute,
 };
 
-#[test]
-fn test_api_registry_debug() {
-    let registry = ModuleApiRegistry::new();
-    let debug_str = format!("{:?}", registry);
-    assert!(debug_str.contains("ModuleApiRegistry"));
-}
 
 #[test]
 fn test_get_category_nonexistent() {
@@ -152,19 +146,6 @@ fn test_module_api_registration_debug() {
     assert!(debug_str.contains("debug-test"));
 }
 
-#[test]
-fn test_module_api_registration_clone() {
-    let registration = ModuleApiRegistration {
-        module_name: "clone-test",
-        category: ServiceCategory::Core,
-        module_type: ModuleType::Regular,
-        router_fn: dummy_router,
-        auth_required: false,
-    };
-
-    let cloned = registration;
-    assert_eq!(cloned.module_name, "clone-test");
-}
 
 fn dummy_handler(_ctx: &systemprompt_runtime::AppContext) -> Router {
     Router::new()
@@ -220,17 +201,6 @@ fn test_wellknown_route_debug() {
     assert!(debug_str.contains("/.well-known/debug"));
 }
 
-#[test]
-fn test_wellknown_route_clone() {
-    let route = WellKnownRoute {
-        path: "/.well-known/clone",
-        handler_fn: dummy_handler,
-        methods: &[axum::http::Method::GET],
-    };
-
-    let cloned = route;
-    assert_eq!(cloned.path, "/.well-known/clone");
-}
 
 #[test]
 fn test_module_type_regular() {

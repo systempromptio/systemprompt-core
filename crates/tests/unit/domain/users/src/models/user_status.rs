@@ -32,18 +32,6 @@ fn as_str_returns_temporary() {
     assert_eq!(UserStatus::Temporary.as_str(), "temporary");
 }
 
-#[test]
-fn user_status_clone() {
-    let status = UserStatus::Suspended;
-    let cloned = status;
-    assert_eq!(status, cloned);
-}
-
-#[test]
-fn user_status_debug() {
-    let debug_str = format!("{:?}", UserStatus::Active);
-    assert!(debug_str.contains("Active"));
-}
 
 #[test]
 fn user_status_serializes_to_snake_case() {

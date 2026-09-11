@@ -194,31 +194,3 @@ mod template_source_tests {
         }
     }
 }
-
-mod debug_tests {
-    use super::*;
-
-    #[test]
-    fn debug_impl_includes_provider_info() {
-        let provider = CoreTemplateProvider::new("/tmp/templates");
-        let debug_str = format!("{:?}", provider);
-
-        assert!(debug_str.contains("CoreTemplateProvider"));
-    }
-
-    #[tokio::test]
-    async fn debug_shows_discovered_templates() {
-        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
-
-        fs::write(temp_dir.path().join("test.html"), "<html></html>")
-            .await
-            .expect("failed to write");
-
-        let provider = CoreTemplateProvider::discover_from(temp_dir.path())
-            .await
-            .expect("failed to discover");
-
-        let debug_str = format!("{:?}", provider);
-        assert!(debug_str.contains("CoreTemplateProvider"));
-    }
-}

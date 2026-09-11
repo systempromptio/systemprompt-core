@@ -41,6 +41,9 @@ export function healthRows(snapshot) {
   for (const f of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.host_failures) || [])) {
     rows.push({ tone: "err", label: f.host_id, value: f.error });
   }
+  for (const w of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.host_warnings) || [])) {
+    rows.push({ tone: "warn", label: w.host_id, value: w.message });
+  }
   for (const d of ((snapshot && snapshot.last_sync_report && snapshot.last_sync_report.diagnostics) || [])) {
     rows.push({ tone: "warn", label: t("setup-health-diagnostic") || "gateway diagnostic", value: d });
   }

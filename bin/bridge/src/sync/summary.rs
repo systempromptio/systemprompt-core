@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::gateway::manifest::SignedManifest;
-use crate::sync::apply::{self, HostFailure};
+use crate::sync::apply::{self, HostFailure, HostWarning};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
@@ -24,6 +24,7 @@ pub struct SyncSummary {
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
     pub host_failures: Vec<HostFailure>,
+    pub host_warnings: Vec<HostWarning>,
     pub diagnostics: Vec<String>,
 }
 
@@ -59,6 +60,17 @@ impl SyncSummary {
                 detail,
             )
         };
+        let warnings_suffix = if self.host_warnings.is_empty() {
+            String::new()
+        } else {
+            let detail = self
+                .host_warnings
+                .iter()
+                .map(|w| format!("{} ({})", w.host_id, first_line(&w.message)))
+                .collect::<Vec<_>>()
+                .join("; ");
+            format!(" — {} warning(s): {detail}", self.host_warnings.len())
+        };
         let diagnostics_suffix = if self.diagnostics.is_empty() {
             String::new()
         } else {
@@ -70,7 +82,7 @@ impl SyncSummary {
         };
         format!(
             "{status} ({}): {} plugins ({} new, {} updated, {} removed), {} skills installed, {} \
-             rules, {} agents, {} hooks, {} MCP, {} artifacts — manifest {}{}{}{}",
+             rules, {} agents, {} hooks, {} MCP, {} artifacts — manifest {}{}{}{}{}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
@@ -85,6 +97,7 @@ impl SyncSummary {
             self.manifest_version,
             malformed_suffix,
             host_suffix,
+            warnings_suffix,
             diagnostics_suffix,
         )
     }
@@ -127,6 +140,7 @@ pub(super) fn build_summary(manifest: &SignedManifest, report: apply::ApplyRepor
         removed: report.removed,
         malformed: report.malformed,
         host_failures: report.host_failures,
+        host_warnings: report.host_warnings,
         diagnostics,
     }
 }

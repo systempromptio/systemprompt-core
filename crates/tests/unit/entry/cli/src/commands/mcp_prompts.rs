@@ -40,6 +40,7 @@ fn deployment(port: u16) -> Deployment {
         env_vars: vec![],
         external_auth: None,
         headers: HashMap::default(),
+        tool_policy: None,
     }
 }
 

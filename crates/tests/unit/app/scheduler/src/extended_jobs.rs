@@ -45,13 +45,6 @@ mod ghost_session_cleanup_tests {
             name
         );
     }
-
-    #[test]
-    fn is_copy() {
-        let job1 = GhostSessionCleanupJob;
-        let job2 = job1;
-        assert_eq!(job1.name(), job2.name());
-    }
 }
 
 mod malicious_ip_blacklist_tests {

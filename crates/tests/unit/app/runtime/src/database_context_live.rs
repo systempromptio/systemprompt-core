@@ -71,14 +71,6 @@ async fn database_context_clone_shares_pool() {
     assert!(std::sync::Arc::ptr_eq(ctx.db_pool(), cloned.db_pool()));
 }
 
-#[tokio::test]
-async fn database_context_debug_output() {
-    let Some(url) = db_url_or_skip() else { return };
-    let ctx = DatabaseContext::from_url(&url).await.expect("connect");
-
-    let dbg = format!("{ctx:?}");
-    assert!(dbg.contains("DatabaseContext"), "got: {dbg}");
-}
 
 #[tokio::test]
 async fn from_pool_wraps_the_given_pool_without_reconnecting() {

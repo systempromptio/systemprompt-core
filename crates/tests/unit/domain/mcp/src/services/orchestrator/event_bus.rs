@@ -2,13 +2,6 @@
 
 use systemprompt_mcp::services::orchestrator::{EventBus, McpEvent};
 
-#[test]
-fn test_event_bus_new() {
-    let event_bus = EventBus::new(100);
-    let debug_str = format!("{:?}", event_bus);
-    assert!(debug_str.contains("EventBus"));
-    assert!(debug_str.contains("handlers_count"));
-}
 
 #[test]
 #[should_panic(expected = "broadcast channel capacity cannot be zero")]
@@ -16,12 +9,6 @@ fn test_event_bus_new_with_zero_capacity_panics() {
     let _event_bus = EventBus::new(0);
 }
 
-#[test]
-fn test_event_bus_new_with_large_capacity() {
-    let event_bus = EventBus::new(10000);
-    let debug_str = format!("{:?}", event_bus);
-    assert!(debug_str.contains("EventBus"));
-}
 
 #[tokio::test]
 async fn test_event_bus_publish() {

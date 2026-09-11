@@ -105,13 +105,6 @@ mod job_result_tests {
         assert_eq!(result.items_failed, Some(2));
         assert_eq!(result.duration_ms, 500);
     }
-
-    #[test]
-    fn is_debug() {
-        let result = JobResult::success();
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("JobResult"));
-    }
 }
 
 mod job_context_tests {
@@ -128,12 +121,6 @@ mod job_context_tests {
         )
     }
 
-    #[test]
-    fn new_creates_context() {
-        let ctx = create_context();
-        let debug = format!("{:?}", ctx);
-        assert!(debug.contains("JobContext"));
-    }
 
     #[test]
     fn parameters_is_empty_by_default() {

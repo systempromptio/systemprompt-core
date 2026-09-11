@@ -639,7 +639,11 @@ fn serve(m: &SignedManifest, label: &str) -> (MockServer, SandboxDirs, PathBuf) 
 fn written_servers(dirs: &SandboxDirs) -> Vec<serde_json::Value> {
     let raw = fs::read_to_string(dirs.metadata.join("mcp-servers.json"))
         .expect("apply writes the MCP fragment");
-    serde_json::from_str(&raw).expect("MCP fragment is a JSON array")
+    let fragment: serde_json::Value = serde_json::from_str(&raw).expect("MCP fragment is JSON");
+    fragment["servers"]
+        .as_array()
+        .cloned()
+        .expect("MCP fragment carries a servers array")
 }
 
 #[test]

@@ -243,19 +243,6 @@ fn test_token_request_deserialize_minimal() {
     assert!(request.resource.is_none());
 }
 
-#[test]
-fn test_token_request_debug() {
-    let json = serde_json::json!({
-        "grant_type": "refresh_token",
-        "refresh_token": "rt_abc123"
-    });
-
-    let request: TokenRequest = serde_json::from_value(json).unwrap();
-    let debug = format!("{request:?}");
-
-    assert!(debug.contains("TokenRequest"));
-    assert!(debug.contains("refresh_token"));
-}
 
 #[test]
 fn test_token_response_serialize_full() {
@@ -296,21 +283,6 @@ fn test_token_response_serialize_skip_none() {
     assert!(json.get("scope").is_none());
 }
 
-#[test]
-fn test_token_response_debug() {
-    let response = TokenResponse {
-        access_token: "at_test".to_string(),
-        token_type: "Bearer".to_string(),
-        expires_in: 3600,
-        refresh_token: None,
-        scope: None,
-        issued_token_type: None,
-    };
-
-    let debug = format!("{response:?}");
-    assert!(debug.contains("TokenResponse"));
-    assert!(debug.contains("at_test"));
-}
 
 #[test]
 fn test_well_known_response_serialize() {

@@ -10,13 +10,6 @@ fn webhook_context_stores_user_and_token() {
     assert_eq!(ctx.user_id(), &user_id);
 }
 
-#[test]
-fn webhook_context_clone_preserves_fields() {
-    let user_id = UserId::new("user-clone");
-    let ctx = WebhookContext::new(user_id.clone(), "tok");
-    let cloned = ctx.clone();
-    assert_eq!(cloned.user_id(), &user_id);
-}
 
 #[test]
 fn webhook_context_debug_includes_struct_name() {
@@ -41,15 +34,6 @@ fn webhook_error_status_display() {
     assert!(s.contains("boom"));
 }
 
-#[test]
-fn webhook_error_status_debug() {
-    let err = WebhookError::StatusError {
-        status: 401,
-        message: "unauthorized".to_string(),
-    };
-    let s = format!("{:?}", err);
-    assert!(s.contains("StatusError"));
-}
 
 #[tokio::test]
 async fn broadcast_returns_error_when_endpoint_unreachable() {

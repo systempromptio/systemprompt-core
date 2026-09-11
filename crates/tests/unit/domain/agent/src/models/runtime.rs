@@ -112,29 +112,6 @@ fn test_agent_runtime_info_debug() {
     assert!(debug_str.contains("8888"));
 }
 
-#[test]
-fn test_agent_runtime_info_clone() {
-    let info = AgentRuntimeInfo {
-        name: "clone-agent".to_string(),
-        port: 7777,
-        is_enabled: true,
-        is_primary: true,
-        system_prompt: Some("Cloned prompt".to_string()),
-        mcp_servers: pcr(["server"]),
-        provider: Some("provider".to_string()),
-        model: Some("model".to_string()),
-        max_output_tokens: Some(2048),
-        skills: pcr(["skill"]),
-        tool_model_overrides: ToolModelOverrides::default(),
-    };
-
-    let cloned = info.clone();
-    assert_eq!(cloned.name, info.name);
-    assert_eq!(cloned.port, info.port);
-    assert_eq!(cloned.system_prompt, info.system_prompt);
-    assert_eq!(cloned.mcp_servers, info.mcp_servers);
-    assert_eq!(cloned.max_output_tokens, info.max_output_tokens);
-}
 
 #[test]
 fn test_agent_runtime_info_with_skills() {

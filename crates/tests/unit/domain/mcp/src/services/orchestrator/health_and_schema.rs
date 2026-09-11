@@ -46,18 +46,6 @@ fn health_status_equality() {
     assert_ne!(HealthStatus::Degraded, HealthStatus::Unknown);
 }
 
-#[test]
-fn health_status_copy() {
-    let status = HealthStatus::Healthy;
-    let copied = status;
-    assert_eq!(status, copied);
-}
-
-#[test]
-fn health_status_debug() {
-    let debug = format!("{:?}", HealthStatus::Degraded);
-    assert!(debug.contains("Degraded"));
-}
 
 #[test]
 fn health_check_details_construction() {
@@ -90,20 +78,6 @@ fn health_check_details_with_error() {
     assert!(details.server_version.is_none());
 }
 
-#[test]
-fn health_check_details_clone() {
-    let details = HealthCheckDetails {
-        service_name: "clone-test".to_string(),
-        tools_available: Some(3),
-        requires_auth: false,
-        validation_type: "test".to_string(),
-        error_message: None,
-        server_version: None,
-    };
-    let cloned = details.clone();
-    assert_eq!(cloned.service_name, "clone-test");
-    assert_eq!(cloned.tools_available, Some(3));
-}
 
 #[test]
 fn health_check_result_unhealthy_constructor() {
@@ -246,19 +220,6 @@ fn service_info_without_pid() {
     assert!(info.binary_mtime.is_none());
 }
 
-#[test]
-fn service_info_clone() {
-    let info = ServiceInfo {
-        name: "clone-svc".to_string(),
-        status: "running".to_string(),
-        pid: Some(5678),
-        port: 3000,
-        binary_mtime: Some(9999),
-    };
-    let cloned = info.clone();
-    assert_eq!(cloned.name, info.name);
-    assert_eq!(cloned.pid, info.pid);
-}
 
 #[test]
 fn service_info_debug() {

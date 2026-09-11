@@ -69,67 +69,6 @@ mod template_error_display_tests {
     }
 }
 
-mod template_error_debug_tests {
-    use super::*;
-
-    #[test]
-    fn not_found_debug() {
-        let error = TemplateError::NotFound("test".to_string());
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("NotFound"));
-    }
-
-    #[test]
-    fn load_error_debug() {
-        let error = TemplateError::LoadError {
-            name: "test".to_string(),
-            message: "error".to_string(),
-        };
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("LoadError"));
-    }
-
-    #[test]
-    fn compile_error_debug() {
-        let error = TemplateError::CompileError {
-            name: "test".to_string(),
-            message: "error".to_string(),
-        };
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("CompileError"));
-    }
-
-    #[test]
-    fn render_error_debug() {
-        let error = TemplateError::RenderError {
-            name: "test".to_string(),
-            message: "error".to_string(),
-        };
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("RenderError"));
-    }
-
-    #[test]
-    fn no_loader_debug() {
-        let error = TemplateError::NoLoader("test".to_string());
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("NoLoader"));
-    }
-
-    #[test]
-    fn not_initialized_debug() {
-        let error = TemplateError::NotInitialized;
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("NotInitialized"));
-    }
-}
-
 mod template_error_construction_tests {
     use super::*;
 

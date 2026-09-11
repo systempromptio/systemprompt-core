@@ -17,7 +17,7 @@ pub use crate::last_sync::{
     LastSyncState, ReplayStateError, last_synced_auto_update_policy, last_synced_enabled_hosts,
     read_last_sync,
 };
-pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
+pub use apply::{HostFailure, HostWarning, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use summary::SyncSummary;
@@ -74,6 +74,7 @@ pub async fn run_once(
         ));
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
+    let run_gateway = fetch.client.base_url().clone();
 
     #[cfg_attr(
         not(target_os = "windows"),
@@ -116,8 +117,10 @@ pub async fn run_once(
     let now = chrono::Utc::now();
     if !force_replay {
         let last_state = match read_last_sync(&last_sync_path) {
-            Ok(Some(s)) => s,
-            Ok(None) => LastSyncState::default(),
+            // Why: manifest versions are per gateway; the previous gateway's
+            // version says nothing about whether this one is a replay.
+            Ok(Some(s)) if s.belongs_to(&run_gateway) => s,
+            Ok(_) => LastSyncState::default(),
             Err(e) => {
                 tracing::error!(error = %e, "replay state file is corrupt; refusing to apply");
                 return Err(SyncError::from(e));
@@ -126,6 +129,7 @@ pub async fn run_once(
         check_replay(&last_state, &synced.manifest_version)?;
         check_skew(&synced.not_before, now)?;
     }
+    ensure_not_superseded(&run_gateway)?;
 
     let report = match apply::apply_manifest(
         &fetch.client,
@@ -156,13 +160,13 @@ pub async fn run_once(
             .await
             .map_err(|e| org_plugins_denied(&e, &healed))?
         },
-        Err(e) => return Err(SyncError::ApplyFailed(e)),
+        Err(e) => return Err(apply_error_to_sync(e)),
     };
 
     if !report.host_failures.is_empty() || !report.malformed.is_empty() {
         return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
     }
-    persist_last_sync(&last_sync_path, &synced, &report, now)?;
+    persist_last_sync(&last_sync_path, &synced, &report, now, &run_gateway)?;
     seed_default_model_from_profile(&fetch.client).await?;
 
     bridge
@@ -177,7 +181,25 @@ pub async fn run_once(
     Ok(build_summary(&synced, report))
 }
 
-#[cfg(unix)]
+fn ensure_not_superseded(
+    run_gateway: &systemprompt_identifiers::ValidatedUrl,
+) -> Result<(), SyncError> {
+    apply::check_not_superseded(run_gateway).map_err(apply_error_to_sync)
+}
+
+fn apply_error_to_sync(e: apply::ApplyError) -> SyncError {
+    match e {
+        apply::ApplyError::Superseded {
+            started_for,
+            current,
+        } => SyncError::Superseded {
+            started_for,
+            current,
+        },
+        other => SyncError::ApplyFailed(other),
+    }
+}
+
 async fn seed_default_model_from_profile(
     client: &crate::gateway::GatewayClient,
 ) -> Result<(), SyncError> {
@@ -209,17 +231,6 @@ async fn seed_default_model_from_profile(
         Ok(false) => tracing::debug!("settings already name a model; leaving the user's choice"),
         Err(e) => return Err(SyncError::Network(format!("seed default model: {e}"))),
     }
-    Ok(())
-}
-
-#[cfg(not(unix))]
-#[expect(
-    clippy::unused_async,
-    reason = "matches the Linux arm's signature, which the shared call site awaits"
-)]
-async fn seed_default_model_from_profile(
-    _client: &crate::gateway::GatewayClient,
-) -> Result<(), SyncError> {
     Ok(())
 }
 

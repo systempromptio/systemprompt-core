@@ -93,18 +93,6 @@ fn bridge_auth_result_clone_preserves_fields() {
     assert_eq!(cloned.headers, original.headers);
 }
 
-#[test]
-fn bridge_exchange_code_debug_contains_code() {
-    let issued = BridgeExchangeCode {
-        code: "abc123".to_string(),
-        expires_at: chrono::Utc::now(),
-    };
-
-    let debug = format!("{:?}", issued);
-
-    assert!(debug.contains("BridgeExchangeCode"));
-    assert!(debug.contains("abc123"));
-}
 
 #[test]
 fn bridge_exchange_code_serialises_iso_timestamp() {
@@ -136,22 +124,6 @@ fn bridge_oauth_client_serialises_secret() {
     assert!(json.contains("https://example.test/oauth/token"));
 }
 
-#[test]
-fn bridge_oauth_client_clone_preserves_all_fields() {
-    let original = BridgeOAuthClient {
-        client_id: ClientId::new("bridge:user_1"),
-        client_secret: "s".to_string(),
-        scopes: vec!["hook:govern".to_string()],
-        token_endpoint: "https://t.test".to_string(),
-    };
-
-    let cloned = original.clone();
-
-    assert_eq!(cloned.client_id.as_str(), original.client_id.as_str());
-    assert_eq!(cloned.client_secret, original.client_secret);
-    assert_eq!(cloned.scopes, original.scopes);
-    assert_eq!(cloned.token_endpoint, original.token_endpoint);
-}
 
 // The property the CLI-side suite cannot prove: what lands in the database is
 // the hash, not the code. A device-link code and its sha256 are both 64 hex

@@ -30,6 +30,7 @@ fn deployment(required: bool, scopes: Vec<Permission>) -> Deployment {
         env_vars: vec![],
         external_auth: None,
         headers: HashMap::default(),
+        tool_policy: None,
     }
 }
 

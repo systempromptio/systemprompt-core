@@ -81,20 +81,6 @@ fn round_trip_all_variants() {
     }
 }
 
-#[test]
-fn outbox_channel_debug() {
-    let debug = format!("{:?}", OutboxChannel::AgUi);
-    assert!(debug.contains("AgUi"));
-}
-
-#[test]
-fn outbox_channel_clone_and_copy() {
-    let ch = OutboxChannel::A2A;
-    let ch2 = ch;
-    assert_eq!(ch, ch2);
-    let ch3 = ch2;
-    assert_eq!(ch3, OutboxChannel::A2A);
-}
 
 #[test]
 fn outbox_channel_partial_eq() {

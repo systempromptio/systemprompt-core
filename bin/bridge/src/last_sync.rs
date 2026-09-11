@@ -15,8 +15,15 @@ use serde::Deserialize;
 use crate::gateway::manifest::AutoUpdatePolicy;
 use crate::gateway::manifest_version::ManifestVersion;
 
+/// What the last completed sync applied, stamped with its gateway.
+///
+/// Replay protection and delivered policy only carry over within one gateway
+/// (same origin); a switch starts from nothing, and a sentinel written before
+/// stamping (no `gateway`) is trusted for none.
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct LastSyncState {
+    #[serde(default)]
+    pub gateway: Option<systemprompt_identifiers::ValidatedUrl>,
     #[serde(default)]
     pub last_applied_manifest_version: Option<ManifestVersion>,
     #[serde(default)]
@@ -33,6 +40,15 @@ pub struct LastSyncState {
     pub auto_update: AutoUpdatePolicy,
 }
 
+impl LastSyncState {
+    #[must_use]
+    pub fn belongs_to(&self, gateway: &systemprompt_identifiers::ValidatedUrl) -> bool {
+        self.gateway
+            .as_ref()
+            .is_some_and(|g| crate::mcp_registry::same_origin(g, gateway))
+    }
+}
+
 #[must_use]
 pub fn last_synced_enabled_hosts() -> Option<Vec<String>> {
     read_last_sync_state().map(|state| state.enabled_hosts)
@@ -46,9 +62,15 @@ pub fn last_synced_auto_update_policy() -> Option<AutoUpdatePolicy> {
     read_last_sync_state().map(|state| state.auto_update)
 }
 
+// Why: delivered policy (hosts, auto-update) belongs to the gateway that
+// delivered it; a sentinel from another gateway is no policy at all.
 fn read_last_sync_state() -> Option<LastSyncState> {
     let meta = crate::config::paths::bridge_metadata_dir()?;
-    read_last_sync(&meta.join(crate::config::paths::LAST_SYNC_SENTINEL)).ok()?
+    let state = read_last_sync(&meta.join(crate::config::paths::LAST_SYNC_SENTINEL)).ok()??;
+    let cfg = crate::config::load().ok()?;
+    state
+        .belongs_to(&crate::config::gateway_url_or_default(&cfg))
+        .then_some(state)
 }
 
 #[derive(Debug, thiserror::Error)]

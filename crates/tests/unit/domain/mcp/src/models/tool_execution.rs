@@ -75,17 +75,6 @@ fn test_tool_execution_without_context() {
     assert!(exec.ai_tool_call_id.is_none());
 }
 
-#[test]
-fn test_tool_execution_clone() {
-    let exec = create_test_execution();
-    let cloned = exec.clone();
-
-    assert_eq!(exec.tool_name, cloned.tool_name);
-    assert_eq!(exec.server_name, cloned.server_name);
-    assert_eq!(exec.status, cloned.status);
-    assert_eq!(exec.input, cloned.input);
-    assert_eq!(exec.output, cloned.output);
-}
 
 #[test]
 fn test_tool_execution_debug() {

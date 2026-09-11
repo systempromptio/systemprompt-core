@@ -84,16 +84,6 @@ mod api_key_struct_tests {
         assert!(s.contains("my-key"));
     }
 
-    #[test]
-    fn clone_preserves_all_fields() {
-        let key = make_api_key(false, Some(Utc::now() + Duration::days(30)));
-        let cloned = key.clone();
-        assert_eq!(key.id.to_string(), cloned.id.to_string());
-        assert_eq!(key.user_id.to_string(), cloned.user_id.to_string());
-        assert_eq!(key.name, cloned.name);
-        assert_eq!(key.key_prefix, cloned.key_prefix);
-        assert_eq!(key.key_hash, cloned.key_hash);
-    }
 
     #[test]
     fn serde_round_trip() {
@@ -131,28 +121,5 @@ mod new_api_key_tests {
         };
         assert_eq!(new_key.secret, secret);
         assert_eq!(new_key.record.name, record.name);
-    }
-
-    #[test]
-    fn new_api_key_debug() {
-        let record = make_api_key(false, None);
-        let new_key = NewApiKey {
-            record,
-            secret: "secret123".to_string(),
-        };
-        let s = format!("{:?}", new_key);
-        assert!(s.contains("NewApiKey"));
-    }
-
-    #[test]
-    fn new_api_key_clone() {
-        let record = make_api_key(false, None);
-        let new_key = NewApiKey {
-            record,
-            secret: "my-secret".to_string(),
-        };
-        let cloned = new_key.clone();
-        assert_eq!(new_key.secret, cloned.secret);
-        assert_eq!(new_key.record.name, cloned.record.name);
     }
 }

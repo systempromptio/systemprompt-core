@@ -16,6 +16,7 @@ fn summary() -> SyncSummary {
         removed: vec![],
         malformed: vec![],
         host_failures: vec![],
+        host_warnings: Vec::new(),
         diagnostics: vec![],
     }
 }
@@ -129,4 +130,20 @@ fn gateway_diagnostics_are_appended_to_the_summary_line() {
     let line = s.one_line();
     assert!(line.contains("1 gateway diagnostic(s):"), "{line}");
     assert!(line.contains("crm_leads"), "{line}");
+}
+
+#[test]
+fn a_host_warning_keeps_the_line_ok_but_names_the_host_and_its_first_line() {
+    let mut s = summary();
+    s.host_warnings = vec![systemprompt_bridge::sync::HostWarning {
+        host_id: "claude-desktop".into(),
+        message: "open Cowork once, then Re-sync\nsecond line".into(),
+    }];
+    let line = s.one_line();
+    assert!(line.starts_with("sync ok"), "{line}");
+    assert!(
+        line.contains("1 warning(s): claude-desktop (open Cowork once, then Re-sync)"),
+        "{line}"
+    );
+    assert!(!line.contains("second line"), "{line}");
 }

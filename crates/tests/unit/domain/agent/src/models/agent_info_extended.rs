@@ -124,28 +124,6 @@ fn agent_info_serde_roundtrip() {
     assert!(de.enabled);
 }
 
-#[test]
-fn agent_info_debug() {
-    let info = AgentInfo::from_card(
-        AgentId::new("dbg"),
-        minimal_card("DbgAgent", "1.0.0"),
-        false,
-    );
-    let dbg = format!("{:?}", info);
-    assert!(dbg.contains("AgentInfo"));
-}
-
-#[test]
-fn agent_info_clone() {
-    let info = AgentInfo::from_card(
-        AgentId::new("clone"),
-        minimal_card("CloneAgent", "1.0.0"),
-        true,
-    );
-    let cloned = info.clone();
-    assert_eq!(cloned.id(), info.id());
-    assert_eq!(cloned.name(), info.name());
-}
 
 #[test]
 fn agent_info_with_skills_and_mcp_combined() {

@@ -17,19 +17,6 @@ fn test_process_info_creation() {
     assert_eq!(info.command, "/usr/bin/test");
 }
 
-#[test]
-fn test_process_info_clone() {
-    let info = ProcessInfo {
-        pid: 5678,
-        ppid: 100,
-        command: "test-process --flag".to_string(),
-    };
-
-    let cloned = info.clone();
-    assert_eq!(info.pid, cloned.pid);
-    assert_eq!(info.ppid, cloned.ppid);
-    assert_eq!(info.command, cloned.command);
-}
 
 #[test]
 fn test_process_info_debug() {

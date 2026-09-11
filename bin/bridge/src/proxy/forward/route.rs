@@ -37,7 +37,7 @@ pub(super) fn resolve_route(
                 extra_headers: entry.headers.clone(),
             });
         }
-        if let Err(e) = mcp_registry::rehydrate_from_disk(registry) {
+        if let Err(e) = mcp_registry::rehydrate_from_disk(registry, gateway_base) {
             return RouteResolution::Unavailable(e.to_string());
         }
         return mcp_registry::snapshot(registry).get(name).map_or_else(
@@ -59,6 +59,16 @@ pub(super) fn resolve_route(
         };
     }
     RouteResolution::Gateway(build_gateway_url(gateway_base, uri))
+}
+
+pub(super) fn same_origin_as(upstream: &str, gateway_base: &ValidatedUrl) -> bool {
+    match (
+        url::Url::parse(upstream),
+        url::Url::parse(gateway_base.as_str()),
+    ) {
+        (Ok(a), Ok(b)) => a.origin() == b.origin(),
+        _ => false,
+    }
 }
 
 fn parse_mcp_path(path: &str) -> Option<&str> {

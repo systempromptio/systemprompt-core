@@ -15,8 +15,10 @@ pub(super) fn persist_last_sync(
     manifest: &SignedManifest,
     report: &ApplyReport,
     now: chrono::DateTime<chrono::Utc>,
+    gateway: &systemprompt_identifiers::ValidatedUrl,
 ) -> Result<(), SyncError> {
     let sentinel = LastSyncSentinel {
+        gateway: gateway.as_str(),
         synced_at: current_iso8601(),
         manifest_version: manifest.manifest_version.as_str(),
         last_applied_manifest_version: manifest.manifest_version.as_str(),
@@ -46,6 +48,7 @@ pub(super) fn persist_last_sync(
 
 #[derive(Serialize)]
 struct LastSyncSentinel<'a> {
+    gateway: &'a str,
     synced_at: String,
     manifest_version: &'a str,
     last_applied_manifest_version: &'a str,

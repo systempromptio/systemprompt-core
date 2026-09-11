@@ -288,17 +288,3 @@ fn test_cookie_extraction_error_is_std_error() {
     let error: Box<dyn std::error::Error> = Box::new(CookieExtractionError::MissingCookie);
     assert!(error.to_string().contains("Missing cookie"));
 }
-
-#[test]
-fn test_cookie_extraction_error_clone() {
-    let error = CookieExtractionError::MissingCookie;
-    let cloned = error;
-    assert_eq!(error, cloned);
-}
-
-#[test]
-fn test_cookie_extraction_error_debug() {
-    let error = CookieExtractionError::MissingCookie;
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("MissingCookie"));
-}

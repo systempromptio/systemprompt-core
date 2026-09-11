@@ -53,11 +53,6 @@ mod job_status_tests {
         assert_eq!(json, "\"running\"");
     }
 
-    #[test]
-    fn status_is_debug() {
-        let debug = format!("{:?}", JobStatus::Success);
-        assert!(debug.contains("Success"));
-    }
 
     #[test]
     fn running_deserializes_from_lowercase() {
@@ -81,13 +76,6 @@ mod job_status_tests {
             let back: JobStatus = serde_json::from_str(&quoted).unwrap();
             assert_eq!(variant, back);
         }
-    }
-
-    #[test]
-    fn copy_semantics() {
-        let a = JobStatus::Success;
-        let b = a;
-        assert_eq!(a, b);
     }
 }
 
@@ -156,12 +144,5 @@ mod scheduler_error_tests {
     fn errors_implement_std_error() {
         let error: Box<dyn std::error::Error> = Box::new(SchedulerError::job_not_found("test"));
         assert!(error.to_string().contains("test"));
-    }
-
-    #[test]
-    fn errors_are_debug() {
-        let error = SchedulerError::job_not_found("debug_test");
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("JobNotFound"));
     }
 }

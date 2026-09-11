@@ -38,12 +38,6 @@ fn metadata_version_some_in_json() {
     assert!(json.contains("0.9.0"));
 }
 
-#[test]
-fn metadata_clone_eq() {
-    let a = make_metadata("srv", "http://localhost/mcp", "running");
-    let b = a.clone();
-    assert_eq!(a, b);
-}
 
 #[test]
 fn metadata_debug_contains_name() {

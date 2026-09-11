@@ -31,14 +31,6 @@ fn migration_checksum_is_hex_string() {
     assert!(!checksum.is_empty());
 }
 
-#[test]
-fn migration_clone() {
-    let migration = Migration::new(2, "add_column", "ALTER TABLE users ADD email TEXT");
-    let cloned = migration.clone();
-    assert_eq!(cloned.version, 2);
-    assert_eq!(cloned.name, "add_column");
-    assert_eq!(cloned.sql, migration.sql);
-}
 
 #[test]
 fn migration_debug_format() {

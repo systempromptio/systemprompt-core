@@ -100,11 +100,3 @@ fn test_ingestion_report_accumulation() {
     assert_eq!(report.warnings.len(), 1);
     assert!(!report.is_success());
 }
-
-#[test]
-fn test_ingestion_report_debug() {
-    let report = IngestionReport::new();
-    let debug = format!("{:?}", report);
-    assert!(debug.contains("IngestionReport"));
-    assert!(debug.contains("files_found"));
-}

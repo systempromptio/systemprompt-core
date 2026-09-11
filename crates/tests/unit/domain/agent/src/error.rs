@@ -30,14 +30,6 @@ fn test_row_parse_error_invalid_datetime_display() {
     assert!(error.to_string().contains("Invalid datetime"));
 }
 
-#[test]
-fn test_row_parse_error_debug() {
-    let error = RowParseError::MissingField {
-        field: "test".to_string(),
-    };
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("MissingField"));
-}
 
 #[test]
 fn test_task_error_missing_task_uuid_display() {
@@ -292,39 +284,4 @@ fn test_agent_error_protocol_display() {
     let protocol_error = ProtocolError::MissingRequestId;
     let agent_error: AgentError = protocol_error.into();
     assert!(agent_error.to_string().contains("A2A protocol error"));
-}
-
-#[test]
-fn test_task_error_debug() {
-    let error = TaskError::MissingTaskUuid;
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("MissingTaskUuid"));
-}
-
-#[test]
-fn test_context_error_debug() {
-    let error = ContextError::MissingUuid;
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("MissingUuid"));
-}
-
-#[test]
-fn test_artifact_error_debug() {
-    let error = ArtifactError::MissingUuid;
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("MissingUuid"));
-}
-
-#[test]
-fn test_protocol_error_debug() {
-    let error = ProtocolError::MissingToolName;
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("MissingToolName"));
-}
-
-#[test]
-fn test_agent_error_debug() {
-    let error = AgentError::Database("test".to_string());
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("Database"));
 }

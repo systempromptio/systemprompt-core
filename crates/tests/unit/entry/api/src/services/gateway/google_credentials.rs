@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde_json::{Value, json};
+use systemprompt_api::services::gateway::service::credentials::fill_project;
 use systemprompt_api::services::gateway::service::credentials::google::{
     ServiceAccountKey, access_token,
 };
@@ -12,7 +13,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn google_access_token(name: &str, secret: &str) -> anyhow::Result<Option<String>> {
     match ServiceAccountKey::parse(secret)? {
-        Some(key) => access_token(name, &key).await.map(Some),
+        Some(key) => Ok(access_token(name, &key).await.map(Some)?),
         None => Ok(None),
     }
 }
@@ -24,6 +25,7 @@ fn google_token_uri(secret: &str) -> anyhow::Result<Option<String>> {
 fn secret(uri: &str) -> String {
     json!({
         "type": "service_account",
+        "project_id": "fixture-project",
         "client_email": "fixture@example.invalid",
         "private_key": test_key(1).to_pkcs8_pem().unwrap(),
         "token_uri": uri,
@@ -55,10 +57,11 @@ async fn ordinary_secrets_do_not_attempt_an_oauth_exchange() {
 }
 
 #[test]
-fn declared_service_accounts_require_email_and_key_and_default_the_endpoint() {
+fn declared_service_accounts_require_email_key_and_project_and_default_the_endpoint() {
     for input in [
         r#"{"type":"service_account"}"#,
-        r#"{"type":"service_account","client_email":5,"private_key":"x"}"#,
+        r#"{"type":"service_account","client_email":5,"private_key":"x","project_id":"p"}"#,
+        r#"{"type":"service_account","client_email":"a","private_key":"b"}"#,
     ] {
         assert!(
             google_token_uri(input)
@@ -68,10 +71,35 @@ fn declared_service_accounts_require_email_and_key_and_default_the_endpoint() {
         );
     }
     assert_eq!(
-        google_token_uri(r#"{"type":"service_account","client_email":"a","private_key":"b"}"#)
-            .unwrap()
-            .as_deref(),
+        google_token_uri(
+            r#"{"type":"service_account","client_email":"a","private_key":"b","project_id":"p"}"#
+        )
+        .unwrap()
+        .as_deref(),
         Some("https://oauth2.googleapis.com/token")
+    );
+}
+
+// Why: the project id is a tenant identifier that Vertex echoes in its IAM
+// errors. It is filled from the key, never written in the catalog, and an
+// endpoint that asks for one cannot be served by an API key.
+#[test]
+fn the_project_segment_is_filled_from_the_service_account_and_never_guessed() {
+    let vertex = "https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google";
+    assert_eq!(
+        fill_project(vertex, Some("fixture-project")).unwrap(),
+        "https://us-central1-aiplatform.googleapis.com/v1/projects/fixture-project/locations/us-central1/publishers/google"
+    );
+    let refused = fill_project(vertex, None).unwrap_err().to_string();
+    assert!(refused.contains("project_id"), "{refused}");
+    assert!(
+        fill_project(vertex, Some("")).is_err(),
+        "an empty project is no project"
+    );
+    assert_eq!(
+        fill_project("https://api.anthropic.com/v1", None).unwrap(),
+        "https://api.anthropic.com/v1",
+        "an endpoint without the segment is untouched"
     );
 }
 
@@ -125,7 +153,10 @@ async fn exchange_signs_an_rs256_assertion_and_reuses_the_cached_token() {
         "https://www.googleapis.com/auth/cloud-platform"
     );
     let issued = claims["iat"].as_u64().unwrap();
-    assert!(issued >= before);
+    // Why: the assertion is back-dated by the clock-skew allowance, so `iat`
+    // is deliberately a minute behind the wall clock we read before the call.
+    assert!(issued + 60 >= before, "{issued} vs {before}");
+    assert!(issued <= before);
     assert_eq!(claims["exp"].as_u64().unwrap() - issued, 3600);
 }
 

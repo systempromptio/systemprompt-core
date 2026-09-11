@@ -20,8 +20,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod discovery_report;
 mod error;
 mod protocol;
+mod rate_card;
 mod surface;
 
 use std::collections::{HashMap, HashSet};
@@ -31,8 +33,12 @@ use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 
 use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, ModelPricing};
 
+pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
 pub use protocol::WireProtocol;
+pub use rate_card::{
+    DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, VertexRateCard, VertexRateCardEntry,
+};
 pub use surface::ApiSurface;
 
 const DEFAULT_CATALOG_YAML: &str = include_str!("default_catalog.yaml");
@@ -196,6 +202,12 @@ impl ProviderRegistry {
                     reason: e.to_string(),
                 },
             )?;
+            if names_a_project_literally(&provider.endpoint) {
+                return Err(ProviderRegistryError::LiteralProjectInEndpoint {
+                    provider: provider.name.as_str().to_owned(),
+                    endpoint: provider.endpoint.clone(),
+                });
+            }
 
             for model in &provider.models {
                 if model.id.as_str().is_empty() {
@@ -219,4 +231,45 @@ impl ProviderRegistry {
         }
         Ok(())
     }
+}
+
+pub const PROJECT_PLACEHOLDER: &str = "{project}";
+
+// Why: the placeholder names live here, beside the registry that validates
+// endpoints, so that the credential layer that fills them and the validator
+// that polices them can never disagree about their spelling. `{region}` has
+// no filler today — no shipped credential type carries a region — and an
+// endpoint using it is refused until one does, which is the intended shape:
+// a coordinate is served by the credential or not at all.
+pub const REGION_PLACEHOLDER: &str = "{region}";
+
+// Why: a Google Cloud project id is a tenant identifier, and Vertex reports it
+// verbatim in every IAM error it returns, which the gateway relays to the
+// caller. A catalog that names one literally therefore ships that id to every
+// installation of the image and every client that trips a 403. The id lives in
+// exactly one place, the service-account key, and the endpoint says
+// `{project}` instead.
+#[must_use]
+pub fn names_a_project_literally(endpoint: &str) -> bool {
+    let Ok(url) = url::Url::parse(endpoint) else {
+        return false;
+    };
+    let on_vertex = url.host_str().is_some_and(|host| {
+        host.eq_ignore_ascii_case("aiplatform.googleapis.com")
+            || host
+                .to_ascii_lowercase()
+                .ends_with("-aiplatform.googleapis.com")
+    });
+    if !on_vertex {
+        return false;
+    }
+    let mut segments = url.path_segments().into_iter().flatten();
+    while let Some(segment) = segments.next() {
+        if segment == "projects" {
+            return segments
+                .next()
+                .is_some_and(|id| id != "%7Bproject%7D" && id != PROJECT_PLACEHOLDER);
+        }
+    }
+    false
 }

@@ -134,23 +134,6 @@ fn test_utm_params_to_json() {
     assert!(json.contains("\"campaign\":\"weekly\""));
 }
 
-#[test]
-fn test_utm_params_clone() {
-    let params = UtmParams {
-        source: Some("source".to_string()),
-        medium: Some("medium".to_string()),
-        campaign: Some("campaign".to_string()),
-        term: Some("term".to_string()),
-        content: Some("content".to_string()),
-    };
-
-    let cloned = params.clone();
-    assert_eq!(cloned.source, params.source);
-    assert_eq!(cloned.medium, params.medium);
-    assert_eq!(cloned.campaign, params.campaign);
-    assert_eq!(cloned.term, params.term);
-    assert_eq!(cloned.content, params.content);
-}
 
 #[test]
 fn test_link_performance_serialization() {

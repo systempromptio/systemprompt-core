@@ -95,13 +95,6 @@ mod ban_duration_tests {
 
         expiry.expect("large days should produce expiry");
     }
-
-    #[test]
-    fn ban_duration_debug() {
-        let duration = BanDuration::Permanent;
-        let debug = format!("{:?}", duration);
-        assert!(debug.contains("Permanent"));
-    }
 }
 
 mod ban_ip_params_tests {

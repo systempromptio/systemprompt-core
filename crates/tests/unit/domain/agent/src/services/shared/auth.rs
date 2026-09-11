@@ -102,21 +102,6 @@ fn test_agent_session_user_debug() {
     assert!(debug.contains("testuser"));
 }
 
-#[test]
-fn test_agent_session_user_clone() {
-    let user = AgentSessionUser {
-        id: "user-clone".to_string().into(),
-        username: "cloneuser".to_string(),
-        user_type: "anonymous".to_string(),
-        permissions: vec!["reader".to_string()],
-    };
-
-    let cloned = user.clone();
-    assert_eq!(user.id, cloned.id);
-    assert_eq!(user.username, cloned.username);
-    assert_eq!(user.user_type, cloned.user_type);
-    assert_eq!(user.permissions, cloned.permissions);
-}
 
 #[test]
 fn test_agent_session_user_empty_permissions() {

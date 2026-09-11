@@ -39,6 +39,8 @@ mod ingestion_ownership;
 #[cfg(test)]
 mod ingestion_yaml_path;
 #[cfg(test)]
+mod kind_sql_roundtrip;
+#[cfg(test)]
 mod marketplace_floor;
 #[cfg(test)]
 mod parent_chain;

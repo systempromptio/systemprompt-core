@@ -99,7 +99,6 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
             state,
             request_id: RequestId::Number(11),
             context,
-            callback_config: None,
         },
         Ok(registry_with("test_agent")),
     )
@@ -141,7 +140,6 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
             state,
             request_id: RequestId::Number(12),
             context,
-            callback_config: None,
         },
         Err(AgentError::Init("injected registry failure".to_owned())),
     )
@@ -186,7 +184,6 @@ async fn run_stream_with_failing_model_stream_fails_task() {
             state,
             request_id: RequestId::Number(13),
             context,
-            callback_config: None,
         },
         Ok(registry_with("test_agent")),
     )

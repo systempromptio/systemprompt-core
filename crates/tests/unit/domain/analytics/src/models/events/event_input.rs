@@ -52,12 +52,6 @@ mod create_analytics_event_input_tests {
         input.data.expect("data should be set");
     }
 
-    #[test]
-    fn input_is_debug() {
-        let input = create_input(AnalyticsEventType::Engagement, "/test");
-        let debug_str = format!("{:?}", input);
-        assert!(debug_str.contains("CreateAnalyticsEventInput"));
-    }
 
     #[test]
     fn input_deserializes_with_custom_data() {
@@ -106,12 +100,5 @@ mod create_analytics_event_batch_input_tests {
         assert_eq!(batch.events.len(), 2);
         assert_eq!(batch.events[0].event_type, AnalyticsEventType::PageView);
         assert_eq!(batch.events[1].event_type, AnalyticsEventType::Scroll);
-    }
-
-    #[test]
-    fn batch_is_debug() {
-        let batch = CreateAnalyticsEventBatchInput { events: vec![] };
-        let debug_str = format!("{:?}", batch);
-        assert!(debug_str.contains("CreateAnalyticsEventBatchInput"));
     }
 }

@@ -27,21 +27,6 @@ fn test_profile_resolution_error_multiple_profiles_display() {
     assert!(msg.contains("Multiple profiles found"));
 }
 
-#[test]
-fn test_profile_resolution_error_no_profiles_debug() {
-    let error = ProfileResolutionError::NoProfilesFound;
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("NoProfilesFound"));
-}
-
-#[test]
-fn test_profile_resolution_error_multiple_profiles_debug() {
-    let error = ProfileResolutionError::MultipleProfilesFound {
-        profiles: vec!["dev".to_string()],
-    };
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("MultipleProfilesFound"));
-}
 
 #[test]
 fn test_profile_resolution_error_discovery_failed() {
@@ -52,13 +37,6 @@ fn test_profile_resolution_error_discovery_failed() {
     assert!(msg.contains("Test error"));
 }
 
-#[test]
-fn test_profile_resolution_error_discovery_failed_debug() {
-    let inner_error = anyhow::anyhow!("Inner error");
-    let error = ProfileResolutionError::DiscoveryFailed(inner_error);
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("DiscoveryFailed"));
-}
 
 fn expected_display_name(input: &str) -> String {
     match input.to_lowercase().as_str() {

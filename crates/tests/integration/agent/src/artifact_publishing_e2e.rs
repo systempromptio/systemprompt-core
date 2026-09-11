@@ -120,18 +120,3 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
     fx.cleanup().await?;
     Ok(())
 }
-
-#[tokio::test]
-async fn artifact_publishing_debug_impl() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let svc = ArtifactPublishingService::new(
-        ArtifactRepository::new(&fx.db)?,
-        ExecutionStepRepository::new(&fx.db)?,
-        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?)?,
-    )?;
-    let dbg = format!("{:?}", svc);
-    assert!(dbg.contains("ArtifactPublishingService"));
-    fx.cleanup().await?;
-    Ok(())
-}

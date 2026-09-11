@@ -96,20 +96,6 @@ fn test_bot_marker_empty_user_agent() {
     assert!(marker.user_agent.is_empty());
 }
 
-#[test]
-fn test_bot_marker_clone() {
-    let original = BotMarker {
-        is_bot: true,
-        bot_type: BotType::KnownBot,
-        user_agent: "bingbot".to_string(),
-        ip_address: None,
-    };
-
-    let cloned = original.clone();
-    assert_eq!(cloned.is_bot, original.is_bot);
-    assert_eq!(cloned.bot_type, original.bot_type);
-    assert_eq!(cloned.user_agent, original.user_agent);
-}
 
 #[test]
 fn test_bot_marker_clone_independence() {

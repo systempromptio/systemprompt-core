@@ -42,7 +42,7 @@ pub(crate) fn policy_summary() -> Vec<String> {
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileRemoval, ProfileState,
+    ProfileInstalled, ProfileRemoval, ProfileState,
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -100,7 +100,7 @@ impl HostApp for ClaudeDesktopHost {
         os::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<()> {
+    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
         os::install_profile(path)
     }
 
@@ -145,13 +145,18 @@ impl HostApp for ClaudeDesktopHost {
         "https://claude.ai/download"
     }
 
+    // Why: the single carve-out from the reachability rule. Every other host
+    // inherits the empty default and is offered the whole advertised catalog,
+    // because the gateway transcodes every inbound wire to every provider wire.
+    // Claude Desktop is the exception: it rejects non-Claude ids in
+    // `inferenceModels` outright, so advertising them breaks the app.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
         &[systemprompt_models::services::ApiSurface::Anthropic]
     }
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-const MSIX_FAMILY: &str = "Claude_pzs8sxrjxfjjc";
+const MSIX_FAMILY: &str = crate::config::paths::CLAUDE_MSIX_FAMILY;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 const MSIX_APP_ID: &str = "Claude";
@@ -184,6 +189,32 @@ fn claude_app_candidates() -> Vec<std::path::PathBuf> {
         out.push(local.join("AnthropicClaude").join("Claude.exe"));
     }
     out
+}
+
+#[must_use]
+#[cfg_attr(
+    not(any(target_os = "macos", target_os = "windows")),
+    expect(
+        clippy::missing_const_for_fn,
+        reason = "the desktop probe is a runtime lookup on macOS and Windows"
+    )
+)]
+pub fn is_app_installed() -> bool {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    {
+        let cache = std::sync::Arc::new(crate::probe_cache::StartMenuCache::default());
+        matches!(
+            crate::integration::app_launch::is_installed(
+                &locator(&claude_app_candidates()),
+                &cache
+            ),
+            crate::integration::host_app::AppInstallState::Installed
+        )
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        false
+    }
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

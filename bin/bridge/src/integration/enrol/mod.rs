@@ -52,6 +52,7 @@ pub struct Report {
     pub display_name: &'static str,
     pub install_action_label: &'static str,
     pub outcome: Outcome,
+    pub warnings: Vec<String>,
 }
 
 impl Report {
@@ -140,19 +141,21 @@ pub async fn enrol_hosts(
                 display_name: agent.display_name,
                 install_action_label: claude_code::LABEL,
                 outcome: claude_code::enrol(bridge),
+                warnings: Vec::new(),
             },
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
                 display_name: agent.display_name,
                 install_action_label: "governed through the gateway; nothing to install locally",
                 outcome: Outcome::SyncOnly,
+                warnings: Vec::new(),
             },
             Target::Local(host) => {
-                let outcome = if enabled
+                let (outcome, warnings) = if enabled
                     .as_ref()
                     .is_some_and(|hosts| !hosts.iter().any(|h| h == host.id()))
                 {
-                    Outcome::NotEnabled
+                    (Outcome::NotEnabled, Vec::new())
                 } else {
                     enrol_one(bridge, host, overrides, &env).await
                 };
@@ -161,6 +164,7 @@ pub async fn enrol_hosts(
                     display_name: host.display_name(),
                     install_action_label: host.install_action_label(),
                     outcome,
+                    warnings,
                 }
             },
         });
@@ -173,25 +177,26 @@ async fn enrol_one(
     host: &'static dyn HostApp,
     overrides: &ModelProtocolOverrides,
     env: &ProbeEnv,
-) -> Outcome {
+) -> (Outcome, Vec<String>) {
     let inputs = match super::reapply::build_profile_inputs(bridge, host, overrides).await {
         Ok(i) => i,
-        Err(e) => return Outcome::Failed(e.to_string()),
+        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
     };
     let generated = match host.generate_profile(&inputs) {
         Ok(g) => g,
-        Err(e) => return Outcome::Failed(e.to_string()),
+        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
     };
     match host.install_profile(&generated.path) {
-        Ok(()) => {
-            if matches!(host.probe(env).profile_state, ProfileState::Installed) {
+        Ok(installed) => {
+            let outcome = if matches!(host.probe(env).profile_state, ProfileState::Installed) {
                 Outcome::Installed
             } else {
                 Outcome::Pending
-            }
+            };
+            (outcome, installed.warnings)
         },
-        Err(e) if super::reapply::is_declined(&e) => Outcome::Declined,
-        Err(e) => Outcome::Failed(e.to_string()),
+        Err(e) if super::reapply::is_declined(&e) => (Outcome::Declined, Vec::new()),
+        Err(e) => (Outcome::Failed(e.to_string()), Vec::new()),
     }
 }
 
@@ -241,6 +246,9 @@ pub fn render(reports: &[Report]) -> String {
         };
         out.push_str(&line);
         out.push('\n');
+        for warning in &r.warnings {
+            out.push_str(&format!("  [warning ] {} — {warning}\n", r.display_name));
+        }
     }
     out
 }
@@ -255,12 +263,14 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String
                 display_name: agent.display_name,
                 install_action_label: claude_code::LABEL,
                 outcome: claude_code::remove(),
+                warnings: Vec::new(),
             },
             Target::SyncOnly(agent) => Report {
                 host_id: agent.id.to_owned(),
                 display_name: agent.display_name,
                 install_action_label: "governed through the gateway; nothing local to remove",
                 outcome: Outcome::SyncOnly,
+                warnings: Vec::new(),
             },
             Target::Local(host) => Report {
                 host_id: host.id().to_owned(),
@@ -275,6 +285,7 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, String
                     Err(e) if super::reapply::is_declined(&e) => Outcome::Declined,
                     Err(e) => Outcome::Failed(e.to_string()),
                 },
+                warnings: Vec::new(),
             },
         })
         .collect())

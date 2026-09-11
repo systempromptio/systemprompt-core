@@ -65,18 +65,6 @@ fn test_jsonrpc_response_serialize_error() {
     assert!(!json.contains("result"));
 }
 
-#[test]
-fn test_jsonrpc_response_debug() {
-    let response: JsonRpcResponse<String> = JsonRpcResponse {
-        jsonrpc: "2.0".to_string(),
-        result: Some("test".to_string()),
-        error: None,
-        id: RequestId::String("1".to_string()),
-    };
-
-    let debug = format!("{:?}", response);
-    assert!(debug.contains("JsonRpcResponse"));
-}
 
 #[test]
 fn test_request_serialize() {
@@ -94,18 +82,6 @@ fn test_request_serialize() {
     assert!(json.contains("value"));
 }
 
-#[test]
-fn test_request_debug() {
-    let request: Request<serde_json::Value> = Request {
-        jsonrpc: "2.0".to_string(),
-        method: "test".to_string(),
-        params: serde_json::json!({}),
-        id: RequestId::Number(1),
-    };
-
-    let debug = format!("{:?}", request);
-    assert!(debug.contains("Request"));
-}
 
 #[test]
 fn test_json_rpc_version_constant() {

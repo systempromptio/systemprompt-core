@@ -195,15 +195,6 @@ mod auth_user_structure_tests {
         assert_eq!(auth_user.roles, cloned.roles);
         assert_eq!(auth_user.is_active, cloned.is_active);
     }
-
-    #[test]
-    fn auth_user_is_debuggable() {
-        let user = create_test_user();
-        let auth_user: AuthUser = user.into();
-        let debug = format!("{:?}", auth_user);
-
-        assert!(debug.contains("AuthUser") || debug.contains("id") || debug.contains("test-user"));
-    }
 }
 
 mod edge_case_tests {

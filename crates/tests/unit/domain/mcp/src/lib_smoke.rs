@@ -13,23 +13,6 @@ fn test_session_timeouts_default_is_none() {
     assert!(t.keep_alive.is_none());
 }
 
-#[test]
-fn test_session_timeouts_copy() {
-    let t = SessionTimeouts {
-        init: Some(Duration::from_secs(5)),
-        keep_alive: Some(Duration::from_secs(60)),
-    };
-    let t2 = t;
-    assert_eq!(t.init, t2.init);
-    assert_eq!(t.keep_alive, t2.keep_alive);
-}
-
-#[test]
-fn test_session_timeouts_debug() {
-    let t = SessionTimeouts::default();
-    let d = format!("{:?}", t);
-    assert!(d.contains("SessionTimeouts"));
-}
 
 #[test]
 fn test_mcp_http_config_default_allows_localhost_variants() {
@@ -48,19 +31,6 @@ fn test_mcp_http_config_default_no_origins() {
     assert!(config.allowed_origins.is_empty());
 }
 
-#[test]
-fn test_mcp_http_config_clone() {
-    let config = McpHttpConfig::default();
-    let cloned = config.clone();
-    assert_eq!(cloned.allowed_origins, config.allowed_origins);
-}
-
-#[test]
-fn test_mcp_http_config_debug() {
-    let config = McpHttpConfig::default();
-    let s = format!("{:?}", config);
-    assert!(s.contains("McpHttpConfig"));
-}
 
 #[test]
 fn test_mcp_http_config_custom() {

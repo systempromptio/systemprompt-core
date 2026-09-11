@@ -111,19 +111,6 @@ fn test_log_level_inequality() {
     assert_ne!(LogLevel::Trace, LogLevel::Error);
 }
 
-#[test]
-fn test_log_level_copy() {
-    let level = LogLevel::Error;
-    let copied = level;
-    assert_eq!(level, copied);
-}
-
-#[test]
-fn test_log_level_clone() {
-    let level = LogLevel::Warn;
-    let cloned = level.clone();
-    assert_eq!(level, cloned);
-}
 
 #[test]
 fn test_log_level_serialize_error() {

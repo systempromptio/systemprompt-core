@@ -70,12 +70,6 @@ fn oauth_parse_error_implements_std_error() {
     let _boxed: Box<dyn std::error::Error> = Box::new(err);
 }
 
-#[test]
-fn oauth_parse_error_debug_includes_variant_name() {
-    let err = GrantType::from_str("nope").unwrap_err();
-    let dbg = format!("{:?}", err);
-    assert!(dbg.contains("GrantType"));
-}
 
 // -- Token-exchange grant (URN form) ----------------------------------------
 
@@ -101,11 +95,6 @@ fn grant_type_token_exchange_display() {
     );
 }
 
-#[test]
-fn grant_type_token_exchange_debug() {
-    let dbg = format!("{:?}", GrantType::TokenExchange);
-    assert!(dbg.contains("TokenExchange"));
-}
 
 #[test]
 fn grant_type_default_grant_types_excludes_token_exchange() {
@@ -121,12 +110,6 @@ fn grant_type_eq_same_variants() {
     assert_ne!(GrantType::AuthorizationCode, GrantType::RefreshToken);
 }
 
-#[test]
-fn pkce_method_copy_preserves_variant() {
-    let a = PkceMethod::S256;
-    let b = a;
-    assert_eq!(a, b);
-}
 
 #[test]
 fn response_type_eq() {

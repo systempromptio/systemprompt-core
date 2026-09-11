@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Added
+
+- `ManagedMcpServer.tool_policy` (a `*` entry plus per-tool overrides) is projected to each host: Claude Code receives `permissions.allow`/`deny` rules (`mcp__<server>`, `mcp__<server>__<tool>`, and the `mcp__plugin_<plugin>_<server>` spellings for plugins whose `.mcp.json` mirrors the server) in the managed settings file when writable and `~/.claude/settings.json` otherwise, recorded in a sidecar so a server that leaves the manifest has its rules withdrawn; Claude Desktop receives `managedMcpServers[].toolPolicy` for every tool the server reported to the auth probe, kept in `metadata/mcp-tools.json`. A person's own rules are never touched.
+- A host sync can warn without failing: `SyncSummary.host_warnings`, the sync line's `— N warning(s)` suffix, and a warning row on the Status page and in the activity log. The Cowork emitter names the missing step when Claude Desktop is installed but Cowork has never been opened, and the desktop probe triggers the sync once the session directory appears.
+- `HostApp::install_profile` returns `ProfileInstalled { warnings }`; `install --host` and the reapply report print each warning under the host's line.
+- **Windows:** the Cowork session root is also looked for under the MSIX package's `LocalCache\Local\Claude-3p`.
+
+### Changed
+
+- Tools on managed MCP servers are allowed by default: a server whose YAML sets no `tool_policy` carries `*: allow`; `prompt` and `deny` are opt-in per server or per tool.
+- A wildcard `deny` withholds the server from Claude Desktop's managed list instead of expanding over the tool catalog, so a tool the catalog has not seen cannot fall back to asking; under a wildcard `deny`, named `allow` rules are not written for Claude Code, whose deny list would override them anyway.
+- The tool catalog (`metadata/mcp-tools.json`) is read fallibly: an absent file is empty, a corrupt or unreadable one is an error that fails the policy write and is never rebuilt from empty; a catalog write that fails after a probe is reported as a host warning (sync) or an activity-log warning (GUI).
+- `HostWarning` lives in `host_sync` (re-exported from `sync`), beside the `HostWarnings` collector.
+
+### Fixed
+
+- **Windows:** running the bridge already elevated failed the Claude Desktop profile install with `os error 1346` after provisioning had succeeded; the Modify check now passes the linked token to `AccessCheck` as-is. A Modify check that could not run is a warning on a successful install; a check that ran and found the unelevated user without Modify access fails the install.
+- **Doctor:** the stale hook-port check (mirrored `hooks/hooks.json` naming a port the proxy no longer holds) existed but was never run.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

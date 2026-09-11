@@ -61,13 +61,6 @@ mod engagement_event_data_tests {
         assert!(!json.contains("time_on_page_ms"));
         assert!(!json.contains("is_rage_click"));
     }
-
-    #[test]
-    fn data_is_debug() {
-        let data = EngagementEventData::default();
-        let debug_str = format!("{:?}", data);
-        assert!(debug_str.contains("EngagementEventData"));
-    }
 }
 
 mod link_click_event_data_tests {

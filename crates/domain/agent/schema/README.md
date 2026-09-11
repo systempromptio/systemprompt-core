@@ -13,7 +13,6 @@ PostgreSQL schema for the `systemprompt-agent` crate. The tables persist A2A (ag
 | `task_artifacts.sql` | `task_artifacts` | Artifacts produced by a task. |
 | `artifact_parts.sql` | `artifact_parts` | Artifact content parts (`text`, `file`, `data`). |
 | `task_execution_steps.sql` | `task_execution_steps` | Per-step execution trace for a task. |
-| `task_push_notification_configs.sql` | `task_push_notification_configs` | Webhook push-notification endpoints per task. |
 | `context_agents.sql` | `context_agents` | Agents that have participated in a context. |
 | `context_notifications.sql` | `context_notifications` | Queued A2A notifications for a context. |
 | `services.sql` | `services` | Service-process registry (name, module, pid, port, status). |

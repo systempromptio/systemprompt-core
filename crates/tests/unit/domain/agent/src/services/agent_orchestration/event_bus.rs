@@ -1,26 +1,6 @@
 use systemprompt_agent::{AgentEvent, AgentEventBus};
 use systemprompt_identifiers::AgentId;
 
-#[test]
-fn test_event_bus_new() {
-    let bus = AgentEventBus::new(100);
-    let debug_str = format!("{:?}", bus);
-    assert!(debug_str.contains("AgentEventBus"));
-}
-
-#[test]
-fn test_event_bus_default() {
-    let bus = AgentEventBus::default();
-    let debug_str = format!("{:?}", bus);
-    assert!(debug_str.contains("AgentEventBus"));
-}
-
-#[test]
-fn test_event_bus_custom_capacity() {
-    let bus = AgentEventBus::new(500);
-    let debug_str = format!("{:?}", bus);
-    assert!(debug_str.contains("AgentEventBus"));
-}
 
 #[test]
 fn test_event_bus_sender() {
@@ -128,13 +108,4 @@ async fn test_event_bus_different_event_types() {
     assert_eq!(e1.event_type(), "agent_start_requested");
     assert_eq!(e2.event_type(), "agent_started");
     assert_eq!(e3.event_type(), "agent_stopped");
-}
-
-#[test]
-fn test_event_bus_debug_format() {
-    let bus = AgentEventBus::new(50);
-    let debug_str = format!("{:?}", bus);
-
-    assert!(debug_str.contains("AgentEventBus"));
-    assert!(debug_str.contains("sender"));
 }

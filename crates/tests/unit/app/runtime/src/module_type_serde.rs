@@ -40,24 +40,6 @@ fn module_type_ne_different_variants() {
     assert_ne!(ModuleType::Regular, ModuleType::Proxy);
 }
 
-#[test]
-fn module_type_copy_semantics() {
-    let a = ModuleType::Proxy;
-    let b = a;
-    assert_eq!(a, b);
-}
-
-#[test]
-fn module_type_debug_regular() {
-    let dbg = format!("{:?}", ModuleType::Regular);
-    assert!(dbg.contains("Regular"), "got: {dbg}");
-}
-
-#[test]
-fn module_type_debug_proxy() {
-    let dbg = format!("{:?}", ModuleType::Proxy);
-    assert!(dbg.contains("Proxy"), "got: {dbg}");
-}
 
 #[test]
 fn modules_by_category_returns_empty_for_unknown_when_no_modules_registered() {

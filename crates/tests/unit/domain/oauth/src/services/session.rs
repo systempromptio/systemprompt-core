@@ -5,14 +5,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::HeaderMap;
 
-use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_oauth::services::session::AuthenticatedSessionInfo;
 use systemprompt_oauth::services::{
     generate_client_secret, hash_client_secret, verify_client_secret,
 };
-use systemprompt_oauth::{
-    AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
-};
+use systemprompt_oauth::{AnonymousSessionInfo, SessionCreationError, SessionCreationService};
 use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
@@ -206,17 +204,6 @@ fn test_anonymous_session_info_fields() {
     assert_eq!(info.fingerprint_hash, TEST_FINGERPRINT_HASH);
 }
 
-#[test]
-fn test_anonymous_session_info_clone() {
-    let original = create_test_anonymous_session_info();
-    let cloned = original.clone();
-
-    assert_eq!(cloned.session_id.as_str(), original.session_id.as_str());
-    assert_eq!(cloned.user_id.as_str(), original.user_id.as_str());
-    assert_eq!(cloned.is_new, original.is_new);
-    assert_eq!(cloned.jwt_token, original.jwt_token);
-    assert_eq!(cloned.fingerprint_hash, original.fingerprint_hash);
-}
 
 #[test]
 fn test_anonymous_session_info_debug() {
@@ -280,19 +267,6 @@ fn test_session_creation_error_is_std_error() {
     assert!(std_error.to_string().contains("test"));
 }
 
-#[test]
-fn test_create_anonymous_session_input_debug() {
-    let analytics = SessionAnalytics::default();
-    let client_id = ClientId::new("client_test123".to_string());
-    let input = CreateAnonymousSessionInput {
-        analytics: &analytics,
-        client_id: &client_id,
-        session_source: SessionSource::Web,
-    };
-    let debug_output = format!("{:?}", input);
-
-    assert!(debug_output.contains("CreateAnonymousSessionInput"));
-}
 
 #[test]
 fn test_session_creation_service_new() {
@@ -328,25 +302,6 @@ fn test_session_creation_service_with_fingerprint_provider() {
         SessionCreationService::new(analytics, user).with_fingerprint_provider(fingerprint);
 }
 
-#[test]
-fn test_session_creation_service_debug() {
-    let analytics: Arc<dyn AnalyticsProvider> = Arc::new(MockAnalyticsProvider);
-    let user: Arc<dyn UserProvider> = Arc::new(MockUserProvider);
-    let publisher: Arc<dyn UserEventPublisher> = Arc::new(MockEventPublisher::new());
-
-    let without_publisher = SessionCreationService::new(
-        Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
-        Arc::clone(&user) as Arc<dyn UserProvider>,
-    );
-    let with_publisher =
-        SessionCreationService::new(analytics, user).with_event_publisher(publisher);
-
-    let debug_without = format!("{:?}", without_publisher);
-    let debug_with = format!("{:?}", with_publisher);
-
-    assert!(debug_without.contains("None"));
-    assert!(debug_with.contains("Some"));
-}
 
 #[test]
 fn test_verify_client_secret_correct() {

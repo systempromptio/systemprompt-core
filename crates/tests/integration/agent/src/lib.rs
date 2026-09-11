@@ -35,8 +35,6 @@ mod webhook_service_tests;
 mod task_builder_tests;
 
 #[cfg(test)]
-mod push_notification_e2e;
-
 #[cfg(test)]
 mod agent_service_repo_e2e;
 

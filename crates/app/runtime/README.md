@@ -40,7 +40,7 @@ This crate:
 
 ```toml
 [dependencies]
-systemprompt-runtime = "0.50"
+systemprompt-runtime = "0.51"
 ```
 
 ### Macros

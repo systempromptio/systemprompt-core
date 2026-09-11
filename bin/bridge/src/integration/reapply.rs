@@ -33,6 +33,7 @@ pub struct Report {
     pub display_name: &'static str,
     pub install_action_label: &'static str,
     pub outcome: Outcome,
+    pub warnings: Vec<String>,
 }
 
 fn io_err(context: &str, e: &dyn std::fmt::Display) -> std::io::Error {
@@ -101,6 +102,7 @@ pub async fn build_profile_inputs(
         gateway_base_url,
         api_key,
         models: view.compatible_models,
+        default_model: server_profile.default_model,
         organization_uuid: server_profile.organization_uuid,
         headers,
         mcp_servers,
@@ -120,10 +122,12 @@ pub async fn reapply_stale_profiles(
         if !matches!(host.probe(&env).profile_state, ProfileState::Stale { .. }) {
             continue;
         }
+        let (outcome, warnings) = reapply_one(bridge, host, overrides, &env).await;
         reports.push(Report {
             display_name: host.display_name(),
             install_action_label: host.install_action_label(),
-            outcome: reapply_one(bridge, host, overrides, &env).await,
+            outcome,
+            warnings,
         });
     }
     reports
@@ -134,19 +138,19 @@ async fn reapply_one(
     host: &'static dyn HostApp,
     overrides: &ModelProtocolOverrides,
     env: &ProbeEnv,
-) -> Outcome {
+) -> (Outcome, Vec<String>) {
     let inputs = match build_profile_inputs(bridge, host, overrides).await {
         Ok(i) => i,
-        Err(e) => return Outcome::Failed(e.to_string()),
+        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
     };
     let generated = match host.generate_profile(&inputs) {
         Ok(g) => g,
-        Err(e) => return Outcome::Failed(e.to_string()),
+        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
     };
     match host.install_profile(&generated.path) {
-        Ok(()) => verify(host, env),
-        Err(e) if is_declined(&e) => Outcome::Declined,
-        Err(e) => Outcome::Failed(e.to_string()),
+        Ok(installed) => (verify(host, env), installed.warnings),
+        Err(e) if is_declined(&e) => (Outcome::Declined, Vec::new()),
+        Err(e) => (Outcome::Failed(e.to_string()), Vec::new()),
     }
 }
 
@@ -184,6 +188,9 @@ pub fn render(reports: &[Report]) -> String {
         };
         out.push_str(&line);
         out.push('\n');
+        for warning in &r.warnings {
+            out.push_str(&format!("  [warning ] {} — {warning}\n", r.display_name));
+        }
     }
     out
 }

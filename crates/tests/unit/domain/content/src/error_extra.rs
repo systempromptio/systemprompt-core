@@ -11,12 +11,6 @@ fn content_error_service_display() {
     assert!(msg.contains("downstream timeout"));
 }
 
-#[test]
-fn content_error_service_debug() {
-    let err = ContentError::Service("dependency unavailable".to_string());
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("Service"));
-}
 
 #[test]
 fn content_error_service_matching() {

@@ -182,3 +182,25 @@ fn read_last_sync_invalid_version_format_propagates() {
     let err = read_last_sync(&path).expect_err("invalid version must fail");
     assert!(matches!(err, ReplayStateError::Parse { .. }));
 }
+
+// Why: manifest versions are per gateway; the previous gateway's version must
+// not make the new gateway's first manifest look like a replay.
+#[test]
+fn a_sentinel_from_another_gateway_does_not_belong_to_this_one() {
+    let this = systemprompt_identifiers::ValidatedUrl::new("https://gw.example.com");
+    let other = systemprompt_identifiers::ValidatedUrl::new("http://localhost:8080");
+    let stamped = LastSyncState {
+        gateway: Some(other),
+        ..last("2026-04-22T10:00:00Z-abcdef01")
+    };
+    assert!(!stamped.belongs_to(&this));
+    let mine = LastSyncState {
+        gateway: Some(this.clone()),
+        ..last("2026-04-22T10:00:00Z-abcdef01")
+    };
+    assert!(mine.belongs_to(&this));
+    assert!(
+        !last("2026-04-22T10:00:00Z-abcdef01").belongs_to(&this),
+        "an unstamped sentinel cannot prove which gateway wrote it"
+    );
+}

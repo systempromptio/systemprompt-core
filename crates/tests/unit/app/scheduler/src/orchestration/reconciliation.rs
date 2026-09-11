@@ -198,12 +198,6 @@ mod total_actions_tests {
 mod debug_tests {
     use super::*;
 
-    #[test]
-    fn result_is_debug() {
-        let result = ReconciliationResult::new();
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("ReconciliationResult"));
-    }
 
     #[test]
     fn debug_shows_started() {

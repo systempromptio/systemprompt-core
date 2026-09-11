@@ -27,16 +27,6 @@ mod analytics_event_created_tests {
         assert!(json.contains("evt_456"));
         assert!(json.contains("scroll"));
     }
-
-    #[test]
-    fn created_is_debug() {
-        let created = AnalyticsEventCreated {
-            id: "test".to_string(),
-            event_type: "test".to_string(),
-        };
-        let debug_str = format!("{:?}", created);
-        assert!(debug_str.contains("AnalyticsEventCreated"));
-    }
 }
 
 mod analytics_event_batch_response_tests {
@@ -90,15 +80,5 @@ mod analytics_event_batch_response_tests {
         assert!(json.contains("recorded"));
         assert!(json.contains("events"));
         assert!(json.contains("test"));
-    }
-
-    #[test]
-    fn response_is_debug() {
-        let response = AnalyticsEventBatchResponse {
-            recorded: 0,
-            events: vec![],
-        };
-        let debug_str = format!("{:?}", response);
-        assert!(debug_str.contains("AnalyticsEventBatchResponse"));
     }
 }

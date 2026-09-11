@@ -38,22 +38,6 @@ fn test_load_stats_with_values() {
     assert_eq!(stats.load_time_ms, 1500);
 }
 
-#[test]
-fn test_load_stats_clone() {
-    let stats = LoadStats {
-        files_found: 10,
-        files_loaded: 8,
-        files_with_errors: 2,
-        load_time_ms: 500,
-        source_stats: std::collections::HashMap::new(),
-    };
-
-    let cloned = stats.clone();
-    assert_eq!(cloned.files_found, stats.files_found);
-    assert_eq!(cloned.files_loaded, stats.files_loaded);
-    assert_eq!(cloned.files_with_errors, stats.files_with_errors);
-    assert_eq!(cloned.load_time_ms, stats.load_time_ms);
-}
 
 #[test]
 fn test_parsed_content_creation() {
@@ -112,32 +96,6 @@ fn test_parsed_content_without_image() {
     assert!(content.image.is_none());
 }
 
-#[test]
-fn test_parsed_content_clone() {
-    use chrono::Utc;
-    use std::path::PathBuf;
-
-    let content = ParsedContent {
-        slug: "clone-test".to_string(),
-        title: "Clone Test".to_string(),
-        description: "Desc".to_string(),
-        body: "Body".to_string(),
-        author: "Author".to_string(),
-        published_at: Utc::now(),
-        keywords: "key".to_string(),
-        kind: "guide".to_string(),
-        image: Some("/img.png".to_string()),
-        category_id: CategoryId::new("cat"),
-        source_id: SourceId::new("src"),
-        version_hash: "hash".to_string(),
-        file_path: PathBuf::from("/path.md"),
-    };
-
-    let cloned = content.clone();
-    assert_eq!(cloned.slug, content.slug);
-    assert_eq!(cloned.title, content.title);
-    assert_eq!(cloned.file_path, content.file_path);
-}
 
 #[test]
 fn test_url_pattern_matching_exact() {

@@ -36,10 +36,21 @@ impl HostSync for CoworkSync {
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(target) = resolve_target() else {
-            tracing::info!(
-                target: "bridge::cowork",
-                "no Cowork install detected; skipping enable"
-            );
+            // Why: Cowork lists a plugin only once `cowork_settings.json` in
+            // its session dir enables it, and that dir exists only after
+            // Cowork has been opened once.
+            if crate::integration::claude_desktop::is_app_installed() {
+                ctx.warnings.push(
+                    self.host_id(),
+                    "Claude Desktop is installed but has not opened Cowork on this machine yet, \
+                     so its plugins are not enabled — open Cowork once, then Re-sync",
+                );
+            } else {
+                tracing::info!(
+                    target: "bridge::cowork",
+                    "no Cowork install detected; skipping enable"
+                );
+            }
             return Ok(());
         };
         let plugin_ids: Vec<&str> = ctx.manifest.plugins.iter().map(|p| p.id.as_str()).collect();

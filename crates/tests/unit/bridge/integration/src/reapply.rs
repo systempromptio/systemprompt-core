@@ -5,6 +5,7 @@ fn report(display_name: &'static str, outcome: Outcome) -> Report {
         display_name,
         install_action_label: "Approve in System Settings",
         outcome,
+        warnings: Vec::new(),
     }
 }
 
@@ -78,4 +79,21 @@ fn every_report_gets_its_own_line_under_one_header() {
     assert!(lines[1].contains("Codex CLI"), "{out}");
     assert!(lines[2].contains("Hermes"), "{out}");
     assert!(lines[3].contains("OpenCode"), "{out}");
+}
+
+#[test]
+fn a_per_user_override_still_narrows_a_host_that_declares_no_surfaces() {
+    use std::collections::BTreeMap;
+
+    use systemprompt_bridge::gateway::model_view::effective_surfaces;
+    use systemprompt_models::services::ApiSurface;
+
+    let mut overrides: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    overrides.insert("opencode".to_owned(), vec!["anthropic".to_owned()]);
+
+    assert_eq!(
+        effective_surfaces("opencode", &[], &overrides),
+        vec![ApiSurface::Anthropic],
+        "an empty host default means 'everything', and an override still narrows it"
+    );
 }

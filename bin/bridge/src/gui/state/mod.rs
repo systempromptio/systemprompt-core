@@ -83,6 +83,14 @@ impl AppState {
         self.snap_mut().sync_in_flight = flag;
     }
 
+    pub fn set_sync_pending(&self, flag: bool) {
+        self.snap_mut().sync_pending = flag;
+    }
+
+    pub fn take_sync_pending(&self) -> bool {
+        std::mem::take(&mut self.snap_mut().sync_pending)
+    }
+
     pub fn set_validation(&self, report: ValidationReport) {
         let mut guard = self.snap_mut();
         guard.last_validation = Some(report);

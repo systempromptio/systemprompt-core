@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Changed
+
+- `catalog::mcp` projects `McpDeployment.tool_policy` onto the manifest's `ManagedMcpServer.tool_policy` as a single `*` entry, `allow` when the deployment YAML sets nothing. A managed server is one the operator provisioned and the governance chain already judges every call, so a bridge-managed client no longer prompts per tool unless `services/mcp/<id>.yaml` sets `tool_policy: prompt|deny`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

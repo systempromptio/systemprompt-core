@@ -143,16 +143,3 @@ fn build_artifacts_empty_structured_content_object_fails() {
     let err = builder.build_artifacts().expect_err("empty object");
     assert!(err.to_string().contains("artifact transform failed"));
 }
-
-#[test]
-fn build_artifacts_debug_impl_includes_struct_name() {
-    let builder = ArtifactBuilder::new(
-        vec![],
-        vec![],
-        vec![],
-        ContextId::generate(),
-        TaskId::generate(),
-    );
-    let s = format!("{:?}", builder);
-    assert!(s.contains("ArtifactBuilder"));
-}

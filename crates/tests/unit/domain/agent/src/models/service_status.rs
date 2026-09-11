@@ -70,30 +70,6 @@ fn service_status_params_default_field_defaults_to_false() {
     assert!(de.pid.is_none());
 }
 
-#[test]
-fn service_status_params_debug() {
-    let params = ServiceStatusParams {
-        status: "running".to_string(),
-        default: false,
-        port: Some(8080),
-        pid: None,
-    };
-    let dbg = format!("{:?}", params);
-    assert!(dbg.contains("ServiceStatusParams"));
-    assert!(dbg.contains("running"));
-}
-
-#[test]
-fn service_status_params_clone_eq() {
-    let params = ServiceStatusParams {
-        status: "running".to_string(),
-        default: true,
-        port: Some(3000),
-        pid: Some(1),
-    };
-    let cloned = params.clone();
-    assert_eq!(params, cloned);
-}
 
 #[test]
 fn service_status_params_camel_case_keys() {

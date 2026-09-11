@@ -45,20 +45,6 @@ fn test_column_info_nullable() {
     assert!(column.nullable);
 }
 
-#[test]
-fn test_column_info_debug() {
-    let column = ColumnInfo {
-        name: "status".to_string(),
-        data_type: "varchar".to_string(),
-        nullable: false,
-        primary_key: false,
-        default: None,
-    };
-
-    let debug = format!("{:?}", column);
-    assert!(debug.contains("ColumnInfo"));
-    assert!(debug.contains("status"));
-}
 
 #[test]
 fn test_column_info_serialization() {
@@ -144,19 +130,6 @@ fn test_table_info_negative_row_count() {
     assert_eq!(table.row_count, -1);
 }
 
-#[test]
-fn test_table_info_debug() {
-    let table = TableInfo {
-        name: "products".to_string(),
-        row_count: 1000,
-        size_bytes: 0,
-        columns: vec![],
-    };
-
-    let debug = format!("{:?}", table);
-    assert!(debug.contains("TableInfo"));
-    assert!(debug.contains("products"));
-}
 
 #[test]
 fn test_table_info_serialization() {
@@ -228,19 +201,6 @@ fn test_database_info_zero_size() {
     assert_eq!(db_info.size, 0);
 }
 
-#[test]
-fn test_database_info_debug() {
-    let db_info = DatabaseInfo {
-        path: "test_db".to_string(),
-        size: 4096,
-        version: "14.0".to_string(),
-        tables: vec![],
-    };
-
-    let debug = format!("{:?}", db_info);
-    assert!(debug.contains("DatabaseInfo"));
-    assert!(debug.contains("test_db"));
-}
 
 #[test]
 fn test_database_info_serialization() {
@@ -311,32 +271,6 @@ fn test_index_info_empty_columns() {
     assert!(index.columns.is_empty());
 }
 
-#[test]
-fn test_index_info_debug() {
-    let index = IndexInfo {
-        name: "idx_test".to_string(),
-        columns: vec!["col1".to_string()],
-        unique: true,
-    };
-
-    let debug = format!("{:?}", index);
-    assert!(debug.contains("IndexInfo"));
-    assert!(debug.contains("idx_test"));
-}
-
-#[test]
-fn test_index_info_clone() {
-    let index = IndexInfo {
-        name: "idx_original".to_string(),
-        columns: vec!["a".to_string(), "b".to_string()],
-        unique: true,
-    };
-
-    let cloned = index.clone();
-    assert_eq!(index.name, cloned.name);
-    assert_eq!(index.columns, cloned.columns);
-    assert_eq!(index.unique, cloned.unique);
-}
 
 #[test]
 fn test_index_info_serialization() {

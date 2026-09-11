@@ -119,24 +119,6 @@ fn error_debug_is_non_empty() {
     assert!(dbg.contains("EmptyDatabaseUrl"), "got: {dbg}");
 }
 
-#[test]
-fn database_not_found_debug_contains_variant() {
-    let err = RuntimeError::DatabaseNotFound {
-        path: "/tmp/x.db".to_string(),
-    };
-    let dbg = format!("{err:?}");
-    assert!(dbg.contains("DatabaseNotFound"), "got: {dbg}");
-}
-
-#[test]
-fn system_admin_not_found_debug_contains_variant() {
-    let err = RuntimeError::SystemAdminNotFound {
-        username: "alice".to_string(),
-    };
-    let dbg = format!("{err:?}");
-    assert!(dbg.contains("SystemAdminNotFound"), "got: {dbg}");
-    assert!(dbg.contains("alice"), "got: {dbg}");
-}
 
 #[test]
 fn all_plain_variants_format_without_panic() {

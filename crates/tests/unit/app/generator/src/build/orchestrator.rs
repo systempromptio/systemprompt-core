@@ -105,13 +105,6 @@ fn test_build_error_io_from_std_io_error() {
     assert!(build_error.to_string().contains("I/O error"));
 }
 
-#[test]
-fn test_build_error_debug() {
-    let error = BuildError::ValidationFailed("test".to_string());
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("ValidationFailed"));
-    assert!(debug_str.contains("test"));
-}
 
 #[test]
 fn test_build_mode_parse_with_whitespace() {

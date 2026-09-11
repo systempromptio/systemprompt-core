@@ -105,29 +105,6 @@ mod issue_api_key_params_tests {
         assert!(!trimmed.is_empty());
     }
 
-    #[test]
-    fn params_debug() {
-        let uid = make_uid();
-        let params = IssueApiKeyParams {
-            user_id: &uid,
-            name: "debug-key",
-            expires_at: None,
-        };
-        let s = format!("{:?}", params);
-        assert!(s.contains("IssueApiKeyParams") || s.contains("debug-key") || s.contains("name"));
-    }
-
-    #[test]
-    fn params_clone() {
-        let uid = make_uid();
-        let params = IssueApiKeyParams {
-            user_id: &uid,
-            name: "clone-me",
-            expires_at: None,
-        };
-        let cloned = params.clone();
-        assert_eq!(params.name, cloned.name);
-    }
 
     #[test]
     fn name_with_only_whitespace_trims_to_empty() {

@@ -189,3 +189,31 @@ fn id_validation_error_empty_constructor() {
     assert!(matches!(err, IdValidationError::Empty { .. }));
     assert!(err.to_string().contains("Bar"));
 }
+
+#[test]
+fn managed_server_tool_policy_resolves_named_then_wildcard() {
+    use std::collections::BTreeMap;
+    use systemprompt_models::bridge::manifest::ManagedMcpServer;
+
+    let mut policies = BTreeMap::new();
+    policies.insert(ToolName::try_new("*").unwrap(), ToolPolicy::Allow);
+    policies.insert(ToolName::try_new("drop_table").unwrap(), ToolPolicy::Deny);
+    let server = ManagedMcpServer {
+        id: systemprompt_identifiers::McpServerId::new("db"),
+        name: ManagedMcpServerName::try_new("db").unwrap(),
+        url: systemprompt_identifiers::ValidatedUrl::new("https://mcp.example.com/db"),
+        transport: None,
+        headers: None,
+        oauth: None,
+        tool_policy: Some(policies),
+    };
+    assert_eq!(server.policy_for_tool("drop_table"), Some(ToolPolicy::Deny));
+    assert_eq!(server.policy_for_tool("select"), Some(ToolPolicy::Allow));
+    assert_eq!(server.default_tool_policy(), Some(ToolPolicy::Allow));
+
+    let bare = ManagedMcpServer {
+        tool_policy: None,
+        ..server
+    };
+    assert_eq!(bare.policy_for_tool("select"), None);
+}

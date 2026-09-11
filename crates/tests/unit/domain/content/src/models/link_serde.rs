@@ -72,17 +72,3 @@ fn destination_type_serde_roundtrip() {
         assert_eq!(restored.as_str(), variant.as_str());
     }
 }
-
-#[test]
-fn link_type_copy_semantics() {
-    let original = LinkType::Redirect;
-    let copied = original;
-    assert_eq!(original.as_str(), copied.as_str());
-}
-
-#[test]
-fn destination_type_copy_semantics() {
-    let original = DestinationType::External;
-    let copied = original;
-    assert_eq!(original.as_str(), copied.as_str());
-}

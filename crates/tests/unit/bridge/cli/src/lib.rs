@@ -19,6 +19,13 @@ mod doctor_auth;
 mod doctor_cowork;
 #[cfg(test)]
 mod doctor_filesystem;
+#[cfg(all(test, unix))]
+mod doctor_filesystem_failures;
+
+#[cfg(test)]
+mod doctor_hooks;
+#[cfg(all(test, unix))]
+mod doctor_install_record;
 #[cfg(test)]
 mod doctor_marketplace;
 #[cfg(test)]

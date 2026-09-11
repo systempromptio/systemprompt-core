@@ -399,6 +399,7 @@ fn enabled_deployment(endpoint: Option<&str>) -> systemprompt_models::mcp::Deplo
         env_vars: vec![],
         external_auth: None,
         headers: Default::default(),
+        tool_policy: None,
     }
 }
 

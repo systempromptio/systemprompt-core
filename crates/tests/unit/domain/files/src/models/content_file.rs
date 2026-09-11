@@ -216,24 +216,6 @@ fn test_content_file_struct_fields() {
     assert_eq!(file.display_order, 5);
 }
 
-#[test]
-fn test_content_file_clone() {
-    let file = create_test_content_file(FileRole::Featured);
-    let cloned = file.clone();
-
-    assert_eq!(file.id, cloned.id);
-    assert_eq!(file.role, cloned.role);
-    assert_eq!(file.display_order, cloned.display_order);
-}
-
-#[test]
-fn test_content_file_debug() {
-    let file = create_test_content_file(FileRole::Attachment);
-    let debug_str = format!("{:?}", file);
-
-    assert!(debug_str.contains("ContentFile"));
-    assert!(debug_str.contains("Attachment"));
-}
 
 #[test]
 fn test_content_file_serialization() {

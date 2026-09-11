@@ -51,13 +51,6 @@ mod behavioral_analysis_input_tests {
         let input = create_input(10, vec![], 100, 1);
         assert!(input.user_agent.as_ref().unwrap().contains("Chrome"));
     }
-
-    #[test]
-    fn input_is_debug() {
-        let input = create_input(10, vec![], 100, 1);
-        let debug_str = format!("{:?}", input);
-        assert!(debug_str.contains("BehavioralAnalysisInput"));
-    }
 }
 
 mod signal_type_tests {

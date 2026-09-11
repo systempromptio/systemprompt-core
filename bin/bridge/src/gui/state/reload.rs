@@ -14,6 +14,8 @@ use super::counters::{count_malformed_plugin_dirs, count_plugin_dirs};
 #[derive(Debug, Deserialize)]
 struct LastSyncRecord {
     #[serde(default)]
+    gateway: Option<systemprompt_identifiers::ValidatedUrl>,
+    #[serde(default)]
     synced_at: Option<String>,
     #[serde(default)]
     manifest_version: Option<String>,
@@ -86,9 +88,14 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         snap.verified_identity = None;
     }
 
+    let gateway = config::gateway_url_or_default(&cfg);
     if let Some(meta) = paths::bridge_metadata_dir()
         && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
         && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)
+        && record
+            .gateway
+            .as_ref()
+            .is_some_and(|g| crate::mcp_registry::same_origin(g, &gateway))
     {
         let when = record.synced_at.as_deref().unwrap_or("unknown");
         let manifest_version = record.manifest_version.as_deref().unwrap_or("?");

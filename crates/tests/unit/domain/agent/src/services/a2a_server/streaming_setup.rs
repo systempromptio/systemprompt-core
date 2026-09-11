@@ -1,15 +1,14 @@
 // Drives create_sse_stream through stream setup with a real seeded context:
-// context validation passes, the initial task is persisted, the callback
-// push-notification config is stored, and agent-runtime loading then fails
-// against the empty fixture registry — the task is marked failed and an
-// "Agent not found" JSON-RPC error event is emitted on the stream.
+// context validation passes, the initial task is persisted, and agent-runtime
+// loading then fails against the empty fixture registry — the task is marked
+// failed and an "Agent not found" JSON-RPC error event is emitted on the
+// stream.
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use futures::StreamExt;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
-use systemprompt_agent::models::a2a::protocol::PushNotificationConfig;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, create_sse_stream,
@@ -69,13 +68,6 @@ async fn setup_with_valid_context_persists_task_and_reports_missing_agent() {
         state,
         request_id: RequestId::Number(2),
         context,
-        callback_config: Some(PushNotificationConfig {
-            endpoint: String::new(),
-            headers: None,
-            url: "https://example.invalid/callback".to_owned(),
-            token: Some("cb".to_owned()),
-            authentication: None,
-        }),
     })
     .await
     .map_err(|_| ())
@@ -116,7 +108,6 @@ async fn setup_without_task_id_mints_one_and_validates_context() {
         state,
         request_id: RequestId::String("stream-2".to_owned()),
         context,
-        callback_config: None,
     })
     .await
     .map_err(|_| ())
@@ -150,7 +141,6 @@ async fn setup_with_unknown_context_emits_validation_error_and_persists_nothing(
         state,
         request_id: RequestId::Number(7),
         context,
-        callback_config: None,
     })
     .await
     .map_err(|_| ())

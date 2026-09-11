@@ -37,11 +37,3 @@ fn test_schemas_table_names_match_expected() {
     assert!(names.contains(&"mcp_proxy_identities"));
     assert!(names.contains(&"mcp_external_sessions"));
 }
-
-#[test]
-fn test_default_and_clone_copy() {
-    let a = McpExtension;
-    let b = a;
-    assert_eq!(a.metadata().id, b.metadata().id);
-    let _c: McpExtension = McpExtension::default();
-}

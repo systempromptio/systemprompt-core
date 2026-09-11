@@ -9,6 +9,7 @@ fn report(display_name: &'static str, outcome: Outcome) -> Report {
         display_name,
         install_action_label: "wrote ~/.config/opencode/opencode.json",
         outcome,
+        warnings: Vec::new(),
     }
 }
 
@@ -133,4 +134,16 @@ fn removing_a_sync_only_agent_reports_that_there_is_nothing_local_to_remove() {
     if let Some(first) = reports.first() {
         assert!(!first.is_failure());
     }
+}
+
+#[test]
+fn install_warnings_are_rendered_under_the_hosts_line() {
+    let mut r = report("Claude Desktop", Outcome::Installed);
+    r.warnings = vec!["org-plugins provisioned but the Modify check could not run".to_owned()];
+    let out = systemprompt_bridge::integration::enrol::render(&[r]);
+    assert!(out.contains("[ok      ] Claude Desktop"), "{out}");
+    assert!(
+        out.contains("[warning ] Claude Desktop — org-plugins provisioned but the Modify check"),
+        "a warning the install raised reaches the operator: {out}"
+    );
 }

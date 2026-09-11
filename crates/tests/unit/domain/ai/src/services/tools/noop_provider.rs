@@ -59,11 +59,4 @@ mod noop_provider_tests {
 
         assert!(health.is_empty());
     }
-
-    #[test]
-    fn is_debug() {
-        let provider = NoopToolProvider::new();
-        let debug = format!("{:?}", provider);
-        assert!(debug.contains("NoopToolProvider"));
-    }
 }

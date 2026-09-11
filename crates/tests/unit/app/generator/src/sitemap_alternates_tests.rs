@@ -27,19 +27,6 @@ fn sitemap_url_debug_format() {
     assert!(dbg.contains("weekly"));
 }
 
-#[test]
-fn sitemap_url_clone_preserves_alternates_empty() {
-    let url = SitemapUrl {
-        loc: "https://example.com/".to_string(),
-        lastmod: "2025-01-01".to_string(),
-        changefreq: "daily".to_string(),
-        priority: 1.0,
-        alternates: vec![],
-    };
-    let cloned = url.clone();
-    assert_eq!(cloned.loc, url.loc);
-    assert!(cloned.alternates.is_empty());
-}
 
 #[test]
 fn build_sitemap_xml_no_xhtml_link_when_no_alternates() {

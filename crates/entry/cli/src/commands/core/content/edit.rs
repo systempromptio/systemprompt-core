@@ -55,8 +55,13 @@ pub async fn execute_with_pool(
 ) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
 
+    let candidates = if args.identifier.is_none() && config.is_interactive() {
+        list_candidates(&repo, args.source.as_deref()).await?
+    } else {
+        Vec::new()
+    };
     let identifier = resolve_required(args.identifier.clone(), "identifier", config, || {
-        prompt_content_selection(prompter, &repo, args.source.as_deref())
+        prompt_content_selection(prompter, &candidates)
     })?;
 
     let content = if identifier.starts_with("content_")
@@ -127,22 +132,24 @@ pub async fn execute_with_pool(
     Ok(CommandOutput::card_value("Content Updated", &output))
 }
 
-fn prompt_content_selection(
-    prompter: &dyn Prompter,
+async fn list_candidates(
     repo: &ContentRepository,
     source: Option<&str>,
-) -> Result<String> {
-    let rt = tokio::runtime::Handle::current();
-    let contents = rt.block_on(async {
-        if let Some(source) = source {
-            let source = SourceId::new(source.to_owned());
-            repo.list_by_source_limited(&source, &LocaleCode::new("en"), 50)
-                .await
-        } else {
-            repo.list(50, 0).await
-        }
-    })?;
+) -> Result<Vec<systemprompt_content::Content>> {
+    let contents = if let Some(source) = source {
+        let source = SourceId::new(source.to_owned());
+        repo.list_by_source_limited(&source, &LocaleCode::new("en"), 50)
+            .await?
+    } else {
+        repo.list(50, 0).await?
+    };
+    Ok(contents)
+}
 
+fn prompt_content_selection(
+    prompter: &dyn Prompter,
+    contents: &[systemprompt_content::Content],
+) -> Result<String> {
     if contents.is_empty() {
         return Err(anyhow!("No content found"));
     }

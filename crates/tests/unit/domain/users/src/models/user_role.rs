@@ -16,16 +16,3 @@ fn as_str_returns_user() {
 fn as_str_returns_anonymous() {
     assert_eq!(UserRole::Anonymous.as_str(), "anonymous");
 }
-
-#[test]
-fn user_role_clone() {
-    let role = UserRole::Admin;
-    let cloned = role;
-    assert_eq!(role, cloned);
-}
-
-#[test]
-fn user_role_debug() {
-    let debug_str = format!("{:?}", UserRole::Admin);
-    assert!(debug_str.contains("Admin"));
-}

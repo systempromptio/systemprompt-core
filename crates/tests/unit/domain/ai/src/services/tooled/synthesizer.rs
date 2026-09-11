@@ -30,12 +30,6 @@ fn create_error_result(text: &str) -> CallToolResult {
 mod fallback_reason_tests {
     use super::*;
 
-    #[test]
-    fn empty_content_is_debug() {
-        let reason = FallbackReason::EmptyContent;
-        let debug_str = format!("{:?}", reason);
-        assert!(debug_str.contains("EmptyContent"));
-    }
 
     #[test]
     fn synthesis_failed_is_debug() {

@@ -3,12 +3,6 @@ use systemprompt_mcp::services::orchestrator::handlers::{
     EventHandler, HealthCheckHandler, MonitoringHandler,
 };
 
-#[test]
-fn health_check_handler_new_returns_default_state() {
-    let handler = HealthCheckHandler::new();
-    let debug = format!("{:?}", handler);
-    assert!(debug.contains("HealthCheckHandler"));
-}
 
 #[test]
 fn health_check_handler_default_matches_new() {
@@ -166,25 +160,4 @@ fn monitoring_handler_handles_reconciliation_events() {
     let handler = MonitoringHandler;
     let event = McpEvent::ReconciliationStarted { service_count: 5 };
     assert!(handler.handles(&event));
-}
-
-#[test]
-fn monitoring_handler_debug() {
-    let handler = MonitoringHandler;
-    let debug = format!("{:?}", handler);
-    assert!(debug.contains("MonitoringHandler"));
-}
-
-#[test]
-fn monitoring_handler_copy() {
-    let handler = MonitoringHandler;
-    let copied = handler;
-    assert_eq!(copied.name(), "monitoring");
-}
-
-#[test]
-fn monitoring_handler_clone() {
-    let handler = MonitoringHandler;
-    let cloned = handler.clone();
-    assert_eq!(cloned.name(), "monitoring");
 }

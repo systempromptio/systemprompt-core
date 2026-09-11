@@ -28,12 +28,13 @@ use systemprompt_loader::services_root::{ActiveServicesRoot, ServicesProvenance}
 use systemprompt_models::services::bundle::ServicesBundleState;
 use systemprompt_runtime::AppContext;
 
+pub use refresh::{RefreshQuery, refresh};
 pub use status::build_status;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
         .route("/status", get(status::status))
-        .route("/refresh", post(refresh::refresh))
+        .route("/refresh", post(refresh))
         .layer(Extension(RefreshLock::default()))
 }
 

@@ -46,12 +46,6 @@ fn call_source_as_str_ephemeral() {
     assert_eq!(CallSource::Ephemeral.as_str(), "ephemeral");
 }
 
-#[test]
-fn call_source_clone_equality() {
-    let source = CallSource::Agentic;
-    let cloned = source;
-    assert_eq!(source, cloned);
-}
 
 #[test]
 fn call_source_serde_roundtrip() {

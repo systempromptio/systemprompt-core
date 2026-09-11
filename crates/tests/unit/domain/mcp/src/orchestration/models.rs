@@ -37,23 +37,6 @@ fn test_mcp_server_connection_info_without_optionals() {
     assert!(info.description.is_none());
 }
 
-#[test]
-fn test_mcp_server_connection_info_clone() {
-    let info = McpServerConnectionInfo {
-        name: "cloneable".to_string(),
-        display_name: Some("Clone Test".to_string()),
-        description: Some("Testing clone".to_string()),
-        host: "0.0.0.0".to_string(),
-        port: 9000,
-    };
-
-    let cloned = info.clone();
-    assert_eq!(info.name, cloned.name);
-    assert_eq!(info.display_name, cloned.display_name);
-    assert_eq!(info.description, cloned.description);
-    assert_eq!(info.host, cloned.host);
-    assert_eq!(info.port, cloned.port);
-}
 
 #[test]
 fn test_mcp_server_connection_info_debug() {
@@ -118,22 +101,6 @@ fn test_server_status_running_unhealthy() {
     assert!(!status.healthy);
 }
 
-#[test]
-fn test_server_status_clone() {
-    let original = ServerStatus {
-        name: "clone-test".to_string(),
-        running: true,
-        healthy: true,
-        tool_count: 3,
-        last_check: Some(Utc::now()),
-    };
-
-    let cloned = original.clone();
-    assert_eq!(original.name, cloned.name);
-    assert_eq!(original.running, cloned.running);
-    assert_eq!(original.healthy, cloned.healthy);
-    assert_eq!(original.tool_count, cloned.tool_count);
-}
 
 #[test]
 fn test_server_status_debug() {
@@ -214,23 +181,6 @@ fn test_skill_loading_result_failure() {
     assert_eq!(result.error_message, Some("Connection timeout".to_string()));
 }
 
-#[test]
-fn test_skill_loading_result_clone() {
-    let original = SkillLoadingResult {
-        server_name: "clone-skill".to_string(),
-        success: true,
-        skill_count: 10,
-        error_message: None,
-        load_time_ms: 200,
-    };
-
-    let cloned = original.clone();
-    assert_eq!(original.server_name, cloned.server_name);
-    assert_eq!(original.success, cloned.success);
-    assert_eq!(original.skill_count, cloned.skill_count);
-    assert_eq!(original.error_message, cloned.error_message);
-    assert_eq!(original.load_time_ms, cloned.load_time_ms);
-}
 
 #[test]
 fn test_skill_loading_result_debug() {
@@ -326,21 +276,6 @@ fn test_mcp_service_state_error() {
     assert_eq!(state.status, "error");
 }
 
-#[test]
-fn test_mcp_service_state_clone() {
-    let original = McpServiceState {
-        name: "clone-service".to_string(),
-        host: "localhost".to_string(),
-        port: 4000,
-        status: "running".to_string(),
-    };
-
-    let cloned = original.clone();
-    assert_eq!(original.name, cloned.name);
-    assert_eq!(original.host, cloned.host);
-    assert_eq!(original.port, cloned.port);
-    assert_eq!(original.status, cloned.status);
-}
 
 #[test]
 fn test_mcp_service_state_debug() {

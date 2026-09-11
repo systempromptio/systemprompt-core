@@ -12,15 +12,16 @@
 //! unattended sync must be able to rewrite without a prompt — stay in the
 //! user's global config and skills directory.
 //!
-//! `accepted_surfaces` names the surfaces whose models may be *offered* to
-//! `OpenCode`, which is not the wire `OpenCode` speaks. `OpenCode` speaks the
-//! OpenAI-compatible wire and the gateway serves it at `/v1/chat/completions`,
-//! but the gateway normalises any inbound wire to canonical and renders any
-//! provider wire outbound, so a gemini- or anthropic-native provider is just as
-//! servable over that one wire. Filtering by the provider's native family hid
-//! every working `claude-*` and `gemini-*` model from the picker while
-//! advertising only providers whose credentials were unresolvable. `Backend`
-//! stays out: it exists precisely to hide a provider from every picker.
+//! `OpenCode` takes the default `accepted_surfaces` — the empty slice, meaning
+//! every advertised provider. `OpenCode` speaks the OpenAI-compatible wire and
+//! the gateway serves it at `/v1/chat/completions`, but the gateway normalises
+//! any inbound wire to canonical and renders any provider wire outbound, so a
+//! gemini- or anthropic-native provider is just as servable over that one wire.
+//! Filtering by the provider's native family hid every working `claude-*` and
+//! `gemini-*` model from the picker while advertising only providers whose
+//! credentials were unresolvable. `Backend` is still absent: it is excluded
+//! from the advertised set itself, precisely to hide a provider from every
+//! picker.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +35,7 @@ pub use managed_resources::OpenCodeSync;
 
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileGenInputs, ProfileRemoval, ProfileState,
+    ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -84,8 +85,8 @@ impl HostApp for OpenCodeHost {
         install::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<()> {
-        install::install_profile(path)
+    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+        install::install_profile(path).map(|()| ProfileInstalled::ok())
     }
 
     fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
@@ -128,14 +129,6 @@ impl HostApp for OpenCodeHost {
 
     fn download_url(&self) -> &'static str {
         "https://opencode.ai/"
-    }
-
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
-        &[
-            systemprompt_models::services::ApiSurface::OpenAi,
-            systemprompt_models::services::ApiSurface::Anthropic,
-            systemprompt_models::services::ApiSurface::Gemini,
-        ]
     }
 }
 

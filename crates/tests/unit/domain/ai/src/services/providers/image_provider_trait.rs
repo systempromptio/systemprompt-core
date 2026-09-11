@@ -119,21 +119,6 @@ mod image_provider_capabilities_tests {
         );
     }
 
-    #[test]
-    fn capabilities_is_debug() {
-        let caps = ImageProviderCapabilities {
-            supported_resolutions: vec![],
-            supported_aspect_ratios: vec![],
-            supports_batch: false,
-            supports_image_editing: false,
-            supports_search_grounding: false,
-            max_prompt_length: 0,
-            cost_per_image_cents: 0.0,
-        };
-
-        let debug_str = format!("{:?}", caps);
-        assert!(debug_str.contains("ImageProviderCapabilities"));
-    }
 
     #[test]
     fn capabilities_with_high_cost() {

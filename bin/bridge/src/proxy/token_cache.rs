@@ -45,6 +45,13 @@ struct CachedEntry {
     stamp_checked_at: tokio::time::Instant,
 }
 
+/// The cached gateway token and its refresh machinery.
+///
+/// A `generation` receiver fires on every reset; a long-lived upstream
+/// connection holds one and drops the connection when it fires.
+/// `credential_proven` releases the sign-in latch on live proof that the
+/// credential mints (the GUI probe just obtained a token), so whatever
+/// rejected the previous one was not the credential.
 #[expect(
     missing_debug_implementations,
     reason = "holds a `dyn Fn -> Pin<Box<Future>>` refresh callback; cannot derive Debug"
@@ -54,6 +61,10 @@ pub struct TokenCache {
     refresh_lock: Mutex<()>,
     refresh: RefreshFn,
     latch: SignInLatch,
+    // Why: a runtime-config swap (gateway change, login, logout) bumps this so
+    // long-lived streams opened against the previous gateway can end instead
+    // of living on until that gateway drops them.
+    generation: tokio::sync::watch::Sender<u64>,
 }
 
 impl TokenCache {
@@ -64,7 +75,13 @@ impl TokenCache {
             refresh_lock: Mutex::new(()),
             refresh,
             latch: SignInLatch::default(),
+            generation: tokio::sync::watch::Sender::new(0),
         }
+    }
+
+    #[must_use]
+    pub fn generation(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.generation.subscribe()
     }
 
     #[must_use]
@@ -75,6 +92,10 @@ impl TokenCache {
     #[must_use]
     pub fn sign_in_required(&self) -> bool {
         self.latch.engaged()
+    }
+
+    pub fn credential_proven(&self) {
+        self.latch.release();
     }
 
     pub async fn refresh_if_cached(&self, refresh_threshold_secs: u64) -> ForwardResult<()> {
@@ -175,6 +196,7 @@ impl TokenCache {
     pub async fn reset(&self) {
         self.invalidate().await;
         self.latch.release();
+        self.generation.send_modify(|g| *g += 1);
     }
 
     #[expect(

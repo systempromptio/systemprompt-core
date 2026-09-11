@@ -200,3 +200,15 @@ pub struct ProviderSetOutput {
     pub action: String,
     pub message: String,
 }
+
+/// One row of `admin config catalog discovery`.
+///
+/// A model id (or the upstream name it is published under), why it is or is
+/// not served, and the documented retirement date when the rate card records
+/// one (empty otherwise).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DiscoveryRow {
+    pub upstream_or_id: String,
+    pub state: String,
+    pub retires_on: String,
+}

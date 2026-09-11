@@ -26,6 +26,12 @@ pub enum ProviderRegistryError {
         reason: String,
     },
 
+    #[error(
+        "provider registry entry '{provider}' endpoint '{endpoint}' names a Google Cloud project literally; \
+         the project is derived from the service account in its secret — write `projects/{{project}}`"
+    )]
+    LiteralProjectInEndpoint { provider: String, endpoint: String },
+
     #[error("provider registry model id or alias '{id}' is declared more than once")]
     DuplicateModel { id: String },
 
@@ -34,6 +40,9 @@ pub enum ProviderRegistryError {
 
     #[error("embedded default provider catalog failed to parse: {0}")]
     InvalidDefaultCatalog(String),
+
+    #[error("embedded Vertex rate card failed to parse: {0}")]
+    InvalidVertexRateCard(String),
 }
 
 pub type ProviderRegistryResult<T> = Result<T, ProviderRegistryError>;

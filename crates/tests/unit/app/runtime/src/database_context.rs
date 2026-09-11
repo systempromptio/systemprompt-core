@@ -178,21 +178,6 @@ fn test_url_with_schema() {
     assert!(url.contains("currentSchema"));
 }
 
-#[test]
-fn test_database_context_debug_pattern() {
-    #[derive(Debug)]
-    struct MockDatabaseContext {
-        _connection_string: String,
-    }
-
-    let ctx = MockDatabaseContext {
-        _connection_string: "postgresql://localhost/test".to_string(),
-    };
-
-    let debug_str = format!("{:?}", ctx);
-    assert!(debug_str.contains("MockDatabaseContext"));
-    assert!(debug_str.contains("_connection_string"));
-}
 
 #[test]
 fn test_database_context_clone_pattern() {

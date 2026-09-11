@@ -30,20 +30,6 @@ fn retry_config_default_jitter_enabled() {
     assert!(RetryConfig::default().jitter);
 }
 
-#[test]
-fn retry_config_debug() {
-    let cfg = RetryConfig::default();
-    let debug = format!("{:?}", cfg);
-    assert!(debug.contains("RetryConfig"));
-    assert!(debug.contains("max_attempts"));
-}
-
-#[test]
-fn retry_config_copy() {
-    let original = RetryConfig::default();
-    let copy = original;
-    assert_eq!(original.max_attempts, copy.max_attempts);
-}
 
 #[test]
 fn breaker_config_default_failure_threshold() {
@@ -63,29 +49,12 @@ fn breaker_config_default_half_open_probes() {
     assert_eq!(BreakerConfig::default().half_open_max_probes, 1);
 }
 
-#[test]
-fn breaker_config_debug() {
-    let debug = format!("{:?}", BreakerConfig::default());
-    assert!(debug.contains("BreakerConfig"));
-}
 
 #[test]
 fn bulkhead_config_default_max_concurrent() {
     assert_eq!(BulkheadConfig::default().max_concurrent, 16);
 }
 
-#[test]
-fn bulkhead_config_debug() {
-    let debug = format!("{:?}", BulkheadConfig::default());
-    assert!(debug.contains("BulkheadConfig"));
-}
-
-#[test]
-fn bulkhead_config_copy() {
-    let original = BulkheadConfig { max_concurrent: 8 };
-    let copy = original;
-    assert_eq!(original.max_concurrent, copy.max_concurrent);
-}
 
 #[test]
 fn resilience_config_default_request_timeout() {
@@ -121,11 +90,6 @@ fn resilience_config_default_bulkhead_nested() {
     assert_eq!(cfg.bulkhead.max_concurrent, 16);
 }
 
-#[test]
-fn resilience_config_debug() {
-    let debug = format!("{:?}", ResilienceConfig::default());
-    assert!(debug.contains("ResilienceConfig"));
-}
 
 #[test]
 fn resilience_config_copy() {

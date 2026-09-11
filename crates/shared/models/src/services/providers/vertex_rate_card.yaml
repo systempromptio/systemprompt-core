@@ -1,0 +1,528 @@
+# Vertex AI rate card: the prices we bill, the allowlist of Vertex models the
+# gateway will serve, and the lifecycle Google's documentation gives each one.
+#
+# Why one file for all three jobs: Vertex's publisher listing carries no
+# modality field, so `gemini-3.8-flash` (chat), `gemini-embedding-001`
+# (embeddings) and `gemini-2.5-flash-tts` (speech) are indistinguishable by
+# shape, and it carries no retirement either -- Vertex lists a model right up
+# to the day it is switched off. Discovery therefore cannot decide what is
+# chat-capable or still supported on its own. An entry here is that decision;
+# it has to carry a price before the gateway will dispatch to it (boot refuses
+# an unpriced route), and it has to carry the documented lifecycle before
+# discovery will publish it. A model absent from this file is reported as
+# discovered-but-unpriced and never published; a model past (or within 30
+# days of) `retires_on`, or `preview` without `allow_preview`, is reported as
+# retiring and never published. No model is ever called to find this out.
+#
+# `upstream` is the model as Vertex names it (`{publisher}/{model}` from
+# `publishers/{publisher}/models/{model}`); `upstream_model` is what our wire
+# puts on the request -- the bare name for the gemini wire, the publisher-
+# qualified name for the MaaS openai-chat surface.
+#
+# `launch_stage`, `released`, `retires_on`, `price_until` and every price are
+# read from the `docs` page named on the entry (all read 2026-09-11). Gemini
+# 3.x is served from the `global` location only; a regional Vertex endpoint
+# 404s on every one of them.
+#
+# `allow_preview` publishes a model whose stage is not GA. It is off by
+# default: a preview model can change or vanish under a running deployment.
+entries:
+# -- provider `vertex` (wire: gemini) -----------------------------------------
+# Cache writes are billed as storage per hour, not per token, hence an explicit
+# 0.0 on every Gemini entry.
+# Why intro pricing: Google lists 0.75/3.75 as introductory to 2026-12-31, then
+# 1.50/7.50. `price_until` is the step-up date; the scheduler warns 60 days
+# ahead so the card is re-read before the standard rate applies.
+- upstream: google/gemini-3.8-flash
+  provider: vertex
+  id: vertex-gemini-3.8-flash
+  upstream_model: gemini-3.8-flash
+  launch_stage: ga
+  released: 2026-09-02
+  price_until: 2026-12-31
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash
+  pricing:
+    input_per_million: 0.75
+    output_per_million: 3.75
+    cache_read_per_million: 0.075
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+- upstream: google/gemini-3.7-flash
+  provider: vertex
+  id: vertex-gemini-3.7-flash
+  upstream_model: gemini-3.7-flash
+  launch_stage: ga
+  released: 2026-08-13
+  price_until: 2026-12-31
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-7-flash
+  pricing:
+    input_per_million: 0.75
+    output_per_million: 3.75
+    cache_read_per_million: 0.075
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+- upstream: google/gemini-3.6-flash
+  provider: vertex
+  id: vertex-gemini-3.6-flash
+  upstream_model: gemini-3.6-flash
+  launch_stage: ga
+  released: 2026-07-21
+  price_until: 2026-12-31
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-6-flash
+  pricing:
+    input_per_million: 0.75
+    output_per_million: 3.75
+    cache_read_per_million: 0.075
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+- upstream: google/gemini-3.5-flash
+  provider: vertex
+  id: vertex-gemini-3.5-flash
+  upstream_model: gemini-3.5-flash
+  launch_stage: ga
+  released: 2026-05-19
+  retires_on: 2027-05-19
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-5-flash
+  pricing:
+    input_per_million: 1.5
+    output_per_million: 9.0
+    cache_read_per_million: 0.15
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+- upstream: google/gemini-3.5-flash-lite
+  provider: vertex
+  id: vertex-gemini-3.5-flash-lite
+  upstream_model: gemini-3.5-flash-lite
+  launch_stage: ga
+  released: 2026-07-21
+  retires_on: 2027-07-21
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-5-flash-lite
+  pricing:
+    input_per_million: 0.3
+    output_per_million: 2.5
+    cache_read_per_million: 0.03
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+- upstream: google/gemini-3.1-flash-lite
+  provider: vertex
+  id: vertex-gemini-3.1-flash-lite
+  upstream_model: gemini-3.1-flash-lite
+  launch_stage: ga
+  released: 2026-05-07
+  retires_on: 2027-05-07
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-flash-lite
+  pricing:
+    input_per_million: 0.25
+    output_per_million: 1.5
+    cache_read_per_million: 0.025
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+# Why allow_preview: 3.1 Pro has no GA successor yet, so it is the only Pro
+# tier Google serves; it has been priced and documented since February.
+- upstream: google/gemini-3.1-pro-preview
+  provider: vertex
+  id: vertex-gemini-3.1-pro-preview
+  upstream_model: gemini-3.1-pro-preview
+  allow_preview: true
+  launch_stage: preview
+  released: 2026-02-19
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-1-pro
+  pricing:
+    input_per_million: 2.0
+    output_per_million: 12.0
+    cache_read_per_million: 0.2
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 32768
+# The 2.5 family retires 2026-10-20 (models/gemini/lifecycle). Kept priced so
+# an explicit catalog declaration still bills correctly; discovery stops
+# publishing them 30 days before the date.
+- upstream: google/gemini-2.5-pro
+  provider: vertex
+  id: vertex-gemini-2.5-pro
+  upstream_model: gemini-2.5-pro
+  launch_stage: ga
+  released: 2025-06-17
+  retires_on: 2026-10-20
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/2-5-pro
+  pricing:
+    input_per_million: 1.25
+    output_per_million: 10.0
+    cache_read_per_million: 0.31
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 32768
+- upstream: google/gemini-2.5-flash
+  provider: vertex
+  id: vertex-gemini-2.5-flash
+  upstream_model: gemini-2.5-flash
+  launch_stage: ga
+  released: 2025-06-17
+  retires_on: 2026-10-20
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/2-5-flash
+  pricing:
+    input_per_million: 0.3
+    output_per_million: 2.5
+    cache_read_per_million: 0.075
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+- upstream: google/gemini-2.5-flash-lite
+  provider: vertex
+  id: vertex-gemini-2.5-flash-lite
+  upstream_model: gemini-2.5-flash-lite
+  launch_stage: ga
+  released: 2025-07-22
+  retires_on: 2026-10-20
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/2-5-flash-lite
+  pricing:
+    input_per_million: 0.1
+    output_per_million: 0.4
+    cache_read_per_million: 0.025
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+# -- provider `vertex-maas` (wire: openai-chat) -------------------------------
+# Why: cache rates are what each model page publishes; a page with no cache
+# tier gets an explicit 0.0 -- declared free, not forgotten.
+#
+# `max_thinking_budget` marks a model as reasoning for the openai-chat wire,
+# which then sends the model's own output cap instead of the caller's
+# max_tokens so hidden reasoning cannot starve the visible answer.
+- upstream: qwen/qwen3-coder-480b-a35b-instruct-maas
+  provider: vertex-maas
+  id: qwen.qwen3-coder-480b
+  upstream_model: qwen/qwen3-coder-480b-a35b-instruct-maas
+  launch_stage: ga
+  released: 2025-08-13
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/qwen/qwen3-coder
+  pricing:
+    input_per_million: 0.22
+    output_per_million: 1.8
+    cache_read_per_million: 0.022
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 65536
+# Why allow_preview: the documentation calls glm-5 GA but the Vertex listing
+# still marks it EXPERIMENTAL; without the opt-in the only GA GLM would be
+# withheld on the listing's word against the docs'.
+- upstream: zai-org/glm-5-maas
+  provider: vertex-maas
+  id: zai.glm-5
+  upstream_model: zai-org/glm-5-maas
+  allow_preview: true
+  launch_stage: ga
+  released: 2026-02-10
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/zaiorg/glm-5
+  pricing:
+    input_per_million: 1.0
+    output_per_million: 3.2
+    cache_read_per_million: 0.1
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 200000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+# Why allow_preview: 5.2 is the current GLM and is served beside 5 so a
+# developer can choose; it is priced and documented, preview or not.
+- upstream: zai-org/glm-5.2-maas
+  provider: vertex-maas
+  id: zai.glm-5.2
+  upstream_model: zai-org/glm-5.2-maas
+  allow_preview: true
+  launch_stage: preview
+  released: 2026-08-24
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/zaiorg/glm-52
+  pricing:
+    input_per_million: 1.4
+    output_per_million: 4.4
+    cache_read_per_million: 0.14
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 200000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: openai/gpt-oss-120b-maas
+  provider: vertex-maas
+  id: openai.gpt-oss-120b
+  upstream_model: openai/gpt-oss-120b-maas
+  launch_stage: ga
+  released: 2025-08-13
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/maas/openai/gpt-oss-120b
+  pricing:
+    input_per_million: 0.09
+    output_per_million: 0.36
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 128000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+# Deprecated 2026-07-21, retiring 2026-10-21 (models/deprecations/partner-models).
+# Kept priced so an explicit declaration bills correctly until the date;
+# discovery withholds them from 2026-09-21. Delete after retirement. Their
+# model pages are gone, so `released` is omitted rather than guessed.
+- upstream: qwen/qwen3-next-80b-a3b-instruct-maas
+  provider: vertex-maas
+  id: qwen.qwen3-next-instruct
+  upstream_model: qwen/qwen3-next-80b-a3b-instruct-maas
+  launch_stage: ga
+  retires_on: 2026-10-21
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/partner-models
+  pricing:
+    input_per_million: 0.15
+    output_per_million: 1.2
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 32768
+- upstream: qwen/qwen3-next-80b-a3b-thinking-maas
+  provider: vertex-maas
+  id: qwen.qwen3-next-thinking
+  upstream_model: qwen/qwen3-next-80b-a3b-thinking-maas
+  launch_stage: ga
+  retires_on: 2026-10-21
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/partner-models
+  pricing:
+    input_per_million: 0.15
+    output_per_million: 1.2
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: qwen/qwen3-235b-a22b-instruct-2507-maas
+  provider: vertex-maas
+  id: qwen.qwen3-235b
+  upstream_model: qwen/qwen3-235b-a22b-instruct-2507-maas
+  launch_stage: ga
+  retires_on: 2026-10-21
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/partner-models
+  pricing:
+    input_per_million: 0.25
+    output_per_million: 1.0
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 16384
+- upstream: moonshotai/kimi-k2-thinking-maas
+  provider: vertex-maas
+  id: moonshotai.kimi-k2-thinking
+  upstream_model: moonshotai/kimi-k2-thinking-maas
+  launch_stage: ga
+  retires_on: 2026-10-21
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/partner-models
+  pricing:
+    input_per_million: 0.6
+    output_per_million: 2.5
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: deepseek-ai/deepseek-v3.2-maas
+  provider: vertex-maas
+  id: deepseek.v3.2
+  upstream_model: deepseek-ai/deepseek-v3.2-maas
+  launch_stage: ga
+  retires_on: 2026-10-21
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/partner-models
+  pricing:
+    input_per_million: 0.56
+    output_per_million: 1.68
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 128000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: openai/gpt-oss-20b-maas
+  provider: vertex-maas
+  id: openai.gpt-oss-20b
+  upstream_model: openai/gpt-oss-20b-maas
+  launch_stage: ga
+  released: 2025-08-13
+  retires_on: 2026-10-21
+  docs: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/partner-models
+  pricing:
+    input_per_million: 0.07
+    output_per_million: 0.3
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 128000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384

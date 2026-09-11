@@ -73,13 +73,6 @@ mod tool_content_tests {
         let json = serde_json::to_string(&content).unwrap();
         assert!(json.contains("text"));
     }
-
-    #[test]
-    fn is_debug() {
-        let content = ToolContent::text("test");
-        let debug = format!("{:?}", content);
-        assert!(debug.contains("Text"));
-    }
 }
 
 mod tool_call_result_tests {

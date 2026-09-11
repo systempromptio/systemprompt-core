@@ -20,7 +20,6 @@ mod create_update_agent_mcp;
 mod external_integrations;
 mod protocol_events;
 mod protocol_requests;
-mod push_notification_extended;
 mod runtime;
 mod service_status;
 mod validation;

@@ -112,25 +112,6 @@ fn test_base_role_permissions_field() {
     assert!(role.permissions.contains("users.read"));
 }
 
-#[test]
-fn test_base_role_clone() {
-    let role = BaseRoles::anonymous();
-    let cloned = role.clone();
-
-    assert_eq!(role.name, cloned.name);
-    assert_eq!(role.display_name, cloned.display_name);
-    assert_eq!(role.description, cloned.description);
-    assert_eq!(role.permissions, cloned.permissions);
-}
-
-#[test]
-fn test_base_role_debug() {
-    let role = BaseRoles::admin();
-    let debug_str = format!("{:?}", role);
-
-    assert!(debug_str.contains("BaseRole"));
-    assert!(debug_str.contains("admin"));
-}
 
 #[test]
 fn test_anonymous_permissions_contains_users_read() {

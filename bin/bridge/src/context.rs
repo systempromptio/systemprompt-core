@@ -81,8 +81,14 @@ impl BridgeContext {
             faults.push(StartupFault::new("activity log", e));
         }
         let mcp_registry = mcp_registry::empty_slot();
-        if let Err(e) = mcp_registry::rehydrate_from_disk(&mcp_registry) {
-            faults.push(StartupFault::new("mcp registry cache", e));
+        match crate::config::load() {
+            Ok(cfg) => {
+                let gateway = crate::config::gateway_url_or_default(&cfg);
+                if let Err(e) = mcp_registry::rehydrate_from_disk(&mcp_registry, &gateway) {
+                    faults.push(StartupFault::new("mcp registry cache", e));
+                }
+            },
+            Err(e) => faults.push(StartupFault::new("mcp registry cache", e)),
         }
         let http = crate::gateway::build_http_client();
         let plugin_tokens = Arc::new(PluginTokenCache::default());

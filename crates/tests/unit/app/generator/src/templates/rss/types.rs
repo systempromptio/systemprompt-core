@@ -35,22 +35,6 @@ fn test_rss_item_without_author() {
     assert!(item.author.is_none());
 }
 
-#[test]
-fn test_rss_item_clone() {
-    let item = RssItem {
-        title: "Cloneable".to_string(),
-        link: "https://example.com/clone".to_string(),
-        description: "Test clone.".to_string(),
-        pub_date: Utc.with_ymd_and_hms(2024, 1, 15, 10, 30, 0).unwrap(),
-        guid: "guid-123".to_string(),
-        author: Some("Author".to_string()),
-    };
-
-    let cloned = item.clone();
-    assert_eq!(item.title, cloned.title);
-    assert_eq!(item.link, cloned.link);
-    assert_eq!(item.guid, cloned.guid);
-}
 
 #[test]
 fn test_rss_item_debug() {

@@ -38,6 +38,40 @@ fn write_empty_managed_mcp_servers(
     }
 }
 
+// Why: Desktop's `toolPolicy` names tools one by one, so the policy write
+// needs each server's current tool list before it runs.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
+    if ctx.mcp_registry.is_empty() {
+        return;
+    }
+    let results = crate::proxy::mcp_probe::probe_all(ctx.loopback, ctx.mcp_registry).await;
+    let slugs: Vec<String> = ctx.mcp_registry.keys().cloned().collect();
+    let outcome =
+        super::tool_catalog::record(&results).and_then(|_| super::tool_catalog::retain(&slugs));
+    match outcome {
+        Ok(()) => tracing::info!(
+            target: "bridge::mdm",
+            servers = results
+                .iter()
+                .filter(|r| r.state == crate::proxy::mcp_probe::McpAuthState::Authenticated)
+                .count(),
+            "mcp tool catalog refreshed for the desktop tool policy"
+        ),
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::mdm",
+                error = %e,
+                "mcp tool catalog not written; desktop tool policy keeps its last names"
+            );
+            ctx.warnings.push(
+                "claude-desktop",
+                format!("tool catalog not updated ({e}); the tool policy keeps its last names"),
+            );
+        },
+    }
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(crate) struct ClaudeDesktopMdmSync;
 
@@ -52,6 +86,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
+        refresh_tool_catalog(ctx).await;
         match enforce_managed_policy(&super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,

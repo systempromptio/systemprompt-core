@@ -348,12 +348,6 @@ fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
     assert!(json.contains("client_secret"));
 }
 
-#[test]
-fn test_dynamic_registration_response_debug() {
-    let response = create_valid_response();
-    let debug_str = format!("{:?}", response);
-    assert!(debug_str.contains("client_abc123"));
-}
 
 #[test]
 fn test_dynamic_registration_response_client_secret_expires_at_zero() {

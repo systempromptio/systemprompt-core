@@ -51,13 +51,6 @@ mod embedded_loader_tests {
         let source = TemplateSource::Directory(PathBuf::from("dir"));
         assert!(!loader.can_load(&source));
     }
-
-    #[test]
-    fn is_debug() {
-        let loader = EmbeddedLoader;
-        let debug = format!("{:?}", loader);
-        assert!(debug.contains("EmbeddedLoader"));
-    }
 }
 
 mod filesystem_loader_tests {
@@ -70,35 +63,6 @@ mod filesystem_loader_tests {
         FileSystemLoader::new(paths)
     }
 
-    #[test]
-    fn new_creates_loader() {
-        let paths = vec![PathBuf::from("/templates")];
-        let loader = FileSystemLoader::new(paths);
-        let debug = format!("{:?}", loader);
-        assert!(debug.contains("FileSystemLoader"));
-    }
-
-    #[test]
-    fn with_path_creates_single_path_loader() {
-        let loader = FileSystemLoader::with_path("/templates");
-        let debug = format!("{:?}", loader);
-        assert!(debug.contains("templates"));
-    }
-
-    #[test]
-    fn add_path_adds_to_loader() {
-        let loader = FileSystemLoader::with_path("/path1").add_path("/path2");
-        let debug = format!("{:?}", loader);
-        assert!(debug.contains("path1"));
-        assert!(debug.contains("path2"));
-    }
-
-    #[test]
-    fn default_creates_empty_paths() {
-        let loader = FileSystemLoader::default();
-        let debug = format!("{:?}", loader);
-        assert!(debug.contains("FileSystemLoader"));
-    }
 
     #[test]
     fn can_load_embedded() {

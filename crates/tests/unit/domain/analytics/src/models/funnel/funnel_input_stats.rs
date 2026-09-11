@@ -72,12 +72,6 @@ mod create_funnel_input_tests {
         assert!(funnel.description.is_none());
     }
 
-    #[test]
-    fn funnel_is_debug() {
-        let funnel = create_funnel("Debug Test", None, vec![]);
-        let debug_str = format!("{:?}", funnel);
-        assert!(debug_str.contains("CreateFunnelInput"));
-    }
 
     #[test]
     fn funnel_serializes() {
@@ -145,12 +139,6 @@ mod funnel_step_stats_tests {
         assert!(stats.avg_time_to_next_ms.is_none());
     }
 
-    #[test]
-    fn stats_is_debug() {
-        let stats = create_stats(0, 100, 100, 1.0, None);
-        let debug_str = format!("{:?}", stats);
-        assert!(debug_str.contains("FunnelStepStats"));
-    }
 
     #[test]
     fn stats_serializes() {

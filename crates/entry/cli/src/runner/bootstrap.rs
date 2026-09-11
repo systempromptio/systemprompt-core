@@ -4,6 +4,11 @@
 //! initialises secrets, credentials, paths, and config in order, and runs
 //! startup validation before a command executes.
 //!
+//! The services registry is a process-wide `OnceLock`, so the first installer
+//! wins: only the server installs it through boot-time model discovery, and a
+//! plain install there would leave the runtime's discovery pass with nothing
+//! to add to. Every other command installs the plain load.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -164,7 +169,7 @@ pub(super) async fn init_secrets() -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn init_paths() -> Result<()> {
+pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
@@ -185,8 +190,16 @@ pub(super) async fn init_paths() -> Result<()> {
     .context("Failed to build paths")?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))
         .context("Failed to initialize configuration")?;
-    systemprompt_loader::ServicesBootstrap::try_init()
+    if discover_models {
+        systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
+            Box::pin(systemprompt_runtime::discover_models(providers))
+        })
+        .await
         .context("Failed to load the services configuration")?;
+    } else {
+        systemprompt_loader::ServicesBootstrap::try_init()
+            .context("Failed to load the services configuration")?;
+    }
     FilesConfig::init(&paths).context("Failed to initialize files configuration")?;
     Ok(())
 }

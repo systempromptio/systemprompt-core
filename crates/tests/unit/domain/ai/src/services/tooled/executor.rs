@@ -100,44 +100,6 @@ mod response_strategy_tests {
     }
 }
 
-mod response_strategy_debug_tests {
-    use super::*;
-
-    #[test]
-    fn is_debug() {
-        let strategy = ResponseStrategy::ContentProvided {
-            content: "test".to_string(),
-            tool_calls: vec![],
-            tool_results: vec![],
-        };
-
-        let debug = format!("{:?}", strategy);
-        assert!(debug.contains("ContentProvided"));
-    }
-
-    #[test]
-    fn artifacts_provided_is_debug() {
-        let strategy = ResponseStrategy::ArtifactsProvided {
-            tool_calls: vec![],
-            tool_results: vec![],
-        };
-
-        let debug = format!("{:?}", strategy);
-        assert!(debug.contains("ArtifactsProvided"));
-    }
-
-    #[test]
-    fn tools_only_is_debug() {
-        let strategy = ResponseStrategy::ToolsOnly {
-            tool_calls: vec![],
-            tool_results: vec![],
-        };
-
-        let debug = format!("{:?}", strategy);
-        assert!(debug.contains("ToolsOnly"));
-    }
-}
-
 mod tooled_executor_tests {
     use super::create_tool_call;
     use async_trait::async_trait;

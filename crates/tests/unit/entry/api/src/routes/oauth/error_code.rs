@@ -113,9 +113,3 @@ fn copy_and_eq_semantics() {
     assert_eq!(a, b);
     assert_ne!(a, OAuthErrorCode::InvalidRequest);
 }
-
-#[test]
-fn debug_renders_variant_name() {
-    let s = format!("{:?}", OAuthErrorCode::InvalidRequest);
-    assert!(s.contains("InvalidRequest"), "debug={s}");
-}

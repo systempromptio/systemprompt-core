@@ -67,12 +67,6 @@ fn test_integration_error_invalid_signature() {
     assert!(error.to_string().contains("Invalid signature"));
 }
 
-#[test]
-fn test_integration_error_debug() {
-    let error = IntegrationError::InvalidToken;
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("InvalidToken"));
-}
 
 #[test]
 fn test_token_info_serialize() {

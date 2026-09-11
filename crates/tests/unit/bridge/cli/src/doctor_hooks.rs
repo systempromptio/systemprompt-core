@@ -1,5 +1,5 @@
-use systemprompt_bridge::cli::doctor::hooks::{check_hook_urls, hook_urls_in, stale_ports};
 use systemprompt_bridge::cli::doctor::Status;
+use systemprompt_bridge::cli::doctor::hooks::{check_hook_urls, hook_urls_in, stale_ports};
 use systemprompt_bridge::proxy::DEFAULT_PROXY_PORT;
 
 fn hooks_json(port: u16) -> String {
@@ -83,7 +83,7 @@ fn non_loopback_urls_are_left_alone() {
 fn reports_nothing_when_no_plugins_are_installed() {
     let home = tempfile::tempdir().unwrap();
     temp_env::with_var("HOME", Some(home.path().to_str().unwrap()), || {
-        assert!(check_hook_urls().is_none());
+        assert!(check_hook_urls(DEFAULT_PROXY_PORT).is_none());
     });
 }
 
@@ -98,7 +98,7 @@ fn flags_hook_urls_that_name_a_port_the_proxy_does_not_hold() {
     std::fs::write(plugin.join("hooks.json"), hooks_json(drifted)).unwrap();
 
     temp_env::with_var("HOME", Some(home.path().to_str().unwrap()), || {
-        let check = check_hook_urls().expect("a hooks.json is present");
+        let check = check_hook_urls(DEFAULT_PROXY_PORT).expect("a hooks.json is present");
         assert_eq!(check.status, Status::Fail);
         assert!(
             check.detail.contains(&drifted.to_string()),

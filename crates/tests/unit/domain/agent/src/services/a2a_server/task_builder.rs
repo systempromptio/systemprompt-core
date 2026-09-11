@@ -193,13 +193,6 @@ fn task_builder_full_chain() {
     assert_eq!(task.metadata.expect("metadata").agent_name, "chained-agent");
 }
 
-#[test]
-fn task_builder_debug_impl() {
-    let ctx = ContextId::generate();
-    let builder = TaskBuilder::new(ctx);
-    let debug_str = format!("{:?}", builder);
-    assert!(debug_str.contains("TaskBuilder"));
-}
 
 #[test]
 fn build_completed_task_sets_completed_state() {

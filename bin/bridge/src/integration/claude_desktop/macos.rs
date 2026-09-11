@@ -14,7 +14,7 @@ use super::shared::{
     unique_stem,
 };
 use crate::install::xml::escape;
-use crate::integration::host_app::GeneratedProfile;
+use crate::integration::host_app::{GeneratedProfile, ProfileInstalled};
 
 const MANAGED_PREFS_ROOT: &str = "/Library/Managed Preferences";
 const PROFILE_TMPL: &str = include_str!("templates/claude_desktop_profile.mobileconfig.tmpl");
@@ -94,9 +94,9 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
+pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
     Command::new("/usr/bin/open").args(["-g", path]).status()?;
-    Ok(())
+    Ok(ProfileInstalled::ok())
 }
 
 fn candidates(domain: &str) -> Vec<PathBuf> {

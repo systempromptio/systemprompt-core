@@ -200,32 +200,6 @@ fn test_agent_event_roundtrip_reconciliation_completed() {
     assert_eq!(deserialized.event_type(), "reconciliation_completed");
 }
 
-#[test]
-fn test_agent_event_clone_preserves_data() {
-    let event = AgentEvent::AgentStarted {
-        agent_id: AgentId::new("clone-test"),
-        pid: 777,
-        port: 9090,
-    };
-
-    let cloned = event.clone();
-    assert_eq!(cloned.agent_id().map(|a| a.as_str()), Some("clone-test"));
-    assert_eq!(cloned.event_type(), "agent_started");
-}
-
-#[test]
-fn test_agent_event_clone_start_completed() {
-    let event = AgentEvent::AgentStartCompleted {
-        agent_id: AgentId::new("clone-2"),
-        success: false,
-        pid: None,
-        port: None,
-        error: Some("test error".to_string()),
-    };
-
-    let cloned = event.clone();
-    assert_eq!(cloned.agent_id().map(|a| a.as_str()), Some("clone-2"));
-}
 
 #[test]
 fn test_agent_event_deserialize_from_json_string() {

@@ -15,6 +15,7 @@ use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, PluginFile, SignedManifest};
 use crate::hash::{normalise_relative, safe_plugin_id, sha256_hex};
+use crate::host_sync::HostWarning;
 use crate::ids::Sha256Digest;
 use crate::proxy::LoopbackEndpoint;
 use futures_util::StreamExt;
@@ -30,6 +31,7 @@ pub(crate) struct PluginApplyOutcome {
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
     pub host_failures: Vec<HostFailure>,
+    pub host_warnings: Vec<HostWarning>,
     pub mcp_servers_by_plugin: BTreeMap<String, Vec<String>>,
 }
 
@@ -93,6 +95,7 @@ pub(super) async fn apply_plugins(
         removed,
         malformed,
         host_failures: Vec::new(),
+        host_warnings: Vec::new(),
         mcp_servers_by_plugin,
     })
 }
@@ -152,6 +155,7 @@ async fn sync_one_plugin(
 
     let stage = ctx.staging_root.join(plugin.id.as_str());
     fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
+    super::check_not_superseded(ctx.client.base_url())?;
 
     let was_present = target.exists();
     if was_present {

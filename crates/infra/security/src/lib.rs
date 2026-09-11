@@ -19,6 +19,9 @@
 //! - At-rest hashing ([`at_rest`]) — `hmac_sha256` / `hmac_sha256_hex` under
 //!   the deployment `oauth_at_rest_pepper`, used to store refresh-token ids and
 //!   authorisation codes as digests rather than plaintext.
+//! - Google service-account credentials ([`google`]) — the RFC 7523 JWT-bearer
+//!   exchange that turns a service-account key into a Google OAuth access
+//!   token, with a process-wide token cache.
 //! - Bridge manifest signing ([`manifest_signing`]) with Ed25519 keys.
 //! - Lightweight scanner / bot detection ([`services`]).
 //! - Authorization decision plane ([`authz`]) — deny-overrides resolver,
@@ -28,8 +31,14 @@
 //!   (secret scan, scope check, blocklist, rate limit + extension-registered
 //!   policies) with per-entry audit tracing into `governance_decisions`.
 //!
-//! All public fallible APIs return typed errors from [`error`] — `anyhow`
-//! is not used in any public signature.
+//! - Upstream-credential plane ([`credential`]) — a stored secret is parsed
+//!   once into a `ProviderCredential`, which answers for its own scope
+//!   (project, region, principal) and its own auth header; [`google`] is one
+//!   implementation of that model, not a credential story of its own.
+//!
+//! All public fallible APIs return typed errors from [`error`] and
+//! [`credential::CredentialError`] — `anyhow` is not used in any public
+//! signature.
 //!
 //! # Feature flags
 //!
@@ -54,8 +63,10 @@
 pub mod at_rest;
 pub mod auth;
 pub mod authz;
+pub mod credential;
 pub mod error;
 pub mod extraction;
+pub mod google;
 pub mod jwt;
 pub mod keys;
 pub mod manifest_signing;

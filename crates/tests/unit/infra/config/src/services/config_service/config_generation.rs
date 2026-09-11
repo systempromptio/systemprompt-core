@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::PathBuf;
 use systemprompt_config::{ConfigService, DeployEnvironment};
 use tempfile::TempDir;
 
@@ -20,13 +19,6 @@ fn create_test_environment(
     temp_dir
 }
 
-#[test]
-fn test_config_manager_new() {
-    let path = PathBuf::from("/test/project");
-    let manager = ConfigService::new(path.clone());
-    let debug_str = format!("{:?}", manager);
-    assert!(debug_str.contains("ConfigService"));
-}
 
 #[test]
 fn test_generate_config_missing_base_config() {

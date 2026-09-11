@@ -1237,3 +1237,33 @@ fn requirements_unmet_lists_only_failing_flags() {
     assert_eq!(requires.unmet(gov), vec!["no_retain"]);
     assert_eq!(requires.declared(), vec!["european", "no_retain"]);
 }
+
+#[test]
+fn a_discovered_unpriced_model_would_fail_boot() {
+    // Why: boot-time Vertex discovery pushes models into the registry after
+    // the YAML has already validated, so the only thing keeping an uncosted
+    // model out of the served catalog is `validate()` running again over the
+    // augmented registry. This pins that it still rejects one.
+    let mut registry = priced_registry(vec![priced_model(
+        "gemini-2.5-pro",
+        token_rates(1.25, 10.0),
+    )]);
+    let gateway = enabled_gateway(vec![route("gemini-*")]);
+    assert!(
+        gateway.validate(&registry).is_ok(),
+        "the authored catalog must validate before augmentation"
+    );
+
+    registry.providers[0].models.push(priced_model(
+        "gemini-3.0-flash-maas",
+        ModelPricing::default(),
+    ));
+
+    let err = gateway
+        .validate(&registry)
+        .expect_err("a discovered model with no rate-card entry must not boot");
+    assert!(
+        matches!(err, GatewayProfileError::RouteModelUnpriced { ref model, .. } if model == "gemini-3.0-flash-maas"),
+        "unexpected: {err}"
+    );
+}

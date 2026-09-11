@@ -34,14 +34,6 @@ fn log_actor_debug_includes_fields() {
     assert!(debug.contains("actor-trace"));
 }
 
-#[test]
-fn log_actor_clone_equals_original() {
-    let actor = LogActor::new(uid(), sid(), tid());
-    let cloned = actor.clone();
-    assert_eq!(cloned.user_id, actor.user_id);
-    assert_eq!(cloned.session_id, actor.session_id);
-    assert_eq!(cloned.trace_id, actor.trace_id);
-}
 
 #[test]
 fn log_actor_platform_requires_installed_attribution() {

@@ -7,6 +7,14 @@
 //! idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can build a
 //! context self-sufficiently while a CLI that already ran them sees a no-op.
 //!
+//! Upstreams publish and retire models without an operator edit, so the
+//! provider registry is augmented at boot from their live listings
+//! (`discover_vertex_models`). That pass is fail-open: a provider no catalog
+//! source recognises or a missing or unusable credential leaves the YAML
+//! catalog exactly as authored. Which providers are discoverable is decided by
+//! the loader's catalog sources from the credential their secret parses into —
+//! this layer only supplies the secrets and the budget.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -55,8 +63,11 @@ pub(super) async fn init_core(
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
-    let services = systemprompt_loader::ServicesBootstrap::try_init()
-        .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
+    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
+        Box::pin(discover_vertex_models(providers))
+    })
+    .await
+    .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
     systemprompt_logging::set_instance_id(instance_id.clone());
@@ -110,6 +121,24 @@ pub(super) async fn init_core(
         authz_hook,
         file_storage,
     })
+}
+
+pub async fn discover_vertex_models(
+    providers: &mut systemprompt_models::services::ProviderRegistry,
+) -> systemprompt_models::services::DiscoveryReport {
+    use systemprompt_models::services::DiscoveryReport;
+
+    let Ok(secrets) = SecretsBootstrap::get() else {
+        tracing::warn!("secret store unavailable; skipping Vertex model discovery");
+        return DiscoveryReport::default();
+    };
+    let lookup = |name: &str| secrets.get(name).cloned();
+    systemprompt_loader::vertex_discovery::discover(
+        providers,
+        &lookup,
+        std::time::Duration::from_secs(10),
+    )
+    .await
 }
 
 async fn init_file_storage(

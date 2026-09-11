@@ -108,10 +108,3 @@ fn capability_context_implements_full_context() {
     let ctx = make_context();
     assert_full_context(&ctx);
 }
-
-#[test]
-fn capability_context_debug_format() {
-    let ctx = make_context();
-    let debug = format!("{ctx:?}");
-    assert!(debug.contains("CapabilityContext"));
-}

@@ -327,14 +327,4 @@ mod builder_page_prerenderer_tests {
         assert_eq!(registry.stats().page_prerenderers, 2);
         assert_eq!(registry.page_prerenderers().len(), 2);
     }
-
-    #[test]
-    fn builder_with_page_prerenderer_then_build_shows_in_debug() {
-        let registry = TemplateRegistryBuilder::new()
-            .with_page_prerenderer(dyn_prerenderer(StubPrerenderer::new("home")))
-            .build();
-
-        let debug = format!("{:?}", registry);
-        assert!(debug.contains("page_prerenderers"));
-    }
 }

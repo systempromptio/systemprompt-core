@@ -29,27 +29,6 @@ mod ingest_options_tests {
         assert!(opts.override_existing);
         assert!(opts.delete_orphans);
     }
-
-    #[test]
-    fn options_debug_prints() {
-        let opts = GatewayPolicyIngestOptions {
-            override_existing: false,
-            delete_orphans: true,
-        };
-        let debug = format!("{opts:?}");
-        assert!(debug.contains("override_existing"));
-        assert!(debug.contains("delete_orphans"));
-    }
-
-    #[test]
-    fn options_copy_semantics() {
-        let opts = GatewayPolicyIngestOptions {
-            override_existing: true,
-            delete_orphans: false,
-        };
-        let opts2 = opts;
-        assert!(opts2.override_existing);
-    }
 }
 
 mod ingest_report_tests {
@@ -78,31 +57,6 @@ mod ingest_report_tests {
         assert_eq!(report.deleted, 0);
     }
 
-    #[test]
-    fn report_debug_prints() {
-        let report = GatewayPolicyIngestReport {
-            inserted: 1,
-            updated: 0,
-            skipped: 4,
-            deleted: 2,
-        };
-        let debug = format!("{report:?}");
-        assert!(debug.contains("inserted"));
-        assert!(debug.contains("skipped"));
-        assert!(debug.contains("deleted"));
-    }
-
-    #[test]
-    fn report_copy_semantics() {
-        let report = GatewayPolicyIngestReport {
-            inserted: 5,
-            updated: 0,
-            skipped: 0,
-            deleted: 0,
-        };
-        let report2 = report;
-        assert_eq!(report2.inserted, 5);
-    }
 
     #[test]
     fn total_operations() {

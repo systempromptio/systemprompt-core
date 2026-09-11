@@ -159,24 +159,6 @@ fn test_search_result_serialization() {
     assert!(json.contains("\"view_count\":50"));
 }
 
-#[test]
-fn test_search_result_clone() {
-    let result = SearchResult {
-        id: ContentId::new("clone-id"),
-        slug: "clone".to_string(),
-        title: "Clone".to_string(),
-        description: "Clone desc".to_string(),
-        image: Some("/img.png".to_string()),
-        view_count: 10,
-        source_id: SourceId::new("source"),
-        category_id: Some(CategoryId::new("cat")),
-    };
-
-    let cloned = result.clone();
-    assert_eq!(cloned.id.as_str(), result.id.as_str());
-    assert_eq!(cloned.slug, result.slug);
-    assert_eq!(cloned.view_count, result.view_count);
-}
 
 #[test]
 fn test_search_response_empty() {

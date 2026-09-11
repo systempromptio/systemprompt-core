@@ -79,12 +79,6 @@ mod ai_extension_tests {
         assert_eq!(deps.len(), 2);
     }
 
-    #[test]
-    fn is_debug() {
-        let ext = AiExtension;
-        let debug_str = format!("{:?}", ext);
-        assert!(debug_str.contains("AiExtension"));
-    }
 
     #[test]
     fn default_creates_extension() {

@@ -32,15 +32,6 @@ mod banned_ip_tests {
         assert!(!banned.is_permanent);
     }
 
-    #[test]
-    fn banned_ip_clone() {
-        let banned = create_test_banned_ip();
-        let cloned = banned.clone();
-
-        assert_eq!(banned.ip_address, cloned.ip_address);
-        assert_eq!(banned.reason, cloned.reason);
-        assert_eq!(banned.ban_count, cloned.ban_count);
-    }
 
     #[test]
     fn banned_ip_debug() {

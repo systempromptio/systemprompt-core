@@ -34,6 +34,8 @@ mod keystore_linux;
 #[cfg(test)]
 mod managed_skills;
 #[cfg(test)]
+mod opencode_default_model;
+#[cfg(test)]
 mod opencode_fallback;
 #[cfg(test)]
 mod opencode_host;
@@ -49,6 +51,8 @@ mod profile_state;
 mod profile_state_verdicts;
 #[cfg(test)]
 mod proxy_probe;
+#[cfg(test)]
+mod purge_state;
 #[cfg(test)]
 mod reapply;
 #[cfg(test)]

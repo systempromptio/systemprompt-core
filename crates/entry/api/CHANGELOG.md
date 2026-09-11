@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Breaking
+
+- **Breaking:** `gateway::service::credentials::google::{ServiceAccountKey, access_token}` are re-exports of `systemprompt_security::google`; `ServiceAccountKey::parse` returns `Result<Option<Self>, CredentialError>` and `access_token` returns `Result<AuthHeader, CredentialError>` rather than `anyhow::Result<String>`. The token exchange itself is unchanged.
+- **Breaking:** `routes::admin::services::refresh` is public and takes `RefreshQuery { restart }`.
+
+### Changed
+
+- `GET /v1/models` returns the whole advertised catalog. `x-inference-protocol` is still parsed and an unknown tag (or `backend`) rejected, but it no longer narrows the response: the gateway transcodes every inbound wire to every provider wire, so a client that speaks one family is served every advertised model.
+- Credential resolution fills a `{project}` segment in the provider endpoint from the service-account key's `project_id` (`credentials::fill_project`). An endpoint that asks for a project but is paired with a plain API key is refused at dispatch rather than guessed, because an API key names no project.
+- The A2A route no longer dispatches the push-notification config methods.
+
 ## [0.50.0] - 2026-09-10
 
 ### Breaking

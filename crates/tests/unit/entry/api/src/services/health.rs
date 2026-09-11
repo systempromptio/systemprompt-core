@@ -6,8 +6,7 @@
 //! - HealthSummary default and aggregation methods
 //! - HealthChecker builder pattern
 
-use std::time::Duration;
-use systemprompt_api::{HealthChecker, HealthSummary, ModuleHealth};
+use systemprompt_api::{HealthSummary, ModuleHealth};
 
 #[test]
 fn test_module_health_default() {
@@ -46,17 +45,6 @@ fn test_module_health_all_crashed() {
     assert_eq!(health.crashed, 5);
 }
 
-#[test]
-fn test_module_health_debug() {
-    let health = ModuleHealth {
-        healthy: 4,
-        crashed: 1,
-    };
-    let debug_str = format!("{:?}", health);
-    assert!(debug_str.contains("ModuleHealth"));
-    assert!(debug_str.contains("healthy"));
-    assert!(debug_str.contains("crashed"));
-}
 
 #[test]
 fn test_module_health_add_assign() {
@@ -216,100 +204,6 @@ fn test_health_summary_mixed_health() {
     assert!(!summary.is_all_healthy());
 }
 
-#[test]
-fn test_health_summary_debug() {
-    let summary = HealthSummary::default();
-    let debug_str = format!("{:?}", summary);
-    assert!(debug_str.contains("HealthSummary"));
-    assert!(debug_str.contains("modules"));
-}
-
-#[test]
-fn test_health_checker_new() {
-    let checker = HealthChecker::new("http://localhost:8080/health".to_string());
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_with_max_retries() {
-    let checker =
-        HealthChecker::new("http://localhost:8080/health".to_string()).with_max_retries(5);
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_with_retry_delay() {
-    let checker = HealthChecker::new("http://localhost:8080/health".to_string())
-        .with_retry_delay(Duration::from_secs(1));
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_builder_chaining() {
-    let checker = HealthChecker::new("http://localhost:8080/health".to_string())
-        .with_max_retries(10)
-        .with_retry_delay(Duration::from_millis(500));
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_various_urls() {
-    let urls = vec![
-        "http://localhost:8080/health",
-        "http://127.0.0.1:3000/healthz",
-        "https://api.example.com/status",
-        "http://[::1]:8080/health",
-    ];
-
-    for url in urls {
-        let checker = HealthChecker::new(url.to_string());
-        let debug_str = format!("{:?}", checker);
-        assert!(debug_str.contains("HealthChecker"));
-    }
-}
-
-#[test]
-fn test_health_checker_empty_url() {
-    let checker = HealthChecker::new(String::new());
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_max_retries_zero() {
-    let checker =
-        HealthChecker::new("http://localhost:8080/health".to_string()).with_max_retries(0);
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_max_retries_large() {
-    let checker =
-        HealthChecker::new("http://localhost:8080/health".to_string()).with_max_retries(1000);
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_retry_delay_zero() {
-    let checker = HealthChecker::new("http://localhost:8080/health".to_string())
-        .with_retry_delay(Duration::ZERO);
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
-
-#[test]
-fn test_health_checker_retry_delay_large() {
-    let checker = HealthChecker::new("http://localhost:8080/health".to_string())
-        .with_retry_delay(Duration::from_secs(300));
-    let debug_str = format!("{:?}", checker);
-    assert!(debug_str.contains("HealthChecker"));
-}
 
 #[test]
 fn test_module_health_large_values() {

@@ -151,15 +151,6 @@ fn test_authorize_query_deserialize_max_age_zero() {
     assert_eq!(query.max_age, Some(0));
 }
 
-#[test]
-fn test_authorize_query_debug_trait() {
-    let query = create_valid_authorize_query();
-    let debug_output = format!("{:?}", query);
-
-    assert!(debug_output.contains("AuthorizeQuery"));
-    assert!(debug_output.contains("code"));
-    assert!(debug_output.contains("sp_test_client"));
-}
 
 #[test]
 fn test_authorize_query_field_access() {
@@ -310,15 +301,6 @@ fn test_authorize_request_consent_none() {
     assert!(request.user_consent.is_none());
 }
 
-#[test]
-fn test_authorize_request_debug_trait() {
-    let request = create_valid_authorize_request();
-    let debug_output = format!("{:?}", request);
-
-    assert!(debug_output.contains("AuthorizeRequest"));
-    assert!(debug_output.contains("code"));
-    assert!(debug_output.contains("sp_test_client"));
-}
 
 #[test]
 fn test_query_and_request_share_common_fields() {

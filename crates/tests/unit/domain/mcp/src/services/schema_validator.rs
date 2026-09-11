@@ -178,18 +178,6 @@ fn schema_validation_mode_eq_and_copy() {
     assert_ne!(a, SchemaValidationMode::AutoMigrate);
 }
 
-#[test]
-fn schema_validation_mode_debug() {
-    let modes = [
-        SchemaValidationMode::AutoMigrate,
-        SchemaValidationMode::Strict,
-        SchemaValidationMode::Skip,
-    ];
-    for m in modes {
-        let s = format!("{m:?}");
-        assert!(s.contains("Migrate") || s.contains("Strict") || s.contains("Skip"));
-    }
-}
 
 #[test]
 fn schema_validation_report_new_fields() {

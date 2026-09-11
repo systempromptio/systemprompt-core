@@ -16,9 +16,59 @@ mod error;
 
 pub use error::{ApplyError, TomlError};
 
+/// A host sync that completed but could not do everything it exists to do —
+/// the run is not partial, yet the operator has something to act on.
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub struct HostWarning {
+    pub host_id: String,
+    pub message: String,
+}
+
+/// Warnings a host sync raises without failing. Shared by every emitter of one
+/// run; drained into `SyncSummary.host_warnings` when the run ends.
+#[derive(Debug, Default)]
+pub struct HostWarnings(std::sync::Mutex<Vec<HostWarning>>);
+
+impl HostWarnings {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(std::sync::Mutex::new(Vec::new()))
+    }
+
+    pub fn push(&self, host_id: &str, message: impl Into<String>) {
+        let warning = HostWarning {
+            host_id: host_id.to_owned(),
+            message: message.into(),
+        };
+        tracing::warn!(
+            target: "bridge::sync::host",
+            host = host_id,
+            warning = %warning.message,
+            "host sync warning"
+        );
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(warning);
+    }
+
+    #[must_use]
+    pub fn drain(&self) -> Vec<HostWarning> {
+        std::mem::take(
+            &mut *self
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct HostSyncCtx<'a> {
     pub policy_store: &'a crate::config::store::PolicyStore,
+    pub warnings: &'a HostWarnings,
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,
     pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,

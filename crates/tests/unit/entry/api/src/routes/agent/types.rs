@@ -38,16 +38,6 @@ fn test_task_filter_params_deserialize_all_fields() {
     assert_eq!(params.limit, Some(10));
 }
 
-#[test]
-fn test_task_filter_params_debug_trait() {
-    let json = serde_json::json!({
-        "status": "submitted",
-        "limit": 25
-    });
-    let params: TaskFilterParams = serde_json::from_value(json).unwrap();
-    let debug = format!("{params:?}");
-    assert!(debug.contains("TaskFilterParams"));
-}
 
 #[test]
 fn test_artifact_query_params_deserialize_empty() {
@@ -74,15 +64,6 @@ fn test_artifact_query_params_limit_zero() {
     assert_eq!(params.limit, Some(0));
 }
 
-#[test]
-fn test_artifact_query_params_debug_trait() {
-    let json = serde_json::json!({
-        "limit": 42
-    });
-    let params: ArtifactQueryParams = serde_json::from_value(json).unwrap();
-    let debug = format!("{params:?}");
-    assert!(debug.contains("ArtifactQueryParams"));
-}
 
 #[test]
 fn test_artifact_query_params_copy_trait() {

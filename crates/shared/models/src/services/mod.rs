@@ -67,8 +67,9 @@ pub use plugin::{
     PluginConfigFile, PluginHooksRef, PluginScript, PluginSummary, PluginVariableDef,
 };
 pub use providers::{
-    ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, ProviderRegistryError,
-    ProviderRegistryResult, WireProtocol,
+    ApiSurface, DiscoveryReport, DocumentedLaunchStage, ProviderEntry, ProviderModel,
+    ProviderRegistry, ProviderRegistryError, ProviderRegistryResult, RETIREMENT_NOTICE_DAYS,
+    VertexRateCard, VertexRateCardEntry, WireProtocol,
 };
 pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
 pub use runtime::{RuntimeStatus, ServiceType};

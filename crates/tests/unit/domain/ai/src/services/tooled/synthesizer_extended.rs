@@ -34,19 +34,6 @@ fn create_empty_result() -> CallToolResult {
 mod fallback_generator_extended_tests {
     use super::*;
 
-    #[test]
-    fn new_returns_fallback_generator() {
-        let generator = FallbackGenerator::new();
-        let debug = format!("{:?}", generator);
-        assert!(debug.contains("FallbackGenerator"));
-    }
-
-    #[test]
-    fn default_returns_fallback_generator() {
-        let generator = FallbackGenerator::default();
-        let debug = format!("{:?}", generator);
-        assert!(debug.contains("FallbackGenerator"));
-    }
 
     #[test]
     fn generate_mixed_success_and_error_only_shows_success() {
@@ -171,19 +158,6 @@ mod synthesis_prompt_builder_extended_tests {
 mod response_synthesizer_construction_tests {
     use super::*;
 
-    #[test]
-    fn new_creates_synthesizer() {
-        let synthesizer = ResponseSynthesizer::new();
-        let debug = format!("{:?}", synthesizer);
-        assert!(debug.contains("ResponseSynthesizer"));
-    }
-
-    #[test]
-    fn default_creates_synthesizer() {
-        let synthesizer = ResponseSynthesizer::default();
-        let debug = format!("{:?}", synthesizer);
-        assert!(debug.contains("ResponseSynthesizer"));
-    }
 
     #[test]
     fn is_copy() {

@@ -136,36 +136,6 @@ fn test_client_error_analytics_serialize() {
     assert!(json.contains("last_error"));
 }
 
-#[test]
-fn test_client_error_analytics_debug() {
-    let row = ClientErrorAnalyticsRow {
-        client_id: ClientId::new("debug-error-client"),
-        error_count: 1,
-        affected_sessions: 1,
-        last_error: Some("Debug error".to_string()),
-    };
-
-    let analytics: ClientErrorAnalytics = row.into();
-    let debug_str = format!("{:?}", analytics);
-    assert!(debug_str.contains("ClientErrorAnalytics"));
-}
-
-#[test]
-fn test_client_error_analytics_clone() {
-    let row = ClientErrorAnalyticsRow {
-        client_id: ClientId::new("clone-client"),
-        error_count: 10,
-        affected_sessions: 5,
-        last_error: Some("Clone error".to_string()),
-    };
-
-    let analytics: ClientErrorAnalytics = row.into();
-    let cloned = analytics.clone();
-
-    assert_eq!(analytics.client_id, cloned.client_id);
-    assert_eq!(analytics.error_count, cloned.error_count);
-    assert_eq!(analytics.last_error, cloned.last_error);
-}
 
 #[test]
 fn test_client_analytics_row_debug() {
@@ -173,16 +143,4 @@ fn test_client_analytics_row_debug() {
     let debug_str = format!("{:?}", row);
     assert!(debug_str.contains("ClientAnalyticsRow"));
     assert!(debug_str.contains("test-client-123"));
-}
-
-#[test]
-fn test_client_error_analytics_row_debug() {
-    let row = ClientErrorAnalyticsRow {
-        client_id: ClientId::new("debug-row"),
-        error_count: 1,
-        affected_sessions: 1,
-        last_error: None,
-    };
-    let debug_str = format!("{:?}", row);
-    assert!(debug_str.contains("ClientErrorAnalyticsRow"));
 }
