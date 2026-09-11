@@ -176,6 +176,7 @@ fn inputs() -> ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
         api_key: "loopback-secret-value".to_owned(),
         models: vec!["gpt-5".to_owned()],
+        default_model: None,
         organization_uuid: Some("00000000-0000-4000-8000-000000000009".to_owned()),
         headers,
         mcp_servers: Vec::new(),
@@ -258,10 +259,10 @@ fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
         "{}",
         CODEX_CLI_HOST.description()
     );
-    assert_eq!(
-        CODEX_CLI_HOST.accepted_surfaces(),
-        &[systemprompt_models::services::ApiSurface::OpenAi],
-        "Codex speaks the OpenAI API surface"
+    assert!(
+        CODEX_CLI_HOST.accepted_surfaces().is_empty(),
+        "Codex is offered every advertised provider; the gateway transcodes to \
+         the OpenAI wire it speaks"
     );
     assert!(
         !CODEX_CLI_HOST.install_action_label().is_empty(),

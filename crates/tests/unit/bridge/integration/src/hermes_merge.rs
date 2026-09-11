@@ -16,6 +16,7 @@ fn inputs() -> ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
         api_key: "loopback-secret-value".to_owned(),
         models: vec!["gpt-5".to_owned(), "gpt-5-mini".to_owned()],
+        default_model: None,
         organization_uuid: Some("00000000-0000-4000-8000-000000000009".to_owned()),
         headers: Default::default(),
         mcp_servers: Vec::new(),

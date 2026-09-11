@@ -1,4 +1,4 @@
-//! `/v1/models` catalog endpoint filtered by inference-protocol surface.
+//! `/v1/models` catalog endpoint: the whole advertised model catalog.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -92,8 +92,14 @@ pub async fn list(
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
-    let surfaces = surfaces_from_header(&headers)?;
-    let mut entries = model_entries(&services.providers, &surfaces);
+    // Why: the `x-inference-protocol` header is advisory, not a filter. The
+    // gateway transcodes every inbound wire to every provider wire, so a client
+    // that speaks one family is still served every advertised model; narrowing
+    // the catalog by the header would hide models the caller can actually use.
+    // The header is still parsed and validated so an unknown tag (or `backend`)
+    // is rejected rather than silently accepted.
+    let _surfaces = surfaces_from_header(&headers)?;
+    let mut entries = model_entries(&services.providers, &[]);
     let total = entries.len();
     let has_more = match query.limit {
         Some(limit) if limit < total => {

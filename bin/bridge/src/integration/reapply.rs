@@ -101,6 +101,7 @@ pub async fn build_profile_inputs(
         gateway_base_url,
         api_key,
         models: view.compatible_models,
+        default_model: server_profile.default_model,
         organization_uuid: server_profile.organization_uuid,
         headers,
         mcp_servers,

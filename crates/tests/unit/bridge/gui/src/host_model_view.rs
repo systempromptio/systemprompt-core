@@ -79,3 +79,34 @@ fn unchecked_when_no_health() {
         HostModelView::default()
     );
 }
+
+#[test]
+fn empty_accepted_surfaces_takes_every_provider() {
+    let health = vec![
+        ph(
+            "anthropic",
+            ApiSurface::Anthropic,
+            true,
+            &["claude-sonnet-4-6"],
+        ),
+        ph(
+            "gemini",
+            ApiSurface::Gemini,
+            true,
+            &["gemini-3.1-flash-lite-preview"],
+        ),
+        ph("openai", ApiSurface::OpenAi, true, &["gpt-5"]),
+    ];
+
+    let view = host_model_view(&health, &[]);
+
+    assert!(view.available);
+    assert_eq!(
+        view.compatible_models,
+        vec![
+            "claude-sonnet-4-6".to_owned(),
+            "gemini-3.1-flash-lite-preview".to_owned(),
+            "gpt-5".to_owned(),
+        ]
+    );
+}

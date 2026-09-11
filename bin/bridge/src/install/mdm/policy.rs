@@ -71,6 +71,13 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
 // family, so whatever list arrives — an installed policy, a future catalog
 // feed — is filtered to Claude ids here, at the one place the key is built.
 // Non-Claude gateway models are Claude Code's business (its `modelPicker`).
+//
+// This is Desktop-only by construction: every caller reaches it through
+// `claude_desktop_policy` (`install/mdm/macos_payload.rs`,
+// `install/mdm/windows.rs`, `integration/claude_desktop/macos.rs`). It is the
+// single carve-out from the reachability rule — every other host is offered
+// the whole advertised catalog, because the gateway transcodes every inbound
+// wire to every provider wire.
 fn anthropic_only(models: &serde_json::Value) -> serde_json::Value {
     let Some(arr) = models.as_array() else {
         return json_of(&super::default_inference_models());

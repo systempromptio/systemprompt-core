@@ -170,10 +170,10 @@ fn the_hermes_host_describes_itself_as_a_yaml_desktop_app() {
         "{}",
         HERMES_HOST.description()
     );
-    assert_eq!(
-        HERMES_HOST.accepted_surfaces(),
-        &[systemprompt_models::services::ApiSurface::OpenAi],
-        "Hermes speaks the OpenAI API surface"
+    assert!(
+        HERMES_HOST.accepted_surfaces().is_empty(),
+        "Hermes is offered every advertised provider; the gateway transcodes to \
+         the OpenAI wire it speaks"
     );
     assert!(HERMES_HOST.can_open(), "a desktop app can be opened");
     assert!(

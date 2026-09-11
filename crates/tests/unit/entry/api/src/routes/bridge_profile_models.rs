@@ -1,16 +1,40 @@
-//! Unit tests for the protocol-scoped model filter that selects which provider
-//! models are advertised to Cowork / Claude Desktop. Gateway-mode hosts reject
-//! the whole enterprise config if any advertised model is not from their wire
-//! protocol, so the `/bridge/profile` front door and `/v1/models` both scope
-//! the list via `ProviderRegistry::advertised_model_ids` /
-//! `models::model_entries`.
+//! Unit tests for the advertised model catalog behind `/v1/bridge/profile` and
+//! `/v1/models`. The gateway transcodes every inbound wire to every provider
+//! wire, so both front doors advertise the *whole* advertised set: the flat
+//! `models` list is never narrowed by surface, and `model_entries` is called
+//! with an empty surface slice. Only a `surface: backend` provider is withheld.
+//! The per-surface views that remain (Claude Desktop's carve-out) are built by
+//! the bridge from `providers`, and `surfaces_from_header` still validates the
+//! advisory `x-inference-protocol` header.
 
+use axum::http::{HeaderMap, StatusCode};
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
-use systemprompt_api::routes::gateway::models::model_entries;
+use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
+use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
+use systemprompt_models::bridge::profile::{
+    BridgeProfileParams, BridgeProfileResponse, build as profile_build,
+};
 use systemprompt_models::services::{
     ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
 };
+
+fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {
+    profile_build(
+        BridgeProfileParams {
+            inference_gateway_base_url: "https://gw.invalid/v1".to_owned(),
+            auth_scheme: "bearer".to_owned(),
+            organization_uuid: None,
+            default_model: None,
+            registry,
+        },
+        |_| true,
+    )
+}
+
+fn build_models(registry: &ProviderRegistry) -> Vec<String> {
+    build_profile(registry).models
+}
 
 fn model(id: &str, aliases: &[&str]) -> ProviderModel {
     ProviderModel {
@@ -82,13 +106,13 @@ fn includes_anthropic_ids_and_aliases() {
 }
 
 #[test]
-fn excludes_non_anthropic_providers() {
+fn includes_every_advertised_surface() {
     let registry = ProviderRegistry {
         providers: vec![
             provider(
                 "anthropic",
                 WireProtocol::Anthropic,
-                vec![model("claude-sonnet-4-6", &[])],
+                vec![model("claude-sonnet-4-6", &["claude-sonnet"])],
             ),
             provider(
                 "gemini",
@@ -103,28 +127,72 @@ fn excludes_non_anthropic_providers() {
         ],
     };
 
-    let models = registry.advertised_model_ids(&[ApiSurface::Anthropic]);
+    let models = build_models(&registry);
 
-    assert_eq!(models, vec!["claude-sonnet-4-6".to_owned()]);
-    assert!(!models.iter().any(|m| m.starts_with("gemini")));
-    assert!(!models.iter().any(|m| m.starts_with("gpt")));
+    for expected in [
+        "claude-sonnet-4-6",
+        "claude-sonnet",
+        "gemini-3.1-flash-lite-preview",
+        "gemini-flash",
+        "gpt-5",
+    ] {
+        assert!(
+            models.iter().any(|m| m == expected),
+            "{expected} missing from {models:?}"
+        );
+    }
 }
 
 #[test]
-fn empty_when_no_anthropic_provider() {
-    let registry = ProviderRegistry {
+fn empty_only_when_every_provider_is_backend() {
+    let gemini_only = ProviderRegistry {
         providers: vec![provider(
             "gemini",
             WireProtocol::Gemini,
             vec![model("gemini-3.1-flash-lite-preview", &[])],
         )],
     };
-
-    assert!(
-        registry
-            .advertised_model_ids(&[ApiSurface::Anthropic])
-            .is_empty()
+    assert_eq!(
+        build_models(&gemini_only),
+        vec!["gemini-3.1-flash-lite-preview".to_owned()],
+        "a non-Anthropic provider is still advertised"
     );
+
+    let backend_only = ProviderRegistry {
+        providers: vec![provider_with_surface(
+            "minimax",
+            WireProtocol::Anthropic,
+            ApiSurface::Backend,
+            "minimax_key",
+            vec![model("MiniMax-M2", &[])],
+        )],
+    };
+    assert!(build_models(&backend_only).is_empty());
+}
+
+#[test]
+fn backend_provider_is_absent_from_models_and_providers() {
+    let registry = ProviderRegistry {
+        providers: vec![
+            provider(
+                "anthropic",
+                WireProtocol::Anthropic,
+                vec![model("claude-sonnet-4-6", &[])],
+            ),
+            provider_with_surface(
+                "minimax",
+                WireProtocol::Anthropic,
+                ApiSurface::Backend,
+                "minimax_key",
+                vec![model("MiniMax-M2", &[])],
+            ),
+        ],
+    };
+
+    let response = build_profile(&registry);
+
+    assert_eq!(response.models, vec!["claude-sonnet-4-6".to_owned()]);
+    assert!(response.providers.iter().all(|p| p.name != "minimax"));
 }
 
 #[test]
@@ -151,7 +219,7 @@ fn empty_protocols_returns_full_catalog() {
 }
 
 #[test]
-fn model_entries_scope_to_requested_protocol() {
+fn model_entries_returns_the_whole_catalog() {
     let registry = ProviderRegistry {
         providers: vec![
             provider(
@@ -167,12 +235,64 @@ fn model_entries_scope_to_requested_protocol() {
         ],
     };
 
-    let entries = model_entries(&registry, &[ApiSurface::Anthropic]);
+    let entries = model_entries(&registry, &[]);
 
     let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
-    assert_eq!(ids, vec!["claude-sonnet-4-6"]);
+    assert_eq!(
+        ids,
+        vec![
+            "claude-sonnet-4-6",
+            "gemini-3.1-flash-lite-preview",
+            "gemini-flash",
+        ]
+    );
     assert!(entries.iter().all(|e| e.kind == "model"));
-    assert!(!ids.iter().any(|id| id.starts_with("gemini")));
+}
+
+#[test]
+fn model_entries_still_honours_an_explicit_surface_slice() {
+    let registry = ProviderRegistry {
+        providers: vec![
+            provider(
+                "anthropic",
+                WireProtocol::Anthropic,
+                vec![model("claude-sonnet-4-6", &[])],
+            ),
+            provider(
+                "gemini",
+                WireProtocol::Gemini,
+                vec![model("gemini-3.1-flash-lite-preview", &[])],
+            ),
+        ],
+    };
+
+    let ids: Vec<String> = model_entries(&registry, &[ApiSurface::Anthropic])
+        .into_iter()
+        .map(|e| e.id)
+        .collect();
+    assert_eq!(ids, vec!["claude-sonnet-4-6".to_owned()]);
+}
+
+#[test]
+fn header_helper_parses_known_tags_and_defaults_to_empty() {
+    let mut headers = HeaderMap::new();
+    assert_eq!(surfaces_from_header(&headers).unwrap(), Vec::new());
+
+    headers.insert(INFERENCE_PROTOCOL, "anthropic, gemini".parse().unwrap());
+    assert_eq!(
+        surfaces_from_header(&headers).unwrap(),
+        vec![ApiSurface::Anthropic, ApiSurface::Gemini]
+    );
+}
+
+#[test]
+fn header_helper_rejects_backend_and_garbage() {
+    for bad in ["backend", "not-a-protocol"] {
+        let mut headers = HeaderMap::new();
+        headers.insert(INFERENCE_PROTOCOL, bad.parse().unwrap());
+        let (status, _) = surfaces_from_header(&headers).unwrap_err();
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}");
+    }
 }
 
 #[test]

@@ -34,6 +34,8 @@ mod keystore_linux;
 #[cfg(test)]
 mod managed_skills;
 #[cfg(test)]
+mod opencode_default_model;
+#[cfg(test)]
 mod opencode_fallback;
 #[cfg(test)]
 mod opencode_host;

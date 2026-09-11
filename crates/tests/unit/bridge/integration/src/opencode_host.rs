@@ -6,7 +6,6 @@ use systemprompt_bridge::integration::host_app::{
     StaleReason,
 };
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
-use systemprompt_models::services::ApiSurface;
 use tempfile::TempDir;
 
 fn probe_env() -> ProbeEnv {
@@ -250,23 +249,13 @@ fn the_opencode_host_describes_itself_as_a_json_cli_tool_that_cannot_be_opened()
         "{}",
         OPENCODE_HOST.description()
     );
-    // Every surface except Backend: the gateway translates any inbound wire to
-    // any provider wire, so filtering the catalogue by a provider's native
-    // family would hide servable models. Backend exists to hide a provider from
-    // every picker and must stay excluded.
-    assert_eq!(
-        OPENCODE_HOST.accepted_surfaces(),
-        &[
-            ApiSurface::OpenAi,
-            ApiSurface::Anthropic,
-            ApiSurface::Gemini
-        ]
-    );
+    // No declared surfaces: the gateway translates any inbound wire to any
+    // provider wire, so filtering the catalogue by a provider's native family
+    // would hide servable models. Backend never reaches a host either way — it
+    // is excluded from the advertised set itself.
     assert!(
-        !OPENCODE_HOST
-            .accepted_surfaces()
-            .contains(&ApiSurface::Backend),
-        "Backend providers must never be advertised to a host"
+        OPENCODE_HOST.accepted_surfaces().is_empty(),
+        "OpenCode is offered every advertised provider"
     );
     assert!(
         OPENCODE_HOST
@@ -298,6 +287,7 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
                 gateway_base_url: "http://127.0.0.1:48217/".to_owned(),
                 api_key: "loopback-secret-value".to_owned(),
                 models: vec!["claude-sonnet-5".to_owned(), "gpt-4.1".to_owned()],
+                default_model: None,
                 organization_uuid: None,
                 headers,
                 mcp_servers: Vec::new(),

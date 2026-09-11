@@ -118,10 +118,6 @@ impl HostApp for HermesHost {
     fn download_url(&self) -> &'static str {
         "https://nousresearch.com/"
     }
-
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
-        &[systemprompt_models::services::ApiSurface::OpenAi]
-    }
 }
 
 const fn locator() -> crate::integration::app_launch::AppLocator<'static> {

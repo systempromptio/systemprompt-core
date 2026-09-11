@@ -29,6 +29,7 @@ fn inputs() -> ProfileGenInputs {
         gateway_base_url: GATEWAY.to_owned(),
         api_key: SECRET.to_owned(),
         models: vec![MODEL.to_owned()],
+        default_model: None,
         organization_uuid: None,
         headers: BTreeMap::new(),
         mcp_servers: Vec::new(),

@@ -177,3 +177,19 @@ fn an_override_of_only_unknown_tags_yields_no_surfaces_at_all() {
         "an override that names nothing recognisable narrows to nothing"
     );
 }
+
+#[test]
+fn claude_desktop_is_the_only_narrowing_host() {
+    for host in systemprompt_bridge::integration::host_apps() {
+        if host.accepted_surfaces().is_empty() {
+            continue;
+        }
+        assert_eq!(
+            host.id(),
+            "claude-desktop",
+            "every host is offered the whole advertised catalog; Claude Desktop is the \
+             single carve-out because it rejects non-Claude ids in inferenceModels"
+        );
+        assert_eq!(host.accepted_surfaces(), &[ApiSurface::Anthropic]);
+    }
+}

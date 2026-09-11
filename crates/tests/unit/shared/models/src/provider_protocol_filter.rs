@@ -251,3 +251,47 @@ fn bridge_profile_build_excludes_backend_provider() {
         vec!["claude-3-7-sonnet-20250219".to_owned()]
     );
 }
+
+#[test]
+fn empty_surface_slice_returns_whole_catalog_minus_backend() {
+    let registry = ProviderRegistry {
+        providers: vec![
+            provider(
+                "anthropic",
+                WireProtocol::Anthropic,
+                ApiSurface::Anthropic,
+                vec![model("claude-sonnet-4-6", &["claude-sonnet"])],
+            ),
+            provider(
+                "openai",
+                WireProtocol::OpenAiChat,
+                ApiSurface::OpenAi,
+                vec![model("gpt-5", &[])],
+            ),
+            provider(
+                "gemini",
+                WireProtocol::Gemini,
+                ApiSurface::Gemini,
+                vec![model("gemini-3.1-flash-lite-preview", &[])],
+            ),
+            provider(
+                "minimax",
+                WireProtocol::Anthropic,
+                ApiSurface::Backend,
+                vec![model("MiniMax-M2", &[])],
+            ),
+        ],
+    };
+
+    let models = registry.advertised_model_ids(&[]);
+
+    assert_eq!(
+        models,
+        vec![
+            "claude-sonnet-4-6".to_owned(),
+            "claude-sonnet".to_owned(),
+            "gpt-5".to_owned(),
+            "gemini-3.1-flash-lite-preview".to_owned(),
+        ]
+    );
+}

@@ -9,8 +9,12 @@
 //! [`ProviderRegistry::advertised_providers`], the single bearer of the
 //! advertisement rule ([`ApiSurface::is_advertised`]). A `surface: backend`
 //! provider is therefore structurally absent from both `providers` and the
-//! flat `models` front door — the flat list is a projection of the same
-//! advertised set, so it can never disagree with `providers`.
+//! flat `models` front door. The flat `models` list is the *whole* advertised
+//! set, not one family's projection: the gateway transcodes every inbound wire
+//! to every provider wire, so every advertised model is reachable from every
+//! host. `providers` carries the per-provider split the bridge uses to build
+//! the narrower per-host views (Claude Desktop being the only host that
+//! narrows).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -106,7 +110,7 @@ pub fn build(
     BridgeProfileResponse {
         inference_gateway_base_url,
         auth_scheme,
-        models: registry.advertised_model_ids(&[ApiSurface::Anthropic]),
+        models: registry.advertised_model_ids(&[]),
         default_model,
         organization_uuid,
         providers: provider_health(registry, secret_present),

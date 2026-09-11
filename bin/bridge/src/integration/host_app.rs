@@ -45,6 +45,8 @@ pub struct ProfileGenInputs {
     pub gateway_base_url: String,
     pub api_key: String,
     pub models: Vec<String>,
+    /// The gateway's configured default model, when it is one of `models`.
+    pub default_model: Option<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,
     pub mcp_servers: Vec<crate::install::mdm::policy::McpServerEntry>,

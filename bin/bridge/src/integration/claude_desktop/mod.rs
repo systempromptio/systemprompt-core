@@ -145,6 +145,11 @@ impl HostApp for ClaudeDesktopHost {
         "https://claude.ai/download"
     }
 
+    // Why: the single carve-out from the reachability rule. Every other host
+    // inherits the empty default and is offered the whole advertised catalog,
+    // because the gateway transcodes every inbound wire to every provider wire.
+    // Claude Desktop is the exception: it rejects non-Claude ids in
+    // `inferenceModels` outright, so advertising them breaks the app.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
         &[systemprompt_models::services::ApiSurface::Anthropic]
     }

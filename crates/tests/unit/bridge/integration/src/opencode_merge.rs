@@ -43,6 +43,7 @@ fn inputs(models: &[&str]) -> ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
         api_key: "loopback-secret-value".to_owned(),
         models: models.iter().map(|m| (*m).to_owned()).collect(),
+        default_model: None,
         organization_uuid: Some("org-abc".to_owned()),
         headers,
         mcp_servers: Vec::new(),

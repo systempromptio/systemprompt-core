@@ -53,10 +53,19 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
 
     let mut root = Map::new();
     root.insert("provider".to_owned(), Value::Object(providers));
-    if let Some(first) = inputs.models.first() {
+    // Why: with the whole catalog advertised, the first entry is whichever
+    // provider happens to sort first — not a choice. Prefer the gateway's own
+    // default when it is one of the models we just declared, since a default
+    // OpenCode cannot resolve leaves the picker broken on first launch.
+    let default = inputs
+        .default_model
+        .as_ref()
+        .filter(|m| inputs.models.contains(m))
+        .or_else(|| inputs.models.first());
+    if let Some(model) = default {
         root.insert(
             DEFAULT_MODEL.to_owned(),
-            json!(format!("{PROVIDER_ID}/{first}")),
+            json!(format!("{PROVIDER_ID}/{model}")),
         );
     }
     root.insert(API_KEY_MARKER.to_owned(), json!(inputs.api_key));

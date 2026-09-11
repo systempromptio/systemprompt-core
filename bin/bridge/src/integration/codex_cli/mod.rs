@@ -104,10 +104,6 @@ impl HostApp for CodexCliHost {
     fn download_url(&self) -> &'static str {
         "https://developers.openai.com/codex/app"
     }
-
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
-        &[systemprompt_models::services::ApiSurface::OpenAi]
-    }
 }
 
 const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
