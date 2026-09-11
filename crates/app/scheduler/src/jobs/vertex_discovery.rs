@@ -8,7 +8,10 @@
 //! would widen the catalog. It also reads the calendar: any served model whose
 //! documented retirement or price change is within the notice window is
 //! warned about, so an operator hears about it from the log before Google's
-//! date arrives.
+//! date arrives. The notice window is `LIFECYCLE_NOTICE_DAYS`;
+//! `lifecycle_notices` yields `(model id, what changes, on which date)` for
+//! every served rate-card model inside it, and `latest_report` exposes the
+//! last report this process produced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,14 +28,8 @@ use tracing::{info, warn};
 
 static LATEST: RwLock<Option<DiscoveryReport>> = RwLock::new(None);
 
-/// How far ahead a documented retirement or price change is announced.
 pub const LIFECYCLE_NOTICE_DAYS: u64 = 60;
 
-/// Rate-card models this registry serves whose documented retirement or price
-/// step falls within [`LIFECYCLE_NOTICE_DAYS`] of `today`.
-///
-/// Returns `(model id, what changes, on which date)`, so the caller can log
-/// it or assert on it.
 #[must_use]
 pub fn lifecycle_notices(
     served: &ProviderRegistry,
@@ -58,8 +55,6 @@ pub fn lifecycle_notices(
     notices
 }
 
-/// The most recent report this job produced, or `None` if it has not run in
-/// this process.
 #[must_use]
 pub fn latest_report() -> Option<DiscoveryReport> {
     LATEST

@@ -10,7 +10,9 @@
 //! reads — plus the `mcp__plugin_<plugin>_<server>` spelling for a server a
 //! plugin's `.mcp.json` mirrors. Rules the bridge wrote last time are
 //! recorded in a sidecar so a server that leaves the manifest, or flips to
-//! `prompt`, has its rules taken back out; rules the user added stay.
+//! `prompt`, has its rules taken back out; rules the user added stay. Rules
+//! land in the managed settings file (the machine policy file when writable,
+//! else the user's `settings.json`) and the standalone file.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -41,13 +43,11 @@ pub struct PermissionRules {
 
 impl PermissionRules {
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.allow.is_empty() && self.deny.is_empty()
     }
 }
 
-/// Every rule spelling for one server: bare, and once per plugin whose
-/// `.mcp.json` mirrors it.
 fn server_prefixes(server: &str, plugins: &[&str]) -> Vec<String> {
     let mut out = vec![format!("mcp__{server}")];
     out.extend(
@@ -58,8 +58,6 @@ fn server_prefixes(server: &str, plugins: &[&str]) -> Vec<String> {
     out
 }
 
-/// Derives the rules for a manifest. `plugin_mcp_servers` maps plugin id to
-/// the server names that plugin's `.mcp.json` carries.
 #[must_use]
 pub fn rules_for(
     manifest: &SignedManifest,
@@ -80,7 +78,13 @@ pub fn rules_for(
         let Some(policies) = &server.tool_policy else {
             continue;
         };
+        // Why: Claude Code's deny list beats its allow list, so under a
+        // wildcard deny a named allow is dead and is not written.
+        let denied_outright = server.default_tool_policy() == Some(ToolPolicy::Deny);
         for (tool, policy) in policies {
+            if denied_outright && *policy == ToolPolicy::Allow {
+                continue;
+            }
             let bucket = match policy {
                 ToolPolicy::Allow => &mut rules.allow,
                 ToolPolicy::Deny => &mut rules.deny,
@@ -159,9 +163,6 @@ fn splice_rules(
     }
 }
 
-/// Writes the rules into the managed settings file (the machine policy
-/// file when writable, else the user's `settings.json`) and the standalone
-/// file, replacing whatever the bridge wrote before.
 pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<Vec<String>, MdmError> {
     let previously = read_sidecar()?;
     let mut lines = Vec::new();
@@ -190,6 +191,11 @@ pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<Vec<String>, 
             settings.display(),
             rules.allow.len(),
             rules.deny.len()
+        ));
+    }
+    if lines.is_empty() && !rules.is_empty() {
+        return Err(MdmError::Resolve(
+            "a Claude Code settings file to carry the permission rules",
         ));
     }
     write_sidecar(rules)?;

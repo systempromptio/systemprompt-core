@@ -123,3 +123,62 @@ fn taking_every_bridge_rule_out_of_an_otherwise_empty_object_removes_the_key() {
         merged_permissions(Some(&existing), &previously, &PermissionRules::default()).is_none()
     );
 }
+
+#[test]
+fn a_wildcard_deny_drops_named_allows_that_claude_code_would_never_honour() {
+    let policy = BTreeMap::from([
+        (ToolName::try_new("*").unwrap(), ToolPolicy::Deny),
+        (ToolName::try_new("read_issue").unwrap(), ToolPolicy::Allow),
+        (ToolName::try_new("delete_issue").unwrap(), ToolPolicy::Deny),
+    ]);
+    let m = manifest(vec![server("atlassian", Some(policy))]);
+    let rules = rules_for(&m, &BTreeMap::new());
+    assert!(
+        rules.allow.is_empty(),
+        "deny beats allow in Claude Code, so a named allow under a wildcard deny is dead: {:?}",
+        rules.allow
+    );
+    assert_eq!(
+        rules.deny,
+        vec![
+            "mcp__atlassian".to_owned(),
+            "mcp__atlassian__delete_issue".to_owned()
+        ]
+    );
+}
+
+fn upstream(
+    policy: BTreeMap<String, ToolPolicy>,
+) -> systemprompt_bridge::mcp_registry::McpUpstream {
+    systemprompt_bridge::mcp_registry::McpUpstream {
+        url: ValidatedUrl::new("https://gw.example.com/api/v1/mcp/atlassian/mcp"),
+        headers: BTreeMap::new(),
+        display_name: "Atlassian".to_owned(),
+        transport: None,
+        tool_policy: policy,
+    }
+}
+
+#[test]
+fn a_desktop_wildcard_deny_withholds_the_server_rather_than_prompting_for_unknown_tools() {
+    use systemprompt_bridge::install::mdm::desktop_tool_policy::{
+        denied_outright, desktop_tool_policy_map,
+    };
+    let denied = upstream(BTreeMap::from([("*".to_owned(), ToolPolicy::Deny)]));
+    assert!(denied_outright(&denied));
+    let allowed = upstream(BTreeMap::from([
+        ("*".to_owned(), ToolPolicy::Allow),
+        ("delete_issue".to_owned(), ToolPolicy::Deny),
+    ]));
+    assert!(!denied_outright(&allowed));
+    let map = desktop_tool_policy_map(
+        &allowed,
+        &["read_issue".to_owned(), "delete_issue".to_owned()],
+    );
+    assert_eq!(map.get("read_issue").map(String::as_str), Some("allow"));
+    assert_eq!(
+        map.get("delete_issue").map(String::as_str),
+        Some("blocked"),
+        "a named entry wins over the wildcard"
+    );
+}

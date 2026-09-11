@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use systemprompt_loader::vertex_discovery::source::{
     CatalogListing, CatalogSource, DiscoveredModel, DiscoveryError, LaunchStage,
 };
-use systemprompt_loader::vertex_discovery::{discover, discover_with};
+use systemprompt_loader::vertex_discovery::{Catalog, discover, discover_with};
 use systemprompt_models::services::{
     DiscoveryReport, ProviderEntry, ProviderRegistry, VertexRateCard,
 };
@@ -115,8 +115,10 @@ async fn a_second_catalog_source_can_be_registered() {
         &mut providers,
         &lookup,
         Duration::from_secs(5),
-        &sources,
-        &card,
+        Catalog {
+            sources: &sources,
+            card: &card,
+        },
         &mut report,
     )
     .await;

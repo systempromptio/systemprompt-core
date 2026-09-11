@@ -4,6 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+/// Bootstrap flags for one command.
+///
+/// Model discovery (installing the services registry through boot-time
+/// discovery) is set only for the server; every other command loads the YAML
+/// catalog as authored and must not reach for the network.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CommandDescriptor {
     flags: u8,
@@ -71,9 +76,6 @@ impl CommandDescriptor {
         self.flags & Self::FLAG_SKIP_VALIDATION != 0
     }
 
-    /// Whether the services registry is installed through boot-time model
-    /// discovery. Only the server does this: every other command loads the
-    /// YAML catalog as authored and must not reach for the network.
     pub const fn discovers_models(&self) -> bool {
         self.flags & Self::FLAG_MODEL_DISCOVERY != 0
     }

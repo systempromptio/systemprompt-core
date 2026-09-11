@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Breaking
+
+- **Breaking:** `ProviderRegistry::validate` refuses a Vertex endpoint that names a Google Cloud project literally (`ProviderRegistryError::LiteralProjectInEndpoint`). A project id is a tenant identifier and Vertex echoes it in every IAM error the gateway relays, so the catalog carries `projects/{project}` (`services::providers::PROJECT_PLACEHOLDER`) and the credential fills it. `REGION_PLACEHOLDER` is declared beside it and `names_a_project_literally` is the check.
+- **Breaking:** `McpDeployment.tool_policy: Option<ToolPolicy>` (serde default, skipped when `None`) is the default decision a bridge-managed client applies to every tool the server exposes; absent means `allow`.
+
+### Added
+
+- `services::providers::{VertexRateCard, VertexRateCardEntry, DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS}` and the embedded `vertex_rate_card.yaml`: per-model pricing plus what Google's documentation says about each entry — `launch_stage`, `released`, `retires_on`, `price_until` and the `docs` URL it was read from. `VertexRateCardEntry::is_supported(today)` is GA (or an explicit preview opt-in) and not retiring within `RETIREMENT_NOTICE_DAYS` (30); `is_retiring`, `VertexRateCard::lookup_id` and `validate` accompany it.
+- `services::DiscoveryReport`: what a discovery pass found — `discovered_priced`, `discovered_unpriced`, `priced_not_published`, `explicit_wins`, `retiring` (serde default, so an older report still reads), `failed_publishers` and `ran_at`.
+- `bridge::manifest::ManagedMcpServer::{TOOL_POLICY_WILDCARD, policy_for_tool, default_tool_policy}`: `tool_policy` may carry a `*` entry standing for every tool; a tool's decision is its own entry, else the wildcard, else `None`.
+- `bridge::profile::BridgeProfile.default_model`, the gateway's configured default when it is one of `models`.
+- `schema::gemini_invariants::gemini_declaration_violations` states every rule a Gemini function declaration must satisfy, so a schema that reaches a Gemini or Vertex 400 becomes a corpus entry the sanitizer has to pass rather than an error string it patches around.
+
+### Changed
+
+- `BridgeProfile.models` is the whole advertised catalog (`advertised_model_ids(&[])`), not the Anthropic surface's projection; `providers` still carries the per-provider split the bridge uses for the one host that narrows.
+
+### Fixed
+
+- The Gemini sanitizer closes three shapes it still refused: a JSON-Schema type list beside `anyOf` is split into typed variants so `items` follows the array; a composition variant left untyped by `$ref`/`const` stripping is typed from what it says or dropped; draft-4 tuple `items: [..]` and boolean `items` collapse to the one item object Gemini accepts. Anthropic and OpenAI wires are untouched. The sanitizer is split into submodules under `schema::sanitizer`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Breaking

@@ -21,14 +21,14 @@ pub enum PolicyValue {
 
 pub type PolicyEntry = (&'static str, PolicyValue);
 
-/// One managed MCP server as the policy publishes it.
+/// One managed MCP server as the policy publishes it. `tool_policy` is
+/// Claude Desktop's per-tool decision (tool name → `allow` / `ask` /
+/// `blocked`); empty leaves the app's own default (ask).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpServerEntry {
     pub name: String,
     pub url: String,
     pub bearer: String,
-    /// Claude Desktop's per-tool decision: tool name → `allow` / `ask` /
-    /// `blocked`. Empty leaves the app's own default (ask).
     pub tool_policy: BTreeMap<String, String>,
 }
 
@@ -71,16 +71,11 @@ pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Vec<PolicyEntry> {
 }
 
 // Why: Claude Desktop breaks when `inferenceModels` names a non-Anthropic
-// family, so whatever list arrives — an installed policy, a future catalog
-// feed — is filtered to Claude ids here, at the one place the key is built.
-// Non-Claude gateway models are Claude Code's business (its `modelPicker`).
-//
-// This is Desktop-only by construction: every caller reaches it through
-// `claude_desktop_policy` (`install/mdm/macos_payload.rs`,
-// `install/mdm/windows.rs`, `integration/claude_desktop/macos.rs`). It is the
-// single carve-out from the reachability rule — every other host is offered
-// the whole advertised catalog, because the gateway transcodes every inbound
-// wire to every provider wire.
+// family, so every list is filtered to Claude ids at the one place the key is
+// built. Desktop-only by construction (all callers go through
+// `claude_desktop_policy`); it is the single carve-out from the reachability
+// rule — every other host gets the whole advertised catalog, since the gateway
+// transcodes every inbound wire to every provider wire.
 fn anthropic_only(models: &serde_json::Value) -> serde_json::Value {
     let Some(arr) = models.as_array() else {
         return json_of(&super::default_inference_models());
@@ -267,11 +262,20 @@ pub fn mcp_entries(
         return Ok(Vec::new());
     }
     let bearer = loopback.bearer()?;
-    let catalog = super::tool_catalog::read();
+    let catalog = super::tool_catalog::read()?;
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
+    // Why: Desktop's `toolPolicy` names tools one by one, so a wildcard deny
+    // can only be expressed over names the catalog knows; a server denied
+    // outright is withheld from the policy instead of prompting for tools
+    // the catalog has not seen.
     Ok(slugs
         .into_iter()
+        .filter(|slug| {
+            registry
+                .get(*slug)
+                .is_none_or(|upstream| !super::desktop_tool_policy::denied_outright(upstream))
+        })
         .map(|slug| McpServerEntry {
             name: slug.clone(),
             url: loopback.mcp_url(slug.as_str()),

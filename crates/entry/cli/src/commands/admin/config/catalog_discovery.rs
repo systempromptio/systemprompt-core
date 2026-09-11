@@ -1,6 +1,12 @@
 //! `admin config catalog discovery` — what the last Vertex discovery pass
-//! found, one row per model id with the state it landed in and, for a
-//! rate-card id, the retirement date Google's documentation gives it.
+//! found.
+//!
+//! One row per model id with the state it landed in and, for a rate-card id,
+//! the retirement date Google's documentation gives it.
+//!
+//! The scheduler's daily report is preferred over the boot-time one: both
+//! describe the same upstream, but the scheduler's is fresher and the boot
+//! report never changes for the life of the process.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,9 +18,6 @@ use super::types::DiscoveryRow;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
-/// Prefers the scheduler's daily report over the boot-time one: both describe
-/// the same upstream, but the scheduler's is fresher and the boot report never
-/// changes for the life of the process.
 fn latest_discovery() -> Option<DiscoveryReport> {
     systemprompt_scheduler::jobs::vertex_discovery::latest_report().or_else(|| {
         systemprompt_loader::ServicesBootstrap::discovery_report()
@@ -23,9 +26,6 @@ fn latest_discovery() -> Option<DiscoveryReport> {
     })
 }
 
-/// Flattens a report into one row per model id, tagged with why it is or is
-/// not being served, and with the documented retirement date where the rate
-/// card records one.
 #[must_use]
 pub fn discovery_rows(report: &DiscoveryReport) -> Vec<DiscoveryRow> {
     let card = VertexRateCard::embedded().ok();
@@ -79,10 +79,9 @@ pub fn show_discovery(config: &CliConfig) {
         render_result(
             &CommandOutput::message(vec![NoticeLine::new(
                 "info",
-                "Vertex model discovery has not run. It runs at boot only when a provider \
-                 endpoint is on aiplatform.googleapis.com and its secret is a Google \
-                 service-account key, and is skipped entirely when \
-                 SYSTEMPROMPT_VERTEX_DISCOVERY=0.",
+                "Vertex model discovery has not run. It runs when the server boots, and only \
+                 when a provider endpoint is on aiplatform.googleapis.com and its secret is \
+                 a Google service-account key.",
             )])
             .with_title("Vertex Model Discovery"),
             config,

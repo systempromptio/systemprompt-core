@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Added
+
+- `discover_models` (`builder::core_layer::discover_vertex_models`) augments the provider registry at boot from each upstream's live listing, given the secrets and a per-listing budget; which providers are discoverable is decided by the loader's catalog sources from the credential their secret parses into. The pass is fail-open: a provider no source recognises or a missing or unusable credential leaves the YAML catalog exactly as authored. It is exposed so the CLI runner can install the registry through it for `infra services serve|start`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

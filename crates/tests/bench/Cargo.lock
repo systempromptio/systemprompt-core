@@ -4244,6 +4244,7 @@ dependencies = [
 name = "systemprompt-loader"
 version = "0.50.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "flate2",
@@ -4255,6 +4256,7 @@ dependencies = [
  "sha2 0.11.0",
  "systemprompt-config",
  "systemprompt-extension",
+ "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-security",
  "tar",

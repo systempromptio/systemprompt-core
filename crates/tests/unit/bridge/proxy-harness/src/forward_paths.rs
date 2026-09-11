@@ -230,7 +230,11 @@ fn a_401_from_a_non_gateway_mcp_upstream_does_not_latch_sign_in() {
                 .await;
 
             let rejected = h.authed_post("/mcp/stale-mcp", "{}").await;
-            assert_eq!(rejected.status().as_u16(), 401, "the upstream status is relayed");
+            assert_eq!(
+                rejected.status().as_u16(),
+                401,
+                "the upstream status is relayed"
+            );
 
             let after = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
             assert_eq!(

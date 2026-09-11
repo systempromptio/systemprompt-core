@@ -8318,6 +8318,7 @@ dependencies = [
  "sha2 0.11.0",
  "systemprompt-config",
  "systemprompt-extension",
+ "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-security",
  "tar",
@@ -8899,7 +8900,6 @@ dependencies = [
 name = "systemprompt-security"
 version = "0.50.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "axum",
  "base64 0.22.1",

@@ -39,9 +39,7 @@ fn write_empty_managed_mcp_servers(
 }
 
 // Why: Desktop's `toolPolicy` names tools one by one, so the policy write
-// needs each server's tool list. The probe is the same round-trip the
-// Status page runs; a server that does not answer keeps the names it gave
-// last time, and a run with no names simply writes no `toolPolicy`.
+// needs each server's current tool list before it runs.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
     if ctx.mcp_registry.is_empty() {
@@ -60,11 +58,17 @@ async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
                 .count(),
             "mcp tool catalog refreshed for the desktop tool policy"
         ),
-        Err(e) => tracing::warn!(
-            target: "bridge::mdm",
-            error = %e,
-            "mcp tool catalog not written; desktop tool policy keeps its last names"
-        ),
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::mdm",
+                error = %e,
+                "mcp tool catalog not written; desktop tool policy keeps its last names"
+            );
+            ctx.warnings.push(
+                "claude-desktop",
+                format!("tool catalog not updated ({e}); the tool policy keeps its last names"),
+            );
+        },
     }
 }
 

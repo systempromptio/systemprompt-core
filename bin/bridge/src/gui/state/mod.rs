@@ -87,8 +87,6 @@ impl AppState {
         self.snap_mut().sync_pending = flag;
     }
 
-    /// Clears and returns the pending flag, so the caller re-issues the sync
-    /// exactly once.
     pub fn take_sync_pending(&self) -> bool {
         std::mem::take(&mut self.snap_mut().sync_pending)
     }

@@ -8,6 +8,13 @@
 //! resolved against them — so an endpoint asking for a coordinate the
 //! credential does not carry is refused rather than guessed at.
 //!
+//! [`fill_endpoint`] is the generalisation of what used to be a `{project}`
+//! substitution: the catalog never carries a tenant identifier, so a secret
+//! swapped for another customer's re-targets the endpoint with it. An
+//! endpoint that asks for a coordinate this credential cannot supply cannot be
+//! served — guessing one would send the request somewhere the operator never
+//! chose. `PLACEHOLDERS` is every placeholder a template may ask for.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,12 +24,12 @@ use super::error::CredentialError;
 
 pub use systemprompt_models::services::providers::{PROJECT_PLACEHOLDER, REGION_PLACEHOLDER};
 
-/// How an upstream expects the credential to be presented.
+/// How an upstream expects the credential to be presented: as
+/// `Authorization: Bearer <token>` (a minted, expiring OAuth token) or in the
+/// provider's own API-key header, sent verbatim by the adapter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthScheme {
-    /// `Authorization: Bearer <token>` — a minted, expiring OAuth token.
     Bearer,
-    /// The provider's own API-key header, sent verbatim by the adapter.
     ApiKey,
 }
 
@@ -53,20 +60,20 @@ impl fmt::Debug for AuthHeader {
 
 /// The coordinates a credential supplies to the endpoint it authenticates.
 ///
+/// The cloud project, account or tenant it is confined to; the region, when
+/// it is confined to one; and the principal it acts as, for audit — never a
+/// secret.
+///
 /// Every field is optional because most credentials supply none of them: an
-/// API key is a bare string and names nothing.
+/// API key is a bare string and names nothing (`empty`).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CredentialScope {
-    /// The cloud project, account or tenant the credential is confined to.
     pub project: Option<String>,
-    /// The region the credential is confined to, when it is confined to one.
     pub region: Option<String>,
-    /// Who the credential acts as, for audit — never a secret.
     pub principal: Option<String>,
 }
 
 impl CredentialScope {
-    /// The scope of a credential that names nothing.
     #[must_use]
     pub const fn empty() -> Self {
         Self {
@@ -89,19 +96,11 @@ impl CredentialScope {
     }
 }
 
-/// Every placeholder an endpoint template may ask a credential to fill.
 const PLACEHOLDERS: &[(&str, &str)] = &[
     (PROJECT_PLACEHOLDER, "project id"),
     (REGION_PLACEHOLDER, "region"),
 ];
 
-/// Resolve an endpoint template against the credential's own coordinates.
-///
-/// This is the generalisation of what used to be a `{project}` substitution:
-/// the catalog never carries a tenant identifier, so a secret swapped for
-/// another customer's re-targets the endpoint with it. An endpoint that asks
-/// for a coordinate this credential cannot supply cannot be served — guessing
-/// one would send the request somewhere the operator never chose.
 pub fn fill_endpoint(template: &str, scope: &CredentialScope) -> Result<String, CredentialError> {
     let mut endpoint = template.to_owned();
     for &(placeholder, field) in PLACEHOLDERS {

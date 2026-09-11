@@ -191,9 +191,14 @@ fn claude_app_candidates() -> Vec<std::path::PathBuf> {
     out
 }
 
-/// Whether Claude Desktop is installed on this machine, judged the same way
-/// the host probe judges it (Start Menu / MSIX package / app bundle).
 #[must_use]
+#[cfg_attr(
+    not(any(target_os = "macos", target_os = "windows")),
+    expect(
+        clippy::missing_const_for_fn,
+        reason = "the desktop probe is a runtime lookup on macOS and Windows"
+    )
+)]
 pub fn is_app_installed() -> bool {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     {

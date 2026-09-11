@@ -5,6 +5,7 @@ fn report(display_name: &'static str, outcome: Outcome) -> Report {
         display_name,
         install_action_label: "Approve in System Settings",
         outcome,
+        warnings: Vec::new(),
     }
 }
 

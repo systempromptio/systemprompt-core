@@ -11,12 +11,10 @@ use tokio::runtime::Handle;
 use super::bind::{Bind, bind_candidate, persist_and_announce, portfile_port};
 use super::identity::InstallId;
 use super::peer::{self, PeerIdentity};
+use super::refresh::refresh_loop;
 use super::session::SessionContext;
 use super::token_cache::{AuthState, TokenCache};
-use super::{
-    DEFAULT_PROXY_PORT, LoopbackEndpoint, REFRESH_THRESHOLD_SECS, REFRESH_TICK, ServedProxy,
-    portfile, secret, server,
-};
+use super::{DEFAULT_PROXY_PORT, LoopbackEndpoint, ServedProxy, portfile, secret, server};
 use systemprompt_identifiers::SessionId;
 
 use crate::activity::ActivityLog;
@@ -301,17 +299,5 @@ fn runtime_config_or_default(faults: &mut Vec<StartupFault>) -> SharedRuntimeCon
             faults.push(StartupFault::new("config", e));
             config::shared_from_config(&config::Config::default())
         },
-    }
-}
-
-async fn refresh_loop(cache: Arc<TokenCache>) {
-    let mut interval = tokio::time::interval(REFRESH_TICK);
-    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-    interval.tick().await;
-    loop {
-        interval.tick().await;
-        if let Err(e) = cache.refresh_if_cached(REFRESH_THRESHOLD_SECS).await {
-            tracing::debug!(error = %e, "token refresh tick did not renew");
-        }
     }
 }

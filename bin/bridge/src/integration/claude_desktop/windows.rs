@@ -180,8 +180,11 @@ fn require_org_plugins_provisioned(elevated: bool) -> std::io::Result<ProfileIns
                 std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
             },
         )?;
+        // Why: PermissionDenied is the check's verdict (the unelevated user
+        // lacks Modify), not a failure to run it — that must fail the install.
         Ok(match crate::windows_acl::verify_modify_tree(&org.path) {
             Ok(()) => ProfileInstalled::ok(),
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => return Err(e),
             Err(e) => {
                 tracing::warn!(
                     error = %e,

@@ -7,6 +7,14 @@
 //! idempotent `OnceLock` guards, so a non-CLI entry (API, tests) can build a
 //! context self-sufficiently while a CLI that already ran them sees a no-op.
 //!
+//! Upstreams publish and retire models without an operator edit, so the
+//! provider registry is augmented at boot from their live listings
+//! (`discover_vertex_models`). That pass is fail-open: a provider no catalog
+//! source recognises or a missing or unusable credential leaves the YAML
+//! catalog exactly as authored. Which providers are discoverable is decided by
+//! the loader's catalog sources from the credential their secret parses into —
+//! this layer only supplies the secrets and the budget.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -115,24 +123,11 @@ pub(super) async fn init_core(
     })
 }
 
-/// Upstreams publish and retire models without an operator edit, so the
-/// registry is augmented at boot from their live listings. Everything here is
-/// fail-open: a provider no catalog source recognises, a missing or unusable
-/// credential, or `SYSTEMPROMPT_VERTEX_DISCOVERY=0` all leave the YAML catalog
-/// exactly as authored.
-///
-/// Which providers are discoverable is decided by the catalog sources in the
-/// loader, from the credential their secret parses into — this layer only
-/// supplies the secrets and the budget.
 pub async fn discover_vertex_models(
     providers: &mut systemprompt_models::services::ProviderRegistry,
 ) -> systemprompt_models::services::DiscoveryReport {
     use systemprompt_models::services::DiscoveryReport;
 
-    if std::env::var("SYSTEMPROMPT_VERTEX_DISCOVERY").is_ok_and(|v| v == "0") {
-        tracing::debug!("Vertex model discovery disabled by SYSTEMPROMPT_VERTEX_DISCOVERY=0");
-        return DiscoveryReport::default();
-    }
     let Ok(secrets) = SecretsBootstrap::get() else {
         tracing::warn!("secret store unavailable; skipping Vertex model discovery");
         return DiscoveryReport::default();

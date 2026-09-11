@@ -9,9 +9,19 @@
 //! modality.
 //!
 //! So the rule is in two halves. Shape rules out what cannot be called at all
-//! (a checkpoint with a `deploy` action; a partner entry that is not MaaS).
+//! (a checkpoint with a `deploy` action; a partner entry that is not `MaaS`).
 //! The rate card rules in what we are willing to serve — it is the only place
 //! that knows `gemini-2.5-flash` is chat and `gemini-embedding-001` is not.
+//!
+//! Shape (`is_serverless`): Google's own publisher is served serverlessly
+//! across the board, so shape says nothing there and everything is a
+//! candidate. A partner model qualifies only as `MaaS` — the `-maas` suffix
+//! Vertex gives every serverless partner model, the third-party OSS category,
+//! and no actions of its own. Anything with a `deploy` action is a checkpoint.
+//!
+//! Pricing (`classify_discovered`) knows nothing about who listed the model;
+//! every [`CatalogSource`](super::source::CatalogSource) is judged by exactly
+//! this rule, on the provider-agnostic [`DiscoveredModel`] shape.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +31,6 @@ use systemprompt_models::services::{VertexRateCard, VertexRateCardEntry};
 
 use super::source::{DiscoveredModel, LaunchStage};
 
-/// The MaaS suffix Vertex gives every serverless partner model.
 const MAAS_SUFFIX: &str = "-maas";
 
 const THIRD_PARTY_OSS: &str = "THIRD_PARTY_OWNED_OSS";
@@ -30,7 +39,9 @@ const GOOGLE_PUBLISHER: &str = "google";
 
 const GA: &str = "GA";
 
-/// One entry of `publisherModels`.
+/// One entry of `publisherModels`, named
+/// `publishers/{publisher}/models/{model}`; the rate card names an upstream as
+/// `{publisher}/{model}`.
 ///
 /// Unknown fields are ignored on purpose: the listing carries presentation
 /// data (notebook links, container specs, regional availability) that grows
@@ -55,7 +66,6 @@ pub struct PublisherModel {
 }
 
 impl PublisherModel {
-    /// The publisher segment of `publishers/{publisher}/models/{model}`.
     #[must_use]
     pub fn publisher(&self) -> &str {
         let mut parts = self.name.split('/');
@@ -66,13 +76,11 @@ impl PublisherModel {
         }
     }
 
-    /// The model segment of `publishers/{publisher}/models/{model}`.
     #[must_use]
     pub fn model_name(&self) -> &str {
         self.name.rsplit('/').next().unwrap_or(&self.name)
     }
 
-    /// `{publisher}/{model}` — how the rate card names an upstream.
     #[must_use]
     pub fn upstream(&self) -> String {
         format!("{}/{}", self.publisher(), self.model_name())
@@ -83,8 +91,6 @@ impl PublisherModel {
         self.launch_stage == GA
     }
 
-    /// Reduce a Vertex listing entry to the provider-agnostic shape the
-    /// pricing decision is made on.
     #[must_use]
     pub fn discovered(&self) -> DiscoveredModel {
         DiscoveredModel {
@@ -111,12 +117,6 @@ impl PublisherModel {
     }
 }
 
-/// Whether this entry can be called without deploying anything first.
-///
-/// Google's own publisher is served serverlessly across the board, so shape
-/// says nothing there and everything is a candidate; the rate card does the
-/// picking. A partner model qualifies only as MaaS: the `-maas` suffix, the
-/// third-party OSS category, and no actions of its own.
 #[must_use]
 pub fn is_serverless(model: &PublisherModel) -> bool {
     if model.is_deployable_checkpoint() {
@@ -131,19 +131,18 @@ pub fn is_serverless(model: &PublisherModel) -> bool {
 }
 
 /// What discovery decided about one listing entry.
+///
+/// Not serverless (needs a deploy, or not a `MaaS` partner model); callable
+/// but unpriced by the rate card, so never served; priced but not GA with a
+/// card entry that does not opt into previews; or priced and publishable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Classification {
-    /// Cannot be called without deploying it, or is not a MaaS partner model.
     NotServerless,
-    /// Callable, but the rate card does not price it — so we will not serve it.
     Unpriced,
-    /// Priced, but not GA and its card entry does not opt into previews.
     PreviewWithheld,
-    /// Priced and publishable.
     Publish,
 }
 
-/// Classify one entry against the rate card of one provider.
 #[must_use]
 pub fn classify<'a>(
     model: &PublisherModel,
@@ -153,9 +152,6 @@ pub fn classify<'a>(
     classify_discovered(&model.discovered(), card, provider)
 }
 
-/// The pricing decision itself, which knows nothing about who listed the
-/// model — every [`CatalogSource`](super::source::CatalogSource) is judged by
-/// exactly this rule.
 #[must_use]
 pub fn classify_discovered<'a>(
     model: &DiscoveredModel,

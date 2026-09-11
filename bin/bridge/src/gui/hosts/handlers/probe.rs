@@ -106,9 +106,6 @@ pub(crate) fn on_probe_finished(
     finish(app, Ok(json!({ "snapshot": value })), reply_to);
 }
 
-/// True once the last sync left a Cowork warning for this host and Cowork's
-/// session directory has since appeared, i.e. the one step the operator was
-/// asked to take has happened and the enable half can run now.
 fn cowork_session_now_available(app: &GuiApp, host_id: &HostId) -> bool {
     if host_id.as_str() != crate::integration::cowork_plugins::CoworkSync.host_id() {
         return false;

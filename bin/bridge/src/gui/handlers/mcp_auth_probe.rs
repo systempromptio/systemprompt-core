@@ -49,11 +49,11 @@ pub(crate) fn on_mcp_auth_probe_finished(
 ) {
     match results {
         McpProbeResults::All(results) => {
-            remember_tools(&results);
+            remember_tools(app, &results);
             app.state.apply_mcp_auth(results);
         },
         McpProbeResults::One(Some(result)) => {
-            remember_tools(std::slice::from_ref(&result));
+            remember_tools(app, std::slice::from_ref(&result));
             app.state.apply_mcp_auth_one(result);
         },
         McpProbeResults::One(None) => app.state.apply_mcp_auth(Vec::new()),
@@ -88,8 +88,12 @@ pub(crate) fn on_mcp_auth_probe_finished(
 
 // Why: the desktop tool policy is written from this same tool list; every
 // probe that reaches a server keeps the catalog current between syncs.
-fn remember_tools(results: &[mcp_probe::McpServerAuth]) {
+fn remember_tools(app: &GuiApp, results: &[mcp_probe::McpServerAuth]) {
     if let Err(e) = crate::install::mdm::tool_catalog::record(results) {
         tracing::warn!(error = %e, "mcp tool catalog not updated from probe");
+        app.append_log_warn(format!(
+            "tool catalog not updated from the probe ({e}); the desktop tool policy keeps its \
+             last names"
+        ));
     }
 }

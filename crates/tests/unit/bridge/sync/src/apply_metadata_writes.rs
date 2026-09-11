@@ -175,7 +175,8 @@ fn an_empty_managed_server_list_writes_an_empty_json_array() {
 fn writing_the_server_fragment_into_a_directory_that_is_not_there_reports_the_path() {
     sandbox(|home| {
         let absent = home.join("no-such-metadata-dir");
-        let err = write_mcp_servers(&absent, &gateway(), &[]).expect_err("the directory does not exist");
+        let err =
+            write_mcp_servers(&absent, &gateway(), &[]).expect_err("the directory does not exist");
         assert!(
             err.to_string().contains("mcp-servers.json"),
             "the error must name the fragment it failed to write, got {err}"

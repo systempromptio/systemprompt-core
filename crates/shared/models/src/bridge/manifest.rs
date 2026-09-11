@@ -228,6 +228,13 @@ pub struct HookEntry {
     pub sha256: Sha256Digest,
 }
 
+/// An MCP server the bridge provisions into a managed client.
+///
+/// `tool_policy` decides per tool; the key `*` (`TOOL_POLICY_WILDCARD`) stands
+/// for every tool the server exposes. `policy_for_tool` resolves a tool to
+/// its own entry, else the wildcard entry, else `None` — in which case the
+/// client keeps its own default. `default_tool_policy` is the wildcard
+/// decision alone.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(from = "ManagedMcpServerWire")]
 pub struct ManagedMcpServer {
@@ -245,11 +252,8 @@ pub struct ManagedMcpServer {
 }
 
 impl ManagedMcpServer {
-    /// Key in `tool_policy` that stands for every tool the server exposes.
     pub const TOOL_POLICY_WILDCARD: &'static str = "*";
 
-    /// The decision for one tool: its own entry, else the wildcard entry,
-    /// else `None` (the client keeps its own default).
     #[must_use]
     pub fn policy_for_tool(&self, tool: &str) -> Option<ToolPolicy> {
         let map = self.tool_policy.as_ref()?;
@@ -262,7 +266,6 @@ impl ManagedMcpServer {
             .map(|(_, policy)| *policy)
     }
 
-    /// The wildcard decision alone.
     #[must_use]
     pub fn default_tool_policy(&self) -> Option<ToolPolicy> {
         self.policy_for_tool(Self::TOOL_POLICY_WILDCARD)

@@ -1,5 +1,9 @@
 //! Splicing bridge-owned permission rules into a `permissions` object
-//! without touching the rules a person put there.
+//! without touching the rules a person put there: the rules the bridge wrote
+//! last time are removed from each list first, then the new rules appended;
+//! every other rule and every other key (`defaultMode`,
+//! `additionalDirectories`, …) is kept as found. An object with nothing left
+//! in it is dropped rather than written empty.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,10 +12,6 @@ use serde_json::Value;
 
 use super::PermissionRules;
 
-/// Returns the `permissions` value to write, or `None` when nothing is left
-/// in it. Rules in `previously_ours` are removed from each list first, then
-/// `rules` are appended; every other rule and every other key (`defaultMode`,
-/// `additionalDirectories`, …) is kept as found.
 #[must_use]
 pub fn merged_permissions(
     existing: Option<&Value>,

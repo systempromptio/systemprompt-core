@@ -15,6 +15,7 @@ use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{HookEntry, PluginEntry, PluginFile, SignedManifest};
 use crate::hash::{normalise_relative, safe_plugin_id, sha256_hex};
+use crate::host_sync::HostWarning;
 use crate::ids::Sha256Digest;
 use crate::proxy::LoopbackEndpoint;
 use futures_util::StreamExt;
@@ -40,16 +41,6 @@ pub(crate) struct PluginApplyOutcome {
 pub struct HostFailure {
     pub host_id: String,
     pub error: String,
-}
-
-/// A host sync that completed but could not do everything it exists to do —
-/// the run is not partial, yet the operator has something to act on.
-#[derive(Debug, Clone, serde::Serialize)]
-#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
-pub struct HostWarning {
-    pub host_id: String,
-    pub message: String,
 }
 
 #[tracing::instrument(level = "debug", skip(ctx, manifest))]

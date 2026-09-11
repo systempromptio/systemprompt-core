@@ -1,4 +1,7 @@
 //! Inference of a single JSON-Schema type name from a set of literal values.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::SchemaSanitizer;
 use serde_json::Value;

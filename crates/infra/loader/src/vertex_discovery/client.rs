@@ -3,7 +3,18 @@
 //! `GET {host}/v1beta1/publishers/{publisher}/models?pageSize=300`, bearer
 //! token, following `nextPageToken` until the catalog is exhausted. The page
 //! size is Vertex's maximum — 301 is rejected with HTTP 400 — so it is written
-//! as a constant rather than tuned.
+//! as a constant rather than tuned. A page is followed at most `MAX_PAGES`
+//! times, so a `nextPageToken` that never clears cannot hold boot open until
+//! the caller's timeout fires.
+//!
+//! `host` is the origin only (`https://us-central1-aiplatform.googleapis.com`).
+//! Errors are human-readable reasons, not typed: every caller puts them
+//! straight into the discovery report. `list_all` collects failures per
+//! publisher rather than stopping at the first — a publisher we are not
+//! entitled to answers 403, and that must not cost us the publishers we are
+//! entitled to — formatted in exactly the shape
+//! [`DiscoveryReport::failed_publishers`](systemprompt_models::services::DiscoveryReport)
+//! carries.
 //!
 //! What comes back is Google's *global* catalog, not "what this project may
 //! call": there is no project-scoped listing endpoint (the obvious
@@ -18,11 +29,8 @@ use serde::Deserialize;
 
 use super::classify::PublisherModel;
 
-/// Vertex rejects anything above 300 with HTTP 400.
 const PAGE_SIZE: &str = "300";
 
-/// A page is followed only this many times, so a `nextPageToken` that never
-/// clears cannot hold boot open until the caller's timeout fires.
 const MAX_PAGES: usize = 20;
 
 #[derive(Debug, Default, Deserialize)]
@@ -35,11 +43,6 @@ struct ListPage {
     next_page_token: Option<String>,
 }
 
-/// List every model one publisher offers, following pagination.
-///
-/// `host` is the origin only (`https://us-central1-aiplatform.googleapis.com`).
-/// The error is a human-readable reason, not a typed error: every caller puts
-/// it straight into the discovery report.
 pub async fn list_publisher_models(
     http: &reqwest::Client,
     host: &str,
@@ -88,14 +91,6 @@ pub async fn list_publisher_models(
     ))
 }
 
-/// List every publisher a provider prices, collecting failures rather than
-/// stopping at the first one.
-///
-/// A publisher we are not entitled to answers 403, and that must not cost us
-/// the publishers we are entitled to — so the failure is formatted here, in
-/// exactly the shape it takes in
-/// [`DiscoveryReport::failed_publishers`](systemprompt_models::services::DiscoveryReport),
-/// and the loop continues.
 pub async fn list_all(
     http: &reqwest::Client,
     host: &str,

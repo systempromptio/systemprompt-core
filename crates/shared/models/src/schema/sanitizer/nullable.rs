@@ -1,5 +1,8 @@
 //! Nullable normalisation: JSON-Schema `null` type members and `anyOf` null
 //! variants become a `nullable` flag on the owning node.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::SchemaSanitizer;
 use serde_json::{Map, Value};

@@ -45,6 +45,13 @@ struct CachedEntry {
     stamp_checked_at: tokio::time::Instant,
 }
 
+/// The cached gateway token and its refresh machinery.
+///
+/// A `generation` receiver fires on every reset; a long-lived upstream
+/// connection holds one and drops the connection when it fires.
+/// `credential_proven` releases the sign-in latch on live proof that the
+/// credential mints (the GUI probe just obtained a token), so whatever
+/// rejected the previous one was not the credential.
 #[expect(
     missing_debug_implementations,
     reason = "holds a `dyn Fn -> Pin<Box<Future>>` refresh callback; cannot derive Debug"
@@ -72,8 +79,6 @@ impl TokenCache {
         }
     }
 
-    /// A receiver that fires on every [`Self::reset`]; hold one across a
-    /// long-lived upstream connection and drop the connection when it fires.
     #[must_use]
     pub fn generation(&self) -> tokio::sync::watch::Receiver<u64> {
         self.generation.subscribe()
@@ -89,9 +94,6 @@ impl TokenCache {
         self.latch.engaged()
     }
 
-    /// Releases the sign-in latch on live proof that the credential mints:
-    /// the GUI probe just obtained a token from the gateway, so whatever
-    /// rejected the previous one was not the credential.
     pub fn credential_proven(&self) {
         self.latch.release();
     }

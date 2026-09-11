@@ -6,7 +6,11 @@
 //! names tools one by one. The bridge already learns the names through its
 //! MCP auth probe (`initialize` → `tools/list`); this file remembers them so
 //! a policy write never depends on the server answering at that moment. A
-//! server that fails a probe keeps the names it reported last time.
+//! server that fails a probe keeps the names it reported last time. An
+//! absent file is an empty catalog; an unreadable or corrupt one is an error,
+//! never an empty catalog, so a transient read failure cannot wipe every
+//! server's names on the next write. Servers that leave the manifest are
+//! dropped so a retired server's names never leak into a later policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,31 +28,27 @@ fn path() -> Option<PathBuf> {
     crate::config::paths::bridge_metadata_dir().map(|dir| dir.join(FILE))
 }
 
-/// The catalog as last written; empty when nothing was ever recorded or the
-/// file cannot be read (the policy then carries no `toolPolicy`, and the
-/// client falls back to asking — never a wrong decision, only a missing one).
-#[must_use]
-pub fn read() -> ToolCatalog {
+pub fn read() -> std::io::Result<ToolCatalog> {
     let Some(path) = path() else {
-        return ToolCatalog::new();
+        return Ok(ToolCatalog::new());
     };
     match std::fs::read_to_string(&path) {
-        Ok(body) => serde_json::from_str(&body).unwrap_or_else(|e| {
-            tracing::warn!(path = %path.display(), error = %e, "mcp tool catalog unreadable; ignoring");
-            ToolCatalog::new()
+        Ok(body) => serde_json::from_str(&body).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("{}: {e}", path.display()),
+            )
         }),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => ToolCatalog::new(),
-        Err(e) => {
-            tracing::warn!(path = %path.display(), error = %e, "mcp tool catalog unreadable; ignoring");
-            ToolCatalog::new()
-        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(ToolCatalog::new()),
+        Err(e) => Err(std::io::Error::new(
+            e.kind(),
+            format!("{}: {e}", path.display()),
+        )),
     }
 }
 
-/// Folds probe results into the catalog: an authenticated answer replaces
-/// that server's names, anything else leaves them as they were.
 pub fn record(results: &[McpServerAuth]) -> std::io::Result<ToolCatalog> {
-    let mut catalog = read();
+    let mut catalog = read()?;
     for result in results {
         if result.state != McpAuthState::Authenticated || result.id.is_empty() {
             continue;
@@ -65,10 +65,8 @@ pub fn record(results: &[McpServerAuth]) -> std::io::Result<ToolCatalog> {
     Ok(catalog)
 }
 
-/// Drops servers no longer managed so a retired server's names never leak
-/// into a later policy.
 pub fn retain(slugs: &[String]) -> std::io::Result<()> {
-    let mut catalog = read();
+    let mut catalog = read()?;
     let before = catalog.len();
     catalog.retain(|slug, _| slugs.contains(slug));
     if catalog.len() == before {

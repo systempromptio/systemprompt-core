@@ -1,12 +1,18 @@
-//! Claude Desktop's per-tool `toolPolicy`: the manifest's decision for a
-//! managed server, expanded over the tool names the server last reported.
+//! Claude Desktop's per-tool `toolPolicy`.
+//!
+//! The manifest's decision for a managed server, expanded over the tool names
+//! the server last reported. Desktop spells the decisions `allow` / `ask` /
+//! `blocked`. The manifest wildcard applies to every name the tool catalog
+//! knows for that server, and a named tool's own entry wins over the wildcard.
+//! A wildcard `deny` is not expanded: it withholds the server from the policy
+//! (`denied_outright`), because a name the catalog has not seen would
+//! otherwise fall back to asking.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 
-/// Claude Desktop's spelling of a manifest decision.
 #[must_use]
 pub const fn desktop_tool_policy(
     policy: systemprompt_models::bridge::ids::ToolPolicy,
@@ -19,9 +25,16 @@ pub const fn desktop_tool_policy(
     }
 }
 
-/// Expands a server's manifest decisions into Desktop's per-tool map: the
-/// wildcard applies to every name the tool catalog knows for that server,
-/// and a named tool's own entry wins over the wildcard.
+#[must_use]
+pub fn denied_outright(upstream: &crate::mcp_registry::McpUpstream) -> bool {
+    use systemprompt_models::bridge::ids::ToolPolicy;
+    use systemprompt_models::bridge::manifest::ManagedMcpServer;
+    upstream
+        .tool_policy
+        .get(ManagedMcpServer::TOOL_POLICY_WILDCARD)
+        .is_some_and(|policy| *policy == ToolPolicy::Deny)
+}
+
 #[must_use]
 pub fn desktop_tool_policy_map(
     upstream: &crate::mcp_registry::McpUpstream,

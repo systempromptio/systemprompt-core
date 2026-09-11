@@ -50,7 +50,6 @@ pub enum HostUiEvent {
     },
     ProfileInstallFinished {
         host_id: HostId,
-        /// The installed profile path plus any warnings the host raised.
         result: Result<(String, Vec<String>), Arc<GuiError>>,
         reply_to: ReplyId,
     },

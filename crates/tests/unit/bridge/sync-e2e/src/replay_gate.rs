@@ -16,6 +16,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 struct Sandbox {
+    gateway_uri: String,
     config_file: PathBuf,
     config_home: PathBuf,
     cache_home: PathBuf,
@@ -118,6 +119,7 @@ fn build_sandbox(gateway_uri: &str) -> Sandbox {
     let system_org_plugins = crate::unwritable_system_org_plugins(base);
     let metadata = state_home.join("systemprompt-bridge").join("metadata");
     Sandbox {
+        gateway_uri: gateway_uri.to_owned(),
         config_file,
         config_home,
         cache_home,
@@ -189,6 +191,7 @@ fn a_manifest_version_not_newer_than_the_last_applied_one_is_rejected() {
     write_sentinel(
         &sandbox,
         &serde_json::json!({
+            "gateway": sandbox.gateway_uri,
             "last_applied_manifest_version": m.manifest_version.to_string(),
         })
         .to_string(),

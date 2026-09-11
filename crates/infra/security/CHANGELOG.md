@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Added
+
+- `credential`: one model for upstream-provider credentials. A stored secret is parsed once into `ProviderCredential::{Bearer, ApiKey, GoogleServiceAccount}` (`parse`, `kind`, `scope`, `bearer(cache_key)`, `fill_endpoint`); `CredentialScope { project, region, principal }` is what the credential knows about where it points, and `fill_endpoint` substitutes `{project}` / `{region}` from it or refuses an endpoint whose coordinate the credential cannot supply. `AuthHeader` / `AuthScheme` carry the header, `ApiKeySecret` redacts its `Debug`, `CredentialError` is the typed error, and `credential::cache` holds a process-wide bearer cache with the TTL clamped to a floor and ceiling (`clamp_ttl`, `token_for`).
+- `google`: the RFC 7523 JWT-bearer exchange that turns a service-account key into a Google OAuth access token, moved here from the api crate so the loader can mint a token for catalog discovery. `ServiceAccountKey::parse` returns `Result<Option<Self>, CredentialError>` and `access_token` a cached `AuthHeader`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

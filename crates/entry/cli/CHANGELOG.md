@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Added
+
+- `admin config catalog discovery` prints the last Vertex discovery report: one row per model with `upstream_or_id`, `state` (`served`, `unpriced`, `priced-not-published`, `explicit`, `retiring`) and the rate card's `retires_on`, followed by `ran_at` and any failed publishers as notes. It reads the daily job's report first and falls back to the boot-time one. The display lives in `admin::config::catalog_discovery`; `discovery_rows` stays re-exported from `catalog`.
+- `CommandDescriptor::with_model_discovery` / `discovers_models`. Only `infra services serve|start` carry the flag; `init_paths` installs the services registry through the runtime's discovery pass for them and through the plain load for every other command, so no other command reaches for the network.
+
+### Fixed
+
+- `infra services serve|start` served only the YAML catalog. The runner's bootstrap installed the process-wide registry with `ServicesBootstrap::try_init` before the runtime reached `try_init_with_discovery`, so the discovery pass was a silent no-op on every boot and the daily job reported the same priced models "will be served after the next restart" on each restart.
+- `core content edit` without `--identifier` in an interactive terminal panicked (`Handle::block_on` inside the runtime) instead of prompting; the candidate list is fetched on the async path before the prompt.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

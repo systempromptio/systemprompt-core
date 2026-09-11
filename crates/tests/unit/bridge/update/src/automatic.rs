@@ -13,14 +13,21 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
         .block_on(fut)
 }
 
-fn seed_last_sync(state: &TempDir, auto_update: &str) {
+fn seed_last_sync(state: &TempDir, gateway: &ValidatedUrl, auto_update: &str) {
     let meta = state.path().join("systemprompt-bridge").join("metadata");
     std::fs::create_dir_all(&meta).expect("metadata dir");
     std::fs::write(
         meta.join("last-sync.json"),
-        format!("{{\"auto_update\":\"{auto_update}\"}}"),
+        serde_json::json!({ "gateway": gateway, "auto_update": auto_update }).to_string(),
     )
     .expect("seed last-sync");
+    let config_dir = state.path().join("systemprompt");
+    std::fs::create_dir_all(&config_dir).expect("config dir");
+    std::fs::write(
+        config_dir.join("systemprompt-bridge.toml"),
+        format!("gateway_url = \"{gateway}\"\n"),
+    )
+    .expect("seed config");
 }
 
 fn in_sandbox<R>(state: &TempDir, f: impl FnOnce() -> R) -> R {
@@ -59,9 +66,9 @@ fn requests(server: &MockServer) -> Vec<wiremock::Request> {
 #[test]
 fn a_disabled_policy_stops_the_update_before_the_gateway_is_contacted() {
     let state = TempDir::new().expect("state");
-    seed_last_sync(&state, "disabled");
     let server = release_server("99.0.0");
     let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
+    seed_last_sync(&state, &gateway, "disabled");
     let http = reqwest::Client::new();
 
     in_sandbox(&state, || {
@@ -81,9 +88,9 @@ fn a_disabled_policy_stops_the_update_before_the_gateway_is_contacted() {
 #[test]
 fn a_gateway_with_no_newer_release_fetches_once_and_installs_nothing() {
     let state = TempDir::new().expect("state");
-    seed_last_sync(&state, "staged");
     let server = release_server("0.0.1");
     let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
+    seed_last_sync(&state, &gateway, "staged");
     let http = reqwest::Client::new();
 
     in_sandbox(&state, || {
@@ -110,7 +117,6 @@ fn a_gateway_with_no_newer_release_fetches_once_and_installs_nothing() {
 #[test]
 fn a_gateway_that_cannot_answer_leaves_the_installed_binary_alone() {
     let state = TempDir::new().expect("state");
-    seed_last_sync(&state, "staged");
     let server = block_on(async {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
@@ -121,6 +127,7 @@ fn a_gateway_that_cannot_answer_leaves_the_installed_binary_alone() {
         server
     });
     let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
+    seed_last_sync(&state, &gateway, "staged");
     let http = reqwest::Client::new();
 
     in_sandbox(&state, || {

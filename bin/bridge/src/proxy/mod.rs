@@ -15,6 +15,7 @@ pub mod loopback;
 pub mod mcp_probe;
 pub mod peer;
 pub mod portfile;
+mod refresh;
 pub mod secret;
 pub mod server;
 pub mod session;

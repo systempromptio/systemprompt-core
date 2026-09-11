@@ -1,7 +1,10 @@
 //! Vertex AI as a [`CatalogSource`].
 //!
 //! Everything Google-specific about discovery is here: the host suffix that
-//! identifies a Vertex endpoint, the rule that only a Google service-account
+//! identifies a Vertex endpoint (every Vertex host ends in
+//! `aiplatform.googleapis.com`; an endpoint that does not is some other
+//! provider using a Google-shaped credential and is left alone — `vertex_host`
+//! returns its origin, or `None`), the rule that only a Google service-account
 //! key can list one, and the Model Garden listing call itself. The rate card
 //! is held because it decides which publishers are worth asking about at all —
 //! a provider the card prices nothing for has nothing to discover.
@@ -18,8 +21,6 @@ use systemprompt_security::credential::{
 use super::client;
 use super::source::{CatalogListing, CatalogSource, DiscoveryError};
 
-/// Every Vertex host ends this way; an endpoint that does not is some other
-/// provider using a Google-shaped credential and is left alone.
 const VERTEX_HOST_SUFFIX: &str = "aiplatform.googleapis.com";
 
 #[derive(Debug)]
@@ -38,7 +39,6 @@ impl VertexCatalog {
     }
 }
 
-/// The origin of a Vertex endpoint, or `None` if it is not a Vertex host.
 #[must_use]
 pub fn vertex_host(endpoint: &str) -> Option<String> {
     let url = url::Url::parse(endpoint).ok()?;

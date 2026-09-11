@@ -1,12 +1,15 @@
 //! Cowork session and bridge working-directory locations.
 //!
+//! `CLAUDE_MSIX_FAMILY` is the package family of the Store (MSIX) build of
+//! Claude Desktop; its `%LOCALAPPDATA%` is virtualised under
+//! `Packages\<family>\LocalCache`, so that root is probed alongside the
+//! plain one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 
-/// Package family of the Store (MSIX) build of Claude Desktop. Its
-/// `%LOCALAPPDATA%` is virtualised under `Packages\<family>\LocalCache`.
 pub const CLAUDE_MSIX_FAMILY: &str = "Claude_pzs8sxrjxfjjc";
 
 #[must_use]

@@ -99,7 +99,8 @@ fn a_fragment_written_for_another_gateway_is_not_rehydrated() {
 
     let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
-        rehydrate_from_disk(&slot, &gateway()).expect("a foreign fragment is skipped, not an error");
+        rehydrate_from_disk(&slot, &gateway())
+            .expect("a foreign fragment is skipped, not an error");
         assert!(
             sorted_keys(&slot).is_empty(),
             "servers delivered by another gateway never enter this gateway's registry"

@@ -61,11 +61,11 @@ pub fn check_file(path: &Path, origin: &str) -> Check {
             "routing differs from this bridge; re-enrol if this file should use the gateway",
         );
     }
-    if root
+    let helper_present = root
         .get("apiKeyHelper")
         .and_then(serde_json::Value::as_str)
-        .is_none_or(str::is_empty)
-    {
+        .is_some_and(|helper| !helper.is_empty());
+    if !helper_present {
         return fail("missing credential helper; run install --host claude-code");
     }
     Check::ok(

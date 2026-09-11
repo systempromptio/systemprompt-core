@@ -253,16 +253,18 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
     assert_eq!(inputs.organization_uuid, Some("org-1234".to_owned()));
     assert_eq!(
         inputs.models,
-        vec!["gpt-5".to_owned(), "gpt-5-mini".to_owned()],
-        "only the models on Codex's own surface are offered"
+        vec![
+            "gpt-5".to_owned(),
+            "gpt-5-mini".to_owned(),
+            "claude-opus-4-7".to_owned()
+        ],
+        "every servable model is offered to a host with no surface restriction"
     );
-    assert_eq!(
-        inputs
+    assert!(
+        !inputs
             .headers
-            .get(systemprompt_identifiers::headers::INFERENCE_PROTOCOL)
-            .map(String::as_str),
-        Some("openai"),
-        "the surface header names the protocol the host speaks: {:?}",
+            .contains_key(systemprompt_identifiers::headers::INFERENCE_PROTOCOL),
+        "no surface restriction means no protocol header: {:?}",
         inputs.headers
     );
 }

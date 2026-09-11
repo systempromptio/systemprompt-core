@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Removed
+
+- The A2A push-notification config surface: the `tasks/pushNotificationConfig/{set,get,list,delete}` handlers and their `A2aRequestParams` variants, `PushNotificationConfig`, `TaskPushNotificationConfig`, the `*TaskPushNotificationConfig{Request,Response,Params}` types, `PushNotificationNotSupportedError`, `PushNotificationConfigRepository` and its `push_notification_configs` field on the repository set, `MessageSendConfiguration.push_notification_config`, `TaskResubscriptionRequest.config`, and the `task_push_notification_configs` schema. Migration `011_drop_task_push_notification_configs` drops the table. The configs were stored but never delivered; the four methods now answer method-not-found and a `pushNotificationConfig` on `message/send` or `message/stream` is ignored.
+
 ## [0.50.0] - 2026-09-10
 
 ### Fixed

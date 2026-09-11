@@ -13,6 +13,7 @@ const fn report(display_name: &'static str, outcome: Outcome) -> Report {
         display_name,
         install_action_label: "loaded into managed preferences",
         outcome,
+        warnings: Vec::new(),
     }
 }
 

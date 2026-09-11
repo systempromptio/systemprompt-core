@@ -8,7 +8,12 @@
 //! One retry, and only one. A connect failure or a 5xx is the identity
 //! provider being briefly unavailable, which is the case a single retry fixes;
 //! a 4xx is a credential an operator has to change, and retrying it only
-//! doubles the rate-limit pressure on a key that is already refused.
+//! doubles the rate-limit pressure on a key that is already refused. The
+//! backoff is fixed and un-jittered: with at most one retry there is no
+//! thundering herd for jitter to spread out.
+//!
+//! The response body is returned as text rather than parsed here because each
+//! credential type reads a different response shape out of it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,8 +25,6 @@ use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_CONNECT_TIMEOUT};
 
 use super::error::CredentialError;
 
-/// Fixed, un-jittered: there is at most one retry, so there is no thundering
-/// herd for jitter to spread out.
 const RETRY_BACKOFF: Duration = Duration::from_millis(250);
 
 fn client() -> Result<&'static reqwest::Client, CredentialError> {
@@ -38,10 +41,6 @@ fn client() -> Result<&'static reqwest::Client, CredentialError> {
         .map_err(|e| CredentialError::Client(e.clone()))
 }
 
-/// POST a form to a token endpoint and return its body, or a typed reason.
-///
-/// The body is returned as text rather than parsed here because each
-/// credential type reads a different response shape out of it.
 pub(crate) async fn post_form(
     uri: &str,
     form: &[(&str, String)],
@@ -52,7 +51,7 @@ pub(crate) async fn post_form(
         let outcome = attempt_post(client, uri, form).await;
         let retryable = matches!(
             outcome,
-            Err(Retryable::Transport(_)) | Err(Retryable::Unavailable { .. })
+            Err(Retryable::Transport(_) | Retryable::Unavailable { .. })
         );
         if retryable && attempt == 0 {
             attempt += 1;
@@ -72,7 +71,6 @@ pub(crate) async fn post_form(
     }
 }
 
-/// One attempt's outcome, split by whether trying again could change it.
 enum Retryable {
     Transport(String),
     Unavailable { status: String, body: String },

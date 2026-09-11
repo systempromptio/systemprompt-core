@@ -2,19 +2,72 @@
 
 ## [0.51.0] - 2026-09-11
 
-### Fixed
+The Vertex catalog stops being a hand-written list. At boot the loader asks
+Model Garden which serverless models each publisher the embedded rate card
+names currently serves, prices them from that card, and merges the result
+into the provider registry; the YAML catalog remains authoritative for
+anything it declares. The rate card also records what Google's documentation
+says about each model's lifecycle, so a model that is retiring or leaving
+introductory pricing is warned about before the date arrives rather than
+discovered as a 404. Discovery is fail-open and boot-time only: a missing
+credential or an unrecognised provider leaves the catalog exactly as
+authored.
 
-- **CLI:** `core content edit` without `--identifier` in an interactive terminal panicked (`block_on` inside the runtime) instead of prompting for the content to edit.
-- **Models:** `GuardedClientConfig::max_redirects` follows exactly that many hops; it previously refused one hop early while reporting `more than N redirects`.
+Credential handling for upstream providers is one model. A stored secret is
+parsed once into a `ProviderCredential` that knows its own scope (project,
+principal) and its own auth header, and a Vertex endpoint carries
+`{project}` rather than a literal project id — an operator's Google Cloud
+project name was relayed to a third party's screen through a verbatim IAM
+error on 2026-09-11. On the bridge, everything a sync derives is keyed on the
+gateway that produced it, so switching gateways mid-sync no longer signs the
+user out of the new one, and tools on managed MCP servers are allowed by
+default instead of prompting on every call.
 
-### Removed
+### Breaking
 
-- **Agent:** the A2A push-notification config methods (`CreateTaskPushNotificationConfig`, `GetTaskPushNotificationConfig`, `ListTaskPushNotificationConfigs`, `DeleteTaskPushNotificationConfig`), `MessageSendConfiguration.push_notification_config`, `TaskResubscriptionRequest.config`, and the `task_push_notification_configs` table (migration 011). The configs were stored but never delivered; the methods now answer method-not-found and a `pushNotificationConfig` on `message/send` or `message/stream` is ignored.
+- **Security:** `systemprompt_security::google::ServiceAccountKey::parse` returns `Result<Option<Self>, CredentialError>` and `access_token` returns `Result<AuthHeader, CredentialError>`; both previously returned `anyhow::Result`. The api crate's `gateway::service::credentials::google::{ServiceAccountKey, access_token}` are now re-exports of the security crate's items.
+- **Models:** `ProviderRegistry::validate` refuses a catalog whose Vertex endpoint names a project literally (`ProviderRegistryError::LiteralProjectInEndpoint`); write `projects/{project}` and let the service-account key supply it. An endpoint that needs a project but is paired with a plain API key is refused at dispatch rather than guessed.
+- **Models:** every `VertexRateCardEntry` must carry `launch_stage`, `docs`, and optionally `released`, `retires_on`, `price_until`; a card missing them fails `VertexRateCard::validate`.
+- **Bridge:** `HostApp::install_profile` returns `ProfileInstalled { warnings }` instead of `()`; `SyncSummary` gains `host_warnings: Vec<HostWarning>`; `SyncError::Superseded` (exit code 13) is a new variant callers must match.
+- **Bridge:** `mcp-servers.json` and `last-sync.json` are stamped with the gateway that wrote them; an unstamped (0.50.0 and earlier) sentinel or fragment is ignored and rewritten by the next sync.
 
 ### Added
 
+- **Loader:** `vertex_discovery` — boot-time catalog discovery. `ServicesBootstrap::try_init_with_discovery` installs the registry through a `DiscoveryFuture`; `ServicesBootstrap::discovery_report()` exposes the result. `CatalogSource` is the provider-agnostic seam (one implementation per upstream, `vertex.rs` today); `default_sources`, `discover_with` (taking `Catalog { sources, card }`), `CatalogListing`, `DiscoveredModel`, `LaunchStage` and `DiscoveryError` are public. The listing is Google's global catalog, not the project's entitlements, so the rate card is both price list and allowlist: discovery publishes only listed ∩ priced ∩ supported, and `ServicesConfig` is validated again after the merge so an unpriced route is never installed.
+- **Models:** `services::providers::{VertexRateCard, VertexRateCardEntry, DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, DiscoveryReport}`. The embedded `vertex_rate_card.yaml` records `launch_stage`, `released`, `retires_on`, `price_until` and the documentation URL each entry was read from; `VertexRateCardEntry::is_supported(today)` is GA (or an explicit preview opt-in) and not retiring within `RETIREMENT_NOTICE_DAYS` (30). `DiscoveryReport` buckets `discovered_priced`, `discovered_unpriced`, `priced_not_published`, `explicit_wins`, `retiring` (serde default, so older reports still read) and `failed_publishers`. `PROJECT_PLACEHOLDER` / `REGION_PLACEHOLDER` and `names_a_project_literally` live beside the registry validator.
+- **Scheduler:** `vertex_discovery` job (`0 30 4 * * *`) re-lists against a throwaway clone of the booted registry, warns when a restart would serve more models, and warns `LIFECYCLE_NOTICE_DAYS` (60) ahead of any served model's `retires_on` or `price_until`. `jobs::vertex_discovery::{latest_report, lifecycle_notices}`.
+- **CLI:** `admin config catalog discovery` prints the last discovery report as a table (`upstream_or_id`, `state` ∈ served / unpriced / priced-not-published / explicit / retiring, `retires_on`) with `ran_at` and any failed publishers as notes. The display module is `admin/config/catalog_discovery.rs`; `discovery_rows` stays re-exported from `catalog`.
+- **Security:** `credential` module — `ProviderCredential::{Bearer, ApiKey, GoogleServiceAccount}` parsed once from a secret (`parse`, `kind`, `scope`, `bearer(cache_key)`, `fill_endpoint`), `CredentialScope { project, region, principal }`, `AuthHeader`/`AuthScheme`, `ApiKeySecret` (redacted `Debug`), `CredentialError`, and a process-wide TTL-clamped bearer cache. The Google RFC 7523 JWT-bearer exchange moves here as `security::google` so the loader can mint the token without depending on the api crate.
+- **Models:** `schema::gemini_invariants::gemini_declaration_violations` states every rule a Gemini function declaration must satisfy; every shape that has reached a Gemini or Vertex 400 is a corpus entry the sanitizer must pass.
+- **Bridge:** `ToolPolicy` on `McpDeployment.tool_policy` (`services/mcp/<id>.yaml`) projected to `ManagedMcpServer.tool_policy` as a `*` entry (`ManagedMcpServer::TOOL_POLICY_WILDCARD`, `policy_for_tool`, `default_tool_policy`). Claude Code receives `permissions.allow` rules (`mcp__<server>`, plus `mcp__plugin_<plugin>_<server>` for every plugin whose `.mcp.json` mirrors the server) in the managed settings file when writable and `~/.claude/settings.json` otherwise, tracked in a sidecar and withdrawn when the server leaves the manifest; Claude Desktop receives `managedMcpServers[].toolPolicy` for every tool the server reported to the auth probe, kept in `metadata/mcp-tools.json`. A person's own rules are never touched.
+- **Bridge:** host syncs can warn without failing (`SyncSummary.host_warnings`, the sync line's `— N warning(s)` suffix, a yellow Status row and activity-log entry). The Cowork emitter names the missing step when Claude Desktop is installed but Cowork has never been opened, the MSIX `LocalCache\Local\Claude-3p` session root is probed, and the desktop probe triggers the sync once the session directory appears.
+- **Bridge (Windows):** native Claude Code is enrolled through the gateway: `install --host claude-code` writes the managed settings and a PowerShell credential helper (`windows_helper_command`, `-EncodedCommand`); `doctor` gains a `claude code settings` check covering the policy, CLI and standalone settings paths, failing on a `forceLoginMethod`/`forceLoginOrgUUID` policy, a differing `ANTHROPIC_BASE_URL` or a missing `apiKeyHelper`.
 - **Docs:** `documentation/security/outbound-egress-controls.md` describes the parse-time and connect-time SSRF layers, their exemptions, and which outbound surface uses which.
 - **Testing:** `just test-ssrf-live` runs the real-DNS SSRF cases (`169.254.169.254.nip.io`, `metadata.google.internal`) that CI skips.
+
+### Changed
+
+- **Marketplace, Bridge:** tools on managed MCP servers are allowed by default — a deployment whose YAML sets no `tool_policy` carries `*: allow`; `prompt` and `deny` are opt-in per server or per tool. A wildcard `deny` withholds the server from Claude Desktop's managed list rather than expanding over the tool catalog (a tool the catalog has not seen cannot fall back to asking), and named `allow` rules under a wildcard `deny` are not written for Claude Code. The tool catalog is read fallibly: absent is empty, corrupt is an error that fails the policy write and is never rebuilt from empty; a failed catalog write surfaces as a host warning. Install warnings reach `install --host` and the reapply report; a Modify check that found the unelevated user without access fails the Windows install instead of warning.
+- **Gateway:** advertisement follows reachability. The bridge profile's flat `models` list and `GET /v1/models` carry the whole advertised catalog (backend providers still hidden); `x-inference-protocol` is still parsed and an unknown tag rejected, but it no longer narrows the response. Every bridge host inherits every advertised provider; Claude Desktop keeps its Claude-family filter as the single documented carve-out. `BridgeProfile.default_model` carries the gateway default, and OpenCode's default model comes from it rather than the first-listed provider.
+- **Gateway:** the Vertex project is derived from the service-account key's `project_id` at credential resolution (`fill_project`), never from the catalog.
+- **CLI:** only `infra services serve|start` install the services registry through model discovery (`CommandDescriptor::with_model_discovery`); every other command loads the plain YAML and never reaches for the network.
+- **Bridge:** a sync run is bound to its gateway. Before promoting a plugin or publishing the registry it re-reads the config and stops with `SyncError::Superseded` if the gateway moved — logged, never toasted as the new gateway's failure. Login, gateway change and logout cancel the in-flight run; a sync requested meanwhile is started when that run ends, so the new gateway is synced exactly once. Replay protection compares manifest versions only within one gateway; delivered policy (enabled hosts, auto-update) and the "last synced" line are read only from a sentinel stamped with the configured gateway. Only the gateway's own origin can latch sign-in; a 401 from a managed MCP upstream elsewhere drops the cached token and is relayed. The comms stream ends on every runtime-config swap and reconnects to the configured gateway.
+- **Bridge:** idle keep-alive sockets to the gateway are dropped after 15 s (was 90 s), and a managed-MCP request that fails at the connection level is replayed once on a fresh socket — a `tools/call` only when the connection never opened. The forward error carries reqwest's source chain so a stale socket reads differently from a down gateway. Replay lives in `proxy/forward/replay.rs` behind `UpstreamRequest`.
+
+### Fixed
+
+- **Gateway:** three Gemini declaration shapes still refused on 2026-09-11 (OpenCode's Atlassian tools): a JSON-Schema type list beside `anyOf` is split into typed variants so `items` follows the array; a composition variant left untyped by `$ref`/`const` stripping is typed from what it says or dropped; draft-4 tuple `items: [..]` and boolean `items` collapse to the one item object Gemini accepts. Anthropic and OpenAI wires are untouched.
+- **CLI:** `infra services serve|start` served only the YAML catalog: the runner installed the registry through the plain `try_init` before the runtime's discovery pass ran, so discovery was a no-op and the daily job reported the same seven models "will be served after the next restart" on every restart.
+- **CLI:** `core content edit` without `--identifier` in an interactive terminal panicked (`block_on` inside the runtime) instead of prompting for the content to edit.
+- **Models:** `GuardedClientConfig::max_redirects` follows exactly that many hops; it previously refused one hop early while reporting `more than N redirects`.
+- **Bridge (Windows):** running the bridge already elevated failed the Claude Desktop profile install with `org-plugins is not usable: … impersonation level … (os error 1346)` after the policy and directory grant had both succeeded; the Modify check now passes the linked token to `AccessCheck` as-is instead of duplicating it to `SecurityImpersonation`, and each Win32 step names itself in its error. A verification that cannot run after a successful provision is a warning, not a failed first-run step.
+- **Bridge:** the doctor's stale hook-port check (hook URLs in mirrored `hooks/hooks.json` naming a port the proxy no longer holds) existed but was never run; a moved proxy surfaced only as `ECONNREFUSED` on every tool call.
+- **Bridge:** "Cannot reach the gateway — traffic is ungoverned" fired for a URL still being typed into the setup form; it is raised only for a gateway that has synced. The GUI probe mints a fresh token while the proxy is latched and a successful mint releases the latch, so the window and the proxy agree.
+
+### Removed
+
+- **Agent:** the A2A push-notification config methods (`CreateTaskPushNotificationConfig`, `GetTaskPushNotificationConfig`, `ListTaskPushNotificationConfigs`, `DeleteTaskPushNotificationConfig`), `MessageSendConfiguration.push_notification_config`, `TaskResubscriptionRequest.config`, and the `task_push_notification_configs` table (migration 011, `DROP TABLE IF EXISTS … CASCADE`). The configs were stored but never delivered; the methods now answer method-not-found and a `pushNotificationConfig` on `message/send` or `message/stream` is ignored.
+- **Testing:** 600 vanity tests (Debug-string and derive checks, a resubscription route that never dispatched) and ten orphaned sqlx cache entries for the dropped table.
 
 ## [0.50.0] - 2026-09-10
 

@@ -1,5 +1,8 @@
 //! Removal of constructs a provider does not accept: composition keywords,
 //! references, metadata, `x-` extensions, and `const`.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::SchemaSanitizer;
 use serde_json::{Map, Value, json};

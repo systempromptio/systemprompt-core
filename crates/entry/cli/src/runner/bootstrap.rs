@@ -4,6 +4,11 @@
 //! initialises secrets, credentials, paths, and config in order, and runs
 //! startup validation before a command executes.
 //!
+//! The services registry is a process-wide `OnceLock`, so the first installer
+//! wins: only the server installs it through boot-time model discovery, and a
+//! plain install there would leave the runtime's discovery pass with nothing
+//! to add to. Every other command installs the plain load.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -164,11 +169,6 @@ pub(super) async fn init_secrets() -> Result<()> {
     Ok(())
 }
 
-/// `discover_models` installs the services registry through boot-time model
-/// discovery instead of the plain load. Only the server passes `true`: the
-/// registry is a process-wide `OnceLock`, so the first installer wins, and a
-/// plain install here would leave the runtime's discovery pass with nothing
-/// to add to.
 pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(

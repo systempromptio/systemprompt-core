@@ -15,10 +15,13 @@ use serde::Deserialize;
 use crate::gateway::manifest::AutoUpdatePolicy;
 use crate::gateway::manifest_version::ManifestVersion;
 
+/// What the last completed sync applied, stamped with its gateway.
+///
+/// Replay protection and delivered policy only carry over within one gateway
+/// (same origin); a switch starts from nothing, and a sentinel written before
+/// stamping (no `gateway`) is trusted for none.
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct LastSyncState {
-    /// The gateway whose manifest this sync applied. Absent on a sentinel
-    /// written before stamping; such a sentinel is not trusted for any gateway.
     #[serde(default)]
     pub gateway: Option<systemprompt_identifiers::ValidatedUrl>,
     #[serde(default)]
@@ -38,9 +41,6 @@ pub struct LastSyncState {
 }
 
 impl LastSyncState {
-    /// Whether this sentinel was written for `gateway`. Replay protection and
-    /// delivered policy only carry over within one gateway; a switch starts
-    /// from nothing.
     #[must_use]
     pub fn belongs_to(&self, gateway: &systemprompt_identifiers::ValidatedUrl) -> bool {
         self.gateway

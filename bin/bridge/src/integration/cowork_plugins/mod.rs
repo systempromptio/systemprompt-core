@@ -36,11 +36,9 @@ impl HostSync for CoworkSync {
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(target) = resolve_target() else {
-            // Why: org-plugins is provisioned either way, but Cowork only
-            // lists a plugin once `cowork_settings.json` in its session dir
-            // enables it, and that dir exists only after Cowork has opened
-            // once. A silent skip left "sync ok" on screen and no plugins in
-            // the app; the operator needs the missing step named.
+            // Why: Cowork lists a plugin only once `cowork_settings.json` in
+            // its session dir enables it, and that dir exists only after
+            // Cowork has been opened once.
             if crate::integration::claude_desktop::is_app_installed() {
                 ctx.warnings.push(
                     self.host_id(),

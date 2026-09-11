@@ -14,6 +14,10 @@
 //! that is not such a document is an API key. So the provider catalog carries
 //! no credential-type column, and an operator who pastes a service account
 //! gets the right behaviour without having to know a flag exists.
+//! [`ProviderCredential::parse`] is the only place that decision is made.
+//!
+//! A minted token is cached under the secret *name*, not its value, so two
+//! providers sharing a secret share one minted token.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,12 +36,12 @@ pub use scope::{
 
 use crate::google::{SERVICE_ACCOUNT_TYPE, ServiceAccountKey, access_token};
 
-/// An API key, held in a type that will not print itself.
+/// An API key, held in a type that will not print itself. `expose` hands out
+/// the key itself; every call site is one that is about to send it.
 #[derive(Clone, PartialEq, Eq)]
 pub struct ApiKeySecret(String);
 
 impl ApiKeySecret {
-    /// The key itself. Every call site is one that is about to send it.
     #[must_use]
     pub fn expose(&self) -> &str {
         &self.0
@@ -71,17 +75,18 @@ impl CredentialKind {
 }
 
 /// A credential an upstream provider will accept, parsed from its secret.
+///
+/// An API key is the credential and is sent verbatim; a Google service-account
+/// key is exchanged for a short-lived OAuth bearer token. `scope` is the
+/// coordinates the credential supplies to the endpoint it authenticates, and
+/// `fill_endpoint` resolves a catalog endpoint template against them.
 #[derive(Debug, Clone)]
 pub enum ProviderCredential {
-    /// The stored secret is the credential and is sent verbatim.
     ApiKey(ApiKeySecret),
-    /// The stored secret is a Google service-account key, from which a
-    /// short-lived OAuth token is minted.
     GoogleServiceAccount(Box<ServiceAccountKey>),
 }
 
 impl ProviderCredential {
-    /// Decide what a stored secret is. The only place that decision is made.
     pub fn parse(secret: &str) -> Result<Self, CredentialError> {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(secret) else {
             return Ok(Self::ApiKey(ApiKeySecret(secret.to_owned())));
@@ -102,8 +107,6 @@ impl ProviderCredential {
         }
     }
 
-    /// The coordinates this credential supplies to the endpoint it
-    /// authenticates.
     #[must_use]
     pub fn scope(&self) -> CredentialScope {
         match self {
@@ -119,11 +122,6 @@ impl ProviderCredential {
         }
     }
 
-    /// The header value an outbound adapter will send, minting one if the
-    /// credential type requires it.
-    ///
-    /// `cache_key` identifies the stored secret — the secret name, not its
-    /// value — so that two providers sharing a secret share one minted token.
     pub async fn bearer(&self, cache_key: &str) -> Result<AuthHeader, CredentialError> {
         match self {
             Self::ApiKey(key) => Ok(AuthHeader {
@@ -140,7 +138,6 @@ impl ProviderCredential {
         }
     }
 
-    /// Resolve a catalog endpoint template against this credential's scope.
     pub fn fill_endpoint(&self, template: &str) -> Result<String, CredentialError> {
         fill_endpoint(template, &self.scope())
     }

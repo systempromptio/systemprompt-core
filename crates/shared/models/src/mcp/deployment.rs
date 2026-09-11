@@ -67,6 +67,13 @@ pub struct DeploymentConfig {
     pub settings: Settings,
 }
 
+/// One MCP server as declared in the services tree.
+///
+/// `tool_policy` is the default decision a bridge-managed client applies to
+/// every tool this server exposes. Absent means `allow`: a managed server is
+/// one the operator provisioned, and the governance chain already judges
+/// every call, so a per-call prompt is noise rather than control. Set
+/// `prompt` or `deny` to opt a server back into the client's confirmation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Deployment {
     #[serde(default, alias = "type")]
@@ -95,11 +102,6 @@ pub struct Deployment {
     pub connector: Option<ConnectorConfig>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub headers: HashMap<String, String>,
-    /// Default decision a bridge-managed client applies to every tool this
-    /// server exposes. Absent means `allow`: a managed server is one the
-    /// operator provisioned, and the governance chain already judges every
-    /// call, so a per-call prompt is noise rather than control. Set `prompt`
-    /// or `deny` to opt a server back into the client's confirmation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_policy: Option<crate::bridge::ids::ToolPolicy>,
 }

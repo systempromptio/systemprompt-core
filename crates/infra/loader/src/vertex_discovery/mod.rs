@@ -21,6 +21,14 @@
 //! convenience and boot is not: if an upstream is slow, the instance starts
 //! with the catalog it shipped with.
 //!
+//! [`default_sources`] is the list compiled into this build — a single element
+//! today; the next upstream that can be asked for a catalog is an entry there
+//! and nothing else. [`discover_with`] takes an explicit source list so a test
+//! can prove a second source is picked up without the build having to ship
+//! one. Secrets are read through [`SecretLookup`] rather than the store
+//! directly so discovery stays callable from a test and from a boot path that
+//! has already loaded them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -41,22 +49,13 @@ use source::{CatalogListing, CatalogSource};
 use vertex::VertexCatalog;
 
 /// Resolves a secret name to its value.
-///
-/// Discovery reads secrets through a closure rather than the store directly so
-/// that it stays callable from a test and from a boot path that has already
-/// loaded them.
 pub type SecretLookup<'a> = &'a (dyn Fn(&str) -> Option<String> + Sync);
 
-/// The sources compiled into this build.
-///
-/// A single-element list today. It is a list because the next upstream that
-/// can be asked for a catalog is an entry here and nothing else.
 #[must_use]
 pub fn default_sources(card: VertexRateCard) -> Vec<Box<dyn CatalogSource>> {
     vec![Box::new(VertexCatalog::new(card))]
 }
 
-/// One provider matched to the source that will list it.
 struct Plan<'a> {
     index: usize,
     source: &'a dyn CatalogSource,
@@ -64,8 +63,6 @@ struct Plan<'a> {
     secret_name: String,
 }
 
-/// Append every priced, serverless model the registry does not already
-/// declare, and report everything that did not go that way.
 pub async fn discover(
     providers: &mut ProviderRegistry,
     secret: SecretLookup<'_>,
@@ -86,23 +83,39 @@ pub async fn discover(
     };
 
     let sources = default_sources(card.clone());
-    discover_with(providers, secret, timeout, &sources, &card, &mut report).await;
+    let catalog = Catalog {
+        sources: &sources,
+        card: &card,
+    };
+    discover_with(providers, secret, timeout, catalog, &mut report).await;
     report
 }
 
-/// The discovery run itself, against an explicit source list.
-///
-/// Separate from [`discover`] so that a test can prove a second source is
-/// picked up without the build having to ship one.
+/// The sources a discovery run may list and the card that prices what they
+/// return.
+#[derive(Clone, Copy)]
+pub struct Catalog<'a> {
+    pub sources: &'a [Box<dyn CatalogSource>],
+    pub card: &'a VertexRateCard,
+}
+
+impl std::fmt::Debug for Catalog<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Catalog")
+            .field("sources", &self.sources.len())
+            .field("card_entries", &self.card.entries.len())
+            .finish()
+    }
+}
+
 pub async fn discover_with(
     providers: &mut ProviderRegistry,
     secret: SecretLookup<'_>,
     timeout: Duration,
-    sources: &[Box<dyn CatalogSource>],
-    card: &VertexRateCard,
+    catalog: Catalog<'_>,
     report: &mut DiscoveryReport,
 ) {
-    let plans = plan(providers, secret, sources, report);
+    let plans = plan(providers, secret, catalog.sources, report);
     if plans.is_empty() {
         return;
     }
@@ -141,7 +154,7 @@ pub async fn discover_with(
                 continue;
             },
         };
-        absorb(providers, plan.index, &name, card, listing, report);
+        absorb(providers, plan.index, catalog.card, listing, report);
     }
 }
 
@@ -150,7 +163,6 @@ fn push_failure(report: &mut DiscoveryReport, note: String) {
     report.failed_publishers.push(note);
 }
 
-/// Match every provider to the first source that will list it.
 fn plan<'a>(
     providers: &ProviderRegistry,
     secret: SecretLookup<'_>,
@@ -190,11 +202,9 @@ fn plan<'a>(
     plans
 }
 
-/// Fold one provider's listing into the registry.
 fn absorb(
     providers: &mut ProviderRegistry,
     index: usize,
-    name: &str,
     card: &VertexRateCard,
     listing: CatalogListing,
     report: &mut DiscoveryReport,
@@ -205,6 +215,8 @@ fn absorb(
     let Some(provider) = providers.providers.get_mut(index) else {
         return;
     };
+    let name = provider.name.as_str().to_owned();
+    let name = name.as_str();
     let mut seen: HashSet<String> = HashSet::new();
     let today = chrono::Utc::now().date_naive();
 

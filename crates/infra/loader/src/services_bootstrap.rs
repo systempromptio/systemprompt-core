@@ -14,7 +14,10 @@
 //! process is served only after the next restart. The augmentation runs in the
 //! one window where the config is still owned — between `ConfigLoader::load`
 //! and `install` — and the config is re-validated afterwards so a discovered
-//! model can never bypass the gateway pricing gate.
+//! model can never bypass the gateway pricing gate. A second
+//! `try_init_with_discovery` after any init is a no-op returning the installed
+//! config; the report from the one pass that did run is kept behind
+//! [`ServicesBootstrap::discovery_report`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -56,9 +59,6 @@ impl ServicesBootstrap {
         Self::install(services)
     }
 
-    /// Load, let `augment` add discovered models to the registry, re-validate,
-    /// then install. A no-op returning the installed config if a previous
-    /// `init` already ran — discovery only ever happens on the first install.
     // Why: the augmenter borrows the registry across an await, so it is a
     // boxed future tied to that borrow — a plain `FnOnce(&mut _) -> Fut` cannot
     // name the lifetime and every real async fn fails the higher-ranked bound.
@@ -79,11 +79,14 @@ impl ServicesBootstrap {
             .validate()
             .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
         let installed = Self::install(services)?;
-        let _ = DISCOVERY.set(report);
+        if DISCOVERY.set(report).is_err() {
+            tracing::warn!(
+                "catalog discovery report already recorded for this process; keeping the first"
+            );
+        }
         Ok(installed)
     }
 
-    /// The report produced by the boot-time discovery pass, if one ran.
     #[must_use]
     pub fn discovery_report() -> Option<&'static DiscoveryReport> {
         DISCOVERY.get()

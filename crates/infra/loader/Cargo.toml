@@ -43,6 +43,7 @@ url = { workspace = true }
 # systemprompt.io dependencies
 systemprompt-config = { workspace = true }
 systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-security = { workspace = true }
 

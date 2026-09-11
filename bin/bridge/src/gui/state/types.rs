@@ -47,6 +47,10 @@ pub struct GatewayProbeOutcome {
     pub credential_error: Option<String>,
 }
 
+/// Flat state snapshot the GUI reads by field name. `sync_pending` records a
+/// sync requested while one was running; it starts when that run ends, and is
+/// set by a login or gateway change so the new gateway is never left unsynced
+/// behind a run that was cancelled or superseded.
 #[derive(Debug, Clone, Default)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -64,9 +68,6 @@ pub struct AppStateSnapshot {
     pub agent_count: Option<usize>,
     pub plugins_dir: Option<String>,
     pub sync_in_flight: bool,
-    /// A sync was asked for while one was running; it starts when that run
-    /// ends. Set by a login or gateway change so the new gateway is never
-    /// left unsynced behind a run that was cancelled or superseded.
     pub sync_pending: bool,
     pub last_sync_report: Option<crate::sync::SyncSummary>,
     pub last_validation: Option<ValidationReport>,

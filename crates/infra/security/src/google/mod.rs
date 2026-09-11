@@ -8,7 +8,12 @@
 //! This module is now one *implementation* of the credential model in
 //! [`crate::credential`] rather than a credential story of its own: it decides
 //! how a Google key is signed and exchanged, and nothing else. Parsing,
-//! caching, scoping and endpoint filling are generic and live there.
+//! caching, scoping and endpoint filling are generic and live there. A key
+//! file names itself by its `type` field (`SERVICE_ACCOUNT_TYPE`);
+//! `ServiceAccountKey::parse` keeps the name every existing caller uses but
+//! the decision is made once, in [`ProviderCredential::parse`]. A token is
+//! cached per stored secret, so two providers sharing one secret share one
+//! token and two secrets never share one entry.
 //!
 //! Lives in the security crate rather than beside the gateway because
 //! boot-time model discovery needs the same token with none of the gateway's
@@ -37,7 +42,6 @@ const CLOCK_SKEW: Duration = Duration::from_secs(60);
 
 const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 
-/// The `type` value by which a Google key file names itself.
 pub(crate) const SERVICE_ACCOUNT_TYPE: &str = "service_account";
 
 #[derive(Clone, Deserialize)]
@@ -73,11 +77,6 @@ fn default_token_uri() -> String {
 }
 
 impl ServiceAccountKey {
-    /// Parse a secret that is expected to be a service account, or `None` if
-    /// it is some other kind of credential.
-    ///
-    /// Kept as the name every existing caller uses; the decision itself is
-    /// made once, in [`ProviderCredential::parse`].
     pub fn parse(secret: &str) -> Result<Option<Self>, CredentialError> {
         match ProviderCredential::parse(secret)? {
             ProviderCredential::GoogleServiceAccount(key) => Ok(Some(*key)),
@@ -102,10 +101,6 @@ struct TokenResponse {
     expires_in: Option<u64>,
 }
 
-/// Mint — or reuse — an access token for one service-account key.
-///
-/// `cache_key` identifies the stored secret, so two providers sharing one
-/// secret share one token and two secrets never share one entry.
 pub async fn access_token(
     cache_key: &str,
     key: &ServiceAccountKey,

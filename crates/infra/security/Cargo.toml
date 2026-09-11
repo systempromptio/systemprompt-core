@@ -22,7 +22,6 @@ systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core runtime
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }

@@ -1,5 +1,11 @@
 //! Applies a verified manifest to disk: plugins, hooks, MCP fragments.
 //!
+//! A run belongs to the gateway it fetched from. Before anything is
+//! published the configured gateway is re-read from disk — the GUI rewrites
+//! the config while a sync is in flight — and a run whose gateway is no
+//! longer the configured one is refused as superseded, so it never promotes a
+//! plugin or publishes a registry the new gateway did not deliver.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,7 +15,8 @@ mod loopback;
 mod plugin;
 
 pub(crate) use crate::host_sync::ApplyError;
-pub use plugin::{HostFailure, HostWarning};
+pub use crate::host_sync::HostWarning;
+pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 
@@ -107,10 +114,6 @@ pub(crate) async fn apply_manifest(
     Ok(report)
 }
 
-/// Refuses to publish state from a run whose gateway is no longer the
-/// configured one. Read from disk each time: the GUI rewrites the config
-/// while a sync is in flight, and the run must notice before it promotes a
-/// plugin or publishes a registry the new gateway never delivered.
 pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), ApplyError> {
     let cfg = crate::config::load().map_err(|e| ApplyError::Io {
         context: "re-read gateway before publishing sync".into(),

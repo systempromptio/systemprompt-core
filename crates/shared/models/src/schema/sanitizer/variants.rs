@@ -1,5 +1,8 @@
 //! Shapes Gemini and Vertex refuse outright: multi-type nodes, untyped
 //! composition variants, and `items` that does not sit on an array.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::SchemaSanitizer;
 use serde_json::{Map, Value, json};

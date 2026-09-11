@@ -181,9 +181,6 @@ pub async fn run_once(
     Ok(build_summary(&synced, report))
 }
 
-/// A run belongs to the gateway it fetched from. If the configured gateway
-/// has moved on while the run was in flight, nothing from this run may be
-/// published: the next sync against the current gateway replaces it.
 fn ensure_not_superseded(
     run_gateway: &systemprompt_identifiers::ValidatedUrl,
 ) -> Result<(), SyncError> {

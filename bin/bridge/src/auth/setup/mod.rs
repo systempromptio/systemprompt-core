@@ -1,5 +1,11 @@
 //! PAT validation and on-disk persistence for first-run auth setup.
 //!
+//! When a login or gateway change moves the configured gateway to a
+//! different origin, the previous gateway's synced state (the managed MCP
+//! fragment and the last-sync sentinel) is removed. Both are gateway-stamped
+//! and would be ignored anyway; removing them keeps a switch from leaving
+//! another gateway's servers on disk for diagnostics to misread.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -76,11 +82,6 @@ fn configured_gateway() -> Option<systemprompt_identifiers::ValidatedUrl> {
         .map(|cfg| crate::config::gateway_url_or_default(&cfg))
 }
 
-/// Drops every piece of state the previous gateway delivered once the
-/// configured gateway is a different origin: the managed MCP fragment and
-/// the last-sync sentinel. Both are gateway-stamped and would be ignored
-/// anyway; removing them keeps a switch from leaving another gateway's
-/// servers on disk for diagnostics to misread.
 fn forget_gateway_state_if_moved(
     previous: Option<&systemprompt_identifiers::ValidatedUrl>,
 ) -> Result<(), SetupError> {
@@ -98,7 +99,6 @@ fn forget_gateway_state_if_moved(
     forget_gateway_state()
 }
 
-/// Removes the on-disk state a sync derives from a gateway's manifest.
 pub fn forget_gateway_state() -> Result<(), SetupError> {
     remove_managed_mcp_fragment()?;
     remove_sync_state()

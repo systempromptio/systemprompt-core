@@ -144,15 +144,17 @@ fn only_deliberate_entries_opt_into_preview_launch_stages() {
 fn every_entry_names_the_documentation_page_it_was_read_from() {
     for entry in &card().entries {
         assert!(
-            entry
-                .docs
-                .starts_with("https://docs.cloud.google.com/"),
+            entry.docs.starts_with("https://docs.cloud.google.com/"),
             "{} cites {} rather than Google's documentation",
             entry.id.as_str(),
             entry.docs
         );
         if let (Some(released), Some(retires)) = (entry.released, entry.retires_on) {
-            assert!(retires > released, "{} retires before release", entry.id.as_str());
+            assert!(
+                retires > released,
+                "{} retires before release",
+                entry.id.as_str()
+            );
         }
     }
 }
@@ -193,7 +195,9 @@ fn deprecated_maas_models_are_unsupported_inside_their_notice_window() {
         "deepseek.v3.2",
         "openai.gpt-oss-20b",
     ] {
-        let entry = card.lookup_id(id).unwrap_or_else(|| panic!("{id} is priced"));
+        let entry = card
+            .lookup_id(id)
+            .unwrap_or_else(|| panic!("{id} is priced"));
         assert_eq!(entry.retires_on, Some(day("2026-10-21")), "{id}");
         assert!(entry.is_supported(day("2026-09-11")), "{id} on 2026-09-11");
         assert!(!entry.is_supported(day("2026-09-25")), "{id} on 2026-09-25");

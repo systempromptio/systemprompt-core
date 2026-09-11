@@ -36,10 +36,6 @@ pub(super) struct Credential {
     pub(super) scope: CredentialScope,
 }
 
-/// Resolve a `{project}` endpoint template against a project id.
-///
-/// Retained as the gateway's name for the single-coordinate case; the rule it
-/// applies lives in [`fill_endpoint`].
 pub fn fill_project(endpoint: &str, project: Option<&str>) -> Result<String, CredentialError> {
     let scope = CredentialScope {
         project: project.map(str::to_owned),

@@ -4,7 +4,10 @@
 //! Every entry belongs to the gateway whose manifest delivered it. The on-disk
 //! fragment records that gateway, and a fragment written for another gateway is
 //! never re-hydrated: forwarding a fresh token to the previous gateway's
-//! upstreams is how a switched account used to sign itself out.
+//! upstreams is how a switched account used to sign itself out. A fragment in
+//! the pre-stamp array shape is likewise left alone until a sync rewrites it.
+//! Two gateways are the same when scheme, host and port agree; trailing
+//! slashes and host case do not make a second gateway.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,13 +20,14 @@ use systemprompt_identifiers::ValidatedUrl;
 
 use crate::gateway::manifest::ManagedMcpServer;
 
+/// One managed upstream. `tool_policy` carries the manifest's per-tool
+/// decisions as published, `*` standing for every tool.
 #[derive(Clone, Debug)]
 pub struct McpUpstream {
     pub url: ValidatedUrl,
     pub headers: BTreeMap<String, String>,
     pub display_name: String,
     pub transport: Option<String>,
-    /// The manifest's per-tool decisions (`*` = every tool), as published.
     pub tool_policy: BTreeMap<String, systemprompt_models::bridge::ids::ToolPolicy>,
 }
 
@@ -86,9 +90,6 @@ pub fn clear(slot: &McpRegistrySlot) {
     tracing::info!(target: "bridge::proxy", "managed MCP server registry cleared");
 }
 
-/// Re-hydrates the registry from disk if the fragment was written for
-/// `gateway`. A fragment for another gateway, or one in the pre-stamp array
-/// shape, is left alone and the registry stays as it was.
 pub fn rehydrate_from_disk(slot: &McpRegistrySlot, gateway: &ValidatedUrl) -> std::io::Result<()> {
     let meta_dir = crate::config::paths::bridge_metadata_dir()
         .ok_or_else(|| std::io::Error::other("MCP registry metadata path unresolvable"))?;
@@ -119,8 +120,6 @@ pub fn rehydrate_from_disk(slot: &McpRegistrySlot, gateway: &ValidatedUrl) -> st
     Ok(())
 }
 
-/// Two gateway URLs name the same origin when scheme, host and port agree;
-/// trailing slashes and case in the host do not make a second gateway.
 #[must_use]
 pub fn same_origin(a: &ValidatedUrl, b: &ValidatedUrl) -> bool {
     match (url::Url::parse(a.as_str()), url::Url::parse(b.as_str())) {

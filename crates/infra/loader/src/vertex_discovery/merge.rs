@@ -12,29 +12,28 @@
 //! model page months ahead and the listing never reflects it, so the rate
 //! card's lifecycle fields decide, against today's date, with no call to the
 //! model. An explicit declaration past that line is the operator's and is
-//! kept — reported and warned about, not deleted.
+//! kept — reported and warned about, not deleted. "Already declared" means
+//! the provider lists the entry's id or any of its aliases under any of its
+//! declared models.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
+use std::hash::BuildHasher;
 
 use chrono::NaiveDate;
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::services::{
     DiscoveryReport, ProviderEntry, VertexRateCard, VertexRateCardEntry,
 };
 
-/// Whether this provider already declares the entry's id or one of its
-/// aliases, under any of its declared models.
 fn already_declared(provider: &ProviderEntry, entry: &VertexRateCardEntry) -> bool {
     std::iter::once(entry.id.as_str())
-        .chain(entry.aliases.iter().map(|alias| alias.as_str()))
+        .chain(entry.aliases.iter().map(ModelId::as_str))
         .any(|name| provider.find_model(name).is_some())
 }
 
-/// Publish one priced, documented-as-supported model on `today`, or record
-/// why it was not: the catalog already spoke for it, or the documentation has
-/// withdrawn it.
 pub fn publish(
     provider: &mut ProviderEntry,
     entry: &VertexRateCardEntry,
@@ -64,18 +63,16 @@ pub fn publish(
     report.discovered_priced.push(id);
 }
 
-/// Record a serverless model the rate card does not price.
 pub fn record_unpriced(upstream: String, report: &mut DiscoveryReport) {
     if !report.discovered_unpriced.contains(&upstream) {
         report.discovered_unpriced.push(upstream);
     }
 }
 
-/// Record every rate-card entry for this provider that no listing returned.
-pub fn record_unseen(
+pub fn record_unseen<S: BuildHasher>(
     card: &VertexRateCard,
     provider: &str,
-    seen: &HashSet<String>,
+    seen: &HashSet<String, S>,
     report: &mut DiscoveryReport,
 ) {
     for entry in card.entries_for(provider) {

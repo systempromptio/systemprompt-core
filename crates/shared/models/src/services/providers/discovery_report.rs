@@ -15,34 +15,32 @@
 
 use serde::{Deserialize, Serialize};
 
+/// The buckets of one discovery run.
+///
+/// `discovered_priced`: priced models Vertex published that the catalog did
+/// not declare — added to the registry. `discovered_unpriced`: published but
+/// not on the rate card — left unpublished. `priced_not_published`: rate-card
+/// entries no listing returned — explicit declarations untouched.
+/// `explicit_wins`: the catalog already declared the id, so discovery changed
+/// nothing. `retiring`: published but no longer supported by the documentation
+/// (retired, inside the notice window, or preview without opt-in) — withheld,
+/// with an explicit declaration kept and warned about. `failed_publishers`:
+/// `provider/publisher: reason` per listing that did not complete. `ran_at`
+/// is the RFC 3339 timestamp of the run.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DiscoveryReport {
-    /// Priced models Vertex published that the catalog did not declare; these
-    /// were added to the registry.
     pub discovered_priced: Vec<String>,
 
-    /// Serverless models Vertex published that the rate card does not price;
-    /// left unpublished.
     pub discovered_unpriced: Vec<String>,
 
-    /// Rate-card entries no listing returned; their explicit declarations, if
-    /// any, are untouched.
     pub priced_not_published: Vec<String>,
 
-    /// Rate-card entries whose id the catalog already declared explicitly; the
-    /// declaration wins and discovery changed nothing.
     pub explicit_wins: Vec<String>,
 
-    /// Rate-card entries Vertex published but the documentation no longer
-    /// supports — retired, retiring within the notice window, or preview
-    /// without an opt-in. Withheld from discovery; an explicit declaration is
-    /// kept and warned about.
     #[serde(default)]
     pub retiring: Vec<String>,
 
-    /// `provider/publisher: reason` for each listing that could not complete.
     pub failed_publishers: Vec<String>,
 
-    /// RFC 3339 timestamp of the run.
     pub ran_at: String,
 }

@@ -61,7 +61,6 @@ pub(super) fn resolve_route(
     RouteResolution::Gateway(build_gateway_url(gateway_base, uri))
 }
 
-/// Whether `upstream` shares scheme, host and port with the gateway.
 pub(super) fn same_origin_as(upstream: &str, gateway_base: &ValidatedUrl) -> bool {
     match (
         url::Url::parse(upstream),

@@ -40,13 +40,14 @@ impl LaunchStage {
 }
 
 /// One model an upstream says it serves, reduced to what the decision needs.
+///
+/// `upstream` is how the rate card names it (e.g. `google/gemini-2.5-pro`)
+/// and `serverless` is whether it can be called without the operator
+/// deploying anything first.
 #[derive(Debug, Clone)]
 pub struct DiscoveredModel {
-    /// How the rate card names this model upstream, e.g.
-    /// `google/gemini-2.5-pro`.
     pub upstream: String,
     pub launch_stage: LaunchStage,
-    /// Whether it can be called without the operator deploying anything first.
     pub serverless: bool,
 }
 
@@ -71,23 +72,24 @@ pub enum DiscoveryError {
 }
 
 /// An upstream that can be asked which models it serves.
+///
+/// `name` labels the source in report lines and logs. `matches_provider` is
+/// the cheap, credential-free question — could this source ever list this
+/// provider? — kept separate from `applies` (the same question with the
+/// secret parsed) so the caller knows whether a provider is worth parsing a
+/// secret for before it parses one, and so a malformed secret on an unrelated
+/// provider is not reported as a discovery failure. `list` asks the upstream
+/// what it serves.
+///
+/// `#[async_trait]` because sources are held as `dyn CatalogSource`.
 #[async_trait]
 pub trait CatalogSource: Send + Sync {
-    /// Names this source in report lines and logs.
     fn name(&self) -> &'static str;
 
-    /// Cheap, credential-free: could this source ever list this provider?
-    ///
-    /// Separate from [`CatalogSource::applies`] so that the caller knows
-    /// whether a provider is worth parsing a secret for before it parses one,
-    /// and so a malformed secret on an unrelated provider is not reported as
-    /// a discovery failure.
     fn matches_provider(&self, provider: &ProviderEntry) -> bool;
 
-    /// With the secret parsed: can this source actually list this provider?
     fn applies(&self, provider: &ProviderEntry, credential: &ProviderCredential) -> bool;
 
-    /// Ask the upstream what it serves.
     async fn list(
         &self,
         http: &reqwest::Client,

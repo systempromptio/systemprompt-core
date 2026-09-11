@@ -40,12 +40,13 @@ impl ProbeEnv {
     }
 }
 
+/// Inputs a host renders its profile from. `default_model` is the gateway's
+/// configured default only when it is one of `models`.
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
     pub gateway_base_url: String,
     pub api_key: String,
     pub models: Vec<String>,
-    /// The gateway's configured default model, when it is one of `models`.
     pub default_model: Option<String>,
     pub organization_uuid: Option<String>,
     pub headers: BTreeMap<String, String>,
@@ -115,10 +116,11 @@ pub enum ProfileRemoval {
     ManualStepRequired { instruction: String },
 }
 
-/// Outcome of a successful profile install. A warning is a check that could
-/// not confirm something the install itself already did (the policy is
-/// written, the directory exists) — the host counts as installed and the
-/// operator sees the text without a failed step.
+/// Outcome of a successful profile install.
+///
+/// A warning is a check that could not confirm something the install itself
+/// already did (the policy is written, the directory exists) — the host counts
+/// as installed and the operator sees the text without a failed step.
 #[derive(Debug, Default)]
 pub struct ProfileInstalled {
     pub warnings: Vec<String>,
