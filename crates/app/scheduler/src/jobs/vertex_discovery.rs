@@ -5,7 +5,10 @@
 //! this process serves. The job exists to *report*: it discovers against a
 //! throwaway clone of the booted registry and warns when Vertex has published
 //! a model the rate card already prices, which is the signal that a restart
-//! would widen the catalog.
+//! would widen the catalog. It also reads the calendar: any served model whose
+//! documented retirement or price change is within the notice window is
+//! warned about, so an operator hears about it from the log before Google's
+//! date arrives.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,13 +16,47 @@
 use std::sync::RwLock;
 
 use async_trait::async_trait;
+use chrono::{Days, NaiveDate};
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::{DiscoveryReport, ProviderRegistry};
+use systemprompt_models::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{info, warn};
 
 static LATEST: RwLock<Option<DiscoveryReport>> = RwLock::new(None);
+
+/// How far ahead a documented retirement or price change is announced.
+pub const LIFECYCLE_NOTICE_DAYS: u64 = 60;
+
+/// Rate-card models this registry serves whose documented retirement or price
+/// step falls within [`LIFECYCLE_NOTICE_DAYS`] of `today`.
+///
+/// Returns `(model id, what changes, on which date)`, so the caller can log
+/// it or assert on it.
+#[must_use]
+pub fn lifecycle_notices(
+    served: &ProviderRegistry,
+    card: &VertexRateCard,
+    today: NaiveDate,
+) -> Vec<(String, &'static str, NaiveDate)> {
+    let horizon = today
+        .checked_add_days(Days::new(LIFECYCLE_NOTICE_DAYS))
+        .unwrap_or(today);
+    let mut notices = Vec::new();
+    for entry in &card.entries {
+        let id = entry.id.as_str();
+        if !served.contains_model(id) {
+            continue;
+        }
+        if let Some(date) = entry.retires_on.filter(|d| *d <= horizon) {
+            notices.push((id.to_owned(), "retires", date));
+        }
+        if let Some(date) = entry.price_until.filter(|d| *d <= horizon) {
+            notices.push((id.to_owned(), "price changes after", date));
+        }
+    }
+    notices
+}
 
 /// The most recent report this job produced, or `None` if it has not run in
 /// this process.
@@ -80,6 +117,26 @@ impl Job for VertexDiscoveryJob {
                  restart",
                 report.discovered_priced.len()
             );
+        }
+        if !report.retiring.is_empty() {
+            warn!(
+                count = report.retiring.len(),
+                models = %report.retiring.join(", "),
+                "Vertex still lists {} models whose documentation has withdrawn or is retiring \
+                 them; discovery withholds them",
+                report.retiring.len()
+            );
+        }
+        if let Ok(card) = VertexRateCard::embedded() {
+            for (model, what, date) in
+                lifecycle_notices(booted, &card, chrono::Utc::now().date_naive())
+            {
+                warn!(
+                    model = %model,
+                    date = %date,
+                    "served Vertex model {model} {what} on {date}; plan its replacement"
+                );
+            }
         }
         if !report.failed_publishers.is_empty() {
             warn!(

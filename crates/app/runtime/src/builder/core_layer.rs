@@ -115,11 +115,15 @@ pub(super) async fn init_core(
     })
 }
 
-/// Vertex publishes and retires MaaS models without an operator edit, so the
-/// registry is augmented at boot from the live publisher listing. Everything
-/// here is fail-open: a provider that is not Vertex, a missing or unusable
-/// service-account credential, or `SYSTEMPROMPT_VERTEX_DISCOVERY=0` all yield
-/// an empty report and leave the YAML catalog exactly as authored.
+/// Upstreams publish and retire models without an operator edit, so the
+/// registry is augmented at boot from their live listings. Everything here is
+/// fail-open: a provider no catalog source recognises, a missing or unusable
+/// credential, or `SYSTEMPROMPT_VERTEX_DISCOVERY=0` all leave the YAML catalog
+/// exactly as authored.
+///
+/// Which providers are discoverable is decided by the catalog sources in the
+/// loader, from the credential their secret parses into — this layer only
+/// supplies the secrets and the budget.
 async fn discover_vertex_models(
     providers: &mut systemprompt_models::services::ProviderRegistry,
 ) -> systemprompt_models::services::DiscoveryReport {
@@ -133,13 +137,6 @@ async fn discover_vertex_models(
         tracing::warn!("secret store unavailable; skipping Vertex model discovery");
         return DiscoveryReport::default();
     };
-    if !providers
-        .providers
-        .iter()
-        .any(|p| is_vertex_service_account(&p.endpoint, secrets.get(p.api_key_secret.as_str())))
-    {
-        return DiscoveryReport::default();
-    }
     let lookup = |name: &str| secrets.get(name).cloned();
     systemprompt_loader::vertex_discovery::discover(
         providers,
@@ -147,36 +144,6 @@ async fn discover_vertex_models(
         std::time::Duration::from_secs(10),
     )
     .await
-}
-
-/// Cheap, dependency-free check that a provider entry is a Vertex AI endpoint
-/// backed by a Google service-account key.
-///
-/// Why: the runtime crate must not depend on the api crate (where the real
-/// Vertex credential type lives), and this only decides whether it is worth
-/// making a network call — `discover` re-parses the key properly.
-fn is_vertex_service_account(endpoint: &str, secret: Option<&String>) -> bool {
-    let Some(secret) = secret else {
-        return false;
-    };
-    let host_is_vertex = endpoint
-        .split_once("://")
-        .map(|(_, rest)| rest)
-        .and_then(|rest| rest.split('/').next())
-        .and_then(|authority| authority.split('@').next_back())
-        .map(|host| host.split(':').next().unwrap_or(host))
-        .is_some_and(|host| host.ends_with("aiplatform.googleapis.com"));
-    if !host_is_vertex {
-        return false;
-    }
-    serde_json::from_str::<serde_json::Value>(secret)
-        .ok()
-        .and_then(|v| {
-            v.get("type")
-                .and_then(serde_json::Value::as_str)
-                .map(str::to_owned)
-        })
-        .is_some_and(|t| t == "service_account")
 }
 
 async fn init_file_storage(

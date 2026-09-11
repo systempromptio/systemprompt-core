@@ -17,6 +17,8 @@ mod authz_repository;
 #[cfg(test)]
 mod authz_subject_ref;
 #[cfg(test)]
+mod credential;
+#[cfg(test)]
 mod error_display;
 #[cfg(test)]
 mod extraction;

@@ -26,6 +26,7 @@ tar = { workspace = true }
 flate2 = { workspace = true }
 reqwest = { workspace = true }
 chrono = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

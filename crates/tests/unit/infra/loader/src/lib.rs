@@ -72,3 +72,5 @@ mod vertex_discovery_classify;
 mod vertex_discovery_client;
 #[cfg(test)]
 mod vertex_discovery_merge;
+#[cfg(test)]
+mod vertex_discovery_source;

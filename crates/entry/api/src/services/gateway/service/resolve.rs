@@ -83,8 +83,8 @@ pub(super) async fn resolve_upstream<'a>(
 
     let credential = super::credentials::resolve(provider).await?;
     let endpoint =
-        super::credentials::fill_project(&provider.endpoint, credential.project.as_deref())
-            .map_err(DispatchError::PreAudit)?;
+        systemprompt_security::credential::fill_endpoint(&provider.endpoint, &credential.scope)
+            .map_err(|e| DispatchError::PreAudit(anyhow::Error::new(e)))?;
 
     let adapter = GatewayUpstreamRegistry::global()
         .get(provider.wire.as_tag())

@@ -22,8 +22,6 @@ systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core runtime
-# Why: `google` was lifted out of the gateway verbatim so its callers and
-# tests keep compiling; its results are anyhow, unlike the rest of the crate.
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -58,7 +56,8 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 metrics = { workspace = true }
-# `time` only: the approval waiter polls a held call on an interval.
+# `time` for the approval waiter's poll interval and the credential retry
+# backoff; `sync` for the single-flight token cache.
 tokio = { workspace = true }
 
 # systemprompt.io dependencies

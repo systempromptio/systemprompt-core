@@ -27,7 +27,7 @@ use super::types::{ConfigMutationOutput, DiscoveryRow};
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 use systemprompt_models::artifacts::{ListItem, NoticeLine};
-use systemprompt_models::services::DiscoveryReport;
+use systemprompt_models::services::{DiscoveryReport, VertexRateCard};
 
 #[derive(Debug, Subcommand)]
 pub enum CatalogCommands {
@@ -268,21 +268,32 @@ fn latest_discovery() -> Option<DiscoveryReport> {
 }
 
 /// Flattens a report into one row per model id, tagged with why it is or is
-/// not being served.
+/// not being served, and with the documented retirement date where the rate
+/// card records one.
 #[must_use]
 pub fn discovery_rows(report: &DiscoveryReport) -> Vec<DiscoveryRow> {
+    let card = VertexRateCard::embedded().ok();
+    let retires_on = |id: &str| -> String {
+        card.as_ref()
+            .and_then(|card| card.lookup_id(id))
+            .and_then(|entry| entry.retires_on)
+            .map(|date| date.to_string())
+            .unwrap_or_default()
+    };
     let buckets = [
         (&report.discovered_priced, "served"),
         (&report.discovered_unpriced, "unpriced"),
         (&report.priced_not_published, "priced-not-published"),
         (&report.explicit_wins, "explicit"),
+        (&report.retiring, "retiring"),
     ];
     buckets
         .into_iter()
         .flat_map(|(ids, state)| {
-            ids.iter().map(move |id| DiscoveryRow {
+            ids.iter().map(|id| DiscoveryRow {
                 upstream_or_id: id.clone(),
                 state: state.to_owned(),
+                retires_on: retires_on(id),
             })
         })
         .collect()
@@ -323,7 +334,10 @@ fn show_discovery(config: &CliConfig) {
         return;
     };
     render_result(
-        &CommandOutput::table_of(vec!["upstream_or_id", "state"], &discovery_rows(&report))
+        &CommandOutput::table_of(
+            vec!["upstream_or_id", "state", "retires_on"],
+            &discovery_rows(&report),
+        )
             .with_title("Vertex Model Discovery"),
         config,
     );

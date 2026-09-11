@@ -7,6 +7,9 @@
 //! precisely enough to act on: `publisher/model` for upstream names, and
 //! `provider/publisher: reason` for a listing that did not complete.
 //!
+//! `retiring` is `#[serde(default)]` so a report written by an older binary
+//! still reads; the CLI and the scheduler treat an absent bucket as empty.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -29,6 +32,13 @@ pub struct DiscoveryReport {
     /// Rate-card entries whose id the catalog already declared explicitly; the
     /// declaration wins and discovery changed nothing.
     pub explicit_wins: Vec<String>,
+
+    /// Rate-card entries Vertex published but the documentation no longer
+    /// supports — retired, retiring within the notice window, or preview
+    /// without an opt-in. Withheld from discovery; an explicit declaration is
+    /// kept and warned about.
+    #[serde(default)]
+    pub retiring: Vec<String>,
 
     /// `provider/publisher: reason` for each listing that could not complete.
     pub failed_publishers: Vec<String>,

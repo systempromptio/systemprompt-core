@@ -1,21 +1,24 @@
-//! Boot-time discovery of the Vertex AI models a deployment can serve.
+//! Boot-time discovery of the models a deployment can actually serve.
 //!
-//! The provider catalog ships with a hand-written list of Vertex models. That
-//! list goes stale in one direction only — Google adds models, renames them,
+//! The provider catalog ships with a hand-written list of models. That list
+//! goes stale in one direction only — an upstream adds models, renames them,
 //! and occasionally withdraws one — and every staleness costs the same thing:
 //! a model we are entitled to and have priced is simply not on offer.
 //!
-//! So at boot, for every provider whose secret is a Google service-account key
-//! and whose endpoint is a Vertex host, this module lists Model Garden, keeps
-//! the entries the rate card prices, and appends the ones the catalog did not
-//! already declare. It cannot fail a boot: a listing that 403s, a model that
+//! So at boot, every provider whose secret parses into a credential some
+//! [`CatalogSource`] accepts is asked what it serves; the entries the rate
+//! card prices and Google's documentation still supports are kept, and the
+//! ones the catalog did not already declare are appended. The listing call is
+//! the only network traffic: nothing here ever calls a model to probe it. Discovery cannot fail a boot: a listing that 403s, a model that
 //! is priced but unlisted, a model listed but unpriced — each becomes a line
 //! in [`DiscoveryReport`] and a `warn!`, because none of them is a reason for
 //! an instance not to start.
 //!
-//! The whole run is bounded by the caller's timeout. Discovery is a
-//! convenience and boot is not: if Google is slow, the instance starts with
-//! the catalog it shipped with.
+//! The Vertex specifics live in [`vertex`]; this module holds only the policy
+//! that applies to any upstream that can be asked for a catalog. The whole run
+//! is bounded by the caller's timeout, per provider. Discovery is a
+//! convenience and boot is not: if an upstream is slow, the instance starts
+//! with the catalog it shipped with.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,45 +26,48 @@
 pub mod classify;
 pub mod client;
 pub mod merge;
+pub mod source;
+pub mod vertex;
 
 use std::collections::HashSet;
 use std::time::Duration;
 
 use systemprompt_models::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
-use systemprompt_security::google::{ServiceAccountKey, access_token};
+use systemprompt_security::credential::ProviderCredential;
 
 use classify::Classification;
+use source::{CatalogListing, CatalogSource};
+use vertex::VertexCatalog;
 
-/// Every Vertex host ends this way; an endpoint that does not is some other
-/// provider using a Google-shaped credential and is left alone.
-const VERTEX_HOST_SUFFIX: &str = "aiplatform.googleapis.com";
-
-/// One provider's discoverable shape, resolved before any network call.
-struct Plan {
-    index: usize,
-    provider: String,
-    secret_name: String,
-    host: String,
-    key: ServiceAccountKey,
-    publishers: Vec<String>,
-}
-
-/// What one provider's listings produced.
-#[derive(Default)]
-struct Listing {
-    models: Vec<classify::PublisherModel>,
-    failures: Vec<String>,
-}
-
-/// Append every priced, serverless Vertex model the registry does not already
-/// declare, and report everything that did not go that way.
+/// Resolves a secret name to its value.
 ///
-/// `secret` resolves a secret name to its value; discovery reads it rather
-/// than the secrets store directly so that it stays callable from a test and
-/// from a boot path that has already loaded secrets.
+/// Discovery reads secrets through a closure rather than the store directly so
+/// that it stays callable from a test and from a boot path that has already
+/// loaded them.
+pub type SecretLookup<'a> = &'a (dyn Fn(&str) -> Option<String> + Sync);
+
+/// The sources compiled into this build.
+///
+/// A single-element list today. It is a list because the next upstream that
+/// can be asked for a catalog is an entry here and nothing else.
+#[must_use]
+pub fn default_sources(card: VertexRateCard) -> Vec<Box<dyn CatalogSource>> {
+    vec![Box::new(VertexCatalog::new(card))]
+}
+
+/// One provider matched to the source that will list it.
+struct Plan<'a> {
+    index: usize,
+    source: &'a dyn CatalogSource,
+    credential: ProviderCredential,
+    secret_name: String,
+}
+
+/// Append every priced, serverless model the registry does not already
+/// declare, and report everything that did not go that way.
 pub async fn discover(
     providers: &mut ProviderRegistry,
-    secret: &(dyn Fn(&str) -> Option<String> + Sync),
+    secret: SecretLookup<'_>,
     timeout: Duration,
 ) -> DiscoveryReport {
     let mut report = DiscoveryReport {
@@ -72,133 +78,142 @@ pub async fn discover(
     let card = match VertexRateCard::embedded() {
         Ok(card) => card,
         Err(e) => {
-            tracing::warn!("vertex discovery skipped: {e}");
+            tracing::warn!("catalog discovery skipped: {e}");
             report.failed_publishers.push(format!("rate card: {e}"));
             return report;
         },
     };
 
-    let plans = plan(providers, &card, secret, &mut report);
+    let sources = default_sources(card.clone());
+    discover_with(providers, secret, timeout, &sources, &card, &mut report).await;
+    report
+}
+
+/// The discovery run itself, against an explicit source list.
+///
+/// Separate from [`discover`] so that a test can prove a second source is
+/// picked up without the build having to ship one.
+pub async fn discover_with(
+    providers: &mut ProviderRegistry,
+    secret: SecretLookup<'_>,
+    timeout: Duration,
+    sources: &[Box<dyn CatalogSource>],
+    card: &VertexRateCard,
+    report: &mut DiscoveryReport,
+) {
+    let plans = plan(providers, secret, sources, report);
     if plans.is_empty() {
-        return report;
+        return;
     }
 
     let http = reqwest::Client::new();
     for plan in plans {
-        let listing = match tokio::time::timeout(timeout, list(&http, &plan)).await {
-            Ok(listing) => listing,
-            Err(_) => {
-                let note = format!(
-                    "{}: discovery timed out after {}s",
-                    plan.provider,
-                    timeout.as_secs()
+        let Some(provider) = providers.providers.get(plan.index) else {
+            continue;
+        };
+        let name = provider.name.as_str().to_owned();
+
+        let auth = match plan.credential.bearer(&plan.secret_name).await {
+            Ok(auth) => auth,
+            Err(e) => {
+                push_failure(
+                    report,
+                    format!("{name}: could not mint an access token: {e}"),
                 );
-                tracing::warn!("{note}");
-                report.failed_publishers.push(note);
                 continue;
             },
         };
-        for failure in listing.failures {
-            tracing::warn!("vertex discovery: {failure}");
-            report.failed_publishers.push(failure);
-        }
-        absorb(providers, &plan, &card, listing.models, &mut report);
-    }
+        let scope = plan.credential.scope();
 
-    report
+        let listing = plan.source.list(&http, &auth, provider, &scope);
+        let listing = match tokio::time::timeout(timeout, listing).await {
+            Ok(Ok(listing)) => listing,
+            Ok(Err(e)) => {
+                push_failure(report, format!("{name}: {e}"));
+                continue;
+            },
+            Err(_) => {
+                push_failure(
+                    report,
+                    format!("{name}: discovery timed out after {}s", timeout.as_secs()),
+                );
+                continue;
+            },
+        };
+        absorb(providers, plan.index, &name, card, listing, report);
+    }
 }
 
-/// Resolve which registry entries are discoverable, and how.
-fn plan(
+fn push_failure(report: &mut DiscoveryReport, note: String) {
+    tracing::warn!("catalog discovery: {note}");
+    report.failed_publishers.push(note);
+}
+
+/// Match every provider to the first source that will list it.
+fn plan<'a>(
     providers: &ProviderRegistry,
-    card: &VertexRateCard,
-    secret: &(dyn Fn(&str) -> Option<String> + Sync),
+    secret: SecretLookup<'_>,
+    sources: &'a [Box<dyn CatalogSource>],
     report: &mut DiscoveryReport,
-) -> Vec<Plan> {
+) -> Vec<Plan<'a>> {
     let mut plans = Vec::new();
     for (index, entry) in providers.providers.iter().enumerate() {
-        let publishers = card.publishers_for(entry.name.as_str());
-        if publishers.is_empty() {
+        // Why: the cheap, credential-free check comes first so that a
+        // malformed secret on a provider no source could have listed anyway is
+        // not reported as a discovery failure.
+        if !sources.iter().any(|s| s.matches_provider(entry)) {
             continue;
         }
-        let Some(host) = vertex_host(&entry.endpoint) else {
-            continue;
-        };
         let secret_name = entry.api_key_secret.as_str().to_owned();
         let Some(value) = secret(&secret_name) else {
             continue;
         };
-        match ServiceAccountKey::parse(&value) {
-            Ok(Some(key)) => plans.push(Plan {
+        let credential = match ProviderCredential::parse(&value) {
+            Ok(credential) => credential,
+            Err(e) => {
+                report
+                    .failed_publishers
+                    .push(format!("{}: {e}", entry.name.as_str()));
+                continue;
+            },
+        };
+        if let Some(source) = sources.iter().find(|s| s.applies(entry, &credential)) {
+            plans.push(Plan {
                 index,
-                provider: entry.name.as_str().to_owned(),
+                source: source.as_ref(),
+                credential,
                 secret_name,
-                host,
-                key,
-                publishers,
-            }),
-            // Why: a provider keyed with something other than a service
-            // account is not a discovery failure — it is an API key, and
-            // Vertex is simply not reachable that way. Only a *malformed*
-            // service account is worth reporting.
-            Ok(None) => {},
-            Err(e) => report
-                .failed_publishers
-                .push(format!("{}: {e}", entry.name.as_str())),
+            });
         }
     }
     plans
 }
 
-/// The origin of a Vertex endpoint, or `None` if it is not a Vertex host.
-fn vertex_host(endpoint: &str) -> Option<String> {
-    let url = url::Url::parse(endpoint).ok()?;
-    let host = url.host_str()?.to_ascii_lowercase();
-    if host != VERTEX_HOST_SUFFIX && !host.ends_with(&format!("-{VERTEX_HOST_SUFFIX}")) {
-        return None;
-    }
-    Some(format!("{}://{host}", url.scheme()))
-}
-
-/// Mint a token and list every publisher this provider prices.
-async fn list(http: &reqwest::Client, plan: &Plan) -> Listing {
-    let mut listing = Listing::default();
-    let token = match access_token(&plan.secret_name, &plan.key).await {
-        Ok(token) => token,
-        Err(e) => {
-            listing.failures.push(format!(
-                "{}: could not mint an access token: {e}",
-                plan.provider
-            ));
-            return listing;
-        },
-    };
-
-    let (models, failures) =
-        client::list_all(http, &plan.host, &token, &plan.provider, &plan.publishers).await;
-    listing.models = models;
-    listing.failures.extend(failures);
-    listing
-}
-
 /// Fold one provider's listing into the registry.
 fn absorb(
     providers: &mut ProviderRegistry,
-    plan: &Plan,
+    index: usize,
+    name: &str,
     card: &VertexRateCard,
-    models: Vec<classify::PublisherModel>,
+    listing: CatalogListing,
     report: &mut DiscoveryReport,
 ) {
-    let Some(provider) = providers.providers.get_mut(plan.index) else {
+    for failure in listing.failures {
+        push_failure(report, failure);
+    }
+    let Some(provider) = providers.providers.get_mut(index) else {
         return;
     };
     let mut seen: HashSet<String> = HashSet::new();
+    let today = chrono::Utc::now().date_naive();
 
-    for model in &models {
-        let (classification, entry) = classify::classify(model, card, &plan.provider);
+    for model in &listing.models {
+        let (classification, entry) = classify::classify_discovered(model, card, name);
         match classification {
             Classification::NotServerless => {},
-            Classification::Unpriced => merge::record_unpriced(model.upstream(), report),
+            Classification::Unpriced => {
+                merge::record_unpriced(model.upstream.clone(), report);
+            },
             Classification::PreviewWithheld => {
                 if let Some(entry) = entry {
                     seen.insert(entry.upstream.clone());
@@ -207,11 +222,11 @@ fn absorb(
             Classification::Publish => {
                 if let Some(entry) = entry {
                     seen.insert(entry.upstream.clone());
-                    merge::publish(provider, entry, report);
+                    merge::publish(provider, entry, today, report);
                 }
             },
         }
     }
 
-    merge::record_unseen(card, &plan.provider, &seen, report);
+    merge::record_unseen(card, name, &seen, report);
 }

@@ -5,36 +5,42 @@
 //! POST it as `urn:ietf:params:oauth:grant-type:jwt-bearer`, receive an access
 //! token valid for about an hour.
 //!
-//! Tokens are cached per secret name and reused until shortly before they
-//! expire, because minting on every request would add a round trip to Google
-//! in front of every round trip to the model. The skew is deliberate: a token
-//! that expires in flight fails the *user's* request, so it is retired early
-//! rather than used to the last second.
+//! This module is now one *implementation* of the credential model in
+//! [`crate::credential`] rather than a credential story of its own: it decides
+//! how a Google key is signed and exchanged, and nothing else. Parsing,
+//! caching, scoping and endpoint filling are generic and live there.
 //!
-//! Lives in the security crate rather than beside the gateway because the
-//! boot-time Vertex model discovery needs the same token with none of the
-//! gateway's request machinery, and a credential minted in two places is two
-//! caches and two ways to be wrong.
+//! Lives in the security crate rather than beside the gateway because
+//! boot-time model discovery needs the same token with none of the gateway's
+//! request machinery, and a credential minted in two places is two caches and
+//! two ways to be wrong.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::sync::{OnceLock, PoisonError, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use anyhow::{Result, anyhow, bail};
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
+
+use crate::credential::cache::clamp_ttl;
+use crate::credential::{CredentialError, ProviderCredential, http};
 
 // Why: Google limits a service-account JWT assertion's lifetime to one hour.
 const ASSERTION_TTL: Duration = Duration::from_secs(3600);
 
-const EXPIRY_SKEW: Duration = Duration::from_secs(120);
+// Why: the assertion is rejected if its `iat` is in the future by even a
+// second, and a host clock a little ahead of Google's is the ordinary case,
+// not the exotic one. Back-dating costs nothing: the lifetime is measured
+// from `iat`, so the token is not shortened, only started earlier.
+const CLOCK_SKEW: Duration = Duration::from_secs(60);
 
 const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 
-#[derive(Debug, Deserialize)]
+/// The `type` value by which a Google key file names itself.
+pub(crate) const SERVICE_ACCOUNT_TYPE: &str = "service_account";
+
+#[derive(Clone, Deserialize)]
 pub struct ServiceAccountKey {
     pub client_email: String,
     pub private_key: String,
@@ -47,21 +53,36 @@ pub struct ServiceAccountKey {
     pub token_uri: String,
 }
 
+// Why: the derived `Debug` would print `private_key`, and this type is held
+// inside a `ProviderCredential` that the gateway logs the shape of. The only
+// fields worth seeing are the ones that identify the key, not the one that is
+// the key.
+impl std::fmt::Debug for ServiceAccountKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ServiceAccountKey")
+            .field("client_email", &self.client_email)
+            .field("project_id", &self.project_id)
+            .field("token_uri", &self.token_uri)
+            .field("private_key", &"<redacted>")
+            .finish()
+    }
+}
+
 fn default_token_uri() -> String {
     "https://oauth2.googleapis.com/token".to_owned()
 }
 
 impl ServiceAccountKey {
-    pub fn parse(secret: &str) -> Result<Option<Self>> {
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(secret) else {
-            return Ok(None);
-        };
-        if value.get("type").and_then(serde_json::Value::as_str) != Some("service_account") {
-            return Ok(None);
+    /// Parse a secret that is expected to be a service account, or `None` if
+    /// it is some other kind of credential.
+    ///
+    /// Kept as the name every existing caller uses; the decision itself is
+    /// made once, in [`ProviderCredential::parse`].
+    pub fn parse(secret: &str) -> Result<Option<Self>, CredentialError> {
+        match ProviderCredential::parse(secret)? {
+            ProviderCredential::GoogleServiceAccount(key) => Ok(Some(*key)),
+            ProviderCredential::ApiKey(_) => Ok(None),
         }
-        serde_json::from_value(value)
-            .map(Some)
-            .map_err(|e| anyhow!("service-account key is malformed: {e}"))
     }
 }
 
@@ -78,86 +99,44 @@ struct Assertion<'a> {
 struct TokenResponse {
     access_token: String,
     #[serde(default)]
-    expires_in: u64,
+    expires_in: Option<u64>,
 }
 
-#[derive(Debug, Clone)]
-struct CachedToken {
-    token: String,
-    expires_at: SystemTime,
+/// Mint — or reuse — an access token for one service-account key.
+///
+/// `cache_key` identifies the stored secret, so two providers sharing one
+/// secret share one token and two secrets never share one entry.
+pub async fn access_token(
+    cache_key: &str,
+    key: &ServiceAccountKey,
+) -> Result<String, CredentialError> {
+    crate::credential::cache::token_for(cache_key, || async {
+        let response = exchange(key).await?;
+        Ok((response.access_token, clamp_ttl(response.expires_in)))
+    })
+    .await
 }
 
-fn cache() -> &'static RwLock<HashMap<String, CachedToken>> {
-    static CACHE: OnceLock<RwLock<HashMap<String, CachedToken>>> = OnceLock::new();
-    CACHE.get_or_init(|| RwLock::new(HashMap::new()))
-}
-
-pub async fn access_token(secret_name: &str, key: &ServiceAccountKey) -> Result<String> {
-    if let Some(token) = cached(secret_name) {
-        return Ok(token);
-    }
-
-    let response = exchange(key).await?;
-    let ttl = if response.expires_in == 0 {
-        ASSERTION_TTL
-    } else {
-        Duration::from_secs(response.expires_in)
-    };
-
-    cache()
-        .write()
-        .unwrap_or_else(PoisonError::into_inner)
-        .insert(
-            secret_name.to_owned(),
-            CachedToken {
-                token: response.access_token.clone(),
-                expires_at: SystemTime::now() + ttl,
-            },
-        );
-
-    Ok(response.access_token)
-}
-
-fn cached(secret_name: &str) -> Option<String> {
-    let guard = cache().read().unwrap_or_else(PoisonError::into_inner);
-    let token = guard.get(secret_name).and_then(|entry| {
-        (entry.expires_at > SystemTime::now() + EXPIRY_SKEW).then(|| entry.token.clone())
-    });
-    drop(guard);
-    token
-}
-
-async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse> {
+async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse, CredentialError> {
     let assertion = sign_assertion(key)?;
+    let form = [
+        (
+            "grant_type",
+            "urn:ietf:params:oauth:grant-type:jwt-bearer".to_owned(),
+        ),
+        ("assertion", assertion),
+    ];
 
-    let response = reqwest::Client::new()
-        .post(&key.token_uri)
-        .form(&[
-            (
-                "grant_type",
-                "urn:ietf:params:oauth:grant-type:jwt-bearer".to_owned(),
-            ),
-            ("assertion", assertion),
-        ])
-        .send()
-        .await
-        .map_err(|e| anyhow!("token endpoint {} unreachable: {e}", key.token_uri))?;
-
-    let status = response.status();
-    let body = response.text().await.unwrap_or_default();
-    if !status.is_success() {
-        bail!("token endpoint returned {status}: {}", body.trim());
-    }
-
-    serde_json::from_str(&body)
-        .map_err(|e| anyhow!("token endpoint returned an unreadable body: {e}"))
+    let body = http::post_form(&key.token_uri, &form).await?;
+    serde_json::from_str(&body).map_err(|e| CredentialError::UnreadableBody(e.to_string()))
 }
 
-fn sign_assertion(key: &ServiceAccountKey) -> Result<String> {
+fn sign_assertion(key: &ServiceAccountKey) -> Result<String, CredentialError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| anyhow!("system clock is before the unix epoch: {e}"))?
-        .as_secs();
+        .map_err(|e| CredentialError::Clock(e.to_string()))?
+        .as_secs()
+        .saturating_sub(CLOCK_SKEW.as_secs());
 
     let claims = Assertion {
         iss: &key.client_email,
@@ -168,8 +147,8 @@ fn sign_assertion(key: &ServiceAccountKey) -> Result<String> {
     };
 
     let encoding = EncodingKey::from_rsa_pem(key.private_key.as_bytes())
-        .map_err(|e| anyhow!("service-account private_key is not a valid RSA PEM: {e}"))?;
+        .map_err(|e| CredentialError::SigningKey(e.to_string()))?;
 
     jsonwebtoken::encode(&Header::new(Algorithm::RS256), &claims, &encoding)
-        .map_err(|e| anyhow!("could not sign the assertion: {e}"))
+        .map_err(|e| CredentialError::Sign(e.to_string()))
 }

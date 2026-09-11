@@ -11,6 +11,7 @@ fn report() -> DiscoveryReport {
         discovered_unpriced: vec!["gemini-3.0-experimental".to_owned()],
         priced_not_published: vec!["openai/gpt-oss-20b-maas".to_owned()],
         explicit_wins: vec!["claude-opus-5".to_owned()],
+        retiring: vec!["vertex-gemini-2.5-flash".to_owned()],
         failed_publishers: vec!["meta".to_owned()],
         ran_at: "2026-09-11T04:30:00Z".to_owned(),
     }
@@ -30,8 +31,25 @@ fn each_bucket_renders_one_row_with_its_own_state() {
             ("gemini-3.0-experimental", "unpriced"),
             ("openai/gpt-oss-20b-maas", "priced-not-published"),
             ("claude-opus-5", "explicit"),
+            ("vertex-gemini-2.5-flash", "retiring"),
         ]
     );
+}
+
+// Why: the date is what an operator acts on; a bucket name alone says "soon".
+#[test]
+fn a_rate_card_id_carries_its_documented_retirement_date() {
+    let rows = discovery_rows(&report());
+    let retiring = rows
+        .iter()
+        .find(|r| r.upstream_or_id == "vertex-gemini-2.5-flash")
+        .expect("the retiring row renders");
+    assert_eq!(retiring.retires_on, "2026-10-20");
+    let served = rows
+        .iter()
+        .find(|r| r.upstream_or_id == "gemini-2.5-pro")
+        .expect("the served row renders");
+    assert_eq!(served.retires_on, "", "not a rate-card id, so no date");
 }
 
 #[test]

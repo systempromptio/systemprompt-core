@@ -19,6 +19,8 @@
 use serde::Deserialize;
 use systemprompt_models::services::{VertexRateCard, VertexRateCardEntry};
 
+use super::source::{DiscoveredModel, LaunchStage};
+
 /// The MaaS suffix Vertex gives every serverless partner model.
 const MAAS_SUFFIX: &str = "-maas";
 
@@ -81,6 +83,21 @@ impl PublisherModel {
         self.launch_stage == GA
     }
 
+    /// Reduce a Vertex listing entry to the provider-agnostic shape the
+    /// pricing decision is made on.
+    #[must_use]
+    pub fn discovered(&self) -> DiscoveredModel {
+        DiscoveredModel {
+            upstream: self.upstream(),
+            launch_stage: if self.is_generally_available() {
+                LaunchStage::GenerallyAvailable
+            } else {
+                LaunchStage::Preview
+            },
+            serverless: is_serverless(self),
+        }
+    }
+
     fn is_deployable_checkpoint(&self) -> bool {
         self.supported_actions
             .as_ref()
@@ -133,17 +150,28 @@ pub fn classify<'a>(
     card: &'a VertexRateCard,
     provider: &str,
 ) -> (Classification, Option<&'a VertexRateCardEntry>) {
-    if !is_serverless(model) {
+    classify_discovered(&model.discovered(), card, provider)
+}
+
+/// The pricing decision itself, which knows nothing about who listed the
+/// model — every [`CatalogSource`](super::source::CatalogSource) is judged by
+/// exactly this rule.
+#[must_use]
+pub fn classify_discovered<'a>(
+    model: &DiscoveredModel,
+    card: &'a VertexRateCard,
+    provider: &str,
+) -> (Classification, Option<&'a VertexRateCardEntry>) {
+    if !model.serverless {
         return (Classification::NotServerless, None);
     }
-    let upstream = model.upstream();
     let Some(entry) = card
-        .lookup(&upstream)
+        .lookup(&model.upstream)
         .filter(|e| e.provider.as_str() == provider)
     else {
         return (Classification::Unpriced, None);
     };
-    if !model.is_generally_available() && !entry.allow_preview {
+    if !model.launch_stage.is_generally_available() && !entry.allow_preview {
         return (Classification::PreviewWithheld, Some(entry));
     }
     (Classification::Publish, Some(entry))

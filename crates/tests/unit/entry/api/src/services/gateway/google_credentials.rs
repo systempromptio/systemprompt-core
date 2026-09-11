@@ -13,7 +13,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 async fn google_access_token(name: &str, secret: &str) -> anyhow::Result<Option<String>> {
     match ServiceAccountKey::parse(secret)? {
-        Some(key) => access_token(name, &key).await.map(Some),
+        Some(key) => Ok(access_token(name, &key).await.map(Some)?),
         None => Ok(None),
     }
 }
@@ -153,7 +153,10 @@ async fn exchange_signs_an_rs256_assertion_and_reuses_the_cached_token() {
         "https://www.googleapis.com/auth/cloud-platform"
     );
     let issued = claims["iat"].as_u64().unwrap();
-    assert!(issued >= before);
+    // Why: the assertion is back-dated by the clock-skew allowance, so `iat`
+    // is deliberately a minute behind the wall clock we read before the call.
+    assert!(issued + 60 >= before, "{issued} vs {before}");
+    assert!(issued <= before);
     assert_eq!(claims["exp"].as_u64().unwrap() - issued, 3600);
 }
 

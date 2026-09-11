@@ -26,6 +26,7 @@ serde = { workspace = true }
 serde_yaml = { workspace = true }
 
 # Async
+async-trait = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
 reqwest = { workspace = true }
 

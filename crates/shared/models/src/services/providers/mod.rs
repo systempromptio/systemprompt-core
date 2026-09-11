@@ -36,7 +36,9 @@ use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, Model
 pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
 pub use protocol::WireProtocol;
-pub use rate_card::{VertexRateCard, VertexRateCardEntry};
+pub use rate_card::{
+    DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, VertexRateCard, VertexRateCardEntry,
+};
 pub use surface::ApiSurface;
 
 const DEFAULT_CATALOG_YAML: &str = include_str!("default_catalog.yaml");
@@ -232,6 +234,14 @@ impl ProviderRegistry {
 }
 
 pub const PROJECT_PLACEHOLDER: &str = "{project}";
+
+// Why: the placeholder names live here, beside the registry that validates
+// endpoints, so that the credential layer that fills them and the validator
+// that polices them can never disagree about their spelling. `{region}` has
+// no filler today — no shipped credential type carries a region — and an
+// endpoint using it is refused until one does, which is the intended shape:
+// a coordinate is served by the credential or not at all.
+pub const REGION_PLACEHOLDER: &str = "{region}";
 
 // Why: a Google Cloud project id is a tenant identifier, and Vertex reports it
 // verbatim in every IAM error it returns, which the gateway relays to the

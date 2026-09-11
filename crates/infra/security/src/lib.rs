@@ -31,10 +31,14 @@
 //!   (secret scan, scope check, blocklist, rate limit + extension-registered
 //!   policies) with per-entry audit tracing into `governance_decisions`.
 //!
-//! All public fallible APIs return typed errors from [`error`] — `anyhow`
-//! is not used in any public signature. [`google`] is the one exception: it
-//! was lifted wholesale out of the gateway, and its `anyhow` results are the
-//! contract its existing callers and tests already assert on.
+//! - Upstream-credential plane ([`credential`]) — a stored secret is parsed
+//!   once into a `ProviderCredential`, which answers for its own scope
+//!   (project, region, principal) and its own auth header; [`google`] is one
+//!   implementation of that model, not a credential story of its own.
+//!
+//! All public fallible APIs return typed errors from [`error`] and
+//! [`credential::CredentialError`] — `anyhow` is not used in any public
+//! signature.
 //!
 //! # Feature flags
 //!
@@ -59,6 +63,7 @@
 pub mod at_rest;
 pub mod auth;
 pub mod authz;
+pub mod credential;
 pub mod error;
 pub mod extraction;
 pub mod google;

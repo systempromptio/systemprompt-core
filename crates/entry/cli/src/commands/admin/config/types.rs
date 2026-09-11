@@ -207,4 +207,6 @@ pub struct ProviderSetOutput {
 pub struct DiscoveryRow {
     pub upstream_or_id: String,
     pub state: String,
+    /// The documented retirement date, for a rate-card id that has one.
+    pub retires_on: String,
 }
