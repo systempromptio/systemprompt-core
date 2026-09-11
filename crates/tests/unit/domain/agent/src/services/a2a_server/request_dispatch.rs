@@ -9,8 +9,8 @@ use axum::http::StatusCode;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::protocol::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
-    ListTaskPushNotificationConfigRequest, MessageSendParams, PushNotificationConfig,
-    SetTaskPushNotificationConfigRequest,
+    ListTaskPushNotificationConfigRequest, MessageSendConfiguration, MessageSendParams,
+    PushNotificationConfig, SetTaskPushNotificationConfigRequest,
 };
 use systemprompt_agent::models::a2a::{A2aRequestParams, Message, MessageRole, Part, TextPart};
 use systemprompt_agent::services::a2a_server::handlers::request::helpers::{
@@ -174,4 +174,55 @@ async fn streaming_path_unknown_context_streams_validation_error() {
     .await;
 
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn streaming_path_rejects_a_push_notification_url_in_a_blocked_range() {
+    let Some(pool) = try_pool_or_skip().await else {
+        return;
+    };
+    let repos = repos(&pool);
+    let (user, session) = seed_user_and_session(&pool).await;
+    let (ctx, _task_id) = seed_context_and_task(&repos, &user, &session).await;
+
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 4);
+    let context = request_context(&ctx, &session, &user, "test_agent");
+    let mut params = send_params(&ctx);
+    params.configuration = Some(MessageSendConfiguration {
+        accepted_output_modes: None,
+        history_length: None,
+        push_notification_config: Some(push_config("https://169.254.169.254/latest/meta-data")),
+        blocking: None,
+    });
+
+    let response = handle_streaming_path(
+        A2aRequestParams::SendStreamingMessage(params),
+        Arc::clone(&state),
+        NumberOrString::Number(11),
+        context,
+        std::time::Instant::now(),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+        .await
+        .expect("sse body");
+    let body = String::from_utf8_lossy(&body);
+    assert!(body.contains("-32602"), "{body}");
+    assert!(
+        body.contains("Invalid push notification config url"),
+        "{body}"
+    );
+    assert!(body.contains("169.254.169.254"), "{body}");
+
+    let stored = repos
+        .push_notification_configs
+        .list_configs(&_task_id)
+        .await
+        .expect("list");
+    assert!(
+        stored.iter().all(|c| !c.url.contains("169.254.169.254")),
+        "a refused url must never be stored: {stored:?}"
+    );
 }

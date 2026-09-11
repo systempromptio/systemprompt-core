@@ -518,3 +518,91 @@ async fn get_stream_size_ceiling_resets_between_events() {
         assert_eq!(event.data.as_deref(), Some(expected));
     }
 }
+
+// -- Security test 02: an MCP server that redirects into the block list ------
+
+async fn redirecting_mcp_server(location: &str) -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .respond_with(ResponseTemplate::new(307).insert_header("location", location))
+        .mount(&server)
+        .await;
+    server
+}
+
+fn transport_error(err: StreamableHttpError<McpTransportError>) -> String {
+    format!("{err:?}")
+}
+
+#[tokio::test]
+async fn item_02_post_redirected_to_cloud_metadata_is_refused() {
+    let server = redirecting_mcp_server("https://169.254.169.254/latest/meta-data/").await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let err = client
+        .post_message(uri(&server), ping(), None, None, HashMap::new())
+        .await
+        .expect_err("a hop into link-local is refused");
+
+    let rendered = transport_error(err);
+    assert!(rendered.contains("169.254.169.254"), "{rendered}");
+}
+
+#[tokio::test]
+async fn item_02_post_redirected_to_a_private_range_never_reaches_the_target() {
+    let landing = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&landing)
+        .await;
+    let hop = format!("{}/mcp", landing.uri()).replace("127.0.0.1", "10.0.0.5");
+    let server = redirecting_mcp_server(&hop).await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let err = client
+        .post_message(uri(&server), ping(), None, None, HashMap::new())
+        .await
+        .expect_err("a hop into RFC1918 is refused");
+
+    let rendered = transport_error(err);
+    assert!(rendered.contains("10.0.0.5"), "{rendered}");
+    assert!(
+        landing
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
+        "the refused hop must not be dialled"
+    );
+}
+
+#[tokio::test]
+async fn item_02_get_stream_redirected_to_cloud_metadata_is_refused() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/mcp"))
+        .respond_with(
+            ResponseTemplate::new(302)
+                .insert_header("location", "https://169.254.169.254/latest/meta-data/"),
+        )
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let result = client
+        .get_stream(
+            uri(&server),
+            Some(Arc::from("sess-1")),
+            None,
+            None,
+            HashMap::new(),
+        )
+        .await;
+
+    let Err(err) = result else {
+        panic!("a hop into link-local must be refused, got a stream");
+    };
+    let rendered = transport_error(err);
+    assert!(rendered.contains("169.254.169.254"), "{rendered}");
+}

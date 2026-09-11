@@ -226,3 +226,129 @@ fn the_size_cap_stays_under_the_gemini_inline_budget() {
     // Why: base64 inflates by 4/3, and Gemini caps the whole request at 20 MB.
     assert!(MAX_IMAGE_BYTES * 4 / 3 < 20 * 1000 * 1000);
 }
+
+// -- Security test 02: SSRF to cloud metadata, driven through the gateway ----
+
+async fn redirector_to(location: &str) -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/pic.png"))
+        .respond_with(ResponseTemplate::new(302).insert_header("location", location))
+        .mount(&server)
+        .await;
+    server
+}
+
+#[tokio::test]
+async fn item_02_a_link_local_literal_is_refused_before_any_request() {
+    // Why: the scheme check runs first, so the block-list verdict is only
+    // visible on an https literal; the plain-http form is covered below.
+    let failure = fetch(
+        "https://169.254.169.254/latest/meta-data",
+        &ImageFetchPolicy::default(),
+    )
+    .await
+    .expect_err("the metadata address is never fetchable");
+
+    assert!(failure.caller_fault, "{failure:?}");
+    assert!(failure.message.contains("169.254.169.254"), "{failure:?}");
+}
+
+#[tokio::test]
+async fn item_02_the_plain_http_metadata_hostname_is_refused_at_parse_time() {
+    // Why: item 02 as written uses `http://`; a non-loopback plain-http host
+    // never reaches the resolver at all.
+    let failure = fetch(
+        "http://169.254.169.254.nip.io/latest/meta-data",
+        &ImageFetchPolicy::default(),
+    )
+    .await
+    .expect_err("plain http to a public name is refused");
+
+    assert!(failure.caller_fault, "{failure:?}");
+    assert!(
+        failure
+            .message
+            .contains("http url only permitted for loopback hosts"),
+        "{failure:?}"
+    );
+}
+
+#[tokio::test]
+async fn item_02_a_public_redirector_into_link_local_never_reaches_the_target() {
+    let target = image_host(png_response()).await;
+    let redirector =
+        redirector_to(&format!("https://169.254.169.254{}", "/latest/meta-data/")).await;
+
+    let failure = fetch(
+        &format!("{}/pic.png", redirector.uri()),
+        &policy_trusting_mock(),
+    )
+    .await
+    .expect_err("the hop into link-local is refused");
+
+    assert!(failure.caller_fault, "{failure:?}");
+    assert!(failure.message.contains("redirect rejected"), "{failure:?}");
+    assert!(
+        target
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
+        "nothing may be fetched after a refused hop"
+    );
+}
+
+#[tokio::test]
+async fn item_02_a_redirect_to_a_hostname_resolving_to_loopback_is_refused_at_connect_time() {
+    // Why: `localhost` passes the parse-time guard on the hop; only the
+    // resolver installed on the guarded client can see where it lands, and the
+    // image fetcher denies loopback because the URL is caller-chosen.
+    let target = image_host(png_response()).await;
+    let hop = format!("{}/pic.png", target.uri()).replace("127.0.0.1", "localhost");
+    let redirector = redirector_to(&hop).await;
+
+    let failure = fetch(
+        &format!("{}/pic.png", redirector.uri()),
+        &policy_trusting_mock(),
+    )
+    .await
+    .expect_err("a name resolving to loopback is refused");
+
+    assert!(failure.caller_fault, "{failure:?}");
+    assert!(
+        failure
+            .message
+            .contains("localhost resolves to blocked address"),
+        "{failure:?}"
+    );
+    assert!(
+        target
+            .received_requests()
+            .await
+            .unwrap_or_default()
+            .is_empty(),
+        "the guarded resolver refused before a socket was opened"
+    );
+}
+
+#[tokio::test]
+async fn item_02_a_refused_image_leaves_the_canonical_request_untouched() {
+    let redirector = redirector_to("https://169.254.169.254/latest/meta-data/").await;
+    let url = format!("{}/pic.png", redirector.uri());
+    let mut request = url_image_request(&url);
+
+    let failure = inline_url_images(&mut request, &policy_trusting_mock())
+        .await
+        .expect_err("inlining fails on the refused url");
+
+    assert_eq!(failure.url, url);
+    assert!(
+        matches!(
+            &request.messages[0].content[1],
+            CanonicalContent::Image(ImageSource::Url { url: u, .. }) if u == &url
+        ),
+        "a refused image is not rewritten: {:?}",
+        request.messages[0].content[1]
+    );
+}

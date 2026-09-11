@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.51.0] - 2026-09-11
+
+### Fixed
+
+- **Agent:** an A2A `message/stream` request carrying `configuration.pushNotificationConfig` now validates the callback URL with the same outbound guard as `tasks/pushNotificationConfig/set` and answers `-32602` without storing it; previously the streaming path persisted the URL unchecked.
+- **Models:** `GuardedClientConfig::max_redirects` follows exactly that many hops; it previously refused one hop early while reporting `more than N redirects`.
+
+### Added
+
+- **Docs:** `documentation/security/outbound-egress-controls.md` describes the parse-time and connect-time SSRF layers, their exemptions, and which outbound surface uses which.
+- **Testing:** `just test-ssrf-live` runs the real-DNS SSRF cases (`169.254.169.254.nip.io`, `metadata.google.internal`) that CI skips.
+
 ## [0.50.0] - 2026-09-10
 
 A deployed instance stops being one immutable artifact. The services tree
