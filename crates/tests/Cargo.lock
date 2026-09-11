@@ -7394,6 +7394,7 @@ dependencies = [
  "reqwest",
  "serde_json",
  "systemprompt-bridge",
+ "systemprompt-identifiers",
  "temp-env",
  "tempfile",
  "tokio",
@@ -7405,6 +7406,7 @@ name = "systemprompt-bridge-mcp-registry-tests"
 version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
+ "systemprompt-identifiers",
  "temp-env",
  "tempfile",
 ]
@@ -8303,6 +8305,7 @@ dependencies = [
 name = "systemprompt-loader"
 version = "0.50.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "flate2",
@@ -8327,6 +8330,7 @@ dependencies = [
 name = "systemprompt-loader-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
  "chrono",
  "flate2",
  "hex",
@@ -8821,6 +8825,7 @@ dependencies = [
  "sqlx",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-config",
  "systemprompt-database",
  "systemprompt-evaluation",
  "systemprompt-extension",
@@ -8893,6 +8898,7 @@ dependencies = [
 name = "systemprompt-security"
 version = "0.50.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "axum",
  "base64 0.22.1",

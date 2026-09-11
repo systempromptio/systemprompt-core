@@ -59,7 +59,7 @@ pub struct VertexRateCardEntry {
     pub id: ModelId,
 
     /// What our wire puts on the request — the bare name on the gemini wire,
-    /// the publisher-qualified name on the MaaS openai-chat surface.
+    /// the publisher-qualified name on the `MaaS` openai-chat surface.
     pub upstream_model: String,
 
     /// Publish this model even when Vertex (or the documentation) marks it

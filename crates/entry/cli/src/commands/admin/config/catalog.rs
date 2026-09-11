@@ -23,11 +23,12 @@ use systemprompt_models::services::{ApiSurface, ProviderRegistry, WireProtocol};
 use super::services_io::{
     booted_services, load_providers_file, merged_registry_after_edit, providers_relative, save_file,
 };
-use super::types::{ConfigMutationOutput, DiscoveryRow};
+use super::types::ConfigMutationOutput;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
-use systemprompt_models::artifacts::{ListItem, NoticeLine};
-use systemprompt_models::services::{DiscoveryReport, VertexRateCard};
+use systemprompt_models::artifacts::ListItem;
+
+pub use super::catalog_discovery::discovery_rows;
 
 #[derive(Debug, Subcommand)]
 pub enum CatalogCommands {
@@ -108,7 +109,7 @@ pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()
     match command {
         CatalogCommands::Provider(ProviderCommands::List) => list_providers(config),
         CatalogCommands::Discovery => {
-            show_discovery(config);
+            super::catalog_discovery::show_discovery(config);
             Ok(())
         },
         CatalogCommands::Provider(ProviderCommands::Add(args)) => {
@@ -254,92 +255,4 @@ fn list_providers(config: &CliConfig) -> Result<()> {
         config,
     );
     Ok(())
-}
-
-/// Prefers the scheduler's daily report over the boot-time one: both describe
-/// the same upstream, but the scheduler's is fresher and the boot report never
-/// changes for the life of the process.
-fn latest_discovery() -> Option<DiscoveryReport> {
-    systemprompt_scheduler::jobs::vertex_discovery::latest_report().or_else(|| {
-        systemprompt_loader::ServicesBootstrap::discovery_report()
-            .filter(|r| !r.ran_at.is_empty())
-            .cloned()
-    })
-}
-
-/// Flattens a report into one row per model id, tagged with why it is or is
-/// not being served, and with the documented retirement date where the rate
-/// card records one.
-#[must_use]
-pub fn discovery_rows(report: &DiscoveryReport) -> Vec<DiscoveryRow> {
-    let card = VertexRateCard::embedded().ok();
-    let retires_on = |id: &str| -> String {
-        card.as_ref()
-            .and_then(|card| card.lookup_id(id))
-            .and_then(|entry| entry.retires_on)
-            .map(|date| date.to_string())
-            .unwrap_or_default()
-    };
-    let buckets = [
-        (&report.discovered_priced, "served"),
-        (&report.discovered_unpriced, "unpriced"),
-        (&report.priced_not_published, "priced-not-published"),
-        (&report.explicit_wins, "explicit"),
-        (&report.retiring, "retiring"),
-    ];
-    buckets
-        .into_iter()
-        .flat_map(|(ids, state)| {
-            ids.iter().map(|id| DiscoveryRow {
-                upstream_or_id: id.clone(),
-                state: state.to_owned(),
-                retires_on: retires_on(id),
-            })
-        })
-        .collect()
-}
-
-fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
-    let mut notes = vec![NoticeLine::new(
-        "info",
-        format!("ran_at: {}", report.ran_at),
-    )];
-    if report.failed_publishers.is_empty() {
-        notes.push(NoticeLine::new("info", "failed_publishers: none"));
-    } else {
-        notes.push(NoticeLine::new(
-            "warning",
-            format!(
-                "failed_publishers: {} (the listing is partial)",
-                report.failed_publishers.join(", ")
-            ),
-        ));
-    }
-    notes
-}
-
-fn show_discovery(config: &CliConfig) {
-    let Some(report) = latest_discovery() else {
-        render_result(
-            &CommandOutput::message(vec![NoticeLine::new(
-                "info",
-                "Vertex model discovery has not run. It runs at boot only when a provider \
-                 endpoint is on aiplatform.googleapis.com and its secret is a Google \
-                 service-account key, and is skipped entirely when \
-                 SYSTEMPROMPT_VERTEX_DISCOVERY=0.",
-            )])
-            .with_title("Vertex Model Discovery"),
-            config,
-        );
-        return;
-    };
-    render_result(
-        &CommandOutput::table_of(
-            vec!["upstream_or_id", "state", "retires_on"],
-            &discovery_rows(&report),
-        )
-        .with_title("Vertex Model Discovery"),
-        config,
-    );
-    render_result(&CommandOutput::message(discovery_notes(&report)), config);
 }
