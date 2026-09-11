@@ -1,20 +1,17 @@
-//! Claude Code (terminal CLI) settings on macOS and Linux.
+//! Claude Code (terminal CLI) settings on macOS, Linux, and Windows.
 //!
 //! The `apiKeyHelper` script plus the `env` keys the bridge owns inside the
 //! settings file: the machine policy file under
 //! [`crate::config::paths::claude_code_policy_dir`] when it is writable
 //! (root), otherwise the per-user `~/.claude/settings.json`.
 //!
-//! Why this is not Linux-only: Claude Desktop is configured through managed
-//! preferences, but the Claude Code CLI reads none of them. Before this module
-//! was shared, `install --apply` on macOS wrote the Desktop plist and reported
-//! Claude Code as governed, while every `claude` model call still went straight
-//! to Anthropic and never reached the audit trail.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod helper;
 mod merge;
+
+pub use helper::windows_helper_command;
 pub mod model_picker;
 mod removal;
 
@@ -53,6 +50,7 @@ fn can_write(path: &Path) -> bool {
             .is_ok()
 }
 
+#[cfg(unix)]
 pub(super) fn key_helper_path() -> Option<PathBuf> {
     Some(
         crate::basedirs::config_dir()?
@@ -69,6 +67,7 @@ pub fn standalone_settings_path() -> Option<PathBuf> {
     )
 }
 
+#[cfg(unix)]
 fn key_helper_body(key_path: &Path) -> String {
     let bin = crate::brand::brand().binary_name;
     format!(
@@ -124,8 +123,7 @@ pub(crate) fn write_standalone_settings(
     key_path: &Path,
 ) -> Result<MdmApplication, MdmError> {
     let helper = key_helper_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    let helper_receipt = write_verified(&helper, &key_helper_body(key_path))?;
-    set_executable(&helper)?;
+    let mut files = prepare_helper(&helper, key_path)?;
     let standalone =
         standalone_settings_path().ok_or(MdmError::Resolve("the user's config directory"))?;
     let mut root = serde_json::Map::new();
@@ -138,16 +136,21 @@ pub(crate) fn write_standalone_settings(
         serde_json::Value::String(shell_command_for(&helper)),
     );
     let standalone_receipt = write_verified(&standalone, &render(root, &standalone)?)?;
+    files.push(standalone_receipt);
     Ok(MdmApplication {
         lines: vec![
-            format!("wrote: {} (apiKeyHelper)", helper.display()),
+            format!(
+                "{}: {} (apiKeyHelper)",
+                if cfg!(unix) { "wrote" } else { "executable" },
+                helper.display()
+            ),
             format!(
                 "wrote: {} (pass to `claude --settings` to route one session without editing \
                  ~/.claude/settings.json)",
                 standalone.display()
             ),
         ],
-        files: vec![helper_receipt, standalone_receipt],
+        files,
         policies: Vec::new(),
     })
 }
@@ -231,6 +234,7 @@ pub(super) fn read_or_empty(path: &Path) -> Result<String, MdmError> {
 // Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so a path with
 // whitespace — every macOS `~/Library/Application Support/…` path — is split
 // into words. Quote only then, so the Linux value stays the bare path.
+#[cfg(unix)]
 pub(super) fn shell_command_for(helper: &Path) -> String {
     let raw = helper.display().to_string();
     if raw.chars().any(char::is_whitespace) {
@@ -240,6 +244,7 @@ pub(super) fn shell_command_for(helper: &Path) -> String {
     }
 }
 
+#[cfg(unix)]
 fn set_executable(path: &Path) -> Result<(), MdmError> {
     use std::os::unix::fs::PermissionsExt as _;
     fs::set_permissions(path, fs::Permissions::from_mode(0o700))
@@ -274,4 +279,27 @@ pub fn seed_default_model(model: &str) -> Result<bool, MdmError> {
     );
     write_atomic(&settings_path, &render(root, &settings_path)?)?;
     Ok(true)
+}
+
+#[cfg(unix)]
+fn prepare_helper(helper: &Path, key_path: &Path) -> Result<Vec<FileReceipt>, MdmError> {
+    let receipt = write_verified(helper, &key_helper_body(key_path))?;
+    set_executable(helper)?;
+    Ok(vec![receipt])
+}
+
+#[cfg(target_os = "windows")]
+pub(super) fn key_helper_path() -> Option<PathBuf> {
+    std::env::current_exe().ok()
+}
+
+#[cfg(target_os = "windows")]
+fn prepare_helper(helper: &Path, _key_path: &Path) -> Result<Vec<FileReceipt>, MdmError> {
+    fs::metadata(helper).map_err(io_error("read helper executable", helper))?;
+    Ok(Vec::new())
+}
+
+#[cfg(target_os = "windows")]
+pub(super) fn shell_command_for(helper: &Path) -> String {
+    windows_helper_command(helper)
 }

@@ -5,13 +5,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::Outcome;
-#[cfg(unix)]
 use crate::context::BridgeContext;
 
 pub(super) const ID: &str = "claude-code";
 pub(super) const LABEL: &str = "gateway keys merged into Claude Code's settings file";
 
-#[cfg(unix)]
 pub(super) fn enrol(bridge: &BridgeContext) -> Outcome {
     let Some(key_path) = crate::proxy::secret::secret_path() else {
         return Outcome::Failed("the loopback secret path could not be resolved".to_owned());
@@ -28,21 +26,10 @@ pub(super) fn enrol(bridge: &BridgeContext) -> Outcome {
     }
 }
 
-#[cfg(not(unix))]
-pub(super) const fn enrol(_bridge: &crate::context::BridgeContext) -> Outcome {
-    Outcome::SyncOnly
-}
-
-#[cfg(unix)]
 pub(super) fn remove() -> Outcome {
     match crate::install::mdm::claude_code_settings::remove_managed_settings() {
         Ok(lines) if lines.is_empty() => Outcome::NothingToRemove,
         Ok(_) => Outcome::Removed,
         Err(e) => Outcome::Failed(e.to_string()),
     }
-}
-
-#[cfg(not(unix))]
-pub(super) const fn remove() -> Outcome {
-    Outcome::SyncOnly
 }

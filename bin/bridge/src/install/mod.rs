@@ -166,6 +166,8 @@ pub fn uninstall(
     bridge: &crate::context::BridgeContext,
 ) -> Result<UninstallSummary, InstallError> {
     let location = paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)?;
+    #[cfg(target_os = "windows")]
+    mdm::claude_code_settings::remove_all().map_err(|e| InstallError::Bootstrap(e.to_string()))?;
 
     let metadata = paths::bridge_metadata_dir()
         .ok_or_else(|| InstallError::Bootstrap("bridge metadata dir unresolvable".into()))?;

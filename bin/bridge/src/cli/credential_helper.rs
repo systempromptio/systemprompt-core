@@ -25,7 +25,7 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
     };
 
     match host.as_str() {
-        "codex-cli" => emit_codex(ctx),
+        "codex-cli" | "claude-code" => emit_loopback(ctx),
         "claude-desktop" => emit_claude_via_chain(ctx),
         other => {
             eprintln!("{}", error_json(&format!("unknown host id: {other}")));
@@ -60,7 +60,7 @@ fn emit_claude_via_chain(ctx: &BridgeContext) -> ExitCode {
     emit_claude(&out)
 }
 
-fn emit_codex(ctx: &BridgeContext) -> ExitCode {
+fn emit_loopback(ctx: &BridgeContext) -> ExitCode {
     let secret = match ctx.proxy.loopback().secret() {
         Ok(s) => s,
         Err(e) => {
@@ -73,8 +73,8 @@ fn emit_codex(ctx: &BridgeContext) -> ExitCode {
             return ExitCode::from(70);
         },
     };
-    // Why: Codex forwards helper stdout as the bearer credential, so it must be a
-    // bare secret.
+    // Why: CLI clients forward helper stdout as the bearer credential, so it must
+    // be a bare secret.
     println!("{}", secret.as_str());
     ExitCode::SUCCESS
 }

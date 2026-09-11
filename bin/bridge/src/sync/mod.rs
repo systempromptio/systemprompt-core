@@ -177,7 +177,6 @@ pub async fn run_once(
     Ok(build_summary(&synced, report))
 }
 
-#[cfg(unix)]
 async fn seed_default_model_from_profile(
     client: &crate::gateway::GatewayClient,
 ) -> Result<(), SyncError> {
@@ -209,17 +208,6 @@ async fn seed_default_model_from_profile(
         Ok(false) => tracing::debug!("settings already name a model; leaving the user's choice"),
         Err(e) => return Err(SyncError::Network(format!("seed default model: {e}"))),
     }
-    Ok(())
-}
-
-#[cfg(not(unix))]
-#[expect(
-    clippy::unused_async,
-    reason = "matches the Linux arm's signature, which the shared call site awaits"
-)]
-async fn seed_default_model_from_profile(
-    _client: &crate::gateway::GatewayClient,
-) -> Result<(), SyncError> {
     Ok(())
 }
 
