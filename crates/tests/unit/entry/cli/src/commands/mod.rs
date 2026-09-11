@@ -7,6 +7,7 @@ mod admin_agents_profile_fs;
 mod admin_bootstrap_db;
 mod admin_bridge_issue_code_db;
 mod admin_config;
+mod admin_config_catalog_discovery;
 mod admin_config_dispatcher_fs;
 mod admin_config_gateway;
 mod admin_config_governance_fs;

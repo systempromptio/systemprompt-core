@@ -66,3 +66,9 @@ mod services_catalog;
 mod services_loader;
 #[cfg(test)]
 mod services_root_cell;
+#[cfg(test)]
+mod vertex_discovery_classify;
+#[cfg(test)]
+mod vertex_discovery_client;
+#[cfg(test)]
+mod vertex_discovery_merge;

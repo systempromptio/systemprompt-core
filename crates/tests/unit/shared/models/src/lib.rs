@@ -86,6 +86,8 @@ mod services_bundle;
 mod provider_catalog_parity;
 #[cfg(test)]
 mod provider_model_lookup;
+#[cfg(test)]
+mod vertex_rate_card;
 
 #[cfg(test)]
 mod provider_project_placeholder;

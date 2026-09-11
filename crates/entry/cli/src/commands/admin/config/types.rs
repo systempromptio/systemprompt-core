@@ -200,3 +200,11 @@ pub struct ProviderSetOutput {
     pub action: String,
     pub message: String,
 }
+
+/// One row of `admin config catalog discovery`: a model id (or the upstream
+/// name it is published under) and why it is or is not served.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DiscoveryRow {
+    pub upstream_or_id: String,
+    pub state: String,
+}

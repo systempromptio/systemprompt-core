@@ -40,6 +40,9 @@ pub enum ProviderRegistryError {
 
     #[error("embedded default provider catalog failed to parse: {0}")]
     InvalidDefaultCatalog(String),
+
+    #[error("embedded Vertex rate card failed to parse: {0}")]
+    InvalidVertexRateCard(String),
 }
 
 pub type ProviderRegistryResult<T> = Result<T, ProviderRegistryError>;

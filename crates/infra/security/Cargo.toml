@@ -22,6 +22,9 @@ systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core runtime
+# Why: `google` was lifted out of the gateway verbatim so its callers and
+# tests keep compiling; its results are anyhow, unlike the rest of the crate.
+anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }

@@ -20,8 +20,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod discovery_report;
 mod error;
 mod protocol;
+mod rate_card;
 mod surface;
 
 use std::collections::{HashMap, HashSet};
@@ -31,8 +33,10 @@ use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 
 use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelLimits, ModelPricing};
 
+pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
 pub use protocol::WireProtocol;
+pub use rate_card::{VertexRateCard, VertexRateCardEntry};
 pub use surface::ApiSurface;
 
 const DEFAULT_CATALOG_YAML: &str = include_str!("default_catalog.yaml");

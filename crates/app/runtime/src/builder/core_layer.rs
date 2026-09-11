@@ -55,8 +55,11 @@ pub(super) async fn init_core(
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
-    let services = systemprompt_loader::ServicesBootstrap::try_init()
-        .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
+    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
+        Box::pin(discover_vertex_models(providers))
+    })
+    .await
+    .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
     systemprompt_logging::set_instance_id(instance_id.clone());
@@ -110,6 +113,70 @@ pub(super) async fn init_core(
         authz_hook,
         file_storage,
     })
+}
+
+/// Vertex publishes and retires MaaS models without an operator edit, so the
+/// registry is augmented at boot from the live publisher listing. Everything
+/// here is fail-open: a provider that is not Vertex, a missing or unusable
+/// service-account credential, or `SYSTEMPROMPT_VERTEX_DISCOVERY=0` all yield
+/// an empty report and leave the YAML catalog exactly as authored.
+async fn discover_vertex_models(
+    providers: &mut systemprompt_models::services::ProviderRegistry,
+) -> systemprompt_models::services::DiscoveryReport {
+    use systemprompt_models::services::DiscoveryReport;
+
+    if std::env::var("SYSTEMPROMPT_VERTEX_DISCOVERY").is_ok_and(|v| v == "0") {
+        tracing::debug!("Vertex model discovery disabled by SYSTEMPROMPT_VERTEX_DISCOVERY=0");
+        return DiscoveryReport::default();
+    }
+    let Ok(secrets) = SecretsBootstrap::get() else {
+        tracing::warn!("secret store unavailable; skipping Vertex model discovery");
+        return DiscoveryReport::default();
+    };
+    if !providers
+        .providers
+        .iter()
+        .any(|p| is_vertex_service_account(&p.endpoint, secrets.get(p.api_key_secret.as_str())))
+    {
+        return DiscoveryReport::default();
+    }
+    let lookup = |name: &str| secrets.get(name).cloned();
+    systemprompt_loader::vertex_discovery::discover(
+        providers,
+        &lookup,
+        std::time::Duration::from_secs(10),
+    )
+    .await
+}
+
+/// Cheap, dependency-free check that a provider entry is a Vertex AI endpoint
+/// backed by a Google service-account key.
+///
+/// Why: the runtime crate must not depend on the api crate (where the real
+/// Vertex credential type lives), and this only decides whether it is worth
+/// making a network call — `discover` re-parses the key properly.
+fn is_vertex_service_account(endpoint: &str, secret: Option<&String>) -> bool {
+    let Some(secret) = secret else {
+        return false;
+    };
+    let host_is_vertex = endpoint
+        .split_once("://")
+        .map(|(_, rest)| rest)
+        .and_then(|rest| rest.split('/').next())
+        .and_then(|authority| authority.split('@').next_back())
+        .map(|host| host.split(':').next().unwrap_or(host))
+        .is_some_and(|host| host.ends_with("aiplatform.googleapis.com"));
+    if !host_is_vertex {
+        return false;
+    }
+    serde_json::from_str::<serde_json::Value>(secret)
+        .ok()
+        .and_then(|v| {
+            v.get("type")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .is_some_and(|t| t == "service_account")
 }
 
 async fn init_file_storage(

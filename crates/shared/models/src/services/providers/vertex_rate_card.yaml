@@ -1,0 +1,274 @@
+# Vertex AI rate card: the prices we bill, and the allowlist of Vertex models
+# the gateway will serve.
+#
+# Why one file for both jobs: Vertex's publisher listing carries no modality
+# field, so `gemini-2.5-flash` (chat), `gemini-embedding-001` (embeddings) and
+# `gemini-2.5-flash-tts` (speech) are indistinguishable by shape. Discovery
+# therefore cannot decide what is chat-capable on its own — an entry here is
+# the decision, and it has to carry a price anyway before the gateway will
+# dispatch to it (boot refuses an unpriced route). A model absent from this
+# file is reported as discovered-but-unpriced and never published.
+#
+# `upstream` is the model as Vertex names it (`{publisher}/{model}` from
+# `publishers/{publisher}/models/{model}`); `upstream_model` is what our wire
+# puts on the request — the bare name for the gemini wire, the publisher-
+# qualified name for the MaaS openai-chat surface.
+#
+# `allow_preview` publishes a model whose launchStage is not GA. It is off by
+# default: a preview model can change or vanish under a running deployment.
+entries:
+# -- provider `vertex` (wire: gemini) -----------------------------------------
+# Why: Vertex serves Gemini at the same rate card as the public endpoint --
+# cloud.google.com/vertex-ai/generative-ai/pricing, read 2026-09-05. Cache
+# writes are billed as storage per hour, not per token, hence an explicit 0.0.
+- upstream: google/gemini-2.5-pro
+  provider: vertex
+  id: vertex-gemini-2.5-pro
+  upstream_model: gemini-2.5-pro
+  pricing:
+    input_per_million: 1.25
+    output_per_million: 10.0
+    cache_read_per_million: 0.31
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 32768
+- upstream: google/gemini-2.5-flash
+  provider: vertex
+  id: vertex-gemini-2.5-flash
+  upstream_model: gemini-2.5-flash
+  pricing:
+    input_per_million: 0.3
+    output_per_million: 2.5
+    cache_read_per_million: 0.075
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+- upstream: google/gemini-2.5-flash-lite
+  provider: vertex
+  id: vertex-gemini-2.5-flash-lite
+  upstream_model: gemini-2.5-flash-lite
+  pricing:
+    input_per_million: 0.1
+    output_per_million: 0.4
+    cache_read_per_million: 0.025
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    vision: true
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 1000000
+    max_output_tokens: 65536
+    max_thinking_budget: 24576
+# -- provider `vertex-maas` (wire: openai-chat) -------------------------------
+# Why: Google publishes no cache tier for the MaaS partner models -- the rate
+# card is input and output tokens only (same page, partner-models section) and
+# the upstreams report no cached prompt tokens on this surface. Both cache
+# rates are an explicit 0.0: declared free, not forgotten.
+#
+# `max_thinking_budget` marks a model as reasoning for the openai-chat wire,
+# which then sends the model's own output cap instead of the caller's
+# max_tokens so hidden reasoning cannot starve the visible answer.
+- upstream: qwen/qwen3-next-80b-a3b-instruct-maas
+  provider: vertex-maas
+  id: qwen.qwen3-next-instruct
+  upstream_model: qwen/qwen3-next-80b-a3b-instruct-maas
+  pricing:
+    input_per_million: 0.15
+    output_per_million: 1.2
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 32768
+- upstream: qwen/qwen3-next-80b-a3b-thinking-maas
+  provider: vertex-maas
+  id: qwen.qwen3-next-thinking
+  upstream_model: qwen/qwen3-next-80b-a3b-thinking-maas
+  pricing:
+    input_per_million: 0.15
+    output_per_million: 1.2
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: qwen/qwen3-coder-480b-a35b-instruct-maas
+  provider: vertex-maas
+  id: qwen.qwen3-coder-480b
+  upstream_model: qwen/qwen3-coder-480b-a35b-instruct-maas
+  pricing:
+    input_per_million: 1.0
+    output_per_million: 4.0
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 65536
+- upstream: qwen/qwen3-235b-a22b-instruct-2507-maas
+  provider: vertex-maas
+  id: qwen.qwen3-235b
+  upstream_model: qwen/qwen3-235b-a22b-instruct-2507-maas
+  pricing:
+    input_per_million: 0.25
+    output_per_million: 1.0
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 16384
+# Why allow_preview: glm-5 is EXPERIMENTAL in the Vertex listing and is
+# published anyway -- it is priced, it has been exercised end to end, and the
+# alternative is that the only GLM we carry disappears from the catalog.
+- upstream: zai-org/glm-5-maas
+  provider: vertex-maas
+  id: zai.glm-5
+  upstream_model: zai-org/glm-5-maas
+  allow_preview: true
+  pricing:
+    input_per_million: 1.0
+    output_per_million: 3.2
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 200000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: moonshotai/kimi-k2-thinking-maas
+  provider: vertex-maas
+  id: moonshotai.kimi-k2-thinking
+  upstream_model: moonshotai/kimi-k2-thinking-maas
+  pricing:
+    input_per_million: 0.6
+    output_per_million: 2.5
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+    reasoning: true
+  limits:
+    context_window: 262144
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: deepseek-ai/deepseek-v3.2-maas
+  provider: vertex-maas
+  id: deepseek.v3.2
+  upstream_model: deepseek-ai/deepseek-v3.2-maas
+  pricing:
+    input_per_million: 0.56
+    output_per_million: 1.68
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 128000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+- upstream: openai/gpt-oss-120b-maas
+  provider: vertex-maas
+  id: openai.gpt-oss-120b
+  upstream_model: openai/gpt-oss-120b-maas
+  pricing:
+    input_per_million: 0.15
+    output_per_million: 0.6
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 128000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
+# Why keep an entry Vertex does not list: gpt-oss-20b-maas was withdrawn from
+# the published catalog but the price is still the price, and the catalog still
+# routes to it. This is the canonical priced-not-published case -- discovery
+# reports it in `priced_not_published` rather than deleting the declaration,
+# because a listing gap is Google's editorial decision, not our deprecation.
+- upstream: openai/gpt-oss-20b-maas
+  provider: vertex-maas
+  id: openai.gpt-oss-20b
+  upstream_model: openai/gpt-oss-20b-maas
+  pricing:
+    input_per_million: 0.07
+    output_per_million: 0.3
+    cache_read_per_million: 0.0
+    cache_write_per_million: 0.0
+    per_image_cents: null
+  capabilities:
+    streaming: true
+    tools: true
+    structured_output: true
+    system_prompts: true
+  limits:
+    context_window: 128000
+    max_output_tokens: 32768
+    max_thinking_budget: 16384
