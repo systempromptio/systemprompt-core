@@ -9,7 +9,8 @@
 //! [`CatalogSource`] accepts is asked what it serves; the entries the rate
 //! card prices and Google's documentation still supports are kept, and the
 //! ones the catalog did not already declare are appended. The listing call is
-//! the only network traffic: nothing here ever calls a model to probe it. Discovery cannot fail a boot: a listing that 403s, a model that
+//! the only network traffic: nothing here ever calls a model to probe it.
+//! Discovery cannot fail a boot: a listing that 403s, a model that
 //! is priced but unlisted, a model listed but unpriced — each becomes a line
 //! in [`DiscoveryReport`] and a `warn!`, because none of them is a reason for
 //! an instance not to start.

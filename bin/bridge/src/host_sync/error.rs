@@ -30,7 +30,10 @@ pub enum ApplyError {
     #[error("plugin fetch failed: {0}")]
     PluginFetch(#[from] crate::gateway::GatewayError),
     #[error("gateway changed to {current} while syncing {started_for}")]
-    Superseded { started_for: String, current: String },
+    Superseded {
+        started_for: String,
+        current: String,
+    },
     #[error("io error in {context}: {source}")]
     Io {
         context: String,

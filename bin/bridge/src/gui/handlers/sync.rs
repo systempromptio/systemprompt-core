@@ -111,7 +111,12 @@ pub(crate) fn on_sync_finished(
             emit::emit_sync_progress(app, "cancelled", Some(&line));
             Ok(json!({ "cancelled": true }))
         },
-        Err(msg) if matches!(msg.as_ref(), GuiError::Sync(sync::SyncError::Superseded { .. })) => {
+        Err(msg)
+            if matches!(
+                msg.as_ref(),
+                GuiError::Sync(sync::SyncError::Superseded { .. })
+            ) =>
+        {
             // Why: the run belonged to a gateway the user has left; its
             // outcome is not this gateway's sync failing.
             let line = msg.to_string();

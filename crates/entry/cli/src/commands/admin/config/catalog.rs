@@ -338,7 +338,7 @@ fn show_discovery(config: &CliConfig) {
             vec!["upstream_or_id", "state", "retires_on"],
             &discovery_rows(&report),
         )
-            .with_title("Vertex Model Discovery"),
+        .with_title("Vertex Model Discovery"),
         config,
     );
     render_result(&CommandOutput::message(discovery_notes(&report)), config);

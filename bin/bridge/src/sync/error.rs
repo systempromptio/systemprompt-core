@@ -100,7 +100,10 @@ pub enum SyncError {
         "sync for {started_for} discarded — the gateway is now {current}; nothing from the \
          superseded run was applied"
     )]
-    Superseded { started_for: String, current: String },
+    Superseded {
+        started_for: String,
+        current: String,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

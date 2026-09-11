@@ -184,7 +184,9 @@ impl VertexRateCard {
 
     /// Every entry's lifecycle fields are coherent and sourced.
     pub fn validate(&self) -> ProviderRegistryResult<()> {
-        self.entries.iter().try_for_each(VertexRateCardEntry::validate)
+        self.entries
+            .iter()
+            .try_for_each(VertexRateCardEntry::validate)
     }
 
     #[must_use]
