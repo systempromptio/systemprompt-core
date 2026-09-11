@@ -152,6 +152,7 @@ async fn sync_one_plugin(
 
     let stage = ctx.staging_root.join(plugin.id.as_str());
     fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
+    super::check_not_superseded(ctx.client.base_url())?;
 
     let was_present = target.exists();
     if was_present {

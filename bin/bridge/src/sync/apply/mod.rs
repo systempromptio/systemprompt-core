@@ -49,12 +49,13 @@ pub(crate) async fn apply_manifest(
     let mut report = plugin::apply_plugins(&plugin_ctx, manifest).await?;
 
     crate::fsutil::remove_leftover_dir(&staging_root);
+    check_not_superseded(client.base_url())?;
     prune_legacy_state();
 
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let manifest_for_write = manifest_with_servers(manifest, mcp_servers.clone());
     write_user(&meta_dir, manifest.user.as_ref())?;
-    write_mcp_servers(&meta_dir, &mcp_servers)?;
+    write_mcp_servers(&meta_dir, client.base_url(), &mcp_servers)?;
 
     crate::mcp_registry::publish(&bridge.mcp_registry, &mcp_servers);
     let registry = bridge.mcp_registry();
@@ -100,6 +101,25 @@ pub(crate) async fn apply_manifest(
     }
 
     Ok(report)
+}
+
+/// Refuses to publish state from a run whose gateway is no longer the
+/// configured one. Read from disk each time: the GUI rewrites the config
+/// while a sync is in flight, and the run must notice before it promotes a
+/// plugin or publishes a registry the new gateway never delivered.
+pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), ApplyError> {
+    let cfg = crate::config::load().map_err(|e| ApplyError::Io {
+        context: "re-read gateway before publishing sync".into(),
+        source: std::io::Error::other(e),
+    })?;
+    let current = crate::config::gateway_url_or_default(&cfg);
+    if crate::mcp_registry::same_origin(run_gateway, &current) {
+        return Ok(());
+    }
+    Err(ApplyError::Superseded {
+        started_for: run_gateway.to_string(),
+        current: current.to_string(),
+    })
 }
 
 fn prune_legacy_state() {
@@ -267,9 +287,17 @@ pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyE
     })
 }
 
-pub fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+pub fn write_mcp_servers(
+    meta_dir: &Path,
+    gateway: &ValidatedUrl,
+    servers: &[ManagedMcpServer],
+) -> Result<(), ApplyError> {
     let path = meta_dir.join(paths::MCP_SERVERS_FRAGMENT);
-    let bytes = serde_json::to_vec_pretty(servers).map_err(|e| ApplyError::Serialize {
+    let fragment = crate::mcp_registry::McpServersFragment {
+        gateway: gateway.clone(),
+        servers: servers.to_vec(),
+    };
+    let bytes = serde_json::to_vec_pretty(&fragment).map_err(|e| ApplyError::Serialize {
         what: "managed MCP servers".into(),
         source: e,
     })?;

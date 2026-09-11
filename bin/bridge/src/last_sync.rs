@@ -17,6 +17,10 @@ use crate::gateway::manifest_version::ManifestVersion;
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct LastSyncState {
+    /// The gateway whose manifest this sync applied. Absent on a sentinel
+    /// written before stamping; such a sentinel is not trusted for any gateway.
+    #[serde(default)]
+    pub gateway: Option<systemprompt_identifiers::ValidatedUrl>,
     #[serde(default)]
     pub last_applied_manifest_version: Option<ManifestVersion>,
     #[serde(default)]
@@ -31,6 +35,18 @@ pub struct LastSyncState {
     pub enabled_hosts: Vec<String>,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
+}
+
+impl LastSyncState {
+    /// Whether this sentinel was written for `gateway`. Replay protection and
+    /// delivered policy only carry over within one gateway; a switch starts
+    /// from nothing.
+    #[must_use]
+    pub fn belongs_to(&self, gateway: &systemprompt_identifiers::ValidatedUrl) -> bool {
+        self.gateway
+            .as_ref()
+            .is_some_and(|g| crate::mcp_registry::same_origin(g, gateway))
+    }
 }
 
 #[must_use]

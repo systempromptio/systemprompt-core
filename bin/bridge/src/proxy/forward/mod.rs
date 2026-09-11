@@ -29,7 +29,7 @@ mod route;
 use headers::{build_upstream_headers, copy_response_headers};
 pub use replay::{Replay, describe, replay_policy, should_replay};
 use replay::{UpstreamRequest, send_with_replay};
-use route::{Route, RouteResolution, resolve_route};
+use route::{Route, RouteResolution, resolve_route, same_origin_as};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
 
@@ -204,8 +204,18 @@ pub(crate) async fn forward(
         if status == StatusCode::UNAUTHORIZED {
             if let Some(plugin_id) = hook_plugin.as_ref() {
                 plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
-            } else {
+            } else if same_origin_as(&route.url, gateway_base) {
                 token_cache.reject_upstream(&request_path).await;
+            } else {
+                // Why: only the gateway that minted the credential can say it
+                // is bad. A managed MCP upstream elsewhere (or a stale entry
+                // for a previous gateway) rejecting it is not a sign-out.
+                tracing::warn!(
+                    upstream = %route.url,
+                    gateway = %gateway_base,
+                    "401 from a non-gateway upstream; not treated as a credential rejection"
+                );
+                token_cache.invalidate().await;
             }
         }
     }

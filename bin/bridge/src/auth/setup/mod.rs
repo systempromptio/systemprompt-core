@@ -61,11 +61,47 @@ pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, Setup
     validate_token(token)?;
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
+    let previous = configured_gateway();
     write_pat_file(&paths.pat_file, token)?;
     write_config_file(&paths.config_file, &paths.pat_file, gateway_url)?;
     invalidate_cached_token()?;
+    forget_gateway_state_if_moved(previous.as_ref())?;
     tracing::info!(config_file = %paths.config_file.display(), "login: PAT and config written");
     Ok(paths)
+}
+
+fn configured_gateway() -> Option<systemprompt_identifiers::ValidatedUrl> {
+    crate::config::load()
+        .ok()
+        .map(|cfg| crate::config::gateway_url_or_default(&cfg))
+}
+
+/// Drops every piece of state the previous gateway delivered once the
+/// configured gateway is a different origin: the managed MCP fragment and
+/// the last-sync sentinel. Both are gateway-stamped and would be ignored
+/// anyway; removing them keeps a switch from leaving another gateway's
+/// servers on disk for diagnostics to misread.
+fn forget_gateway_state_if_moved(
+    previous: Option<&systemprompt_identifiers::ValidatedUrl>,
+) -> Result<(), SetupError> {
+    let Some(current) = configured_gateway() else {
+        return Ok(());
+    };
+    if previous.is_some_and(|p| crate::mcp_registry::same_origin(p, &current)) {
+        return Ok(());
+    }
+    tracing::info!(
+        previous = previous.map_or("<none>", |p| p.as_str()),
+        current = %current,
+        "gateway changed; forgetting the previous gateway's synced state"
+    );
+    forget_gateway_state()
+}
+
+/// Removes the on-disk state a sync derives from a gateway's manifest.
+pub fn forget_gateway_state() -> Result<(), SetupError> {
+    remove_managed_mcp_fragment()?;
+    remove_sync_state()
 }
 
 #[tracing::instrument(level = "debug")]
@@ -76,8 +112,10 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
     }
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
+    let previous = configured_gateway();
     write_config_file(&paths.config_file, &paths.pat_file, Some(trimmed))?;
     invalidate_cached_token()?;
+    forget_gateway_state_if_moved(previous.as_ref())?;
     Ok(paths)
 }
 

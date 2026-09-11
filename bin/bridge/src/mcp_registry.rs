@@ -1,6 +1,11 @@
 //! In-memory registry mapping `ManagedMcpServer` name → upstream URL + headers,
 //! consumed by the proxy router for `/mcp/<name>`.
 //!
+//! Every entry belongs to the gateway whose manifest delivered it. The on-disk
+//! fragment records that gateway, and a fragment written for another gateway is
+//! never re-hydrated: forwarding a fresh token to the previous gateway's
+//! upstreams is how a switched account used to sign itself out.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -21,6 +26,14 @@ pub struct McpUpstream {
 }
 
 pub type McpRegistry = HashMap<String, McpUpstream>;
+
+/// The persisted shape of `mcp-servers.json`: the servers plus the gateway
+/// that delivered them.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct McpServersFragment {
+    pub gateway: ValidatedUrl,
+    pub servers: Vec<ManagedMcpServer>,
+}
 
 /// The hot-swappable registry a process owns: the proxy router reads it on
 /// every `/mcp/<name>` and sync replaces it wholesale.
@@ -57,17 +70,55 @@ pub fn snapshot(slot: &McpRegistrySlot) -> Arc<McpRegistry> {
     slot.load_full()
 }
 
-pub fn rehydrate_from_disk(slot: &McpRegistrySlot) -> std::io::Result<()> {
+pub fn clear(slot: &McpRegistrySlot) {
+    if slot.load().is_empty() {
+        return;
+    }
+    slot.store(Arc::new(HashMap::new()));
+    tracing::info!(target: "bridge::proxy", "managed MCP server registry cleared");
+}
+
+/// Re-hydrates the registry from disk if the fragment was written for
+/// `gateway`. A fragment for another gateway, or one in the pre-stamp array
+/// shape, is left alone and the registry stays as it was.
+pub fn rehydrate_from_disk(slot: &McpRegistrySlot, gateway: &ValidatedUrl) -> std::io::Result<()> {
     let meta_dir = crate::config::paths::bridge_metadata_dir()
         .ok_or_else(|| std::io::Error::other("MCP registry metadata path unresolvable"))?;
     let path = meta_dir.join(crate::config::paths::MCP_SERVERS_FRAGMENT);
     let Some(body) = crate::fsutil::read_optional(&path)? else {
         return Ok(());
     };
-    let servers = serde_json::from_str::<Vec<ManagedMcpServer>>(&body)
+    if serde_json::from_str::<Vec<ManagedMcpServer>>(&body).is_ok() {
+        tracing::info!(
+            target: "bridge::proxy",
+            path = %path.display(),
+            "MCP registry fragment predates gateway stamping; waiting for a sync"
+        );
+        return Ok(());
+    }
+    let fragment = serde_json::from_str::<McpServersFragment>(&body)
         .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))?;
-    publish(slot, &servers);
+    if !same_origin(&fragment.gateway, gateway) {
+        tracing::info!(
+            target: "bridge::proxy",
+            fragment_gateway = %fragment.gateway,
+            gateway = %gateway,
+            "MCP registry fragment belongs to another gateway; waiting for a sync"
+        );
+        return Ok(());
+    }
+    publish(slot, &fragment.servers);
     Ok(())
+}
+
+/// Two gateway URLs name the same origin when scheme, host and port agree;
+/// trailing slashes and case in the host do not make a second gateway.
+#[must_use]
+pub fn same_origin(a: &ValidatedUrl, b: &ValidatedUrl) -> bool {
+    match (url::Url::parse(a.as_str()), url::Url::parse(b.as_str())) {
+        (Ok(a), Ok(b)) => a.origin() == b.origin(),
+        _ => a.as_str().trim_end_matches('/') == b.as_str().trim_end_matches('/'),
+    }
 }
 
 #[must_use]

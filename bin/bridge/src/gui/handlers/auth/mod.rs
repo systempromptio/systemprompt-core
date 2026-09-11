@@ -37,6 +37,9 @@ pub(crate) fn on_login_requested(
         return;
     }
     app.append_log(i18n::t("login-saving"));
+    // Why: a sync still running for the previous credentials would publish
+    // that gateway's state over the new sign-in.
+    app.state.cancel_scope(CancelScope::Sync);
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::Login);
     app.ctx.spawn(async move {
@@ -74,6 +77,7 @@ pub(crate) fn on_login_finished(
             if !app.reload_runtime_or_fail(reply_to) {
                 return;
             }
+            crate::mcp_registry::clear(&app.ctx.mcp_registry);
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
@@ -122,6 +126,7 @@ pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: Re
         return;
     }
     app.append_log(i18n::t_args("gateway-saving", &[("url", &trimmed)]));
+    app.state.cancel_scope(CancelScope::Sync);
     let proxy = app.proxy.clone();
     let token = app.state.install_cancel(CancelScope::SetGateway);
     app.ctx.spawn(async move {
@@ -156,6 +161,9 @@ pub(crate) fn on_set_gateway_finished(
             if !app.reload_runtime_or_fail(reply_to) {
                 return;
             }
+            // Why: the registry routes /mcp/<name> to the gateway that
+            // delivered it; the new gateway's servers arrive with its sync.
+            crate::mcp_registry::clear(&app.ctx.mcp_registry);
             app.state.reload();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
             Ok(())
@@ -183,6 +191,7 @@ pub(crate) fn on_set_gateway_finished(
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
     app.state.cancel_scope(CancelScope::Login);
+    app.state.cancel_scope(CancelScope::Sync);
     app.append_log(i18n::t("logout-running"));
     let proxy = app.proxy.clone();
     app.ctx.spawn(async move {
@@ -212,6 +221,7 @@ pub(crate) fn on_logout_finished(
         Ok(()) => {
             let msg = i18n::t("logout-success");
             app.append_log(&msg);
+            crate::mcp_registry::clear(&app.ctx.mcp_registry);
             Ok(())
         },
         Err(e) => {

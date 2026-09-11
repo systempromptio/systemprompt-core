@@ -96,6 +96,11 @@ pub enum SyncError {
     PubkeyNotPinned,
     #[error("replay state corrupt: {0}")]
     ReplayStateCorrupt(#[from] crate::last_sync::ReplayStateError),
+    #[error(
+        "sync for {started_for} discarded — the gateway is now {current}; nothing from the \
+         superseded run was applied"
+    )]
+    Superseded { started_for: String, current: String },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -143,6 +148,7 @@ impl SyncError {
                 ExitCode::from(11)
             },
             Self::OrgPluginsNeedElevation { .. } => ExitCode::from(12),
+            Self::Superseded { .. } => ExitCode::from(13),
         }
     }
 }

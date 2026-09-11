@@ -202,6 +202,51 @@ fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
     });
 }
 
+// Why: only the gateway that minted the credential can declare it bad. A
+// managed MCP upstream on another origin — or a stale registry entry left by
+// a previous gateway — answering 401 used to sign the whole bridge out.
+#[test]
+fn a_401_from_a_non_gateway_mcp_upstream_does_not_latch_sign_in() {
+    let state = tempfile::tempdir().expect("state dir");
+    state_sandbox(&state, || {
+        block_on(async {
+            let upstream = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/mcp"))
+                .respond_with(ResponseTemplate::new(401).set_body_string("wrong issuer"))
+                .mount(&upstream)
+                .await;
+            seed_mcp_fragment(&state, "Stale MCP", &format!("{}/mcp", upstream.uri()));
+
+            let h = spawn_harness().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/messages"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .insert_header("content-type", "application/json")
+                        .set_body_raw(br#"{"ok":true}"#.to_vec(), "application/json"),
+                )
+                .mount(&h.gateway)
+                .await;
+
+            let rejected = h.authed_post("/mcp/stale-mcp", "{}").await;
+            assert_eq!(rejected.status().as_u16(), 401, "the upstream status is relayed");
+
+            let after = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
+            assert_eq!(
+                after.status().as_u16(),
+                200,
+                "gateway traffic keeps flowing; the MCP upstream's 401 is not a sign-out"
+            );
+            assert_eq!(
+                h.mints.load(Ordering::Relaxed),
+                2,
+                "the rejected token is dropped and a fresh one minted for the gateway"
+            );
+        });
+    });
+}
+
 #[test]
 fn a_successful_response_keeps_the_cached_jwt() {
     with_credentials(async {
@@ -751,17 +796,23 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
             std::fs::create_dir_all(&meta).expect("metadata dir");
             std::fs::write(
                 meta.join("mcp-servers.json"),
-                serde_json::json!([{
-                    "name": "Salesforce MCP",
-                    "url": format!("{}/mcp", upstream.uri()),
-                    "transport": "http",
-                    "headers": {"x-connector": "salesforce"},
-                }])
+                serde_json::json!({
+                    "gateway": SEED_GATEWAY,
+                    "servers": [{
+                        "name": "Salesforce MCP",
+                        "url": format!("{}/mcp", upstream.uri()),
+                        "transport": "http",
+                        "headers": {"x-connector": "salesforce"},
+                    }],
+                })
                 .to_string(),
             )
             .expect("mcp fragment");
-            systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY)
-                .expect("the seeded fragment rehydrates");
+            systemprompt_bridge::mcp_registry::rehydrate_from_disk(
+                &REGISTRY,
+                &ValidatedUrl::new(SEED_GATEWAY),
+            )
+            .expect("the seeded fragment rehydrates");
 
             let h = spawn_harness().await;
             let resp = h.authed_post("/mcp/salesforce-mcp", "{}").await;
@@ -904,17 +955,28 @@ async fn flaky_upstream(body: &'static str) -> (String, Arc<AtomicUsize>) {
     (format!("http://127.0.0.1:{port}/mcp"), accepted)
 }
 
+// Why: the fragment is stamped with the gateway that delivered it and only
+// rehydrates for that gateway; the harness gateway is a fresh mock per test,
+// so the seed names a fixed origin and rehydrates against the same one.
+const SEED_GATEWAY: &str = "http://127.0.0.1:1";
+
 fn seed_mcp_fragment(state: &tempfile::TempDir, name: &str, url: &str) {
     let meta = state.path().join("systemprompt-bridge").join("metadata");
     std::fs::create_dir_all(&meta).expect("metadata dir");
     std::fs::write(
         meta.join("mcp-servers.json"),
-        serde_json::json!([{ "name": name, "url": url, "transport": "http", "headers": {} }])
-            .to_string(),
+        serde_json::json!({
+            "gateway": SEED_GATEWAY,
+            "servers": [{ "name": name, "url": url, "transport": "http", "headers": {} }],
+        })
+        .to_string(),
     )
     .expect("mcp fragment");
-    systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY)
-        .expect("the seeded fragment rehydrates");
+    systemprompt_bridge::mcp_registry::rehydrate_from_disk(
+        &REGISTRY,
+        &ValidatedUrl::new(SEED_GATEWAY),
+    )
+    .expect("the seeded fragment rehydrates");
 }
 
 // Why: this is the desktop's dashboard read. The first socket is dead, the

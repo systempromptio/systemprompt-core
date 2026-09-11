@@ -279,6 +279,19 @@ impl ProxyHandle {
     pub fn auth_state(&self) -> Option<tokio::sync::watch::Receiver<AuthState>> {
         self.token_cache.as_ref().map(|cache| cache.auth_state())
     }
+
+    #[must_use]
+    pub fn sign_in_required(&self) -> bool {
+        self.token_cache
+            .as_ref()
+            .is_some_and(|cache| cache.sign_in_required())
+    }
+
+    pub fn credential_proven(&self) {
+        if let Some(cache) = &self.token_cache {
+            cache.credential_proven();
+        }
+    }
 }
 
 fn runtime_config_or_default(faults: &mut Vec<StartupFault>) -> SharedRuntimeConfig {

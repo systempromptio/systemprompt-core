@@ -77,6 +77,13 @@ impl TokenCache {
         self.latch.engaged()
     }
 
+    /// Releases the sign-in latch on live proof that the credential mints:
+    /// the GUI probe just obtained a token from the gateway, so whatever
+    /// rejected the previous one was not the credential.
+    pub fn credential_proven(&self) {
+        self.latch.release();
+    }
+
     pub async fn refresh_if_cached(&self, refresh_threshold_secs: u64) -> ForwardResult<()> {
         if self.cached.lock().await.is_none() {
             return Ok(());
