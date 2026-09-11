@@ -2,21 +2,25 @@
 
 Upstream API, protocol, and runtime versions supported by each systemprompt.io release.
 
-## Current — 0.50.x
+## Current — 0.51.x
 
 ### AI Provider APIs
 
-systemprompt does not ship a model catalogue. Which providers and models a deployment
-exposes is determined entirely by `providers` and `gateway.routes` in the operator's own
-services tree (`services/ai/providers.yaml`, `services/ai/gateway.yaml`), so the table below describes the **API surfaces** the adapters speak, not
-an allowlist of model names. New models from a provider work as soon as the operator adds
-them to a route; no release of systemprompt is required.
+Which providers and models a deployment exposes is determined by `providers` and
+`gateway.routes` in the operator's own services tree (`services/ai/providers.yaml`,
+`services/ai/gateway.yaml`), so the table below describes the **API surfaces** the adapters
+speak, not an allowlist of model names. New models from a provider work as soon as the
+operator adds them to a route; no release of systemprompt is required. The one catalogue
+systemprompt does carry is the Vertex AI rate card: at boot the server lists Google's Model
+Garden and publishes the serverless models the card prices and Google's documentation still
+supports, so a Vertex deployment tracks Google's catalogue without an operator edit
+(`admin config catalog discovery` shows the result).
 
 | Provider | API surface | Notes |
 |----------|-------------|-------|
 | Anthropic | Messages API (`/v1/messages`) | Streaming, tool use, extended thinking, prompt caching |
 | OpenAI | Chat Completions and Responses API | Streaming, tool calling, JSON mode. Uses `max_completion_tokens` |
-| Google | Gemini `generateContent` | Streaming, tool calling |
+| Google | Gemini `generateContent`; Vertex AI (`aiplatform.googleapis.com`) with a service-account key | Streaming, tool calling; Vertex models discovered at boot from Model Garden and priced by the embedded rate card |
 | Self-hosted | Any OpenAI-compatible endpoint | vLLM, TGI, Ollama, llama.cpp — configurable `base_url` |
 
 Provider adapters are tracking surface per [stability-contract.md §2.1](../security/stability-contract.md).
@@ -83,9 +87,9 @@ rather than as pre-built binaries. Other targets are buildable from source.
 
 | systemprompt version | Status |
 |----------------------|--------|
-| 0.50.x | Current supported line. |
-| 0.49.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
-| < 0.47 | No longer supported. |
+| 0.51.x | Current supported line. |
+| 0.50.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
+| < 0.50 | No longer supported. |
 
 Per-release detail is in `CHANGELOG.md`.
 
