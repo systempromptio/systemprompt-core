@@ -167,10 +167,19 @@ pub fn start_with_listener(
     })
 }
 
+// Why 15 s of idle: the WSL localhost relay on Windows silently discards an
+// idle keep-alive socket; a request written to one afterwards is retransmitted
+// for ~30 s and then aborted, which the host app reads as the server being
+// unreachable. Reconnecting to a loopback gateway is cheap, so idle sockets are
+// dropped well before the relay does it for us. The replay in `forward` covers
+// the window this cannot.
+const UPSTREAM_POOL_IDLE: Duration = Duration::from_secs(15);
+
 fn build_upstream_client() -> std::io::Result<reqwest::Client> {
     reqwest::Client::builder()
         .dns_resolver(Arc::new(crate::gateway::Ipv4FirstResolver))
         .pool_max_idle_per_host(16)
+        .pool_idle_timeout(UPSTREAM_POOL_IDLE)
         .tcp_nodelay(true)
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_mins(10))

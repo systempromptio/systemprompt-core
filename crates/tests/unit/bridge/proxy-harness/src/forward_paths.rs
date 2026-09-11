@@ -867,3 +867,110 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         ),
     }
 }
+
+// An upstream that closes its first accepted connection without writing a
+// byte — the shape a stale keep-alive socket takes once the TCP stack gives
+// up — and serves every later connection normally.
+async fn flaky_upstream(body: &'static str) -> (String, Arc<AtomicUsize>) {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind flaky upstream");
+    let port = listener.local_addr().expect("local_addr").port();
+    let accepted = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&accepted);
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut stream, _)) = listener.accept().await else {
+                break;
+            };
+            let n = counter.fetch_add(1, Ordering::SeqCst);
+            if n == 0 {
+                drop(stream);
+                continue;
+            }
+            tokio::spawn(async move {
+                use tokio::io::{AsyncReadExt, AsyncWriteExt};
+                let mut buf = vec![0u8; 16 * 1024];
+                let _ = stream.read(&mut buf).await;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(response.as_bytes()).await;
+                let _ = stream.shutdown().await;
+            });
+        }
+    });
+    (format!("http://127.0.0.1:{port}/mcp"), accepted)
+}
+
+fn seed_mcp_fragment(state: &tempfile::TempDir, name: &str, url: &str) {
+    let meta = state.path().join("systemprompt-bridge").join("metadata");
+    std::fs::create_dir_all(&meta).expect("metadata dir");
+    std::fs::write(
+        meta.join("mcp-servers.json"),
+        serde_json::json!([{ "name": name, "url": url, "transport": "http", "headers": {} }])
+            .to_string(),
+    )
+    .expect("mcp fragment");
+    systemprompt_bridge::mcp_registry::rehydrate_from_disk(&REGISTRY)
+        .expect("the seeded fragment rehydrates");
+}
+
+// Why: this is the desktop's dashboard read. The first socket is dead, the
+// gateway never sees the request, and without a replay the host app renders
+// "unable to reach" for a server that is up.
+#[test]
+fn a_resources_read_that_dies_on_a_stale_socket_is_replayed_once() {
+    let state = tempfile::tempdir().expect("state dir");
+    state_sandbox(&state, || {
+        block_on(async {
+            let (url, accepted) = flaky_upstream(r#"{"jsonrpc":"2.0","id":1,"result":{}}"#).await;
+            seed_mcp_fragment(&state, "Flaky Read", &url);
+
+            let h = spawn_harness().await;
+            let resp = h
+                .authed_post(
+                    "/mcp/flaky-read",
+                    r#"{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"ui://x/artifact-viewer"}}"#,
+                )
+                .await;
+            assert_eq!(resp.status().as_u16(), 200, "the replay reaches the healthy socket");
+            assert_eq!(
+                accepted.load(Ordering::SeqCst),
+                2,
+                "exactly one replay: the dead connection and the one that served"
+            );
+        });
+    });
+}
+
+// Why: a tool call whose bytes may have reached the server is not replayed —
+// the server could have executed it — so the caller sees the failure and
+// decides. The connection here was accepted and then closed, which is the
+// ambiguous case; a refused connection would still be replayed.
+#[test]
+fn a_tools_call_that_dies_after_the_socket_opened_is_not_replayed() {
+    let state = tempfile::tempdir().expect("state dir");
+    state_sandbox(&state, || {
+        block_on(async {
+            let (url, accepted) = flaky_upstream(r#"{"jsonrpc":"2.0","id":1,"result":{}}"#).await;
+            seed_mcp_fragment(&state, "Flaky Call", &url);
+
+            let h = spawn_harness().await;
+            let resp = h
+                .authed_post(
+                    "/mcp/flaky-call",
+                    r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"admin_report","arguments":{}}}"#,
+                )
+                .await;
+            assert_eq!(resp.status().as_u16(), 502, "the loss is reported, not hidden");
+            assert_eq!(accepted.load(Ordering::SeqCst), 1, "no replay of a possibly-executed call");
+            let detail = resp.text().await.expect("body");
+            assert!(
+                detail.contains("upstream request failed"),
+                "the cause chain is surfaced to the caller: {detail}"
+            );
+        });
+    });
+}
