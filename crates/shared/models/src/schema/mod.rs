@@ -10,7 +10,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod capabilities;
+pub mod gemini_invariants;
 pub mod sanitizer;
 
 pub use capabilities::{ProviderCapabilities, SchemaComposition, SchemaFeatures};
+pub use gemini_invariants::gemini_declaration_violations;
 pub use sanitizer::SchemaSanitizer;

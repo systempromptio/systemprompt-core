@@ -197,6 +197,9 @@ mod bridge_manifest_version;
 mod mcp_deployment;
 
 #[cfg(test)]
+mod mcp_deployment_connector;
+
+#[cfg(test)]
 mod errors_models;
 
 #[cfg(test)]
@@ -240,6 +243,8 @@ mod paths_tests;
 
 #[cfg(test)]
 mod schema_sanitizer;
+#[cfg(test)]
+mod schema_gemini_invariants;
 
 #[cfg(test)]
 mod validators_driven;
