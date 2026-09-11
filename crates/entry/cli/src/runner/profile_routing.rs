@@ -105,7 +105,7 @@ async fn initialize_post_routing(
     }
 
     if desc.paths() {
-        bootstrap::init_paths().await?;
+        bootstrap::init_paths(desc.discovers_models()).await?;
         if !desc.skip_validation() {
             bootstrap::run_validation()?;
         }

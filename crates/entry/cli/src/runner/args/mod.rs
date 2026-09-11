@@ -206,6 +206,14 @@ impl DescribeCommand for Commands {
                     core::skills::SkillsCommands::List(_) | core::skills::SkillsCommands::Show(_),
                 ),
             ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+            // Why: the registry lives in a OnceLock, so whoever installs it
+            // first decides whether discovered models are served. The server
+            // must be that installer, with discovery; a plain `try_init` here
+            // made `try_init_with_discovery` a silent no-op on every boot.
+            Self::Infra(infrastructure::InfraCommands::Services(
+                infrastructure::services::ServicesCommands::Serve { .. }
+                | infrastructure::services::ServicesCommands::Start { .. },
+            )) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery(),
             Self::Infra(infrastructure::InfraCommands::Services(_)) => {
                 CommandDescriptor::PROFILE_SECRETS_AND_PATHS
             },

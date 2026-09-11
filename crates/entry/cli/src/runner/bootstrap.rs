@@ -164,7 +164,12 @@ pub(super) async fn init_secrets() -> Result<()> {
     Ok(())
 }
 
-pub(super) async fn init_paths() -> Result<()> {
+/// `discover_models` installs the services registry through boot-time model
+/// discovery instead of the plain load. Only the server passes `true`: the
+/// registry is a process-wide `OnceLock`, so the first installer wins, and a
+/// plain install here would leave the runtime's discovery pass with nothing
+/// to add to.
+pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
@@ -185,8 +190,16 @@ pub(super) async fn init_paths() -> Result<()> {
     .context("Failed to build paths")?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))
         .context("Failed to initialize configuration")?;
-    systemprompt_loader::ServicesBootstrap::try_init()
+    if discover_models {
+        systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
+            Box::pin(systemprompt_runtime::discover_models(providers))
+        })
+        .await
         .context("Failed to load the services configuration")?;
+    } else {
+        systemprompt_loader::ServicesBootstrap::try_init()
+            .context("Failed to load the services configuration")?;
+    }
     FilesConfig::init(&paths).context("Failed to initialize files configuration")?;
     Ok(())
 }

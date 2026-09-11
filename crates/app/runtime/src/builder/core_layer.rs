@@ -124,7 +124,7 @@ pub(super) async fn init_core(
 /// Which providers are discoverable is decided by the catalog sources in the
 /// loader, from the credential their secret parses into — this layer only
 /// supplies the secrets and the budget.
-async fn discover_vertex_models(
+pub async fn discover_vertex_models(
     providers: &mut systemprompt_models::services::ProviderRegistry,
 ) -> systemprompt_models::services::DiscoveryReport {
     use systemprompt_models::services::DiscoveryReport;

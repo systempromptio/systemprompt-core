@@ -33,7 +33,7 @@ mod startup_validation;
 mod validation;
 mod wellknown;
 
-pub use builder::AppContextBuilder;
+pub use builder::{AppContextBuilder, discover_models};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};

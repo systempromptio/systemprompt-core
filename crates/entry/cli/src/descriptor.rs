@@ -17,6 +17,7 @@ impl CommandDescriptor {
     const FLAG_REMOTE_ELIGIBLE: u8 = 0b0001_0000;
     const FLAG_SKIP_VALIDATION: u8 = 0b0010_0000;
     const FLAG_READ_ONLY: u8 = 0b0100_0000;
+    const FLAG_MODEL_DISCOVERY: u8 = 0b1000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -70,6 +71,13 @@ impl CommandDescriptor {
         self.flags & Self::FLAG_SKIP_VALIDATION != 0
     }
 
+    /// Whether the services registry is installed through boot-time model
+    /// discovery. Only the server does this: every other command loads the
+    /// YAML catalog as authored and must not reach for the network.
+    pub const fn discovers_models(&self) -> bool {
+        self.flags & Self::FLAG_MODEL_DISCOVERY != 0
+    }
+
     pub const fn with_remote_eligible(self) -> Self {
         Self {
             flags: self.flags | Self::FLAG_REMOTE_ELIGIBLE,
@@ -85,6 +93,12 @@ impl CommandDescriptor {
     pub const fn with_skip_validation(self) -> Self {
         Self {
             flags: self.flags | Self::FLAG_SKIP_VALIDATION,
+        }
+    }
+
+    pub const fn with_model_discovery(self) -> Self {
+        Self {
+            flags: self.flags | Self::FLAG_MODEL_DISCOVERY,
         }
     }
 }
