@@ -106,7 +106,6 @@ fn build_send_request(
                 blocking: Some(true),
                 accepted_output_modes: None,
                 history_length: None,
-                push_notification_config: None,
             }),
             metadata: None,
         },

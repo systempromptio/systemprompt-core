@@ -4,8 +4,11 @@
 
 ### Fixed
 
-- **Agent:** an A2A `message/stream` request carrying `configuration.pushNotificationConfig` now validates the callback URL with the same outbound guard as `tasks/pushNotificationConfig/set` and answers `-32602` without storing it; previously the streaming path persisted the URL unchecked.
 - **Models:** `GuardedClientConfig::max_redirects` follows exactly that many hops; it previously refused one hop early while reporting `more than N redirects`.
+
+### Removed
+
+- **Agent:** the A2A push-notification config methods (`CreateTaskPushNotificationConfig`, `GetTaskPushNotificationConfig`, `ListTaskPushNotificationConfigs`, `DeleteTaskPushNotificationConfig`), `MessageSendConfiguration.push_notification_config`, `TaskResubscriptionRequest.config`, and the `task_push_notification_configs` table (migration 011). The configs were stored but never delivered; the methods now answer method-not-found and a `pushNotificationConfig` on `message/send` or `message/stream` is ignored.
 
 ### Added
 

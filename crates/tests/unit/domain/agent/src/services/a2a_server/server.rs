@@ -51,7 +51,6 @@ async fn create_sse_stream_returns_stream_when_permit_available() {
         state,
         request_id: RequestId::Number(1),
         context: request,
-        callback_config: None,
     })
     .await;
 
@@ -81,7 +80,6 @@ async fn create_sse_stream_rejected_when_cap_exhausted() {
         state,
         request_id: RequestId::Number(2),
         context: request,
-        callback_config: None,
     })
     .await;
 

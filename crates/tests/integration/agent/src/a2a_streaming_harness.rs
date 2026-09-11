@@ -158,7 +158,6 @@ async fn create_sse_stream_with_exhausted_semaphore_returns_rejected() -> anyhow
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(1),
         context: fixture_request_context(),
-        callback_config: None,
     })
     .await;
     assert!(
@@ -177,7 +176,6 @@ async fn create_sse_stream_with_available_permit_returns_receiver_stream() -> an
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(2),
         context: fixture_request_context(),
-        callback_config: None,
     })
     .await;
     // The spawned setup_stream task will fail (no MCP service provider, no
@@ -206,7 +204,6 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(10),
         context: fixture_request_context(),
-        callback_config: None,
     })
     .await;
     assert!(stream.is_ok());
@@ -222,7 +219,6 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(11),
         context: fixture_request_context(),
-        callback_config: None,
     })
     .await;
     assert!(

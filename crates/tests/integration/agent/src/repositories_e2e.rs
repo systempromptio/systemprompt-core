@@ -1,6 +1,5 @@
 use anyhow::Result;
 use chrono::Utc;
-use systemprompt_agent::models::a2a::protocol::PushNotificationConfig;
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Message, MessageRole, Part,
     TextPart,
@@ -17,7 +16,7 @@ use systemprompt_agent::repository::task::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AgentId, ArtifactId, ConfigId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
+    AgentId, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_models::{ExecutionStep, StepContent};
@@ -322,46 +321,6 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
     artifacts.delete_artifact(&artifact_id).await?;
     let after_delete = artifacts.get_artifact_by_id(&artifact_id).await?;
     assert!(after_delete.is_none());
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn push_notification_config_round_trip() -> Result<()> {
-    let fx = E2EFixture::new().await?;
-    let repos = A2ARepositories::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
-    let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
-
-    let cfg = PushNotificationConfig {
-        endpoint: "https://example.invalid/webhook".to_owned(),
-        headers: Some({
-            let mut m = serde_json::Map::new();
-            m.insert("X-Test".into(), serde_json::json!("yes"));
-            m
-        }),
-        url: "https://example.invalid/webhook".to_owned(),
-        token: Some("tok".to_owned()),
-        authentication: None,
-    };
-
-    let config_id_str = repos
-        .push_notification_configs
-        .add_config(&task_id, &cfg)
-        .await?;
-
-    let config_id = ConfigId::new(config_id_str);
-    let read = repos
-        .push_notification_configs
-        .get_config(&task_id, &config_id)
-        .await?;
-    assert!(read.is_some());
-    let read = read.unwrap();
-    assert_eq!(read.url, cfg.url);
 
     fx.cleanup().await?;
     Ok(())

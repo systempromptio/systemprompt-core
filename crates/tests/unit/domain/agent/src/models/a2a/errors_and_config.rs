@@ -1,7 +1,6 @@
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_agent::models::a2a::protocol::{
-    MessageSendConfiguration, PushNotificationConfig, TaskNotCancelableError, TaskNotFoundError,
-    UnsupportedOperationError,
+    MessageSendConfiguration, TaskNotCancelableError, TaskNotFoundError, UnsupportedOperationError,
 };
 use systemprompt_identifiers::TaskId;
 
@@ -10,19 +9,11 @@ fn message_send_configuration_serialize_camel_case() {
     let cfg = MessageSendConfiguration {
         accepted_output_modes: Some(vec!["text/plain".to_string()]),
         history_length: Some(50),
-        push_notification_config: Some(PushNotificationConfig {
-            endpoint: String::new(),
-            headers: None,
-            url: "https://example.com/cb".to_string(),
-            token: None,
-            authentication: None,
-        }),
         blocking: Some(true),
     };
     let json = serde_json::to_string(&cfg).unwrap();
     assert!(json.contains("acceptedOutputModes"));
     assert!(json.contains("historyLength"));
-    assert!(json.contains("pushNotificationConfig"));
     assert!(json.contains("blocking"));
 }
 
@@ -31,13 +22,11 @@ fn message_send_configuration_deserialize_camel_case() {
     let json = r#"{
         "acceptedOutputModes": ["text/plain"],
         "historyLength": 10,
-        "pushNotificationConfig": null,
         "blocking": false
     }"#;
     let cfg: MessageSendConfiguration = serde_json::from_str(json).unwrap();
     assert_eq!(cfg.history_length, Some(10));
     assert_eq!(cfg.blocking, Some(false));
-    assert!(cfg.push_notification_config.is_none());
 }
 
 #[test]
@@ -45,7 +34,6 @@ fn message_send_configuration_optional_fields_none() {
     let cfg = MessageSendConfiguration {
         accepted_output_modes: None,
         history_length: None,
-        push_notification_config: None,
         blocking: None,
     };
     let json = serde_json::to_string(&cfg).unwrap();

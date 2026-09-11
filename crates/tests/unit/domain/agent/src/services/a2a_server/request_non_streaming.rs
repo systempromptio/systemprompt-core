@@ -1,6 +1,6 @@
 // Drives handle_agent_request through the non-streaming dispatch arms that the
 // tasks/get tests in `request_handler` never reach: SendMessage end to end,
-// CancelTask found and missing, the list-push-config arm that dispatch declines
+// CancelTask found and missing,
 // and non-streaming then rejects, and the unsupported-request-type fallthrough.
 
 use std::sync::Arc;
@@ -193,38 +193,6 @@ async fn cancel_task_for_an_unknown_id_is_a_jsonrpc_error() {
             .as_str()
             .is_some_and(|d| d.contains("Task not found")),
         "the failure names the missing task, got {body}"
-    );
-}
-
-#[tokio::test]
-async fn list_push_notification_configs_is_declined_by_dispatch_and_rejected_downstream() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let repos = repos(&pool);
-    let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&repos, &user_id, &session_id).await;
-    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
-    let ctx = request_context(&context_id, &session_id, &user_id, "test_agent");
-
-    let payload = json!({
-        "jsonrpc": "2.0",
-        "method": "ListTaskPushNotificationConfigs",
-        "params": {"task_id": task_id.as_str()},
-        "id": 15
-    });
-    let response = handle_agent_request(State(state), rpc_request(ctx, &payload))
-        .await
-        .into_response();
-    let (status, body) = body_json(response).await;
-    repos.tasks.delete_task(&task_id).await.ok();
-
-    assert_eq!(status, StatusCode::OK);
-    assert!(
-        body["error"]["data"]
-            .as_str()
-            .is_some_and(|d| d.contains("Push notification config requests")),
-        "list is the one push verb dispatch declines, and non-streaming refuses it, got {body}"
     );
 }
 

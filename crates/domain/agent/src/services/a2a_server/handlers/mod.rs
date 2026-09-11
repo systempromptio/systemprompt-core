@@ -8,7 +8,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod card;
-pub mod push_notification_config;
 pub mod request;
 pub mod state;
 

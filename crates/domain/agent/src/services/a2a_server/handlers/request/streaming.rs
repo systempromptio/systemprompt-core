@@ -7,7 +7,6 @@ use axum::response::sse::Event;
 use serde_json::json;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
-use systemprompt_models::net::validate_outbound_url;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::validation::validate_message_context;
@@ -56,30 +55,12 @@ pub(super) async fn handle_streaming_request(
             return Ok(invalid_params_stream(&request_id, &err).map(Ok));
         }
 
-        let callback_config = params
-            .configuration
-            .as_ref()
-            .and_then(|c| c.push_notification_config.clone());
-
-        if let Some(err) = callback_config
-            .as_ref()
-            .and_then(|c| validate_outbound_url(&c.url).err())
-        {
-            tracing::warn!(error = %err, "Rejected push notification config url on streaming request");
-            return Ok(invalid_params_stream(
-                &request_id,
-                &format!("Invalid push notification config url: {err}"),
-            )
-            .map(Ok));
-        }
-
         Ok(create_sse_stream(CreateSseStreamParams {
             message: params.message,
             agent_name,
             state,
             request_id,
             context,
-            callback_config,
         })
         .await?
         .map(Ok))

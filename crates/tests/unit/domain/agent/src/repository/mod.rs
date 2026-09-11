@@ -1,6 +1,6 @@
 // DB-backed tests for the agent repository layer. Each module covers one
-// sub-repository (agent_service, context, message, task, artifact, execution,
-// push_notification) plus the aggregate `A2ARepositories` facade.
+// sub-repository (agent_service, context, message, task, artifact, execution)
+// plus the aggregate `A2ARepositories` facade.
 //
 // Every test early-returns when DATABASE_URL is unset so the suite still
 // compiles and passes in environments without a migrated Postgres.
@@ -16,7 +16,6 @@ mod execution;
 mod message;
 mod message_sequence_lock;
 mod message_tx;
-mod push_notification;
 mod task;
 
 use systemprompt_agent::models::context::ContextKind;

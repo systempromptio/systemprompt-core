@@ -40,7 +40,6 @@ A refusal surfaces to the caller as a typed `GuardedConnectError` naming the hos
 | External MCP servers and their OAuth metadata | agent configuration and the remote server | connect-time |
 | Governance webhooks | operator or dashboard | connect-time, plus parse-time per send |
 | Authz hook, JWKS, client-metadata fetch | profile and OAuth discovery | connect-time |
-| A2A push-notification config | the A2A caller | parse-time on registration; the stored URL is not dialled by core |
 | Teams token and OpenID endpoints | profile | parse-time; operator-configured constants |
 | Provider base URLs, bundle sources, Vault | profile | parse-time; operator-configured |
 

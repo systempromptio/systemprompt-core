@@ -8,12 +8,11 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::TaskMetadata;
 use tokio::sync::mpsc::Sender;
 
 use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::models::a2a::{Task, TaskState, TaskStatus};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::errors::classify_database_error;
@@ -128,25 +127,4 @@ pub(super) async fn persist_initial_task(
     }
 
     Ok(task_repo)
-}
-
-pub(super) async fn save_push_notification_config(
-    task_id: &TaskId,
-    callback_config: Option<&PushNotificationConfig>,
-    state: &Arc<AgentHandlerState>,
-) {
-    let Some(config) = callback_config else {
-        return;
-    };
-
-    tracing::info!(url = %config.url, "Push notification callback registered");
-
-    let config_repo = &state.agent_state.repositories().push_notification_configs;
-
-    match config_repo.add_config(task_id, config).await {
-        Ok(_) => tracing::info!(task_id = %task_id, "Push notification config saved"),
-        Err(e) => {
-            tracing::warn!(task_id = %task_id, error = %e, "Failed to save push notification config");
-        },
-    }
 }

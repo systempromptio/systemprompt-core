@@ -21,9 +21,7 @@ use crate::services::a2a_server::processing::message::MessageProcessor;
 
 use super::agent_loader::{LoadAgentRuntimeParams, load_agent_runtime};
 use super::broadcast::{BroadcastTaskCreatedParams, broadcast_task_created};
-use super::initialization_steps::{
-    persist_initial_task, save_push_notification_config, validate_context,
-};
+use super::initialization_steps::{persist_initial_task, validate_context};
 use super::types::{PersistTaskInput, StreamInput, StreamSetupResult};
 
 pub(super) fn create_jsonrpc_error_event(
@@ -92,7 +90,6 @@ pub(super) async fn setup_stream(
         state,
         request_id,
         mut context,
-        callback_config,
         registry,
     } = input;
 
@@ -131,8 +128,6 @@ pub(super) async fn setup_stream(
         token: context.auth.auth_token.as_str(),
     })
     .await;
-
-    save_push_notification_config(&task_id, callback_config.as_ref(), &state).await;
 
     let agent_runtime = load_agent_runtime(LoadAgentRuntimeParams {
         registry,

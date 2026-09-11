@@ -18,7 +18,6 @@ async fn new_constructs_all_sub_repositories() {
     let _ = &repos.agent_services;
     let _ = &repos.tasks;
     let _ = &repos.execution_steps;
-    let _ = &repos.push_notification_configs;
 }
 
 #[tokio::test]

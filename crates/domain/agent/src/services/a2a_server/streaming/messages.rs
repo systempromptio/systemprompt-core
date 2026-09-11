@@ -12,7 +12,6 @@ use tokio_stream::wrappers::ReceiverStream;
 use crate::error::AgentResult;
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
-use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::ProcessMessageStreamParams;
 use crate::services::registry::AgentRegistry;
@@ -29,7 +28,6 @@ pub struct CreateSseStreamParams {
     pub state: Arc<AgentHandlerState>,
     pub request_id: NumberOrString,
     pub context: RequestContext,
-    pub callback_config: Option<PushNotificationConfig>,
 }
 
 impl std::fmt::Debug for CreateSseStreamParams {
@@ -39,7 +37,6 @@ impl std::fmt::Debug for CreateSseStreamParams {
             .field("agent_name", &self.agent_name)
             .field("request_id", &self.request_id)
             .field("context", &self.context)
-            .field("callback_config", &self.callback_config)
             .finish_non_exhaustive()
     }
 }
@@ -65,7 +62,6 @@ pub async fn create_sse_stream_with_registry(
         state,
         request_id,
         context,
-        callback_config,
     } = params;
 
     let Ok(permit) = Arc::clone(&state.stream_semaphore).try_acquire_owned() else {
@@ -88,7 +84,6 @@ pub async fn create_sse_stream_with_registry(
         state,
         request_id,
         context,
-        callback_config,
         registry,
     };
 

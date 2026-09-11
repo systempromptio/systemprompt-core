@@ -89,11 +89,6 @@ fn context_schemas() -> Vec<SchemaDefinition> {
 fn task_tracking_schemas() -> Vec<SchemaDefinition> {
     vec![
         SchemaDefinition::new(
-            "task_push_notification_configs",
-            include_str!("../schema/task_push_notification_configs.sql"),
-        )
-        .with_required_columns(vec!["id".into(), "task_id".into()]),
-        SchemaDefinition::new(
             "task_execution_steps",
             include_str!("../schema/task_execution_steps.sql"),
         )

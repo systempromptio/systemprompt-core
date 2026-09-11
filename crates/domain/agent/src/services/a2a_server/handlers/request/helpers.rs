@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::{Json, State};
+use axum::extract::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::sse::{KeepAlive, Sse};
@@ -107,80 +107,4 @@ pub async fn handle_streaming_path(
     Sse::new(stream)
         .keep_alive(KeepAlive::default())
         .into_response()
-}
-
-pub async fn handle_push_notification_requests(
-    a2a_request: &A2aRequestParams,
-    state: &AgentHandlerState,
-    request_id: &crate::models::a2a::jsonrpc::NumberOrString,
-    start_time: std::time::Instant,
-) -> Option<axum::response::Response> {
-    let push_notification_response = match a2a_request {
-        A2aRequestParams::SetTaskPushNotificationConfig(params) => {
-            use crate::services::a2a_server::handlers::push_notification_config::handle_set_push_notification_config;
-
-            tracing::info!("Handling CreateTaskPushNotificationConfig request");
-
-            Some(
-                handle_set_push_notification_config(State(Arc::new(state.clone())), params.clone())
-                    .await,
-            )
-        },
-        A2aRequestParams::GetTaskPushNotificationConfig(params) => {
-            use crate::services::a2a_server::handlers::push_notification_config::handle_get_push_notification_config;
-
-            tracing::info!("Handling GetTaskPushNotificationConfig request");
-
-            Some(
-                handle_get_push_notification_config(State(Arc::new(state.clone())), params.clone())
-                    .await,
-            )
-        },
-        A2aRequestParams::ListTaskPushNotificationConfig(_params) => {
-            tracing::info!("Handling ListTaskPushNotificationConfigs request");
-            None
-        },
-        A2aRequestParams::DeleteTaskPushNotificationConfig(params) => {
-            use crate::services::a2a_server::handlers::push_notification_config::handle_delete_push_notification_config;
-
-            tracing::info!("Handling DeleteTaskPushNotificationConfig request");
-
-            Some(
-                handle_delete_push_notification_config(
-                    State(Arc::new(state.clone())),
-                    params.clone(),
-                )
-                .await,
-            )
-        },
-        _ => None,
-    };
-
-    if let Some(result) = push_notification_response {
-        let (status, json_response) = match result {
-            Ok((status, json)) | Err((status, json)) => (status, json),
-        };
-
-        let mut response_value = json_response.0;
-        if let Some(obj) = response_value.as_object_mut() {
-            obj.insert(
-                "id".to_owned(),
-                match request_id {
-                    crate::models::a2a::jsonrpc::NumberOrString::String(s) => {
-                        serde_json::Value::String(s.clone())
-                    },
-                    crate::models::a2a::jsonrpc::NumberOrString::Number(n) => {
-                        serde_json::Value::Number(serde_json::Number::from(*n))
-                    },
-                },
-            );
-        }
-
-        let latency_ms = start_time.elapsed().as_millis();
-        tracing::info!(latency_ms = %latency_ms, "Push notification config request processed");
-
-        return Some((status, Json(response_value)).into_response());
-    }
-
-    None
 }

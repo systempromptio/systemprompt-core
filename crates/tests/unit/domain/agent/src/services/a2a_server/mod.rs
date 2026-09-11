@@ -16,8 +16,6 @@ mod message_processor;
 mod multiturn_task;
 mod persistence_service;
 mod planned_tool_execution;
-mod push_notification_config;
-mod push_notification_config_faults;
 mod request_dispatch;
 mod request_handler;
 mod request_non_streaming;

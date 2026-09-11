@@ -104,7 +104,6 @@ pub(super) fn build_a2a_request(
         configuration: Some(MessageSendConfiguration {
             accepted_output_modes: None,
             history_length: None,
-            push_notification_config: None,
             blocking: Some(true),
         }),
         metadata: None,
