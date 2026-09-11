@@ -47,10 +47,12 @@ pub struct GatewayProbeOutcome {
     pub credential_error: Option<String>,
 }
 
-/// Flat state snapshot the GUI reads by field name. `sync_pending` records a
-/// sync requested while one was running; it starts when that run ends, and is
-/// set by a login or gateway change so the new gateway is never left unsynced
-/// behind a run that was cancelled or superseded.
+/// Flat state snapshot the GUI reads by field name.
+///
+/// `sync_pending` records a sync requested while one was running; it starts
+/// when that run ends, and is set by a login or gateway change so the new
+/// gateway is never left unsynced behind a run that was cancelled or
+/// superseded.
 #[derive(Debug, Clone, Default)]
 #[expect(
     clippy::struct_excessive_bools,
