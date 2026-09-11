@@ -12,7 +12,6 @@ use systemprompt_bridge::ids::{ManagedMcpServerName, ToolName, ToolPolicy};
 use systemprompt_bridge::install::mdm::claude_code_settings::permissions::{
     PermissionRules, merged_permissions, rules_for,
 };
-use systemprompt_test_fixtures::fixture_user_id;
 
 fn server(name: &str, policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> ManagedMcpServer {
     ManagedMcpServer {
@@ -40,7 +39,7 @@ fn manifest(
         ManifestVersion::try_new("2026-09-11T00:00:00Z-00000000").unwrap(),
         "2026-09-11T00:00:00Z",
         "2026-09-11T00:00:00Z",
-        fixture_user_id(),
+        systemprompt_identifiers::UserId::new("test-user"),
     )
     .with_managed_mcp_servers(servers)
     .build()
