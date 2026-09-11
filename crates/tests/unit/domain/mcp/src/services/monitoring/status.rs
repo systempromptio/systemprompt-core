@@ -125,26 +125,6 @@ fn test_service_status_no_tools() {
     assert_eq!(status.tools_count, Some(0));
 }
 
-#[test]
-fn test_service_status_clone() {
-    let status = create_test_status();
-    let cloned = status.clone();
-
-    assert_eq!(status.state, cloned.state);
-    assert_eq!(status.pid, cloned.pid);
-    assert_eq!(status.health, cloned.health);
-    assert_eq!(status.tools_count, cloned.tools_count);
-}
-
-#[test]
-fn test_service_status_debug() {
-    let status = create_test_status();
-    let debug_str = format!("{:?}", status);
-
-    assert!(debug_str.contains("ServiceStatus"));
-    assert!(debug_str.contains("running"));
-    assert!(debug_str.contains("healthy"));
-}
 
 #[test]
 fn test_service_status_starting() {

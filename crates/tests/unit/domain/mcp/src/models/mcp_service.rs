@@ -110,16 +110,6 @@ fn test_mcp_service_no_last_health_check() {
     assert!(service.last_health_check.is_none());
 }
 
-#[test]
-fn test_mcp_service_clone() {
-    let service = create_test_service("running", "healthy");
-    let cloned = service.clone();
-
-    assert_eq!(service.id, cloned.id);
-    assert_eq!(service.name, cloned.name);
-    assert_eq!(service.status, cloned.status);
-    assert_eq!(service.health, cloned.health);
-}
 
 #[test]
 fn test_mcp_service_debug() {

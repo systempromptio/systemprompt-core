@@ -41,29 +41,6 @@ fn test_list_agents_query_serialize() {
     assert!(json.contains("streaming"));
 }
 
-#[test]
-fn test_list_agents_query_debug() {
-    let query = ListAgentsQuery::default();
-    let debug_str = format!("{:?}", query);
-    assert!(debug_str.contains("ListAgentsQuery"));
-}
-
-#[test]
-fn test_list_agents_query_clone() {
-    let query = ListAgentsQuery {
-        page: Some(5),
-        limit: Some(10),
-        offset: Some(20),
-        search: Some("clone".to_string()),
-        status: None,
-        capability: None,
-    };
-
-    let cloned = query.clone();
-    assert_eq!(cloned.page, query.page);
-    assert_eq!(cloned.limit, query.limit);
-    assert_eq!(cloned.search, query.search);
-}
 
 #[test]
 fn test_agent_counts_serialize() {
@@ -94,19 +71,6 @@ fn test_agent_counts_debug() {
     assert!(debug_str.contains("4"));
 }
 
-#[test]
-fn test_agent_counts_copy() {
-    let counts = AgentCounts {
-        total: 100,
-        active: 50,
-        enabled: 75,
-    };
-
-    let copied = counts;
-    assert_eq!(copied.total, 100);
-    assert_eq!(copied.active, 50);
-    assert_eq!(copied.enabled, 75);
-}
 
 #[test]
 fn test_agent_discovery_entry_serialize() {
@@ -147,24 +111,6 @@ fn test_agent_discovery_entry_debug() {
     assert!(debug_str.contains("debug-uuid"));
 }
 
-#[test]
-fn test_agent_discovery_entry_clone() {
-    let entry = AgentDiscoveryEntry {
-        uuid: "clone-uuid".to_string(),
-        slug: "clone-slug".to_string(),
-        name: "Clone Agent".to_string(),
-        description: "Cloned".to_string(),
-        version: "3.0.0".to_string(),
-        url: "http://clone".to_string(),
-        status: "active".to_string(),
-        endpoint: "http://clone-endpoint".to_string(),
-    };
-
-    let cloned = entry.clone();
-    assert_eq!(cloned.uuid, entry.uuid);
-    assert_eq!(cloned.slug, entry.slug);
-    assert_eq!(cloned.name, entry.name);
-}
 
 #[test]
 fn test_agent_discovery_response_serialize() {

@@ -18,6 +18,7 @@ mod logs_stream_cleanup_db;
 mod logs_trace_ai_mcp_db;
 mod logs_trace_render_db;
 mod services_app_ctx;
+mod services_cleanup_reporting;
 mod services_commands;
 mod services_restart_ctx;
 mod services_start_ctx;

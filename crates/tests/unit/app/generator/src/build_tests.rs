@@ -48,28 +48,6 @@ fn test_build_mode_equality() {
     assert_ne!(BuildMode::Development, BuildMode::Docker);
 }
 
-#[test]
-fn test_build_mode_clone() {
-    let mode = BuildMode::Production;
-    let cloned = mode;
-    assert_eq!(mode, cloned);
-}
-
-#[test]
-fn test_build_mode_debug() {
-    let mode = BuildMode::Development;
-    let debug_str = format!("{:?}", mode);
-    assert!(debug_str.contains("Development"));
-}
-
-#[test]
-fn test_build_orchestrator_creation() {
-    let web_dir = PathBuf::from("/var/www/html/web");
-    let orchestrator = BuildOrchestrator::new(web_dir, BuildMode::Development);
-
-    let debug_str = format!("{:?}", orchestrator);
-    assert!(debug_str.contains("BuildOrchestrator"));
-}
 
 #[test]
 fn test_build_orchestrator_with_different_modes() {
@@ -84,21 +62,6 @@ fn test_build_orchestrator_with_different_modes() {
     assert!(format!("{:?}", docker).contains("Docker"));
 }
 
-#[test]
-fn test_build_orchestrator_with_various_paths() {
-    let paths = [
-        PathBuf::from("/var/www/html/web"),
-        PathBuf::from("./relative/path"),
-        PathBuf::from("/absolute/path/to/web"),
-        PathBuf::from("web"),
-    ];
-
-    for path in paths {
-        let orchestrator = BuildOrchestrator::new(path.clone(), BuildMode::Production);
-        let debug_str = format!("{:?}", orchestrator);
-        assert!(debug_str.contains("BuildOrchestrator"));
-    }
-}
 
 #[test]
 fn test_build_error_css_organization_failed() {

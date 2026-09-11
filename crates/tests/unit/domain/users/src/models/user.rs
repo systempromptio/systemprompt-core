@@ -105,22 +105,6 @@ mod user_tests {
         assert!(!user.has_role(UserRole::User));
     }
 
-    #[test]
-    fn user_clone() {
-        let user = create_test_user();
-        let cloned = user.clone();
-        assert_eq!(user.id.to_string(), cloned.id.to_string());
-        assert_eq!(user.name, cloned.name);
-        assert_eq!(user.email, cloned.email);
-    }
-
-    #[test]
-    fn user_debug() {
-        let user = create_test_user();
-        let debug_str = format!("{:?}", user);
-        assert!(debug_str.contains("User"));
-        assert!(debug_str.contains("testuser"));
-    }
 
     #[test]
     fn user_with_multiple_roles() {

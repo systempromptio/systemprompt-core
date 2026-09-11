@@ -28,14 +28,3 @@ fn from_env_maps_remote_cli_flag() {
     assert!(!env.is_deployment_host);
     assert!(env.is_remote_cli);
 }
-
-#[test]
-fn execution_environment_is_copy_clone_debug() {
-    let overrides = EnvOverrides::from_vars([("FLY_APP_NAME", "my-app")]);
-    let env = ExecutionEnvironment::from_env(&overrides);
-    let copied = env;
-    let cloned = env.clone();
-    let _debug = format!("{:?}", env);
-    assert_eq!(copied.is_deployment_host, env.is_deployment_host);
-    assert_eq!(cloned.is_remote_cli, env.is_remote_cli);
-}

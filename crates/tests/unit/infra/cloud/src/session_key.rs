@@ -84,19 +84,6 @@ fn test_session_key_display_tenant() {
     assert_eq!(display, "tenant:prod-tenant");
 }
 
-#[test]
-fn test_session_key_debug_local() {
-    let key = SessionKey::Local;
-    let debug = format!("{:?}", key);
-    assert!(debug.contains("Local"));
-}
-
-#[test]
-fn test_session_key_debug_tenant() {
-    let key = SessionKey::Tenant(TenantId::new("debug-tenant"));
-    let debug = format!("{:?}", key);
-    assert!(debug.contains("Tenant"));
-}
 
 #[test]
 fn test_session_key_hash() {

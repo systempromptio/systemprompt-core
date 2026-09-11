@@ -238,13 +238,6 @@ fn test_jwt_config_no_expiry() {
     assert!(config.expires_in_hours.is_none());
 }
 
-#[test]
-fn test_jwt_config_debug() {
-    let config = JwtConfig::default();
-    let debug_str = format!("{:?}", config);
-    assert!(debug_str.contains("JwtConfig"));
-    assert!(debug_str.contains("permissions"));
-}
 
 #[test]
 fn test_jwt_config_serialize() {

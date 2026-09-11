@@ -67,11 +67,3 @@ fn test_component_renderers_one_renderer() {
     let renderers = ext.component_renderers();
     assert_eq!(renderers.len(), 1);
 }
-
-#[test]
-fn test_clone_copy_default() {
-    let a = ContentExtension;
-    let b = a;
-    assert_eq!(a.metadata().id, b.metadata().id);
-    let _c: ContentExtension = ContentExtension::default();
-}

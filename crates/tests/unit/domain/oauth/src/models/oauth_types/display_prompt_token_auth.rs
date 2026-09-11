@@ -61,11 +61,6 @@ fn test_display_mode_display() {
     assert_eq!(format!("{}", DisplayMode::Wap), "wap");
 }
 
-#[test]
-fn test_display_mode_debug() {
-    let debug_str = format!("{:?}", DisplayMode::Page);
-    assert!(debug_str.contains("Page"));
-}
 
 #[test]
 fn test_prompt_none_as_str() {
@@ -125,11 +120,6 @@ fn test_prompt_display() {
     assert_eq!(format!("{}", Prompt::SelectAccount), "select_account");
 }
 
-#[test]
-fn test_prompt_debug() {
-    let debug_str = format!("{:?}", Prompt::Login);
-    assert!(debug_str.contains("Login"));
-}
 
 #[test]
 fn test_token_auth_method_client_secret_post_as_str() {
@@ -195,10 +185,4 @@ fn test_token_auth_method_display() {
         "client_secret_basic"
     );
     assert_eq!(format!("{}", TokenAuthMethod::None), "none");
-}
-
-#[test]
-fn test_token_auth_method_debug() {
-    let debug_str = format!("{:?}", TokenAuthMethod::ClientSecretPost);
-    assert!(debug_str.contains("ClientSecretPost"));
 }

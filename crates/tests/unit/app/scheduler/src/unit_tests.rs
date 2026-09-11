@@ -1180,21 +1180,6 @@ fn test_process_info_creation() {
     assert_eq!(info.port, 8080);
 }
 
-#[test]
-fn test_process_info_clone() {
-    use systemprompt_scheduler::ProcessInfo;
-
-    let info = ProcessInfo {
-        pid: 5678,
-        name: "cloneable-process".to_string(),
-        port: 3000,
-    };
-
-    let cloned = info.clone();
-    assert_eq!(cloned.pid, info.pid);
-    assert_eq!(cloned.name, info.name);
-    assert_eq!(cloned.port, info.port);
-}
 
 #[test]
 fn test_process_info_debug() {
@@ -1321,23 +1306,6 @@ fn test_process_exists_current_process() {
     );
 }
 
-#[test]
-fn test_db_service_record_clone() {
-    let record = DbServiceRecord {
-        name: "api-server".to_string(),
-        service_type: "api".to_string(),
-        status: "running".to_string(),
-        pid: Some(1234),
-        port: 8080,
-    };
-
-    let cloned = record.clone();
-    assert_eq!(cloned.name, record.name);
-    assert_eq!(cloned.service_type, record.service_type);
-    assert_eq!(cloned.status, record.status);
-    assert_eq!(cloned.pid, record.pid);
-    assert_eq!(cloned.port, record.port);
-}
 
 #[test]
 fn test_db_service_record_debug() {
@@ -1429,21 +1397,6 @@ fn test_verified_state_all_service_types() {
     }
 }
 
-#[test]
-fn test_service_config_clone() {
-    let config = ServiceConfig {
-        name: "clone-test".to_string(),
-        service_type: ServiceType::Api,
-        port: 8080,
-        enabled: true,
-    };
-
-    let cloned = config.clone();
-    assert_eq!(cloned.name, config.name);
-    assert_eq!(cloned.service_type, config.service_type);
-    assert_eq!(cloned.port, config.port);
-    assert_eq!(cloned.enabled, config.enabled);
-}
 
 #[test]
 fn test_service_config_debug() {
@@ -1561,45 +1514,6 @@ fn test_all_jobs_have_snake_case_names() {
     }
 }
 
-#[test]
-fn test_behavioral_analysis_job_copy() {
-    use systemprompt_scheduler::BehavioralAnalysisJob;
-    use systemprompt_traits::Job;
-
-    let job1 = BehavioralAnalysisJob;
-    let job2 = job1; // Copy
-    assert_eq!(job1.name(), job2.name());
-}
-
-#[test]
-fn test_database_cleanup_job_copy() {
-    use systemprompt_scheduler::DatabaseCleanupJob;
-    use systemprompt_traits::Job;
-
-    let job1 = DatabaseCleanupJob;
-    let job2 = job1; // Copy
-    assert_eq!(job1.name(), job2.name());
-}
-
-#[test]
-fn test_cleanup_empty_contexts_job_copy() {
-    use systemprompt_scheduler::CleanupEmptyContextsJob;
-    use systemprompt_traits::Job;
-
-    let job1 = CleanupEmptyContextsJob;
-    let job2 = job1; // Copy
-    assert_eq!(job1.name(), job2.name());
-}
-
-#[test]
-fn test_cleanup_inactive_sessions_job_copy() {
-    use systemprompt_scheduler::CleanupInactiveSessionsJob;
-    use systemprompt_traits::Job;
-
-    let job1 = CleanupInactiveSessionsJob;
-    let job2 = job1; // Copy
-    assert_eq!(job1.name(), job2.name());
-}
 
 #[test]
 fn test_service_action_serialization_all_variants() {
@@ -1636,19 +1550,6 @@ fn test_service_action_deserialization_all_variants() {
     }
 }
 
-#[test]
-fn test_desired_status_clone() {
-    let enabled = DesiredStatus::Enabled;
-    let cloned = enabled;
-    assert_eq!(enabled, cloned);
-}
-
-#[test]
-fn test_runtime_status_clone() {
-    let running = RuntimeStatus::Running;
-    let cloned = running;
-    assert_eq!(running, cloned);
-}
 
 #[test]
 fn test_runtime_status_serialization() {

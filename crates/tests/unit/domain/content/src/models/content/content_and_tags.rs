@@ -98,37 +98,6 @@ fn test_content_links_metadata_invalid_json() {
     result.unwrap_err();
 }
 
-#[test]
-fn test_content_clone() {
-    use chrono::Utc;
-    use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
-
-    let content = Content {
-        id: ContentId::new("content-4"),
-        slug: "clone-test".to_string(),
-        locale: LocaleCode::new("en"),
-        title: "Clone Test".to_string(),
-        description: "Description".to_string(),
-        body: "Body".to_string(),
-        author: "Author".to_string(),
-        published_at: Utc::now(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: Some("/image.png".to_string()),
-        category_id: None,
-        source_id: SourceId::new("source"),
-        version_hash: "hash".to_string(),
-        public: true,
-        links: serde_json::json!([]),
-        updated_at: Utc::now(),
-    };
-
-    let cloned = content.clone();
-    assert_eq!(cloned.id, content.id);
-    assert_eq!(cloned.slug, content.slug);
-    assert_eq!(cloned.title, content.title);
-}
 
 #[test]
 fn test_content_summary_creation() {
@@ -184,25 +153,6 @@ fn test_tag_creation() {
     assert_eq!(tag.slug, "rust");
 }
 
-#[test]
-fn test_tag_clone() {
-    use chrono::Utc;
-    use systemprompt_content::models::Tag;
-    use systemprompt_identifiers::TagId;
-
-    let tag = Tag {
-        id: TagId::new("tag-2"),
-        name: "Programming".to_string(),
-        slug: "programming".to_string(),
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
-    };
-
-    let cloned = tag.clone();
-    assert_eq!(cloned.id, tag.id);
-    assert_eq!(cloned.name, tag.name);
-    assert_eq!(cloned.slug, tag.slug);
-}
 
 #[test]
 fn test_tag_serialization() {

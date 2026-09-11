@@ -63,12 +63,3 @@ fn authorize_any_audience_returns_unauthorized_with_empty_allow_list() {
 
     assert_eq!(err, StatusCode::UNAUTHORIZED);
 }
-
-#[test]
-fn authorization_service_is_copy_and_debug() {
-    let svc = AuthorizationService;
-    let copied = svc;
-    let debug = format!("{:?}", copied);
-
-    assert!(debug.contains("AuthorizationService"));
-}

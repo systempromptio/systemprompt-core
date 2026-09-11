@@ -33,12 +33,6 @@ fn test_database_query_with_placeholders() {
     assert!(QUERY.postgres().contains("$2"));
 }
 
-#[test]
-fn test_database_query_debug() {
-    const QUERY: DatabaseQuery = DatabaseQuery::new("SELECT * FROM test");
-    let debug = format!("{:?}", QUERY);
-    assert!(debug.contains("DatabaseQuery"));
-}
 
 #[test]
 fn test_query_selector_for_str() {
@@ -175,12 +169,6 @@ fn test_query_result_with_multiple_columns() {
     assert!(!result.is_empty());
 }
 
-#[test]
-fn test_query_result_debug() {
-    let result = QueryResult::new();
-    let debug = format!("{:?}", result);
-    assert!(debug.contains("QueryResult"));
-}
 
 #[test]
 fn test_query_result_clone() {

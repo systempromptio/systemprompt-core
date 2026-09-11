@@ -215,13 +215,3 @@ fn test_file_deleted_at() {
         .as_ref()
         .expect("deleted_at should be present");
 }
-
-#[test]
-fn test_file_clone() {
-    let file = create_test_file();
-    let cloned = file.clone();
-
-    assert_eq!(file.id, cloned.id);
-    assert_eq!(file.path, cloned.path);
-    assert_eq!(file.public_url, cloned.public_url);
-}

@@ -171,13 +171,6 @@ mod session_analytics_tests {
         assert!(analytics.referrer_source.is_none());
     }
 
-    #[test]
-    fn analytics_is_debug() {
-        let headers = create_full_headers();
-        let analytics = SessionAnalyticsBuilder::new(&headers).build();
-        let debug_str = format!("{:?}", analytics);
-        assert!(debug_str.contains("SessionAnalytics"));
-    }
 
     #[test]
     fn from_headers_with_geoip_without_reader() {

@@ -45,12 +45,6 @@ mod platform_overview_tests {
         assert_eq!(overview.total_ai_requests, 100000);
     }
 
-    #[test]
-    fn overview_is_debug() {
-        let overview = create_overview();
-        let debug_str = format!("{:?}", overview);
-        assert!(debug_str.contains("PlatformOverview"));
-    }
 
     #[test]
     fn overview_serializes() {
@@ -95,12 +89,6 @@ mod cost_overview_tests {
         assert!((cost.avg_cost_per_request - 0.01).abs() < f64::EPSILON);
     }
 
-    #[test]
-    fn cost_is_debug() {
-        let cost = create_cost_overview();
-        let debug_str = format!("{:?}", cost);
-        assert!(debug_str.contains("CostOverview"));
-    }
 
     #[test]
     fn cost_serializes() {
@@ -215,12 +203,6 @@ mod bot_traffic_stats_tests {
         assert!((stats.bot_percentage - 0.2).abs() < f64::EPSILON);
     }
 
-    #[test]
-    fn stats_is_debug() {
-        let stats = BotTrafficStats::default();
-        let debug_str = format!("{:?}", stats);
-        assert!(debug_str.contains("BotTrafficStats"));
-    }
 
     #[test]
     fn stats_serializes() {

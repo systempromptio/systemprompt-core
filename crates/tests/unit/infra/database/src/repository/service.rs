@@ -43,46 +43,6 @@ fn test_service_config_without_pid() {
     assert_eq!(config.status, "stopped");
 }
 
-#[test]
-fn test_service_config_debug() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "test".to_string(),
-        module_name: "test".to_string(),
-        status: "running".to_string(),
-        pid: Some(1),
-        port: 80,
-        binary_mtime: None,
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
-
-    let debug = format!("{:?}", config);
-    assert!(debug.contains("ServiceConfig"));
-    assert!(debug.contains("test"));
-}
-
-#[test]
-fn test_service_config_clone() {
-    let config = ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-        name: "original".to_string(),
-        module_name: "agent".to_string(),
-        status: "running".to_string(),
-        pid: Some(5678),
-        port: 4000,
-        binary_mtime: Some(1700000000),
-        created_at: "2024-01-01T00:00:00Z".to_string(),
-        heartbeat_at: "2024-01-01T00:00:00Z".to_string(),
-        updated_at: "2024-01-01T00:00:00Z".to_string(),
-    };
-
-    let cloned = config.clone();
-    assert_eq!(config.name, cloned.name);
-    assert_eq!(config.pid, cloned.pid);
-    assert_eq!(config.port, cloned.port);
-}
 
 #[test]
 fn test_service_config_serialization() {

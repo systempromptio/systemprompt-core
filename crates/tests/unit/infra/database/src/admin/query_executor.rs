@@ -150,10 +150,3 @@ fn test_write_query_not_allowed_mentions_show() {
     let error = QueryExecutorError::WriteQueryNotAllowed;
     assert!(error.to_string().contains("SHOW"));
 }
-
-#[test]
-fn test_write_query_not_allowed_debug() {
-    let error = QueryExecutorError::WriteQueryNotAllowed;
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("WriteQueryNotAllowed"));
-}

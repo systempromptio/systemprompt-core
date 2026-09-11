@@ -31,19 +31,6 @@ fn test_extension_metadata_debug() {
     assert!(debug_str.contains("2.0.0"));
 }
 
-#[test]
-fn test_extension_metadata_clone() {
-    let metadata = ExtensionMetadata {
-        id: "original",
-        name: "Original",
-        version: "1.0.0",
-    };
-
-    let cloned = metadata;
-    assert_eq!(cloned.id, "original");
-    assert_eq!(cloned.name, "Original");
-    assert_eq!(cloned.version, "1.0.0");
-}
 
 #[test]
 fn test_extension_metadata_serialize() {
@@ -99,14 +86,6 @@ fn test_schema_definition_empty_required_columns() {
     assert!(schema.required_columns.is_empty());
 }
 
-#[test]
-fn test_schema_definition_debug() {
-    let schema = SchemaDefinition::new("debug_table", "CREATE TABLE debug_table (x INT)");
-    let debug_str = format!("{:?}", schema);
-
-    assert!(debug_str.contains("SchemaDefinition"));
-    assert!(debug_str.contains("debug_table"));
-}
 
 #[test]
 fn test_schema_definition_serialize() {

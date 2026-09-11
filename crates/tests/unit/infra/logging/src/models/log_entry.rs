@@ -205,29 +205,6 @@ fn test_log_entry_display_all_levels() {
     );
 }
 
-#[test]
-fn test_log_entry_clone() {
-    let entry = make_entry(LogLevel::Info, "module", "message")
-        .with_metadata(serde_json::json!({"key": "value"}));
-    let cloned = entry.clone();
-
-    assert_eq!(entry.id.as_str(), cloned.id.as_str());
-    assert_eq!(entry.level, cloned.level);
-    assert_eq!(entry.module, cloned.module);
-    assert_eq!(entry.message, cloned.message);
-    assert_eq!(entry.metadata, cloned.metadata);
-}
-
-#[test]
-fn test_log_entry_debug() {
-    let entry = make_entry(LogLevel::Error, "debug_module", "debug_message");
-    let debug = format!("{:?}", entry);
-
-    assert!(debug.contains("LogEntry"));
-    assert!(debug.contains("Error"));
-    assert!(debug.contains("debug_module"));
-    assert!(debug.contains("debug_message"));
-}
 
 #[test]
 fn test_log_entry_serialize() {

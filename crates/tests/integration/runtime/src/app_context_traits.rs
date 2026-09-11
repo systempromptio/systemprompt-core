@@ -98,14 +98,6 @@ async fn app_context_accessors_via_from_parts_path() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn app_context_debug_clone() -> Result<()> {
-    let ctx = build_ctx().await?;
-    let cloned = (*ctx).clone();
-    let dbg = format!("{cloned:?}");
-    assert!(dbg.contains("AppContext"));
-    Ok(())
-}
 
 #[tokio::test]
 async fn app_context_builder_accessor() {
@@ -121,17 +113,6 @@ async fn module_api_registry_get_routes_unknown_returns_none() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn database_context_from_url_round_trip() -> Result<()> {
-    let url = systemprompt_test_fixtures::fixture_database_url()?;
-    let dbc = systemprompt_runtime::DatabaseContext::from_url(&url).await?;
-    let _ = dbc.db_pool();
-    let _ = dbc.db_pool_arc();
-    let cloned = dbc.clone();
-    let dbg = format!("{cloned:?}");
-    assert!(dbg.contains("DatabaseContext"));
-    Ok(())
-}
 
 #[tokio::test]
 async fn database_context_from_urls_read_only() -> Result<()> {

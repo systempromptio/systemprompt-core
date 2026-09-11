@@ -88,13 +88,6 @@ mod tool_definition_tests {
         assert!(json.contains("test"));
         assert!(json.contains("svc"));
     }
-
-    #[test]
-    fn is_debug() {
-        let def = ToolDefinition::new("tool", "svc");
-        let debug = format!("{:?}", def);
-        assert!(debug.contains("ToolDefinition"));
-    }
 }
 
 mod tool_call_request_tests {

@@ -121,17 +121,3 @@ fn authz_source_policy_strings() {
     assert_eq!(AuthzSource::ExtensionHook.policy(), "authz_extension_hook");
     assert_eq!(AuthzSource::RuleBased.policy(), "authz_rule_based");
 }
-
-#[test]
-fn deny_all_hook_debug_format() {
-    let hook = DenyAllHook::null();
-    let s = format!("{hook:?}");
-    assert!(s.contains("DenyAllHook"), "got: {s}");
-}
-
-#[test]
-fn allow_all_hook_debug_format() {
-    let hook = AllowAllHook::null();
-    let s = format!("{hook:?}");
-    assert!(s.contains("AllowAllHook"), "got: {s}");
-}

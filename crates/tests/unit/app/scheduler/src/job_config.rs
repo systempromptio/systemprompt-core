@@ -98,20 +98,6 @@ mod job_config_tests {
         assert!(!cfg.enabled);
     }
 
-    #[test]
-    fn is_clone() {
-        let cfg = JobConfig::new("clone_job").with_schedule("0 0 * * * *");
-        let cloned = cfg.clone();
-        assert_eq!(cloned.name, "clone_job");
-        assert_eq!(cloned.schedule, Some("0 0 * * * *".to_string()));
-    }
-
-    #[test]
-    fn is_debug() {
-        let cfg = JobConfig::new("debug_job");
-        let debug = format!("{:?}", cfg);
-        assert!(debug.contains("debug_job"));
-    }
 
     #[test]
     fn serializes_to_json() {

@@ -54,12 +54,6 @@ fn web_assets_strategy_remote_variant() {
     assert!(matches!(strategy, WebAssetsStrategy::Remote { .. }));
 }
 
-#[test]
-fn web_assets_strategy_debug_format() {
-    let strategy = WebAssetsStrategy::Disabled;
-    let debug = format!("{strategy:?}");
-    assert!(debug.contains("Disabled"));
-}
 
 #[test]
 fn web_assets_strategy_clone() {

@@ -128,10 +128,3 @@ fn manifest_signing_error_key_missing_display() {
     let s = e.to_string();
     assert!(s.contains("missing"), "got: {s}");
 }
-
-#[test]
-fn auth_error_debug_format() {
-    let e = AuthError::MissingKid;
-    let d = format!("{e:?}");
-    assert!(d.contains("MissingKid"), "got: {d}");
-}

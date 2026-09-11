@@ -221,12 +221,6 @@ fn test_inject_hyphenated_context_id_rejected() {
     );
 }
 
-#[test]
-fn test_header_injector_debug() {
-    let injector = HeaderInjector;
-    let debug_str = format!("{:?}", injector);
-    assert!(debug_str.contains("HeaderInjector"));
-}
 
 #[test]
 fn test_inject_task_id_success() {

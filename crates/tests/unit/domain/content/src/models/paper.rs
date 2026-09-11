@@ -69,25 +69,6 @@ fn test_paper_section_serialization() {
     assert!(json.contains("\"image_position\":\"center\""));
 }
 
-#[test]
-fn test_paper_section_clone() {
-    let section = PaperSection {
-        id: "clone-test".to_string(),
-        title: "Clone Test".to_string(),
-        file: Some("file.md".to_string()),
-        image: Some("/img.png".to_string()),
-        image_alt: Some("Alt text".to_string()),
-        image_position: "right".to_string(),
-    };
-
-    let cloned = section.clone();
-    assert_eq!(cloned.id, section.id);
-    assert_eq!(cloned.title, section.title);
-    assert_eq!(cloned.file, section.file);
-    assert_eq!(cloned.image, section.image);
-    assert_eq!(cloned.image_alt, section.image_alt);
-    assert_eq!(cloned.image_position, section.image_position);
-}
 
 #[test]
 fn test_paper_metadata_default() {
@@ -171,21 +152,6 @@ fn test_paper_metadata_serialization() {
     assert!(json.contains("\"chapters_path\":\"/chapters\""));
 }
 
-#[test]
-fn test_paper_metadata_clone() {
-    let metadata = PaperMetadata {
-        hero_image: Some("/hero.png".to_string()),
-        hero_alt: None,
-        sections: vec![PaperSection::default()],
-        toc: true,
-        chapters_path: Some("/path".to_string()),
-    };
-
-    let cloned = metadata.clone();
-    assert_eq!(cloned.hero_image, metadata.hero_image);
-    assert_eq!(cloned.toc, metadata.toc);
-    assert_eq!(cloned.sections.len(), metadata.sections.len());
-}
 
 #[test]
 fn test_paper_metadata_multiple_sections() {

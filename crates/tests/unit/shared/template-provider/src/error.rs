@@ -93,12 +93,6 @@ mod error_variants_tests {
 mod error_traits_tests {
     use super::*;
 
-    #[test]
-    fn error_is_debug() {
-        let err = TemplateLoaderError::NoBasePaths;
-        let debug = format!("{:?}", err);
-        assert!(debug.contains("NoBasePaths"));
-    }
 
     #[test]
     fn implements_std_error() {

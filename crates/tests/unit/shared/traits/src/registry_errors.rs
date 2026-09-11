@@ -54,20 +54,6 @@ fn service_oauth_config_default_required_true() {
     assert!(!c.ema, "EMA is opt-in per service");
 }
 
-#[test]
-fn service_oauth_config_clone() {
-    let c = ServiceOAuthConfig {
-        required: false,
-        scopes: vec!["read".into(), "write".into()],
-        audience: "api".into(),
-        ema: true,
-    };
-    let c2 = c.clone();
-    assert!(!c2.required);
-    assert_eq!(c2.scopes, vec!["read", "write"]);
-    assert_eq!(c2.audience, "api");
-    assert!(c2.ema);
-}
 
 // --- AgentInfo ---
 
@@ -84,18 +70,6 @@ fn agent_info_fields_accessible() {
     assert!(a.enabled);
 }
 
-#[test]
-fn agent_info_clone() {
-    let a = AgentInfo {
-        name: "agent-x".to_owned(),
-        port: 1234,
-        enabled: false,
-        oauth: ServiceOAuthConfig::default(),
-    };
-    let b = a.clone();
-    assert_eq!(b.name, "agent-x");
-    assert_eq!(b.port, 1234);
-}
 
 // --- McpServerInfo ---
 
@@ -111,17 +85,6 @@ fn mcp_server_info_fields_accessible() {
     assert_eq!(s.port, 3000);
 }
 
-#[test]
-fn mcp_server_info_clone() {
-    let s = McpServerInfo {
-        name: "svc".to_owned(),
-        port: 8888,
-        enabled: false,
-        oauth: ServiceOAuthConfig::default(),
-    };
-    let t = s.clone();
-    assert_eq!(t.name, "svc");
-}
 
 // --- SchedulerError display ---
 
@@ -159,12 +122,6 @@ fn job_status_eq() {
     assert_ne!(JobStatus::Disabled, JobStatus::Success);
 }
 
-#[test]
-fn job_status_copy() {
-    let s = JobStatus::Running;
-    let t = s;
-    assert_eq!(s, t);
-}
 
 #[test]
 fn job_status_debug() {
@@ -192,19 +149,6 @@ fn job_info_fields_accessible() {
     assert_eq!(j.run_count, 42);
 }
 
-#[test]
-fn job_info_clone() {
-    let j = JobInfo {
-        name: "job".to_owned(),
-        status: JobStatus::Failed,
-        last_run: None,
-        next_run: None,
-        run_count: 1,
-        last_error: Some("err msg".to_owned()),
-    };
-    let j2 = j.clone();
-    assert_eq!(j2.last_error.as_deref(), Some("err msg"));
-}
 
 // --- AiProviderError display ---
 

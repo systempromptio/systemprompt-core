@@ -76,25 +76,6 @@ fn test_wellknown_metadata_long_description() {
     assert!(metadata.description.len() > 100);
 }
 
-#[test]
-fn test_wellknown_metadata_copy() {
-    let metadata = WellKnownMetadata::new("/.well-known/copy", "Copy Test", "Testing copy");
-
-    let copied = metadata;
-    assert_eq!(copied.path, metadata.path);
-    assert_eq!(copied.name, metadata.name);
-    assert_eq!(copied.description, metadata.description);
-}
-
-#[test]
-fn test_wellknown_metadata_clone() {
-    let metadata = WellKnownMetadata::new("/.well-known/clone", "Clone Test", "Testing clone");
-
-    let cloned = metadata;
-    assert_eq!(cloned.path, "/.well-known/clone");
-    assert_eq!(cloned.name, "Clone Test");
-    assert_eq!(cloned.description, "Testing clone");
-}
 
 #[test]
 fn test_wellknown_metadata_multiple_copies() {
@@ -118,17 +99,6 @@ fn test_wellknown_metadata_debug() {
     assert!(debug_str.contains("Debug"));
 }
 
-#[test]
-fn test_wellknown_metadata_debug_with_special_chars() {
-    let metadata = WellKnownMetadata::new(
-        "/.well-known/special",
-        "Name with \"quotes\"",
-        "Description with 'apostrophes'",
-    );
-
-    let debug_str = format!("{:?}", metadata);
-    assert!(debug_str.contains("WellKnownMetadata"));
-}
 
 #[test]
 fn test_get_wellknown_metadata_nonexistent() {

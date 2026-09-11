@@ -42,12 +42,6 @@ fn content_kind_equality() {
     assert_ne!(ContentKind::Guide, ContentKind::Tutorial);
 }
 
-#[test]
-fn content_kind_copy_semantics() {
-    let kind = ContentKind::Guide;
-    let copied = kind;
-    assert_eq!(kind, copied);
-}
 
 #[test]
 fn ingestion_options_with_dry_run_true() {

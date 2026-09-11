@@ -1,16 +1,6 @@
 //! Tests for orchestration state types
 
-use systemprompt_scheduler::{DesiredStatus, ServiceAction};
-
-mod desired_status_tests {
-    use super::*;
-
-    #[test]
-    fn is_debug() {
-        let debug = format!("{:?}", DesiredStatus::Enabled);
-        assert!(debug.contains("Enabled"));
-    }
-}
+use systemprompt_scheduler::ServiceAction;
 
 mod service_action_tests {
     use super::*;

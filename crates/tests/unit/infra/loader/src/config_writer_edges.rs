@@ -107,11 +107,9 @@ fn find_agent_file_falls_back_to_scan_when_expected_file_wrong_agent() {
     )
     .expect("rename so expected filename mismatches agent key");
 
-    let wanted = test_agent("target");
     std::fs::write(
         agents_dir.join("target.yaml"),
         {
-            let _ = &wanted;
             "agents:\n  target:\n    name: target\n    port: 4000\n    endpoint: http://localhost:4000/target\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: T\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n"
         },
     )
@@ -158,10 +156,8 @@ fn delete_agent_without_config_file_errors() {
     let agents_dir = temp.path().join("agents");
     std::fs::create_dir_all(&agents_dir).expect("agents dir");
 
-    let agent = test_agent("orphan");
     let yaml = "agents:\n  orphan:\n    name: orphan\n    port: 4000\n    endpoint: http://localhost:4000/orphan\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: O\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n";
     std::fs::write(agents_dir.join("orphan.yaml"), yaml).expect("write agent");
-    let _ = &agent;
 
     let err = ConfigWriter::delete_agent("orphan", temp.path())
         .expect_err("missing config.yaml must error after file removal");

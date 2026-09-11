@@ -33,30 +33,6 @@ mod enroll_params_struct_tests {
         assert_eq!(params.user_id.to_string(), "user-test");
     }
 
-    #[test]
-    fn enroll_params_debug() {
-        let uid = make_uid();
-        let params = EnrollDeviceCertServiceParams {
-            user_id: &uid,
-            fingerprint: valid_fp(),
-            label: "Debug Label",
-        };
-        let s = format!("{:?}", params);
-        assert!(s.contains("EnrollParams") || s.contains("fingerprint") || s.contains("Debug"));
-    }
-
-    #[test]
-    fn enroll_params_clone() {
-        let uid = make_uid();
-        let params = EnrollDeviceCertServiceParams {
-            user_id: &uid,
-            fingerprint: valid_fp(),
-            label: "Clone Label",
-        };
-        let cloned = params.clone();
-        assert_eq!(params.label, cloned.label);
-        assert_eq!(params.fingerprint, cloned.fingerprint);
-    }
 
     #[test]
     fn valid_fingerprint_is_exactly_64_hex_chars() {

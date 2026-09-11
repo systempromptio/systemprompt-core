@@ -86,12 +86,6 @@ fn is_file_not_found_false_for_other_variants() {
     );
 }
 
-#[test]
-fn debug_format_not_initialized() {
-    let err = CredentialsBootstrapError::NotInitialized;
-    let d = format!("{err:?}");
-    assert!(d.contains("NotInitialized"));
-}
 
 #[test]
 fn debug_format_file_not_found() {

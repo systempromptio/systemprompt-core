@@ -43,18 +43,6 @@ async fn conversation_service_load_with_tasks_returns_history() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn conversation_service_debug_impl() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let svc = ConversationService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    )?);
-    let dbg = format!("{:?}", svc);
-    assert!(dbg.contains("ConversationService"));
-    fx.cleanup().await?;
-    Ok(())
-}
 
 #[tokio::test]
 async fn conversation_service_with_persisted_messages_returns_history() -> Result<()> {

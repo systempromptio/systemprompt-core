@@ -1,16 +1,7 @@
 //! Request forwarding to the gateway: hop-by-hop header stripping, auth
 //! injection, and one replay when the upstream socket turns out to be dead.
 //!
-//! Why the replay exists: the upstream client keeps idle keep-alive sockets,
-//! and on Windows the WSL localhost relay drops an idle one without a FIN or
-//! RST. The next request written to it is retransmitted for ~30 s and then
-//! aborted by the TCP stack — reqwest reports "error sending request", the
-//! gateway never saw a byte, and the caller (Claude desktop reading a
-//! dashboard's `ui://` resource) shows the server as unreachable. The request
-//! body is buffered anyway, so a request that failed at the connection level
-//! is replayed once on a fresh socket. A `tools/call` is the one exception:
-//! if the failure came after the bytes left, the server may have executed it,
-//! and a tool is not guaranteed idempotent.
+//! The replay policy and its rationale live in [`replay`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,9 +23,12 @@ use crate::proxy::token_cache::TokenCache;
 use crate::proxy::{keepalive, usage};
 
 mod headers;
+pub mod replay;
 mod route;
 
 use headers::{build_upstream_headers, copy_response_headers};
+pub use replay::{Replay, describe, replay_policy, should_replay};
+use replay::{UpstreamRequest, send_with_replay};
 use route::{Route, RouteResolution, resolve_route};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
@@ -188,15 +182,14 @@ pub(crate) async fn forward(
         &route.extra_headers,
     )?;
 
-    let replayable = replay_policy(&request_path, &buffered_body);
-    let upstream_response = send_with_replay(
-        &client,
-        &method,
-        &route.url,
-        &upstream_headers,
-        &buffered_body,
-        replayable,
-    )
+    let upstream_response = send_with_replay(UpstreamRequest {
+        client: &client,
+        method: &method,
+        url: &route.url,
+        headers: &upstream_headers,
+        body: &buffered_body,
+        policy: replay_policy(&request_path, &buffered_body),
+    })
     .await?;
 
     let status = StatusCode::from_u16(upstream_response.status().as_u16())
@@ -269,92 +262,6 @@ async fn prepare_upstream_body(
         tracing::Span::current().record("gateway_conversation_id", tracing::field::display(c));
     }
     Ok((buffered, id))
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Replay {
-    Never,
-    OnConnect,
-    OnConnectionLoss,
-}
-
-// Why: only managed-MCP traffic is replayed. `/v1/messages` is inference —
-// a replay could bill twice — and the gateway routes carry their own retry
-// semantics. Within MCP, a `tools/call` is replayed only when the connection
-// never opened, because nothing can have executed then.
-#[must_use]
-pub fn replay_policy(request_path: &str, body: &Bytes) -> Replay {
-    if !request_path.starts_with("/mcp/") {
-        return Replay::Never;
-    }
-    match jsonrpc_method(body).as_deref() {
-        Some("tools/call") => Replay::OnConnect,
-        _ => Replay::OnConnectionLoss,
-    }
-}
-
-fn jsonrpc_method(body: &Bytes) -> Option<String> {
-    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
-    value.get("method")?.as_str().map(str::to_owned)
-}
-
-#[must_use]
-pub fn should_replay(err: &reqwest::Error, policy: Replay) -> bool {
-    if err.is_timeout() || err.is_body() || err.is_decode() || err.status().is_some() {
-        return false;
-    }
-    match policy {
-        Replay::Never => false,
-        Replay::OnConnect => err.is_connect(),
-        Replay::OnConnectionLoss => err.is_connect() || err.is_request(),
-    }
-}
-
-async fn send_with_replay(
-    client: &reqwest::Client,
-    method: &reqwest::Method,
-    url: &str,
-    headers: &reqwest::header::HeaderMap,
-    body: &Bytes,
-    policy: Replay,
-) -> Result<reqwest::Response, reqwest::Error> {
-    let attempt = || {
-        client
-            .request(method.clone(), url)
-            .headers(headers.clone())
-            .body(reqwest::Body::from(body.clone()))
-            .send()
-    };
-    match attempt().await {
-        Ok(response) => Ok(response),
-        Err(first) if should_replay(&first, policy) => {
-            tracing::warn!(
-                url,
-                error = %describe(&first),
-                "upstream socket failed before a response; replaying once on a fresh connection"
-            );
-            attempt().await
-        },
-        Err(first) => Err(first),
-    }
-}
-
-// Why: reqwest's `Display` stops at "error sending request for url (…)" and
-// keeps the hyper/io cause — timeout, reset, closed — in `source()`. That
-// cause is the only thing that tells a stale socket from a down gateway.
-#[must_use]
-pub fn describe(err: &reqwest::Error) -> String {
-    let mut text = err.to_string();
-    let mut cause = std::error::Error::source(err);
-    while let Some(inner) = cause {
-        let piece = inner.to_string();
-        if !text.contains(&piece) {
-            text.push_str(": ");
-            text.push_str(&piece);
-        }
-        cause = inner.source();
-    }
-    text
 }
 
 async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {

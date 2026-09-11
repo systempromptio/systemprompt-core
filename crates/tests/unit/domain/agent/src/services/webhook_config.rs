@@ -39,13 +39,6 @@ fn retry_policy_default_values() {
     assert!((p.backoff_factor - 2.0).abs() < f64::EPSILON);
 }
 
-#[test]
-fn retry_policy_clone_and_copy() {
-    let p = RetryPolicy::default();
-    let copied = p;
-    let cloned = copied.clone();
-    assert_eq!(cloned.max_retries, copied.max_retries);
-}
 
 #[test]
 fn retry_policy_debug() {
@@ -82,19 +75,4 @@ fn webhook_delivery_result_failure_fields() {
     assert!(!res.success);
     assert_eq!(res.status_code, 500);
     assert_eq!(res.error.as_deref(), Some("timeout"));
-}
-
-#[test]
-fn webhook_delivery_result_clone() {
-    let res = WebhookDeliveryResult {
-        success: true,
-        status_code: 201,
-        response_body: "created".to_string(),
-        response_headers: std::collections::HashMap::new(),
-        duration_ms: 10,
-        error: None,
-    };
-    let cloned = res.clone();
-    assert_eq!(cloned.status_code, res.status_code);
-    assert_eq!(cloned.response_body, res.response_body);
 }

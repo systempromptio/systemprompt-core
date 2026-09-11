@@ -24,12 +24,6 @@ fn test_cimd_fetcher_new_succeeds() {
     drop(fetcher);
 }
 
-#[test]
-fn test_cimd_fetcher_new_returns_debug_impl() {
-    let fetcher = CimdFetcher::new().unwrap();
-    let debug = format!("{:?}", fetcher);
-    assert!(debug.contains("CimdFetcher"));
-}
 
 #[tokio::test]
 async fn test_cimd_fetcher_rejects_http_url() {

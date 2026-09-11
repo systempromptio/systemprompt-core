@@ -24,13 +24,13 @@ use crate::error::ApiHttpError;
 const RESTART_DELAY: Duration = Duration::from_millis(250);
 const RESTART_REASON: &str = "admin services refresh";
 
-#[derive(Debug, Default, Deserialize)]
-pub(super) struct RefreshQuery {
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub struct RefreshQuery {
     #[serde(default)]
-    restart: bool,
+    pub restart: bool,
 }
 
-pub(super) async fn refresh(
+pub async fn refresh(
     State(ctx): State<AppContext>,
     Extension(lock): Extension<RefreshLock>,
     Extension(req_ctx): Extension<RequestContext>,

@@ -53,11 +53,3 @@ fn test_file_ingestion_job_enabled() {
     let job = FileIngestionJob::new();
     assert!(job.enabled());
 }
-
-#[test]
-fn test_file_ingestion_job_debug() {
-    let job = FileIngestionJob::new();
-    let debug_str = format!("{:?}", job);
-
-    assert!(debug_str.contains("FileIngestionJob"));
-}

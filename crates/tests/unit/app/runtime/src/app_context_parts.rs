@@ -91,13 +91,6 @@ fn builder_with_marketplace_filter_reflects_in_debug() {
     assert!(dbg.contains("marketplace_filter: true"), "got: {dbg}");
 }
 
-#[test]
-fn builder_with_migration_config_reflects_in_debug() {
-    let cfg = MigrationConfig::default();
-    let builder = AppContextBuilder::new().with_migration_config(cfg);
-    let dbg = format!("{builder:?}");
-    assert!(dbg.contains("migration_config"), "got: {dbg}");
-}
 
 #[test]
 fn builder_full_chain_all_flags_set() {

@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **CLI:** `core content edit` without `--identifier` in an interactive terminal panicked (`block_on` inside the runtime) instead of prompting for the content to edit.
 - **Models:** `GuardedClientConfig::max_redirects` follows exactly that many hops; it previously refused one hop early while reporting `more than N redirects`.
 
 ### Removed

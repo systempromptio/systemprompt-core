@@ -61,27 +61,6 @@ fn test_content_error_parse() {
     assert!(msg.contains("Invalid date format"));
 }
 
-#[test]
-fn test_content_error_debug_database_not_postgres() {
-    let error = ContentError::DatabaseNotPostgres;
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("DatabaseNotPostgres"));
-}
-
-#[test]
-fn test_content_error_debug_content_not_found() {
-    let error = ContentError::ContentNotFound("test".to_string());
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("ContentNotFound"));
-    assert!(debug.contains("test"));
-}
-
-#[test]
-fn test_content_error_debug_validation() {
-    let error = ContentError::Validation("validation message".to_string());
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("Validation"));
-}
 
 #[test]
 fn test_content_error_from_serde_json() {

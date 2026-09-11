@@ -935,7 +935,11 @@ fn a_resources_read_that_dies_on_a_stale_socket_is_replayed_once() {
                     r#"{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"ui://x/artifact-viewer"}}"#,
                 )
                 .await;
-            assert_eq!(resp.status().as_u16(), 200, "the replay reaches the healthy socket");
+            assert_eq!(
+                resp.status().as_u16(),
+                200,
+                "the replay reaches the healthy socket"
+            );
             assert_eq!(
                 accepted.load(Ordering::SeqCst),
                 2,
@@ -964,8 +968,16 @@ fn a_tools_call_that_dies_after_the_socket_opened_is_not_replayed() {
                     r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"admin_report","arguments":{}}}"#,
                 )
                 .await;
-            assert_eq!(resp.status().as_u16(), 502, "the loss is reported, not hidden");
-            assert_eq!(accepted.load(Ordering::SeqCst), 1, "no replay of a possibly-executed call");
+            assert_eq!(
+                resp.status().as_u16(),
+                502,
+                "the loss is reported, not hidden"
+            );
+            assert_eq!(
+                accepted.load(Ordering::SeqCst),
+                1,
+                "no replay of a possibly-executed call"
+            );
             let detail = resp.text().await.expect("body");
             assert!(
                 detail.contains("upstream request failed"),

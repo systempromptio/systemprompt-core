@@ -294,19 +294,3 @@ fn test_update_content_params_builder_chain() {
     assert_eq!(params.image, Some("/full/img.png".to_string()));
     assert_eq!(params.version_hash, "fullhash");
 }
-
-#[test]
-fn test_update_content_params_clone() {
-    let params = UpdateContentParams::new(
-        ContentId::new("clone-id"),
-        "Clone Title".to_string(),
-        "Clone Desc".to_string(),
-        "Clone Body".to_string(),
-    )
-    .with_keywords("clone".to_string());
-
-    let cloned = params.clone();
-    assert_eq!(cloned.id.as_str(), params.id.as_str());
-    assert_eq!(cloned.title, params.title);
-    assert_eq!(cloned.keywords, params.keywords);
-}

@@ -72,23 +72,6 @@ fn test_context_message_debug() {
     assert!(debug_str.contains("msg-debug"));
 }
 
-#[test]
-fn test_context_message_clone() {
-    let message = ContextMessage {
-        message_id: MessageId::new("msg-clone"),
-        role: "system".to_string(),
-        created_at: Utc::now(),
-        sequence_number: 5,
-        parts: vec![Part::Text(TextPart {
-            text: "test".to_string(),
-        })],
-    };
-
-    let cloned = message.clone();
-    assert_eq!(cloned.message_id.as_str(), message.message_id.as_str());
-    assert_eq!(cloned.role, message.role);
-    assert_eq!(cloned.sequence_number, message.sequence_number);
-}
 
 #[test]
 fn test_context_detail_serialize() {

@@ -75,12 +75,6 @@ fn agent_runtime_info_debug() {
     assert!(dbg.contains("debug-agent"));
 }
 
-#[test]
-fn agent_runtime_info_clone_and_eq() {
-    let info = minimal_runtime_info("clone-me", 5000);
-    let cloned = info.clone();
-    assert_eq!(cloned, info);
-}
 
 #[test]
 fn agent_runtime_info_with_system_prompt() {

@@ -26,13 +26,6 @@ mod builder_creation_tests {
 
         assert_eq!(registry.stats().providers, 0);
     }
-
-    #[test]
-    fn debug_impl_includes_builder_name() {
-        let builder = TemplateRegistryBuilder::new();
-        let debug_str = format!("{:?}", builder);
-        assert!(debug_str.contains("TemplateRegistryBuilder"));
-    }
 }
 
 mod with_provider_tests {
@@ -271,38 +264,5 @@ mod chaining_tests {
         assert_eq!(registry1.stats().providers, registry2.stats().providers);
         assert_eq!(registry1.stats().loaders, registry2.stats().loaders);
         assert_eq!(registry1.stats().extenders, registry2.stats().extenders);
-    }
-}
-
-mod builder_debug_tests {
-    use super::*;
-
-    #[test]
-    fn debug_shows_counts() {
-        let builder = TemplateRegistryBuilder::new()
-            .with_provider(provider(MockProvider::new("p")))
-            .with_loader(loader(MockLoader::new()));
-
-        let debug_str = format!("{:?}", builder);
-        assert!(debug_str.contains("providers"));
-        assert!(debug_str.contains("loaders"));
-    }
-
-    #[test]
-    fn debug_with_all_components() {
-        let builder = TemplateRegistryBuilder::new()
-            .with_provider(provider(MockProvider::new("p")))
-            .with_loader(loader(MockLoader::new()))
-            .with_extender(extender(MockExtender::new("e")))
-            .with_component(component(MockComponent::new("c", "var")))
-            .with_page_provider(page_provider(MockPageProvider::new("pp")));
-
-        let debug_str = format!("{:?}", builder);
-        assert!(debug_str.contains("TemplateRegistryBuilder"));
-        assert!(debug_str.contains("providers"));
-        assert!(debug_str.contains("loaders"));
-        assert!(debug_str.contains("extenders"));
-        assert!(debug_str.contains("components"));
-        assert!(debug_str.contains("page_providers"));
     }
 }

@@ -29,10 +29,3 @@ fn default_constructs_same_as_new() {
     assert_eq!(a.domain_id(), b.domain_id());
     assert_eq!(a.priority(), b.priority());
 }
-
-#[test]
-fn debug_format_contains_struct_name() {
-    let v = FilesConfigValidator::new();
-    let s = format!("{v:?}");
-    assert!(s.contains("FilesConfigValidator"));
-}

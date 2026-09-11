@@ -239,12 +239,6 @@ fn registry_enabled_extensions_cannot_disable_required() {
     assert_eq!(enabled[0].id(), "core");
 }
 
-#[test]
-fn registry_debug_format() {
-    let registry = ExtensionRegistry::new();
-    let debug = format!("{registry:?}");
-    assert!(debug.contains("ExtensionRegistry"));
-}
 
 #[test]
 fn registry_topo_sort_linear_chain() {

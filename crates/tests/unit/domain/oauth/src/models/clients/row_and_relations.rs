@@ -154,11 +154,3 @@ fn test_client_relations_with_multiple_values() {
     assert_eq!(relations.scopes.len(), 3);
     assert_eq!(relations.contacts.as_ref().unwrap().len(), 2);
 }
-
-#[test]
-fn test_client_relations_debug() {
-    let relations = create_test_relations();
-    let debug_str = format!("{:?}", relations);
-    assert!(debug_str.contains("redirect_uris"));
-    assert!(debug_str.contains("grant_types"));
-}

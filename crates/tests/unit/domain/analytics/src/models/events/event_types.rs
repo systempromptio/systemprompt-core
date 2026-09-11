@@ -100,10 +100,4 @@ mod analytics_event_type_tests {
         let json = serde_json::to_string(&event_type).unwrap();
         assert!(json.contains("page_view"));
     }
-
-    #[test]
-    fn event_type_is_debug() {
-        let debug_str = format!("{:?}", AnalyticsEventType::Scroll);
-        assert!(debug_str.contains("Scroll"));
-    }
 }

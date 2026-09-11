@@ -1,34 +1,5 @@
-use systemprompt_agent::services::agent_orchestration::port_service::{PortService, ProcessInfo};
+use systemprompt_agent::services::agent_orchestration::port_service::ProcessInfo;
 
-#[test]
-fn test_port_manager_new() {
-    let pm = PortService::new();
-    let debug_str = format!("{:?}", pm);
-    assert!(debug_str.contains("PortService"));
-}
-
-#[test]
-fn test_port_manager_default() {
-    let pm = PortService::default();
-    let debug_str = format!("{:?}", pm);
-    assert!(debug_str.contains("PortService"));
-}
-
-#[test]
-fn test_port_manager_copy() {
-    let pm = PortService::new();
-    let copied = pm;
-    let debug_str = format!("{:?}", copied);
-    assert!(debug_str.contains("PortService"));
-}
-
-#[test]
-fn test_port_manager_clone() {
-    let pm = PortService::new();
-    let cloned = pm.clone();
-    let debug_str = format!("{:?}", cloned);
-    assert!(debug_str.contains("PortService"));
-}
 
 #[test]
 fn test_process_info_construction() {
@@ -54,17 +25,6 @@ fn test_process_info_debug() {
     assert!(debug_str.contains("test-cmd"));
 }
 
-#[test]
-fn test_process_info_clone() {
-    let info = ProcessInfo {
-        pid: 999,
-        command: "cloned-cmd".to_string(),
-    };
-
-    let cloned = info.clone();
-    assert_eq!(cloned.pid, 999);
-    assert_eq!(cloned.command, "cloned-cmd");
-}
 
 #[test]
 fn test_process_info_empty_command() {

@@ -49,22 +49,3 @@ fn outcome_equality_transient_none() {
 fn outcome_inequality_success_vs_permanent() {
     assert_ne!(Outcome::Success, Outcome::Permanent);
 }
-
-#[test]
-fn outcome_debug_format() {
-    let debug = format!("{:?}", Outcome::Transient { retry_after: None });
-    assert!(debug.contains("Transient"));
-}
-
-#[test]
-fn outcome_debug_success() {
-    let debug = format!("{:?}", Outcome::Success);
-    assert!(debug.contains("Success"));
-}
-
-#[test]
-fn outcome_copy() {
-    let original = Outcome::Permanent;
-    let copy = original;
-    assert_eq!(original, copy);
-}

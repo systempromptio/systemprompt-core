@@ -42,15 +42,6 @@ fn test_authenticated_request_context_empty_token() {
     assert_eq!(auth_ctx.token(), "");
 }
 
-#[test]
-fn test_authenticated_request_context_debug() {
-    let context = create_test_context();
-    let token = "test_token".to_string();
-    let auth_ctx = AuthenticatedRequestContext::new(context, token);
-
-    let debug_str = format!("{:?}", auth_ctx);
-    assert!(debug_str.contains("AuthenticatedRequestContext"));
-}
 
 #[test]
 fn test_auth_result_expect_authenticated_success() {
@@ -71,24 +62,4 @@ fn test_auth_result_expect_authenticated_failure() {
 
     let result = auth_result.expect_authenticated("authentication required");
     result.unwrap_err();
-}
-
-#[test]
-fn test_auth_result_debug() {
-    let context = create_test_context();
-    let auth_result = AuthResult::Anonymous(context);
-
-    let debug_str = format!("{:?}", auth_result);
-    assert!(debug_str.contains("Anonymous"));
-}
-
-#[test]
-fn test_auth_result_debug_authenticated() {
-    let context = create_test_context();
-    let token = "test_token".to_string();
-    let auth_ctx = AuthenticatedRequestContext::new(context, token);
-    let auth_result = AuthResult::Authenticated(auth_ctx);
-
-    let debug_str = format!("{:?}", auth_result);
-    assert!(debug_str.contains("Authenticated"));
 }

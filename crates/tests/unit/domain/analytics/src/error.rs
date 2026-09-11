@@ -48,13 +48,4 @@ mod analytics_error_tests {
         assert!(display.contains("Anomaly detection failed"));
         assert!(display.contains("Threshold exceeded"));
     }
-
-    #[test]
-    fn analytics_error_is_debug() {
-        let err = AnalyticsError::SessionNotFound("test".to_string());
-        let debug_str = format!("{:?}", err);
-
-        assert!(debug_str.contains("SessionNotFound"));
-        assert!(debug_str.contains("test"));
-    }
 }

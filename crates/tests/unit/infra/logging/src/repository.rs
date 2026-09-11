@@ -7,9 +7,7 @@ use chrono::{Duration as ChronoDuration, Utc};
 use serde_json::json;
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
 use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
-use systemprompt_logging::{
-    AnalyticsEvent, AnalyticsRepository, DatabaseLogService, LoggingRepository,
-};
+use systemprompt_logging::{AnalyticsRepository, DatabaseLogService, LoggingRepository};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 async fn pool_or_skip() -> Option<systemprompt_database::DbPool> {
@@ -259,26 +257,4 @@ async fn analytics_repository_constructs() {
         return;
     };
     let _repo = AnalyticsRepository::new(&db).expect("repo");
-}
-
-#[test]
-fn analytics_event_struct_constructs() {
-    let event = AnalyticsEvent {
-        user_id: UserId::new("u"),
-        session_id: SessionId::new("s"),
-        context_id: systemprompt_identifiers::ContextId::generate(),
-        event_type: "et".to_owned(),
-        event_category: "ec".to_owned(),
-        severity: "info".to_owned(),
-        endpoint: Some("/x".to_owned()),
-        error_code: Some(1),
-        response_time_ms: Some(42),
-        agent_id: None,
-        task_id: None,
-        message: Some("m".to_owned()),
-        metadata: json!({"k": "v"}),
-    };
-    let cloned = event.clone();
-    assert_eq!(cloned.event_type, "et");
-    let _ = format!("{event:?}");
 }

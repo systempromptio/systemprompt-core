@@ -7,12 +7,6 @@
 use systemprompt_runtime::FilesConfigValidator;
 use systemprompt_traits::DomainConfig;
 
-#[test]
-fn files_validator_default_is_constructible() {
-    let v = FilesConfigValidator::default();
-    let dbg = format!("{:?}", v);
-    assert!(dbg.contains("FilesConfigValidator"));
-}
 
 #[test]
 fn files_validator_new_matches_default() {
@@ -21,14 +15,6 @@ fn files_validator_new_matches_default() {
     assert_eq!(format!("{:?}", a), format!("{:?}", b));
 }
 
-#[test]
-fn files_validator_clone_and_copy() {
-    let a = FilesConfigValidator::new();
-    let b = a;
-    let c = a.clone();
-    assert_eq!(format!("{:?}", a), format!("{:?}", b));
-    assert_eq!(format!("{:?}", a), format!("{:?}", c));
-}
 
 #[test]
 fn files_validator_domain_id() {

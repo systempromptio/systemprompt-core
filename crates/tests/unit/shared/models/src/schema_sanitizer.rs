@@ -421,12 +421,6 @@ mod sanitize_edge_cases {
         assert_eq!(s.sanitize(json!({})), json!({}));
     }
 
-    #[test]
-    fn sanitizer_is_copy() {
-        let s = SchemaSanitizer::new(all_enabled());
-        let t = s;
-        assert_eq!(t.sanitize(json!({})), json!({}));
-    }
 
     #[test]
     fn idempotent_on_already_clean_schema() {

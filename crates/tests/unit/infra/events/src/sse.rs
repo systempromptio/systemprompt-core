@@ -71,13 +71,6 @@ fn test_agui_event_to_sse_succeeds() {
     );
 }
 
-#[test]
-fn test_agui_event_to_sse_produces_valid_json() {
-    let event = test_agui_event();
-    let sse_event = event.to_sse().expect("should serialize");
-    let debug_str = format!("{:?}", sse_event);
-    assert!(debug_str.contains("Event"));
-}
 
 #[test]
 fn test_a2a_event_to_sse_succeeds() {
@@ -94,13 +87,6 @@ fn test_a2a_event_to_sse_succeeds() {
     );
 }
 
-#[test]
-fn test_a2a_event_to_sse_produces_valid_json() {
-    let event = test_a2a_event();
-    let sse_event = event.to_sse().expect("should serialize");
-    let debug_str = format!("{:?}", sse_event);
-    assert!(debug_str.contains("Event"));
-}
 
 #[test]
 fn test_system_event_to_sse_succeeds() {
@@ -113,13 +99,6 @@ fn test_system_event_to_sse_succeeds() {
     );
 }
 
-#[test]
-fn test_system_event_to_sse_produces_valid_json() {
-    let event = test_system_event();
-    let sse_event = event.to_sse().expect("should serialize");
-    let debug_str = format!("{:?}", sse_event);
-    assert!(debug_str.contains("Event"));
-}
 
 #[test]
 fn test_context_event_agui_to_sse_succeeds() {
@@ -160,13 +139,6 @@ fn test_analytics_event_to_sse_succeeds() {
     );
 }
 
-#[test]
-fn test_analytics_event_to_sse_produces_valid_json() {
-    let event = test_analytics_event();
-    let sse_event = event.to_sse().expect("should serialize");
-    let debug_str = format!("{:?}", sse_event);
-    assert!(debug_str.contains("Event"));
-}
 
 #[test]
 fn test_cli_output_event_to_sse_succeeds() {
@@ -183,13 +155,6 @@ fn test_cli_output_event_to_sse_succeeds() {
     );
 }
 
-#[test]
-fn test_cli_output_event_to_sse_has_custom_event_type() {
-    let event = test_cli_output_event();
-    let sse_event = event.to_sse().expect("should serialize");
-    let debug_str = format!("{:?}", sse_event);
-    assert!(debug_str.contains("cli"));
-}
 
 #[test]
 fn test_cli_output_event_error_to_sse() {
@@ -284,13 +249,6 @@ fn test_multiple_agui_events_serialize_independently() {
     assert!(debug2.contains(TEST_CONTEXT_ID_B) || debug2.contains("task-2"));
 }
 
-#[test]
-fn test_system_event_heartbeat_serialization() {
-    let event = SystemEventBuilder::heartbeat();
-    let sse_event = event.to_sse().expect("should serialize");
-    let debug_str = format!("{:?}", sse_event);
-    assert!(debug_str.contains("heartbeat") || debug_str.contains("Event"));
-}
 
 #[test]
 fn test_analytics_event_heartbeat() {

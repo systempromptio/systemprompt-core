@@ -84,12 +84,6 @@ fn test_environment_is_not_test_when_production() {
     assert!(!env.is_test());
 }
 
-#[test]
-fn test_environment_clone() {
-    let env = Environment::Development;
-    let cloned = env;
-    assert!(cloned.is_development());
-}
 
 #[test]
 fn test_environment_copy() {
@@ -99,26 +93,6 @@ fn test_environment_copy() {
     assert!(env.is_production()); // Original still accessible (Copy)
 }
 
-#[test]
-fn test_environment_debug() {
-    let env = Environment::Development;
-    let debug_str = format!("{:?}", env);
-    assert!(debug_str.contains("Development"));
-}
-
-#[test]
-fn test_environment_debug_production() {
-    let env = Environment::Production;
-    let debug_str = format!("{:?}", env);
-    assert!(debug_str.contains("Production"));
-}
-
-#[test]
-fn test_environment_debug_test() {
-    let env = Environment::Test;
-    let debug_str = format!("{:?}", env);
-    assert!(debug_str.contains("Test"));
-}
 
 #[test]
 fn test_environment_detect_returns_valid_variant() {

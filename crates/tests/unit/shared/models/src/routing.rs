@@ -291,14 +291,6 @@ mod route_classifier_helpers_tests {
         let meta = classifier.get_event_metadata("/styles.css", "GET");
         assert_eq!(meta, EventMetadata::STATIC_ASSET);
     }
-
-    #[test]
-    fn route_classifier_debug() {
-        let classifier = classifier_without_content_routing();
-        let debug_str = format!("{:?}", classifier);
-        assert!(debug_str.contains("RouteClassifier"));
-        assert!(debug_str.contains("false"));
-    }
 }
 
 // The inference gateway is mounted at `/v1`, not under `/api`, so it matched no

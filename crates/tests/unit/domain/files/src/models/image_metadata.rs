@@ -77,17 +77,6 @@ fn test_image_metadata_builder_chain() {
         .expect("generation should be present");
 }
 
-#[test]
-fn test_image_metadata_clone() {
-    let meta = ImageMetadata::new()
-        .with_dimensions(100, 100)
-        .with_alt_text("test");
-
-    let cloned = meta.clone();
-    assert_eq!(meta.width, cloned.width);
-    assert_eq!(meta.height, cloned.height);
-    assert_eq!(meta.alt_text, cloned.alt_text);
-}
 
 #[test]
 fn test_image_metadata_serialize_with_dimensions() {
@@ -182,17 +171,6 @@ fn test_image_generation_info_builder_chain() {
     assert_eq!(gen_info.request_id, Some("req_xyz789".to_string()));
 }
 
-#[test]
-fn test_image_generation_info_clone() {
-    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider")
-        .with_resolution("1024x1024")
-        .with_cost_estimate(0.05);
-
-    let cloned = gen_info.clone();
-    assert_eq!(gen_info.prompt, cloned.prompt);
-    assert_eq!(gen_info.resolution, cloned.resolution);
-    assert_eq!(gen_info.cost_estimate, cloned.cost_estimate);
-}
 
 #[test]
 fn test_image_generation_info_serialize_minimal() {

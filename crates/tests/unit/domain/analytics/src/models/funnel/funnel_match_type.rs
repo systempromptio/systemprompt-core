@@ -13,11 +13,6 @@ mod funnel_match_type_tests {
         assert_ne!(FunnelMatchType::EventType, FunnelMatchType::UrlExact);
     }
 
-    #[test]
-    fn match_type_is_debug() {
-        let debug_str = format!("{:?}", FunnelMatchType::EventType);
-        assert!(debug_str.contains("EventType"));
-    }
 
     #[test]
     fn match_type_serializes_url_exact() {
@@ -77,12 +72,6 @@ mod create_funnel_step_input_tests {
         assert_eq!(step.match_type, FunnelMatchType::EventType);
     }
 
-    #[test]
-    fn step_is_debug() {
-        let step = create_step("Debug", "/debug", FunnelMatchType::UrlPrefix);
-        let debug_str = format!("{:?}", step);
-        assert!(debug_str.contains("CreateFunnelStepInput"));
-    }
 
     #[test]
     fn step_serializes() {

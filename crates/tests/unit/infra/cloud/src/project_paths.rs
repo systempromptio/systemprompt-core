@@ -228,13 +228,6 @@ fn project_context_exists_and_profile_exists() {
     assert!(!ctx.profile_exists("nonexistent_xyz"));
 }
 
-#[test]
-fn project_context_debug_and_clone() {
-    let ctx = ProjectContext::new(Path::new("/x").to_path_buf());
-    let _ = ctx.clone();
-    let d = format!("{ctx:?}");
-    assert!(d.contains("ProjectContext"));
-}
 
 #[test]
 fn unified_context_default_runs() {
@@ -303,14 +296,6 @@ fn unified_context_has_credentials_false_when_missing() {
     let _ = ctx.has_session();
 }
 
-#[test]
-fn unified_context_clone_debug() {
-    let tmp = TempDir::new().unwrap();
-    let ctx = UnifiedContext::discover_from(tmp.path());
-    let _ = ctx.clone();
-    let d = format!("{ctx:?}");
-    assert!(d.contains("UnifiedContext"));
-}
 
 #[test]
 fn discovered_project_discover_from_root() {

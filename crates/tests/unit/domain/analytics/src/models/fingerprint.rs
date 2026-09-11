@@ -48,12 +48,6 @@ mod flag_reason_tests {
         assert_eq!(FlagReason::HighRequestCount, FlagReason::HighRequestCount);
         assert_ne!(FlagReason::HighRequestCount, FlagReason::SustainedVelocity);
     }
-
-    #[test]
-    fn flag_reasons_are_debug() {
-        let debug_str = format!("{:?}", FlagReason::ReputationDecay);
-        assert!(debug_str.contains("ReputationDecay"));
-    }
 }
 
 mod fingerprint_analysis_result_tests {
@@ -111,14 +105,5 @@ mod fingerprint_analysis_result_tests {
 
         assert!(result.should_ban_ip);
         assert_eq!(result.ip_to_ban, Some("192.168.1.1".to_string()));
-    }
-
-    #[test]
-    fn result_is_debug() {
-        let result = create_result(true, vec![FlagReason::HighRequestCount]);
-        let debug_str = format!("{:?}", result);
-
-        assert!(debug_str.contains("FingerprintAnalysisResult"));
-        assert!(debug_str.contains("test_hash_123"));
     }
 }

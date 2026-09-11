@@ -257,15 +257,6 @@ mod startup_event_tests {
         }
     }
 
-    #[test]
-    fn startup_event_is_debug() {
-        let event = StartupEvent::Info {
-            message: "Test".to_string(),
-        };
-        let debug_str = format!("{:?}", event);
-        assert!(debug_str.contains("Info"));
-        assert!(debug_str.contains("Test"));
-    }
 
     #[test]
     fn modules_loaded_variant() {

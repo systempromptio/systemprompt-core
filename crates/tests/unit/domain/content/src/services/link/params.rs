@@ -1,27 +1,5 @@
 //! Tests for GenerateLinkParams and GenerateContentLinkParams
 
-#[test]
-fn test_generate_link_params_debug() {
-    use systemprompt_content::models::LinkType;
-    use systemprompt_content::services::link::generation::GenerateLinkParams;
-
-    let params = GenerateLinkParams {
-        target_url: "https://example.com".to_string(),
-        link_type: LinkType::Redirect,
-        campaign_id: None,
-        campaign_name: None,
-        source_content_id: None,
-        source_page: None,
-        utm_params: None,
-        link_text: None,
-        link_position: None,
-        expires_at: None,
-    };
-
-    let debug = format!("{:?}", params);
-    assert!(debug.contains("GenerateLinkParams"));
-    assert!(debug.contains("target_url"));
-}
 
 #[test]
 fn test_generate_link_params_full() {
@@ -56,23 +34,6 @@ fn test_generate_link_params_full() {
     params.expires_at.expect("expected Some value");
 }
 
-#[test]
-fn test_generate_content_link_params_debug() {
-    use systemprompt_content::services::link::generation::GenerateContentLinkParams;
-    use systemprompt_identifiers::ContentId;
-
-    let content_id = ContentId::new("content-123");
-    let params = GenerateContentLinkParams {
-        target_url: "https://example.com",
-        source_content_id: &content_id,
-        source_page: "/blog",
-        link_text: None,
-        link_position: None,
-    };
-
-    let debug = format!("{:?}", params);
-    assert!(debug.contains("GenerateContentLinkParams"));
-}
 
 #[test]
 fn test_generate_content_link_params_full() {

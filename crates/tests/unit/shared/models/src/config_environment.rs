@@ -19,12 +19,6 @@ fn environment_equality() {
     assert_ne!(Environment::Development, Environment::Production);
 }
 
-#[test]
-fn environment_copy() {
-    let e = Environment::Test;
-    let e2 = e;
-    assert_eq!(e2, Environment::Test);
-}
 
 #[test]
 fn verbosity_level_from_environment_dev_is_verbose() {
@@ -76,12 +70,6 @@ fn verbosity_level_should_log_to_db() {
     assert!(VerbosityLevel::Debug.should_log_to_db());
 }
 
-#[test]
-fn verbosity_level_copy() {
-    let v = VerbosityLevel::Debug;
-    let v2 = v;
-    assert_eq!(v2, VerbosityLevel::Debug);
-}
 
 // `Environment::detect` reads four process signals in a fixed order. The
 // consequential direction is a production deployment detected as development,

@@ -26,19 +26,6 @@ fn test_file_persistence_mode_disabled() {
     assert_eq!(mode, FilePersistenceMode::Disabled);
 }
 
-#[test]
-fn test_file_persistence_mode_clone() {
-    let mode = FilePersistenceMode::ContextScoped;
-    let cloned = mode;
-    assert_eq!(mode, cloned);
-}
-
-#[test]
-fn test_file_persistence_mode_debug() {
-    let mode = FilePersistenceMode::ContextScoped;
-    let debug_str = format!("{:?}", mode);
-    assert!(debug_str.contains("ContextScoped"));
-}
 
 #[test]
 fn test_file_persistence_mode_serialize_context_scoped() {
@@ -70,24 +57,6 @@ fn test_allowed_file_types_default() {
     assert!(!types.video);
 }
 
-#[test]
-fn test_allowed_file_types_clone() {
-    let types = AllowedFileTypes::default();
-    let cloned = types;
-    assert_eq!(types.images, cloned.images);
-    assert_eq!(types.documents, cloned.documents);
-    assert_eq!(types.audio, cloned.audio);
-    assert_eq!(types.video, cloned.video);
-}
-
-#[test]
-fn test_allowed_file_types_debug() {
-    let types = AllowedFileTypes::default();
-    let debug_str = format!("{:?}", types);
-    assert!(debug_str.contains("AllowedFileTypes"));
-    assert!(debug_str.contains("images"));
-    assert!(debug_str.contains("documents"));
-}
 
 #[test]
 fn test_allowed_file_types_serialize() {

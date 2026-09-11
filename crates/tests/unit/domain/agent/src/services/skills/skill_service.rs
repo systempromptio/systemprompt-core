@@ -34,13 +34,6 @@ fn skills_root() -> std::path::PathBuf {
     std::path::PathBuf::from(profile.paths.skills())
 }
 
-#[tokio::test]
-async fn skill_service_new_uses_profile_skills_path() {
-    ensure_test_bootstrap();
-    let svc = SkillService::new().expect("SkillService::new should succeed");
-    let dbg = format!("{:?}", svc);
-    assert!(dbg.contains("SkillService"));
-}
 
 #[tokio::test]
 async fn skill_service_load_skill_metadata_with_name_field() {

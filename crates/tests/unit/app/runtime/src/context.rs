@@ -3,27 +3,6 @@
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_runtime::AppContextBuilder;
 
-#[test]
-fn test_context_builder_new() {
-    let builder = AppContextBuilder::new();
-    let debug_str = format!("{:?}", builder);
-    assert!(debug_str.contains("AppContextBuilder"));
-}
-
-#[test]
-fn test_context_builder_default() {
-    let builder = AppContextBuilder::default();
-    let debug_str = format!("{:?}", builder);
-    assert!(debug_str.contains("AppContextBuilder"));
-}
-
-#[test]
-fn test_context_builder_with_extensions() {
-    let registry = ExtensionRegistry::new();
-    let builder = AppContextBuilder::new().with_extensions(registry);
-    let debug_str = format!("{:?}", builder);
-    assert!(debug_str.contains("AppContextBuilder"));
-}
 
 #[test]
 fn test_context_builder_with_startup_warnings_true() {

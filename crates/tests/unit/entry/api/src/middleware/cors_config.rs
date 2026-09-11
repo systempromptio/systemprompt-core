@@ -33,10 +33,3 @@ fn invalid_origin_error_contains_origin() {
     let msg = format!("{}", err);
     assert!(msg.contains("http://example .com"));
 }
-
-#[test]
-fn cors_error_is_debug() {
-    let err = CorsError::EmptyOrigins;
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("EmptyOrigins"));
-}

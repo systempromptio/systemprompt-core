@@ -219,25 +219,3 @@ fn test_skill_metadata_service_roundtrip() {
     assert_eq!(deserialized.skill_id.as_str(), original.skill_id.as_str());
     assert_eq!(deserialized.name, original.name);
 }
-
-#[test]
-fn test_skill_metadata_service_clone() {
-    let metadata = SkillMetadata {
-        skill_id: SkillId::new("clone_test"),
-        name: "Clone Test".to_string(),
-    };
-    let cloned = metadata.clone();
-    assert_eq!(cloned.skill_id.as_str(), metadata.skill_id.as_str());
-    assert_eq!(cloned.name, metadata.name);
-}
-
-#[test]
-fn test_skill_metadata_service_debug() {
-    let metadata = SkillMetadata {
-        skill_id: SkillId::new("debug_test"),
-        name: "Debug".to_string(),
-    };
-    let debug = format!("{:?}", metadata);
-    assert!(debug.contains("SkillMetadata"));
-    assert!(debug.contains("debug_test"));
-}

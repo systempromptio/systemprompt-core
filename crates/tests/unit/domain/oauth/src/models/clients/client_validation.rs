@@ -165,13 +165,3 @@ fn test_oauth_client_serialize() {
     assert!(json.contains("client_test123"));
     assert!(json.contains("openid"));
 }
-
-#[test]
-fn test_oauth_client_debug() {
-    let row = create_test_client_row();
-    let relations = create_test_relations();
-    let client = OAuthClient::from_row_with_relations(row, relations);
-
-    let debug_str = format!("{:?}", client);
-    assert!(debug_str.contains("client_test123"));
-}

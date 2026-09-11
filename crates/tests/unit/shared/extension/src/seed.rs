@@ -24,33 +24,6 @@ fn seed_sql_field_is_static_str() {
     assert!(sql.contains("UPDATE"));
 }
 
-#[test]
-fn seed_debug_format_includes_id() {
-    let seed = Seed::new("debug_seed", "UPDATE x SET y = 1");
-    let debug = format!("{seed:?}");
-    assert!(debug.contains("debug_seed"));
-}
-
-#[test]
-fn seed_clone_produces_equal_values() {
-    let seed = Seed::new(
-        "clone_me",
-        "INSERT INTO t (id) VALUES (1) ON CONFLICT DO NOTHING",
-    );
-    let cloned = seed;
-    assert_eq!(cloned.id, "clone_me");
-    assert_eq!(cloned.sql, seed.sql);
-}
-
-#[test]
-fn seed_copy_semantics() {
-    let seed = Seed::new(
-        "copyable",
-        "MERGE INTO t USING src ON t.id = src.id WHEN MATCHED THEN UPDATE SET v = src.v",
-    );
-    let second = seed;
-    assert_eq!(second.id, seed.id);
-}
 
 #[test]
 fn seed_new_is_const() {

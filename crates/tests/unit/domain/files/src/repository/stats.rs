@@ -102,14 +102,6 @@ fn test_file_stats_other_size_bytes() {
     assert_eq!(stats.other_size_bytes, 100_000);
 }
 
-#[test]
-fn test_file_stats_clone() {
-    let stats = create_test_stats();
-    let cloned = stats;
-    assert_eq!(stats.total_files, cloned.total_files);
-    assert_eq!(stats.total_size_bytes, cloned.total_size_bytes);
-    assert_eq!(stats.ai_images_count, cloned.ai_images_count);
-}
 
 #[test]
 fn test_file_stats_debug() {

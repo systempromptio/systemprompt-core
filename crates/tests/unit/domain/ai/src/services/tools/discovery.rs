@@ -98,13 +98,6 @@ mod tool_discovery_tests {
         )
     }
 
-    #[test]
-    fn new_creates_discovery() {
-        let provider = Arc::new(MockToolProvider::new(vec![]));
-        let discovery = ToolDiscovery::new(provider);
-        let debug_str = format!("{:?}", discovery);
-        assert!(debug_str.contains("ToolDiscovery"));
-    }
 
     #[tokio::test]
     async fn discover_tools_returns_empty_for_no_tools() {

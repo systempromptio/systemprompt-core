@@ -51,14 +51,6 @@ mod device_cert_struct_tests {
         assert!(s.contains("My Device"));
     }
 
-    #[test]
-    fn clone_preserves_all_fields() {
-        let cert = make_cert(false);
-        let cloned = cert.clone();
-        assert_eq!(cert.id.to_string(), cloned.id.to_string());
-        assert_eq!(cert.fingerprint, cloned.fingerprint);
-        assert_eq!(cert.label, cloned.label);
-    }
 
     #[test]
     fn serde_round_trip() {

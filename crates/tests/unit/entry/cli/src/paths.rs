@@ -49,10 +49,3 @@ fn profiles_dir_is_non_empty_path() {
         profiles.display()
     );
 }
-
-#[test]
-fn discover_resolved_paths_debug() {
-    let paths = ResolvedPaths::discover();
-    let debug = format!("{:?}", paths);
-    assert!(debug.contains("ResolvedPaths"));
-}

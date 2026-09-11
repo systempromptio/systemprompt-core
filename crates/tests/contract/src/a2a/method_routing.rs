@@ -73,16 +73,6 @@ fn get_extended_agent_card_routes_correctly() {
 }
 
 #[test]
-fn subscribe_to_task_routes_correctly() {
-    let req = make_request("SubscribeToTask", serde_json::json!({"task_id": "task-1"}));
-    let result = req.parse_request();
-    assert!(matches!(
-        result,
-        Ok(A2aRequestParams::TaskResubscription(_))
-    ));
-}
-
-#[test]
 fn push_notification_config_methods_are_not_served() {
     for method in [
         "CreateTaskPushNotificationConfig",

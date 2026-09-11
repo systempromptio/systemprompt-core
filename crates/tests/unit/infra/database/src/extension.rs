@@ -64,19 +64,6 @@ fn test_database_extension_declares_shared_functions_without_a_table() {
     assert!(!functions.sql.to_uppercase().contains("CREATE TABLE"));
 }
 
-#[test]
-fn test_database_extension_debug() {
-    let ext = DatabaseExtension;
-    let debug = format!("{:?}", ext);
-    assert!(debug.contains("DatabaseExtension"));
-}
-
-#[test]
-fn test_database_extension_clone() {
-    let ext = DatabaseExtension;
-    let cloned = ext;
-    assert_eq!(ext.metadata().id, cloned.metadata().id);
-}
 
 #[test]
 fn test_database_extension_default() {

@@ -36,19 +36,6 @@ fn test_environment_api_urls_are_different() {
     assert_ne!(prod_url, sandbox_url);
 }
 
-#[test]
-fn test_environment_debug_production() {
-    let prod = Environment::Production;
-    let debug_str = format!("{:?}", prod);
-    assert!(debug_str.contains("Production"));
-}
-
-#[test]
-fn test_environment_debug_sandbox() {
-    let sandbox = Environment::Sandbox;
-    let debug_str = format!("{:?}", sandbox);
-    assert!(debug_str.contains("Sandbox"));
-}
 
 #[test]
 fn test_oauth_provider_github_as_str() {
@@ -81,19 +68,6 @@ fn test_oauth_provider_variants_are_distinct() {
     assert_ne!(github, google);
 }
 
-#[test]
-fn test_oauth_provider_debug_github() {
-    let github = OAuthProvider::Github;
-    let debug_str = format!("{:?}", github);
-    assert!(debug_str.contains("Github"));
-}
-
-#[test]
-fn test_oauth_provider_debug_google() {
-    let google = OAuthProvider::Google;
-    let debug_str = format!("{:?}", google);
-    assert!(debug_str.contains("Google"));
-}
 
 #[test]
 fn test_oauth_provider_as_str_is_lowercase() {

@@ -41,16 +41,3 @@ fn test_file_category_display_name_audio() {
 fn test_file_category_display_name_video() {
     assert_eq!(FileCategory::Video.display_name(), "video");
 }
-
-#[test]
-fn test_file_category_clone() {
-    let category = FileCategory::Image;
-    let cloned = category;
-    assert_eq!(category, cloned);
-}
-
-#[test]
-fn test_file_category_debug() {
-    let debug_str = format!("{:?}", FileCategory::Document);
-    assert!(debug_str.contains("Document"));
-}

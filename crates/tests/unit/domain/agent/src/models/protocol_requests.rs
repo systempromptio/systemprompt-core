@@ -157,14 +157,6 @@ fn a2a_parse_error_invalid_params_display() {
     assert!(err.to_string().contains("missing field"));
 }
 
-#[test]
-fn a2a_parse_error_clone_and_eq() {
-    let err1 = A2aParseError::UnsupportedMethod {
-        method: "a/b".to_string(),
-    };
-    let err2 = err1.clone();
-    assert_eq!(err1, err2);
-}
 
 #[test]
 fn a2a_response_send_message_constructor() {
@@ -227,17 +219,6 @@ fn task_not_found_error_serde_roundtrip() {
     assert_eq!(de.code, -32001);
 }
 
-#[test]
-fn task_not_found_error_clone_and_eq() {
-    let err = TaskNotFoundError {
-        task_id: TaskId::new("t-1"),
-        message: "not found".to_string(),
-        code: -32001,
-        data: json!(null),
-    };
-    let cloned = err.clone();
-    assert_eq!(err, cloned);
-}
 
 #[test]
 fn task_not_cancelable_error_serde_roundtrip() {
@@ -254,18 +235,6 @@ fn task_not_cancelable_error_serde_roundtrip() {
     assert_eq!(de.code, -32002);
 }
 
-#[test]
-fn task_not_cancelable_error_debug() {
-    let err = TaskNotCancelableError {
-        task_id: TaskId::new("t-2"),
-        state: TaskState::Canceled,
-        message: "Already canceled".to_string(),
-        code: -32002,
-        data: json!({}),
-    };
-    let debug_str = format!("{:?}", err);
-    assert!(debug_str.contains("TaskNotCancelableError"));
-}
 
 #[test]
 fn unsupported_operation_error_serde_roundtrip() {
@@ -322,14 +291,6 @@ fn task_query_params_with_history_length() {
     assert_eq!(de.history_length, Some(20));
 }
 
-#[test]
-fn a2a_jsonrpc_request_debug_and_clone() {
-    let req = send_message_request(string_id("dbg-1"));
-    let cloned = req.clone();
-    let debug_str = format!("{:?}", req);
-    assert!(debug_str.contains("A2aJsonRpcRequest"));
-    assert_eq!(cloned.method, req.method);
-}
 
 #[test]
 fn parse_subscribe_to_task_method() {

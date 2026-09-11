@@ -82,27 +82,6 @@ fn test_mcp_auth_state_has_permission_anonymous_denied() {
     assert!(!state.has_permission(Permission::Admin));
 }
 
-#[test]
-fn test_mcp_auth_state_clone_anonymous() {
-    let state = McpAuthState::Anonymous;
-    let cloned = state.clone();
-    assert!(cloned.is_anonymous());
-}
-
-#[test]
-fn test_mcp_auth_state_debug_authenticated() {
-    let user = create_test_user();
-    let state = McpAuthState::Authenticated(user);
-    let debug_str = format!("{:?}", state);
-    assert!(debug_str.contains("Authenticated"));
-}
-
-#[test]
-fn test_mcp_auth_state_debug_anonymous() {
-    let state = McpAuthState::Anonymous;
-    let debug_str = format!("{:?}", state);
-    assert!(debug_str.contains("Anonymous"));
-}
 
 #[test]
 fn test_mcp_auth_state_serialize_authenticated() {

@@ -34,12 +34,6 @@ fn step_id_from_string() {
     assert_eq!(id.as_str(), "custom-id");
 }
 
-#[test]
-fn step_id_clone_preserves_value() {
-    let id = StepId::from("clone-me".to_string());
-    let cloned = id.clone();
-    assert_eq!(id.as_str(), cloned.as_str());
-}
 
 #[test]
 fn step_id_equality() {

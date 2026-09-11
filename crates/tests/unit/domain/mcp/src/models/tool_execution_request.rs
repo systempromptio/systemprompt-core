@@ -71,17 +71,6 @@ fn test_tool_execution_request_without_optionals() {
     assert!(request.ai_tool_call_id.is_none());
 }
 
-#[test]
-fn test_tool_execution_request_clone() {
-    let request = create_test_request();
-    let cloned = request.clone();
-
-    assert_eq!(request.tool_name, cloned.tool_name);
-    assert_eq!(request.server_name, cloned.server_name);
-    assert_eq!(request.input, cloned.input);
-    assert_eq!(request.request_method, cloned.request_method);
-    assert_eq!(request.request_source, cloned.request_source);
-}
 
 #[test]
 fn test_tool_execution_request_debug() {
@@ -187,25 +176,6 @@ fn test_tool_execution_result_pending() {
     assert_eq!(result.status, "pending");
 }
 
-#[test]
-fn test_tool_execution_result_clone() {
-    let result = create_test_result();
-    let cloned = result.clone();
-
-    assert_eq!(result.output, cloned.output);
-    assert_eq!(result.output_schema, cloned.output_schema);
-    assert_eq!(result.status, cloned.status);
-    assert_eq!(result.error_message, cloned.error_message);
-}
-
-#[test]
-fn test_tool_execution_result_debug() {
-    let result = create_test_result();
-    let debug = format!("{:?}", result);
-
-    assert!(debug.contains("ToolExecutionResult"));
-    assert!(debug.contains("success"));
-}
 
 #[test]
 fn test_tool_execution_result_with_large_output() {

@@ -18,22 +18,6 @@ fn test_sitemap_url_creation() {
     assert_eq!(url.priority, 0.8);
 }
 
-#[test]
-fn test_sitemap_url_clone() {
-    let url = SitemapUrl {
-        loc: "https://example.com/".to_string(),
-        lastmod: "2024-01-15".to_string(),
-        changefreq: "daily".to_string(),
-        priority: 1.0,
-        alternates: vec![],
-    };
-
-    let cloned = url.clone();
-    assert_eq!(url.loc, cloned.loc);
-    assert_eq!(url.lastmod, cloned.lastmod);
-    assert_eq!(url.changefreq, cloned.changefreq);
-    assert_eq!(url.priority, cloned.priority);
-}
 
 #[test]
 fn test_sitemap_url_debug() {

@@ -87,10 +87,3 @@ fn test_jsonrpc_error_serialize() {
     assert!(json.contains("-32600"));
     assert!(json.contains("Test"));
 }
-
-#[test]
-fn test_jsonrpc_error_debug() {
-    let error = JsonRpcError::new(-32600, "Test");
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("JsonRpcError"));
-}

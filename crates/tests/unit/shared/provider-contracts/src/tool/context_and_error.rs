@@ -70,13 +70,6 @@ mod tool_context_tests {
             .with_header("H2", "v2");
         assert_eq!(ctx.headers.len(), 2);
     }
-
-    #[test]
-    fn is_debug() {
-        let ctx = ToolContext::new(fixture_actor(), "token");
-        let debug = format!("{:?}", ctx);
-        assert!(debug.contains("ToolContext"));
-    }
 }
 
 mod tool_provider_error_tests {

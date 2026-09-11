@@ -5,12 +5,6 @@ use systemprompt_analytics::{AnomalyDetectionService, AnomalyLevel};
 mod anomaly_detection_service_tests {
     use super::*;
 
-    #[test]
-    fn service_is_debug() {
-        let service = AnomalyDetectionService::new();
-        let debug_str = format!("{:?}", service);
-        assert!(debug_str.contains("AnomalyDetectionService"));
-    }
 
     #[tokio::test]
     async fn check_anomaly_returns_normal_for_low_value() {

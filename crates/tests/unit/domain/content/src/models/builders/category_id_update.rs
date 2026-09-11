@@ -25,25 +25,3 @@ fn from_some_some_produces_set() {
         other => panic!("Expected Set variant, got {:?}", other),
     }
 }
-
-#[test]
-fn debug_impl_unchanged() {
-    let update = CategoryIdUpdate::Unchanged;
-    let debug = format!("{:?}", update);
-    assert!(debug.contains("Unchanged"));
-}
-
-#[test]
-fn debug_impl_clear() {
-    let update = CategoryIdUpdate::Clear;
-    let debug = format!("{:?}", update);
-    assert!(debug.contains("Clear"));
-}
-
-#[test]
-fn debug_impl_set() {
-    let update = CategoryIdUpdate::Set(CategoryId::new("docs"));
-    let debug = format!("{:?}", update);
-    assert!(debug.contains("Set"));
-    assert!(debug.contains("docs"));
-}

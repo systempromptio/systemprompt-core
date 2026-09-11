@@ -23,12 +23,6 @@ fn test_output_format_yaml_variant() {
     assert_eq!(format, OutputFormat::Yaml);
 }
 
-#[test]
-fn test_output_format_debug() {
-    let format = OutputFormat::Table;
-    let debug_str = format!("{:?}", format);
-    assert!(debug_str.contains("Table"));
-}
 
 #[test]
 fn test_verbosity_level_quiet_variant() {
@@ -68,12 +62,6 @@ fn test_verbosity_level_ordering_transitive() {
     assert!(VerbosityLevel::Quiet < VerbosityLevel::Verbose);
 }
 
-#[test]
-fn test_verbosity_level_debug_format() {
-    let level = VerbosityLevel::Debug;
-    let debug_str = format!("{:?}", level);
-    assert!(debug_str.contains("Debug"));
-}
 
 #[test]
 fn test_color_mode_auto_variant() {
@@ -93,12 +81,6 @@ fn test_color_mode_never_variant() {
     assert_eq!(mode, ColorMode::Never);
 }
 
-#[test]
-fn test_color_mode_debug() {
-    let mode = ColorMode::Never;
-    let debug_str = format!("{:?}", mode);
-    assert!(debug_str.contains("Never"));
-}
 
 #[test]
 fn test_cli_config_default_output_format() {

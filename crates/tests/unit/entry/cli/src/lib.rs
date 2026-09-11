@@ -60,6 +60,8 @@ mod runner_args;
 #[cfg(test)]
 mod runner_routing;
 #[cfg(test)]
+mod runner_routing_stores;
+#[cfg(test)]
 mod secret_check;
 #[cfg(test)]
 mod secret_check_flows;

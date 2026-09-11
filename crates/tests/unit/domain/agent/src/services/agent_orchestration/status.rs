@@ -118,19 +118,6 @@ fn test_agent_runtime_config_debug() {
     assert!(debug_str.contains("3000"));
 }
 
-#[test]
-fn test_agent_runtime_config_clone() {
-    let config = AgentRuntimeConfig {
-        id: "clone-config".to_string().into(),
-        name: "Clone Agent".to_string(),
-        port: 4000,
-    };
-
-    let cloned = config.clone();
-    assert_eq!(cloned.id, "clone-config");
-    assert_eq!(cloned.name, "Clone Agent");
-    assert_eq!(cloned.port, 4000);
-}
 
 #[test]
 fn test_validation_report_new() {

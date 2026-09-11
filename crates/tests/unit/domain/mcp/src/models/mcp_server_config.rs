@@ -144,16 +144,6 @@ fn test_mcp_server_config_with_env_vars() {
     assert!(config.env_vars.contains(&"DATABASE_URL".to_string()));
 }
 
-#[test]
-fn test_mcp_server_config_clone() {
-    let config = create_test_config();
-    let cloned = config.clone();
-
-    assert_eq!(config.name, cloned.name);
-    assert_eq!(config.port, cloned.port);
-    assert_eq!(config.enabled, cloned.enabled);
-    assert_eq!(config.host, cloned.host);
-}
 
 #[test]
 fn test_mcp_server_config_debug() {

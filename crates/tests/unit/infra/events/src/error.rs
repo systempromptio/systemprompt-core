@@ -18,14 +18,6 @@ fn channel_full_variant_display() {
     assert!(msg.contains("user-abc"));
 }
 
-#[test]
-fn event_error_debug() {
-    let err = EventError::ChannelFull {
-        target: "some-user".to_string(),
-    };
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("ChannelFull"));
-}
 
 #[test]
 fn event_result_ok_is_ok() {

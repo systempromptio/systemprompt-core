@@ -54,12 +54,6 @@ async fn agent_state_db_pool_accessor() {
     let _ = state.db_pool();
 }
 
-#[tokio::test]
-async fn agent_state_debug_format() {
-    let state = make_state().await;
-    let debug_str = format!("{:?}", state);
-    assert!(debug_str.contains("AgentState"));
-}
 
 #[tokio::test]
 async fn agent_state_clone() {

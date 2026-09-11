@@ -333,25 +333,4 @@ mod create_analytics_session_input_tests {
 
         assert_eq!(input.session_source, SessionSource::Cli);
     }
-
-    #[test]
-    fn input_is_debug() {
-        let session_id = SessionId::new("sess_dbg".to_string());
-        let headers = HeaderMap::new();
-        let analytics = SessionAnalyticsBuilder::new(&headers).build();
-        let expires_at = Utc::now();
-
-        let input = CreateSessionInput {
-            session_id: &session_id,
-            user_id: None,
-            analytics: &analytics,
-            session_source: SessionSource::Web,
-            is_bot: false,
-            is_ai_crawler: false,
-            expires_at,
-        };
-
-        let debug_str = format!("{:?}", input);
-        assert!(debug_str.contains("CreateSessionInput"));
-    }
 }

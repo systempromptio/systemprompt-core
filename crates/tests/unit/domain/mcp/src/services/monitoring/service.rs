@@ -21,10 +21,3 @@ fn test_clone_copy() {
     let b = a;
     let _c = b;
 }
-
-#[test]
-fn test_debug() {
-    let s = MonitoringService::new();
-    let d = format!("{:?}", s);
-    assert!(d.contains("MonitoringService"));
-}

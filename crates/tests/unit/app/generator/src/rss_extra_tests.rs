@@ -26,16 +26,6 @@ fn generated_feed_clone_is_independent() {
     assert_eq!(cloned.filename, "cloned.xml");
 }
 
-#[test]
-fn generated_feed_debug_contains_filename() {
-    let feed = GeneratedFeed {
-        filename: "test-feed.xml".to_string(),
-        xml: String::new(),
-        item_count: 0,
-    };
-    let dbg = format!("{:?}", feed);
-    assert!(dbg.contains("GeneratedFeed") || dbg.contains("test-feed.xml"));
-}
 
 #[test]
 fn rss_channel_clone_is_independent() {

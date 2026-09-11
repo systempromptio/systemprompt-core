@@ -3,12 +3,6 @@
 
 use systemprompt_runtime::StartupValidator;
 
-#[test]
-fn test_startup_validator_debug() {
-    let validator = StartupValidator::new();
-    let debug_str = format!("{:?}", validator);
-    assert!(debug_str.contains("StartupValidator"));
-}
 
 #[test]
 fn test_expected_web_domain() {
@@ -206,14 +200,6 @@ fn test_phase_error_pattern() {
     assert!(output.contains("3 error(s)"));
 }
 
-#[test]
-fn test_files_config_validator_debug() {
-    use systemprompt_runtime::FilesConfigValidator;
-
-    let validator = FilesConfigValidator::new();
-    let debug_str = format!("{:?}", validator);
-    assert!(debug_str.contains("FilesConfigValidator"));
-}
 
 #[test]
 fn test_files_config_validator_domain_id() {

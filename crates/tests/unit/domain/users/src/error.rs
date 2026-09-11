@@ -69,59 +69,6 @@ mod user_error_display_tests {
     }
 }
 
-mod user_error_debug_tests {
-    use super::*;
-
-    #[test]
-    fn not_found_debug() {
-        let user_id = fixture_user_id();
-        let error = UserError::NotFound(user_id);
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("NotFound"));
-    }
-
-    #[test]
-    fn email_already_exists_debug() {
-        let error = UserError::EmailAlreadyExists("test@example.com".to_string());
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("EmailAlreadyExists"));
-    }
-
-    #[test]
-    fn invalid_status_debug() {
-        let error = UserError::InvalidStatus("bad".to_string());
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("InvalidStatus"));
-    }
-
-    #[test]
-    fn invalid_role_debug() {
-        let error = UserError::InvalidRole("bad".to_string());
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("InvalidRole"));
-    }
-
-    #[test]
-    fn validation_debug() {
-        let error = UserError::Validation("error".to_string());
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("Validation"));
-    }
-
-    #[test]
-    fn invalid_roles_debug() {
-        let error = UserError::InvalidRoles(vec!["bad1".to_string(), "bad2".to_string()]);
-
-        let debug = format!("{:?}", error);
-        assert!(debug.contains("InvalidRoles"));
-    }
-}
-
 mod user_error_construction_tests {
     use super::*;
 

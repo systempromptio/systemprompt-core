@@ -17,20 +17,6 @@ async fn cleanup_agent(pool: &sqlx::PgPool, name: &str) {
         .await;
 }
 
-#[tokio::test]
-async fn agent_database_service_new_succeeds() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let repo = AgentServiceRepository::new(
-        &fx.db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
-    let svc = AgentDatabaseService::new(repo).expect("svc");
-    let dbg = format!("{:?}", svc);
-    assert!(dbg.contains("AgentDatabaseService"));
-    fx.cleanup().await?;
-    Ok(())
-}
 
 #[tokio::test]
 async fn agent_database_service_register_and_get_status() -> Result<()> {

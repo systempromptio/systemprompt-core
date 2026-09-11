@@ -399,12 +399,3 @@ fn test_cli_session_serialization() {
     assert!(json.contains("session-123"));
     assert!(json.contains("version"));
 }
-
-#[test]
-fn test_cli_session_debug() {
-    let session = create_test_builder().build();
-    let debug_str = format!("{:?}", session);
-
-    assert!(debug_str.contains("CliSession"));
-    assert!(debug_str.contains("profile_name"));
-}

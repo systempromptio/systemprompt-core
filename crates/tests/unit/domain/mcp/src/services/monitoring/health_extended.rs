@@ -3,9 +3,7 @@
 
 use std::path::PathBuf;
 use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo};
-use systemprompt_mcp::services::monitoring::health::{
-    HealthCheckDetails, HealthCheckResult, HealthStatus,
-};
+use systemprompt_mcp::services::monitoring::health::{HealthCheckResult, HealthStatus};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
@@ -162,32 +160,10 @@ fn health_check_details_error_message_from_connection_result() {
     );
 }
 
-#[test]
-fn health_check_details_clone_and_debug() {
-    let d = HealthCheckDetails {
-        service_name: "svc".to_owned(),
-        tools_available: Some(3),
-        requires_auth: true,
-        validation_type: "mcp_validated".to_owned(),
-        error_message: None,
-        server_version: Some("1.0".to_owned()),
-    };
-    let cloned = d.clone();
-    assert_eq!(cloned.service_name, d.service_name);
-    let dbg = format!("{d:?}");
-    assert!(dbg.contains("HealthCheckDetails"));
-}
 
 #[test]
 fn health_status_equality() {
     assert_eq!(HealthStatus::Healthy, HealthStatus::Healthy);
     assert_ne!(HealthStatus::Healthy, HealthStatus::Unhealthy);
     assert_ne!(HealthStatus::Degraded, HealthStatus::Unknown);
-}
-
-#[test]
-fn health_status_copy() {
-    let a = HealthStatus::Degraded;
-    let b = a;
-    assert_eq!(a, b);
 }

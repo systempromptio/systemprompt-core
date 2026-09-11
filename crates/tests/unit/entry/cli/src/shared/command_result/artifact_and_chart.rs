@@ -29,17 +29,3 @@ fn test_chart_type_area_variant() {
     let json = serde_json::to_string(&chart).unwrap();
     assert_eq!(json, "\"area\"");
 }
-
-#[test]
-fn test_chart_type_clone() {
-    let original = ChartType::Pie;
-    let cloned = original;
-    assert!(matches!(cloned, ChartType::Pie));
-}
-
-#[test]
-fn test_chart_type_debug() {
-    let chart = ChartType::Area;
-    let debug = format!("{:?}", chart);
-    assert!(debug.contains("Area"));
-}

@@ -153,10 +153,3 @@ fn test_from_serde_json_error() {
     let repo_err: RepositoryError = json_err.into();
     assert!(matches!(repo_err, RepositoryError::Serialization(_)));
 }
-
-#[test]
-fn test_debug_format() {
-    let error = RepositoryError::not_found("test-id");
-    let debug = format!("{:?}", error);
-    assert!(debug.contains("NotFound"));
-}

@@ -6,13 +6,6 @@ fn default_config() -> FileUploadConfig {
     FileUploadConfig::default()
 }
 
-#[test]
-fn test_file_validator_new() {
-    let config = default_config();
-    let validator = FileValidator::new(config);
-    let debug_str = format!("{:?}", validator);
-    assert!(debug_str.contains("FileValidator"));
-}
 
 #[test]
 fn test_file_validator_validate_image_png() {

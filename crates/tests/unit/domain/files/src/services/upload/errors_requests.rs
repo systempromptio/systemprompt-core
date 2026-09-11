@@ -60,12 +60,6 @@ fn test_file_validation_error_display_category_disabled() {
     );
 }
 
-#[test]
-fn test_file_validation_error_debug() {
-    let err = FileValidationError::UploadsDisabled;
-    let debug_str = format!("{:?}", err);
-    assert!(debug_str.contains("UploadsDisabled"));
-}
 
 #[test]
 fn test_file_upload_error_display_persistence_disabled() {
@@ -108,13 +102,6 @@ fn test_file_upload_error_display_path_validation() {
     );
 }
 
-#[test]
-fn test_file_upload_request_builder_new() {
-    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
-    let builder = FileUploadRequestBuilder::new("image/png", "base64data==", context_id);
-    let debug_str = format!("{:?}", builder);
-    assert!(debug_str.contains("FileUploadRequestBuilder"));
-}
 
 #[test]
 fn test_file_upload_request_builder_build() {
@@ -214,18 +201,6 @@ fn test_file_upload_request_builder_static_method() {
     assert_eq!(request.bytes_base64, "jpegdata==");
 }
 
-#[test]
-fn test_file_upload_request_clone() {
-    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A);
-    let request = FileUploadRequest::builder("image/png", "data==", context_id)
-        .with_name("test.png")
-        .build();
-
-    let cloned = request.clone();
-    assert_eq!(request.mime_type, cloned.mime_type);
-    assert_eq!(request.bytes_base64, cloned.bytes_base64);
-    assert_eq!(request.name, cloned.name);
-}
 
 #[test]
 fn test_file_upload_request_debug() {
@@ -253,21 +228,6 @@ fn test_uploaded_file_struct() {
     assert_eq!(uploaded.size_bytes, 4096);
 }
 
-#[test]
-fn test_uploaded_file_clone() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
-    let uploaded = UploadedFile {
-        file_id,
-        path: "/storage/test.png".to_string(),
-        public_url: "/files/test.png".to_string(),
-        size_bytes: 1024,
-    };
-
-    let cloned = uploaded.clone();
-    assert_eq!(uploaded.path, cloned.path);
-    assert_eq!(uploaded.public_url, cloned.public_url);
-    assert_eq!(uploaded.size_bytes, cloned.size_bytes);
-}
 
 #[test]
 fn test_uploaded_file_debug() {

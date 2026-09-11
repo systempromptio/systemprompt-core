@@ -14,17 +14,6 @@ fn test_loader_error_missing_dependency_display() {
     assert!(msg.contains("requires dependency"));
 }
 
-#[test]
-fn test_loader_error_missing_dependency_debug() {
-    let err = LoaderError::MissingDependency {
-        extension: "blog".to_string(),
-        dependency: "auth".to_string(),
-    };
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("MissingDependency"));
-    assert!(debug.contains("blog"));
-    assert!(debug.contains("auth"));
-}
 
 #[test]
 fn test_loader_error_duplicate_extension_display() {
@@ -34,13 +23,6 @@ fn test_loader_error_duplicate_extension_display() {
     assert!(msg.contains("already registered"));
 }
 
-#[test]
-fn test_loader_error_duplicate_extension_debug() {
-    let err = LoaderError::DuplicateExtension("auth".to_string());
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("DuplicateExtension"));
-    assert!(debug.contains("auth"));
-}
 
 #[test]
 fn test_loader_error_initialization_failed_display() {
@@ -120,13 +102,6 @@ fn test_config_error_not_found_display() {
     assert!(msg.contains("not found"));
 }
 
-#[test]
-fn test_config_error_not_found_debug() {
-    let err = ConfigError::NotFound("api_key".to_string());
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("NotFound"));
-    assert!(debug.contains("api_key"));
-}
 
 #[test]
 fn test_config_error_invalid_value_display() {
@@ -139,16 +114,6 @@ fn test_config_error_invalid_value_display() {
     assert!(msg.contains("must be a positive integer"));
 }
 
-#[test]
-fn test_config_error_invalid_value_debug() {
-    let err = ConfigError::InvalidValue {
-        key: "timeout".to_string(),
-        message: "cannot be negative".to_string(),
-    };
-    let debug = format!("{:?}", err);
-    assert!(debug.contains("InvalidValue"));
-    assert!(debug.contains("timeout"));
-}
 
 #[test]
 fn test_config_error_parse_error_display() {

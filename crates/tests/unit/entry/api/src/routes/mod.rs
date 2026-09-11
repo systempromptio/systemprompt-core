@@ -6,6 +6,7 @@
 //! - Default implementations
 
 mod admin_services;
+mod admin_services_refresh;
 mod agent;
 mod agent_responses;
 mod bridge_profile_models;
@@ -18,6 +19,8 @@ mod gateway_bridge_release_feed;
 mod gateway_bridge_release_sums;
 mod gateway_extract_credential;
 mod gateway_messages_auth;
+mod gateway_messages_auth_execution;
+mod gateway_messages_authenticate;
 mod gateway_messages_dispatch_errors;
 mod gateway_messages_extract;
 mod gateway_otel_convert;

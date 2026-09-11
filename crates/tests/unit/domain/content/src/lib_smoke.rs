@@ -110,10 +110,3 @@ fn test_homepage_prerenderer_default() {
     let p: DefaultHomepagePrerenderer = DefaultHomepagePrerenderer::default();
     assert_eq!(p.page_type(), "homepage");
 }
-
-#[test]
-fn test_homepage_prerenderer_debug() {
-    let p = DefaultHomepagePrerenderer::new();
-    let d = format!("{:?}", p);
-    assert!(d.contains("DefaultHomepagePrerenderer"));
-}

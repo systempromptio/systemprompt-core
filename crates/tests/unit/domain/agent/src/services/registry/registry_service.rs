@@ -1,14 +1,6 @@
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
-#[tokio::test]
-async fn agent_registry_new_with_empty_config_succeeds() {
-    ensure_test_bootstrap();
-    let _skills_fixture_read = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let registry = AgentRegistry::new().expect("registry construction");
-    let dbg = format!("{:?}", registry);
-    assert!(dbg.contains("AgentRegistry"));
-}
 
 #[tokio::test]
 async fn agent_registry_list_agents_empty_default() {

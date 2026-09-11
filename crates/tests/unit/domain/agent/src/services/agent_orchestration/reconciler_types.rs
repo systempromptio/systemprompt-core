@@ -122,13 +122,6 @@ fn test_consistency_report_total_agents_only_inconsistent() {
     assert_eq!(report.total_agents(), 2);
 }
 
-#[test]
-fn test_consistency_report_debug() {
-    let report = ConsistencyReport::new();
-    let debug_str = format!("{:?}", report);
-
-    assert!(debug_str.contains("ConsistencyReport"));
-}
 
 #[test]
 fn test_consistency_report_log_summary_no_inconsistencies() {

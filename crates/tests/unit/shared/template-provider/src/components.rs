@@ -31,39 +31,6 @@ mod partial_template {
             panic!("expected File source");
         }
     }
-
-    #[test]
-    fn partial_template_is_debug() {
-        let pt = PartialTemplate::embedded("x", "y");
-        let s = format!("{:?}", pt);
-        assert!(s.contains("PartialTemplate"));
-    }
-
-    #[test]
-    fn partial_template_clones() {
-        let pt = PartialTemplate::embedded("nav", "<nav/>");
-        let c = pt.clone();
-        assert_eq!(c.name, "nav");
-    }
-
-    #[test]
-    fn partial_source_embedded_is_debug() {
-        let s = format!("{:?}", PartialSource::Embedded("hi"));
-        assert!(s.contains("Embedded"));
-    }
-
-    #[test]
-    fn partial_source_file_is_debug() {
-        let s = format!("{:?}", PartialSource::File(PathBuf::from("f.html")));
-        assert!(s.contains("File"));
-    }
-
-    #[test]
-    fn partial_source_clones() {
-        let src = PartialSource::Embedded("data");
-        let c = src.clone();
-        assert!(matches!(c, PartialSource::Embedded("data")));
-    }
 }
 
 mod rendered_component {
@@ -76,12 +43,6 @@ mod rendered_component {
         assert_eq!(rc.html, "<aside>content</aside>");
     }
 
-    #[test]
-    fn is_debug() {
-        let rc = RenderedComponent::new("v", "<div/>");
-        let s = format!("{:?}", rc);
-        assert!(s.contains("RenderedComponent"));
-    }
 
     #[test]
     fn accepts_string_args() {

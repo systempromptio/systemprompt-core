@@ -53,6 +53,8 @@ mod registry_populated;
 #[cfg(test)]
 mod services_reconcile_decision;
 #[cfg(test)]
+mod services_reconcile_fetched;
+#[cfg(test)]
 mod shutdown_request;
 #[cfg(test)]
 mod startup_validation;

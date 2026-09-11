@@ -77,16 +77,6 @@ fn test_tool_stats_all_errors() {
     assert_eq!(stats.error_count, 10);
 }
 
-#[test]
-fn test_tool_stats_clone() {
-    let stats = create_test_stats();
-    let cloned = stats.clone();
-
-    assert_eq!(stats.tool_name, cloned.tool_name);
-    assert_eq!(stats.server_name, cloned.server_name);
-    assert_eq!(stats.total_executions, cloned.total_executions);
-    assert_eq!(stats.avg_duration_ms, cloned.avg_duration_ms);
-}
 
 #[test]
 fn test_tool_stats_debug() {

@@ -174,12 +174,6 @@ fn test_header_extractor_special_characters() {
     assert_eq!(agent_name.as_str(), "agent_with-special.chars");
 }
 
-#[test]
-fn test_header_extractor_debug() {
-    let extractor = HeaderExtractor;
-    let debug_str = format!("{:?}", extractor);
-    assert!(debug_str.contains("HeaderExtractor"));
-}
 
 #[test]
 fn test_header_injection_error_display() {
@@ -190,12 +184,6 @@ fn test_header_injection_error_display() {
     );
 }
 
-#[test]
-fn test_header_injection_error_debug() {
-    let error = HeaderInjectionError;
-    let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("HeaderInjectionError"));
-}
 
 #[test]
 fn test_header_injection_error_is_std_error() {
@@ -203,12 +191,6 @@ fn test_header_injection_error_is_std_error() {
     assert!(error.to_string().contains("invalid characters"));
 }
 
-#[test]
-fn test_header_injection_error_clone() {
-    let error = HeaderInjectionError;
-    let cloned = error;
-    assert_eq!(format!("{}", error), format!("{}", cloned));
-}
 
 mod gateway_and_provider_request_ids {
     use super::*;

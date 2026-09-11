@@ -24,14 +24,6 @@ mod engagement_optional_metrics_tests {
         assert!(metrics.is_dead_click.is_none());
         assert!(metrics.reading_pattern.is_none());
     }
-
-    #[test]
-    fn metrics_is_debug() {
-        let metrics = EngagementOptionalMetrics::default();
-        let debug_str = format!("{:?}", metrics);
-
-        assert!(debug_str.contains("EngagementOptionalMetrics"));
-    }
 }
 
 mod create_engagement_event_input_tests {

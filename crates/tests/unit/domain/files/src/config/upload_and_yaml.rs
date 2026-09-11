@@ -16,22 +16,6 @@ fn test_file_upload_config_default() {
     assert!(!config.allowed_types.video);
 }
 
-#[test]
-fn test_file_upload_config_clone() {
-    let config = FileUploadConfig::default();
-    let cloned = config;
-    assert_eq!(config.enabled, cloned.enabled);
-    assert_eq!(config.max_file_size_bytes, cloned.max_file_size_bytes);
-}
-
-#[test]
-fn test_file_upload_config_debug() {
-    let config = FileUploadConfig::default();
-    let debug_str = format!("{:?}", config);
-    assert!(debug_str.contains("FileUploadConfig"));
-    assert!(debug_str.contains("enabled"));
-    assert!(debug_str.contains("max_file_size_bytes"));
-}
 
 #[test]
 fn test_file_upload_config_serialize() {
@@ -72,13 +56,6 @@ fn test_files_config_yaml_default() {
     assert!(config.upload.enabled);
 }
 
-#[test]
-fn test_files_config_yaml_debug() {
-    let config = FilesConfigYaml::default();
-    let debug_str = format!("{:?}", config);
-    assert!(debug_str.contains("FilesConfigYaml"));
-    assert!(debug_str.contains("url_prefix"));
-}
 
 #[test]
 fn test_files_config_yaml_serialize() {

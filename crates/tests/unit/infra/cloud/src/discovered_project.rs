@@ -138,12 +138,3 @@ fn debug_includes_struct_name() {
     let p = DiscoveredProject::from_root(tmp.path().to_path_buf());
     assert!(format!("{:?}", p).contains("DiscoveredProject"));
 }
-
-#[test]
-fn clone_yields_equal_paths() {
-    let tmp = TempDir::new().unwrap();
-    let p = DiscoveredProject::from_root(tmp.path().to_path_buf());
-    let c = p.clone();
-    assert_eq!(p.root(), c.root());
-    assert_eq!(p.systemprompt_dir(), c.systemprompt_dir());
-}

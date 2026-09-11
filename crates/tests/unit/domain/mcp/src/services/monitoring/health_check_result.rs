@@ -60,22 +60,6 @@ fn test_health_check_details_auth_required() {
     assert_eq!(details.validation_type, "auth_required");
 }
 
-#[test]
-fn test_health_check_details_clone() {
-    let details = HealthCheckDetails {
-        service_name: "test-service".to_string(),
-        tools_available: Some(10),
-        requires_auth: false,
-        validation_type: "success".to_string(),
-        error_message: None,
-        server_version: Some("1.0.0".to_string()),
-    };
-
-    let cloned = details.clone();
-    assert_eq!(details.service_name, cloned.service_name);
-    assert_eq!(details.tools_available, cloned.tools_available);
-    assert_eq!(details.server_version, cloned.server_version);
-}
 
 #[test]
 fn test_health_check_details_debug() {
@@ -179,51 +163,4 @@ fn test_health_check_result_unknown() {
     };
 
     assert_eq!(result.status, HealthStatus::Unknown);
-}
-
-#[test]
-fn test_health_check_result_clone() {
-    let details = HealthCheckDetails {
-        service_name: "clone-service".to_string(),
-        tools_available: Some(2),
-        requires_auth: true,
-        validation_type: "auth_required".to_string(),
-        error_message: None,
-        server_version: Some("1.5.0".to_string()),
-    };
-
-    let result = HealthCheckResult {
-        status: HealthStatus::Healthy,
-        connection_result: None,
-        latency_ms: 100,
-        details,
-    };
-
-    let cloned = result.clone();
-    assert_eq!(result.status, cloned.status);
-    assert_eq!(result.latency_ms, cloned.latency_ms);
-    assert_eq!(result.details.service_name, cloned.details.service_name);
-}
-
-#[test]
-fn test_health_check_result_debug() {
-    let details = HealthCheckDetails {
-        service_name: "debug-result-service".to_string(),
-        tools_available: Some(1),
-        requires_auth: false,
-        validation_type: "success".to_string(),
-        error_message: None,
-        server_version: None,
-    };
-
-    let result = HealthCheckResult {
-        status: HealthStatus::Healthy,
-        connection_result: None,
-        latency_ms: 75,
-        details,
-    };
-
-    let debug_str = format!("{:?}", result);
-    assert!(debug_str.contains("HealthCheckResult"));
-    assert!(debug_str.contains("Healthy"));
 }

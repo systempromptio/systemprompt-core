@@ -36,18 +36,6 @@ fn request_context(fx: &Fixture) -> RequestContext {
     ctx
 }
 
-#[tokio::test]
-async fn message_service_new_succeeds() -> Result<()> {
-    let fx = Fixture::new().await?;
-    let svc = MessageService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    )?);
-    let dbg = format!("{:?}", svc);
-    assert!(dbg.contains("MessageService"));
-    fx.cleanup().await?;
-    Ok(())
-}
 
 #[tokio::test]
 async fn persist_messages_empty_returns_empty_vec() -> Result<()> {

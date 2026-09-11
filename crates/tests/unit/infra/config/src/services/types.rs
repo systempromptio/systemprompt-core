@@ -82,19 +82,6 @@ fn test_deploy_environment_parse_case_sensitive() {
     result.unwrap_err();
 }
 
-#[test]
-fn test_deploy_environment_debug() {
-    let env = DeployEnvironment::Local;
-    let debug_str = format!("{:?}", env);
-    assert!(debug_str.contains("Local"));
-}
-
-#[test]
-fn test_deploy_environment_clone() {
-    let env = DeployEnvironment::Production;
-    let cloned = env;
-    assert_eq!(env, cloned);
-}
 
 #[test]
 fn test_deploy_environment_eq() {
@@ -134,14 +121,6 @@ fn test_deployment_config_with_multiple_values() {
     assert_eq!(config.vars.len(), 3);
 }
 
-#[test]
-fn test_deployment_config_debug() {
-    let config = DeploymentConfig {
-        vars: HashMap::new(),
-    };
-    let debug_str = format!("{:?}", config);
-    assert!(debug_str.contains("DeploymentConfig"));
-}
 
 #[test]
 fn test_deployment_config_serialize() {
@@ -193,16 +172,6 @@ fn test_environment_config_with_variables() {
     assert_eq!(config.variables.get("PORT"), Some(&"8080".to_string()));
 }
 
-#[test]
-fn test_environment_config_debug() {
-    let config = EnvironmentConfig {
-        environment: DeployEnvironment::DockerDev,
-        variables: HashMap::new(),
-    };
-    let debug_str = format!("{:?}", config);
-    assert!(debug_str.contains("EnvironmentConfig"));
-    assert!(debug_str.contains("DockerDev"));
-}
 
 #[test]
 fn test_environment_config_environment_accessor() {

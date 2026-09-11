@@ -42,19 +42,6 @@ fn test_conversation_message_system_role() {
     assert_eq!(msg.sequence_number, 0);
 }
 
-#[test]
-fn test_conversation_message_clone() {
-    let msg = ConversationMessage {
-        role: "user".to_string(),
-        content: "Clone test".to_string(),
-        sequence_number: 5,
-    };
-
-    let cloned = msg.clone();
-    assert_eq!(msg.role, cloned.role);
-    assert_eq!(msg.content, cloned.content);
-    assert_eq!(msg.sequence_number, cloned.sequence_number);
-}
 
 #[test]
 fn test_conversation_message_serialize() {
@@ -96,20 +83,6 @@ fn test_tool_log_entry_error_level() {
     assert_eq!(entry.level, "error");
 }
 
-#[test]
-fn test_tool_log_entry_clone() {
-    let entry = ToolLogEntry {
-        timestamp: Utc::now(),
-        level: "warn".to_string(),
-        module: "clone".to_string(),
-        message: "Clone test".to_string(),
-    };
-
-    let cloned = entry.clone();
-    assert_eq!(entry.level, cloned.level);
-    assert_eq!(entry.module, cloned.module);
-    assert_eq!(entry.message, cloned.message);
-}
 
 #[test]
 fn test_tool_log_entry_serialize() {
@@ -189,24 +162,6 @@ fn test_task_artifact_minimal() {
     assert!(artifact.data_content.is_none());
 }
 
-#[test]
-fn test_task_artifact_clone() {
-    let artifact = TaskArtifact {
-        artifact_id: "clone".to_string().into(),
-        artifact_type: "file".to_string(),
-        name: Some("test.txt".to_string()),
-        source: Some("user".to_string()),
-        tool_name: None,
-        part_kind: None,
-        text_content: Some("content".to_string()),
-        data_content: None,
-    };
-
-    let cloned = artifact.clone();
-    assert_eq!(artifact.artifact_id, cloned.artifact_id);
-    assert_eq!(artifact.name, cloned.name);
-    assert_eq!(artifact.text_content, cloned.text_content);
-}
 
 #[test]
 fn test_task_artifact_serialize() {

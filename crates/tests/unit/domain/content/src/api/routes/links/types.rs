@@ -86,18 +86,6 @@ fn test_generate_link_request_with_utm_only() {
     assert!(request.utm_campaign.is_none());
 }
 
-#[test]
-fn test_generate_link_request_debug() {
-    let json = r#"{
-        "target_url": "https://example.com",
-        "link_type": "redirect"
-    }"#;
-
-    let request: GenerateLinkRequest = serde_json::from_str(json).unwrap();
-    let debug = format!("{:?}", request);
-    assert!(debug.contains("GenerateLinkRequest"));
-    assert!(debug.contains("target_url"));
-}
 
 #[test]
 fn test_generate_link_response_serialization() {
@@ -130,18 +118,6 @@ fn test_generate_link_response_fields() {
     assert_eq!(response.full_url, "https://example.com/page");
 }
 
-#[test]
-fn test_generate_link_response_debug() {
-    let response = GenerateLinkResponse {
-        link_id: "id".to_string(),
-        short_code: "code".to_string(),
-        redirect_url: "url".to_string(),
-        full_url: "full".to_string(),
-    };
-
-    let debug = format!("{:?}", response);
-    assert!(debug.contains("GenerateLinkResponse"));
-}
 
 #[test]
 fn test_list_links_query_empty() {
@@ -178,15 +154,6 @@ fn test_list_links_query_with_both() {
     assert_eq!(query.source_content_id, Some("content".to_string()));
 }
 
-#[test]
-fn test_list_links_query_debug() {
-    let query = ListLinksQuery {
-        campaign_id: Some("test".to_string()),
-        source_content_id: None,
-    };
-    let debug = format!("{:?}", query);
-    assert!(debug.contains("ListLinksQuery"));
-}
 
 #[test]
 fn test_analytics_query_empty() {
@@ -220,26 +187,7 @@ fn test_analytics_query_with_both() {
     assert_eq!(query.offset, Some(50));
 }
 
-#[test]
-fn test_analytics_query_debug() {
-    let query = AnalyticsQuery {
-        limit: Some(10),
-        offset: None,
-    };
-    let debug = format!("{:?}", query);
-    assert!(debug.contains("AnalyticsQuery"));
-}
 
-#[test]
-fn test_analytics_query_clone() {
-    let query = AnalyticsQuery {
-        limit: Some(5),
-        offset: Some(10),
-    };
-    let cloned = query;
-    assert_eq!(cloned.limit, query.limit);
-    assert_eq!(cloned.offset, query.offset);
-}
 
 #[test]
 fn test_generate_link_request_empty_strings() {

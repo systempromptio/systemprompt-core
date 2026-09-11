@@ -27,19 +27,6 @@ fn test_health_check_result_unhealthy() {
     assert_eq!(result.response_time_ms, 0);
 }
 
-#[test]
-fn test_health_check_result_clone() {
-    let result = HealthCheckResult {
-        healthy: true,
-        message: "OK".to_string(),
-        response_time_ms: 100,
-    };
-
-    let cloned = result.clone();
-    assert_eq!(cloned.healthy, result.healthy);
-    assert_eq!(cloned.message, result.message);
-    assert_eq!(cloned.response_time_ms, result.response_time_ms);
-}
 
 #[test]
 fn test_health_check_result_debug() {

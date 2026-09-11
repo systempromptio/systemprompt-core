@@ -64,11 +64,3 @@ fn load_geoip_database_with_show_warnings_emits_help_text() {
         AppContext::load_geoip_database(&cfg, true).expect("unconfigured geoip is not an error");
     assert!(reader.is_none(), "no path configured -> None");
 }
-
-#[test]
-fn module_api_registry_default_matches_new() {
-    use systemprompt_runtime::ModuleApiRegistry;
-    let a = ModuleApiRegistry::default();
-    let dbg = format!("{:?}", a);
-    assert!(dbg.contains("ModuleApiRegistry"));
-}

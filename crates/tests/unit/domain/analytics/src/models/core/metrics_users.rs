@@ -47,12 +47,6 @@ mod user_metrics_with_trends_tests {
         assert_eq!(metrics.prev_30d, 1900);
     }
 
-    #[test]
-    fn metrics_is_debug() {
-        let metrics = create_metrics(1, 2, 3, 0, 1, 2);
-        let debug_str = format!("{:?}", metrics);
-        assert!(debug_str.contains("UserMetricsWithTrends"));
-    }
 
     #[test]
     fn metrics_serializes_with_renamed_fields() {
@@ -163,12 +157,6 @@ mod analytics_session_tests {
         assert_eq!(session.message_count, Some(15));
     }
 
-    #[test]
-    fn session_is_debug() {
-        let session = create_session();
-        let debug_str = format!("{:?}", session);
-        assert!(debug_str.contains("AnalyticsSession"));
-    }
 
     #[test]
     fn session_serializes() {
@@ -291,12 +279,6 @@ mod analytics_event_tests {
         );
     }
 
-    #[test]
-    fn event_is_debug() {
-        let event = create_event();
-        let debug_str = format!("{:?}", event);
-        assert!(debug_str.contains("AnalyticsEvent"));
-    }
 
     #[test]
     fn event_serializes() {

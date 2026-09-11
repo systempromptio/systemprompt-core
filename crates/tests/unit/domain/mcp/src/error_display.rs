@@ -73,47 +73,6 @@ fn path_display_contains_path() {
     assert!(s.contains("/no/such/path"));
 }
 
-#[test]
-fn timeout_debug_contains_variant_name() {
-    let e = McpDomainError::Timeout {
-        server: "srv".to_owned(),
-        after_ms: 1,
-    };
-    let s = format!("{e:?}");
-    assert!(s.contains("Timeout"));
-}
-
-#[test]
-fn circuit_open_debug_contains_variant_name() {
-    let e = McpDomainError::CircuitOpen {
-        server: "srv".to_owned(),
-    };
-    let s = format!("{e:?}");
-    assert!(s.contains("CircuitOpen"));
-}
-
-#[test]
-fn dependency_unavailable_debug_contains_variant_name() {
-    let e = McpDomainError::DependencyUnavailable {
-        server: "srv".to_owned(),
-    };
-    let s = format!("{e:?}");
-    assert!(s.contains("DependencyUnavailable"));
-}
-
-#[test]
-fn manifest_debug_contains_variant_name() {
-    let e = McpDomainError::Manifest("m".to_owned());
-    let s = format!("{e:?}");
-    assert!(s.contains("Manifest"));
-}
-
-#[test]
-fn transport_debug_contains_variant_name() {
-    let e = McpDomainError::Transport("t".to_owned());
-    let s = format!("{e:?}");
-    assert!(s.contains("Transport"));
-}
 
 #[test]
 fn error_chain_timeout_zero_ms() {

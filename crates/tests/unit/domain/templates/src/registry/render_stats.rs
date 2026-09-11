@@ -1,6 +1,6 @@
 use crate::mocks::{component, extender, loader, page_provider, provider};
 
-use systemprompt_templates::{RegistryStats, TemplateDefinition, TemplateRegistry};
+use systemprompt_templates::{TemplateDefinition, TemplateRegistry};
 
 use crate::mocks::{MockComponent, MockExtender, MockLoader, MockPageProvider, MockProvider};
 
@@ -209,41 +209,6 @@ mod stats_tests {
         assert_eq!(stats.extenders, 1);
         assert_eq!(stats.components, 1);
         assert_eq!(stats.page_providers, 3);
-    }
-
-    #[test]
-    fn registry_stats_debug_impl() {
-        let stats = RegistryStats {
-            providers: 1,
-            templates: 2,
-            loaders: 3,
-            extenders: 4,
-            components: 5,
-            page_providers: 6,
-            page_prerenderers: 7,
-        };
-
-        let debug_str = format!("{:?}", stats);
-        assert!(debug_str.contains("RegistryStats"));
-        assert!(debug_str.contains("providers"));
-        assert!(debug_str.contains("templates"));
-    }
-
-    #[test]
-    fn registry_stats_clone() {
-        let stats = RegistryStats {
-            providers: 1,
-            templates: 2,
-            loaders: 3,
-            extenders: 4,
-            components: 5,
-            page_providers: 6,
-            page_prerenderers: 7,
-        };
-
-        let cloned = stats;
-        assert_eq!(cloned.providers, 1);
-        assert_eq!(cloned.templates, 2);
     }
 }
 

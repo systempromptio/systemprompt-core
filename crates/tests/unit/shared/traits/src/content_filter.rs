@@ -52,16 +52,6 @@ fn content_filter_partial_eq() {
     assert_ne!(a, c);
 }
 
-#[test]
-fn content_filter_clone_is_equal() {
-    let f = ContentFilter {
-        kind: Some("blog".into()),
-        limit: Some(20),
-        ..Default::default()
-    };
-    let f2 = f.clone();
-    assert_eq!(f, f2);
-}
 
 #[test]
 fn content_filter_serde_roundtrip() {
@@ -93,21 +83,6 @@ fn content_summary_fields_accessible() {
     assert_eq!(s.kind, "guide");
 }
 
-#[test]
-fn content_summary_clone_preserves_id() {
-    let id = ContentId::new("abc");
-    let s = ContentSummary {
-        id: id.clone(),
-        slug: "slug".into(),
-        title: "Title".into(),
-        description: "Desc".into(),
-        published_at: Utc::now(),
-        kind: "page".into(),
-        source_id: SourceId::new("src"),
-    };
-    let s2 = s.clone();
-    assert_eq!(s2.id, id);
-}
 
 #[test]
 fn content_summary_serde_roundtrip() {

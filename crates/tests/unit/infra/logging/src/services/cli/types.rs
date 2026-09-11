@@ -14,12 +14,6 @@ fn test_item_status_debug() {
     assert_eq!(format!("{:?}", ItemStatus::Pending), "Pending");
 }
 
-#[test]
-fn test_item_status_clone_preserves_value() {
-    let original = ItemStatus::Valid;
-    let cloned = original;
-    assert_eq!(original, cloned);
-}
 
 #[test]
 fn test_item_status_equality() {

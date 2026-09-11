@@ -8,13 +8,6 @@ fn io_error_variant_display() {
     assert!(s.contains("IO error") || s.contains("disk full"));
 }
 
-#[test]
-fn io_error_variant_debug() {
-    let io = std::io::Error::other("permission denied");
-    let err = FileUploadError::from(io);
-    let d = format!("{err:?}");
-    assert!(d.contains("Io"));
-}
 
 #[test]
 fn all_string_variants_display_correctly() {

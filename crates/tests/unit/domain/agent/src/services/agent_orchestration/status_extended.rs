@@ -71,28 +71,6 @@ fn test_agent_status_running_ne_failed() {
     assert_ne!(running, failed);
 }
 
-#[test]
-fn test_agent_status_clone_running() {
-    let status = AgentStatus::Running {
-        pid: 55,
-        port: 4000,
-    };
-
-    let cloned = status.clone();
-    assert_eq!(cloned, status);
-}
-
-#[test]
-fn test_agent_status_clone_failed() {
-    let status = AgentStatus::Failed {
-        reason: "clone reason".to_string(),
-        last_attempt: Some("2026-01-01".to_string()),
-        retry_count: 5,
-    };
-
-    let cloned = status.clone();
-    assert_eq!(cloned, status);
-}
 
 #[test]
 fn test_validation_report_default_equals_new() {
@@ -149,23 +127,6 @@ fn test_agent_info_with_failed_status() {
     assert_eq!(info.port, 9090);
 }
 
-#[test]
-fn test_agent_info_clone() {
-    let info = AgentInfo {
-        id: "clone-info".to_string().into(),
-        name: "Cloned".to_string(),
-        status: AgentStatus::Running {
-            pid: 200,
-            port: 3000,
-        },
-        port: 3000,
-    };
-
-    let cloned = info.clone();
-    assert_eq!(cloned.id, "clone-info");
-    assert_eq!(cloned.name, "Cloned");
-    assert_eq!(cloned.port, 3000);
-}
 
 #[test]
 fn test_agent_info_debug() {

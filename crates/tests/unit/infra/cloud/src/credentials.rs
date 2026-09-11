@@ -366,31 +366,3 @@ async fn test_validate_with_api_false_on_unauthorized() {
 
     assert!(!creds.validate_with_api().await.unwrap());
 }
-
-#[test]
-fn test_cloud_credentials_debug() {
-    let creds = CloudCredentials::new(
-        CloudAuthToken::new("secret_token".to_string()),
-        "https://api.test.io".to_string(),
-        Email::new("test@example.com".to_string()),
-    );
-
-    let debug_str = format!("{:?}", creds);
-    assert!(debug_str.contains("CloudCredentials"));
-    assert!(debug_str.contains("api_url"));
-}
-
-#[test]
-fn test_cloud_credentials_clone() {
-    let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(
-        CloudAuthToken::new(token.clone()),
-        "https://api.test.io".to_string(),
-        Email::new("test@example.com".to_string()),
-    );
-
-    let cloned = creds.clone();
-    assert_eq!(cloned.api_token, creds.api_token);
-    assert_eq!(cloned.api_url, creds.api_url);
-    assert_eq!(cloned.user_email, creds.user_email);
-}

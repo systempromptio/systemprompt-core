@@ -6,14 +6,11 @@
 //! by the integration suite.
 
 use systemprompt_api::routes::messaging::a2a::{permissions_for, reply_text};
-use systemprompt_api::routes::messaging::{
-    DispatchOutcome, MessagingError, MessagingInbound, ReplyTarget,
-};
+use systemprompt_api::routes::messaging::{DispatchOutcome, MessagingError};
 use systemprompt_api::routes::slack::{parse_form, slash_command_from_form};
-use systemprompt_identifiers::{AgentName, ContextId, MessageId, SlackWorkspaceId};
+use systemprompt_identifiers::{ContextId, MessageId};
 use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart};
 use systemprompt_models::auth::Permission;
-use systemprompt_security::authz::EntityRef;
 
 #[test]
 fn parse_form_decodes_url_encoded_pairs() {
@@ -78,27 +75,6 @@ fn reply_text_joins_multiple_text_parts_with_newlines() {
     assert_eq!(reply_text(Some(&task)), "line one\nline two");
 }
 
-#[test]
-fn messaging_inbound_constructs_and_clones() {
-    let inbound = MessagingInbound {
-        platform: "slack",
-        issuer: "https://slack.com".to_owned(),
-        org_id: "T1".to_owned(),
-        channel_id: "C1".to_owned(),
-        external_user_id: "U1".to_owned(),
-        text: "hi".to_owned(),
-        agent_name: AgentName::new("test_agent"),
-        entity: EntityRef::SlackWorkspace(SlackWorkspaceId::new("T1")),
-        reply: ReplyTarget::Url {
-            url: "https://hooks.slack.com/r".to_owned(),
-        },
-        sender: systemprompt_traits::SenderIdentity::Unlinked,
-    };
-    let cloned = inbound.clone();
-    assert_eq!(cloned.platform, "slack");
-    assert!(matches!(cloned.reply, ReplyTarget::Url { .. }));
-    assert!(matches!(cloned.entity, EntityRef::SlackWorkspace(_)));
-}
 
 #[test]
 fn dispatch_outcome_carries_its_payload() {

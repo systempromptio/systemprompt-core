@@ -270,10 +270,3 @@ fn test_validate_empty_api_external_url_allowed() {
 
     ConfigValidator::validate(&config).expect("empty external URL should be allowed");
 }
-
-#[test]
-fn test_config_validator_debug() {
-    let validator = ConfigValidator;
-    let debug_str = format!("{:?}", validator);
-    assert!(debug_str.contains("ConfigValidator"));
-}

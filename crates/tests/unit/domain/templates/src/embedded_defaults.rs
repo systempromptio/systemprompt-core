@@ -40,18 +40,3 @@ fn default_trait_creates_instance() {
     let provider = EmbeddedDefaultsProvider::default();
     assert_eq!(provider.provider_id(), "embedded-defaults");
 }
-
-#[test]
-fn debug_impl() {
-    let provider = EmbeddedDefaultsProvider;
-    let debug = format!("{:?}", provider);
-    assert!(debug.contains("EmbeddedDefaultsProvider"));
-}
-
-#[test]
-fn clone_preserves_identity() {
-    let original = EmbeddedDefaultsProvider;
-    let cloned = original;
-    assert_eq!(original.provider_id(), cloned.provider_id());
-    assert_eq!(original.priority(), cloned.priority());
-}

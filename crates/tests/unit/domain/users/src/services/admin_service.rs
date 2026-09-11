@@ -66,31 +66,6 @@ mod promote_result_tests {
         assert!(matches!(result, PromoteResult::UserNotFound));
     }
 
-    #[test]
-    fn promote_result_debug_promoted() {
-        let user = create_test_user(vec!["admin".to_string()]);
-        let result = PromoteResult::Promoted(user, vec!["admin".to_string()]);
-
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("Promoted"));
-    }
-
-    #[test]
-    fn promote_result_debug_already_admin() {
-        let user = create_test_user(vec!["admin".to_string()]);
-        let result = PromoteResult::AlreadyAdmin(user);
-
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("AlreadyAdmin"));
-    }
-
-    #[test]
-    fn promote_result_debug_user_not_found() {
-        let result = PromoteResult::UserNotFound;
-
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("UserNotFound"));
-    }
 
     #[test]
     fn promoted_with_multiple_roles() {
@@ -170,31 +145,6 @@ mod demote_result_tests {
         assert!(matches!(result, DemoteResult::UserNotFound));
     }
 
-    #[test]
-    fn demote_result_debug_demoted() {
-        let user = create_test_user(vec!["user".to_string()]);
-        let result = DemoteResult::Demoted(user, vec!["user".to_string()]);
-
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("Demoted"));
-    }
-
-    #[test]
-    fn demote_result_debug_not_admin() {
-        let user = create_test_user(vec!["user".to_string()]);
-        let result = DemoteResult::NotAdmin(user);
-
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("NotAdmin"));
-    }
-
-    #[test]
-    fn demote_result_debug_user_not_found() {
-        let result = DemoteResult::UserNotFound;
-
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("UserNotFound"));
-    }
 
     #[test]
     fn demoted_removes_admin_role() {

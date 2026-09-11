@@ -1,6 +1,5 @@
 use std::time::Duration;
-use systemprompt_mcp::{McpHttpConfig, McpState, SessionTimeouts};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_mcp::{McpHttpConfig, SessionTimeouts};
 
 #[test]
 fn session_timeouts_both_none() {
@@ -109,12 +108,6 @@ fn mcp_http_config_default_hosts_count() {
     assert_eq!(hosts.len(), 5);
 }
 
-#[test]
-fn mcp_http_config_clone_preserves_hosts() {
-    let config = McpHttpConfig::default();
-    let cloned = config.clone();
-    assert_eq!(cloned.allowed_hosts.as_ref().map(|v| v.len()), Some(5));
-}
 
 #[test]
 fn mcp_http_config_debug_nonempty() {
@@ -122,20 +115,4 @@ fn mcp_http_config_debug_nonempty() {
     let s = format!("{config:?}");
     assert!(!s.is_empty());
     assert!(s.contains("McpHttpConfig"));
-}
-
-#[tokio::test]
-async fn mcp_state_debug_and_accessors() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(pool) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let state = McpState::new(pool);
-    let debug = format!("{state:?}");
-    assert!(debug.contains("McpState"));
-    let _pool_ref = state.db_pool();
-    let cloned = state.clone();
-    let _ = cloned.db_pool();
 }

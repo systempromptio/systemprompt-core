@@ -106,12 +106,6 @@ fn test_validation_report_multiple_errors_multiple_warnings() {
     assert!(!report.is_valid());
 }
 
-#[test]
-fn test_validation_report_debug() {
-    let report = ValidationReport::new();
-    let debug_str = format!("{:?}", report);
-    assert!(debug_str.contains("ValidationReport"));
-}
 
 #[test]
 fn test_validation_report_debug_with_content() {

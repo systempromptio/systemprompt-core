@@ -59,23 +59,6 @@ fn planned_strategy_new_and_default() {
     assert_eq!(d.name(), "planned");
 }
 
-#[test]
-fn planned_strategy_debug_and_clone() {
-    let s = PlannedAgenticStrategy::new();
-    let cloned = s;
-    assert_eq!(cloned.name(), "planned");
-    let dbg = format!("{:?}", s);
-    assert!(dbg.contains("PlannedAgenticStrategy"));
-}
-
-#[test]
-fn standard_strategy_clone_debug() {
-    let s = StandardExecutionStrategy::new();
-    let cloned = s;
-    assert_eq!(cloned.name(), "standard");
-    let dbg = format!("{:?}", s);
-    assert!(dbg.contains("StandardExecutionStrategy"));
-}
 
 #[test]
 fn execution_result_with_values() {

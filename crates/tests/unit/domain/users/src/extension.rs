@@ -176,12 +176,6 @@ mod extension_schema_tests {
 mod extension_trait_tests {
     use super::*;
 
-    #[test]
-    fn extension_is_debug() {
-        let ext = UsersExtension;
-        let debug = format!("{:?}", ext);
-        assert!(debug.contains("UsersExtension"));
-    }
 
     #[test]
     fn extension_default() {

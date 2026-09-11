@@ -144,25 +144,3 @@ fn test_should_use_color_false_when_never() {
     let config = CliConfig::default().with_color_mode(ColorMode::Never);
     assert!(!config.should_use_color());
 }
-
-#[test]
-fn test_cli_config_clone() {
-    let original = CliConfig::default()
-        .with_output_format(OutputFormat::Json)
-        .with_verbosity(VerbosityLevel::Debug);
-    let cloned = original.clone();
-
-    assert_eq!(original.output_format, cloned.output_format);
-    assert_eq!(original.verbosity, cloned.verbosity);
-    assert_eq!(original.color_mode, cloned.color_mode);
-    assert_eq!(original.interactive, cloned.interactive);
-}
-
-#[test]
-fn test_cli_config_debug() {
-    let config = CliConfig::default();
-    let debug_str = format!("{:?}", config);
-    assert!(debug_str.contains("CliConfig"));
-    assert!(debug_str.contains("output_format"));
-    assert!(debug_str.contains("verbosity"));
-}

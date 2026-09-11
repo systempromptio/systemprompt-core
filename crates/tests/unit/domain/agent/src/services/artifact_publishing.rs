@@ -182,13 +182,3 @@ async fn publish_from_mcp_direct_creates_messages() {
 
     r.tasks.delete_task(&tid).await.ok();
 }
-
-#[tokio::test]
-async fn debug_format() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let svc = publishing_service(&pool).await;
-    let dbg = format!("{svc:?}");
-    assert!(dbg.contains("ArtifactPublishingService"));
-}
