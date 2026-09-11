@@ -62,9 +62,15 @@ pub fn last_synced_auto_update_policy() -> Option<AutoUpdatePolicy> {
     read_last_sync_state().map(|state| state.auto_update)
 }
 
+// Why: delivered policy (hosts, auto-update) belongs to the gateway that
+// delivered it; a sentinel from another gateway is no policy at all.
 fn read_last_sync_state() -> Option<LastSyncState> {
     let meta = crate::config::paths::bridge_metadata_dir()?;
-    read_last_sync(&meta.join(crate::config::paths::LAST_SYNC_SENTINEL)).ok()?
+    let state = read_last_sync(&meta.join(crate::config::paths::LAST_SYNC_SENTINEL)).ok()??;
+    let cfg = crate::config::load().ok()?;
+    state
+        .belongs_to(&crate::config::gateway_url_or_default(&cfg))
+        .then_some(state)
 }
 
 #[derive(Debug, thiserror::Error)]

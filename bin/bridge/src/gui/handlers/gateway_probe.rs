@@ -95,6 +95,14 @@ fn announce(app: &mut GuiApp) {
     let snap = app.state.snapshot();
     let app_name = crate::brand::brand().app_name;
     match &snap.gateway_status {
+        // Why: "ungoverned until it comes back" is about a gateway agents were
+        // routed through, and only a synced gateway ever was. A URL that has
+        // never synced — including one still being typed into the setup form,
+        // whose save has just dropped the previous gateway's sentinel — has
+        // nothing to come back to; the form shows its own probe result.
+        GatewayStatus::Unreachable { .. } if snap.last_sync_summary.is_none() => {
+            app.signal_cleared(Signal::GatewayUnreachable);
+        },
         GatewayStatus::Unreachable { reason } => {
             let reason = reason.clone();
             app.signal_raised(

@@ -54,6 +54,10 @@ pub struct TokenCache {
     refresh_lock: Mutex<()>,
     refresh: RefreshFn,
     latch: SignInLatch,
+    // Why: a runtime-config swap (gateway change, login, logout) bumps this so
+    // long-lived streams opened against the previous gateway can end instead
+    // of living on until that gateway drops them.
+    generation: tokio::sync::watch::Sender<u64>,
 }
 
 impl TokenCache {
@@ -64,7 +68,15 @@ impl TokenCache {
             refresh_lock: Mutex::new(()),
             refresh,
             latch: SignInLatch::default(),
+            generation: tokio::sync::watch::Sender::new(0),
         }
+    }
+
+    /// A receiver that fires on every [`Self::reset`]; hold one across a
+    /// long-lived upstream connection and drop the connection when it fires.
+    #[must_use]
+    pub fn generation(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.generation.subscribe()
     }
 
     #[must_use]
@@ -182,6 +194,7 @@ impl TokenCache {
     pub async fn reset(&self) {
         self.invalidate().await;
         self.latch.release();
+        self.generation.send_modify(|g| *g += 1);
     }
 
     #[expect(
