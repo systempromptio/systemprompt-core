@@ -30,6 +30,7 @@ pub(crate) struct PluginApplyOutcome {
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
     pub host_failures: Vec<HostFailure>,
+    pub host_warnings: Vec<HostWarning>,
     pub mcp_servers_by_plugin: BTreeMap<String, Vec<String>>,
 }
 
@@ -39,6 +40,16 @@ pub(crate) struct PluginApplyOutcome {
 pub struct HostFailure {
     pub host_id: String,
     pub error: String,
+}
+
+/// A host sync that completed but could not do everything it exists to do —
+/// the run is not partial, yet the operator has something to act on.
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub struct HostWarning {
+    pub host_id: String,
+    pub message: String,
 }
 
 #[tracing::instrument(level = "debug", skip(ctx, manifest))]
@@ -93,6 +104,7 @@ pub(super) async fn apply_plugins(
         removed,
         malformed,
         host_failures: Vec::new(),
+        host_warnings: Vec::new(),
         mcp_servers_by_plugin,
     })
 }

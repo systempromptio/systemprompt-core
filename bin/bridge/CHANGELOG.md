@@ -2,7 +2,16 @@
 
 ## [0.51.0] - 2026-09-11
 
+### Added
+
+- Tools on managed MCP servers are allowed by default. The manifest's `ManagedMcpServer.tool_policy` carries a `*` entry (`allow` unless the server's YAML sets `tool_policy: prompt|deny`); Claude Code receives `permissions.allow` rules (`mcp__<server>`, plus `mcp__plugin_<plugin>_<server>` for every plugin whose `.mcp.json` mirrors the server) in the managed settings file when it is writable and `~/.claude/settings.json` otherwise, recorded in a sidecar so a server that leaves the manifest has its rules taken back out; Claude Desktop receives `managedMcpServers[].toolPolicy` naming every tool the server reported to the auth probe, kept in `metadata/mcp-tools.json` and refreshed on every sync. A person's own rules are never touched.
+- A host sync can now warn without failing (`SyncSummary.host_warnings`, the sync line's `— N warning(s)` suffix, a yellow row on the Status page and in the activity log). The Cowork emitter uses it: when Claude Desktop is installed but has never opened Cowork, the missing step is named — before, the emitter logged "no Cowork install detected" at INFO, sync reported OK, and the org plugins never appeared in the app. Once the Cowork session directory exists, the desktop probe triggers the sync that enables them.
+- **Windows:** the Cowork session root is also looked for under the MSIX package's `LocalCache\Local\Claude-3p`.
+- `HostApp::install_profile` returns `ProfileInstalled { warnings }`; a profile install that succeeded but could not verify something reports a warning rather than a failed step.
+
 ### Fixed
+
+- **Windows:** running the bridge already elevated failed the Claude Desktop profile install with `org-plugins is not usable: … impersonation level … (os error 1346)` after the policy and the directory grant had both succeeded. The Modify check duplicated the elevated token's linked token to `SecurityImpersonation`, but that token is `SecurityIdentification` for any caller without SeTcb and cannot be raised; `AccessCheck` accepts it as it is, so it is now used directly. Each Win32 step in the check names itself in its error.
 
 - **Doctor:** hook URLs baked into mirrored `hooks/hooks.json` files that name a port the proxy no longer holds are now reported as a failing check; the check existed but was never run, so a moved proxy surfaced only as `ECONNREFUSED` on every tool call.
 

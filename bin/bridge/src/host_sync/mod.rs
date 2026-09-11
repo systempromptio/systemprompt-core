@@ -16,9 +16,44 @@ mod error;
 
 pub use error::{ApplyError, TomlError};
 
+/// Warnings a host sync raises without failing. Shared by every emitter of one
+/// run; drained into `SyncSummary.host_warnings` when the run ends.
+#[derive(Debug, Default)]
+pub struct HostWarnings(std::sync::Mutex<Vec<crate::sync::apply::HostWarning>>);
+
+impl HostWarnings {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(std::sync::Mutex::new(Vec::new()))
+    }
+
+    pub fn push(&self, host_id: &str, message: impl Into<String>) {
+        let warning = crate::sync::apply::HostWarning {
+            host_id: host_id.to_owned(),
+            message: message.into(),
+        };
+        tracing::warn!(
+            target: "bridge::sync::host",
+            host = host_id,
+            warning = %warning.message,
+            "host sync warning"
+        );
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(warning);
+    }
+
+    #[must_use]
+    pub fn drain(&self) -> Vec<crate::sync::apply::HostWarning> {
+        std::mem::take(&mut *self.0.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+}
+
 #[derive(Debug)]
 pub struct HostSyncCtx<'a> {
     pub policy_store: &'a crate::config::store::PolicyStore,
+    pub warnings: &'a HostWarnings,
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,
     pub plugin_mcp_servers: &'a std::collections::BTreeMap<String, Vec<String>>,

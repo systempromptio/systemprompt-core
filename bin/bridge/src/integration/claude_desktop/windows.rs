@@ -12,7 +12,7 @@ use super::shared::{
     redact_if_sensitive, unique_stem,
 };
 use crate::config::store::{PolicyWrite, clear_managed_claude_policy, managed_policy_store};
-use crate::integration::host_app::{GeneratedProfile, ProfileRemoval};
+use crate::integration::host_app::{GeneratedProfile, ProfileInstalled, ProfileRemoval};
 use crate::winproc;
 
 pub(super) fn read_domain(domain: &str) -> DomainRead {
@@ -86,7 +86,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
+pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
     let elevated = winproc::is_elevated();
     tracing::info!(path, elevated, "installing Claude Desktop profile");
     let body = std::fs::read_to_string(path)?;
@@ -132,24 +132,25 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             tracing::info!("HKLM already holds this policy; per-user copy not written");
         },
     }
-    // Why: the policy is already written and verified above. A missing
-    // org-plugins directory is a distinct, later failure; reporting it as
-    // the profile install failing would send the operator to re-run a step
-    // that succeeded.
-    if let Err(e) = require_org_plugins_provisioned(elevated) {
-        return Err(std::io::Error::other(format!(
+    // Why: the policy is already written and verified above. Provisioning
+    // org-plugins is a distinct, later step and stays fatal when it fails;
+    // a verification that cannot run afterwards is a warning, because the
+    // directory and its grant are already in place and a failed step would
+    // send the operator to re-run work that succeeded.
+    let outcome = require_org_plugins_provisioned(elevated).map_err(|e| {
+        std::io::Error::other(format!(
             "policy written to {} and read back, but org-plugins is not usable: {e}",
             crate::config::store::hive_for(elevated).label()
-        )));
-    }
+        ))
+    })?;
     tracing::info!(
         value_count = entries.len(),
         "Claude Desktop profile installed"
     );
-    Ok(())
+    Ok(outcome)
 }
 
-fn install_profile_elevated(path: &str) -> std::io::Result<()> {
+fn install_profile_elevated(path: &str) -> std::io::Result<ProfileInstalled> {
     let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
     let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
     std::fs::create_dir_all(&stage_dir)?;
@@ -167,10 +168,10 @@ fn install_profile_elevated(path: &str) -> std::io::Result<()> {
         path,
         "Claude Desktop profile installed through an elevated write"
     );
-    Ok(())
+    Ok(ProfileInstalled::ok())
 }
 
-fn require_org_plugins_provisioned(elevated: bool) -> std::io::Result<()> {
+fn require_org_plugins_provisioned(elevated: bool) -> std::io::Result<ProfileInstalled> {
     let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
     if elevated {
         crate::install::elevated_job::provision_org_plugins(&org.path, &org.grant_user).map_err(
@@ -179,9 +180,23 @@ fn require_org_plugins_provisioned(elevated: bool) -> std::io::Result<()> {
                 std::io::Error::other(format!("org-plugins provisioning failed: {e}"))
             },
         )?;
-        crate::windows_acl::verify_modify_tree(&org.path)
+        Ok(match crate::windows_acl::verify_modify_tree(&org.path) {
+            Ok(()) => ProfileInstalled::ok(),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    path = %org.path.display(),
+                    "org-plugins provisioned; Modify verification could not run"
+                );
+                ProfileInstalled::with_warning(format!(
+                    "org-plugins provisioned at {} but the Modify check could not run ({e}); \
+                     run `doctor` to confirm the grant",
+                    org.path.display()
+                ))
+            },
+        })
     } else if org.path.is_dir() {
-        Ok(())
+        Ok(ProfileInstalled::ok())
     } else {
         Err(std::io::Error::other(format!(
             "{} is not provisioned; run install --apply as Administrator",

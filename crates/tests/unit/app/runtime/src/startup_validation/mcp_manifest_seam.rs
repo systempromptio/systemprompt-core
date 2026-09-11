@@ -41,6 +41,7 @@ fn deployment(
         env_vars: vec![],
         external_auth: None,
         headers: HashMap::new(),
+        tool_policy: None,
     }
 }
 

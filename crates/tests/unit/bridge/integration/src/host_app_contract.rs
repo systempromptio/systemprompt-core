@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use systemprompt_bridge::gateway::model_view::{effective_surfaces, has_surface_override};
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    HostKind, ProbeEnv, ProfileGenInputs, ProfileRemoval, ProfileState,
+    HostKind, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::services::ApiSurface;
@@ -49,8 +49,8 @@ impl HostApp for BareHost {
         ))
     }
 
-    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
-        Ok(())
+    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+        Ok(ProfileInstalled::ok())
     }
 
     fn install_action_label(&self) -> &'static str {

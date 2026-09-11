@@ -363,6 +363,7 @@ async fn coverage_probe_slug_only_contacts_registered_servers_and_forwards_the_s
             headers: Default::default(),
             display_name: "Present".into(),
             transport: None,
+            tool_policy: Default::default(),
         },
     );
     let result = probe_slug(&endpoint, &registry, "present").await.unwrap();

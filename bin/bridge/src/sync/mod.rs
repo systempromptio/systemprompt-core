@@ -17,7 +17,7 @@ pub use crate::last_sync::{
     LastSyncState, ReplayStateError, last_synced_auto_update_policy, last_synced_enabled_hosts,
     read_last_sync,
 };
-pub use apply::{HostFailure, PLUGIN_INSTALLATION_PREFERENCE};
+pub use apply::{HostFailure, HostWarning, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use summary::SyncSummary;

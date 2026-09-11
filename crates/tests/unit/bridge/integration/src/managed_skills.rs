@@ -13,6 +13,8 @@ use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 
+static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
+    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -128,6 +130,7 @@ fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), 
     let client = stub_client();
     let ctx = HostSyncCtx {
         policy_store: &POLICY_STORE,
+        warnings: &HOST_WARNINGS,
         manifest: m,
         org_plugins_root: sb.org_plugins.as_path(),
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -362,6 +365,7 @@ fn clearing_a_host_removes_the_managed_dirs_and_the_sidecar() {
         let client = stub_client();
         let ctx = HostSyncCtx {
             policy_store: &POLICY_STORE,
+            warnings: &HOST_WARNINGS,
             manifest: &m,
             org_plugins_root: sb.org_plugins.as_path(),
             plugin_mcp_servers: &plugin_mcp_servers,

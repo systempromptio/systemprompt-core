@@ -13,6 +13,7 @@ mod merge;
 
 pub use helper::windows_helper_command;
 pub mod model_picker;
+pub mod permissions;
 mod removal;
 
 use std::fs;

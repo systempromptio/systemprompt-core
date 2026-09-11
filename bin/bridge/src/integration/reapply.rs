@@ -145,7 +145,7 @@ async fn reapply_one(
         Err(e) => return Outcome::Failed(e.to_string()),
     };
     match host.install_profile(&generated.path) {
-        Ok(()) => verify(host, env),
+        Ok(_) => verify(host, env),
         Err(e) if is_declined(&e) => Outcome::Declined,
         Err(e) => Outcome::Failed(e.to_string()),
     }

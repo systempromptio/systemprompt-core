@@ -101,6 +101,9 @@ pub(crate) fn on_sync_finished(
                     failures.join("; ")
                 ));
             }
+            for warning in &summary.host_warnings {
+                app.append_log_warn(format!("[{}] {}", warning.host_id, warning.message));
+            }
             emit::emit_sync_progress(app, "completed", Some(&line));
             structured = Some(summary);
             Ok(json!({ "summary": line }))

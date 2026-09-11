@@ -120,7 +120,7 @@ impl AppStateSnapshot {
             if !sync.host_failures.is_empty() {
                 tones.push(Tone::Err);
             }
-            if !sync.diagnostics.is_empty() {
+            if !sync.diagnostics.is_empty() || !sync.host_warnings.is_empty() {
                 tones.push(Tone::Warn);
             }
         }

@@ -42,7 +42,7 @@ pub(crate) fn policy_summary() -> Vec<String> {
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileRemoval, ProfileState,
+    ProfileInstalled, ProfileRemoval, ProfileState,
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -100,7 +100,7 @@ impl HostApp for ClaudeDesktopHost {
         os::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<()> {
+    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
         os::install_profile(path)
     }
 
@@ -156,7 +156,7 @@ impl HostApp for ClaudeDesktopHost {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-const MSIX_FAMILY: &str = "Claude_pzs8sxrjxfjjc";
+const MSIX_FAMILY: &str = crate::config::paths::CLAUDE_MSIX_FAMILY;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 const MSIX_APP_ID: &str = "Claude";
@@ -189,6 +189,27 @@ fn claude_app_candidates() -> Vec<std::path::PathBuf> {
         out.push(local.join("AnthropicClaude").join("Claude.exe"));
     }
     out
+}
+
+/// Whether Claude Desktop is installed on this machine, judged the same way
+/// the host probe judges it (Start Menu / MSIX package / app bundle).
+#[must_use]
+pub fn is_app_installed() -> bool {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    {
+        let cache = std::sync::Arc::new(crate::probe_cache::StartMenuCache::default());
+        matches!(
+            crate::integration::app_launch::is_installed(
+                &locator(&claude_app_candidates()),
+                &cache
+            ),
+            crate::integration::host_app::AppInstallState::Installed
+        )
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        false
+    }
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

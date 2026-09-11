@@ -37,6 +37,7 @@ fn deployment(endpoint: Option<&str>) -> Deployment {
         env_vars: vec![],
         external_auth: None,
         headers: HashMap::new(),
+        tool_policy: None,
     }
 }
 

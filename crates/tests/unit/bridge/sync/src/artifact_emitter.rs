@@ -107,6 +107,8 @@ fn block_on<F: std::future::Future>(f: F) -> F::Output {
 }
 
 
+static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
+    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -129,6 +131,7 @@ fn stub_ctx<'a>(
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
         policy_store: &POLICY_STORE,
+        warnings: &HOST_WARNINGS,
         manifest: m,
         org_plugins_root: root,
         plugin_mcp_servers: servers,

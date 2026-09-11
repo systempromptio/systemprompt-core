@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod claude_code_settings;
+pub mod desktop_tool_policy;
 pub(crate) mod egress;
 mod error;
 mod inference;
@@ -17,6 +18,7 @@ mod macos_remove;
 pub mod policy;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;
+pub mod tool_catalog;
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]

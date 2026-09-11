@@ -65,6 +65,7 @@ fn services_config_with_server(name: &str) -> ServicesConfig {
             env_vars: vec![],
             external_auth: None,
             headers: Default::default(),
+            tool_policy: None,
         },
     );
     config

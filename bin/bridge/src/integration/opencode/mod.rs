@@ -35,7 +35,7 @@ pub use managed_resources::OpenCodeSync;
 
 use crate::integration::host_app::{
     ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileGenInputs, ProfileRemoval, ProfileState,
+    ProfileGenInputs, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -85,8 +85,8 @@ impl HostApp for OpenCodeHost {
         install::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<()> {
-        install::install_profile(path)
+    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+        install::install_profile(path).map(|()| ProfileInstalled::ok())
     }
 
     fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {

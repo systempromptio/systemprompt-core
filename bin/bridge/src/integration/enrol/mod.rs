@@ -183,7 +183,7 @@ async fn enrol_one(
         Err(e) => return Outcome::Failed(e.to_string()),
     };
     match host.install_profile(&generated.path) {
-        Ok(()) => {
+        Ok(_) => {
             if matches!(host.probe(env).profile_state, ProfileState::Installed) {
                 Outcome::Installed
             } else {

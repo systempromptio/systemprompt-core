@@ -24,6 +24,7 @@ mod bundle;
 pub mod json_io;
 pub mod marketplace;
 mod mcp;
+mod permissions;
 pub mod sidecar;
 
 use std::collections::BTreeMap;
@@ -204,6 +205,7 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     }
     set_enabled(&mirrored, &stale)?;
     sidecar::write(&plugins, &current)?;
+    permissions::apply_tool_permissions(ctx)?;
 
     tracing::info!(
         target: "bridge::claude-code-cli",
@@ -301,6 +303,7 @@ pub(crate) fn clear_install() -> Result<(), ApplyError> {
         purge_marketplace(&plugins, id)?;
     }
     set_enabled(&[], &owned)?;
+    permissions::clear_tool_permissions()?;
     sidecar::remove(&plugins)
 }
 

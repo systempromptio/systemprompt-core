@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 use crate::integration::host_app::{
     GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv, ProfileGenInputs,
-    ProfileState,
+    ProfileInstalled, ProfileState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -58,7 +58,7 @@ impl HostApp for StubHost {
         ))
     }
 
-    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
+    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
         Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "stub host: install not implemented",

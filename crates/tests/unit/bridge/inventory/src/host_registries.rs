@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
-    ProfileGenInputs, ProfileState,
+    ProfileGenInputs, ProfileInstalled, ProfileState,
 };
 use systemprompt_bridge::integration::{find_host_by_id, host_apps};
 use systemprompt_bridge::{host_sync, register_host_app};
@@ -121,8 +121,8 @@ impl HostApp for DummyHost {
             profile_uuid: String::new(),
         })
     }
-    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
-        Ok(())
+    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+        Ok(ProfileInstalled::ok())
     }
     fn install_action_label(&self) -> &'static str {
         "install"
@@ -174,8 +174,8 @@ impl HostApp for ShadowCodexHost {
             profile_uuid: String::new(),
         })
     }
-    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
-        Ok(())
+    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+        Ok(ProfileInstalled::ok())
     }
     fn install_action_label(&self) -> &'static str {
         "install"
@@ -277,8 +277,8 @@ impl HostApp for SuppressedHost {
             profile_uuid: String::new(),
         })
     }
-    fn install_profile(&self, _path: &str) -> std::io::Result<()> {
-        Ok(())
+    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+        Ok(ProfileInstalled::ok())
     }
     fn install_action_label(&self) -> &'static str {
         "install"

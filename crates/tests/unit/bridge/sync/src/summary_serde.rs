@@ -20,6 +20,7 @@ fn summary() -> SyncSummary {
             host_id: "claude-desktop".into(),
             error: "profile write denied by policy".into(),
         }],
+        host_warnings: Vec::new(),
         diagnostics: vec!["a skill is missing from every plugin's skills.include".into()],
     }
 }

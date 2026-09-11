@@ -71,6 +71,7 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
         env_vars: vec![],
         external_auth: None,
         headers: Default::default(),
+        tool_policy: None,
     }
 }
 
@@ -1014,4 +1015,25 @@ fn load_rules_reads_content_strips_frontmatter_and_hashes() {
     );
     assert!(!rule.instructions.contains("title: ignored"));
     assert_eq!(rule.sha256.as_str().len(), 64);
+}
+
+#[test]
+fn load_managed_mcp_servers_allows_every_tool_unless_the_yaml_says_otherwise() {
+    use systemprompt_models::bridge::ids::ToolPolicy;
+    let mut config = ServicesConfig::default();
+    let mut prompting = make_deployment("b", true, Some("/api/v1/mcp/b/mcp"));
+    prompting.tool_policy = Some(ToolPolicy::Prompt);
+    config.mcp_servers.insert(
+        "a".into(),
+        make_deployment("a", true, Some("/api/v1/mcp/a/mcp")),
+    );
+    config.mcp_servers.insert("b".into(), prompting);
+    let servers =
+        load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
+    assert_eq!(servers[0].default_tool_policy(), Some(ToolPolicy::Allow));
+    assert_eq!(
+        servers[0].policy_for_tool("anything"),
+        Some(ToolPolicy::Allow)
+    );
+    assert_eq!(servers[1].default_tool_policy(), Some(ToolPolicy::Prompt));
 }

@@ -5,27 +5,52 @@
 
 use std::path::PathBuf;
 
+/// Package family of the Store (MSIX) build of Claude Desktop. Its
+/// `%LOCALAPPDATA%` is virtualised under `Packages\<family>\LocalCache`.
+pub const CLAUDE_MSIX_FAMILY: &str = "Claude_pzs8sxrjxfjjc";
+
 #[must_use]
 pub fn cowork3p_sessions_root() -> Option<PathBuf> {
-    cowork3p_base().map(|base| base.join("Claude-3p").join("local-agent-mode-sessions"))
+    let candidates = cowork3p_bases();
+    let roots = candidates
+        .iter()
+        .map(|base| base.join("Claude-3p").join("local-agent-mode-sessions"));
+    // Why: the MSIX build writes its data under the package's LocalCache; an
+    // installed-but-never-opened Cowork has neither. Prefer whichever root
+    // exists and fall back to the classic one so callers can still name it.
+    roots
+        .clone()
+        .find(|root| root.is_dir())
+        .or_else(|| roots.into_iter().next())
 }
 
-fn cowork3p_base() -> Option<PathBuf> {
+fn cowork3p_bases() -> Vec<PathBuf> {
     if let Some(base) = crate::basedirs::config_home_override() {
-        return Some(base);
+        return vec![base];
     }
     #[cfg(target_os = "windows")]
     {
-        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+        let Some(local) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) else {
+            return Vec::new();
+        };
+        let msix = local
+            .join("Packages")
+            .join(CLAUDE_MSIX_FAMILY)
+            .join("LocalCache")
+            .join("Local");
+        vec![local, msix]
     }
     #[cfg(target_os = "macos")]
     {
-        crate::basedirs::home_dir().map(|h| h.join("Library").join("Application Support"))
+        crate::basedirs::home_dir()
+            .map(|h| h.join("Library").join("Application Support"))
+            .into_iter()
+            .collect()
     }
     // Why: Cowork has no Linux desktop build.
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        None
+        Vec::new()
     }
 }
 

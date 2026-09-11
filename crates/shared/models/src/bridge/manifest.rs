@@ -244,6 +244,31 @@ pub struct ManagedMcpServer {
     pub tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
 }
 
+impl ManagedMcpServer {
+    /// Key in `tool_policy` that stands for every tool the server exposes.
+    pub const TOOL_POLICY_WILDCARD: &'static str = "*";
+
+    /// The decision for one tool: its own entry, else the wildcard entry,
+    /// else `None` (the client keeps its own default).
+    #[must_use]
+    pub fn policy_for_tool(&self, tool: &str) -> Option<ToolPolicy> {
+        let map = self.tool_policy.as_ref()?;
+        map.iter()
+            .find(|(name, _)| name.as_str() == tool)
+            .or_else(|| {
+                map.iter()
+                    .find(|(name, _)| name.as_str() == Self::TOOL_POLICY_WILDCARD)
+            })
+            .map(|(_, policy)| *policy)
+    }
+
+    /// The wildcard decision alone.
+    #[must_use]
+    pub fn default_tool_policy(&self) -> Option<ToolPolicy> {
+        self.policy_for_tool(Self::TOOL_POLICY_WILDCARD)
+    }
+}
+
 #[derive(Deserialize)]
 struct ManagedMcpServerWire {
     #[serde(default)]

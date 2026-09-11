@@ -27,6 +27,9 @@ pub struct McpServerEntry {
     pub name: String,
     pub url: String,
     pub bearer: String,
+    /// Claude Desktop's per-tool decision: tool name → `allow` / `ask` /
+    /// `blocked`. Empty leaves the app's own default (ask).
+    pub tool_policy: BTreeMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -168,12 +171,16 @@ fn mcp_value(servers: &[McpServerEntry]) -> PolicyValue {
         servers
             .iter()
             .map(|s| {
-                serde_json::json!({
+                let mut entry = serde_json::json!({
                     "name": s.name,
                     "url": s.url,
                     "transport": "http",
                     "headers": { "Authorization": s.bearer },
-                })
+                });
+                if !s.tool_policy.is_empty() {
+                    entry["toolPolicy"] = json_of(&s.tool_policy);
+                }
+                entry
             })
             .collect(),
     ))
@@ -260,6 +267,7 @@ pub fn mcp_entries(
         return Ok(Vec::new());
     }
     let bearer = loopback.bearer()?;
+    let catalog = super::tool_catalog::read();
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
     Ok(slugs
@@ -268,6 +276,12 @@ pub fn mcp_entries(
             name: slug.clone(),
             url: loopback.mcp_url(slug.as_str()),
             bearer: bearer.clone(),
+            tool_policy: registry.get(slug).map_or_else(BTreeMap::new, |upstream| {
+                super::desktop_tool_policy::desktop_tool_policy_map(
+                    upstream,
+                    catalog.get(slug).map_or(&[][..], Vec::as_slice),
+                )
+            }),
         })
         .collect())
 }

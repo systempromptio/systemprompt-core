@@ -139,7 +139,7 @@ pub(crate) fn on_profile_install_requested(
     app.ctx.spawn(async move {
         let result = match tokio::task::spawn_blocking(move || {
             host.install_profile(&path)
-                .map(|()| path_clone)
+                .map(|installed| (path_clone, installed.warnings))
                 .map_err(|e| GuiError::Profile {
                     context: "host install_profile".into(),
                     source: e,
@@ -164,7 +164,7 @@ pub(crate) fn on_profile_install_requested(
 pub(crate) fn on_profile_install_finished(
     app: &mut GuiApp,
     host_id: &HostId,
-    result: Result<String, Arc<GuiError>>,
+    result: Result<(String, Vec<String>), Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
     let action = find_host_by_id(host_id.as_str()).map_or(
@@ -172,9 +172,12 @@ pub(crate) fn on_profile_install_finished(
         crate::integration::host_app::HostApp::install_action_label,
     );
     let bridge_result = match result {
-        Ok(path) => {
+        Ok((path, warnings)) => {
             app.append_log(format!("[{host_id}] {action}: {path}"));
-            Ok(json!({ "path": path }))
+            for warning in &warnings {
+                app.append_log_warn(format!("[{host_id}] {warning}"));
+            }
+            Ok(json!({ "path": path, "warnings": warnings }))
         },
         Err(e) => {
             let (code, line) = match e.as_ref() {

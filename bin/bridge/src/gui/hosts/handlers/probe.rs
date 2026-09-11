@@ -6,6 +6,7 @@
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::{GuiApp, emit};
+use crate::host_sync::HostSync;
 use crate::ids::HostId;
 use crate::integration::{HostAppSnapshot, ProfileState, ProxyHealth};
 use crate::proxy_probe;
@@ -90,12 +91,39 @@ pub(crate) fn on_probe_finished(
     if let Some(line) = log_line {
         app.append_log(line);
     }
+    if cause == ProbeCause::Tick && cowork_session_now_available(app, host_id) {
+        app.append_log(format!(
+            "[{host_id}] Cowork session detected — syncing to enable the org plugins"
+        ));
+        app.proxy
+            .send_event(UiEvent::SyncRequested { reply_to: None });
+    }
     let snap = app.state.snapshot();
     let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
     if app.state.first_run_active() {
         crate::gui::first_run::handlers::on_probe_result(app, host_id, snapshot);
     }
     finish(app, Ok(json!({ "snapshot": value })), reply_to);
+}
+
+/// True once the last sync left a Cowork warning for this host and Cowork's
+/// session directory has since appeared, i.e. the one step the operator was
+/// asked to take has happened and the enable half can run now.
+fn cowork_session_now_available(app: &GuiApp, host_id: &HostId) -> bool {
+    if host_id.as_str() != crate::integration::cowork_plugins::CoworkSync.host_id() {
+        return false;
+    }
+    let snap = app.state.snapshot();
+    if snap.sync_in_flight {
+        return false;
+    }
+    let outstanding = snap.last_sync_report.as_ref().is_some_and(|report| {
+        report
+            .host_warnings
+            .iter()
+            .any(|w| w.host_id == host_id.as_str())
+    });
+    outstanding && crate::integration::cowork_plugins::resolve_target().is_some()
 }
 
 fn state_change_line(

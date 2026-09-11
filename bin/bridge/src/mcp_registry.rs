@@ -23,6 +23,8 @@ pub struct McpUpstream {
     pub headers: BTreeMap<String, String>,
     pub display_name: String,
     pub transport: Option<String>,
+    /// The manifest's per-tool decisions (`*` = every tool), as published.
+    pub tool_policy: BTreeMap<String, systemprompt_models::bridge::ids::ToolPolicy>,
 }
 
 pub type McpRegistry = HashMap<String, McpUpstream>;
@@ -54,6 +56,12 @@ pub(crate) fn publish(slot: &McpRegistrySlot, servers: &[ManagedMcpServer]) {
                 headers: s.headers.clone().unwrap_or_default(),
                 display_name: s.name.as_str().to_owned(),
                 transport: s.transport.clone(),
+                tool_policy: s
+                    .tool_policy
+                    .iter()
+                    .flatten()
+                    .map(|(tool, policy)| (tool.as_str().to_owned(), *policy))
+                    .collect(),
             },
         );
     }
