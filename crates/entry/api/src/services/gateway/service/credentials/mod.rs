@@ -32,6 +32,27 @@ use super::DispatchError;
 pub(super) struct Credential {
     pub(super) value: String,
     pub(super) is_bearer: bool,
+    pub(super) project: Option<String>,
+}
+
+// Why: the endpoint's `{project}` segment is resolved here, from the
+// credential, so the catalog never carries a project id and a secret swapped
+// for another customer's re-targets the endpoint with it. An endpoint that
+// asks for a project but is paired with an API key cannot be served: an API
+// key names no project, and guessing one would send the request somewhere
+// the operator never chose.
+pub fn fill_project(endpoint: &str, project: Option<&str>) -> anyhow::Result<String> {
+    use systemprompt_models::services::providers::PROJECT_PLACEHOLDER;
+    if !endpoint.contains(PROJECT_PLACEHOLDER) {
+        return Ok(endpoint.to_owned());
+    }
+    let Some(project) = project.filter(|p| !p.is_empty()) else {
+        anyhow::bail!(
+            "endpoint '{endpoint}' needs a Google Cloud project but the secret is not a \
+             service-account key (no project_id to fill `{PROJECT_PLACEHOLDER}` from)"
+        );
+    };
+    Ok(endpoint.replace(PROJECT_PLACEHOLDER, project))
 }
 
 pub(super) async fn resolve(provider: &ProviderEntry) -> Result<Credential, DispatchError> {
@@ -67,11 +88,13 @@ pub(super) async fn resolve(provider: &ProviderEntry) -> Result<Credential, Disp
             Ok(Credential {
                 value: token,
                 is_bearer: true,
+                project: Some(key.project_id.clone()),
             })
         },
         None => Ok(Credential {
             value: secret.clone(),
             is_bearer: false,
+            project: None,
         }),
     }
 }

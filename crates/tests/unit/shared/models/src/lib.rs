@@ -89,6 +89,8 @@ mod provider_model_lookup;
 
 #[cfg(test)]
 mod provider_protocol_filter;
+#[cfg(test)]
+mod provider_project_placeholder;
 
 #[cfg(test)]
 mod wire_codec;

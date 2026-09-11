@@ -33,6 +33,11 @@ const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 pub struct ServiceAccountKey {
     pub(super) client_email: String,
     pub(super) private_key: String,
+    // Why: the project the key belongs to is the only project a token minted
+    // from it can address, so it is where a `{project}` endpoint segment is
+    // filled from — never from the catalog, which would name a tenant in a
+    // file that ships with every image.
+    pub project_id: String,
     #[serde(default = "default_token_uri")]
     pub token_uri: String,
 }

@@ -92,7 +92,7 @@ gateway:
 }
 
 fn account(server: &MockServer) -> serde_json::Value {
-    json!({"type":"service_account", "client_email":"gateway@example.invalid", "private_key":test_key(1).to_pkcs8_pem().unwrap(), "token_uri":format!("{}/token", server.uri())})
+    json!({"type":"service_account", "project_id":"gateway-project", "client_email":"gateway@example.invalid", "private_key":test_key(1).to_pkcs8_pem().unwrap(), "token_uri":format!("{}/token", server.uri())})
 }
 
 #[tokio::test]

@@ -26,6 +26,12 @@ pub enum ProviderRegistryError {
         reason: String,
     },
 
+    #[error(
+        "provider registry entry '{provider}' endpoint '{endpoint}' names a Google Cloud project literally; \
+         the project is derived from the service account in its secret — write `projects/{{project}}`"
+    )]
+    LiteralProjectInEndpoint { provider: String, endpoint: String },
+
     #[error("provider registry model id or alias '{id}' is declared more than once")]
     DuplicateModel { id: String },
 

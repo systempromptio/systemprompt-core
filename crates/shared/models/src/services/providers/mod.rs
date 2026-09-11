@@ -196,6 +196,12 @@ impl ProviderRegistry {
                     reason: e.to_string(),
                 },
             )?;
+            if names_a_project_literally(&provider.endpoint) {
+                return Err(ProviderRegistryError::LiteralProjectInEndpoint {
+                    provider: provider.name.as_str().to_owned(),
+                    endpoint: provider.endpoint.clone(),
+                });
+            }
 
             for model in &provider.models {
                 if model.id.as_str().is_empty() {
@@ -219,4 +225,39 @@ impl ProviderRegistry {
         }
         Ok(())
     }
+}
+
+/// The endpoint segment the gateway fills from the credential's own
+/// `project_id` when the secret is a Google service account.
+pub const PROJECT_PLACEHOLDER: &str = "{project}";
+
+// Why: a Google Cloud project id is a tenant identifier, and Vertex reports it
+// verbatim in every IAM error it returns, which the gateway relays to the
+// caller. A catalog that names one literally therefore ships that id to every
+// installation of the image and every client that trips a 403. The id lives in
+// exactly one place, the service-account key, and the endpoint says
+// `{project}` instead.
+#[must_use]
+pub fn names_a_project_literally(endpoint: &str) -> bool {
+    let Ok(url) = url::Url::parse(endpoint) else {
+        return false;
+    };
+    let on_vertex = url.host_str().is_some_and(|host| {
+        host.eq_ignore_ascii_case("aiplatform.googleapis.com")
+            || host
+                .to_ascii_lowercase()
+                .ends_with("-aiplatform.googleapis.com")
+    });
+    if !on_vertex {
+        return false;
+    }
+    let mut segments = url.path_segments().into_iter().flatten();
+    while let Some(segment) = segments.next() {
+        if segment == "projects" {
+            return segments
+                .next()
+                .is_some_and(|id| id != "%7Bproject%7D" && id != PROJECT_PLACEHOLDER);
+        }
+    }
+    false
 }
