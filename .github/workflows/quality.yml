@@ -41,6 +41,12 @@ jobs:
   lint:
     name: Clippy lint baseline
     runs-on: ubuntu-latest
+    # sccache (GitHub Actions cache backend) shares content-hashed objects
+    # across every Linux Rust job in CI and Quality; see ci.yml.
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,16 +64,10 @@ jobs:
               sleep 15
           done
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
-        with:
-          # `just lint` also builds the native bridge test crates offline
-          # (lint-bridge-native-tests), which live in crates/tests.
-          workspaces: |
-            .
-            bin/bridge
-            crates/tests
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: extractions/setup-just@v2
       - run: just lint
+      - run: sccache --show-stats
 
   bridge-native:
     # The bridge's GUI, winproc, and keystore backends are cfg-gated to
@@ -107,6 +107,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,13 +125,10 @@ jobs:
               sleep 15
           done
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            bin/bridge
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo doc --workspace --no-deps --all-features
       - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps
+      - run: sccache --show-stats
 
   source-gates:
     name: Schema / SQL / comment / header / typed-ID linters
@@ -232,6 +232,9 @@ jobs:
     # assertion below is what stops that regressing quietly a second time.
     env:
       RUSTUP_TOOLCHAIN: "1.96.0"
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -247,11 +250,7 @@ jobs:
               sleep 15
           done
       - uses: dtolnay/rust-toolchain@1.96.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            bin/bridge
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Assert the toolchain under test really is the MSRV
         run: |
           want="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
@@ -276,3 +275,14 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
       - uses: extractions/setup-just@v2
       - run: just file-size
+
+  # One stable context for the `main` ruleset (see ci.yml `ci-passed`).
+  quality-passed:
+    name: Quality passed
+    runs-on: ubuntu-latest
+    needs: [bridge-web, lint, bridge-native, docs, source-gates, msrv, file-size]
+    if: always()
+    steps:
+      - run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success")' >/dev/null \
+            || { echo "::error::a required Quality job did not succeed"; echo '${{ toJSON(needs) }}' | jq '.'; exit 1; }

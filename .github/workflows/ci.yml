@@ -25,6 +25,14 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
   SQLX_OFFLINE: "true"
+  # Every Rust job compiles through sccache with the GitHub Actions cache as
+  # its backend. Objects are content-hashed, so a lockfile bump invalidates
+  # only the crates that changed (rust-cache keyed the whole target/ on both
+  # lockfiles and went cold on every bump, x14 shards) and one cache serves
+  # every shard. Incremental artifacts are not cacheable, so they are off.
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   fmt:
@@ -48,8 +56,53 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo build --workspace --locked
+      - run: sccache --show-stats
+
+  # The test tools every shard needs — the schema migrator from crates/tests
+  # and the `systemprompt` CLI the subprocess fixtures spawn — compiled once and
+  # handed to the shards as an artifact. Before this each of the 14 shards
+  # spent ~10 min compiling the migrator for a migration that takes seconds.
+  # The job mirrors the test job's env and cargo-config surgery exactly so its
+  # sccache objects are the ones the shards then hit.
+  test-tools:
+    name: Test tools (prebuilt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUSTFLAGS: ""
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Install system dependencies
+        run: |
+          n=0
+          until sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config; do
+              n=$((n + 1))
+              [ "$n" -lt 3 ] || exit 1
+              sleep 15
+          done
+      - name: Strip [unstable] and [profile.dev] from cargo configs
+        run: python3 scripts/ci-strip-cargo-config.py
+      - run: rustup show
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Build migrator and CLI
+        run: |
+          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
+          cargo build -p systemprompt-cli --bin systemprompt
+          tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+          mkdir -p test-tools
+          cp "$tests_target/debug/systemprompt-test-migrate" target/debug/systemprompt test-tools/
+      - run: sccache --show-stats
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-tools
+          path: test-tools/
+          retention-days: 1
+          if-no-files-found: error
 
   sqlx-check:
     name: SQLx Offline Check
@@ -59,7 +112,7 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Verify offline sqlx cache is current
         run: |
           if [ ! -d .sqlx ] && ! find crates -name .sqlx -type d | grep -q .; then
@@ -67,6 +120,7 @@ jobs:
             exit 1
           fi
       - run: cargo check --workspace --locked
+      - run: sccache --show-stats
 
   test:
     # The test workspace (66 crates, ~12k tests) does not fit one free runner
@@ -81,6 +135,7 @@ jobs:
     name: Test (${{ matrix.group }})
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    needs: test-tools
     strategy:
       fail-fast: false
       matrix:
@@ -90,12 +145,12 @@ jobs:
         group: [shared, infra, domain, app-runtime, app-scheduler, app-generator, entry-api, entry-cli, bridge, integration-api, integration-cli, integration-rest-1, integration-rest-2, edge]
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
-    # Drop debuginfo and incremental artifacts: each shard's compile footprint
-    # is small enough that codegen no longer needs serializing.
+    # Drop debuginfo: each shard's compile footprint is small enough that
+    # codegen no longer needs serializing. Must stay identical to `test-tools`
+    # or the shards miss its sccache objects.
     env:
       RUSTFLAGS: ""
       CARGO_PROFILE_DEV_DEBUG: "0"
-      CARGO_INCREMENTAL: "0"
     services:
       postgres:
         image: postgres:18
@@ -132,43 +187,22 @@ jobs:
           done
 
       - name: Strip [unstable] and [profile.dev] from cargo configs
-        run: |
-          python3 - <<'PY'
-          import re, pathlib
-          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
-              p = pathlib.Path(path)
-              if not p.exists():
-                  continue
-              s = p.read_text()
-              # The committed test config selects the unstable codegen-backend
-              # and forces sccache; the stable CI toolchain has neither.
-              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
-              p.write_text(s)
-          PY
+        run: python3 scripts/ci-strip-cargo-config.py
 
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
-        with:
-          # Per-shard key so shards don't clobber each other's cache.
-          key: ${{ matrix.group }}
-          workspaces: |
-            .
-            crates/tests
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: taiki-e/install-action@nextest
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-tools
+          path: test-tools/
+      - run: chmod +x test-tools/*
 
       - name: Migrate test database
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
-          # Build the migrate tool against the committed .sqlx cache: the schema
-          # it is about to create does not exist yet, so live query verification
-          # of its core-crate dependencies would fail on a cold build cache.
-          SQLX_OFFLINE: "true"
         run: |
-          cargo run \
-            --manifest-path crates/tests/Cargo.toml \
-            -p systemprompt-test-migrate
+          ./test-tools/systemprompt-test-migrate
           # This database dies with the runner, so durability buys nothing and
           # the per-commit flush is pure latency across ~1000 DB-backed tests.
           # Transaction atomicity is unchanged — the batch_atomicity and
@@ -181,4 +215,22 @@ jobs:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           SQLX_OFFLINE: "false"
           NEXTEST_PROFILE: ci
+          # Prebuilt by `test-tools`; the shard script skips its own
+          # `cargo build` of the CLI when this is already set.
+          SYSTEMPROMPT_BIN: ${{ github.workspace }}/test-tools/systemprompt
         run: bash scripts/test-shard.sh "${{ matrix.group }}"
+      - run: sccache --show-stats
+        if: ${{ !cancelled() }}
+
+  # One stable context for the `main` ruleset: it fails unless every gate
+  # above succeeded, so a skipped or cancelled matrix job can never pass as
+  # "not failed". Required checks name this job, never the matrix entries.
+  ci-passed:
+    name: CI passed
+    runs-on: ubuntu-latest
+    needs: [fmt, build, test-tools, sqlx-check, test]
+    if: always()
+    steps:
+      - run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success")' >/dev/null \
+            || { echo "::error::a required CI job did not succeed"; echo '${{ toJSON(needs) }}' | jq '.'; exit 1; }

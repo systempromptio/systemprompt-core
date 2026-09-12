@@ -1743,30 +1743,52 @@ webauthn-admin EMAIL="admin@localhost":
 
 # Run every pre-release gate against a ref (default: the tip of `next`).
 #
-# Every push to `next` already runs these same workflows. This recipe is for
-# gating one specific frozen commit before `just promote` — it dispatches them
-# with an explicit ref, so the runs are pinned to the SHA you are about to
-# promote rather than to whatever `next` points at now. The heavy compile
-# happens on runners rather than this machine.
-gate REF="":
+# Every push to `next` already runs these same workflows on that exact SHA,
+# and a green push run is a gate run: the recipe first looks for completed
+# CI / Quality / Supply Chain runs on the commit and dispatches only what is
+# missing or red. `just gate SHA --force` re-dispatches everything. Dispatched
+# runs carry an explicit ref, so they are pinned to the SHA you are about to
+# promote rather than to whatever `next` points at now. Coverage is not a
+# gate (it measures `main` after the merge) and is not dispatched here.
+gate REF="" FORCE="":
     #!/usr/bin/env bash
     set -euo pipefail
     REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
     REF="{{REF}}"; [ -n "$REF" ] || REF=$(git rev-parse origin/next)
     REF=$(git rev-parse "$REF")
     echo "Gating ${REF:0:9} on $REPO"
-    WFS=(ci.yml quality.yml coverage.yml)
+    WFS=(ci.yml quality.yml)
     [ -f .github/workflows/supply-chain.yml ] && WFS+=(supply-chain.yml)
+    declare -A RUN_ID
+    NEED=()
     for wf in "${WFS[@]}"; do
-        gh workflow run "$wf" --ref "$(git rev-parse --abbrev-ref HEAD)" -f ref="$REF"
+        ID=""
+        if [ "{{FORCE}}" != "--force" ]; then
+            ID=$(gh run list -R "$REPO" --workflow="$wf" --commit "$REF" --status success \
+                    --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+        fi
+        if [ -n "$ID" ]; then
+            RUN_ID[$wf]=$ID
+            printf "  %-18s already green (run %s)\n" "$wf" "$ID"
+        else
+            NEED+=("$wf")
+        fi
+    done
+    for wf in "${NEED[@]}"; do
+        gh workflow run "$wf" -R "$REPO" --ref "$(git rev-parse --abbrev-ref HEAD)" -f ref="$REF"
         echo "  dispatched $wf"
     done
-    echo "Waiting for results (ctrl-c is safe; the runs continue)..."
-    sleep 15
+    if [ "${#NEED[@]}" -gt 0 ]; then
+        echo "Waiting for results (ctrl-c is safe; the runs continue)..."
+        sleep 15
+        for wf in "${NEED[@]}"; do
+            RUN_ID[$wf]=$(gh run list -R "$REPO" --workflow="$wf" --event workflow_dispatch \
+                            --limit 1 --json databaseId --jq '.[0].databaseId')
+        done
+    fi
     FAIL=0
-    for wf in "${WFS[@]}"; do
-        ID=$(gh run list --workflow="$wf" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')
-        gh run watch "$ID" --exit-status >/dev/null 2>&1 && R=pass || { R=FAIL; FAIL=1; }
+    for wf in "${NEED[@]}"; do
+        gh run watch "${RUN_ID[$wf]}" -R "$REPO" --exit-status >/dev/null 2>&1 && R=pass || { R=FAIL; FAIL=1; }
         printf "  %-18s %s\n" "$wf" "$R"
     done
     [ "$FAIL" = 0 ] && echo "All gates green for ${REF:0:9} — 'just promote ${REF:0:9}' to open the release PR." \
@@ -1795,7 +1817,7 @@ promote SHA="":
     if [ -z "$NUM" ]; then
         NUM=$(gh api -X POST "repos/$REPO/pulls" -f title="Release: promote next to main" \
                 -f head=promote -f base=main \
-                -f body="Frozen at $SHA. Gate with 'just gate $SHA' before merging." --jq .number)
+                -f body="Frozen at $SHA. The required checks (CI, Quality, Supply Chain) run on this PR." --jq .number)
     fi
     echo
     echo "Opened https://github.com/$REPO/pull/$NUM"

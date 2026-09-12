@@ -49,3 +49,14 @@ jobs:
         with:
           tool: cargo-audit
       - run: just audit
+
+  # One stable context for the `main` ruleset (see ci.yml `ci-passed`).
+  supply-chain-passed:
+    name: Supply Chain passed
+    runs-on: ubuntu-latest
+    needs: [deny, audit]
+    if: always()
+    steps:
+      - run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success")' >/dev/null \
+            || { echo "::error::a required Supply Chain job did not succeed"; echo '${{ toJSON(needs) }}' | jq '.'; exit 1; }

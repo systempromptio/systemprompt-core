@@ -119,6 +119,8 @@ scripts/*
 # ...except the committed shard runner, the single source of truth shared by CI
 # (.github/workflows/ci.yml) and the local `just test-shard` recipes.
 !scripts/test-shard.sh
+# ...and the cargo-config surgery every compiling CI job applies before sccache.
+!scripts/ci-strip-cargo-config.py
 # ...and the source-gate linters run by CI (.github/workflows/quality.yml) via
 # the `just lint-*` recipes.
 !scripts/lint-schema.sh

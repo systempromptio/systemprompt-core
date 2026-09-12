@@ -52,16 +52,19 @@ a second push supersedes the first run rather than queueing behind it.
 Nothing rewrites your code and nothing promotes to `main` for you. Push to
 `next` as often as you like; releasing is a deliberate act.
 
-**Coverage tracks the released line, not `next`.** `coverage.yml` runs on the
-`promote → main` pull request and again on the merge commit, so the published
-number always describes what was released. It is not on a nightly cron.
+**Coverage is a measurement, not a gate.** `coverage.yml` runs on pushes to
+`main` and `next` only — never on the release PR — and is not a required check.
+The `main` run is the published number for the released commit; the `next` run
+is the erosion signal. The release PR waits on `CI passed`, `Quality passed`
+and `Supply Chain passed` (the aggregate jobs of each gate workflow) alone.
 
 Releasing is three deliberate steps:
 
-1. `just gate [REF]` — dispatches every gate workflow (CI, Quality, Supply
-   Chain) against the ref, defaulting to the tip of `next`, and waits. The push
-   runs already cover `next`; this pins the runs to the exact SHA you are about
-   to promote, which is what `just promote` freezes.
+1. `just gate [REF]` — confirms the gate workflows (CI, Quality, Supply
+   Chain) are green on that exact SHA, defaulting to the tip of `next`. A green
+   push run counts: the recipe dispatches only what is missing or red
+   (`just gate SHA --force` re-dispatches everything). With a green push run
+   this is a read and you promote straight away.
 2. `just promote [SHA]` — freezes that commit on the `promote` ref and **opens**
    the release pull request onto `main`. It does not merge; the gates re-run on
    the PR, and you merge it.
