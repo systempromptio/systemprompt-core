@@ -102,7 +102,7 @@ fn write(root: &Path, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
     let mut nonce = [0u8; 12];
     OsRng.fill_bytes(&mut nonce);
     let encrypted = cipher()?
-        .encrypt(Nonce::from_slice(&nonce), bytes)
+        .encrypt(&Nonce::from(nonce), bytes)
         .map_err(|_| anyhow::anyhow!("Journal encryption failed"))?;
     let temp = root.join(format!("{}.tmp", uuid::Uuid::new_v4()));
     let mut options = OpenOptions::new();
@@ -177,8 +177,9 @@ fn read(path: &Path, cipher: &ChaCha20Poly1305) -> Result<Receipt> {
     );
     let bytes = fs::read(path)?;
     ensure!(bytes.len() >= 12, "Truncated journal receipt");
+    let nonce: [u8; 12] = bytes[..12].try_into()?;
     let plain = cipher
-        .decrypt(Nonce::from_slice(&bytes[..12]), &bytes[12..])
+        .decrypt(&Nonce::from(nonce), &bytes[12..])
         .map_err(|_| anyhow::anyhow!("Journal authentication failed"))?;
     Ok(serde_json::from_slice(&plain)?)
 }
