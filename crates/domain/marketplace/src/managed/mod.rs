@@ -14,6 +14,7 @@ mod import;
 mod manifest;
 mod provenance;
 mod repository;
+mod text;
 mod tree;
 
 pub use assets::{AssetDigest, AssetFile, RevisionFiles};
@@ -25,4 +26,5 @@ pub use repository::{
     ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,
     RevisionSummary, TextCandidate,
 };
+pub use text::normalize_form_text;
 pub use tree::{CapturedSkills, capture_skills};
