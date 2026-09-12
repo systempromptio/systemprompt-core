@@ -204,7 +204,11 @@ fn configured_regex_and_structured_field_patterns_match_without_vendor_knowledge
         scanner.detect(&structured).unwrap().pattern.id,
         "deployment-secret"
     );
-    assert!(scanner.detect(&args(json!({"note": "opaque-value"}))).is_none());
+    assert!(
+        scanner
+            .detect(&args(json!({"note": "opaque-value"})))
+            .is_none()
+    );
 }
 
 #[test]
@@ -213,7 +217,13 @@ fn engine_evaluation_and_exposed_scanner_share_one_catalog() {
     let engine = engine(yaml);
     let input = GovernedInput::prompt_text("XSHARED-1234".to_owned());
     assert_eq!(
-        engine.secret_scanner().unwrap().detect(&input).unwrap().pattern.id,
+        engine
+            .secret_scanner()
+            .unwrap()
+            .detect(&input)
+            .unwrap()
+            .pattern
+            .id,
         "shared-key"
     );
     let call = Call::new("u-shared-catalog");
@@ -355,7 +365,9 @@ fn a_mistyped_entropy_tunable_falls_back_to_the_default_loudly() {
 
 #[test]
 fn secret_scan_denies_a_credential_in_tool_arguments() {
-    let e = engine("governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: github-token-classic\n          name: GitHub Token\n          regex: '\\bghp_[A-Za-z0-9]{36,}'\n");
+    let e = engine(
+        "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: github-token-classic\n          name: GitHub Token\n          regex: '\\bghp_[A-Za-z0-9]{36,}'\n",
+    );
     let call = Call::new("u-secret");
     let input = args(json!({ "content": "token ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789" }));
     let evaluation = e.evaluate(&call.ctx(&tool("write_note"), AccessScope::User, &input));

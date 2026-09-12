@@ -1,8 +1,6 @@
 use systemprompt_identifiers::{CallId, SessionId, UserId};
 use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::secrets::{
-    REDACTION_MARKER, SecretScanner, redact_spans,
-};
+use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretScanner, redact_spans};
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
     AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernedInput,
