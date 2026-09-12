@@ -208,6 +208,25 @@ fn configured_regex_and_structured_field_patterns_match_without_vendor_knowledge
 }
 
 #[test]
+fn engine_evaluation_and_exposed_scanner_share_one_catalog() {
+    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: shared-key\n          name: Shared Key\n          regex: 'XSHARED-[0-9]+'\n";
+    let engine = engine(yaml);
+    let input = GovernedInput::prompt_text("XSHARED-1234".to_owned());
+    assert_eq!(
+        engine.secret_scanner().unwrap().detect(&input).unwrap().pattern.id,
+        "shared-key"
+    );
+    let call = Call::new("u-shared-catalog");
+    let evaluation = engine.evaluate(&call.ctx(&tool("write_note"), AccessScope::User, &input));
+    assert!(matches!(
+        evaluation.decision,
+        Decision::Deny {
+            reason: DenyReason::SecretLeak { ref pattern_id, .. }
+        } if pattern_id.as_str() == "shared-key"
+    ));
+}
+
+#[test]
 fn prose_fragments_and_benign_urls_do_not_match() {
     for text in [
         "keys start with sk-ant- and AKIA is the AWS marker",

@@ -17,6 +17,13 @@ fn defaults_declare_the_four_builtins_in_order() {
 }
 
 #[test]
+fn defaults_have_no_vendor_catalog() {
+    let cfg = GovernanceConfig::defaults();
+    let engine = systemprompt_security::policy::GovernanceEngine::from_config(&cfg).unwrap();
+    assert_eq!(engine.secret_scanner().unwrap().pattern_count(), 0);
+}
+
+#[test]
 fn the_master_switch_parses_and_defaults_to_on() {
     let off = GovernanceConfig::parse(
         "governance:\n  enabled: false\n  policies:\n    - id: secret_scan\n",
