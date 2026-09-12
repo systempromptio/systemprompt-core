@@ -7,6 +7,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod assets;
+mod bundle;
+pub use bundle::RevisionBundle;
 mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
 mod error;
