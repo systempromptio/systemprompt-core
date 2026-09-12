@@ -15,8 +15,8 @@ use systemprompt_security::policy::{
     AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext,
 };
 
-pub(super) const KEY: &str = "AKIAIOSFODNN7EXAMPLE";
-pub(super) const POLICY: &str = "governance:\n  policies:\n    - id: secret_scan\n";
+pub(super) const KEY: &str = "XRECOVERY-1234567890";
+pub(super) const POLICY: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n";
 
 pub(super) fn engine(yaml: &str) -> GovernanceEngine {
     GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
@@ -147,7 +147,7 @@ fn disabled_and_warn_modes_leave_requests_unchanged() {
     for config in [
         "governance:\n  enabled: false\n  policies:\n    - id: secret_scan\n",
         "governance:\n  policies:\n    - id: secret_scan\n      enabled: false\n",
-        "governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n",
+        "governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n",
     ] {
         let mut wire = body(json!({"system":KEY}));
         let original = wire.bytes.clone();
@@ -161,7 +161,7 @@ fn disabled_and_warn_modes_leave_requests_unchanged() {
 #[test]
 fn custom_prefix_removes_whole_value_and_respects_configured_policy_order() {
     let engine = engine(
-        "governance:\n  policies:\n    - id: rate_limit\n      requests_per_window: 1\n    - id: secret_scan\n      extra_patterns:\n        - name: Internal Credential\n          prefix: PRIVATE_\n",
+        "governance:\n  policies:\n    - id: rate_limit\n      requests_per_window: 1\n    - id: secret_scan\n      patterns:\n        - id: internal-credential\n          name: Internal Credential\n          regex: 'PRIVATE_[A-Za-z]+'\n          redact_whole_value: true\n",
     );
     let mut wire = body(json!({"system":"Use PRIVATE_sensitive here"}));
     let result = govern(&engine, &mut CanonicalRequest::default(), &mut wire);
@@ -200,7 +200,7 @@ fn secret_in_middle_of_large_history_is_removed_without_clipping() {
 #[test]
 fn failed_reverification_does_not_commit_a_replacement() {
     let engine = engine(
-        "governance:\n  policies:\n    - id: secret_scan\n      extra_patterns:\n        - name: Forbidden marker\n          prefix: REDACTED_BY_GOVERNANCE\n",
+        "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n        - id: forbidden-marker\n          name: Forbidden marker\n          regex: 'REDACTED_BY_GOVERNANCE'\n",
     );
     let mut wire = body(json!({"system":KEY}));
     let original = wire.bytes.clone();

@@ -46,7 +46,7 @@ Requires PostgreSQL 18+ at runtime.
 Governed calls evaluate the configured policy chain before dispatch. Built-in policies include:
 
 1. **Scope check** — RBAC evaluation against principal categories (admin, user, a2a, mcp, service, anonymous) with extension-provided attributes and per-entity allow/deny rules
-2. **Secret scan** — credential patterns detect API keys, tokens, passwords, private keys and connection strings on supported scan surfaces; response handling depends on the integration
+2. **Secret scan** — installation-configured credential patterns detect API keys, tokens, passwords, private keys and connection strings on supported scan surfaces; response handling depends on the integration
 3. **Blocklist** — explicit deny rules for specific actions, tools, or content patterns
 4. **Rate limit** — per-agent, per-tool, per-department quotas with configurable windows
 

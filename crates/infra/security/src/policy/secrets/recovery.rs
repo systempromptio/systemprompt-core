@@ -1,12 +1,5 @@
 //! Located secret findings for repairing provider-bound prompt text.
 //!
-//! [`secret_findings`] reports every credential the scanner would deny on, as
-//! byte spans into the governed strings, and [`redact_spans`] applies them.
-//! A finding never carries the credential itself, so the list is safe to log
-//! and to render into a deny message. Collection stops one past
-//! [`MAX_RECOVERY_FINDINGS`]: a prompt with more credentials than that is
-//! not repaired, and the caller only needs to know the cap was exceeded.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,8 +8,8 @@ use std::ops::Range;
 use systemprompt_identifiers::SecretPatternId;
 
 use super::super::GovernedInput;
-use super::patterns::HIGH_ENTROPY_PATTERN;
-use super::{COMPILED, EntropyConfig, SECRET_PATTERNS, SignatureExemptions};
+use super::patterns::{HIGH_ENTROPY_PATTERN_ID, field_matches};
+use super::{SecretScanner, SignatureExemptions, selected_match};
 
 pub const REDACTION_MARKER: &str = "[REDACTED_BY_GOVERNANCE]";
 pub const MAX_RECOVERY_FINDINGS: usize = 4096;
@@ -27,8 +20,7 @@ pub struct SecretSource {
     pub part_index: usize,
 }
 
-/// Credential-free match metadata; `span` uses UTF-8 byte offsets within its
-/// source.
+/// Credential-free match metadata with UTF-8 byte offsets into its source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SecretFinding {
     pub source: SecretSource,
@@ -36,8 +28,10 @@ pub struct SecretFinding {
     pub pattern_id: SecretPatternId,
 }
 
-#[must_use]
-pub fn secret_findings(input: &GovernedInput, entropy: &EntropyConfig) -> Vec<SecretFinding> {
+pub(super) fn secret_findings(
+    scanner: &SecretScanner,
+    input: &GovernedInput,
+) -> Vec<SecretFinding> {
     let strings = input.strings();
     let exemptions = SignatureExemptions::from_strings(&strings);
     strings
@@ -46,39 +40,41 @@ pub fn secret_findings(input: &GovernedInput, entropy: &EntropyConfig) -> Vec<Se
         .flat_map(|(part_index, found)| {
             let source = SecretSource { part_index };
             let value = found.value;
-            let patterns = COMPILED.iter().flat_map(move |(index, regex)| {
-                let pattern = &SECRET_PATTERNS[*index];
-                regex.captures_iter(value).filter_map(move |caps| {
-                    let hit = caps.name("secret").or_else(|| caps.get(0))?;
-                    Some(SecretFinding {
-                        source,
-                        span: if pattern.redact_whole_value {
-                            0..value.len()
-                        } else {
-                            hit.range()
-                        },
-                        pattern_id: SecretPatternId::new(pattern.id),
+            let patterns = scanner.patterns.iter().flat_map(move |pattern| {
+                if !field_matches(&found.path, pattern.definition.field.as_deref()) {
+                    return Vec::new().into_iter();
+                }
+                pattern
+                    .regex
+                    .captures_iter(value)
+                    .filter_map(move |captures| {
+                        let matched = selected_match(pattern, &captures)?;
+                        Some(SecretFinding {
+                            source,
+                            span: if pattern.definition.redact_whole_value {
+                                0..value.len()
+                            } else {
+                                matched.range()
+                            },
+                            pattern_id: pattern.definition.id.clone(),
+                        })
                     })
-                })
+                    .collect::<Vec<_>>()
+                    .into_iter()
             });
             let tokens = (!exemptions.exempts_entropy(&found.path))
                 .then(|| {
-                    super::entropy::high_entropy_spans(value, entropy).map(move |(span, _)| {
-                        SecretFinding {
+                    super::entropy::high_entropy_spans(value, &scanner.entropy).map(
+                        move |(span, _)| SecretFinding {
                             source,
                             span,
-                            pattern_id: SecretPatternId::new(HIGH_ENTROPY_PATTERN.id),
-                        }
-                    })
+                            pattern_id: SecretPatternId::new(HIGH_ENTROPY_PATTERN_ID),
+                        },
+                    )
                 })
                 .into_iter()
                 .flatten();
-            let assigned = super::aws_value_at(value, &found.path).then(|| SecretFinding {
-                source,
-                span: 0..value.len(),
-                pattern_id: SecretPatternId::new("aws-secret-key"),
-            });
-            patterns.chain(assigned).chain(tokens)
+            patterns.chain(tokens)
         })
         .take(MAX_RECOVERY_FINDINGS + 1)
         .collect()

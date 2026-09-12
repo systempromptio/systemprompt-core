@@ -12,7 +12,9 @@
 //! that failed closed on a config typo would block every tool call.
 //! [`GovernanceConfig::parse`] is the strict form over a string.
 //!
-//! Each policy also carries a [`PolicyMode`]. `enforce` is the default and
+//! Each policy also carries a [`PolicyMode`]. A declared policy without a mode
+//! defaults to `enforce`, while the vendor-neutral fallback chain is explicitly
+//! warn-only. `enforce`
 //! halts the chain on a deny; `warn` records the identical finding and lets
 //! the call through, so tunables can be calibrated against real traffic
 //! instead of guesses. A top-level `governance.mode` sets the default for
@@ -21,10 +23,8 @@
 //! would block traffic an operator believed they had unblocked, and reading it
 //! as `warn` would disable enforcement nobody asked to disable.
 //!
-//! Note the fallback direction: defaults enable every policy, so a file that
-//! cannot be read yields *more* enforcement than it declared, never less.
-//! Governance cannot be disabled by deleting or breaking this file — only by
-//! `governance.enabled: false` or per-policy `enabled: false`.
+//! The fallback chain runs every policy in warn mode. Its secret scanner has no
+//! signatures because credential applicability belongs to the installation.
 //!
 //! Path resolution is the caller's concern: core takes a path, extensions
 //! resolve it from their profile (`<services>/governance/config.yaml`).
@@ -137,13 +137,13 @@ impl GovernanceConfig {
             .map(|id| PolicyConfig {
                 id: id.to_owned(),
                 enabled: true,
-                mode: PolicyMode::Enforce,
+                mode: PolicyMode::Warn,
                 params: YamlValue::Null,
             })
             .collect();
         Self {
             enabled: true,
-            mode: PolicyMode::Enforce,
+            mode: PolicyMode::Warn,
             policies,
         }
     }
@@ -207,8 +207,7 @@ impl GovernanceConfig {
             Ok(None) => {
                 tracing::warn!(
                     path = %path.display(),
-                    "governance config not found; falling back to the built-in defaults, \
-                     which enable every policy"
+                    "governance config not found; falling back to the vendor-neutral warn-only chain"
                 );
                 Self::defaults()
             },
@@ -216,8 +215,7 @@ impl GovernanceConfig {
                 tracing::error!(
                     path = %path.display(),
                     %error,
-                    "governance config rejected; falling back to the built-in defaults, \
-                     which enable every policy and may not be what this file asked for"
+                    "governance config rejected; falling back to the vendor-neutral warn-only chain"
                 );
                 Self::defaults()
             },

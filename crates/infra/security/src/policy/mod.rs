@@ -52,6 +52,7 @@ pub use governed::{
 };
 pub use registry::{PolicyFactory, PolicyRegistration};
 pub use secrets::{
-    EntropyConfig, SignatureExemptions, detect_secrets, detect_secrets_with, scan_str_for_secret,
+    EntropyConfig, SecretPattern, SecretPatternError, SecretScanner, SignatureExemptions,
+    detect_secrets, detect_secrets_with, scan_str_for_secret,
 };
 pub use types::{AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation};

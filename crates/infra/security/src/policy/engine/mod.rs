@@ -38,7 +38,7 @@ use super::builtin::SECRET_SCAN_ID;
 use super::config::{GovernanceConfig, PolicyConfig, PolicyMode};
 use super::governed::GovernedInput;
 use super::registry::{PolicyFactory, PolicyRegistration};
-use super::secrets::SecretFinding;
+use super::secrets::{SecretFinding, SecretPatternError, SecretScanner};
 use super::types::{GovernancePolicy, PolicyContext};
 use crate::authz::types::Decision;
 
@@ -56,6 +56,12 @@ pub enum GovernanceEngineError {
         "governance config names policy `{id}`, but no implementation is linked into this binary"
     )]
     UnknownPolicyId { id: String },
+    #[error("governance policy `{id}` has invalid configuration: {source}")]
+    InvalidPolicyConfiguration {
+        id: String,
+        #[source]
+        source: SecretPatternError,
+    },
 }
 
 struct ChainEntry {
@@ -112,6 +118,14 @@ impl GovernanceEngine {
             let factory = factories
                 .get(cfg.id.as_str())
                 .ok_or_else(|| GovernanceEngineError::UnknownPolicyId { id: cfg.id.clone() })?;
+            if cfg.id == SECRET_SCAN_ID {
+                SecretScanner::from_policy_yaml(&cfg.params).map_err(|source| {
+                    GovernanceEngineError::InvalidPolicyConfiguration {
+                        id: cfg.id.clone(),
+                        source,
+                    }
+                })?;
+            }
             entries.push(ChainEntry {
                 config: cfg.clone(),
                 instance: factory(&cfg.params),
@@ -146,18 +160,12 @@ impl GovernanceEngine {
             })
     }
 
-    pub fn secret_pattern_exclusions(&self) -> Vec<systemprompt_identifiers::SecretPatternId> {
+    #[must_use]
+    pub fn secret_scanner(&self) -> Option<&SecretScanner> {
         self.entries
             .iter()
             .find(|entry| entry.config.id == SECRET_SCAN_ID)
-            .map_or_else(Vec::new, |entry| entry.instance.secret_pattern_exclusions())
-    }
-
-    pub fn secret_entropy_config(&self) -> Option<super::secrets::EntropyConfig> {
-        self.entries
-            .iter()
-            .find(|entry| entry.config.id == SECRET_SCAN_ID)
-            .and_then(|entry| entry.instance.secret_entropy_config())
+            .and_then(|entry| entry.instance.secret_scanner())
     }
 
     pub fn policies(&self) -> impl Iterator<Item = (&PolicyConfig, &dyn GovernancePolicy)> {

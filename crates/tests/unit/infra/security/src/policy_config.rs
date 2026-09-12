@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use systemprompt_security::policy::{GovernanceConfig, GovernanceConfigError};
+use systemprompt_security::policy::{GovernanceConfig, GovernanceConfigError, PolicyMode};
 
 #[test]
 fn defaults_declare_the_four_builtins_in_order() {
@@ -11,6 +11,8 @@ fn defaults_declare_the_four_builtins_in_order() {
         ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
     );
     assert!(cfg.policies.iter().all(|p| p.enabled));
+    assert!(cfg.policies.iter().all(|p| p.mode == PolicyMode::Warn));
+    assert_eq!(cfg.mode, PolicyMode::Warn);
     assert!(cfg.enabled);
 }
 

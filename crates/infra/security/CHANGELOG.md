@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking:** `secret_scan.patterns` is the complete installation-owned credential catalog. Each entry declares `id`, `name`, `regex`, optional `secret_capture`, optional structured-leaf `field`, and `redact_whole_value`; there is no runtime vendor table, `extra_patterns`, or `disabled_patterns`. Invalid catalogs fail `GovernanceEngine` construction. The engine exposes its compiled `SecretScanner` so ingress evaluation, response scanning, and recovery share one catalog. Core's missing-config chain is vendor-neutral and warn-only; entropy remains observation-only.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

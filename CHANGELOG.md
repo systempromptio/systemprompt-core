@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Governance:** `secret_scan` has no built-in credential signatures. Installations declare `patterns` entries with stable `id`, display `name`, `regex`, optional named `secret_capture`, optional structured-leaf `field`, and `redact_whole_value`. Pattern absence means disabled; `extra_patterns` and `disabled_patterns` are removed. Duplicate ids, invalid or empty-matching regexes, missing named captures, and field rules without whole-value recovery now fail governance-engine startup. `GovernanceEngine::secret_scanner` exposes the one compiled catalog used by ingress, response scanning, and prompt recovery. The missing-config fallback remains enabled but is vendor-neutral and warn-only.
 - **Config:** three process-environment readers are gone in favour of the profile and the secrets document: `gateway.bridge_releases.token_env` is renamed `token_secret` and names a key in the secrets document; the MCP credential-broker secret is read from `secrets.custom["MCP_CREDENTIAL_BROKER_SECRET"]` (injected into `fetch_external_bearer`); `PGCA_CERT_PATH` is dropped — name a private CA with `?sslrootcert=` in the database URL. `config::Environment` / `config::VerbosityLevel` (`SYSTEMPROMPT_ENV`, `SYSTEMPROMPT_QUIET|VERBOSE|DEBUG|LOG_LEVEL`) are removed; the profile's `runtime.environment` / `runtime.log_level` and the CLI flags are the only inputs. With `secrets.source: env`, a custom key must be listed in `SYSTEMPROMPT_CUSTOM_SECRETS`.
 
 ### Changed

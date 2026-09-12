@@ -1,9 +1,5 @@
-//! `secret_scan`: refuse governed input containing a plaintext credential
-//! matching one of the built-in patterns. That input is a tool call's
-//! arguments or, for a prompt submission, the prompt itself — a key pasted
-//! into the chat reaches the model exactly as one passed as a tool argument
-//! would. The pattern list ships with the binary; per-deployment additions go
-//! in the governance config under `policies[id=secret_scan].extra_patterns`.
+//! `secret_scan`: evaluate governed input with the installation's configured
+//! credential catalog.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,31 +12,19 @@ use systemprompt_identifiers::{PolicyId, SecretPatternId};
 
 use super::super::governed::GovernedInput;
 use super::super::registry::PolicyRegistration;
-use super::super::secrets::{
-    EntropyConfig, MAX_RECOVERY_FINDINGS, SecretFinding, SecretSource,
-    detect_secrets_with_exclusions, secret_findings,
-};
+use super::super::secrets::{EntropyConfig, MAX_RECOVERY_FINDINGS, SecretFinding, SecretScanner};
 use super::super::types::{GovernancePolicy, PolicyContext, SecretLocation};
 use super::SECRET_SCAN_ID as ID;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
-#[derive(Debug, Clone)]
-struct ExtraPattern {
-    id: String,
-    name: String,
-    prefix: String,
-}
-
 #[derive(Debug)]
 struct SecretScan {
-    extra_patterns: Vec<ExtraPattern>,
-    entropy: EntropyConfig,
-    disabled_patterns: Vec<SecretPatternId>,
+    scanner: SecretScanner,
 }
 
 const ENTROPY_KEYS: [&str; 4] = ["enabled", "min_len", "threshold", "allowlist"];
 
-fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
+pub(crate) fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
     let defaults = EntropyConfig::default();
     let Some(block) = v.get("entropy") else {
         return defaults;
@@ -134,48 +118,9 @@ fn report_entropy_block_typos(block: &YamlValue) {
 
 impl SecretScan {
     fn from_yaml(v: &YamlValue) -> Self {
-        let extras = v
-            .get("extra_patterns")
-            .and_then(|s| s.as_sequence())
-            .map(|seq| {
-                let mut out: Vec<ExtraPattern> = Vec::new();
-                for entry in seq {
-                    let Some(name) = entry.get("name").and_then(|n| n.as_str()) else {
-                        continue;
-                    };
-                    let Some(prefix) = entry.get("prefix").and_then(|n| n.as_str()) else {
-                        continue;
-                    };
-                    let id = slugify(name);
-                    if out.iter().any(|p| p.id == id) {
-                        tracing::error!(
-                            extra_pattern_name = %name,
-                            extra_pattern_id = %id,
-                            "secret_scan: duplicate extra_pattern id derived from name; \
-                             keeping first occurrence and skipping the duplicate"
-                        );
-                        continue;
-                    }
-                    out.push(ExtraPattern {
-                        id,
-                        name: name.to_owned(),
-                        prefix: prefix.to_owned(),
-                    });
-                }
-                out
-            })
-            .unwrap_or_default();
         Self {
-            extra_patterns: extras,
-            entropy: entropy_from_yaml(v),
-            disabled_patterns: v
-                .get("disabled_patterns")
-                .and_then(YamlValue::as_sequence)
-                .into_iter()
-                .flatten()
-                .filter_map(YamlValue::as_str)
-                .map(SecretPatternId::new)
-                .collect(),
+            scanner: SecretScanner::from_policy_yaml(v)
+                .expect("secret scanner configuration was validated by GovernanceEngine"),
         }
     }
 }
@@ -188,63 +133,28 @@ impl GovernancePolicy for SecretScan {
         "Secret Scan"
     }
     fn description(&self) -> &'static str {
-        "Block a tool call or submitted prompt containing an AWS key, GitHub PAT, \
-         PEM block, connection string, or other plaintext credential pattern."
+        "Detect configured plaintext credential signatures in tool calls and submitted prompts."
     }
     fn prompt_secret_findings(&self, input: &GovernedInput) -> Option<Vec<SecretFinding>> {
-        let mut findings = secret_findings(input, &self.entropy);
-        findings.retain(|finding| {
-            finding.pattern_id.as_str() != "high-entropy-token"
-                && !self.disabled_patterns.contains(&finding.pattern_id)
-        });
-        let strings = input.strings();
-        let custom = strings.iter().enumerate().flat_map(|(part_index, found)| {
-            self.extra_patterns
-                .iter()
-                .filter(|extra| found.value.contains(&extra.prefix))
-                .map(move |extra| SecretFinding {
-                    source: SecretSource { part_index },
-                    span: 0..found.value.len(),
-                    pattern_id: SecretPatternId::new(extra.id.clone()),
-                })
-        });
-        findings.extend(custom);
+        let mut findings = self.scanner.findings(input);
+        findings.retain(|finding| finding.pattern_id.as_str() != "high-entropy-token");
         findings.truncate(MAX_RECOVERY_FINDINGS + 1);
         Some(findings)
     }
-    fn secret_pattern_exclusions(&self) -> Vec<SecretPatternId> {
-        self.disabled_patterns.clone()
-    }
-    fn secret_entropy_config(&self) -> Option<EntropyConfig> {
-        Some(self.entropy.clone())
+    fn secret_scanner(&self) -> Option<&SecretScanner> {
+        Some(&self.scanner)
     }
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         let kind = ctx.input.location_kind();
-        let hit = detect_secrets_with_exclusions(ctx.input, &self.entropy, &self.disabled_patterns);
-        if let Some(hit) = hit
-            .as_ref()
-            .filter(|hit| hit.pattern.id != "high-entropy-token")
-        {
+        let hit = self.scanner.detect(ctx.input);
+        if let Some(hit) = hit.as_ref().filter(|hit| !hit.observation) {
             return Decision::Deny {
                 reason: DenyReason::SecretLeak {
-                    pattern_id: SecretPatternId::new(hit.pattern.id),
-                    pattern_name: Cow::Borrowed(hit.pattern.name),
+                    pattern_id: SecretPatternId::new(hit.pattern.id.clone()),
+                    pattern_name: Cow::Owned(hit.pattern.name.clone()),
                     location: SecretLocation::new(kind, hit.path.clone(), hit.redacted.clone()),
                 },
             };
-        }
-        for found in ctx.input.strings() {
-            for extra in &self.extra_patterns {
-                if found.value.contains(extra.prefix.as_str()) {
-                    return Decision::Deny {
-                        reason: DenyReason::SecretLeak {
-                            pattern_id: SecretPatternId::new(extra.id.clone()),
-                            pattern_name: Cow::Owned(extra.name.clone()),
-                            location: SecretLocation::new(kind, found.path, "custom_pattern"),
-                        },
-                    };
-                }
-            }
         }
         Decision::Allow {
             matched_by: MatchedBy::PolicyAllow {
@@ -261,35 +171,6 @@ impl GovernancePolicy for SecretScan {
             },
         }
     }
-}
-
-fn slugify(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut last_was_dash = false;
-    for ch in input.chars() {
-        let mapped = if ch.is_ascii_alphanumeric() {
-            Some(ch.to_ascii_lowercase())
-        } else if ch.is_whitespace() || matches!(ch, '_' | '-' | '/' | '(' | ')' | '.') {
-            Some('-')
-        } else {
-            None
-        };
-        if let Some(c) = mapped {
-            if c == '-' {
-                if !last_was_dash && !out.is_empty() {
-                    out.push('-');
-                    last_was_dash = true;
-                }
-            } else {
-                out.push(c);
-                last_was_dash = false;
-            }
-        }
-    }
-    while out.ends_with('-') {
-        out.pop();
-    }
-    out
 }
 
 inventory::submit! {
