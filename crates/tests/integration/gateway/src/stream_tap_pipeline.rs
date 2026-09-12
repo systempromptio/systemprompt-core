@@ -310,7 +310,10 @@ async fn tap_dropped_before_polling_fails_audit_as_client_disconnected() {
 
     let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
     assert_eq!(status, "failed");
-    assert_eq!(error.as_deref(), Some("client disconnected before stop event"));
+    assert_eq!(
+        error.as_deref(),
+        Some("client disconnected before stop event")
+    );
 }
 
 #[tokio::test]

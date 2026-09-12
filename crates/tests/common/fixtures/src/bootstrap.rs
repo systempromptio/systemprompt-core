@@ -298,7 +298,10 @@ fn install_subprocess_env(database_url: &str) {
         // Provider fixtures add their own secret names; journal encryption is
         // still required for every fixture that admits a gateway request.
         let mut custom = env::var("SYSTEMPROMPT_CUSTOM_SECRETS").unwrap_or_default();
-        if !custom.split(',').any(|name| name == "encryption_master_key") {
+        if !custom
+            .split(',')
+            .any(|name| name == "encryption_master_key")
+        {
             custom.push_str(",encryption_master_key");
             env::set_var("SYSTEMPROMPT_CUSTOM_SECRETS", custom);
         }
