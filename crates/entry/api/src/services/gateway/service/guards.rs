@@ -10,8 +10,7 @@ use systemprompt_models::services::QuotaFaultMode;
 
 use super::super::policy::GatewayPolicySpec;
 use super::super::protocol::canonical::CanonicalRequest;
-use super::super::quota;
-use super::super::{GatewayAudit, GatewayRepositories};
+use super::super::{GatewayAudit, GatewayRepositories, quota};
 use super::resolve::ResolvedUpstream;
 use super::stages::record_quota_warning;
 use super::{DispatchError, GuardForbidden, GuardUnavailable, QuotaExceeded};

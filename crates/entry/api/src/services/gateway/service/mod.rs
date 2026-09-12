@@ -11,8 +11,8 @@
 pub mod abandon;
 pub mod credentials;
 mod error;
-mod guards;
 pub mod finalize;
+mod guards;
 mod pricing;
 pub mod resolve;
 pub mod stages;
@@ -37,9 +37,7 @@ use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::pricing::{dispatch_pricing, trace_dispatch};
 use self::resolve::{ResolvedUpstream, resolve_upstream};
-use self::stages::{
-    GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay,
-};
+use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::policy::{GatewayPolicySpec, PolicyResolver};
 use super::protocol::canonical::CanonicalRequest;
