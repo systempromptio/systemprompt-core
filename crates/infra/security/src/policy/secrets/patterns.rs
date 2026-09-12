@@ -51,7 +51,7 @@ pub enum SecretPatternError {
     UnsafeFieldRecovery { id: SecretPatternId },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct CompiledSecretPattern {
     pub definition: SecretPattern,
     pub regex: Regex,

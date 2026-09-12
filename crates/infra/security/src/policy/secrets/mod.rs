@@ -30,7 +30,7 @@ pub use recovery::{
 pub use signatures::SignatureExemptions;
 
 /// A compiled installation-owned credential catalog and entropy configuration.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SecretScanner {
     patterns: Vec<CompiledSecretPattern>,
     entropy: EntropyConfig,
