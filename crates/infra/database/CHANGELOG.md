@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-12
+
+### Removed
+
+- `PostgresProvider` no longer reads `PGCA_CERT_PATH` to install a TLS root certificate. The variable was undocumented and set by nothing; a private CA belongs in the database URL (`?sslrootcert=/path/ca.pem`), which sqlx honours.
+
 ## [0.48.0] - 2026-09-08
 
 ### Changed

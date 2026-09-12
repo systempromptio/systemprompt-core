@@ -47,7 +47,7 @@ fn build_env_config_redacts_secrets_and_handles_missing_paths() {
         env.database.database_url,
         "postgres://[REDACTED]@localhost:5432/cov"
     );
-    assert!(env.systemprompt.services_path.is_none());
+    assert!(env.systemprompt.services.is_none());
     assert!(env.paths.system_path.is_empty());
     assert_eq!(env.core.port, config.port);
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-12
+
+### Breaking
+
+- **Breaking:** `fetch_external_bearer` takes the credential-broker secret as `Option<&str>`; `resolve_external_bearer` reads it from the secrets document under `client::external_auth::BROKER_SECRET_KEY` (`mcp_credential_broker_secret`). The `MCP_CREDENTIAL_BROKER_SECRET` environment fallback is removed; on an environment-sourced deployment list the variable in `SYSTEMPROMPT_CUSTOM_SECRETS`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Fixed

@@ -2,6 +2,10 @@
 
 ## [0.52.0] - 2026-09-12
 
+### Removed
+
+- `cloud profile show` (`--json`/`--yaml`, `env` filter) no longer reports `systemprompt.env` and `systemprompt.verbosity`; both were derived from environment variables that are no longer read. The profile's `runtime.environment` and `runtime.log_level` are the source of truth.
+
 ### Fixed
 
 - An explicit `--profile <name>` (or `SYSTEMPROMPT_PROFILE`) no longer rewrites the active session. Minting a session for the override used to call `set_active_with_profile`, so `just deploy-check --profile production` left `.systemprompt/sessions/index.json` pointing at production and the next bare `infra db migrate` targeted it. The resolver now carries a `ProfileSource` (`Cli`, `Env`, `Session`, `Discovery`); the session is stored under its key for reuse, and only a session-sourced profile — plus `admin session switch|login`, unchanged — moves `active_key`. Operators who relied on `--profile` to switch the active profile must run `admin session switch <name>`.

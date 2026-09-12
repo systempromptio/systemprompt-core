@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-12
+
+### Changed
+
+- `resolve_instance_id` passes the process-environment lookup into `stable_instance_id`; `HOSTNAME` is still the replica identity when `server.instance_id` is absent. No behaviour change.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

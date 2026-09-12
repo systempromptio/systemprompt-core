@@ -38,7 +38,6 @@ impl Arming {
         self.armed = false;
     }
 
-    /// Returns `true` exactly once while armed, then never again.
     pub const fn take(&mut self) -> bool {
         let fires = self.armed;
         self.armed = false;

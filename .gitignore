@@ -144,6 +144,15 @@ scripts/*
 !scripts/lint-bridge-file-size.sh
 !scripts/lint-bridge-no-window.sh
 !scripts/lint-test-seams.sh
+# ...and the 0.51.0-friction gates: env readers, native test-crate deps, the
+# per-crate sqlx cache audit, and the native bridge test build shared with
+# quality.yml's bridge-native job.
+!scripts/lint-env-vars.sh
+!scripts/env-var-allowlist.txt
+!scripts/lint-native-test-deps.sh
+!scripts/bridge-native-crates.txt
+!scripts/bridge-native-tests.sh
+!scripts/sqlx-audit-caches.sh
 # ...and the supply-chain advisory scanner run by CI (.github/workflows/supply-chain.yml)
 # via the `just audit` recipe.
 !scripts/cargo-audit-all.sh

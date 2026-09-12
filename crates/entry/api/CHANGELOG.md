@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-12
+
+### Changed
+
+- The bridge release feed authenticates to GitHub with the secret named by `gateway.bridge_releases.token_secret`, resolved through `SecretsBootstrap`, instead of reading the process variable named by the former `token_env`.
+
 ## [0.51.0] - 2026-09-11
 
 ### Breaking

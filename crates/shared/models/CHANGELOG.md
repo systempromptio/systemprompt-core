@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.52.0] - 2026-09-12
+
+### Breaking
+
+- **Breaking:** `config::Environment` and `config::VerbosityLevel` are removed. They classified the process from `SYSTEMPROMPT_ENV`, `RAILWAY_ENVIRONMENT`, `NODE_ENV`, `DOCKER_CONTAINER`, `SYSTEMPROMPT_QUIET`, `SYSTEMPROMPT_VERBOSE`, `SYSTEMPROMPT_DEBUG` and `SYSTEMPROMPT_LOG_LEVEL`; the profile's `runtime.environment` and `runtime.log_level` plus the CLI's `-v`/`-q`/`--debug` flags already carry both, and none of those variables is read any more.
+- **Breaking:** `config::stable_instance_id` takes the environment lookup closure (`|name| std::env::var(name).ok()` at the composition root) instead of reading `HOSTNAME` itself; `config::default_instance_id` is removed (unused).
+- **Breaking:** `BridgeReleasesSpec.token_env` is renamed `token_secret` and names a key in the profile's secrets document rather than a process environment variable. A gateway config still carrying `token_env` is a parse error (`deny_unknown_fields`). On a deployment whose secrets come from the environment, list the variable in `SYSTEMPROMPT_CUSTOM_SECRETS` and name it in `token_secret`.
+
 ## [0.51.0] - 2026-09-11
 
 ### Breaking

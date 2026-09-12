@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- **Config:** three process-environment readers are gone in favour of the profile and the secrets document: `gateway.bridge_releases.token_env` is renamed `token_secret` and names a key in the secrets document; the MCP credential-broker secret is read from `secrets.custom["MCP_CREDENTIAL_BROKER_SECRET"]` (injected into `fetch_external_bearer`); `PGCA_CERT_PATH` is dropped — name a private CA with `?sslrootcert=` in the database URL. `config::Environment` / `config::VerbosityLevel` (`SYSTEMPROMPT_ENV`, `SYSTEMPROMPT_QUIET|VERBOSE|DEBUG|LOG_LEVEL`) are removed; the profile's `runtime.environment` / `runtime.log_level` and the CLI flags are the only inputs. With `secrets.source: env`, a custom key must be listed in `SYSTEMPROMPT_CUSTOM_SECRETS`.
+
 ### Changed
 
 - **CLI:** an explicit `--profile` never rewrites the active session, and `infra db migrate` / the destructive `infra db` subcommands / `infra jobs run` refuse a cloud profile selected implicitly (session or discovery) unless `--profile <name>` is passed. Closes the 0.51.0 near-miss where a consumer's `core-bump` migrated against production.
