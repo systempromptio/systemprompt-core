@@ -85,7 +85,9 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(db), ctx);
-    audit.pin_pricing(Default::default()).expect("explicit fixture pricing");
+    audit
+        .pin_pricing(Default::default())
+        .expect("explicit fixture pricing");
     audit
         .open(&request, &Bytes::from_static(b"{\"stream\":true}"))
         .await
