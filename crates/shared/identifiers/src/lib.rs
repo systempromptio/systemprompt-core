@@ -64,6 +64,7 @@ mod instance;
 mod jobs;
 mod links;
 mod locale;
+mod managed;
 mod marketplace;
 mod mcp;
 mod oauth;
@@ -117,6 +118,9 @@ pub use instance::InstanceId;
 pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
+pub use managed::{
+    ManagedResourceId, ManagedSourceId, PublicationId, ResourceRevisionId, SourceSnapshotId,
+};
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
 pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};

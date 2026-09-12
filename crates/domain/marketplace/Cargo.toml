@@ -19,7 +19,13 @@ all-features = true
 [lints]
 workspace = true
 
+[build-dependencies]
+systemprompt-extension = { workspace = true }
+
 [dependencies]
+systemprompt-extension = { workspace = true }
+sqlx = { workspace = true }
+serde_jcs = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }

@@ -46,7 +46,8 @@
 //! Domain crate. Depends on `systemprompt-models` (wire types),
 //! `systemprompt-identifiers` (typed IDs), `systemprompt-database` (the
 //! `DbPool` handle passed to filter factories), and `systemprompt-security`
-//! (manifest signing). No HTTP and no database queries: loaders take a
+//! (manifest signing). Managed resources use owner-scoped database repositories.
+//! Disk loaders take a
 //! services-root path, never an `AppContext`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -60,6 +61,8 @@ mod filter;
 pub mod import;
 mod keep;
 mod manifest;
+pub mod managed;
+mod extension;
 mod membership;
 mod registry;
 mod scope;
