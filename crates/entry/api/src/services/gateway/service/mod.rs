@@ -235,7 +235,10 @@ async fn open_audit(
 ) -> Result<Arc<GatewayAudit>, DispatchError> {
     let audit = Arc::new(GatewayAudit::new(repos, ctx.clone()));
     if let Err(error) = audit.open(request, raw_body).await {
-        if let Err(settlement_error) = audit.fail("Gateway admission failed before provider dispatch").await {
+        if let Err(settlement_error) = audit
+            .fail("Gateway admission failed before provider dispatch")
+            .await
+        {
             tracing::error!(%settlement_error, "Could not record failed gateway admission");
         }
         return Err(DispatchError::PreAudit(error));
