@@ -28,6 +28,17 @@ pub struct RevisionBundle {
     pub assets: BTreeMap<AssetDigest, Vec<u8>>,
 }
 
+impl std::fmt::Debug for RevisionBundle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RevisionBundle")
+            .field("schema_version", &self.schema_version)
+            .field("root", &self.root)
+            .field("revisions", &self.revisions.len())
+            .field("assets", &self.assets.len())
+            .finish()
+    }
+}
+
 impl RevisionBundle {
     pub fn verify(&self) -> Result<()> {
         if self.schema_version != 1
