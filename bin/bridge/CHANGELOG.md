@@ -4,6 +4,7 @@
 
 ### Changed
 
+- The tray's update action follows the current state: it checks, installs an available release, reports progress, or restarts into a staged release. The tray and bottom account menu also expose confirmed flows to disconnect this computer, reset all Bridge state, or clean up and reveal the application for platform-managed removal.
 - The README's runtime-environment table is the complete environment contract: `<PREFIX>_POLICY_TRUST`, `<PREFIX>_EGRESS_ALLOWED_HOSTS`, the per-platform `<PREFIX>_DEVICE_CERT` / `_DEVICE_CERT_LABEL` / `_DEVICE_CERT_SHA256` readers and `RUST_LOG` are listed alongside the variables it already named, and the OS directory/identity probes and the Codex/Hermes home overrides are enumerated. Every environment read in the bridge is allowlisted with its reason under `scripts/env-var-allowlist.txt` (`just lint-env-vars`); no reader was found that switches behaviour outside that table.
 
 ## [0.51.0] - 2026-09-11

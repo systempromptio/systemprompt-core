@@ -13,6 +13,7 @@ use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::state::{CancelScope, GatewayProbeOutcome};
 use crate::ids::HostId;
 use crate::proxy::mcp_probe::McpServerAuth;
+use crate::wire::DeviceAction;
 
 /// What one probe pass produced: every registered server, or one re-checked
 /// server (`None` when the registry did not know the id).
@@ -29,6 +30,7 @@ pub type ReplyId = Option<u64>;
 #[derive(Debug, Clone)]
 pub enum UiEvent {
     OpenSettings,
+    OpenDeviceAction(DeviceAction),
     SyncRequested {
         reply_to: ReplyId,
     },
@@ -36,6 +38,7 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     OpenConfigFolder,
+    RevealApplication,
     OpenLogDirectory {
         reply_to: ReplyId,
     },
@@ -60,6 +63,9 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     PurgeRequested {
+        reply_to: ReplyId,
+    },
+    DisconnectRequested {
         reply_to: ReplyId,
     },
     CredentialRejected {
@@ -101,6 +107,10 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     PurgeFinished {
+        result: Result<Vec<String>, Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+    DisconnectFinished {
         result: Result<Vec<String>, Arc<GuiError>>,
         reply_to: ReplyId,
     },

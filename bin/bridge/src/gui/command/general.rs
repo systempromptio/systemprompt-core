@@ -11,8 +11,8 @@ use crate::gui::{GuiApp, server_json};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
-    CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,
-    SessionLoginArgs,
+    CancelArgs, DeviceActionArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs,
+    RecentArgs, SessionLoginArgs,
 };
 use super::{CommandOutcome, parse, send};
 
@@ -55,6 +55,11 @@ pub(super) fn meta_dispatch(
             CommandOutcome::Sync(Ok(json!({})))
         },
         "openExternalUrl" => open_external_url(args.clone()),
+        "application.removalGuidance" => removal_guidance(),
+        "application.reveal" => {
+            send(app, UiEvent::RevealApplication);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
         "quit" => {
             send(app, UiEvent::Quit);
             CommandOutcome::Sync(Ok(json!({})))
@@ -157,12 +162,57 @@ pub(super) fn auth_dispatch(
             send(app, UiEvent::PurgeRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        "system.disconnect" => {
+            send(app, UiEvent::DisconnectRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "device.action.open" => match parse::<DeviceActionArgs>(args) {
+            Ok(a) => {
+                app.state.set_pending_device_action(Some(a.action));
+                send(app, UiEvent::StateRefreshed);
+                CommandOutcome::Sync(Ok(json!({})))
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "device.action.dismiss" => {
+            app.state.set_pending_device_action(None);
+            send(app, UiEvent::StateRefreshed);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
         "profile.fetch" => {
             send(app, UiEvent::ProfileFetchRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
         _ => return None,
     })
+}
+
+fn removal_guidance() -> CommandOutcome {
+    match crate::update::installed_path() {
+        Ok(path) => {
+            let method = removal_method(&path, std::env::consts::OS);
+            CommandOutcome::Sync(Ok(json!({
+                "method": method,
+                "path": path.display().to_string(),
+            })))
+        },
+        Err(e) => CommandOutcome::Sync(Err(BridgeError::internal(e.to_string()))),
+    }
+}
+
+#[doc(hidden)]
+pub fn removal_method(path: &std::path::Path, platform: &str) -> &'static str {
+    let normalized = path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .to_ascii_lowercase();
+    if platform == "windows" && normalized.contains("/scoop/apps/bridge/") {
+        "scoop"
+    } else if platform == "macos" && path.extension().is_some_and(|e| e == "app") {
+        "macos"
+    } else {
+        "standalone"
+    }
 }
 
 pub(super) fn sync_dispatch(

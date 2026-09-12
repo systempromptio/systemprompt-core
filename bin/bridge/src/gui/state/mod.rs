@@ -264,6 +264,10 @@ impl AppState {
         }
     }
 
+    pub fn set_pending_device_action(&self, action: Option<crate::wire::DeviceAction>) {
+        self.snap_mut().pending_device_action = action;
+    }
+
 
     pub fn first_configured_proxy_url(&self) -> Option<String> {
         if self.ctx.proxy.is_serving() {

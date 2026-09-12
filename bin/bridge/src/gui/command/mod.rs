@@ -7,6 +7,9 @@ mod args;
 mod general;
 mod hosts;
 
+#[doc(hidden)]
+pub use general::removal_method;
+
 use serde_json::Value;
 
 use crate::gui::GuiApp;

@@ -218,6 +218,7 @@
   border: 1px solid var(--sp-line);
   border-radius: var(--sp-corners-sm);
   box-shadow: var(--sp-shadow-2);
+  overflow-y: auto;
 }
 .sp-rail-profile__menu-item {
   display: block;

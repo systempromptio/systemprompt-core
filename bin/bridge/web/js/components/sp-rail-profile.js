@@ -56,12 +56,20 @@ export class SpRailProfile extends SpElement {
     this.registerAction("logout", () => this._onLogout());
     this.registerAction("update-install", () => installUpdate(this));
     this.registerAction("update-restart", () => restartForUpdate());
+    this.registerAction("device-disconnect", () => this._openDeviceAction("disconnect"));
+    this.registerAction("device-purge", () => this._openDeviceAction("purge"));
+    this.registerAction("device-remove", () => this._openDeviceAction("remove-application"));
     this.registerAction("open-external", (el, ev) => {
       const url = el && el.dataset && el.dataset.href;
       if (!url) { return; }
       if (ev && typeof ev.preventDefault === "function") { ev.preventDefault(); }
       bridge.openExternalUrl(url).catch((e) => notifyErr(e, url));
     });
+  }
+
+  _openDeviceAction(action) {
+    this.menuOpen = false;
+    bridge.deviceActionOpen(action).catch((e) => notifyErr(e, action));
   }
 
   onConnect() {
@@ -113,11 +121,10 @@ export class SpRailProfile extends SpElement {
     const signedIn = !!(id && (id.email || id.user_id));
     const idLabel = (id && (id.email || id.user_id)) || "bridge workspace";
     const update = updateStateOf(this.snapshot);
-    const open = this.menuOpen && signedIn;
+    const open = this.menuOpen;
     return `
       ${renderRailProfileCta(update, signedIn)}
       <button class="sp-rail-profile__trigger${isUpdateBusy(update) ? " is-busy" : ""}" type="button" data-action="toggle-menu"
-              ${signedIn ? "" : "disabled"}
               aria-label="${escapeHtml(railProfileTriggerLabel(signedIn, idLabel))}"
               aria-haspopup="menu" aria-expanded="${open ? "true" : "false"}">
         <span class="sp-avatar__mark" aria-hidden="true"><span>${escapeHtml(profileInitials(id && (id.email || id.user_id)))}</span></span>
@@ -125,9 +132,9 @@ export class SpRailProfile extends SpElement {
           <span class="sp-rail-profile__id">${escapeHtml(idLabel)}</span>
           <span class="sp-rail-profile__sub">${escapeHtml(railProfileSubtitle(update, this._baseVersion, id && id.tenant_id))}</span>
         </span>
-        ${signedIn ? `<span class="sp-rail-profile__caret" aria-hidden="true">⌃</span>` : ""}
+        <span class="sp-rail-profile__caret" aria-hidden="true">⌃</span>
       </button>
-      ${renderRailProfileMenu(update, open, this.logoutError)}
+      ${renderRailProfileMenu(update, open, this.logoutError, signedIn)}
     `;
   }
 }

@@ -18,13 +18,14 @@ export function positionRailProfileMenu(component) {
   menu.style.right = "auto";
   menu.style.bottom = `${Math.max(4, window.innerHeight - r.top + 4)}px`;
   menu.style.minWidth = `${Math.max(140, r.width)}px`;
+  menu.style.maxHeight = `${Math.max(120, r.top - 12)}px`;
 }
 
 function menuItem(action, label) {
   return `<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="${action}">${escapeHtml(label)}</button>`;
 }
 
-function railProfileMenuItems(update) {
+function railProfileMenuItems(update, signedIn) {
   const items = [];
   if (update.can_install) {
     items.push(menuItem("update-install", `${t("rail-profile-update-to") || "Update to"} v${update.version}`));
@@ -35,17 +36,20 @@ function railProfileMenuItems(update) {
   if (update.can_install && update.notes_url) {
     items.push(`<a class="sp-rail-profile__menu-item" role="menuitem" href="${escapeHtml(update.notes_url)}" data-href="${escapeHtml(update.notes_url)}" data-action="open-external">${escapeHtml(t("rail-profile-release-notes") || "Release notes")}</a>`);
   }
-  items.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="logout" data-l10n-id="rail-profile-logout">${escapeHtml(t("rail-profile-logout") || "Log out")}</button>`);
+  if (signedIn) {
+    items.push(`<button class="sp-rail-profile__menu-item" type="button" role="menuitem" data-action="logout" data-l10n-id="rail-profile-logout">${escapeHtml(t("rail-profile-logout") || "Log out")}</button>`);
+  }
+  items.push(menuItem("device-disconnect", t("rail-profile-disconnect") || "Disconnect this computer…"));
+  items.push(menuItem("device-purge", t("rail-profile-purge") || "Reset Bridge completely…"));
+  items.push(menuItem("device-remove", t("rail-profile-remove-application") || "Remove Bridge application…"));
   return items;
 }
 
-// Only a signed-in session has anything to offer here, so the caller passes
-// `open` already gated on sign-in rather than opening an empty menu.
-export function renderRailProfileMenu(update, open, logoutError) {
+export function renderRailProfileMenu(update, open, logoutError, signedIn) {
   if (!open) { return ""; }
   return `
     <div class="sp-rail-profile__menu" role="menu">
-      ${railProfileMenuItems(update).join("")}
+      ${railProfileMenuItems(update, signedIn).join("")}
       ${logoutError ? `<p class="sp-rail-profile__menu-error">${escapeHtml(logoutError)}</p>` : ""}
     </div>
   `;

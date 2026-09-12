@@ -11,9 +11,11 @@ use crate::gui::{GuiApp, handlers};
 const fn event_kind(event: &UiEvent) -> &'static str {
     match event {
         UiEvent::OpenSettings => "OpenSettings",
+        UiEvent::OpenDeviceAction(_) => "OpenDeviceAction",
         UiEvent::SyncRequested { .. } => "SyncRequested",
         UiEvent::ValidateRequested { .. } => "ValidateRequested",
         UiEvent::OpenConfigFolder => "OpenConfigFolder",
+        UiEvent::RevealApplication => "RevealApplication",
         UiEvent::OpenLogDirectory { .. } => "OpenLogDirectory",
         UiEvent::ExportDiagnosticBundle { .. } => "ExportDiagnosticBundle",
         UiEvent::ProxySecretResetRequested { .. } => "ProxySecretResetRequested",
@@ -21,6 +23,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
         UiEvent::PurgeRequested { .. } => "PurgeRequested",
+        UiEvent::DisconnectRequested { .. } => "DisconnectRequested",
         UiEvent::CredentialRejected { .. } => "CredentialRejected",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
@@ -39,6 +42,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::SessionLoginFinished { .. } => "SessionLoginFinished",
         UiEvent::LogoutFinished { .. } => "LogoutFinished",
         UiEvent::PurgeFinished { .. } => "PurgeFinished",
+        UiEvent::DisconnectFinished { .. } => "DisconnectFinished",
         UiEvent::SetGatewayFinished { .. } => "SetGatewayFinished",
         UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
         UiEvent::McpAuthProbeFinished { .. } => "McpAuthProbeFinished",
@@ -100,7 +104,13 @@ fn dispatch_window(
 ) -> Result<(), Box<UiEvent>> {
     match event {
         UiEvent::OpenSettings => handlers::settings::on_open_settings(app, event_loop),
+        UiEvent::OpenDeviceAction(action) => {
+            app.state.set_pending_device_action(Some(action));
+            handlers::settings::on_open_settings(app, event_loop);
+            crate::gui::emit::emit_state(app);
+        },
         UiEvent::OpenConfigFolder => handlers::settings::on_open_config_folder(app),
+        UiEvent::RevealApplication => handlers::settings::on_reveal_application(app),
         UiEvent::FocusWindow => {
             if let Some(win) = &app.settings_window {
                 win.focus();
@@ -142,6 +152,9 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
         },
         UiEvent::LogoutRequested { reply_to } => handlers::auth::on_logout_requested(app, reply_to),
         UiEvent::PurgeRequested { reply_to } => handlers::purge::on_purge_requested(app, reply_to),
+        UiEvent::DisconnectRequested { reply_to } => {
+            handlers::purge::on_disconnect_requested(app, reply_to);
+        },
         UiEvent::SetGatewayRequested { url, reply_to } => {
             handlers::auth::on_set_gateway_requested(app, &url, reply_to);
         },
@@ -194,6 +207,9 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         },
         UiEvent::PurgeFinished { result, reply_to } => {
             handlers::purge::on_purge_finished(app, result, reply_to);
+        },
+        UiEvent::DisconnectFinished { result, reply_to } => {
+            handlers::purge::on_disconnect_finished(app, result, reply_to);
         },
         UiEvent::CredentialRejected { reason } => {
             handlers::auth::on_credential_rejected(app, &reason);

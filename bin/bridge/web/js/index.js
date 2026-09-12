@@ -21,6 +21,7 @@ import "/assets/js/components/sp-toast.js";
 import "/assets/js/components/sp-activity-log.js";
 import "/assets/js/components/sp-agent-row.js";
 import "/assets/js/components/sp-agent-drawer.js";
+import "/assets/js/components/sp-device-action.js";
 import "/assets/js/components/sp-hosts-list.js";
 import "/assets/js/components/sp-settings.js";
 import "/assets/js/components/sp-profile.js";

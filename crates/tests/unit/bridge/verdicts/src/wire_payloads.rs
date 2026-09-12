@@ -10,6 +10,7 @@ use systemprompt_bridge::proxy::mcp_probe::{McpAuthState, McpServerAuth, McpTool
 use systemprompt_bridge::update::UpdateUiState;
 use systemprompt_bridge::validate::{CheckLevel, CheckLine, ValidationReport};
 use systemprompt_bridge::verdict::{Tone, Verdict};
+use systemprompt_bridge::wire::DeviceAction;
 use systemprompt_bridge::wire::codes::GatewayCode;
 use systemprompt_bridge::wire::payloads::{
     CachedTokenPayload, CheckLinePayload, GatewayStatusPayload, McpServerAuthPayload,
@@ -327,4 +328,14 @@ fn verified_identity_keeps_null_claims_so_the_gui_can_tell_them_apart() {
     assert_eq!(v["tenant_id"], Value::Null);
     assert_eq!(v["exp_unix"], json!(1_800_000_000));
     assert_eq!(v["verified_at_unix"], json!(1_700_000_000));
+}
+
+#[test]
+fn device_actions_use_stable_kebab_case_wire_values() {
+    assert_eq!(json_of(&DeviceAction::Disconnect), json!("disconnect"));
+    assert_eq!(json_of(&DeviceAction::Purge), json!("purge"));
+    assert_eq!(
+        json_of(&DeviceAction::RemoveApplication),
+        json!("remove-application")
+    );
 }

@@ -4,6 +4,7 @@ use systemprompt_bridge::gui::state::{
 };
 use systemprompt_bridge::obs::StartupFault;
 use systemprompt_bridge::verdict::Tone;
+use systemprompt_bridge::wire::DeviceAction;
 use systemprompt_bridge::wire::codes::{HealthCode, IdentityCode};
 
 fn reachable() -> AppStateSnapshot {
@@ -11,6 +12,20 @@ fn reachable() -> AppStateSnapshot {
         gateway_status: GatewayStatus::Reachable { latency_ms: 4 },
         ..AppStateSnapshot::default()
     }
+}
+
+#[test]
+fn pending_device_action_survives_a_state_reload_until_dismissed() {
+    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let state = AppState::new_loaded(ctx);
+    state.set_pending_device_action(Some(DeviceAction::Purge));
+    state.reload();
+    assert_eq!(
+        state.snapshot().pending_device_action,
+        Some(DeviceAction::Purge)
+    );
+    state.set_pending_device_action(None);
+    assert_eq!(state.snapshot().pending_device_action, None);
 }
 
 fn identity() -> VerifiedIdentity {

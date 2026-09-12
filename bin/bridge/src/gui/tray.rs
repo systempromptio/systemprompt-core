@@ -13,6 +13,7 @@ use super::events::UiEvent;
 use super::state::{AppStateSnapshot, GatewayStatus};
 use crate::i18n;
 use crate::install::ScheduleStatus;
+use crate::update::UpdateUiState;
 
 pub struct TrayHandles {
     pub tray: TrayIcon,
@@ -21,6 +22,7 @@ pub struct TrayHandles {
     pub identity_item: MenuItem,
     pub last_sync_item: MenuItem,
     pub sync_item: MenuItem,
+    pub update_item: MenuItem,
     pub autostart_item: CheckMenuItem,
     pub logout_item: MenuItem,
     pub icon_normal: Icon,
@@ -71,7 +73,8 @@ pub fn build(
     let last_sync_item = MenuItem::new(format_last_sync(initial), false, None);
     let sync_item = MenuItem::new(i18n::t("tray-sync-now"), true, None);
     let validate_item = MenuItem::new(i18n::t("tray-validate"), true, None);
-    let update_item = MenuItem::new(i18n::t("tray-check-updates"), true, None);
+    let (update_label, update_enabled, update_event) = update_menu(&initial.update);
+    let update_item = MenuItem::new(update_label, update_enabled, None);
     let open_settings_item = MenuItem::new(i18n::t("tray-open-settings"), true, None);
     let open_folder_item = MenuItem::new(i18n::t("tray-open-config"), true, None);
     let autostart = crate::install::gui_autostart_status(schedule);
@@ -82,6 +85,9 @@ pub fn build(
         None,
     );
     let logout_item = MenuItem::new(i18n::t("tray-sign-out"), is_signed_in(initial), None);
+    let disconnect_item = MenuItem::new(i18n::t("tray-disconnect"), true, None);
+    let purge_item = MenuItem::new(i18n::t("tray-purge"), true, None);
+    let remove_item = MenuItem::new(i18n::t("tray-remove-application"), true, None);
     let quit_item = MenuItem::new(i18n::t("tray-quit"), true, None);
 
     menu.append(&identity_item)?;
@@ -96,6 +102,9 @@ pub fn build(
     menu.append(&autostart_item)?;
     menu.append(&PredefinedMenuItem::separator())?;
     menu.append(&logout_item)?;
+    menu.append(&disconnect_item)?;
+    menu.append(&purge_item)?;
+    menu.append(&remove_item)?;
     menu.append(&quit_item)?;
 
     let mut bindings = HashMap::new();
@@ -107,10 +116,7 @@ pub fn build(
         validate_item.id().clone(),
         UiEvent::ValidateRequested { reply_to: None },
     );
-    bindings.insert(
-        update_item.id().clone(),
-        UiEvent::UpdateCheckRequested { reply_to: None },
-    );
+    bindings.insert(update_item.id().clone(), update_event);
     bindings.insert(
         autostart_item.id().clone(),
         UiEvent::AutostartToggleRequested,
@@ -120,6 +126,18 @@ pub fn build(
     bindings.insert(
         logout_item.id().clone(),
         UiEvent::LogoutRequested { reply_to: None },
+    );
+    bindings.insert(
+        disconnect_item.id().clone(),
+        UiEvent::OpenDeviceAction(crate::wire::DeviceAction::Disconnect),
+    );
+    bindings.insert(
+        purge_item.id().clone(),
+        UiEvent::OpenDeviceAction(crate::wire::DeviceAction::Purge),
+    );
+    bindings.insert(
+        remove_item.id().clone(),
+        UiEvent::OpenDeviceAction(crate::wire::DeviceAction::RemoveApplication),
     );
     bindings.insert(quit_item.id().clone(), UiEvent::Quit);
 
@@ -141,6 +159,7 @@ pub fn build(
         identity_item,
         last_sync_item,
         sync_item,
+        update_item,
         autostart_item,
         logout_item,
         icon_normal,
@@ -157,6 +176,12 @@ pub fn refresh(
     handles.identity_item.set_text(format_identity(snap));
     handles.last_sync_item.set_text(format_last_sync(snap));
     handles.sync_item.set_enabled(!snap.sync_in_flight);
+    let (update_label, update_enabled, update_event) = update_menu(&snap.update);
+    handles.update_item.set_text(update_label);
+    handles.update_item.set_enabled(update_enabled);
+    handles
+        .bindings
+        .insert(handles.update_item.id().clone(), update_event);
     handles.logout_item.set_enabled(is_signed_in(snap));
     if snap.sync_in_flight {
         handles.sync_item.set_text(i18n::t("tray-syncing"));
@@ -184,6 +209,40 @@ pub fn refresh(
         handles.status = target;
     }
     Ok(())
+}
+
+#[doc(hidden)]
+pub fn update_menu(state: &UpdateUiState) -> (String, bool, UiEvent) {
+    match state {
+        UpdateUiState::Available { version, .. } => (
+            i18n::t_args("tray-update-to", &[("version", version)]),
+            true,
+            UiEvent::UpdateInstallRequested { reply_to: None },
+        ),
+        UpdateUiState::Downloading { version, percent } => (
+            i18n::t_args(
+                "tray-update-downloading",
+                &[("version", version), ("percent", &percent.to_string())],
+            ),
+            false,
+            UiEvent::UpdateCheckRequested { reply_to: None },
+        ),
+        UpdateUiState::Installing { version } => (
+            i18n::t_args("tray-update-installing", &[("version", version)]),
+            false,
+            UiEvent::UpdateCheckRequested { reply_to: None },
+        ),
+        UpdateUiState::Ready { .. } => (
+            i18n::t("tray-restart-update"),
+            true,
+            UiEvent::UpdateRestartRequested,
+        ),
+        UpdateUiState::Unknown | UpdateUiState::Current | UpdateUiState::Failed { .. } => (
+            i18n::t("tray-check-updates"),
+            true,
+            UiEvent::UpdateCheckRequested { reply_to: None },
+        ),
+    }
 }
 
 pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {

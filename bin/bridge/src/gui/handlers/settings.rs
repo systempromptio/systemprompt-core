@@ -45,3 +45,10 @@ pub(crate) fn on_open_config_folder(_app: &mut GuiApp) {
         window::open_path(&s.paths.config_dir);
     }
 }
+
+pub(crate) fn on_reveal_application(app: &GuiApp) {
+    match crate::update::installed_path() {
+        Ok(path) => window::reveal_path(&path),
+        Err(e) => app.append_log_error(format!("locate application: {e}")),
+    }
+}

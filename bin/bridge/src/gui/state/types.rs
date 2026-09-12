@@ -94,6 +94,7 @@ pub struct AppStateSnapshot {
     pub mcp_auth_probe_in_flight: bool,
 
     pub update: crate::update::UpdateUiState,
+    pub pending_device_action: Option<crate::wire::DeviceAction>,
 }
 
 impl AppStateSnapshot {
