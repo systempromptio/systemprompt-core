@@ -46,8 +46,8 @@
 //! Domain crate. Depends on `systemprompt-models` (wire types),
 //! `systemprompt-identifiers` (typed IDs), `systemprompt-database` (the
 //! `DbPool` handle passed to filter factories), and `systemprompt-security`
-//! (manifest signing). Managed resources use owner-scoped database repositories.
-//! Disk loaders take a
+//! (manifest signing). Managed resources use owner-scoped database
+//! repositories. Disk loaders take a
 //! services-root path, never an `AppContext`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -57,12 +57,12 @@ pub mod bundle;
 mod candidate;
 pub mod catalog;
 mod error;
+mod extension;
 mod filter;
 pub mod import;
 mod keep;
-mod manifest;
 pub mod managed;
-mod extension;
+mod manifest;
 mod membership;
 mod registry;
 mod scope;
@@ -76,6 +76,7 @@ pub use bundle::{
 pub use candidate::{EntryKeepSets, FilterContext, ManifestEntries, MarketplaceCandidate};
 pub use catalog::{CatalogContent, plugin_bundles, plugin_bundles_cached};
 pub use error::{MarketplaceError, MarketplaceFilterError};
+pub use extension::ManagedResourcesExtension;
 pub use filter::{AllowAllFilter, MarketplaceFilter};
 pub use import::{ImportOptions, ImportReport, ImportWarning, import_anthropic_tree};
 pub use keep::{KeepSetsSubject, keep_sets};
