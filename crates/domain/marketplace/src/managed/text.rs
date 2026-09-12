@@ -10,6 +10,9 @@ pub fn normalize_form_text(original: &str, submitted: &str) -> Result<String> {
     if original.len() > 1024 * 1024 || submitted.len() > 1024 * 1024 {
         return Err(invalid("Text edits exceed 1 MiB"));
     }
+    if original.contains('\0') || submitted.contains('\0') {
+        return Err(invalid("NUL bytes require an exact asset revision"));
+    }
     let without_pairs = original.replace("\r\n", "");
     let crlf = original.contains("\r\n");
     let lf = without_pairs.contains('\n');
