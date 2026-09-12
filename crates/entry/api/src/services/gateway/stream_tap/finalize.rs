@@ -27,29 +27,50 @@ pub enum FinalizeDecision {
 
 /// Why a tapped stream ended without a usable response.
 ///
-/// Both land as `failed` in the audit row, so they are separated here:
-/// `Upstream` is the provider failing mid-stream, `Truncated` is the stream
-/// stopping without a terminal event — typically the client hanging up.
+/// All of these land as `failed` in the audit row, so they are separated
+/// here: `Upstream` is the provider failing mid-stream, `Truncated` is the
+/// stream stopping without a terminal event. `client_gone` says who stopped
+/// it — the consumer dropped the body before the stop event (the client hung
+/// up, status 499) or upstream closed the stream early (status 502). The two
+/// used to share one message, so an ordinary client abort read as an
+/// upstream defect in the audit log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailCause {
     Upstream,
-    Truncated { has_content: bool },
+    Truncated {
+        has_content: bool,
+        client_gone: bool,
+    },
 }
 
 impl FailCause {
     pub const fn reason(self) -> &'static str {
         match self {
             Self::Upstream => "upstream stream error",
-            Self::Truncated { has_content: true } => "stream ended without stop event",
-            Self::Truncated { has_content: false } => "empty upstream stream",
+            Self::Truncated {
+                client_gone: true, ..
+            } => "client disconnected before stop event",
+            Self::Truncated {
+                has_content: true,
+                client_gone: false,
+            } => "upstream stream ended without stop event",
+            Self::Truncated {
+                has_content: false,
+                client_gone: false,
+            } => "empty upstream stream",
         }
     }
 
     // Why: SSE errors arrive after the upstream HTTP status has already been sent.
     const fn status(self) -> u16 {
         match self {
-            Self::Upstream => 502,
-            Self::Truncated { .. } => 499,
+            Self::Upstream
+            | Self::Truncated {
+                client_gone: false, ..
+            } => 502,
+            Self::Truncated {
+                client_gone: true, ..
+            } => 499,
         }
     }
 }
@@ -59,12 +80,16 @@ pub const fn classify(
     saw_stop: bool,
     has_content: bool,
     has_usage: bool,
+    client_gone: bool,
 ) -> FinalizeDecision {
     if error.is_some() {
         return FinalizeDecision::Fail(FailCause::Upstream);
     }
     if !saw_stop {
-        return FinalizeDecision::Fail(FailCause::Truncated { has_content });
+        return FinalizeDecision::Fail(FailCause::Truncated {
+            has_content,
+            client_gone,
+        });
     }
     FinalizeDecision::Complete {
         cost_capture_miss: has_content && !has_usage,
@@ -92,6 +117,7 @@ pub(super) fn finalize(
             summary.saw_stop,
             has_content,
             has_usage,
+            origin == "drop",
         ) {
             FinalizeDecision::Fail(cause) => {
                 let msg = summary.error.as_deref().unwrap_or_else(|| cause.reason());
@@ -148,7 +174,11 @@ pub(super) fn finalize(
     });
 }
 
-fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str>) {
+pub(in crate::services::gateway) fn log_terminal(
+    audit: &GatewayAudit,
+    status: u16,
+    error: Option<&str>,
+) {
     let Some(access) = audit.ctx.access_log.as_ref() else {
         return;
     };

@@ -1,3 +1,4 @@
+mod abandon_guard;
 mod audit_payload;
 mod canonical_request;
 mod canonical_response;

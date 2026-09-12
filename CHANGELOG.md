@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- A client that hung up on a streaming gateway response was audited as `stream ended without stop event`, the same message as a genuine upstream EOF, so an ordinary abort read as a provider defect. Claude Code's automatic session-title request is the routine case: `claude -p` exits as soon as the turn's result is printed while the title is still streaming from a slower model (prod row `23e3ad2c`, `zai.glm-5.2`, 4 s in). The tap now records who ended the stream — `client disconnected before stop event` (499) when the body was dropped, `upstream stream ended without stop event` (502) when the provider closed it — and only the latter is logged as a stream failure.
+- A client that hung up *before* the upstream produced its first byte left the `ai_requests` row `pending` forever. The dispatch future was cancelled inside the upstream send, after the audit row had opened but before any completion path owned it. An `AbandonGuard` armed at `open_audit` now fails the row with `client disconnected before upstream responded` when the future is dropped mid-flight; it is disarmed on every returned `Ok` and `Err`, which already close the row themselves.
+
 ## [0.51.0] - 2026-09-11
 
 The Vertex catalog stops being a hand-written list. At boot the loader asks
