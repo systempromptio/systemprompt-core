@@ -50,6 +50,18 @@ impl GatewayAudit {
     }
 
     pub async fn open(&self, request: &CanonicalRequest, request_body: &Bytes) -> Result<()> {
+        anyhow::ensure!(
+            self.ctx
+                .session_id
+                .as_ref()
+                .is_some_and(|id| !id.as_str().is_empty())
+                && self
+                    .ctx
+                    .trace_id
+                    .as_ref()
+                    .is_some_and(|id| !id.as_str().is_empty()),
+            "Gateway identity requires an authenticated session and trace"
+        );
         let mut record = self.build_record();
         if let Some(session) = &self.ctx.session_id
             && let Some(actor) = self
@@ -75,8 +87,7 @@ impl GatewayAudit {
             .await?;
 
         let capture = slice_payload(request_body);
-        if let Err(e) = self
-            .payloads
+        self.payloads
             .upsert_request(
                 &self.ctx.ai_request_id,
                 UpsertPayloadParams {
@@ -84,47 +95,38 @@ impl GatewayAudit {
                     excerpt: capture.excerpt.as_deref(),
                     truncated: capture.truncated,
                     bytes: Some(capture.byte_len),
-                    sha256: Some(capture.sha256.as_str()),
+                    sha256: Some(&capture.sha256),
                 },
             )
-            .await
-        {
-            tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "payload insert (request) failed");
+            .await?;
+        if let Some(tools) = capture.json.as_ref().and_then(|body| body.get("tools")) {
+            self.payloads
+                .upsert_offered_tools(&self.ctx.ai_request_id, tools)
+                .await?;
         }
-
-        self.persist_offered_tools(capture.json.as_ref()).await;
-        self.persist_request_messages(request).await;
+        self.persist_request_messages(request).await?;
+        let lease = super::journal::reserve(
+            super::journal::Receipt::pending(
+                self.ctx.ai_request_id.clone(),
+                self.ctx.user_id.clone(),
+            ),
+            &self.audit_pool,
+        )
+        .await?;
+        self.journal_lease
+            .set(lease)
+            .map_err(|_| anyhow::anyhow!("Audit already admitted"))?;
         Ok(())
     }
 
-    async fn persist_offered_tools(&self, request_json: Option<&serde_json::Value>) {
-        let Some(tools) = request_json
-            .and_then(|body| body.get("tools"))
-            .filter(|tools| tools.as_array().is_some_and(|t| !t.is_empty()))
-        else {
-            return;
-        };
-        if let Err(e) = self
-            .payloads
-            .upsert_offered_tools(&self.ctx.ai_request_id, tools)
-            .await
-        {
-            tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "offered tools upsert failed");
-        }
-    }
-
-    async fn persist_request_messages(&self, request: &CanonicalRequest) {
+    async fn persist_request_messages(&self, request: &CanonicalRequest) -> Result<()> {
         let mut seq = 0i32;
         if let Some(system) = &request.system
             && !system.is_empty()
         {
-            if let Err(e) = self
-                .requests
+            self.requests
                 .insert_message(&self.ctx.ai_request_id, "system", system, seq)
-                .await
-            {
-                tracing::warn!(error = %e, "insert system message failed");
-            }
+                .await?;
             seq += 1;
         }
         for msg in &request.messages {
@@ -134,15 +136,16 @@ impl GatewayAudit {
                 Role::Assistant => "assistant",
                 Role::Tool => "tool",
             };
-            let text = flatten_message_content(&msg.content);
-            if let Err(e) = self
-                .requests
-                .insert_message(&self.ctx.ai_request_id, role, &text, seq)
-                .await
-            {
-                tracing::warn!(error = %e, seq, "insert message failed");
-            }
+            self.requests
+                .insert_message(
+                    &self.ctx.ai_request_id,
+                    role,
+                    &flatten_message_content(&msg.content),
+                    seq,
+                )
+                .await?;
             seq += 1;
         }
+        Ok(())
     }
 }

@@ -6,9 +6,6 @@
 
 use anyhow::Result;
 use bytes::Bytes;
-use systemprompt_ai::repository::ai_requests::UpdateCompletionParams;
-use systemprompt_ai::repository::{InsertToolCallParams, UpsertPayloadParams};
-use systemprompt_identifiers::AiToolCallId;
 
 use super::GatewayAudit;
 use super::payload::{slice_payload, truncate_for_tool_input};
@@ -40,31 +37,42 @@ impl GatewayAudit {
         let upstream_latency_ms = self.upstream_elapsed_ms();
         let effective_model = self.effective_model();
         usage.normalise_reasoning(&self.ctx.provider);
-        let pricing_rates = self.completion_pricing(&effective_model);
+        let pricing_rates = self.completion_pricing(&effective_model)?;
         let cost = pricing_rates.cost_microdollars(&usage);
         let tokens_used = usage.billable_total();
 
-        self.requests
-            .update_completion(UpdateCompletionParams {
-                id: self.ctx.ai_request_id.clone(),
-                tokens_used: tokens_used as i32,
-                input_tokens: usage.input_tokens as i32,
-                output_tokens: usage.output_tokens as i32,
-                cost_microdollars: cost,
-                latency_ms,
-                upstream_latency_ms,
-                cache_hit: usage.cache_read_tokens > 0,
-                cache_read_tokens: usage.cache_read_tokens as i32,
-                cache_creation_tokens: usage.cache_creation_tokens as i32,
-                reasoning_tokens: usage.reasoning_tokens as i32,
-            })
-            .await?;
-
-        self.evaluations
-            .settle_recorded(&self.ctx.user_id, &self.ctx.ai_request_id)
-            .await?;
-        self.persist_tool_calls(&tool_calls).await;
-        self.persist_response(response, response_body).await;
+        let completion = super::journal::Completion {
+            usage: [
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.cache_read_tokens,
+                usage.cache_creation_tokens,
+                usage.reasoning_tokens,
+                tokens_used,
+            ],
+            cost,
+            latency: latency_ms,
+            upstream_latency: upstream_latency_ms,
+            payload: slice_payload(response_body),
+            assistant: super::super::parse::extract_assistant_text(response)
+                .map(|text| truncate_for_tool_input(&text)),
+            tools: tool_calls
+                .iter()
+                .map(|tool| {
+                    (
+                        tool.ai_tool_call_id.to_string(),
+                        tool.tool_name.clone(),
+                        truncate_for_tool_input(&tool.tool_input),
+                    )
+                })
+                .collect(),
+        };
+        let mut receipt = super::journal::Receipt::pending(
+            self.ctx.ai_request_id.clone(),
+            self.ctx.user_id.clone(),
+        );
+        receipt.completion = Some(completion);
+        super::journal::record(receipt, &self.audit_pool).await?;
 
         tracing::info!(
             ai_request_id = %self.ctx.ai_request_id,
@@ -88,97 +96,26 @@ impl GatewayAudit {
         Ok(cost)
     }
 
-    pub fn pin_evaluation_pricing(
-        &self,
-        pricing: systemprompt_models::services::ModelPricing,
-    ) -> Result<()> {
-        self.evaluation_pricing
+    pub fn pin_pricing(&self, pricing: systemprompt_models::services::ModelPricing) -> Result<()> {
+        self.pricing_snapshot
             .set(pricing)
-            .map_err(|_rejected_pricing| anyhow::anyhow!("Evaluation pricing already pinned"))
+            .map_err(|_rejected_pricing| anyhow::anyhow!("Gateway pricing already pinned"))
     }
 
-    // Why: dispatch already refuses an unpriced model before the audit is
-    // opened, so a miss here means the rates moved under a request that is
-    // already spent upstream. Losing the terminal row would erase the request
-    // itself; the cost is reported as zero and the miss is warned about.
     fn completion_pricing(
         &self,
         effective_model: &str,
-    ) -> systemprompt_models::services::ModelPricing {
-        if let Some(pricing) = self.evaluation_pricing.get() {
-            return *pricing;
+    ) -> Result<systemprompt_models::services::ModelPricing> {
+        if let Some(pricing) = self.pricing_snapshot.get() {
+            return Ok(*pricing);
         }
-        let services = systemprompt_loader::ServicesBootstrap::get().ok();
-        let gateway =
-            services.and_then(systemprompt_models::services::ServicesConfig::gateway_config);
-        let empty_registry = systemprompt_models::services::ProviderRegistry::default();
-        let registry = services.map_or(&empty_registry, |s| &s.providers);
-        let candidates = [
-            effective_model,
-            self.ctx.model.as_str(),
-            self.ctx.requested_model.as_deref().unwrap_or(""),
-        ];
-        pricing::resolve(&self.ctx.provider, &candidates, gateway, registry).unwrap_or_else(
-            |error| {
-                tracing::warn!(
-                    ai_request_id = %self.ctx.ai_request_id,
-                    provider = %self.ctx.provider,
-                    model = %effective_model,
-                    %error,
-                    "No pricing at completion; recording the request at zero cost"
-                );
-                systemprompt_models::services::ModelPricing::default()
-            },
-        )
-    }
-
-    async fn persist_response(&self, response: &CanonicalResponse, response_body: &Bytes) {
-        let capture = slice_payload(response_body);
-        if let Err(e) = self
-            .payloads
-            .upsert_response(
-                &self.ctx.ai_request_id,
-                UpsertPayloadParams {
-                    body: capture.json.as_ref(),
-                    excerpt: capture.excerpt.as_deref(),
-                    truncated: capture.truncated,
-                    bytes: Some(capture.byte_len),
-                    sha256: Some(capture.sha256.as_str()),
-                },
-            )
-            .await
-        {
-            tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "payload insert (response) failed");
-        }
-
-        if let Some(assistant_text) = super::super::parse::extract_assistant_text(response)
-            && let Err(e) = self
-                .requests
-                .add_response_message(&self.ctx.ai_request_id, &assistant_text)
-                .await
-        {
-            tracing::warn!(error = %e, "assistant response message insert failed");
-        }
-    }
-
-    async fn persist_tool_calls(&self, tool_calls: &[CapturedToolUse]) {
-        for (idx, tool) in tool_calls.iter().enumerate() {
-            let seq = idx as i32 + 1;
-            let trimmed = truncate_for_tool_input(&tool.tool_input);
-            let ai_tool_call_id = AiToolCallId::new(tool.ai_tool_call_id.clone());
-            if let Err(e) = self
-                .requests
-                .insert_tool_call(InsertToolCallParams {
-                    request_id: &self.ctx.ai_request_id,
-                    ai_tool_call_id: &ai_tool_call_id,
-                    tool_name: &tool.tool_name,
-                    tool_input: &trimmed,
-                    sequence_number: seq,
-                })
-                .await
-            {
-                tracing::warn!(error = %e, seq, "tool_call insert failed");
-            }
-        }
+        let services = systemprompt_loader::ServicesBootstrap::get()?;
+        let candidates = [effective_model, self.ctx.model.as_str()];
+        Ok(pricing::resolve(
+            &self.ctx.provider,
+            &candidates,
+            services.gateway_config(),
+            &services.providers,
+        )?)
     }
 }

@@ -182,6 +182,17 @@ pub(crate) async fn forward(
         &route.extra_headers,
     )?;
 
+    // Generate once per inbound delivery, before any upstream retries.
+    if request_path.starts_with("/api/public/hooks/")
+        && !upstream_headers.contains_key("x-ingestion-event-id")
+    {
+        let value = uuid::Uuid::new_v4()
+            .to_string()
+            .parse()
+            .map_err(|error| ForwardError::BadHeader(format!("ingestion event ID: {error}")))?;
+        upstream_headers.insert("x-ingestion-event-id", value);
+    }
+
     let upstream_response = send_with_replay(UpstreamRequest {
         client: &client,
         method: &method,

@@ -69,11 +69,11 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
     let ctx = GatewayRequestContext {
         ai_request_id: ai_request_id.clone(),
         user_id,
-        session_id: None,
+        session_id: Some(systemprompt_identifiers::SessionId::generate()),
         context_id,
         gateway_conversation_id: Some(gw_conv),
-        client_session_id: None,
-        trace_id: None,
+        client_session_id: Some(systemprompt_identifiers::SessionId::generate()),
+        trace_id: Some(systemprompt_identifiers::TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_string(),
@@ -85,6 +85,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(db), ctx);
+    audit.pin_pricing(Default::default()).expect("explicit fixture pricing");
     audit
         .open(&request, &Bytes::from_static(b"{\"stream\":true}"))
         .await

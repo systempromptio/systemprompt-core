@@ -289,8 +289,9 @@ fn install_subprocess_env(database_url: &str) {
         if env::var("SYSTEMPROMPT_CUSTOM_SECRETS").is_err() {
             env::set_var(
                 "SYSTEMPROMPT_CUSTOM_SECRETS",
-                "slack_signing_secret,slack_bot_token,teams_app_password",
+                "slack_signing_secret,slack_bot_token,teams_app_password,encryption_master_key",
             );
+            env::set_var("encryption_master_key", "11".repeat(32));
             env::set_var("slack_signing_secret", TEST_SLACK_SIGNING_SECRET);
             env::set_var("slack_bot_token", TEST_SLACK_BOT_TOKEN);
             env::set_var("teams_app_password", TEST_TEAMS_APP_PASSWORD);

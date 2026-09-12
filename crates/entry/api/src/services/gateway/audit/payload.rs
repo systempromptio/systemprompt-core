@@ -14,7 +14,7 @@ const EXCERPT_BYTES: usize = 8 * 1024;
 ///
 /// `sha256` is computed over the **full** bytes regardless of truncation, so a
 /// capped capture still proves which body was sent.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PayloadCapture {
     pub json: Option<Value>,
     pub excerpt: Option<String>,

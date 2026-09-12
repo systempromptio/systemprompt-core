@@ -164,6 +164,7 @@ unused_lifetimes = "warn"
 single_use_lifetimes = "warn"
 
 [workspace.dependencies]
+chacha20poly1305 = "0.10"
 # Core dependencies
 tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-test = "0.4"

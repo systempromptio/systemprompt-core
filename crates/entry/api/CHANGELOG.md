@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Gateway admission now propagates request and governance persistence failures before provider dispatch. Session and trace identity are required, and pricing is pinned for every request.
+- Terminal gateway accounting uses encrypted, bounded, profile-scoped receipts with replayable database settlement. Failed storage preserves terminal evidence for recovery; abandoned admissions retain an explicit unknown-usage failure.
+
 - The bridge release feed authenticates to GitHub with the secret named by `gateway.bridge_releases.token_secret`, resolved through `SecretsBootstrap`, instead of reading the process variable named by the former `token_env`.
 
 ## [0.51.0] - 2026-09-11

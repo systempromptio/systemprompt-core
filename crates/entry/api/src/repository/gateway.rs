@@ -17,6 +17,7 @@ use crate::services::gateway::signature_cache::{TTL, ThoughtSignatureCache};
 
 #[derive(Clone)]
 pub struct GatewayRepositories {
+    pub audit_pool: sqlx::PgPool,
     pub execution_capabilities:
         systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository,
     pub evaluations: systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository,
@@ -45,6 +46,7 @@ impl GatewayRepositories {
             systemprompt_ai::error::RepositoryError::PoolInitialization(error.to_string())
         })?;
         Ok(Self {
+            audit_pool: (*pool).clone(),
             execution_capabilities:
                 systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
                     (*pool).clone(),

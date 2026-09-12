@@ -93,7 +93,6 @@ impl GatewayService {
             repos,
             audit,
             policy,
-            evaluation_session,
             stream_usage,
             ai_request_id,
             upstream,
@@ -120,7 +119,6 @@ struct OpenedDispatch<'a> {
     repos: &'a super::GatewayRepositories,
     audit: Arc<GatewayAudit>,
     policy: GatewayPolicySpec,
-    evaluation_session: bool,
     stream_usage: bool,
     ai_request_id: systemprompt_identifiers::AiRequestId,
     upstream: ResolvedUpstream<'a>,
@@ -139,7 +137,6 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         repos,
         audit,
         policy,
-        evaluation_session,
         stream_usage,
         ai_request_id,
         upstream,
@@ -150,11 +147,9 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         inbound,
         forward_headers,
     } = opened;
-    if evaluation_session {
-        audit
-            .pin_evaluation_pricing(pricing)
-            .map_err(DispatchError::PreAudit)?;
-    }
+    audit
+        .pin_pricing(pricing)
+        .map_err(DispatchError::PreAudit)?;
 
     if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
         audit.set_route_match(descriptor).await;
@@ -216,7 +211,7 @@ async fn dispatch_policy(
 ) -> Result<(GatewayPolicySpec, bool), DispatchError> {
     if ctx.session_id.is_none() {
         return Err(DispatchError::PreAudit(anyhow!(
-            "gateway dispatch missing conversation binding (session_id)"
+            "gateway dispatch missing authenticated session (session_id)"
         )));
     }
 
@@ -239,10 +234,12 @@ async fn open_audit(
     identity_headers: &[(String, String)],
 ) -> Result<Arc<GatewayAudit>, DispatchError> {
     let audit = Arc::new(GatewayAudit::new(repos, ctx.clone()));
-    audit
-        .open(request, raw_body)
-        .await
-        .map_err(DispatchError::PreAudit)?;
+    if let Err(error) = audit.open(request, raw_body).await {
+        if let Err(settlement_error) = audit.fail("Gateway admission failed before provider dispatch").await {
+            tracing::error!(%settlement_error, "Could not record failed gateway admission");
+        }
+        return Err(DispatchError::PreAudit(error));
+    }
     if !identity_headers.is_empty() {
         tracing::info!(
             ai_request_id = %ctx.ai_request_id,

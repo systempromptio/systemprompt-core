@@ -37,6 +37,7 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
 }
 
 pub async fn setup_db() -> DbPool {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     ensure_test_secrets_bootstrap();
     let url = fixture_database_url().expect("DATABASE_URL required for gateway audit tests");
     fixture_db_pool(&url)
