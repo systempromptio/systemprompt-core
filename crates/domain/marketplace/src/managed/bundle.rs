@@ -135,9 +135,6 @@ impl RevisionBundle {
         Ok(())
     }
 
-    /// Canonical bytes bind the exact dependency closure, file bytes, media
-    /// types and executable modes. No filesystem read or timestamp enters
-    /// this value.
     pub fn canonical_bytes(&self) -> Result<Vec<u8>> {
         self.verify()?;
         Ok(serde_jcs::to_vec(self)?)
