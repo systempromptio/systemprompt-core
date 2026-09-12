@@ -75,12 +75,18 @@ impl FailCause {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClientConnection {
+    Connected,
+    Disconnected,
+}
+
 pub const fn classify(
     error: Option<&str>,
     saw_stop: bool,
     has_content: bool,
     has_usage: bool,
-    client_gone: bool,
+    connection: ClientConnection,
 ) -> FinalizeDecision {
     if error.is_some() {
         return FinalizeDecision::Fail(FailCause::Upstream);
@@ -88,7 +94,7 @@ pub const fn classify(
     if !saw_stop {
         return FinalizeDecision::Fail(FailCause::Truncated {
             has_content,
-            client_gone,
+            client_gone: matches!(connection, ClientConnection::Disconnected),
         });
     }
     FinalizeDecision::Complete {
@@ -117,7 +123,11 @@ pub(super) fn finalize(
             summary.saw_stop,
             has_content,
             has_usage,
-            origin == "drop",
+            if origin == "drop" {
+                ClientConnection::Disconnected
+            } else {
+                ClientConnection::Connected
+            },
         ) {
             FinalizeDecision::Fail(cause) => {
                 let msg = summary.error.as_deref().unwrap_or_else(|| cause.reason());

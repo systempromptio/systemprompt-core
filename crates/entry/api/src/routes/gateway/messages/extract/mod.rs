@@ -75,12 +75,7 @@ pub(super) async fn extract_request_context(
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
-    let presented = extract_credential(request.headers()).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
+    let presented = headers::require_credential(request.headers())?;
 
     let client_headers = classify_client_headers(request.headers());
 
@@ -124,23 +119,7 @@ pub(super) async fn extract_request_context(
         .providers
         .find_provider(route.provider.as_str())
         .map(|p| p.wire);
-    rc.repos
-        .context_materializer
-        .ensure_context(systemprompt_traits::EnsureContextParams {
-            context_id: &context_id,
-            user_id: principal.user_id(),
-            session_id: Some(&session_id),
-            name: "Gateway conversation",
-            kind: "derived",
-        })
-        .await
-        .map_err(|error| {
-            tracing::error!(%error, "Conversation binding unavailable");
-            (
-                StatusCode::SERVICE_UNAVAILABLE,
-                "Conversation binding unavailable".to_owned(),
-            )
-        })?;
+    ensure_owned_context(rc, principal.user_id(), &context_id, &session_id).await?;
     rc.repos
         .thought_signatures
         .hydrate_request(
@@ -227,4 +206,29 @@ fn upstream_model_for(
                     .to_owned()
             },
         )
+}
+
+async fn ensure_owned_context(
+    rc: &RequestContext<'_>,
+    user_id: &UserId,
+    context_id: &ContextId,
+    session_id: &SessionId,
+) -> Result<(), (StatusCode, String)> {
+    rc.repos
+        .context_materializer
+        .ensure_context(systemprompt_traits::EnsureContextParams {
+            context_id,
+            user_id,
+            session_id: Some(session_id),
+            name: "Gateway conversation",
+            kind: "derived",
+        })
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "Conversation binding unavailable");
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Conversation binding unavailable".to_owned(),
+            )
+        })
 }

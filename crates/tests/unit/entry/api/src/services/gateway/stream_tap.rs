@@ -1,11 +1,13 @@
 //! Unit tests for the streaming-tap finalize decision.
 
-use systemprompt_api::services::gateway::stream_tap::{FailCause, FinalizeDecision, classify};
+use systemprompt_api::services::gateway::stream_tap::{
+    ClientConnection, FailCause, FinalizeDecision, classify,
+};
 
 #[test]
 fn empty_stream_fails_not_completes() {
     assert_eq!(
-        classify(None, false, false, false, false),
+        classify(None, false, false, false, ClientConnection::Connected),
         FinalizeDecision::Fail(FailCause::Truncated {
             has_content: false,
             client_gone: false,
@@ -16,7 +18,7 @@ fn empty_stream_fails_not_completes() {
 #[test]
 fn truncated_stream_with_content_but_no_stop_fails() {
     assert_eq!(
-        classify(None, false, true, false, false),
+        classify(None, false, true, false, ClientConnection::Connected),
         FinalizeDecision::Fail(FailCause::Truncated {
             has_content: true,
             client_gone: false,
@@ -27,7 +29,7 @@ fn truncated_stream_with_content_but_no_stop_fails() {
 #[test]
 fn upstream_error_always_fails() {
     assert_eq!(
-        classify(Some("boom"), true, true, true, false),
+        classify(Some("boom"), true, true, true, ClientConnection::Connected),
         FinalizeDecision::Fail(FailCause::Upstream),
     );
 }
@@ -35,7 +37,7 @@ fn upstream_error_always_fails() {
 #[test]
 fn normal_stream_completes_without_capture_miss() {
     assert_eq!(
-        classify(None, true, true, true, false),
+        classify(None, true, true, true, ClientConnection::Connected),
         FinalizeDecision::Complete {
             cost_capture_miss: false
         },
@@ -45,7 +47,7 @@ fn normal_stream_completes_without_capture_miss() {
 #[test]
 fn served_but_unmetered_stream_completes_with_capture_miss() {
     assert_eq!(
-        classify(None, true, true, false, false),
+        classify(None, true, true, false, ClientConnection::Connected),
         FinalizeDecision::Complete {
             cost_capture_miss: true
         },
@@ -55,7 +57,7 @@ fn served_but_unmetered_stream_completes_with_capture_miss() {
 #[test]
 fn stop_without_content_is_not_a_capture_miss() {
     assert_eq!(
-        classify(None, true, false, false, false),
+        classify(None, true, false, false, ClientConnection::Connected),
         FinalizeDecision::Complete {
             cost_capture_miss: false
         },
@@ -65,7 +67,7 @@ fn stop_without_content_is_not_a_capture_miss() {
 #[test]
 fn client_drop_before_stop_is_client_gone() {
     assert_eq!(
-        classify(None, false, true, false, true),
+        classify(None, false, true, false, ClientConnection::Disconnected),
         FinalizeDecision::Fail(FailCause::Truncated {
             has_content: true,
             client_gone: true,
@@ -76,7 +78,13 @@ fn client_drop_before_stop_is_client_gone() {
 #[test]
 fn upstream_error_outranks_client_drop() {
     assert_eq!(
-        classify(Some("boom"), false, true, false, true),
+        classify(
+            Some("boom"),
+            false,
+            true,
+            false,
+            ClientConnection::Disconnected
+        ),
         FinalizeDecision::Fail(FailCause::Upstream),
     );
 }

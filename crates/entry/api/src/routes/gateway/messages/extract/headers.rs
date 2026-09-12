@@ -141,3 +141,12 @@ pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
         Some(trimmed.to_owned())
     }
 }
+
+pub(super) fn require_credential(headers: &HeaderMap) -> Result<String, (StatusCode, String)> {
+    extract_credential(headers).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Missing Authorization or x-api-key credential".to_owned(),
+        )
+    })
+}

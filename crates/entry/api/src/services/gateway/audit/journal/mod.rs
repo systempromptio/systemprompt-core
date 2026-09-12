@@ -11,8 +11,8 @@ use anyhow::Result;
 use sqlx::PgPool;
 
 pub(super) async fn reserve(receipt: Receipt, pool: &PgPool) -> Result<std::fs::File> {
-    recover(pool).await?;
     static STARTED: std::sync::Once = std::sync::Once::new();
+    recover(pool).await?;
     let pool = pool.clone();
     STARTED.call_once(|| {
         tokio::spawn(async move {

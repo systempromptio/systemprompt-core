@@ -39,7 +39,7 @@ fn cipher() -> Result<ChaCha20Poly1305> {
         .context("Gateway journal requires encryption_master_key")?;
     let decoded = hex::decode(key)?;
     ChaCha20Poly1305::new_from_slice(&decoded)
-        .map_err(|_| anyhow::anyhow!("Invalid journal encryption key"))
+        .map_err(|error| anyhow::anyhow!("Invalid journal encryption key: {error}"))
 }
 
 fn name(id: &AiRequestId) -> String {
@@ -106,7 +106,7 @@ fn write(root: &Path, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
     OsRng.fill_bytes(&mut nonce);
     let encrypted = cipher()?
         .encrypt(&Nonce::from(nonce), bytes)
-        .map_err(|_| anyhow::anyhow!("Journal encryption failed"))?;
+        .map_err(|error| anyhow::anyhow!("Journal encryption failed: {error}"))?;
     let temp = root.join(format!("{}.tmp", uuid::Uuid::new_v4()));
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
@@ -120,7 +120,7 @@ fn write(root: &Path, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
     file.write_all(&encrypted)?;
     file.sync_all()?;
     fs::rename(&temp, root.join(name(id)))?;
-    File::open(&root)?.sync_all()?;
+    File::open(root)?.sync_all()?;
     Ok(())
 }
 
@@ -153,7 +153,7 @@ pub(super) fn list() -> Result<Vec<Receipt>> {
             fs::remove_file(&path)?;
             continue;
         }
-        if !path.extension().is_some_and(|x| x == "receipt") {
+        if path.extension().is_none_or(|x| x != "receipt") {
             continue;
         }
         let mut receipt = read(&path, &cipher)?;
@@ -183,7 +183,7 @@ fn read(path: &Path, cipher: &ChaCha20Poly1305) -> Result<Receipt> {
     let nonce: [u8; 12] = bytes[..12].try_into()?;
     let plain = cipher
         .decrypt(&Nonce::from(nonce), &bytes[12..])
-        .map_err(|_| anyhow::anyhow!("Journal authentication failed"))?;
+        .map_err(|error| anyhow::anyhow!("Journal authentication failed: {error}"))?;
     Ok(serde_json::from_slice(&plain)?)
 }
 

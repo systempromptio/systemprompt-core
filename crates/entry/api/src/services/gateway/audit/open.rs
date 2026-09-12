@@ -115,7 +115,7 @@ impl GatewayAudit {
         .await?;
         self.journal_lease
             .set(lease)
-            .map_err(|_| anyhow::anyhow!("Audit already admitted"))?;
+            .map_err(|_existing_lease| anyhow::anyhow!("Audit already admitted"))?;
         Ok(())
     }
 
