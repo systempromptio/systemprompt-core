@@ -165,7 +165,17 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
             (DecisionTag::Pending, reason.to_string(), policy_str)
         },
     };
-    let evaluated_rules = serde_json::to_value(audit).unwrap_or_else(|e| {
+    #[derive(Serialize)]
+    struct VersionedAudit<'a> {
+        #[serde(flatten)]
+        audit: &'a DecisionAudit,
+        detector_version: &'static str,
+    }
+    let evaluated_rules = serde_json::to_value(VersionedAudit {
+        audit,
+        detector_version: concat!(env!("CARGO_PKG_VERSION"), "-calibration-1"),
+    })
+    .unwrap_or_else(|e| {
         tracing::error!(
             error = %e,
             tool_name = %audit.target.tool_name,

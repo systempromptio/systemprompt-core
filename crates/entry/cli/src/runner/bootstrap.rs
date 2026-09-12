@@ -28,10 +28,11 @@ use systemprompt_runtime::{
 use crate::cli_settings::{CliConfig, OutputFormat, VerbosityLevel};
 use crate::env_overrides::EnvOverrides;
 use crate::paths::ResolvedPaths;
-use crate::shared::resolve_profile_path;
+use crate::shared::{ProfileSource, ResolvedProfile, resolve_profile_path};
 
 pub(super) struct ProfileContext {
     pub profile_name: String,
+    pub source: ProfileSource,
     pub is_cloud: bool,
     pub external_db_access: bool,
     pub env: crate::environment::ExecutionEnvironment,
@@ -43,8 +44,8 @@ pub(super) fn resolve_and_display_profile(
     env: &EnvOverrides,
     has_export: bool,
 ) -> Result<ProfileContext> {
-    let profile_path = resolve_profile(cli_config.profile_override.as_deref(), env)?;
-    init_profile(&profile_path)?;
+    let resolved = resolve_profile(cli_config.profile_override.as_deref(), env)?;
+    init_profile(&resolved.path)?;
 
     let profile = ProfileBootstrap::get()?;
 
@@ -66,6 +67,7 @@ pub(super) fn resolve_and_display_profile(
 
     Ok(ProfileContext {
         profile_name: profile.name.clone(),
+        source: resolved.source,
         is_cloud: profile.target.is_cloud(),
         external_db_access: profile.database.external_db_access,
         env,
@@ -76,11 +78,15 @@ pub(super) fn resolve_and_display_profile(
 pub(super) fn resolve_profile(
     cli_profile_override: Option<&str>,
     env: &EnvOverrides,
-) -> Result<PathBuf> {
+) -> Result<ResolvedProfile> {
     if let Some(profile_input) = cli_profile_override
         && crate::shared::is_path_input(profile_input)
     {
         return crate::shared::resolve_profile_from_path(profile_input)
+            .map(|path| ResolvedProfile {
+                path,
+                source: ProfileSource::Cli,
+            })
             .map_err(|e| anyhow::anyhow!("{}", e));
     }
 

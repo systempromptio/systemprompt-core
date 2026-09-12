@@ -89,6 +89,12 @@ sqlx-prepare:
 sqlx-prepare-publish:
     scripts/sqlx-prepare.sh publish
 
+# Every per-crate .sqlx cache must hold only the queries its own src/ issues
+# (ownership by SQL text). `sqlx-prepare-publish` prunes foreign entries as it
+# goes; this is the read-only check, no database or rebuild needed.
+sqlx-audit-caches:
+    scripts/sqlx-audit-caches.sh
+
 # Verify every SQLx crate compiles against its own per-crate .sqlx cache.
 #
 # Run from each crate directory so the macros resolve that crate's `.sqlx/`
@@ -172,8 +178,8 @@ check-lockfile-registry:
     ./scripts/check-lockfile-registry.sh
 
 # Check without building
-check: check-version-strings check-lockfile-registry lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
-    cargo check --workspace
+check: check-version-strings check-lockfile-registry lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+    cargo check --workspace --keep-going
 
 # Check offline (uses cached .sqlx metadata, no database required)
 check-offline:
@@ -210,8 +216,10 @@ doc-check:
 # The separate `crates/tests` workspace is clippied by `just style-check` (it
 # needs a live database for its `query!` fixtures, which CI's lint job lacks);
 # CI compiles it in the dedicated Test job instead.
-lint: lint-bridge
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+# `--keep-going` mirrors CI: a compile error in one crate must not hide the
+# clippy findings in every crate behind it (0.51.0 lost a gate round that way).
+lint: lint-bridge lint-bridge-native-tests
+    cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings
 
 # `bin/bridge` is its own workspace, so the root `--workspace` clippy above
 # never sees it.
@@ -225,7 +233,7 @@ lint: lint-bridge
 lint-bridge:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
+    cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets --all-features --keep-going -- -D warnings
     if [ "$(uname -s)" = "Linux" ]; then
         echo "note: src/gui/** and the Windows/macOS-only modules were configured out of that run."
         echo "note: run 'just lint-bridge-native' before calling desktop work done."
@@ -236,18 +244,32 @@ lint-bridge:
 # toolchain is needed); macOS cannot be linted from Linux at all, because ring
 # and objc2-exception-helper build scripts need a real cc — CI's `bridge-native`
 # job covers that on a mac runner.
-lint-bridge-native:
+lint-bridge-native: lint-bridge-native-tests
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "$(uname -s)" = "Linux" ]; then
         rustup target add x86_64-pc-windows-gnu
         cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
-            --all-targets --target x86_64-pc-windows-gnu -- -D warnings
+            --all-targets --all-features --keep-going --target x86_64-pc-windows-gnu -- -D warnings
         echo "note: macOS-only code is unlinted here; quality.yml's bridge-native job covers it."
     else
         cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
-            --all-targets -- -D warnings
+            --all-targets --all-features --keep-going -- -D warnings
     fi
+
+# The native quality matrix compiles the bridge test crates with no database
+# (SQLX_OFFLINE=true). Nothing on Linux mirrored that until 0.51.0 lost a gate
+# round to a DB-backed fixture pulled into `bridge/install`. This is the
+# offline build of exactly the crates quality.yml runs
+# (scripts/bridge-native-crates.txt); the run itself stays on the native OS.
+lint-bridge-native-tests:
+    ./scripts/bridge-native-tests.sh --no-run
+
+# Cheap, script-only form of the same failure: none of the native test crates
+# may reach systemprompt-test-fixtures or a `sqlx::query*!` user, even
+# transitively within crates/tests.
+lint-native-test-deps:
+    ./scripts/lint-native-test-deps.sh
 
 # The bridge mirrors the root [workspace.lints] tables by hand (standalone
 # workspace, no inheritance). Fail when the copies drift.
@@ -441,7 +463,7 @@ style-check:
     cargo fmt --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings
     echo ""
     echo "3️⃣  Checking sqlx::query allowlist..."
     ./scripts/check-sqlx.sh
@@ -451,7 +473,7 @@ style-check:
     echo ""
     echo "5️⃣  Checking the test workspace (fmt + clippy + compile)..."
     (cd crates/tests && cargo fmt --all -- --check)
-    (cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings)
+    (cd crates/tests && cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings)
     (cd crates/tests && cargo test --workspace --no-run)
     echo ""
     echo "6️⃣  Building rustdoc (both workspaces)..."
@@ -1781,6 +1803,11 @@ promote SHA="":
 
 lint-discarded-results:
     ./scripts/check-discarded-results.sh
+
+# Profiles are the source of truth; an env read outside the sanctioned boot
+# readers (scripts/env-var-allowlist.txt) is an undocumented kill switch.
+lint-env-vars:
+    ./scripts/lint-env-vars.sh
 
 lint-fail-open:
     ./scripts/check-fail-open.sh

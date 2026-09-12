@@ -1,5 +1,13 @@
 //! Rust source contracts for explicit result handling and closed guards.
 //!
+//! `fail-open` also carries a best-effort heuristic for partial policy
+//! projection: a guard fn that walks an inventory parameter (`known_*`,
+//! `*_catalog`, `inventory`) and returns a plain value is emitting a map a
+//! client can resolve to a permissive default when the inventory is empty or
+//! stale — 0.51.0's tool catalog did exactly that. The fn must return
+//! `Option`/`Result` so an empty or stale inventory withholds the subject.
+//! The heuristic is a tripwire, not the gate; the review remains the gate.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,6 +27,7 @@ pub fn inspect(source: &str, mode: &str) -> Result<Vec<Finding>, syn::Error> {
         annotations: annotation_lines(source),
         mode,
         guard: false,
+        inventory_params: Vec::new(),
         findings: Vec::new(),
     };
     scanner.visit_file(&syntax);
@@ -29,6 +38,7 @@ struct Scanner<'a> {
     annotations: Vec<usize>,
     mode: &'a str,
     guard: bool,
+    inventory_params: Vec<String>,
     findings: Vec<Finding>,
 }
 
@@ -59,6 +69,50 @@ fn guard_name(name: &str) -> bool {
         || name.contains("is_allowed")
 }
 
+fn inventory_param(name: &str) -> bool {
+    name.starts_with("known_") || name.ends_with("_catalog") || name == "inventory"
+}
+
+fn returns_fallible(output: &syn::ReturnType) -> bool {
+    match output {
+        syn::ReturnType::Default => false,
+        syn::ReturnType::Type(_, ty) => match ty.as_ref() {
+            syn::Type::Path(path) => path
+                .path
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == "Option" || segment.ident == "Result"),
+            _ => false,
+        },
+    }
+}
+
+fn inventory_params(sig: &syn::Signature) -> Vec<String> {
+    if returns_fallible(&sig.output) {
+        return Vec::new();
+    }
+    sig.inputs
+        .iter()
+        .filter_map(|arg| match arg {
+            syn::FnArg::Typed(typed) => match typed.pat.as_ref() {
+                Pat::Ident(ident) => Some(ident.ident.to_string()),
+                _ => None,
+            },
+            syn::FnArg::Receiver(_) => None,
+        })
+        .filter(|name| inventory_param(name))
+        .collect()
+}
+
+fn path_ident(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Path(path) => path.path.get_ident().map(ToString::to_string),
+        Expr::Reference(reference) => path_ident(&reference.expr),
+        Expr::Field(field) => path_ident(&field.base),
+        _ => None,
+    }
+}
+
 fn true_literal(expr: &Expr) -> bool {
     matches!(expr, Expr::Lit(literal) if matches!(&literal.lit, syn::Lit::Bool(value) if value.value))
 }
@@ -66,23 +120,38 @@ fn true_literal(expr: &Expr) -> bool {
 impl<'ast> Visit<'ast> for Scanner<'_> {
     fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
         let previous = self.guard;
+        let previous_params = std::mem::take(&mut self.inventory_params);
         self.guard = guard_name(&node.sig.ident.to_string());
+        if self.guard {
+            self.inventory_params = inventory_params(&node.sig);
+        }
         visit::visit_item_fn(self, node);
         self.guard = previous;
+        self.inventory_params = previous_params;
     }
 
     fn visit_trait_item_fn(&mut self, node: &'ast syn::TraitItemFn) {
         let previous = self.guard;
+        let previous_params = std::mem::take(&mut self.inventory_params);
         self.guard = guard_name(&node.sig.ident.to_string());
+        if self.guard {
+            self.inventory_params = inventory_params(&node.sig);
+        }
         visit::visit_trait_item_fn(self, node);
         self.guard = previous;
+        self.inventory_params = previous_params;
     }
 
     fn visit_impl_item_fn(&mut self, node: &'ast syn::ImplItemFn) {
         let previous = self.guard;
+        let previous_params = std::mem::take(&mut self.inventory_params);
         self.guard = guard_name(&node.sig.ident.to_string());
+        if self.guard {
+            self.inventory_params = inventory_params(&node.sig);
+        }
         visit::visit_impl_item_fn(self, node);
         self.guard = previous;
+        self.inventory_params = previous_params;
     }
 
     fn visit_stmt(&mut self, node: &'ast Stmt) {
@@ -112,6 +181,13 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
                     && node.args.first().is_some_and(true_literal))
         {
             self.report(node.span(), "fail-open-guard");
+        }
+        if self.mode == "fail-open"
+            && self.guard
+            && (node.method == "iter" || node.method == "into_iter" || node.method == "iter_mut")
+            && path_ident(&node.receiver).is_some_and(|name| self.inventory_params.contains(&name))
+        {
+            self.report(node.span(), "partial-projection");
         }
         if self.mode == "discarded" && node.method == "unwrap_or_default" {
             let operation = match node.receiver.as_ref() {
@@ -146,6 +222,16 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             }
         }
         visit::visit_expr_method_call(self, node);
+    }
+
+    fn visit_expr_for_loop(&mut self, node: &'ast syn::ExprForLoop) {
+        if self.mode == "fail-open"
+            && self.guard
+            && path_ident(&node.expr).is_some_and(|name| self.inventory_params.contains(&name))
+        {
+            self.report(node.span(), "partial-projection");
+        }
+        visit::visit_expr_for_loop(self, node);
     }
 
     fn visit_arm(&mut self, node: &'ast syn::Arm) {

@@ -20,6 +20,8 @@ use systemprompt_models::{Config, RequestContext};
 use super::validation::rewrite_url_for_internal_use;
 use crate::error::{McpDomainError, McpDomainResult};
 
+pub const BROKER_SECRET_KEY: &str = "mcp_credential_broker_secret";
+
 #[derive(serde::Deserialize)]
 struct AccessorResponse {
     access_token: String,
@@ -39,7 +41,11 @@ pub(super) async fn resolve_external_bearer(
 
     let base = Config::get()?.api_external_url.clone();
     let accessor = accessor_url(&base, &ext.token_endpoint);
-    fetch_external_bearer(&accessor, jwt.as_str(), server).await
+    let broker_secret = systemprompt_config::SecretsBootstrap::get()
+        .ok()
+        .and_then(|secrets| secrets.get(BROKER_SECRET_KEY).cloned())
+        .filter(|secret| !secret.is_empty());
+    fetch_external_bearer(&accessor, jwt.as_str(), broker_secret.as_deref(), server).await
 }
 
 pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
@@ -54,6 +60,7 @@ pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
 pub async fn fetch_external_bearer(
     accessor: &str,
     jwt: &str,
+    broker_secret: Option<&str>,
     server: &str,
 ) -> McpDomainResult<String> {
     let client = systemprompt_models::net::guarded_client(
@@ -67,15 +74,7 @@ pub async fn fetch_external_bearer(
     let mut request = client
         .get(accessor)
         .header("Authorization", format!("Bearer {jwt}"));
-    let broker_secret = std::env::var("MCP_CREDENTIAL_BROKER_SECRET")
-        .ok()
-        .filter(|secret| !secret.is_empty())
-        .or_else(|| {
-            systemprompt_config::SecretsBootstrap::get()
-                .ok()
-                .and_then(|secrets| secrets.get("mcp_credential_broker_secret").cloned())
-        });
-    if let Some(secret) = broker_secret.filter(|s| !s.is_empty()) {
+    if let Some(secret) = broker_secret {
         request = request.header("X-Systemprompt-Credential-Broker", secret);
     }
     let response = request.send().await.map_err(|e| {

@@ -2,8 +2,7 @@
 //!
 //! [`Config`] is the resolved, flat configuration installed once at
 //! startup into a process-wide `OnceLock` and read via [`Config::get`].
-//! Submodules cover environment classification, postgres-URL
-//! validation, rate-limit shapes, and verbosity levels.
+//! Submodules cover postgres-URL validation and rate-limit shapes.
 //! Accessors return [`crate::errors::ConfigError`] when not initialized.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -16,26 +15,21 @@ use systemprompt_traits::ConfigProvider;
 use crate::auth::JwtAudience;
 use crate::profile::{ContentNegotiationConfig, SecurityHeadersConfig, TrustedIssuer};
 
-mod environment;
 mod paths;
 mod rate_limits;
 mod validation;
-mod verbosity;
 
-pub use environment::Environment;
 pub use paths::PathNotConfiguredError;
 pub use rate_limits::RateLimitConfig;
 pub use validation::validate_postgres_url;
-pub use verbosity::VerbosityLevel;
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
 
 pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
 
 #[must_use]
-pub fn stable_instance_id() -> Option<String> {
-    std::env::var("HOSTNAME")
-        .ok()
+pub fn stable_instance_id(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
+    lookup("HOSTNAME")
         .map(|h| h.trim().to_owned())
         .filter(|h| !h.is_empty())
 }
@@ -43,11 +37,6 @@ pub fn stable_instance_id() -> Option<String> {
 #[must_use]
 pub fn random_instance_id() -> String {
     format!("instance-{}", uuid::Uuid::new_v4().simple())
-}
-
-#[must_use]
-pub fn default_instance_id() -> String {
-    stable_instance_id().unwrap_or_else(random_instance_id)
 }
 
 #[derive(Debug, Clone)]

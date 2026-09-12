@@ -13,7 +13,7 @@
 /// from the gitleaks (MIT) ruleset: a bare vendor prefix in prose passes, a
 /// full-length credential denies. `redact_whole_value` marks the patterns
 /// whose match is only the prefix of the credential — a PEM header, a
-/// `aws_secret_access_key` label, a JWT's first segment — so prompt recovery
+/// JWT's first segment — so prompt recovery
 /// removes the entire value rather than the matched bytes alone.
 #[derive(Debug, Clone, Copy)]
 pub struct SecretPattern {
@@ -33,8 +33,8 @@ pub const SECRET_PATTERNS: &[SecretPattern] = &[
     SecretPattern {
         id: "aws-secret-key",
         name: "AWS Secret Key",
-        expr: r"(?i)aws_secret_access_key",
-        redact_whole_value: true,
+        expr: r#"(?i)\baws_secret_access_key\b["']?\s*[:=]\s*["']?(?P<secret>[A-Za-z0-9/+=]{40})(?:["'\s,;}]|$)"#,
+        redact_whole_value: false,
     },
     SecretPattern {
         id: "github-token-classic",

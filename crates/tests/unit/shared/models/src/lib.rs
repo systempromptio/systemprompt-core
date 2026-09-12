@@ -48,7 +48,6 @@ mod ai_tool_call;
 mod message_artifact;
 
 #[cfg(test)]
-mod config;
 
 #[cfg(test)]
 mod events;

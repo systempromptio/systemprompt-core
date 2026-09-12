@@ -131,11 +131,11 @@ pub(super) fn github(
         // Why: GitHub rejects requests that send no User-Agent.
         .header(header::USER_AGENT, "systemprompt-gateway")
         .header("X-GitHub-Api-Version", "2022-11-28");
-    if let Some(token) = spec
-        .token_env
-        .as_deref()
-        .and_then(|k| std::env::var(k).ok())
-    {
+    if let Some(token) = spec.token_secret.as_deref().and_then(|key| {
+        systemprompt_config::SecretsBootstrap::get()
+            .ok()
+            .and_then(|secrets| secrets.get(key).cloned())
+    }) {
         req = req.bearer_auth(token);
     }
     req

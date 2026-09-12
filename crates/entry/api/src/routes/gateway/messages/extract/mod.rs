@@ -120,6 +120,16 @@ pub(super) async fn extract_request_context(
         .providers
         .find_provider(route.provider.as_str())
         .map(|p| p.wire);
+    rc.repos.context_materializer.ensure_context(systemprompt_traits::EnsureContextParams {
+        context_id: &context_id,
+        user_id: principal.user_id(),
+        session_id: Some(&session_id),
+        name: "Gateway conversation",
+        kind: "derived",
+    }).await.map_err(|error| {
+        tracing::error!(%error, "Conversation binding unavailable");
+        (StatusCode::SERVICE_UNAVAILABLE, "Conversation binding unavailable".to_owned())
+    })?;
     rc.repos
         .thought_signatures
         .hydrate_request(&gateway_conversation_id, &mut gateway_request, wire)
@@ -172,7 +182,8 @@ pub fn derive_conversation(
                 )
             })?,
     };
-    let client_session_id = gateway_request.client_session_id();
+    let client_session_id = gateway_request.client_session_id()
+        .map_err(|error| (StatusCode::BAD_REQUEST, error))?;
     let context_id = match (&client_session_id, header_supplied) {
         (Some(session), false) => ContextId::derived_from_client_session(session),
         _ => ContextId::derived_from_gateway_conversation(&gateway_conversation_id),

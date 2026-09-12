@@ -17,8 +17,8 @@ use systemprompt_identifiers::{PolicyId, SecretPatternId};
 use super::super::governed::GovernedInput;
 use super::super::registry::PolicyRegistration;
 use super::super::secrets::{
-    EntropyConfig, MAX_RECOVERY_FINDINGS, SecretFinding, SecretSource, detect_secrets_with,
-    secret_findings,
+    EntropyConfig, MAX_RECOVERY_FINDINGS, SecretFinding, SecretSource,
+    detect_secrets_with_exclusions, secret_findings,
 };
 use super::super::types::{GovernancePolicy, PolicyContext, SecretLocation};
 use super::SECRET_SCAN_ID as ID;
@@ -35,6 +35,7 @@ struct ExtraPattern {
 struct SecretScan {
     extra_patterns: Vec<ExtraPattern>,
     entropy: EntropyConfig,
+    disabled_patterns: Vec<SecretPatternId>,
 }
 
 const ENTROPY_KEYS: [&str; 4] = ["enabled", "min_len", "threshold", "allowlist"];
@@ -167,6 +168,14 @@ impl SecretScan {
         Self {
             extra_patterns: extras,
             entropy: entropy_from_yaml(v),
+            disabled_patterns: v
+                .get("disabled_patterns")
+                .and_then(YamlValue::as_sequence)
+                .into_iter()
+                .flatten()
+                .filter_map(YamlValue::as_str)
+                .map(SecretPatternId::new)
+                .collect(),
         }
     }
 }
@@ -184,6 +193,10 @@ impl GovernancePolicy for SecretScan {
     }
     fn prompt_secret_findings(&self, input: &GovernedInput) -> Option<Vec<SecretFinding>> {
         let mut findings = secret_findings(input, &self.entropy);
+        findings.retain(|finding| {
+            finding.pattern_id.as_str() != "high-entropy-token"
+                && !self.disabled_patterns.contains(&finding.pattern_id)
+        });
         let strings = input.strings();
         let custom = strings.iter().enumerate().flat_map(|(part_index, found)| {
             self.extra_patterns
@@ -199,14 +212,24 @@ impl GovernancePolicy for SecretScan {
         findings.truncate(MAX_RECOVERY_FINDINGS + 1);
         Some(findings)
     }
+    fn secret_pattern_exclusions(&self) -> Vec<SecretPatternId> {
+        self.disabled_patterns.clone()
+    }
+    fn secret_entropy_config(&self) -> Option<EntropyConfig> {
+        Some(self.entropy.clone())
+    }
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         let kind = ctx.input.location_kind();
-        if let Some(hit) = detect_secrets_with(ctx.input, &self.entropy) {
+        let hit = detect_secrets_with_exclusions(ctx.input, &self.entropy, &self.disabled_patterns);
+        if let Some(hit) = hit
+            .as_ref()
+            .filter(|hit| hit.pattern.id != "high-entropy-token")
+        {
             return Decision::Deny {
                 reason: DenyReason::SecretLeak {
                     pattern_id: SecretPatternId::new(hit.pattern.id),
                     pattern_name: Cow::Borrowed(hit.pattern.name),
-                    location: SecretLocation::new(kind, hit.path, hit.redacted),
+                    location: SecretLocation::new(kind, hit.path.clone(), hit.redacted.clone()),
                 },
             };
         }
@@ -226,7 +249,15 @@ impl GovernancePolicy for SecretScan {
         Decision::Allow {
             matched_by: MatchedBy::PolicyAllow {
                 policy_id: PolicyId::new(ID),
-                detail: Cow::Borrowed("No plaintext secrets detected in governed input"),
+                detail: hit.map_or(
+                    Cow::Borrowed("No plaintext secrets detected in governed input"),
+                    |hit| {
+                        Cow::Owned(format!(
+                            "observation: high-entropy-token at {} (unconfirmed; allow; {})",
+                            hit.path, hit.redacted
+                        ))
+                    },
+                ),
             },
         }
     }

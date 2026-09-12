@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.52.0] - 2026-09-12
+
+### Fixed
+
+- An explicit `--profile <name>` (or `SYSTEMPROMPT_PROFILE`) no longer rewrites the active session. Minting a session for the override used to call `set_active_with_profile`, so `just deploy-check --profile production` left `.systemprompt/sessions/index.json` pointing at production and the next bare `infra db migrate` targeted it. The resolver now carries a `ProfileSource` (`Cli`, `Env`, `Session`, `Discovery`); the session is stored under its key for reuse, and only a session-sourced profile — plus `admin session switch|login`, unchanged — moves `active_key`. Operators who relied on `--profile` to switch the active profile must run `admin session switch <name>`.
+- `infra db migrate`, `migrate-down`, `migrate-repair`, `migrate-mark-applied`, `execute`, `assign-admin` and `infra jobs run` refuse a cloud profile that was selected implicitly (stored session or directory discovery): `profile \`<name>\` is a cloud profile selected implicitly; pass \`--profile <name>\` to target it`. `CommandDescriptor::with_explicit_cloud_profile` / `requires_explicit_cloud_profile` mark the commands; the check runs in the runner before routing, so it cannot be bypassed by `external_db_access`. Local profiles are unaffected.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

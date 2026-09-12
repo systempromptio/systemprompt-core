@@ -56,7 +56,7 @@ impl ContextRepository {
         let name = params.name;
         let now = Utc::now();
 
-        sqlx::query!(
+        let result = sqlx::query!(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
              updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, $6)
@@ -75,6 +75,9 @@ impl ContextRepository {
         .await
         .map_err(RepositoryError::database)?;
 
+        if result.rows_affected() != 1 {
+            return Err(RepositoryError::invalid_state("Context belongs to a different owner"));
+        }
         Ok(())
     }
 

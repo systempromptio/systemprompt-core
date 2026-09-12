@@ -74,10 +74,13 @@ jobs:
     # shard compiles and runs only its crates (shared core deps come from the
     # cache). Tests run under cargo-nextest with a per-test timeout, so a hung
     # or leaking test fails fast and is named instead of starving the runner
-    # until it loses communication. `timeout-minutes` is the backstop.
+    # until it loses communication. The step-level `timeout-minutes` on "Run
+    # shard" is the backstop for the tests themselves; the job-level one is
+    # wider so a slow rust-cache post-step can never turn a passed shard into
+    # "cancelled" (it did, on 0.51.0).
     name: Test (${{ matrix.group }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -173,6 +176,7 @@ jobs:
           psql "$DATABASE_URL" -c 'ALTER DATABASE test SET synchronous_commit = off;'
 
       - name: Run shard
+        timeout-minutes: 30
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           SQLX_OFFLINE: "false"

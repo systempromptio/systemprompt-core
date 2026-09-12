@@ -138,8 +138,8 @@ fn an_absent_entropy_block_keeps_the_built_in_behaviour() {
     let target = tool("read_file");
     let evaluation = engine.evaluate(&call.ctx(&target, AccessScope::Unknown, &input));
     assert!(
-        matches!(evaluation.decision, Decision::Deny { .. }),
-        "defaults must still deny an unprefixed key"
+        matches!(evaluation.decision, Decision::Allow { .. }),
+        "entropy alone must remain observational"
     );
 }
 
@@ -313,8 +313,8 @@ fn a_mistyped_entropy_tunable_falls_back_to_the_default_loudly() {
     let target = tool("read_file");
     let evaluation = engine.evaluate(&call.ctx(&target, AccessScope::Unknown, &input));
     assert!(
-        matches!(evaluation.decision, Decision::Deny { .. }),
-        "a typo must fall back to the default threshold, not disable detection"
+        matches!(evaluation.decision, Decision::Allow { .. }),
+        "a typo must not promote entropy observations to blocking"
     );
 }
 

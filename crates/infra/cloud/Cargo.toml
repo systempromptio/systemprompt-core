@@ -45,6 +45,7 @@ tokio = { workspace = true }
 open = { workspace = true }
 urlencoding = { workspace = true }
 tracing = { workspace = true }
+dirs = { workspace = true }
 
 # CLI
 clap = { workspace = true }

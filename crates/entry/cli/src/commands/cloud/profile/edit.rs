@@ -18,7 +18,7 @@ use crate::shared::resolve_profile_path;
 
 pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
     let profile_path =
-        resolve_profile_path(args.name.as_deref(), ctx.env.profile.as_deref(), None)?;
+        resolve_profile_path(args.name.as_deref(), ctx.env.profile.as_deref(), None)?.path;
     let profile_dir = profile_path
         .parent()
         .context("Invalid profile path")?

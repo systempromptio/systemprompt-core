@@ -18,6 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod entropy;
+mod fingerprint;
 mod patterns;
 mod recovery;
 mod signatures;
@@ -57,26 +58,60 @@ pub fn compiled_pattern_count() -> usize {
     COMPILED.len()
 }
 
-fn redacted_snippet(s: &str, match_start: usize) -> String {
-    let mut snippet_end = (match_start + 12).min(s.len());
-    while !s.is_char_boundary(snippet_end) {
-        snippet_end -= 1;
-    }
-    format!("{}...[REDACTED]", &s[match_start..snippet_end])
+fn redacted_snippet(s: &str, start: usize, end: usize) -> String {
+    format!(
+        "fingerprint:{}...[REDACTED]",
+        fingerprint::of(&s[start..end])
+    )
+}
+
+pub(super) fn aws_value_at(value: &str, path: &str) -> bool {
+    path.rsplit('.')
+        .next()
+        .is_some_and(|key| key.eq_ignore_ascii_case("aws_secret_access_key"))
+        && value.len() == 40
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"/+= ".contains(&b) && b != b' ')
 }
 
 fn scan_patterns(s: &str) -> Option<(&'static SecretPattern, String)> {
-    COMPILED.iter().find_map(|(i, re)| {
-        re.find(s)
-            .map(|m| (&SECRET_PATTERNS[*i], redacted_snippet(s, m.start())))
-    })
+    scan_patterns_excluding(s, &[])
+}
+
+fn scan_patterns_excluding(
+    s: &str,
+    excluded: &[systemprompt_identifiers::SecretPatternId],
+) -> Option<(&'static SecretPattern, String)> {
+    COMPILED
+        .iter()
+        .filter(|(i, _)| {
+            !excluded
+                .iter()
+                .any(|id| id.as_str() == SECRET_PATTERNS[*i].id)
+        })
+        .find_map(|(i, re)| {
+            re.captures(s).and_then(|caps| {
+                caps.name("secret").or_else(|| caps.get(0)).map(|m| {
+                    (
+                        &SECRET_PATTERNS[*i],
+                        redacted_snippet(s, m.start(), m.end()),
+                    )
+                })
+            })
+        })
 }
 
 fn scan_str(s: &str, entropy: &EntropyConfig) -> Option<(&'static SecretPattern, String)> {
     scan_patterns(s).or_else(|| {
         entropy::high_entropy_spans(s, entropy)
             .next()
-            .map(|(span, _)| (&HIGH_ENTROPY_PATTERN, redacted_snippet(s, span.start)))
+            .map(|(span, _)| {
+                (
+                    &HIGH_ENTROPY_PATTERN,
+                    redacted_snippet(s, span.start, span.end),
+                )
+            })
     })
 }
 
@@ -102,18 +137,52 @@ pub fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
 
 #[must_use]
 pub fn detect_secrets_with(input: &GovernedInput, entropy: &EntropyConfig) -> Option<SecretHit> {
+    detect_secrets_with_exclusions(input, entropy, &[])
+}
+
+pub fn detect_secrets_with_exclusions(
+    input: &GovernedInput,
+    entropy: &EntropyConfig,
+    excluded: &[systemprompt_identifiers::SecretPatternId],
+) -> Option<SecretHit> {
     let strings = input.strings();
     let exemptions = SignatureExemptions::from_strings(&strings);
-    strings.into_iter().find_map(|s| {
-        let found = if exemptions.exempts_entropy(&s.path) {
-            scan_patterns(s.value)
-        } else {
-            scan_str(s.value, entropy)
-        };
-        found.map(|(pattern, redacted)| SecretHit {
-            pattern,
-            path: s.path,
-            redacted,
+    let hit = |s: &super::governed::GovernedString<'_>, pattern, redacted| SecretHit {
+        pattern,
+        path: s.path.clone(),
+        redacted,
+    };
+    strings
+        .iter()
+        .find_map(|s| {
+            scan_patterns_excluding(s.value, excluded)
+                .map(|(pattern, redacted)| hit(s, pattern, redacted))
+                .or_else(|| {
+                    (aws_value_at(s.value, &s.path)
+                        && !excluded.iter().any(|id| id.as_str() == "aws-secret-key"))
+                    .then(|| {
+                        hit(
+                            s,
+                            &SECRET_PATTERNS[1],
+                            redacted_snippet(s.value, 0, s.value.len()),
+                        )
+                    })
+                })
         })
-    })
+        .or_else(|| {
+            strings.iter().find_map(|s| {
+                if exemptions.exempts_entropy(&s.path) {
+                    return None;
+                }
+                entropy::high_entropy_spans(s.value, entropy)
+                    .next()
+                    .map(|(span, _)| {
+                        hit(
+                            s,
+                            &HIGH_ENTROPY_PATTERN,
+                            redacted_snippet(s.value, span.start, span.end),
+                        )
+                    })
+            })
+        })
 }

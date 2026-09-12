@@ -9,20 +9,25 @@
 /// Model discovery (installing the services registry through boot-time
 /// discovery) is set only for the server; every other command loads the YAML
 /// catalog as authored and must not reach for the network.
+///
+/// `requires_explicit_cloud_profile` marks commands that mutate whatever
+/// database the profile resolves to: they refuse a cloud profile that arrived
+/// implicitly (stored session or directory discovery) and demand `--profile`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CommandDescriptor {
-    flags: u8,
+    flags: u16,
 }
 
 impl CommandDescriptor {
-    const FLAG_PROFILE: u8 = 0b0000_0001;
-    const FLAG_SECRETS: u8 = 0b0000_0010;
-    const FLAG_PATHS: u8 = 0b0000_0100;
-    const FLAG_DATABASE: u8 = 0b0000_1000;
-    const FLAG_REMOTE_ELIGIBLE: u8 = 0b0001_0000;
-    const FLAG_SKIP_VALIDATION: u8 = 0b0010_0000;
-    const FLAG_READ_ONLY: u8 = 0b0100_0000;
-    const FLAG_MODEL_DISCOVERY: u8 = 0b1000_0000;
+    const FLAG_PROFILE: u16 = 0b0000_0000_0001;
+    const FLAG_SECRETS: u16 = 0b0000_0000_0010;
+    const FLAG_PATHS: u16 = 0b0000_0000_0100;
+    const FLAG_DATABASE: u16 = 0b0000_0000_1000;
+    const FLAG_REMOTE_ELIGIBLE: u16 = 0b0000_0001_0000;
+    const FLAG_SKIP_VALIDATION: u16 = 0b0000_0010_0000;
+    const FLAG_READ_ONLY: u16 = 0b0000_0100_0000;
+    const FLAG_MODEL_DISCOVERY: u16 = 0b0000_1000_0000;
+    const FLAG_EXPLICIT_CLOUD_PROFILE: u16 = 0b0001_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -101,6 +106,16 @@ impl CommandDescriptor {
     pub const fn with_model_discovery(self) -> Self {
         Self {
             flags: self.flags | Self::FLAG_MODEL_DISCOVERY,
+        }
+    }
+
+    pub const fn requires_explicit_cloud_profile(&self) -> bool {
+        self.flags & Self::FLAG_EXPLICIT_CLOUD_PROFILE != 0
+    }
+
+    pub const fn with_explicit_cloud_profile(self) -> Self {
+        Self {
+            flags: self.flags | Self::FLAG_EXPLICIT_CLOUD_PROFILE,
         }
     }
 }

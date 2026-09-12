@@ -174,7 +174,7 @@ pub(crate) async fn forward(
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context).await?;
 
-    let upstream_headers = build_upstream_headers(
+    let mut upstream_headers = build_upstream_headers(
         &parts.headers,
         &upstream_bearer,
         session_context.session_id(),

@@ -30,8 +30,6 @@ fn env() -> EnvironmentConfig {
             cors_allowed_origins: vec![],
         },
         systemprompt: SystempromptEnvVars {
-            env: "local".to_owned(),
-            verbosity: "info".to_owned(),
             services_path: None,
             skills_path: None,
             config_path: None,

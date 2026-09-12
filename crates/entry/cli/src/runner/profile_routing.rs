@@ -18,6 +18,7 @@ use crate::commands::{admin, infrastructure};
 use crate::descriptor::{CommandDescriptor, RoutingClass};
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
+use crate::shared::ProfileSource;
 
 enum RoutingAction {
     ContinueLocal,
@@ -33,6 +34,7 @@ pub(super) async fn bootstrap_profile(
     let has_export = args::has_local_export_flag(cli.command.as_ref());
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
+    require_explicit_cloud_profile(ProfileBootstrap::get()?, ctx.source, desc)?;
     enforce_routing_policy(&ctx, cli, desc, cli_config).await?;
 
     let needs_cloud = is_cloud_bypass_command(cli.command.as_ref());
@@ -76,6 +78,30 @@ async fn enforce_routing_policy(
     }
 
     Ok(())
+}
+
+pub fn require_explicit_cloud_profile(
+    profile: &systemprompt_models::Profile,
+    source: ProfileSource,
+    desc: &CommandDescriptor,
+) -> Result<()> {
+    if !desc.requires_explicit_cloud_profile() || source.is_explicit() {
+        return Ok(());
+    }
+
+    let has_tenant = profile
+        .cloud
+        .as_ref()
+        .is_some_and(|cloud| cloud.tenant_id.is_some());
+    if !(has_tenant || profile.target.is_cloud()) {
+        return Ok(());
+    }
+
+    bail!(
+        "profile `{}` is a cloud profile selected implicitly; pass `--profile {}` to target it",
+        profile.name,
+        profile.name
+    )
 }
 
 pub const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {

@@ -187,6 +187,12 @@ impl PolicyContext<'_> {
 /// [`DenyReason::SecretLeak`][crate::authz::types::DenyReason::SecretLeak];
 /// only a policy that returns `Some` takes part in prompt recovery.
 pub trait GovernancePolicy: Send + Sync + fmt::Debug {
+    fn secret_pattern_exclusions(&self) -> Vec<systemprompt_identifiers::SecretPatternId> {
+        Vec::new()
+    }
+    fn secret_entropy_config(&self) -> Option<super::secrets::EntropyConfig> {
+        None
+    }
     fn id(&self) -> PolicyId;
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;

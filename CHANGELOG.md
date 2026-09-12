@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **CLI:** an explicit `--profile` never rewrites the active session, and `infra db migrate` / the destructive `infra db` subcommands / `infra jobs run` refuse a cloud profile selected implicitly (session or discovery) unless `--profile <name>` is passed. Closes the 0.51.0 near-miss where a consumer's `core-bump` migrated against production.
+- **Cloud:** `DockerCli::build_image` preflights the daemon and, on failure, names the resolved `docker` binary and the configured `credsStore`.
+- **Gates:** `just lint-env-vars` (every production env reader is in `scripts/env-var-allowlist.txt` with a reason), `just lint-native-test-deps` and `just lint-bridge-native-tests` (the native bridge test crates build offline and stay DB-free; package list in `scripts/bridge-native-crates.txt`, shared with `quality.yml`), `just sqlx-audit-caches` (each per-crate `.sqlx` holds only its own queries; `sqlx-prepare-publish` prunes foreign entries — 1,930 were removed from the committed caches). `just lint`, `check`, `lint-bridge*` and `style-check` run clippy/check with `--keep-going`, the bridge with `--all-features`. `just lint-fail-open` gains a `partial-projection` heuristic. CI test shards and the native bridge job carry step-level timeouts so a slow cache save cannot cancel a passed job.
+
 ### Fixed
 
 - A client that hung up on a streaming gateway response was audited as `stream ended without stop event`, the same message as a genuine upstream EOF, so an ordinary abort read as a provider defect. Claude Code's automatic session-title request is the routine case: `claude -p` exits as soon as the turn's result is printed while the title is still streaming from a slower model (prod row `23e3ad2c`, `zai.glm-5.2`, 4 s in). The tap now records who ended the stream — `client disconnected before stop event` (499) when the body was dropped, `upstream stream ended without stop event` (502) when the provider closed it — and only the latter is logged as a stream failure.

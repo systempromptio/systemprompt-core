@@ -44,27 +44,67 @@ pub enum ProfileResolutionError {
     SessionStoreCorrupt(#[from] systemprompt_cloud::CloudError),
 }
 
+/// How the profile for this invocation was chosen.
+///
+/// `Cli` and `Env` are explicit: the operator named the profile. `Session`
+/// and `Discovery` are implicit: the profile came from the stored active
+/// session or from the only profile directory present. Only an explicit
+/// source may aim a mutating command at a cloud profile, and only the
+/// session source may rewrite the active session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileSource {
+    Cli,
+    Env,
+    Session,
+    Discovery,
+}
+
+impl ProfileSource {
+    #[must_use]
+    pub const fn is_explicit(self) -> bool {
+        matches!(self, Self::Cli | Self::Env)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedProfile {
+    pub path: PathBuf,
+    pub source: ProfileSource,
+}
+
 pub fn resolve_profile_path(
     cli_override: Option<&str>,
     env_override: Option<&str>,
     from_session: Option<PathBuf>,
-) -> Result<PathBuf, ProfileResolutionError> {
+) -> Result<ResolvedProfile, ProfileResolutionError> {
     if let Some(profile_input) = cli_override {
-        return resolve_profile_input(profile_input);
+        return resolve_profile_input(profile_input).map(|path| ResolvedProfile {
+            path,
+            source: ProfileSource::Cli,
+        });
     }
 
     if let Some(path_str) = env_override {
-        return resolve_profile_input(path_str);
+        return resolve_profile_input(path_str).map(|path| ResolvedProfile {
+            path,
+            source: ProfileSource::Env,
+        });
     }
 
     if let Some(path) = from_session.filter(|p| p.exists()) {
-        return Ok(path);
+        return Ok(ResolvedProfile {
+            path,
+            source: ProfileSource::Session,
+        });
     }
 
     let mut profiles = discover_profiles()?;
     match profiles.len() {
         0 => Err(ProfileResolutionError::NoProfilesFound),
-        1 => Ok(profiles.swap_remove(0).path),
+        1 => Ok(ResolvedProfile {
+            path: profiles.swap_remove(0).path,
+            source: ProfileSource::Discovery,
+        }),
         _ => Err(ProfileResolutionError::MultipleProfilesFound {
             profiles: profiles.iter().map(|p| p.name.clone()).collect(),
         }),

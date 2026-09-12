@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-12
+
+### Added
+
+- `DockerCli::preflight_daemon` runs `docker version --format '{{.Server.Version}}'` through the command runner; `build_image` calls it first. On failure the error names the daemon's own message, the `docker` binary `PATH` resolves to, and the `credsStore` in `~/.docker/config.json` — a desktop-app or credential-helper shim ahead of the real binary used to fail `docker build` with a message naming neither.
+
 ## [0.50.0] - 2026-09-10
 
 ### Changed

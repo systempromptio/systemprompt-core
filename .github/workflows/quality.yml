@@ -60,9 +60,12 @@ jobs:
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
+          # `just lint` also builds the native bridge test crates offline
+          # (lint-bridge-native-tests), which live in crates/tests.
           workspaces: |
             .
             bin/bridge
+            crates/tests
       - uses: extractions/setup-just@v2
       - run: just lint
 
@@ -73,8 +76,9 @@ jobs:
     name: Bridge native checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     # A test that raises a native modal, or waits on elevation, hangs a runner
-    # silently; the whole job is well under this when healthy.
-    timeout-minutes: 45
+    # silently; the two cargo steps carry their own timeouts so a slow
+    # rust-cache post-step cannot cancel a job whose checks already passed.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -87,8 +91,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: bin/bridge
-      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --locked -- -D warnings
-      - run: cargo test --manifest-path crates/tests/Cargo.toml --locked -p systemprompt-bridge-config-tests -p systemprompt-bridge-install-tests -p systemprompt-bridge-fsutil-tests -p systemprompt-bridge-gui-tests -p systemprompt-bridge-verdicts-tests
+      - name: Clippy (native target)
+        timeout-minutes: 20
+        run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
+      - name: Bridge test crates (native, offline)
+        # The package list is scripts/bridge-native-crates.txt — the same file
+        # `just lint-bridge-native-tests` reads, so the local mirror and this
+        # job can never drift.
+        timeout-minutes: 25
+        shell: bash
+        run: bash scripts/bridge-native-tests.sh
 
   docs:
     name: Rustdoc (warnings as errors)

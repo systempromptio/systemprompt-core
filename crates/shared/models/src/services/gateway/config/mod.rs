@@ -87,7 +87,7 @@ pub struct GatewayConfigSpec {
 pub struct BridgeReleasesSpec {
     pub repo: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub token_env: Option<String>,
+    pub token_secret: Option<String>,
     #[serde(default = "default_tag_prefix")]
     pub tag_prefix: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

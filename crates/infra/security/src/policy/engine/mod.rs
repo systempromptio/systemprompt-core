@@ -146,6 +146,20 @@ impl GovernanceEngine {
             })
     }
 
+    pub fn secret_pattern_exclusions(&self) -> Vec<systemprompt_identifiers::SecretPatternId> {
+        self.entries
+            .iter()
+            .find(|entry| entry.config.id == SECRET_SCAN_ID)
+            .map_or_else(Vec::new, |entry| entry.instance.secret_pattern_exclusions())
+    }
+
+    pub fn secret_entropy_config(&self) -> Option<super::secrets::EntropyConfig> {
+        self.entries
+            .iter()
+            .find(|entry| entry.config.id == SECRET_SCAN_ID)
+            .and_then(|entry| entry.instance.secret_entropy_config())
+    }
+
     pub fn policies(&self) -> impl Iterator<Item = (&PolicyConfig, &dyn GovernancePolicy)> {
         self.entries
             .iter()

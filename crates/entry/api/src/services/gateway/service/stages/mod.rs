@@ -171,7 +171,8 @@ impl GovernedDispatch {
                 |e| e.policy_id.as_str().to_owned(),
             );
 
-        record_governance_decision(db, ctx, evaluation, call_id, session_id).await;
+        record_governance_decision(db, ctx, evaluation, call_id, session_id)
+            .await.map_err(super::DispatchError::Recorded)?;
 
         let Some(reason) = denied else {
             return Ok(Self(prepared));

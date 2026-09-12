@@ -76,6 +76,7 @@ cache_dirs() {
 }
 
 SNAP=$(mktemp -d)
+FOREIGN_LOG=$(mktemp)
 for d in $(cache_dirs); do
     if [ -d "$d" ]; then
         mkdir -p "$SNAP/$d"
@@ -97,7 +98,7 @@ cleanup() {
         echo "prepare failed (exit $status); restoring every .sqlx cache to its previous state" >&2
         restore
     fi
-    rm -rf "$SNAP"
+    rm -rf "$SNAP" "$FOREIGN_LOG"
     exit $status
 }
 trap cleanup EXIT
@@ -121,13 +122,30 @@ else
         echo "Preparing $dir..."
         cargo clean -p "$name" 2>/dev/null || true
         (cd "$dir" && cargo sqlx prepare)
+        # Even with fresh dependencies, `cargo sqlx prepare` emits every query
+        # the expansion touched — dependencies included. Ownership is by SQL
+        # text (scripts/sqlx-audit-caches.sh); what the crate does not issue
+        # itself is dropped here, and reported apart from the shrink guard
+        # below, which is only about the crate's own queries.
+        scripts/sqlx-audit-caches.sh --prune "$dir" 2>>"$FOREIGN_LOG" || true
     done
 fi
 
+# Foreign entries never count as "disappeared": they were never this crate's.
+# Judged against the snapshot, so a leak from an earlier run is dropped
+# silently too rather than tripping the shrink guard.
+foreign_files=""
+if [ "$MODE" = publish ]; then
+    foreign_files=$(scripts/sqlx-audit-caches.sh --cache-root "$SNAP" "${SQLX_CRATES[@]#*	}" 2>&1 \
+        | grep -oE '^  query-[0-9a-f]+\.json' | tr -d ' ' | sort -u || true)
+fi
 pruned=0
 for d in $(cache_dirs); do
     [ -d "$SNAP/$d" ] || continue
     for f in "$SNAP/$d"/*.json; do
+        if grep -qxF "$(basename "$f")" <<<"$foreign_files"; then
+            continue
+        fi
         if [ ! -f "$d/$(basename "$f")" ]; then
             if [ $pruned -eq 0 ]; then
                 echo "queries removed from the cache:" >&2
@@ -143,6 +161,10 @@ if [ $pruned -gt 0 ] && [ "${PREPARE_ALLOW_PRUNE:-0}" != "1" ]; then
 fi
 
 if [ "$MODE" = publish ]; then
+    if [ -s "$FOREIGN_LOG" ]; then
+        echo "foreign entries pruned from per-crate caches:" >&2
+        cat "$FOREIGN_LOG" >&2
+    fi
     echo "Per-crate caches prepared. Commit them before publishing: git add crates/*/*/.sqlx"
 else
     echo "Workspace cache prepared ($(ls .sqlx | wc -l) queries)"

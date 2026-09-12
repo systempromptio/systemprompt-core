@@ -6,6 +6,13 @@
 //! a new local or tenant session. The [`helpers`] submodule holds the
 //! per-strategy resolution steps.
 //!
+//! A freshly minted session is stored under its key, but only a profile
+//! chosen from the stored session may become the active one: an explicit
+//! `--profile` or `SYSTEMPROMPT_PROFILE` override, or a discovered profile,
+//! is a one-shot target and must not leave the next bare invocation pointed
+//! at it. `admin session switch|login` remain the ways to change the active
+//! profile.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -24,6 +31,7 @@ use super::context::CliSessionContext;
 use crate::cli_settings::{OutputFormat, VerbosityLevel};
 use crate::context::CommandContext;
 use crate::paths::ResolvedPaths;
+use crate::shared::ProfileSource;
 use helpers::{
     create_new_session, extract_profile_name, initialize_profile_bootstraps,
     resolve_profile_path_from_session, resolve_profile_path_without_session, try_session_from_env,
@@ -54,12 +62,13 @@ async fn get_session_for_profile(
         )?;
     }
 
-    get_session_for_loaded_profile(&profile, &profile_path, ctx).await
+    get_session_for_loaded_profile(&profile, &profile_path, ProfileSource::Cli, ctx).await
 }
 
 async fn get_session_for_loaded_profile(
     profile: &Profile,
     profile_path: &Path,
+    source: ProfileSource,
     ctx: &CommandContext,
 ) -> Result<CliSessionContext> {
     if let Some(session_ctx) = try_session_from_env(profile, &ctx.env) {
@@ -108,8 +117,7 @@ async fn get_session_for_loaded_profile(
     )
     .await?;
 
-    store.upsert_session(&session_key, session.clone());
-    store.set_active_with_profile(&session_key, &profile_name);
+    record_new_session(&mut store, &session_key, &session, &profile_name, source);
     store.save(&sessions_dir)?;
 
     if session.session_token.as_str().is_empty() {
@@ -120,6 +128,19 @@ async fn get_session_for_loaded_profile(
         session,
         profile: profile.clone(),
     })
+}
+
+pub fn record_new_session(
+    store: &mut SessionStore,
+    session_key: &SessionKey,
+    session: &systemprompt_cloud::CliSession,
+    profile_name: &str,
+    source: ProfileSource,
+) {
+    store.upsert_session(session_key, session.clone());
+    if source == ProfileSource::Session {
+        store.set_active_with_profile(session_key, profile_name);
+    }
 }
 
 async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliSessionContext>> {
@@ -155,7 +176,9 @@ async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliS
 
     initialize_profile_bootstraps(&profile_path).await?;
 
-    let session_ctx = get_session_for_loaded_profile(&profile, &profile_path, ctx).await?;
+    let session_ctx =
+        get_session_for_loaded_profile(&profile, &profile_path, ProfileSource::Session, ctx)
+            .await?;
     Ok(Some(session_ctx))
 }
 
@@ -213,6 +236,11 @@ async fn resolve_session(ctx: &CommandContext) -> Result<CliSessionContext> {
         )
     })?;
 
+    let source = if ctx.env.profile.is_some() {
+        ProfileSource::Env
+    } else {
+        ProfileSource::Discovery
+    };
     let profile_path = Path::new(profile_path_str);
-    get_session_for_loaded_profile(&profile, profile_path, ctx).await
+    get_session_for_loaded_profile(&profile, profile_path, source, ctx).await
 }

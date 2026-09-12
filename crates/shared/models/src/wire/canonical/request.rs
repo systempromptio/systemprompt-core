@@ -221,9 +221,12 @@ impl CanonicalRequest {
 
     // Why: the caller's own session travels inside `metadata.user_id`; it is
     // read here, before the identity is stripped for the upstream.
-    pub fn client_session_id(&self) -> Option<ClientSessionId> {
-        let user_id = self.metadata.as_ref()?.get("user_id")?.as_str()?;
-        ClientSessionId::from_metadata_user_id(user_id)
+    pub fn client_session_id(&self) -> Result<Option<ClientSessionId>, String> {
+        let Some(value) = self.metadata.as_ref().and_then(|m| m.get("user_id")) else {
+            return Ok(None);
+        };
+        let value = value.as_str().ok_or_else(|| "metadata.user_id must be a string".to_owned())?;
+        ClientSessionId::from_metadata_user_id(value).map_err(|e| e.to_string())
     }
 
     pub fn flatten_message_text(&self, role: Role) -> Option<String> {

@@ -32,12 +32,20 @@ fn validate(value: &str) -> Result<(), IdValidationError> {
 crate::define_id!(ClientSessionId, validated, schema, validate);
 
 impl ClientSessionId {
-    // Why: the suffix after the last `_session_` is the only part with a
-    // stable shape; the prefix segments vary by client and account.
-    #[must_use]
-    pub fn from_metadata_user_id(user_id: &str) -> Option<Self> {
-        let (_, suffix) = user_id.rsplit_once(SESSION_SEGMENT)?;
-        let parsed = uuid::Uuid::parse_str(suffix.trim()).ok()?;
-        Some(Self::new_unchecked(parsed.hyphenated().to_string()))
+    pub fn from_metadata_user_id(value: &str) -> Result<Option<Self>, IdValidationError> {
+        let value = value.trim();
+        let session = if value.starts_with('{') {
+            let metadata: serde_json::Value = serde_json::from_str(value)
+                .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+            Some(metadata.get("session_id").and_then(serde_json::Value::as_str)
+                .ok_or_else(|| IdValidationError::invalid("ClientSessionId", "metadata requires a string session_id"))?.to_owned())
+        } else {
+            value.rsplit_once(SESSION_SEGMENT).map(|(_, suffix)| suffix.to_owned())
+        };
+        session.map(|value| {
+            let parsed = uuid::Uuid::parse_str(value.trim())
+                .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+            Self::try_new(parsed.hyphenated().to_string())
+        }).transpose()
     }
 }

@@ -41,7 +41,6 @@ fn overlapping_findings_are_merged_and_invalid_offsets_are_rejected() {
 fn prefix_only_patterns_remove_the_entire_secret_bearing_value() {
     for text in [
         "-----BEGIN PRIVATE KEY-----\nthis-is-sensitive\n-----END PRIVATE KEY-----",
-        "aws_secret_access_key = sensitive-value",
         "Bearer eyJhbGciOiABC.payload.signature",
     ] {
         let input = GovernedInput::prompt_text(text.to_owned());

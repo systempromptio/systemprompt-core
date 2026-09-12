@@ -10,6 +10,7 @@
 
 mod request;
 mod response;
+mod safety;
 mod usage;
 
 pub use request::{

@@ -60,7 +60,7 @@ impl GatewayAudit {
             record.actor = actor;
         }
 
-        if let Err(e) = self
+        self
             .context_materializer
             .ensure_context(systemprompt_traits::EnsureContextParams {
                 context_id: &self.ctx.context_id,
@@ -69,14 +69,7 @@ impl GatewayAudit {
                 name: "Gateway conversation",
                 kind: "derived",
             })
-            .await
-        {
-            tracing::warn!(
-                error = %e,
-                context_id = %self.ctx.context_id,
-                "Could not materialize the gateway context; storing the request anyway"
-            );
-        }
+            .await?;
 
         self.requests
             .insert_with_id(&self.ctx.ai_request_id, &record)

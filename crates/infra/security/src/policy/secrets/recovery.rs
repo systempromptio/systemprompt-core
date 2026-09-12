@@ -48,14 +48,17 @@ pub fn secret_findings(input: &GovernedInput, entropy: &EntropyConfig) -> Vec<Se
             let value = found.value;
             let patterns = COMPILED.iter().flat_map(move |(index, regex)| {
                 let pattern = &SECRET_PATTERNS[*index];
-                regex.find_iter(value).map(move |hit| SecretFinding {
-                    source,
-                    span: if pattern.redact_whole_value {
-                        0..value.len()
-                    } else {
-                        hit.range()
-                    },
-                    pattern_id: SecretPatternId::new(pattern.id),
+                regex.captures_iter(value).filter_map(move |caps| {
+                    let hit = caps.name("secret").or_else(|| caps.get(0))?;
+                    Some(SecretFinding {
+                        source,
+                        span: if pattern.redact_whole_value {
+                            0..value.len()
+                        } else {
+                            hit.range()
+                        },
+                        pattern_id: SecretPatternId::new(pattern.id),
+                    })
                 })
             });
             let tokens = (!exemptions.exempts_entropy(&found.path))
@@ -70,7 +73,12 @@ pub fn secret_findings(input: &GovernedInput, entropy: &EntropyConfig) -> Vec<Se
                 })
                 .into_iter()
                 .flatten();
-            patterns.chain(tokens)
+            let assigned = super::aws_value_at(value, &found.path).then(|| SecretFinding {
+                source,
+                span: 0..value.len(),
+                pattern_id: SecretPatternId::new("aws-secret-key"),
+            });
+            patterns.chain(assigned).chain(tokens)
         })
         .take(MAX_RECOVERY_FINDINGS + 1)
         .collect()
