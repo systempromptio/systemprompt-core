@@ -1,4 +1,7 @@
 //! Bounded exact file bytes with portable paths and verified content hashes.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 

@@ -1,4 +1,7 @@
 //! Atomic revision writes bind every file and dependency to the same owner.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::types::Json;
 use systemprompt_identifiers::{ResourceRevisionId, UserId};
@@ -26,51 +29,7 @@ impl ManagedRepository {
         )?;
         let digest = manifest.digest()?;
         let mut tx = self.pool.begin().await?;
-        let source = sqlx::query_scalar!(
-            "SELECT source_id FROM managed_resources WHERE id=$1 AND owner_id=$2",
-            input.resource_id.as_str(),
-            owner.as_str()
-        )
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or(ManagedError::Unavailable)?;
-        let valid = sqlx::query_scalar!(
-            "SELECT id FROM managed_source_snapshots WHERE id=$1 AND owner_id=$2 AND source_id=$3",
-            input.snapshot_id.as_str(),
-            owner.as_str(),
-            source
-        )
-        .fetch_optional(&mut *tx)
-        .await?;
-        if valid.is_none() {
-            return Err(ManagedError::Unavailable);
-        }
-        if let Some(parent) = &input.parent_id {
-            let valid = sqlx::query_scalar!(
-                "SELECT id FROM managed_revisions WHERE id=$1 AND owner_id=$2 AND resource_id=$3",
-                parent.as_str(),
-                owner.as_str(),
-                input.resource_id.as_str()
-            )
-            .fetch_optional(&mut *tx)
-            .await?;
-            if valid.is_none() {
-                return Err(ManagedError::Unavailable);
-            }
-        }
-        for dependency in manifest.dependencies.values() {
-            let stored = sqlx::query_scalar!(
-                "SELECT digest FROM managed_revisions WHERE id=$1 AND owner_id=$2",
-                dependency.revision_id.as_str(),
-                owner.as_str()
-            )
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or(ManagedError::Unavailable)?;
-            if stored != dependency.digest.as_str() {
-                return Err(ManagedError::Integrity);
-            }
-        }
+        let source = validate_lineage(&mut tx, owner, input, &manifest).await?;
         let id = ResourceRevisionId::generate();
         sqlx::query!("INSERT INTO managed_revisions(id,owner_id,resource_id,source_id,snapshot_id,parent_id,digest,manifest,rationale) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(resource_id,digest) DO NOTHING",
             id.as_str(), owner.as_str(), input.resource_id.as_str(), source, input.snapshot_id.as_str(), input.parent_id.as_ref().map(ResourceRevisionId::as_str), digest.as_str(), Json(&manifest) as _, input.rationale).execute(&mut *tx).await?;
@@ -145,4 +104,58 @@ impl ManagedRepository {
         files.validate()?;
         Ok(files)
     }
+}
+
+async fn validate_lineage(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner: &UserId,
+    input: &NewRevision,
+    manifest: &RevisionManifest,
+) -> Result<String> {
+    let source = sqlx::query_scalar!(
+        "SELECT source_id FROM managed_resources WHERE id=$1 AND owner_id=$2",
+        input.resource_id.as_str(),
+        owner.as_str()
+    )
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or(ManagedError::Unavailable)?;
+    let valid = sqlx::query_scalar!(
+        "SELECT id FROM managed_source_snapshots WHERE id=$1 AND owner_id=$2 AND source_id=$3",
+        input.snapshot_id.as_str(),
+        owner.as_str(),
+        source
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    if valid.is_none() {
+        return Err(ManagedError::Unavailable);
+    }
+    if let Some(parent) = &input.parent_id {
+        let valid = sqlx::query_scalar!(
+            "SELECT id FROM managed_revisions WHERE id=$1 AND owner_id=$2 AND resource_id=$3",
+            parent.as_str(),
+            owner.as_str(),
+            input.resource_id.as_str()
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
+        if valid.is_none() {
+            return Err(ManagedError::Unavailable);
+        }
+    }
+    for dependency in manifest.dependencies.values() {
+        let stored = sqlx::query_scalar!(
+            "SELECT digest FROM managed_revisions WHERE id=$1 AND owner_id=$2",
+            dependency.revision_id.as_str(),
+            owner.as_str()
+        )
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or(ManagedError::Unavailable)?;
+        if stored != dependency.digest.as_str() {
+            return Err(ManagedError::Integrity);
+        }
+    }
+    Ok(source)
 }

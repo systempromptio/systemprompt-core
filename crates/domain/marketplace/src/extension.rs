@@ -1,4 +1,7 @@
 //! Durable source, revision and publication storage.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
 

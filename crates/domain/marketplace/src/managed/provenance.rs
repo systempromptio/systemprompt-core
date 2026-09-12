@@ -1,4 +1,7 @@
 //! Authoring locations and exact captures are different concepts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +41,6 @@ impl SourceSpec {
                 subdirectory,
                 credential_reference,
             } => {
-                // Transport credentials belong in the secret store, not the URL.
                 if !repository.starts_with("https://")
                     || repository.contains(['@', '?', '#'])
                     || repository.len() > 2048

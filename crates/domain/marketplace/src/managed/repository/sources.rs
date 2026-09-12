@@ -1,4 +1,7 @@
 //! Import provenance never changes the runtime publication pointer.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use sqlx::types::Json;
 use systemprompt_identifiers::{ManagedResourceId, ManagedSourceId, SourceSnapshotId, UserId};
