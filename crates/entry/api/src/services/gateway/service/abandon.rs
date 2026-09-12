@@ -22,7 +22,7 @@ pub const ABANDONED_REASON: &str = "client disconnected before upstream responde
 
 const CLIENT_CLOSED_REQUEST: u16 = 499;
 
-/// The armed/disarmed state of an [`AbandonGuard`], kept separate so the
+/// The armed/disarmed state of an `AbandonGuard`, kept separate so the
 /// once-only firing rule is testable without a database-backed audit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Arming {

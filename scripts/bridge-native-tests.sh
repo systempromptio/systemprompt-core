@@ -9,7 +9,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-mapfile -t crates < <(grep -vE '^\s*(#|$)' scripts/bridge-native-crates.txt)
+crates=()
+while IFS= read -r crate; do
+    crates+=("$crate")
+done < <(grep -vE '^[[:space:]]*(#|$)' scripts/bridge-native-crates.txt)
 if [ "${#crates[@]}" -eq 0 ]; then
     echo "scripts/bridge-native-crates.txt lists no crates" >&2
     exit 1
