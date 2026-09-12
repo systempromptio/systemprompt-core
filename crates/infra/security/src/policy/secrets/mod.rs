@@ -45,7 +45,7 @@ impl SecretScanner {
     }
 
     #[must_use]
-    pub fn pattern_count(&self) -> usize {
+    pub const fn pattern_count(&self) -> usize {
         self.patterns.len()
     }
 
@@ -110,10 +110,11 @@ fn selected_match<'a>(
     pattern: &CompiledSecretPattern,
     captures: &'a Captures<'a>,
 ) -> Option<regex::Match<'a>> {
-    match pattern.definition.secret_capture.as_deref() {
-        Some(name) => captures.name(name),
-        None => captures.get(0),
-    }
+    pattern
+        .definition
+        .secret_capture
+        .as_deref()
+        .map_or_else(|| captures.get(0), |name| captures.name(name))
 }
 
 fn redacted_snippet(value: &str, start: usize, end: usize) -> String {

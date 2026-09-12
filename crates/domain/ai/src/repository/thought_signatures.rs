@@ -15,6 +15,14 @@ use std::time::Duration;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{GatewayConversationId, UserId};
 
+pub struct ThoughtSignatureWrite<'a> {
+    pub user_id: &'a UserId,
+    pub conversation: &'a GatewayConversationId,
+    pub tool_use_id: &'a str,
+    pub signature: &'a str,
+    pub ttl: Duration,
+}
+
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct AiThoughtSignatureRepository {
@@ -29,14 +37,7 @@ impl AiThoughtSignatureRepository {
         Ok(Self { write_pool })
     }
 
-    pub async fn upsert(
-        &self,
-        user_id: &UserId,
-        conversation: &GatewayConversationId,
-        tool_use_id: &str,
-        signature: &str,
-        ttl: Duration,
-    ) -> Result<(), RepositoryError> {
+    pub async fn upsert(&self, write: &ThoughtSignatureWrite<'_>) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
             INSERT INTO ai_gateway_thought_signatures
@@ -46,11 +47,11 @@ impl AiThoughtSignatureRepository {
                 signature = EXCLUDED.signature,
                 expires_at = EXCLUDED.expires_at
             "#,
-            conversation.as_str(),
-            tool_use_id,
-            signature,
-            ttl.as_secs_f64(),
-            user_id.as_str(),
+            write.conversation.as_str(),
+            write.tool_use_id,
+            write.signature,
+            write.ttl.as_secs_f64(),
+            write.user_id.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;

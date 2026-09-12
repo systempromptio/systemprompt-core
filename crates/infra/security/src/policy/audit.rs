@@ -127,13 +127,15 @@ fn approved_policy_label(audit: &DecisionAudit) -> Option<String> {
         .map(|e| e.policy_id.as_str().to_owned())
 }
 
-pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), sqlx::Error> {
-    let actor = Actor::from_tool_name(
-        audit.principal.user_id.clone(),
-        audit.principal.agent_id.as_ref().map(AgentId::as_str),
-        &audit.target.tool_name,
-    );
-    let (decision_tag, reason_str, policy_str) = match &audit.decision {
+#[derive(Serialize)]
+struct VersionedAudit<'a> {
+    #[serde(flatten)]
+    audit: &'a DecisionAudit,
+    detector_version: &'static str,
+}
+
+fn decision_fields(audit: &DecisionAudit) -> (DecisionTag, String, String) {
+    match &audit.decision {
         Decision::Allow { .. } => (
             DecisionTag::Allow,
             String::new(),
@@ -164,13 +166,16 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
                 .map_or_else(|| "unknown".to_owned(), |e| e.policy_id.as_str().to_owned());
             (DecisionTag::Pending, reason.to_string(), policy_str)
         },
-    };
-    #[derive(Serialize)]
-    struct VersionedAudit<'a> {
-        #[serde(flatten)]
-        audit: &'a DecisionAudit,
-        detector_version: &'static str,
     }
+}
+
+pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), sqlx::Error> {
+    let actor = Actor::from_tool_name(
+        audit.principal.user_id.clone(),
+        audit.principal.agent_id.as_ref().map(AgentId::as_str),
+        &audit.target.tool_name,
+    );
+    let (decision_tag, reason_str, policy_str) = decision_fields(audit);
     let evaluated_rules = serde_json::to_value(VersionedAudit {
         audit,
         detector_version: concat!(env!("CARGO_PKG_VERSION"), "-calibration-1"),

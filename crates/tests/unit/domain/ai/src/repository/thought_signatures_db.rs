@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
+use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{GatewayConversationId, UserId};
 
@@ -45,9 +46,15 @@ async fn upsert_then_find_returns_the_signature() {
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
-    repo.upsert(&user_id, &conv, "call_1", "sig-a", TTL)
-        .await
-        .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "call_1",
+        signature: "sig-a",
+        ttl: TTL,
+    })
+    .await
+    .unwrap();
 
     assert_eq!(
         repo.find(&user_id, &conv, "call_1", TTL)
@@ -73,12 +80,24 @@ async fn upsert_overwrites_an_existing_signature() {
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
-    repo.upsert(&user_id, &conv, "call_1", "sig-a", TTL)
-        .await
-        .unwrap();
-    repo.upsert(&user_id, &conv, "call_1", "sig-b", TTL)
-        .await
-        .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "call_1",
+        signature: "sig-a",
+        ttl: TTL,
+    })
+    .await
+    .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "call_1",
+        signature: "sig-b",
+        ttl: TTL,
+    })
+    .await
+    .unwrap();
 
     assert_eq!(
         repo.find(&user_id, &conv, "call_1", TTL)
@@ -105,9 +124,15 @@ async fn find_is_scoped_to_the_conversation() {
     let conv = conversation();
     let other = conversation();
 
-    repo.upsert(&user_id, &conv, "call_1", "sig-a", TTL)
-        .await
-        .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "call_1",
+        signature: "sig-a",
+        ttl: TTL,
+    })
+    .await
+    .unwrap();
 
     assert!(
         repo.find(&user_id, &other, "call_1", TTL)
@@ -132,9 +157,15 @@ async fn expired_signature_is_not_found() {
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
-    repo.upsert(&user_id, &conv, "call_1", "sig-a", TTL)
-        .await
-        .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "call_1",
+        signature: "sig-a",
+        ttl: TTL,
+    })
+    .await
+    .unwrap();
     expire(&pool, &conv, "call_1").await;
 
     assert!(
@@ -160,9 +191,15 @@ async fn find_extends_the_expiry() {
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
-    repo.upsert(&user_id, &conv, "call_1", "sig-a", Duration::from_secs(1))
-        .await
-        .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "call_1",
+        signature: "sig-a",
+        ttl: Duration::from_secs(1),
+    })
+    .await
+    .unwrap();
     assert!(
         repo.find(&user_id, &conv, "call_1", TTL)
             .await
@@ -201,12 +238,24 @@ async fn cleanup_expired_removes_only_expired_rows() {
     let repo = AiThoughtSignatureRepository::new(&pool).unwrap();
     let conv = conversation();
 
-    repo.upsert(&user_id, &conv, "live", "sig-a", TTL)
-        .await
-        .unwrap();
-    repo.upsert(&user_id, &conv, "stale", "sig-b", TTL)
-        .await
-        .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "live",
+        signature: "sig-a",
+        ttl: TTL,
+    })
+    .await
+    .unwrap();
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "stale",
+        signature: "sig-b",
+        ttl: TTL,
+    })
+    .await
+    .unwrap();
     expire(&pool, &conv, "stale").await;
 
     let removed = repo.cleanup_expired().await.unwrap();

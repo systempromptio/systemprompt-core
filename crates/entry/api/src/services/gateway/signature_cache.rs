@@ -32,6 +32,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
+use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_identifiers::{GatewayConversationId, UserId};
 use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
@@ -113,7 +114,13 @@ impl ThoughtSignatureCache {
         );
         if let Err(e) = self
             .repository
-            .upsert(user_id, conversation, tool_use_id, signature, self.ttl)
+            .upsert(&ThoughtSignatureWrite {
+                user_id,
+                conversation,
+                tool_use_id,
+                signature,
+                ttl: self.ttl,
+            })
             .await
         {
             tracing::warn!(

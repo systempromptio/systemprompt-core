@@ -21,11 +21,7 @@ pub(super) fn of(value: &str) -> String {
         Ok(mut mac) => {
             mac.update(b"governance-evidence-v1:");
             mac.update(value.as_bytes());
-            mac.finalize()
-                .into_bytes()
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect()
+            hex::encode(mac.finalize().into_bytes())
         },
         Err(error) => {
             tracing::error!(%error, "evidence fingerprint unavailable");

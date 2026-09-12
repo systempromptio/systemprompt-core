@@ -117,6 +117,10 @@ fn report_entropy_block_typos(block: &YamlValue) {
 }
 
 impl SecretScan {
+    #[expect(
+        clippy::expect_used,
+        reason = "the infallible policy factory receives configuration already validated by GovernanceEngine"
+    )]
     fn from_yaml(v: &YamlValue) -> Self {
         Self {
             scanner: SecretScanner::from_policy_yaml(v)
