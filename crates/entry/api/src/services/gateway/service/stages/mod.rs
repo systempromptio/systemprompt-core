@@ -173,7 +173,7 @@ impl GovernedDispatch {
 
         record_governance_decision(db, ctx, evaluation, call_id, session_id)
             .await
-            .map_err(super::DispatchError::Recorded)?;
+            .map_err(DispatchError::Recorded)?;
 
         let Some(reason) = denied else {
             return Ok(Self(prepared));
