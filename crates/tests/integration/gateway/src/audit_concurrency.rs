@@ -26,7 +26,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
     let gw_conv = request
         .derived_gateway_conversation_id()
         .expect("gateway conversation id");
-    let context_id = ContextId::derived_from_gateway_conversation(&gw_conv);
+    let context_id = ContextId::derived_from_gateway_conversation(&user_id, &gw_conv);
     let ai_request_id = AiRequestId::generate();
     let body = Bytes::from(r#"{"messages":[{"role":"user","content":"concurrent first turn"}]}"#);
 
@@ -115,7 +115,7 @@ async fn gateway_audit_open_persists_derived_context_id() {
     let user_id = seed_user(&db).await;
     let request = minimal_request(Some("persist-context-id"), "first turn for persistence");
     let gw_conv = request.derived_gateway_conversation_id().unwrap();
-    let context_id = ContextId::derived_from_gateway_conversation(&gw_conv);
+    let context_id = ContextId::derived_from_gateway_conversation(&user_id, &gw_conv);
     let ai_request_id = AiRequestId::generate();
 
     let ctx = GatewayRequestContext {

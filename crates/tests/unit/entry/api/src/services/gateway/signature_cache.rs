@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::GatewayConversationId;
+use systemprompt_identifiers::{GatewayConversationId, UserId};
 
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
@@ -24,6 +24,7 @@ const TTL: Duration = Duration::from_secs(60);
 
 struct Harness {
     pool: DbPool,
+    user_id: UserId,
     repository: Arc<AiThoughtSignatureRepository>,
 }
 
@@ -32,7 +33,18 @@ impl Harness {
         let url = fixture_database_url().ok()?;
         let pool = fixture_db_pool(&url).await.ok()?;
         let repository = Arc::new(AiThoughtSignatureRepository::new(&pool).expect("repository"));
-        Some(Self { pool, repository })
+        let user_id = UserId::generate();
+        sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
+            .bind(user_id.as_str())
+            .bind(format!("{}@signature.test", user_id.as_str()))
+            .execute(pool.write_pool_arc().ok()?.as_ref())
+            .await
+            .ok()?;
+        Some(Self {
+            pool,
+            user_id,
+            repository,
+        })
     }
 
     fn cache(&self) -> ThoughtSignatureCache {
@@ -133,9 +145,11 @@ async fn hydrate_injects_cached_signature_when_none() {
     };
     let cache = h.cache();
     let conv = conv();
-    cache.store(&conv, "call_1", "sig-a").await;
+    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
     let mut request = request_with(vec![tool_use("call_1", None)]);
-    cache.hydrate_request(&conv, &mut request, GEMINI).await;
+    cache
+        .hydrate_request(&h.user_id, &conv, &mut request, GEMINI)
+        .await;
     assert_eq!(signature_of(&request).as_deref(), Some("sig-a"));
 }
 
@@ -146,7 +160,9 @@ async fn hydrate_passthrough_on_miss() {
     };
     let cache = h.cache();
     let mut request = request_with(vec![tool_use("call_unknown", None)]);
-    cache.hydrate_request(&conv(), &mut request, GEMINI).await;
+    cache
+        .hydrate_request(&h.user_id, &conv(), &mut request, GEMINI)
+        .await;
     assert_eq!(signature_of(&request), None);
 }
 
@@ -157,16 +173,21 @@ async fn inbound_signature_wins_and_rewarms() {
     };
     let cache = h.cache();
     let conv = conv();
-    cache.store(&conv, "call_1", "cached").await;
+    cache.store(&h.user_id, &conv, "call_1", "cached").await;
     let mut request = request_with(vec![tool_use("call_1", Some("client"))]);
-    cache.hydrate_request(&conv, &mut request, GEMINI).await;
+    cache
+        .hydrate_request(&h.user_id, &conv, &mut request, GEMINI)
+        .await;
     assert_eq!(signature_of(&request).as_deref(), Some("client"));
     assert_eq!(
-        cache.lookup(&conv, "call_1").await.as_deref(),
+        cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
         Some("client")
     );
     assert_eq!(
-        h.cache().lookup(&conv, "call_1").await.as_deref(),
+        h.cache()
+            .lookup(&h.user_id, &conv, "call_1")
+            .await
+            .as_deref(),
         Some("client"),
         "rewarm must reach the database, not just this instance"
     );
@@ -180,14 +201,19 @@ async fn a_signature_stored_by_one_instance_is_found_by_another() {
     let conv = conv();
     let replica_a = h.cache();
     let replica_b = h.cache();
-    replica_a.store(&conv, "call_1", "sig-a").await;
+    replica_a.store(&h.user_id, &conv, "call_1", "sig-a").await;
     assert_eq!(
-        replica_b.lookup(&conv, "call_1").await.as_deref(),
+        replica_b
+            .lookup(&h.user_id, &conv, "call_1")
+            .await
+            .as_deref(),
         Some("sig-a")
     );
 
     let mut replay = request_with(vec![tool_use("call_1", None)]);
-    replica_b.hydrate_request(&conv, &mut replay, GEMINI).await;
+    replica_b
+        .hydrate_request(&h.user_id, &conv, &mut replay, GEMINI)
+        .await;
     assert_eq!(signature_of(&replay).as_deref(), Some("sig-a"));
 }
 
@@ -197,9 +223,9 @@ async fn db_expiry_drops_entry_for_a_fresh_instance() {
         return;
     };
     let conv = conv();
-    h.cache().store(&conv, "call_1", "sig-a").await;
+    h.cache().store(&h.user_id, &conv, "call_1", "sig-a").await;
     h.expire_in_db(&conv, "call_1").await;
-    assert_eq!(h.cache().lookup(&conv, "call_1").await, None);
+    assert_eq!(h.cache().lookup(&h.user_id, &conv, "call_1").await, None);
 }
 
 #[tokio::test]
@@ -209,9 +235,9 @@ async fn local_ttl_expiry_falls_through_to_the_database() {
     };
     let conv = conv();
     let cache = h.cache_with_ttl(Duration::from_millis(1));
-    cache.store(&conv, "call_1", "sig-a").await;
+    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
     tokio::time::sleep(Duration::from_millis(5)).await;
-    assert_eq!(cache.lookup(&conv, "call_1").await, None);
+    assert_eq!(cache.lookup(&h.user_id, &conv, "call_1").await, None);
 }
 
 #[tokio::test]
@@ -221,15 +247,15 @@ async fn lookup_refreshes_ttl() {
     };
     let conv = conv();
     let cache = h.cache_with_ttl(Duration::from_millis(60));
-    cache.store(&conv, "call_1", "sig-a").await;
+    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
     tokio::time::sleep(Duration::from_millis(40)).await;
     assert_eq!(
-        cache.lookup(&conv, "call_1").await.as_deref(),
+        cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
         Some("sig-a")
     );
     tokio::time::sleep(Duration::from_millis(40)).await;
     assert_eq!(
-        cache.lookup(&conv, "call_1").await.as_deref(),
+        cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
         Some("sig-a")
     );
 }
@@ -246,12 +272,17 @@ async fn store_from_response_caches_only_signed_tool_use() {
         tool_use("call_signed", Some("sig-a")),
         tool_use("call_unsigned", None),
     ]);
-    cache.store_from_response(&conv, &response).await;
+    cache
+        .store_from_response(&h.user_id, &conv, &response)
+        .await;
     assert_eq!(
-        cache.lookup(&conv, "call_signed").await.as_deref(),
+        cache
+            .lookup(&h.user_id, &conv, "call_signed")
+            .await
+            .as_deref(),
         Some("sig-a")
     );
-    assert_eq!(cache.lookup(&conv, "call_unsigned").await, None);
+    assert_eq!(cache.lookup(&h.user_id, &conv, "call_unsigned").await, None);
 }
 
 #[tokio::test]
@@ -263,12 +294,15 @@ async fn response_signatures_survive_a_stripped_replay() {
     let conv = conv();
     cache
         .store_from_response(
+            &h.user_id,
             &conv,
             &response_with(vec![tool_use("call_1", Some("sig-a"))]),
         )
         .await;
     let mut replay = request_with(vec![tool_use("call_1", None)]);
-    cache.hydrate_request(&conv, &mut replay, GEMINI).await;
+    cache
+        .hydrate_request(&h.user_id, &conv, &mut replay, GEMINI)
+        .await;
     assert_eq!(signature_of(&replay).as_deref(), Some("sig-a"));
 }
 
@@ -279,11 +313,13 @@ async fn signatures_are_scoped_to_their_conversation() {
     };
     let cache = h.cache();
     let scoped = conv();
-    cache.store(&scoped, "call_1", "sig-a").await;
+    cache.store(&h.user_id, &scoped, "call_1", "sig-a").await;
     let other = conv();
-    assert_eq!(cache.lookup(&other, "call_1").await, None);
+    assert_eq!(cache.lookup(&h.user_id, &other, "call_1").await, None);
     let mut request = request_with(vec![tool_use("call_1", None)]);
-    cache.hydrate_request(&other, &mut request, GEMINI).await;
+    cache
+        .hydrate_request(&h.user_id, &other, &mut request, GEMINI)
+        .await;
     assert_eq!(signature_of(&request), None);
 }
 
@@ -300,9 +336,11 @@ async fn hydration_is_identical_for_every_wire() {
     ] {
         let cache = h.cache();
         let conv = conv();
-        cache.store(&conv, "call_1", "sig-a").await;
+        cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
         let mut request = request_with(vec![tool_use("call_1", None)]);
-        cache.hydrate_request(&conv, &mut request, wire).await;
+        cache
+            .hydrate_request(&h.user_id, &conv, &mut request, wire)
+            .await;
         assert_eq!(signature_of(&request).as_deref(), Some("sig-a"));
     }
 }
@@ -381,9 +419,11 @@ fn gemini_hydration_records_hit_and_miss() {
             block_on_db(async |h: Harness| {
                 let cache = h.cache();
                 let conv = conv();
-                cache.store(&conv, "call_1", "sig-a").await;
+                cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
                 let mut request = request_with(vec![tool_use("call_1", None)]);
-                cache.hydrate_request(&conv, &mut request, GEMINI).await;
+                cache
+                    .hydrate_request(&h.user_id, &conv, &mut request, GEMINI)
+                    .await;
             });
         },
     );
@@ -396,7 +436,9 @@ fn gemini_hydration_records_hit_and_miss() {
             block_on_db(async |h: Harness| {
                 let cache = h.cache();
                 let mut request = request_with(vec![tool_use("call_unknown", None)]);
-                cache.hydrate_request(&conv(), &mut request, GEMINI).await;
+                cache
+                    .hydrate_request(&h.user_id, &conv(), &mut request, GEMINI)
+                    .await;
             });
         },
     );
@@ -422,10 +464,12 @@ fn non_gemini_hydration_records_nothing() {
                     block_on_db(async |h: Harness| {
                         let cache = h.cache();
                         let conv = conv();
-                        cache.store(&conv, "call_1", "sig-a").await;
+                        cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
                         let mut request =
                             request_with(vec![tool_use("call_1", None), tool_use("call_2", None)]);
-                        cache.hydrate_request(&conv, &mut request, wire).await;
+                        cache
+                            .hydrate_request(&h.user_id, &conv, &mut request, wire)
+                            .await;
                     });
                 },
             );

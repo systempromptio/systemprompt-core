@@ -8,9 +8,10 @@
 //! history. This cache captures signatures as responses pass through and
 //! re-injects them on inbound requests whose `tool_use` blocks arrive without
 //! one, so any faithful Anthropic client works against Gemini upstreams.
-//! Keys are scoped by [`GatewayConversationId`] because `tool_use` ids on
-//! inbound requests are client-supplied: without the scope, a caller could
-//! read another conversation's cached signatures by guessing ids.
+//! Keys are scoped by authenticated [`UserId`] and [`GatewayConversationId`]
+//! because `tool_use` ids on inbound requests are client-supplied: without the
+//! scope, a caller could read another conversation's cached signatures by
+//! guessing ids.
 //!
 //! Signatures are persisted through [`AiThoughtSignatureRepository`] so a
 //! replay served by a different replica, or by a process restarted since the
@@ -31,7 +32,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
-use systemprompt_identifiers::GatewayConversationId;
+use systemprompt_identifiers::{GatewayConversationId, UserId};
 use systemprompt_models::services::WireProtocol;
 use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
@@ -44,7 +45,7 @@ struct Entry {
     expires_at: Instant,
 }
 
-type Key = (GatewayConversationId, String);
+type Key = (UserId, GatewayConversationId, String);
 
 pub struct ThoughtSignatureCache {
     entries: Mutex<HashMap<Key, Entry>>,
@@ -97,14 +98,22 @@ impl ThoughtSignatureCache {
 
     pub async fn store(
         &self,
+        user_id: &UserId,
         conversation: &GatewayConversationId,
         tool_use_id: &str,
         signature: &str,
     ) {
-        self.store_local((conversation.clone(), tool_use_id.to_owned()), signature);
+        self.store_local(
+            (
+                user_id.clone(),
+                conversation.clone(),
+                tool_use_id.to_owned(),
+            ),
+            signature,
+        );
         if let Err(e) = self
             .repository
-            .upsert(conversation, tool_use_id, signature, self.ttl)
+            .upsert(user_id, conversation, tool_use_id, signature, self.ttl)
             .await
         {
             tracing::warn!(
@@ -118,16 +127,21 @@ impl ThoughtSignatureCache {
 
     pub async fn lookup(
         &self,
+        user_id: &UserId,
         conversation: &GatewayConversationId,
         tool_use_id: &str,
     ) -> Option<String> {
-        let key = (conversation.clone(), tool_use_id.to_owned());
+        let key = (
+            user_id.clone(),
+            conversation.clone(),
+            tool_use_id.to_owned(),
+        );
         if let Some(signature) = self.lookup_local(&key) {
             return Some(signature);
         }
         match self
             .repository
-            .find(conversation, tool_use_id, self.ttl)
+            .find(user_id, conversation, tool_use_id, self.ttl)
             .await
         {
             Ok(Some(signature)) => {
@@ -149,6 +163,7 @@ impl ThoughtSignatureCache {
 
     pub async fn store_from_response(
         &self,
+        user_id: &UserId,
         conversation: &GatewayConversationId,
         response: &CanonicalResponse,
     ) {
@@ -159,13 +174,14 @@ impl ThoughtSignatureCache {
                 ..
             } = content
             {
-                self.store(conversation, id, signature).await;
+                self.store(user_id, conversation, id, signature).await;
             }
         }
     }
 
     pub async fn hydrate_request(
         &self,
+        user_id: &UserId,
         conversation: &GatewayConversationId,
         request: &mut CanonicalRequest,
         wire: Option<WireProtocol>,
@@ -178,8 +194,8 @@ impl ThoughtSignatureCache {
                     continue;
                 };
                 match signature {
-                    Some(sig) => self.store(conversation, id, sig).await,
-                    None => match self.lookup(conversation, id).await {
+                    Some(sig) => self.store(user_id, conversation, id, sig).await,
+                    None => match self.lookup(user_id, conversation, id).await {
                         Some(cached) => {
                             *signature = Some(cached);
                             if signatures_required {

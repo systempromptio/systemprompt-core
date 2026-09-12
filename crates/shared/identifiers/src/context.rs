@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::IdValidationError;
-use crate::{ClientSessionId, EvalRunId, GatewayConversationId, SessionId, TaskId};
+use crate::{ClientSessionId, EvalRunId, GatewayConversationId, SessionId, TaskId, UserId};
 
 crate::define_id!(ContextId, validated, schema, validate_uuid_v4);
 
@@ -41,10 +41,10 @@ impl ContextId {
     }
 
     #[must_use]
-    pub fn derived_from_gateway_conversation(gw: &GatewayConversationId) -> Self {
-        Self::new_unchecked(
-            uuid::Uuid::new_v5(&GATEWAY_CONVERSATION_NAMESPACE, gw.as_str().as_bytes()).to_string(),
-        )
+    pub fn derived_from_gateway_conversation(user_id: &UserId, gw: &GatewayConversationId) -> Self {
+        let owner =
+            uuid::Uuid::new_v5(&GATEWAY_CONVERSATION_NAMESPACE, user_id.as_str().as_bytes());
+        Self::new_unchecked(uuid::Uuid::new_v5(&owner, gw.as_str().as_bytes()).to_string())
     }
 
     #[must_use]

@@ -208,7 +208,7 @@ async fn capture_signatures(ctx: &TapFinalizeCtx, audit: &GatewayAudit, summary:
         Some(conversation) => {
             ctx.repos
                 .thought_signatures
-                .store_from_response(conversation, &summary.response)
+                .store_from_response(&audit.ctx.user_id, conversation, &summary.response)
                 .await;
         },
         None => {

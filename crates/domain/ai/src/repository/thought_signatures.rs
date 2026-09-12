@@ -13,7 +13,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::GatewayConversationId;
+use systemprompt_identifiers::{GatewayConversationId, UserId};
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -31,6 +31,7 @@ impl AiThoughtSignatureRepository {
 
     pub async fn upsert(
         &self,
+        user_id: &UserId,
         conversation: &GatewayConversationId,
         tool_use_id: &str,
         signature: &str,
@@ -39,9 +40,9 @@ impl AiThoughtSignatureRepository {
         sqlx::query!(
             r#"
             INSERT INTO ai_gateway_thought_signatures
-                (conversation_id, tool_use_id, signature, expires_at)
-            VALUES ($1, $2, $3, NOW() + make_interval(secs => $4))
-            ON CONFLICT (conversation_id, tool_use_id) DO UPDATE SET
+                (conversation_id, tool_use_id, signature, expires_at, user_id)
+            VALUES ($1, $2, $3, NOW() + make_interval(secs => $4), $5)
+            ON CONFLICT (user_id, conversation_id, tool_use_id) DO UPDATE SET
                 signature = EXCLUDED.signature,
                 expires_at = EXCLUDED.expires_at
             "#,
@@ -49,6 +50,7 @@ impl AiThoughtSignatureRepository {
             tool_use_id,
             signature,
             ttl.as_secs_f64(),
+            user_id.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;
@@ -57,6 +59,7 @@ impl AiThoughtSignatureRepository {
 
     pub async fn find(
         &self,
+        user_id: &UserId,
         conversation: &GatewayConversationId,
         tool_use_id: &str,
         ttl: Duration,
@@ -67,12 +70,14 @@ impl AiThoughtSignatureRepository {
             SET expires_at = NOW() + make_interval(secs => $3)
             WHERE conversation_id = $1
               AND tool_use_id = $2
+              AND user_id = $4
               AND expires_at > NOW()
             RETURNING signature
             "#,
             conversation.as_str(),
             tool_use_id,
             ttl.as_secs_f64(),
+            user_id.as_str(),
         )
         .fetch_optional(&*self.write_pool)
         .await?;

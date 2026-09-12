@@ -103,8 +103,12 @@ pub(super) async fn extract_request_context(
 
     let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
-    let (gateway_conversation_id, context_id, client_session_id) =
-        derive_conversation(header_gateway_conversation, &gateway_request, partial)?;
+    let (gateway_conversation_id, context_id, client_session_id) = derive_conversation(
+        principal.user_id(),
+        header_gateway_conversation,
+        &gateway_request,
+        partial,
+    )?;
     let route = gateway_config
         .resolve_route(&rc.services.providers, &gateway_request)
         .ok_or_else(|| {
@@ -139,7 +143,12 @@ pub(super) async fn extract_request_context(
         })?;
     rc.repos
         .thought_signatures
-        .hydrate_request(&gateway_conversation_id, &mut gateway_request, wire)
+        .hydrate_request(
+            principal.user_id(),
+            &gateway_conversation_id,
+            &mut gateway_request,
+            wire,
+        )
         .await;
 
     let upstream_model = upstream_model_for(&rc.services.providers, &route, &gateway_request.model);
@@ -172,6 +181,7 @@ pub(super) async fn extract_request_context(
 // session when it names one, so every thread of one Claude Code run shares
 // the context its hook events already write to. An explicit header pins both.
 pub fn derive_conversation(
+    user_id: &UserId,
     header_gateway_conversation: Option<GatewayConversationId>,
     gateway_request: &CanonicalRequest,
     partial: &mut RejectionPartial,
@@ -194,7 +204,7 @@ pub fn derive_conversation(
         .map_err(|error| (StatusCode::BAD_REQUEST, error))?;
     let context_id = match (&client_session_id, header_supplied) {
         (Some(session), false) => ContextId::derived_from_client_session(session),
-        _ => ContextId::derived_from_gateway_conversation(&gateway_conversation_id),
+        _ => ContextId::derived_from_gateway_conversation(user_id, &gateway_conversation_id),
     };
     partial.context_id = Some(context_id.clone());
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());

@@ -64,7 +64,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
     let gw_conv = request
         .derived_gateway_conversation_id()
         .expect("gateway conversation id");
-    let context_id = ContextId::derived_from_gateway_conversation(&gw_conv);
+    let context_id = ContextId::derived_from_gateway_conversation(&user_id, &gw_conv);
     let ai_request_id = AiRequestId::generate();
     let ctx = GatewayRequestContext {
         ai_request_id: ai_request_id.clone(),
