@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO ai_request_messages(request_id,role,content,sequence_number) SELECT $1::varchar,'assistant',$2,coalesce(max(sequence_number),-1)+1 FROM ai_request_messages WHERE request_id=$1::varchar",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "63d62490340600def344ec2e9f7908bc27e19b8d34834be267d93780367aefc9"
+}

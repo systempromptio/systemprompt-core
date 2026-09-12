@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ai_requests SET status='failed',error_message=$2,completed_at=coalesce(completed_at,now()),updated_at=now() WHERE id=$1 AND status<>'completed'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "22998e7577a353e56f4bcf14e5cc0465deb02936a8444a20474fc239138f36bd"
+}
