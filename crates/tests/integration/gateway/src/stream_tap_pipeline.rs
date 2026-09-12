@@ -289,7 +289,7 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
 }
 
 #[tokio::test]
-async fn tap_dropped_before_polling_fails_audit_as_empty_stream() {
+async fn tap_dropped_before_polling_fails_audit_as_client_disconnected() {
     let db = setup_db().await;
     let user_id = seed_user(&db).await;
     let (audit, ai_request_id) = open_audit(&db, user_id).await;
@@ -310,7 +310,7 @@ async fn tap_dropped_before_polling_fails_audit_as_empty_stream() {
 
     let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
     assert_eq!(status, "failed");
-    assert_eq!(error.as_deref(), Some("empty upstream stream"));
+    assert_eq!(error.as_deref(), Some("client disconnected before stop event"));
 }
 
 #[tokio::test]

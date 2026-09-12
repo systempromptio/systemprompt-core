@@ -291,10 +291,19 @@ fn install_subprocess_env(database_url: &str) {
                 "SYSTEMPROMPT_CUSTOM_SECRETS",
                 "slack_signing_secret,slack_bot_token,teams_app_password,encryption_master_key",
             );
-            env::set_var("encryption_master_key", "11".repeat(32));
             env::set_var("slack_signing_secret", TEST_SLACK_SIGNING_SECRET);
             env::set_var("slack_bot_token", TEST_SLACK_BOT_TOKEN);
             env::set_var("teams_app_password", TEST_TEAMS_APP_PASSWORD);
+        }
+        // Provider fixtures add their own secret names; journal encryption is
+        // still required for every fixture that admits a gateway request.
+        let mut custom = env::var("SYSTEMPROMPT_CUSTOM_SECRETS").unwrap_or_default();
+        if !custom.split(',').any(|name| name == "encryption_master_key") {
+            custom.push_str(",encryption_master_key");
+            env::set_var("SYSTEMPROMPT_CUSTOM_SECRETS", custom);
+        }
+        if env::var("encryption_master_key").is_err() {
+            env::set_var("encryption_master_key", "11".repeat(32));
         }
     }
 }
