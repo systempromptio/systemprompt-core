@@ -195,7 +195,7 @@ fn derive_conversation_prefers_header_value() {
     let request = canonical(vec![user_message("hello")]);
     let mut partial = RejectionPartial::default();
     let (conv, ctx, _client) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         Some(header),
         &request,
         &mut partial,
@@ -214,7 +214,7 @@ fn derive_conversation_derives_from_messages_when_header_absent() {
     let request = canonical(vec![user_message("derive me")]);
     let mut partial = RejectionPartial::default();
     let (conv, _ctx, _client) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &request,
         &mut partial,
@@ -228,7 +228,7 @@ fn derive_conversation_without_messages_is_bad_request() {
     let request = canonical(vec![]);
     let mut partial = RejectionPartial::default();
     let (status, msg) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &request,
         &mut partial,

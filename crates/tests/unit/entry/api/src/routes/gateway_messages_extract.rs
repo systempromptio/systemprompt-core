@@ -185,7 +185,7 @@ fn a_header_supplied_conversation_id_wins_over_derivation() {
         .expect("test conversation id must be valid");
 
     let (conversation, context, _) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         Some(supplied.clone()),
         &canonical(vec![user_message("hello")]),
         &mut partial,
@@ -202,7 +202,7 @@ fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent(
     let mut partial = RejectionPartial::default();
 
     let (conversation, _, _) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical(vec![user_message("hello")]),
         &mut partial,
@@ -210,7 +210,7 @@ fn a_conversation_id_is_derived_from_the_message_history_when_no_header_is_sent(
     .expect("a request with messages can derive its conversation");
 
     let (repeat, _, _) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical(vec![user_message("hello")]),
         &mut RejectionPartial::default(),
@@ -237,7 +237,7 @@ fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
     let mut partial = RejectionPartial::default();
 
     let (conversation, context, client_session) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical_from_claude_code(vec![user_message("hello")]),
         &mut partial,
@@ -255,7 +255,7 @@ fn a_client_session_in_metadata_selects_the_hook_sessions_context() {
     assert_ne!(
         context,
         ContextId::derived_from_gateway_conversation(
-            &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+            &systemprompt_identifiers::UserId::new("owner-a"),
             &conversation
         ),
         "the context no longer follows the prefix hash once the caller names its session"
@@ -271,7 +271,7 @@ fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session
         .expect("test conversation id must be valid");
 
     let (_, context, client_session) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         Some(supplied.clone()),
         &canonical_from_claude_code(vec![user_message("hello")]),
         &mut partial,
@@ -285,7 +285,7 @@ fn a_header_supplied_conversation_id_pins_the_context_even_with_a_client_session
     assert_eq!(
         context,
         ContextId::derived_from_gateway_conversation(
-            &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+            &systemprompt_identifiers::UserId::new("owner-a"),
             &supplied
         )
     );
@@ -296,7 +296,7 @@ fn a_request_without_metadata_keeps_the_prefix_hash_context() {
     let mut partial = RejectionPartial::default();
 
     let (conversation, context, client_session) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical(vec![user_message("hello")]),
         &mut partial,
@@ -307,7 +307,7 @@ fn a_request_without_metadata_keeps_the_prefix_hash_context() {
     assert_eq!(
         context,
         ContextId::derived_from_gateway_conversation(
-            &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+            &systemprompt_identifiers::UserId::new("owner-a"),
             &conversation
         )
     );
@@ -319,7 +319,7 @@ fn a_body_with_no_messages_cannot_derive_a_conversation() {
     let mut partial = RejectionPartial::default();
 
     let (status, message) = derive_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &canonical(vec![]),
         &mut partial,
@@ -423,8 +423,8 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
 
 #[test]
 fn identical_fallback_conversations_have_distinct_authenticated_owner_contexts() {
-    let alice = systemprompt_identifiers::UserId::generate();
-    let bob = systemprompt_identifiers::UserId::generate();
+    let alice = systemprompt_identifiers::UserId::new(uuid::Uuid::new_v4().to_string());
+    let bob = systemprompt_identifiers::UserId::new(uuid::Uuid::new_v4().to_string());
     let request = canonical(vec![user_message("same opening message")]);
     let (alice_gateway, alice_context, _) =
         derive_conversation(&alice, None, &request, &mut RejectionPartial::default())

@@ -36,7 +36,7 @@ async fn upsert_then_find_returns_the_signature() {
     let Some(pool) = pool_or_skip().await else {
         return;
     };
-    let user_id = UserId::generate();
+    let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
@@ -70,7 +70,7 @@ async fn upsert_overwrites_an_existing_signature() {
     let Some(pool) = pool_or_skip().await else {
         return;
     };
-    let user_id = UserId::generate();
+    let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
@@ -113,7 +113,7 @@ async fn find_is_scoped_to_the_conversation() {
     let Some(pool) = pool_or_skip().await else {
         return;
     };
-    let user_id = UserId::generate();
+    let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
@@ -147,7 +147,7 @@ async fn expired_signature_is_not_found() {
     let Some(pool) = pool_or_skip().await else {
         return;
     };
-    let user_id = UserId::generate();
+    let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
@@ -181,7 +181,7 @@ async fn find_extends_the_expiry() {
     let Some(pool) = pool_or_skip().await else {
         return;
     };
-    let user_id = UserId::generate();
+    let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))
@@ -228,7 +228,7 @@ async fn cleanup_expired_removes_only_expired_rows() {
     let Some(pool) = pool_or_skip().await else {
         return;
     };
-    let user_id = UserId::generate();
+    let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(user_id.as_str())
         .bind(format!("{}@signature.test", user_id.as_str()))

@@ -15,11 +15,11 @@ fn context_id_derivation_is_deterministic_for_same_gateway_conversation_id() {
     assert_eq!(gw_a.as_str(), gw_b.as_str());
 
     let ctx_a = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &gw_a,
     );
     let ctx_b = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &gw_b,
     );
     assert_eq!(
@@ -50,11 +50,11 @@ fn context_id_changes_when_system_prompt_changes_mid_conversation() {
     );
 
     let ctx_a = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &gw_a,
     );
     let ctx_b = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &gw_b,
     );
     assert_ne!(

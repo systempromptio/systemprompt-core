@@ -89,7 +89,7 @@ fn derived_from_client_session_equals_the_hook_pipelines_session_derivation() {
 fn derived_from_gateway_conversation_is_a_valid_uuid() {
     let gw = GatewayConversationId::from_prefix_hash(0xdead_beef_cafe_f00d);
     let ctx = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &gw,
     );
     assert_eq!(ctx.as_str().len(), 36);
@@ -100,11 +100,11 @@ fn derived_from_gateway_conversation_is_a_valid_uuid() {
 fn derived_from_gateway_conversation_is_deterministic() {
     let gw = GatewayConversationId::from_prefix_hash(0x1234_5678_9abc_def0);
     let a = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &gw,
     );
     let b = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &gw,
     );
     assert_eq!(a, b);
@@ -113,11 +113,11 @@ fn derived_from_gateway_conversation_is_deterministic() {
 #[test]
 fn derived_from_gateway_conversation_diverges_on_input() {
     let a = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &GatewayConversationId::from_prefix_hash(0),
     );
     let b = ContextId::derived_from_gateway_conversation(
-        &systemprompt_identifiers::UserId::new_unchecked("owner-a"),
+        &systemprompt_identifiers::UserId::new("owner-a"),
         &GatewayConversationId::from_prefix_hash(1),
     );
     assert_ne!(a, b);

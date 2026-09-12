@@ -33,7 +33,7 @@ impl Harness {
         let url = fixture_database_url().ok()?;
         let pool = fixture_db_pool(&url).await.ok()?;
         let repository = Arc::new(AiThoughtSignatureRepository::new(&pool).expect("repository"));
-        let user_id = UserId::generate();
+        let user_id = UserId::new(uuid::Uuid::new_v4().to_string());
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
             .bind(user_id.as_str())
             .bind(format!("{}@signature.test", user_id.as_str()))
