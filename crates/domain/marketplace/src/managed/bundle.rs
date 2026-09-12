@@ -19,6 +19,9 @@ const MAX_BYTES: usize = 8 * 1024 * 1024;
 
 /// The wire form is untrusted until `verify` succeeds. Hashes prove integrity,
 /// not authorization; repository resolution checks ownership independently.
+/// Canonical bytes bind dependency manifests, asset bytes and executable modes
+/// without filesystem reads or timestamps. Only declared dependencies enter
+/// the closure; parent revision history remains provenance.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RevisionBundle {
@@ -167,8 +170,6 @@ impl RevisionBundle {
 }
 
 impl ManagedRepository {
-    /// Resolve only immutable, owned records. Parent history is provenance, not
-    /// a runtime dependency; only declared dependency edges enter the closure.
     pub async fn get_revision_bundle(
         &self,
         owner: &UserId,
