@@ -225,7 +225,9 @@ impl CanonicalRequest {
         let Some(value) = self.metadata.as_ref().and_then(|m| m.get("user_id")) else {
             return Ok(None);
         };
-        let value = value.as_str().ok_or_else(|| "metadata.user_id must be a string".to_owned())?;
+        let value = value
+            .as_str()
+            .ok_or_else(|| "metadata.user_id must be a string".to_owned())?;
         ClientSessionId::from_metadata_user_id(value).map_err(|e| e.to_string())
     }
 

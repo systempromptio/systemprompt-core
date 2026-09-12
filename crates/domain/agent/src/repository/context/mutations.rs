@@ -76,7 +76,10 @@ impl ContextRepository {
         .map_err(RepositoryError::database)?;
 
         if result.rows_affected() != 1 {
-            return Err(RepositoryError::invalid_state("Context belongs to a different owner"));
+            return Err(RepositoryError::NotFound(format!(
+                "Context {} not found for user {}",
+                context_id, user_id
+            )));
         }
         Ok(())
     }

@@ -37,15 +37,29 @@ impl ClientSessionId {
         let session = if value.starts_with('{') {
             let metadata: serde_json::Value = serde_json::from_str(value)
                 .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
-            Some(metadata.get("session_id").and_then(serde_json::Value::as_str)
-                .ok_or_else(|| IdValidationError::invalid("ClientSessionId", "metadata requires a string session_id"))?.to_owned())
+            Some(
+                metadata
+                    .get("session_id")
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| {
+                        IdValidationError::invalid(
+                            "ClientSessionId",
+                            "metadata requires a string session_id",
+                        )
+                    })?
+                    .to_owned(),
+            )
         } else {
-            value.rsplit_once(SESSION_SEGMENT).map(|(_, suffix)| suffix.to_owned())
+            value
+                .rsplit_once(SESSION_SEGMENT)
+                .map(|(_, suffix)| suffix.to_owned())
         };
-        session.map(|value| {
-            let parsed = uuid::Uuid::parse_str(value.trim())
-                .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
-            Self::try_new(parsed.hyphenated().to_string())
-        }).transpose()
+        session
+            .map(|value| {
+                let parsed = uuid::Uuid::parse_str(value.trim())
+                    .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+                Self::try_new(parsed.hyphenated().to_string())
+            })
+            .transpose()
     }
 }

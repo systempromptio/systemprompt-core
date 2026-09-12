@@ -60,8 +60,7 @@ impl GatewayAudit {
             record.actor = actor;
         }
 
-        self
-            .context_materializer
+        self.context_materializer
             .ensure_context(systemprompt_traits::EnsureContextParams {
                 context_id: &self.ctx.context_id,
                 user_id: &self.ctx.user_id,

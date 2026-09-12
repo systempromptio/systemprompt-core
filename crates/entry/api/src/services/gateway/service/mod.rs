@@ -239,7 +239,10 @@ async fn open_audit(
     identity_headers: &[(String, String)],
 ) -> Result<Arc<GatewayAudit>, DispatchError> {
     let audit = Arc::new(GatewayAudit::new(repos, ctx.clone()));
-    audit.open(request, raw_body).await.map_err(DispatchError::PreAudit)?;
+    audit
+        .open(request, raw_body)
+        .await
+        .map_err(DispatchError::PreAudit)?;
     if !identity_headers.is_empty() {
         tracing::info!(
             ai_request_id = %ctx.ai_request_id,
@@ -282,7 +285,9 @@ async fn enforce_quota(
             reason = %decision.message,
             "Gateway quota window exhausted in warn mode; allowing the request"
         );
-        record_quota_warning(db, ctx, &decision.message).await.map_err(DispatchError::Recorded)?;
+        record_quota_warning(db, ctx, &decision.message)
+            .await
+            .map_err(DispatchError::Recorded)?;
         return Ok(());
     }
     let msg = decision.message;
