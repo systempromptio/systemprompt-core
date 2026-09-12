@@ -22,7 +22,7 @@ pub struct CapturedSkills {
 }
 
 impl CapturedSkills {
-    pub fn skills(&self) -> &BTreeMap<String, RevisionFiles> {
+    pub const fn skills(&self) -> &BTreeMap<String, RevisionFiles> {
         &self.skills
     }
     pub const fn tree_digest(&self) -> &AssetDigest {
@@ -81,7 +81,7 @@ fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
         .get("config.yaml")
         .ok_or_else(|| invalid("Skill configuration is missing"))?;
     let config: DiskSkillConfig = serde_yaml::from_slice(&config.bytes)
-        .map_err(|_| invalid("Skill configuration is invalid"))?;
+        .map_err(|_error| invalid("Skill configuration is invalid"))?;
     if !config.id.as_str().is_empty() && config.id.as_str() != id {
         return Err(invalid("Skill ID does not match its authoring directory"));
     }
@@ -102,7 +102,7 @@ fn capture_directory(
     reject_link(current)?;
     if current
         .strip_prefix(base)
-        .map_err(|_| invalid("Directory escaped root"))?
+        .map_err(|_error| invalid("Directory escaped root"))?
         .components()
         .count()
         > 32
@@ -137,7 +137,7 @@ fn capture_file(
 ) -> Result<()> {
     let relative = path
         .strip_prefix(base)
-        .map_err(|_| invalid("File escaped authoring root"))?;
+        .map_err(|_error| invalid("File escaped authoring root"))?;
     let relative = relative
         .to_str()
         .ok_or_else(|| invalid("Authoring paths must be UTF-8"))?
