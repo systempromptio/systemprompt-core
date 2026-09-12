@@ -14,13 +14,13 @@
 //!
 //! Each policy also carries a [`PolicyMode`]. A declared policy without a mode
 //! defaults to `enforce`, while the vendor-neutral fallback chain is explicitly
-//! warn-only. `enforce` halts the chain on a deny; `warn` records the identical finding and lets
-//! the call through, so tunables can be calibrated against real traffic
-//! instead of guesses. A top-level `governance.mode` sets the default for
-//! every policy that does not name its own. An unrecognised mode is a parse
-//! error rather than a silent fallback: reading `mode: warnn` as `enforce`
-//! would block traffic an operator believed they had unblocked, and reading it
-//! as `warn` would disable enforcement nobody asked to disable.
+//! warn-only. `enforce` halts the chain on a deny; `warn` records the identical
+//! finding and lets the call through, so tunables can be calibrated against
+//! real traffic instead of guesses. A top-level `governance.mode` sets the
+//! default for every policy that does not name its own. An unrecognised mode is
+//! a parse error rather than a silent fallback: reading `mode: warnn` as
+//! `enforce` would block traffic an operator believed they had unblocked, and
+//! reading it as `warn` would disable enforcement nobody asked to disable.
 //!
 //! The fallback chain runs every policy in warn mode. Its secret scanner has no
 //! signatures because credential applicability belongs to the installation.
