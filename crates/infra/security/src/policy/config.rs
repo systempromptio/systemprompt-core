@@ -14,8 +14,7 @@
 //!
 //! Each policy also carries a [`PolicyMode`]. A declared policy without a mode
 //! defaults to `enforce`, while the vendor-neutral fallback chain is explicitly
-//! warn-only. `enforce`
-//! halts the chain on a deny; `warn` records the identical finding and lets
+//! warn-only. `enforce` halts the chain on a deny; `warn` records the identical finding and lets
 //! the call through, so tunables can be calibrated against real traffic
 //! instead of guesses. A top-level `governance.mode` sets the default for
 //! every policy that does not name its own. An unrecognised mode is a parse
@@ -37,6 +36,9 @@ use std::path::Path;
 use serde_yaml::Value as YamlValue;
 use thiserror::Error;
 
+use super::builtin::SECRET_SCAN_ID;
+use super::secrets::{SecretPatternError, SecretScanner};
+
 #[derive(Debug, Error)]
 pub enum GovernanceConfigError {
     #[error("governance config is not valid YAML: {0}")]
@@ -51,6 +53,8 @@ pub enum GovernanceConfigError {
         "governance config has an unknown mode `{value}` at {location}; expected `enforce` or `warn`"
     )]
     InvalidMode { location: String, value: String },
+    #[error("governance secret pattern catalog is invalid: {0}")]
+    InvalidSecretPatterns(#[from] SecretPatternError),
 }
 
 /// Whether a policy halts the chain on a finding or only records it.
@@ -174,6 +178,9 @@ impl GovernanceConfig {
                 .unwrap_or(true);
             let mode = read_mode(Some(entry), &format!("governance.policies[{index}] ({id})"))?
                 .unwrap_or(default_mode);
+            if id == SECRET_SCAN_ID {
+                SecretScanner::from_policy_yaml(entry)?;
+            }
             out.push(PolicyConfig {
                 id,
                 enabled,

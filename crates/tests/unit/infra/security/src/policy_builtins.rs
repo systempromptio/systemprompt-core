@@ -184,8 +184,9 @@ fn invalid_pattern_definitions_fail_engine_startup() {
         let yaml = format!(
             "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        {patterns}\n"
         );
-        let config = GovernanceConfig::parse(&yaml).unwrap();
-        assert!(GovernanceEngine::from_config(&config).is_err(), "{yaml}");
+        if let Ok(config) = GovernanceConfig::parse(&yaml) {
+            assert!(GovernanceEngine::from_config(&config).is_err(), "{yaml}");
+        }
     }
 }
 
