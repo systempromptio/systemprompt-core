@@ -7,6 +7,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod assets;
+mod diff;
+pub use diff::{ChangeKind, FileChange, diff_files};
 mod error;
 mod import;
 mod manifest;
@@ -19,5 +21,8 @@ pub use error::{ManagedError, Result};
 pub use import::ImportedSkills;
 pub use manifest::{DependencyRef, FileEntry, RevisionManifest};
 pub use provenance::{SnapshotProvenance, SourceSpec};
-pub use repository::{ManagedRepository, NewResource, NewRevision, ResourceKind};
+pub use repository::{
+    ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,
+    RevisionSummary, TextCandidate,
+};
 pub use tree::{CapturedSkills, capture_skills};

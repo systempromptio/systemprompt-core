@@ -3,6 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod candidates;
+pub use candidates::{RevisionComparison, TextCandidate};
+mod listing;
+pub use listing::{ResourceSummary, RevisionSummary};
 mod revisions;
 mod sources;
 

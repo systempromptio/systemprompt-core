@@ -10,7 +10,7 @@ use systemprompt_identifiers::{ResourceRevisionId, SourceSnapshotId};
 use super::error::invalid;
 use super::{AssetDigest, Result, RevisionFiles};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FileEntry {
     pub digest: AssetDigest,
@@ -19,14 +19,14 @@ pub struct FileEntry {
     pub executable: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DependencyRef {
     pub revision_id: ResourceRevisionId,
     pub digest: AssetDigest,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RevisionManifest {
     pub schema_version: u32,

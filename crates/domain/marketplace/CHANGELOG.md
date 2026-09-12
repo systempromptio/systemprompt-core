@@ -2,6 +2,10 @@
 
 ## [0.51.0] - 2026-09-11
 
+### Added
+
+- Managed authoring stores owner-scoped sources, exact snapshots, immutable binary assets and resource revisions. Bounded authoring capture rejects symlinks and changing trees; imports are idempotent and never activate a revision. Text candidates inherit supporting assets and dependencies, and same-resource comparisons report exact file and metadata changes. Runtime publication remains a separate integration boundary.
+
 ### Changed
 
 - `catalog::mcp` projects `McpDeployment.tool_policy` onto the manifest's `ManagedMcpServer.tool_policy` as a single `*` entry, `allow` when the deployment YAML sets nothing. A managed server is one the operator provisioned and the governance chain already judges every call, so a bridge-managed client no longer prompts per tool unless `services/mcp/<id>.yaml` sets `tool_policy: prompt|deny`.
