@@ -1,4 +1,7 @@
 //! Transactional, replayable gateway completion settlement.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 pub(crate) mod types;
 
 use anyhow::{Result, ensure};

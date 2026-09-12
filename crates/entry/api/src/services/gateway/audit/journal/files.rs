@@ -1,4 +1,7 @@
 //! Bounded, atomic journal writes with profile-scoped authenticated encryption.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::Receipt;
 use anyhow::{Context, Result, ensure};

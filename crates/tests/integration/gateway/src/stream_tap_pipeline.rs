@@ -68,11 +68,11 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
     let ai_request_id = AiRequestId::generate();
     let ctx = GatewayRequestContext {
         ai_request_id: ai_request_id.clone(),
-        user_id,
-        session_id: Some(systemprompt_identifiers::SessionId::generate()),
+        user_id: user_id.clone(),
+        session_id: Some(crate::support::session_for(&user_id)),
         context_id,
         gateway_conversation_id: Some(gw_conv),
-        client_session_id: Some(systemprompt_identifiers::SessionId::generate()),
+        client_session_id: None,
         trace_id: Some(systemprompt_identifiers::TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,

@@ -1,5 +1,8 @@
 //! Keyed evidence fingerprints. The random key is process-local; fingerprints
 //! deliberately cannot correlate credentials across installations or restarts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;

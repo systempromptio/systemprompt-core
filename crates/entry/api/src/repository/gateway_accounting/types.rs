@@ -1,4 +1,7 @@
 //! Durable gateway accounting records.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 use crate::services::gateway::audit::payload::PayloadCapture;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, UserId};

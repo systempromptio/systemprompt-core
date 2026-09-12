@@ -55,5 +55,16 @@ pub async fn seed_user(db: &DbPool) -> UserId {
         .execute(pool.as_ref())
         .await
         .expect("seed user");
-    UserId::new(id)
+    let user = UserId::new(id);
+    sqlx::query("INSERT INTO user_sessions(session_id,user_id) VALUES($1,$2)")
+        .bind(session_for(&user).as_str())
+        .bind(user.as_str())
+        .execute(pool.as_ref())
+        .await
+        .expect("seed authenticated session");
+    user
+}
+
+pub fn session_for(user: &UserId) -> systemprompt_identifiers::SessionId {
+    systemprompt_identifiers::SessionId::new(format!("session-{user}"))
 }

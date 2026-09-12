@@ -40,10 +40,10 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
         let ctx = GatewayRequestContext {
             ai_request_id: ai_request_id.clone(),
             user_id: user_id.clone(),
-            session_id: Some(systemprompt_identifiers::SessionId::generate()),
+            session_id: Some(crate::support::session_for(&user_id)),
             context_id: context_id.clone(),
             gateway_conversation_id: Some(gw_conv.clone()),
-            client_session_id: Some(systemprompt_identifiers::SessionId::generate()),
+            client_session_id: None,
             trace_id: Some(systemprompt_identifiers::TraceId::generate()),
             access_scope: AccessScope::Unknown,
             client_id: None,
@@ -120,11 +120,11 @@ async fn gateway_audit_open_persists_derived_context_id() {
 
     let ctx = GatewayRequestContext {
         ai_request_id: ai_request_id.clone(),
-        user_id,
-        session_id: Some(systemprompt_identifiers::SessionId::generate()),
+        user_id: user_id.clone(),
+        session_id: Some(crate::support::session_for(&user_id)),
         context_id: context_id.clone(),
         gateway_conversation_id: Some(gw_conv.clone()),
-        client_session_id: Some(systemprompt_identifiers::SessionId::generate()),
+        client_session_id: None,
         trace_id: Some(systemprompt_identifiers::TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,

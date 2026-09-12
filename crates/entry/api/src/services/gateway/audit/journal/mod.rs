@@ -1,4 +1,7 @@
 //! Encrypted terminal receipts retained until database settlement succeeds.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 mod files;
 use crate::repository::gateway_accounting as settlement;

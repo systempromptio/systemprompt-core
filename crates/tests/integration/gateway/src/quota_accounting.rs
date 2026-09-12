@@ -43,11 +43,11 @@ fn dead_pool() -> DbPool {
 fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestContext {
     GatewayRequestContext {
         ai_request_id,
-        user_id,
-        session_id: Some(systemprompt_identifiers::SessionId::generate()),
+        user_id: user_id.clone(),
+        session_id: Some(crate::support::session_for(&user_id)),
         context_id: ContextId::generate(),
         gateway_conversation_id: None,
-        client_session_id: Some(systemprompt_identifiers::SessionId::generate()),
+        client_session_id: None,
         trace_id: Some(systemprompt_identifiers::TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,
