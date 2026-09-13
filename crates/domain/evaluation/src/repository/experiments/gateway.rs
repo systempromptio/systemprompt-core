@@ -17,6 +17,25 @@ pub enum RequestAdmission {
     Reserved(EvalReservationId),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvaluationTrafficClass {
+    Fixture,
+    LiveEvaluation,
+    Suggestion,
+    Judge,
+}
+
+impl EvaluationTrafficClass {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Fixture => "fixture",
+            Self::LiveEvaluation => "live_evaluation",
+            Self::Suggestion => "suggestion",
+            Self::Judge => "judge",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GatewayEvaluationRepository {
     pool: PgPool,
@@ -56,6 +75,18 @@ impl GatewayEvaluationRepository {
         .unwrap_or(false))
     }
 
+    pub async fn set_traffic_class(
+        &self,
+        owner: &UserId,
+        lease: &ExecutionLease,
+        traffic_class: EvaluationTrafficClass,
+    ) -> Result<()> {
+        let changed = sqlx::query!("UPDATE eval_session_bindings b SET traffic_class=$5 FROM eval_executions x,eval_experiments e WHERE b.execution_id=x.id AND x.experiment_id=e.id AND b.owner_id=$1 AND b.execution_id=$2 AND x.lease_owner=$3 AND b.fencing_token=$4 AND x.fencing_token=b.fencing_token AND x.status='running' AND e.status='running' AND x.lease_expires_at>NOW() AND x.deadline_at>NOW()",
+            owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token, traffic_class.as_str()).execute(&self.pool).await?;
+        if changed.rows_affected() != 1 { return Err(conflict("Traffic classification requires the current live fence")); }
+        Ok(())
+    }
+
     pub async fn bind_session(
         &self,
         owner: &UserId,
@@ -86,7 +117,7 @@ impl GatewayEvaluationRepository {
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, input.owner).await?;
         let bound = sqlx::query!(
-            "SELECT b.owner_id,b.execution_id,b.fencing_token,x.fencing_token AS current_fence,x.status,(x.lease_expires_at>NOW() AND x.deadline_at>NOW()) AS live,e.status AS experiment_status,e.budget_id,e.spec->'variants'->x.variant_index->>'model' AS model,e.spec->'variants'->x.variant_index->>'provider' AS provider,EXISTS(SELECT 1 FROM eval_workers w WHERE w.id=x.lease_owner AND w.owner_id=e.owner_id AND w.enabled AND w.expires_at>NOW()) AS worker_live FROM eval_session_bindings b JOIN eval_executions x ON x.id=b.execution_id JOIN eval_experiments e ON e.id=x.experiment_id WHERE b.session_id=$1",
+            "SELECT b.owner_id,b.execution_id,b.fencing_token,b.traffic_class,x.fencing_token AS current_fence,x.status,(x.lease_expires_at>NOW() AND x.deadline_at>NOW()) AS live,e.status AS experiment_status,e.budget_id,e.spec->'variants'->x.variant_index->>'model' AS model,e.spec->'variants'->x.variant_index->>'provider' AS provider,EXISTS(SELECT 1 FROM eval_workers w WHERE w.id=x.lease_owner AND w.owner_id=e.owner_id AND w.enabled AND w.expires_at>NOW()) AS worker_live FROM eval_session_bindings b JOIN eval_executions x ON x.id=b.execution_id JOIN eval_experiments e ON e.id=x.experiment_id WHERE b.session_id=$1",
             input.session.as_str()
         ).fetch_optional(&mut *tx).await?;
         let Some(bound) = bound else {
@@ -128,8 +159,8 @@ impl GatewayEvaluationRepository {
             ));
         };
         sqlx::query!(
-            "INSERT INTO eval_request_reservations(request_id,execution_id,reservation_id) VALUES($1,$2,$3)",
-            input.request.as_str(), bound.execution_id, reservation.as_str()
+            "INSERT INTO eval_request_reservations(request_id,execution_id,reservation_id,traffic_class) VALUES($1,$2,$3,$4)",
+            input.request.as_str(), bound.execution_id, reservation.as_str(), bound.traffic_class
         ).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(RequestAdmission::Reserved(reservation))

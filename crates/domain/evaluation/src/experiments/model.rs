@@ -50,11 +50,100 @@ pub struct ExperimentSpec {
     pub name: String,
     pub cases: Vec<EvalRevisionId>,
     pub rubric: EvalRevisionId,
+    #[serde(default)]
+    pub dataset: Option<EvalRevisionId>,
     pub variants: Vec<VariantSpec>,
     pub repetitions: u32,
     pub budget_microdollars: i64,
     pub execution_mode: ExecutionMode,
     pub objective: Objective,
+    #[serde(default)]
+    pub frozen: Option<FrozenSettings>,
+    #[serde(default)]
+    pub claim_independent_improvement: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrozenSettings {
+    pub provider_prices_digest: String,
+    pub tool_configuration_digest: String,
+    pub fixture_clock: String,
+    pub fixture_timezone: String,
+    pub permissions_digest: String,
+    pub dataset_digest: String,
+    pub rubric_digest: String,
+    pub cost_envelope: FrozenCostEnvelope,
+}
+
+/// Conservative prices and call counts used to derive the maximum before any
+/// work is dispatched. Values are frozen with the experiment; the price digest
+/// proves which configured provider/tool price snapshot supplied them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrozenCostEnvelope {
+    pub maximum_attempts_per_execution: u32,
+    pub generation_microdollars_per_attempt: i64,
+    pub judging_microdollars_per_attempt: i64,
+    pub tool_microdollars_per_attempt: i64,
+    pub suggestion_calls: u32,
+    pub suggestion_microdollars_per_call: i64,
+    pub auxiliary_calls: u32,
+    pub auxiliary_microdollars_per_call: i64,
+}
+
+impl FrozenCostEnvelope {
+    pub fn validate(&self) -> Result<()> {
+        if !(1..=3).contains(&self.maximum_attempts_per_execution)
+            || [
+                self.generation_microdollars_per_attempt,
+                self.judging_microdollars_per_attempt,
+                self.tool_microdollars_per_attempt,
+                self.suggestion_microdollars_per_call,
+                self.auxiliary_microdollars_per_call,
+            ].iter().any(|value| *value < 0)
+            || self.suggestion_calls > 100
+            || self.auxiliary_calls > 100
+        {
+            return Err(invalid("Frozen cost envelope contains invalid prices or call counts"));
+        }
+        Ok(())
+    }
+
+    pub fn maximum_microdollars(&self, executions: u64) -> Result<i64> {
+        self.validate()?;
+        let per_attempt = self.generation_microdollars_per_attempt
+            .checked_add(self.judging_microdollars_per_attempt)
+            .and_then(|value| value.checked_add(self.tool_microdollars_per_attempt))
+            .ok_or_else(|| invalid("Frozen cost envelope overflow"))?;
+        let execution_total = i64::try_from(executions).ok()
+            .and_then(|count| count.checked_mul(i64::from(self.maximum_attempts_per_execution)))
+            .and_then(|count| count.checked_mul(per_attempt))
+            .ok_or_else(|| invalid("Frozen execution cost overflow"))?;
+        let suggestions = i64::from(self.suggestion_calls)
+            .checked_mul(self.suggestion_microdollars_per_call)
+            .ok_or_else(|| invalid("Frozen suggestion cost overflow"))?;
+        let auxiliary = i64::from(self.auxiliary_calls)
+            .checked_mul(self.auxiliary_microdollars_per_call)
+            .ok_or_else(|| invalid("Frozen auxiliary cost overflow"))?;
+        execution_total.checked_add(suggestions).and_then(|value| value.checked_add(auxiliary))
+            .ok_or_else(|| invalid("Frozen total cost overflow"))
+    }
+}
+
+impl FrozenSettings {
+    pub fn validate(&self) -> Result<()> {
+        self.cost_envelope.validate()?;
+        if [&self.provider_prices_digest, &self.tool_configuration_digest, &self.permissions_digest, &self.dataset_digest, &self.rubric_digest]
+            .iter().any(|digest| digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+            || self.fixture_clock.parse::<chrono::DateTime<chrono::FixedOffset>>().is_err()
+            || self.fixture_timezone.trim().is_empty()
+            || self.fixture_timezone.len() > 64
+        {
+            return Err(invalid("Frozen settings require exact digests, an RFC3339 clock and timezone"));
+        }
+        Ok(())
+    }
 }
 
 impl ExperimentSpec {
@@ -110,6 +199,7 @@ impl ExperimentSpec {
                 ));
             }
         }
+        if let Some(frozen) = &self.frozen { frozen.validate()?; }
         Ok(())
     }
 }

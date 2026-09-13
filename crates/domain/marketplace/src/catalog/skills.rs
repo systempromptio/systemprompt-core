@@ -12,6 +12,7 @@ use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
 use crate::error::MarketplaceError;
+use crate::managed::ManagedSkill;
 use crate::trace::{NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};
 
 pub fn load_skills(services_root: &Path) -> Result<Vec<SkillEntry>, MarketplaceError> {
@@ -145,4 +146,28 @@ fn build_skill_entry(
         hosts: config.hosts,
         plugins: Vec::new(),
     }))
+}
+
+pub(crate) fn build_managed_skill_entry(skill: ManagedSkill) -> Result<SkillEntry, MarketplaceError> {
+    let id = SkillId::try_new(skill.id.as_str())
+        .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+    let name = SkillName::try_new(skill.name)
+        .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+    let sha256 = Sha256Digest::try_new(hex::encode(Sha256::digest(skill.instructions.as_bytes())))
+        .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+    let encoded_files = hex::encode(
+        serde_jcs::to_vec(&skill.files)
+            .map_err(|error| MarketplaceError::Catalog(error.to_string()))?,
+    );
+    Ok(SkillEntry {
+        id,
+        name,
+        description: skill.description,
+        file_path: format!("managed:{encoded_files}"),
+        tags: Vec::new(),
+        sha256,
+        instructions: skill.instructions,
+        hosts: Vec::new(),
+        plugins: Vec::new(),
+    })
 }

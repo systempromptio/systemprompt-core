@@ -13,21 +13,35 @@ mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
 mod error;
 mod import;
+mod installation;
 mod manifest;
 mod provenance;
 mod publication;
+mod reconciliation;
 mod repository;
+mod resolver;
+mod source_sync;
 mod text;
 mod tree;
 
 pub use assets::{AssetDigest, AssetFile, RevisionFiles};
 pub use error::{ManagedError, Result};
 pub use import::ImportedSkills;
+pub use installation::{
+    DistributionClaim, DistributionStatus, InstallationReceipt, InstallationReceiptRequest, InstalledFile,
+    InvocationAttribution, InvocationAttributionRequest, TrafficClass,
+};
 pub use manifest::{DependencyRef, FileEntry, RevisionManifest};
 pub use provenance::{SnapshotProvenance, SourceSpec};
 pub use publication::{
-    ManagedResolution, PublicationAction, PublicationDecision, PublicationRequest,
+    ManagedResolution, PublicationAction, PublicationDecision, PublicationHistoryEntry,
+    PublicationRequest,
 };
+pub use reconciliation::{
+    ConflictResolution, ReconciliationConflict, ReconciliationRecord, ReconciliationRequest,
+};
+pub use resolver::{ManagedResourceResolver, ManagedSkill, ResolvedManagedResource};
+pub use source_sync::{GitSyncRequest, GitSyncResult, WithdrawalProposal};
 pub use repository::{
     ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,
     RevisionSummary, TextCandidate,

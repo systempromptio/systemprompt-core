@@ -119,6 +119,10 @@ fn skill_md(kebab: &str, skill: &SkillEntry) -> String {
 }
 
 fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) {
+    if let Some(encoded) = skill.file_path.strip_prefix("managed:") {
+        append_managed_files(kebab, encoded, bundle);
+        return;
+    }
     let Some(skill_dir) = Path::new(&skill.file_path).parent() else {
         return;
     };
@@ -127,6 +131,20 @@ fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) 
         if dir.is_dir() {
             collect_aux(&dir, &dir, kebab, subdir, bundle);
         }
+    }
+}
+
+fn append_managed_files(kebab: &str, encoded: &str, bundle: &mut PluginBundle) {
+    let Ok(serialized) = hex::decode(encoded) else { return; };
+    let Ok(files) = serde_json::from_slice::<crate::managed::RevisionFiles>(&serialized) else { return; };
+    for (path, file) in files.0 {
+        if path == "config.yaml" || path.ends_with(".md") && !path.contains('/') {
+            continue;
+        }
+        bundle.insert(
+            format!("skills/{kebab}/{path}"),
+            BundleFile { bytes: file.bytes, executable: file.executable },
+        );
     }
 }
 

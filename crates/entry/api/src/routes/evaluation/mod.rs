@@ -20,6 +20,10 @@ pub fn router(state: EvaluationWorkerState) -> Router {
         .route("/heartbeat", post(handlers::heartbeat))
         .route("/evidence", post(handlers::evidence))
         .route("/complete", post(handlers::complete))
+        .route("/approval", post(handlers::request_approval))
+        .route("/measurement", post(handlers::measurement))
+        .route("/cleanup", post(handlers::cleanup))
+        .route("/reconcile", post(handlers::reconcile))
         .layer(DefaultBodyLimit::max(17 * 1024 * 1024))
         .with_state(state)
 }

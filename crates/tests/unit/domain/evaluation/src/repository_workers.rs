@@ -9,16 +9,15 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_evaluation::experiments::execution::FrozenWorkspace;
 use systemprompt_evaluation::experiments::records::ExecutionRecord;
 use systemprompt_evaluation::experiments::resources::{
     CaseContent, Partition, ResourceContent, RubricContent, WeightedDimension,
 };
 use systemprompt_evaluation::experiments::{
-    ClientKind, ExecutionMode, ExperimentSpec, Objective, VariantSpec,
+    ClientKind, ExecutionMode, ExperimentSpec, FrozenSettings, Objective, VariantSpec, content_digest,
 };
 use systemprompt_evaluation::repository::experiments::{
-    EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository, WorkerRecord,
+    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository, WorkerRecord,
     WorkerRepository,
 };
 use systemprompt_identifiers::{
@@ -64,13 +63,31 @@ pub fn case_content() -> CaseContent {
         expected_behavior: vec!["Cites sources".to_owned()],
         fixtures: BTreeMap::from([("README.md".to_owned(), "fixture".to_owned())]),
         partition: Partition::Development,
+        assertions: vec!["response_present".to_owned()],
     }
 }
 
-fn workspace(marker: &str) -> FrozenWorkspace {
-    FrozenWorkspace {
-        files: BTreeMap::from([("SKILL.md".to_owned(), marker.to_owned())]),
-    }
+fn workspace(marker: &str) -> (serde_json::Value, String, usize) {
+    let asset_digest = match marker {
+        "bundle" => "1e6ed65d77d6364eeaed5a745ba5c4985ae2b700dd85d7cf7f027bdf294a33fc",
+        "candidate" => "dda18a0e21ae47c53b4309434cbc02ae8bf764fa83a6defbb719431242722aa7",
+        "configuration" => "b7d64a9221007dfd5390f7df6cd5b8f3ea4f82faa1237141e35ebf161f5511a1",
+        _ => unreachable!("known test projection"),
+    };
+    let revision = format!("revision-{marker}");
+    let files = serde_json::json!({
+        "schema_version":1,
+        "assembler_version":"managed-bundle-v1",
+        "root":revision,
+        "revisions":{(revision):{
+            "schema_version":1,"snapshot_id":format!("snapshot-{marker}"),"parent_id":null,
+            "files":{"file.txt":{"digest":asset_digest,"bytes":marker.len(),"media_type":"text/plain","executable":false}},
+            "dependencies":{}
+        }},
+        "assets":{(asset_digest):marker.as_bytes()}
+    });
+    let digest = content_digest(&files).expect("workspace digest");
+    (files, digest, marker.len())
 }
 
 impl Harness {
@@ -89,14 +106,12 @@ impl Harness {
             .expect("seed owner");
 
         let evidence = EvidenceRepository::new(pg.clone());
-        let bundle_digest = evidence
-            .save_workspace(&owner, &workspace("bundle"))
-            .await
-            .expect("bundle workspace");
-        let configuration_digest = evidence
-            .save_workspace(&owner, &workspace("configuration"))
-            .await
-            .expect("configuration workspace");
+        let (bundle, bundle_digest, bundle_bytes) = workspace("bundle");
+        let (candidate, candidate_digest, candidate_bytes) = workspace("candidate");
+        let (configuration, configuration_digest, configuration_bytes) = workspace("configuration");
+        for (revision, manifest, digest, bytes) in [("revision-bundle", &bundle, &bundle_digest, bundle_bytes), ("revision-candidate", &candidate, &candidate_digest, candidate_bytes), ("revision-configuration", &configuration, &configuration_digest, configuration_bytes)] {
+            evidence.register_managed_workspace(&owner, revision, Some(1), manifest, digest, 1, bytes).await.expect("managed projection");
+        }
 
         let revisions = RevisionRepository::new(pg.clone());
         let rubric_revision = revisions
@@ -107,12 +122,16 @@ impl Harness {
             .create(&owner, "case", &ResourceContent::Case(case_content()))
             .await
             .expect("case revision");
+        let dataset_content = ResourceContent::Dataset(vec![case_revision.clone()]);
+        let dataset_revision = revisions.create(&owner, "dataset", &dataset_content).await.expect("dataset revision");
+        let rubric_content = ResourceContent::Rubric(rubric_content());
 
         let spec = ExperimentSpec {
             schema_version: 1,
             name: "harness".to_owned(),
             cases: vec![case_revision.clone()],
             rubric: rubric_revision.clone(),
+            dataset: Some(dataset_revision),
             variants: vec![VariantSpec {
                 client: ClientKind::ClaudeCode,
                 client_version: "1.0.0".to_owned(),
@@ -121,14 +140,19 @@ impl Harness {
                 skill_bundle_digest: bundle_digest.clone(),
                 configuration_digest: configuration_digest.clone(),
                 worker_image_digest: "c".repeat(64),
+            }, VariantSpec {
+                client: ClientKind::ClaudeCode, client_version: "1.0.0".to_owned(), model: ModelId::new(MODEL), provider: ProviderId::new(PROVIDER), skill_bundle_digest: candidate_digest, configuration_digest: configuration_digest.clone(), worker_image_digest: "c".repeat(64),
             }],
             repetitions,
-            budget_microdollars: 5_000_000,
+            budget_microdollars: i64::from(repetitions) * 1_000_000,
             execution_mode: ExecutionMode::Fixture,
             objective: Objective::Quality,
+            frozen: Some(FrozenSettings { provider_prices_digest: "d".repeat(64), tool_configuration_digest: "e".repeat(64), fixture_clock: "2026-09-12T08:00:00Z".to_owned(), fixture_timezone: "UTC".to_owned(), permissions_digest: "f".repeat(64), dataset_digest: content_digest(&dataset_content).expect("dataset digest"), rubric_digest: content_digest(&rubric_content).expect("rubric digest"), cost_envelope: systemprompt_evaluation::experiments::FrozenCostEnvelope { maximum_attempts_per_execution: 1, generation_microdollars_per_attempt: 250_000, judging_microdollars_per_attempt: 250_000, tool_microdollars_per_attempt: 0, suggestion_calls: 0, suggestion_microdollars_per_call: 0, auxiliary_calls: 0, auxiliary_microdollars_per_call: 0 } }),
+            claim_independent_improvement: false,
         };
+        let budget = BudgetRepository::new(pg.clone()).create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000).await.expect("shared budget");
         let experiment = ExperimentRepository::new(pg.clone())
-            .create(&owner, &format!("key-{}", Uuid::new_v4()), &spec)
+            .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
             .await
             .expect("create experiment");
 
@@ -296,7 +320,7 @@ impl Harness {
             "DELETE FROM eval_experiments WHERE owner_id = $1",
             "DELETE FROM eval_budget_accounts WHERE owner_id = $1",
             "DELETE FROM eval_resource_revisions WHERE owner_id = $1",
-            "DELETE FROM eval_frozen_workspaces WHERE owner_id = $1",
+            "DELETE FROM eval_managed_workspace_projections WHERE owner_id = $1",
             "DELETE FROM eval_workers WHERE owner_id = $1",
             "DELETE FROM user_sessions WHERE user_id = $1",
             "DELETE FROM users WHERE id = $1",

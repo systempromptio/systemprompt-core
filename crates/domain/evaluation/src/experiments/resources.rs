@@ -25,6 +25,8 @@ pub struct CaseContent {
     pub expected_behavior: Vec<String>,
     pub fixtures: BTreeMap<String, String>,
     pub partition: Partition,
+    #[serde(default)]
+    pub assertions: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,7 +70,7 @@ impl ResourceContent {
     pub fn validate(&self) -> Result<()> {
         match self {
             Self::Case(case) => {
-                if case.prompt.trim().is_empty() || case.expected_behavior.is_empty() {
+                if case.prompt.trim().is_empty() || case.expected_behavior.is_empty() || case.assertions.is_empty() {
                     return Err(invalid("Cases require a prompt and expected behavior"));
                 }
                 if case.fixtures.keys().any(|path| {

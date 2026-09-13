@@ -7,16 +7,17 @@ use sqlx::PgPool;
 use std::collections::BTreeMap;
 use systemprompt_evaluation::EvaluationError;
 use systemprompt_evaluation::experiments::execution::{
-    ArtifactEvidence, ClientCapabilities, ExecutionEvidence, FrozenWorkspace,
+    ArtifactEvidence, ArtifactFile, ClientCapabilities, EvidenceArchive, ExecutionEvidence,
 };
 use systemprompt_evaluation::experiments::resources::{
     CaseContent, Partition, ResourceContent, RubricContent, WeightedDimension,
 };
 use systemprompt_evaluation::experiments::{
-    ClientKind, ExecutionMode, ExperimentSpec, Objective, VariantSpec,
+    ClientKind, ExecutionMode, ExperimentSpec, FrozenCostEnvelope, FrozenSettings, Objective,
+    VariantSpec,
 };
 use systemprompt_evaluation::repository::experiments::{
-    EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository,
+    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository,
 };
 use systemprompt_identifiers::{
     AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
@@ -41,13 +42,26 @@ fn new_owner() -> UserId {
     UserId::new(format!("eval-evidence-{}", Uuid::new_v4()))
 }
 
-fn workspace(files: &[(&str, &str)]) -> FrozenWorkspace {
-    FrozenWorkspace {
+fn workspace(files: &[(&str, &str)]) -> EvidenceArchive {
+    EvidenceArchive {
         files: files
             .iter()
-            .map(|(path, body)| ((*path).to_owned(), (*body).to_owned()))
+            .map(|(path, body)| ((*path).to_owned(), ArtifactFile {
+                bytes: body.as_bytes().to_vec(),
+                executable: false,
+            }))
             .collect(),
     }
+}
+
+fn managed_projection() -> serde_json::Value {
+    let digest = "d59386e0ae435e292fbe0ebcdb954b75ed5fb3922091277cb19f798fc5d50718";
+    serde_json::json!({
+        "schema_version":1,"assembler_version":"managed-bundle-v1","root":"managed-revision-1",
+        "revisions":{"managed-revision-1":{"schema_version":1,"snapshot_id":"snapshot-1","parent_id":null,
+            "files":{"asset.bin":{"digest":digest,"bytes":5,"media_type":"application/octet-stream","executable":true}},"dependencies":{}}},
+        "assets":{(digest):b"asset"}
+    })
 }
 
 fn capabilities() -> ClientCapabilities {
@@ -72,17 +86,40 @@ fn variant() -> VariantSpec {
     }
 }
 
-fn spec(case: EvalRevisionId, rubric: EvalRevisionId) -> ExperimentSpec {
+fn spec(case: EvalRevisionId, rubric: EvalRevisionId, dataset: EvalRevisionId, dataset_digest: String, rubric_digest: String) -> ExperimentSpec {
+    let mut candidate = variant();
+    candidate.skill_bundle_digest = "d".repeat(64);
     ExperimentSpec {
         schema_version: 1,
         name: "evidence".to_owned(),
         cases: vec![case],
         rubric,
-        variants: vec![variant()],
+        dataset: Some(dataset),
+        variants: vec![variant(), candidate],
         repetitions: 1,
-        budget_microdollars: 5_000_000,
+        budget_microdollars: 2,
         execution_mode: ExecutionMode::Fixture,
         objective: Objective::Quality,
+        frozen: Some(FrozenSettings {
+            provider_prices_digest: "e".repeat(64),
+            tool_configuration_digest: "f".repeat(64),
+            fixture_clock: "2026-09-12T08:00:00Z".to_owned(),
+            fixture_timezone: "UTC".to_owned(),
+            permissions_digest: "1".repeat(64),
+            dataset_digest,
+            rubric_digest,
+            cost_envelope: FrozenCostEnvelope {
+                maximum_attempts_per_execution: 1,
+                generation_microdollars_per_attempt: 1,
+                judging_microdollars_per_attempt: 0,
+                tool_microdollars_per_attempt: 0,
+                suggestion_calls: 0,
+                suggestion_microdollars_per_call: 0,
+                auxiliary_calls: 0,
+                auxiliary_microdollars_per_call: 0,
+            },
+        }),
+        claim_independent_improvement: false,
     }
 }
 
@@ -104,6 +141,7 @@ async fn fixture(pool: &PgPool) -> Fixture {
                 expected_behavior: vec!["Cites its sources".to_owned()],
                 fixtures: BTreeMap::new(),
                 partition: Partition::Development,
+                assertions: vec!["response_present".to_owned()],
             }),
         )
         .await
@@ -124,9 +162,24 @@ async fn fixture(pool: &PgPool) -> Fixture {
         )
         .await
         .expect("rubric revision");
+    let dataset_content = ResourceContent::Dataset(vec![case.clone()]);
+    let dataset = revisions.create(&owner, "dataset-key", &dataset_content).await.expect("dataset revision");
+    for (revision, digest) in [("base", "a".repeat(64)), ("configuration", "b".repeat(64)), ("candidate", "d".repeat(64))] {
+        sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)", owner.as_str(), &digest, revision, serde_json::json!({"projection": revision})).execute(pool).await.expect("managed projection");
+    }
+    let budget = BudgetRepository::new(pool.clone()).create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 100).await.expect("budget");
     let experiments = ExperimentRepository::new(pool.clone());
+    let rubric_content = ResourceContent::Rubric(RubricContent {
+        dimensions: vec![WeightedDimension {
+            name: "grounding".to_owned(),
+            description: "Claims are supported".to_owned(),
+            weight: 1,
+        }],
+        pass_threshold_milli: 3000,
+        hard_gates: Vec::new(),
+    });
     experiments
-        .create(&owner, "key-1", &spec(case, rubric))
+        .create_with_budget(&owner, "key-1", &budget, &spec(case, rubric, dataset, systemprompt_evaluation::experiments::content_digest(&dataset_content).expect("dataset digest"), systemprompt_evaluation::experiments::content_digest(&rubric_content).expect("rubric digest")))
         .await
         .expect("experiment");
     let worker = EvalWorkerId::new("worker-1");
@@ -163,40 +216,28 @@ fn evidence_for(lease: &ExecutionLease, elapsed: u64) -> ExecutionEvidence {
 }
 
 #[tokio::test]
-async fn workspaces_are_stored_once_and_read_back_in_scope() {
+async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() {
     let Some(pool) = evidence_pool().await else {
         return;
     };
     let evidence = EvidenceRepository::new(pool.clone());
     let owner = new_owner();
-    let frozen = workspace(&[("src/main.rs", "fn main() {}")]);
+    let manifest = managed_projection();
+    let digest = systemprompt_evaluation::experiments::content_digest(&manifest).expect("digest");
+    evidence.register_managed_workspace(&owner, "managed-revision-1", Some(1), &manifest, &digest, 1, 5).await.expect("register");
+    evidence.register_managed_workspace(&owner, "managed-revision-1", Some(1), &manifest, &digest, 1, 5).await.expect("idempotent register");
 
-    let digest = evidence
-        .save_workspace(&owner, &frozen)
-        .await
-        .expect("save");
-    assert_eq!(
-        evidence
-            .save_workspace(&owner, &frozen)
-            .await
-            .expect("save"),
-        digest,
-        "re-freezing identical content is a no-op returning the same digest"
-    );
-
-    let loaded = evidence
-        .get_workspace(&owner, &digest)
-        .await
-        .expect("get workspace");
-    assert_eq!(loaded.files, frozen.files);
+    let loaded = evidence.get_managed_workspace(&owner, &digest).await.expect("get workspace");
+    assert_eq!(loaded.managed_revision_id, "managed-revision-1");
+    assert_eq!(loaded.manifest, manifest);
 
     assert!(matches!(
-        evidence.get_workspace(&owner, &"f".repeat(64)).await,
+        evidence.get_managed_workspace(&owner, &"f".repeat(64)).await,
         Err(EvaluationError::ResourceNotFound(_))
     ));
     assert!(
         matches!(
-            evidence.get_workspace(&new_owner(), &digest).await,
+            evidence.get_managed_workspace(&new_owner(), &digest).await,
             Err(EvaluationError::ResourceNotFound(_))
         ),
         "frozen workspaces are owner-scoped"
@@ -204,7 +245,7 @@ async fn workspaces_are_stored_once_and_read_back_in_scope() {
 }
 
 #[tokio::test]
-async fn a_workspace_stored_under_the_wrong_digest_is_refused_on_read() {
+async fn a_managed_workspace_stored_under_the_wrong_digest_is_refused_on_read() {
     let Some(pool) = evidence_pool().await else {
         return;
     };
@@ -212,18 +253,19 @@ async fn a_workspace_stored_under_the_wrong_digest_is_refused_on_read() {
     let owner = new_owner();
     let claimed = "d".repeat(64);
 
-    sqlx::query(
-        "INSERT INTO eval_frozen_workspaces(owner_id, digest, content) VALUES ($1, $2, $3)",
+    sqlx::query!(
+        "INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)",
+        owner.as_str(),
+        &claimed,
+        "managed-revision-tampered",
+        serde_json::json!({"files": []}),
     )
-    .bind(owner.as_str())
-    .bind(&claimed)
-    .bind(serde_json::to_value(workspace(&[("a.txt", "tampered")])).expect("json"))
     .execute(&pool)
     .await
     .expect("seed tampered workspace");
 
     assert!(matches!(
-        evidence.get_workspace(&owner, &claimed).await,
+        evidence.get_managed_workspace(&owner, &claimed).await,
         Err(EvaluationError::InvalidSpec(_))
     ));
 }

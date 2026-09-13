@@ -7,6 +7,7 @@ use sqlx::PgPool;
 use systemprompt_evaluation::repository::experiments::{
     AssignmentRepository, EvidenceRepository, ExecutionCapabilityRepository,
     ExecutionEventRepository, ExperimentRepository, WorkerRepository,
+    EvaluationLifecycleRepository,
 };
 
 #[derive(Clone, Debug)]
@@ -17,6 +18,7 @@ pub struct EvaluationWorkerState {
     pub(crate) experiments: ExperimentRepository,
     pub(crate) evidence: EvidenceRepository,
     pub(crate) workers: WorkerRepository,
+    pub(crate) lifecycle: EvaluationLifecycleRepository,
     pub(crate) environment: String,
 }
 
@@ -52,6 +54,7 @@ impl EvaluationWorkerStateBuilder {
             capabilities: ExecutionCapabilityRepository::new(self.pool.clone()),
             experiments: ExperimentRepository::new(self.pool.clone()),
             evidence: EvidenceRepository::new(self.pool.clone()),
+            lifecycle: EvaluationLifecycleRepository::new(self.pool.clone()),
             workers: WorkerRepository::new(self.pool),
             environment,
         })

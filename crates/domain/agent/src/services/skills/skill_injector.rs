@@ -27,16 +27,11 @@ impl SkillInjector {
         ctx: &RequestContext,
     ) -> Result<String> {
         if let Some(sid) = skill_id {
-            match self.skill_service.load_skill(sid, ctx).await {
-                Ok(skill_content) => Ok(format!(
-                    "{}\n\n## Writing Guidance\n\nFollow this methodology and style:\n\n{}",
-                    base_prompt, skill_content
-                )),
-                Err(e) => {
-                    tracing::warn!(skill_id = %sid, error = %e, "Failed to load skill");
-                    Ok(base_prompt)
-                },
-            }
+            let skill_content = self.skill_service.load_skill(sid, ctx).await?;
+            Ok(format!(
+                "{}\n\n## Writing Guidance\n\nFollow this methodology and style:\n\n{}",
+                base_prompt, skill_content
+            ))
         } else {
             Ok(base_prompt)
         }

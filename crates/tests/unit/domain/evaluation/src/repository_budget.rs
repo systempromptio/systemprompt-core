@@ -26,6 +26,10 @@ fn new_request() -> AiRequestId {
     AiRequestId::new(format!("eval-budget-req-{}", Uuid::new_v4()))
 }
 
+async fn create(budgets: &BudgetRepository, owner: &UserId, cap: i64) -> systemprompt_evaluation::Result<EvalBudgetId> {
+    budgets.create_shared(owner, &format!("account-{}", Uuid::new_v4()), cap).await
+}
+
 struct Account {
     reserved: i64,
     settled: i64,
@@ -57,14 +61,14 @@ async fn create_rejects_non_positive_caps_and_persists_positive_ones() {
     for cap in [0, -1] {
         assert!(
             matches!(
-                budgets.create(&owner, cap).await,
+                create(&budgets, &owner, cap).await,
                 Err(EvaluationError::InvalidSpec(_))
             ),
             "cap {cap} must be rejected"
         );
     }
 
-    let id = budgets.create(&owner, 5_000).await.expect("create");
+    let id = create(&budgets, &owner, 5_000).await.expect("create");
     let state = account(&pool, &id).await;
     assert_eq!(state.reserved, 0);
     assert_eq!(state.settled, 0);
@@ -78,7 +82,7 @@ async fn reservation_rejects_malformed_bounds_and_unknown_accounts() {
     };
     let budgets = BudgetRepository::new(pool);
     let owner = new_owner();
-    let account_id = budgets.create(&owner, 5_000).await.expect("create");
+    let account_id = create(&budgets, &owner, 5_000).await.expect("create");
 
     for (operation, amount) in [("op", 0), ("op", -5), ("", 10), ("   ", 10)] {
         assert!(
@@ -119,7 +123,7 @@ async fn reservation_is_idempotent_per_operation_key_and_conflicts_on_a_new_boun
     };
     let budgets = BudgetRepository::new(pool.clone());
     let owner = new_owner();
-    let account_id = budgets.create(&owner, 5_000).await.expect("create");
+    let account_id = create(&budgets, &owner, 5_000).await.expect("create");
 
     let first = budgets
         .reserve(&owner, &account_id, "dispatch-1", 400)
@@ -160,7 +164,7 @@ async fn reservation_stops_at_the_cap_and_at_a_frozen_account() {
     };
     let budgets = BudgetRepository::new(pool.clone());
     let owner = new_owner();
-    let account_id = budgets.create(&owner, 1_000).await.expect("create");
+    let account_id = create(&budgets, &owner, 1_000).await.expect("create");
 
     budgets
         .reserve(&owner, &account_id, "hold", 900)
@@ -192,13 +196,33 @@ async fn reservation_stops_at_the_cap_and_at_a_frozen_account() {
 }
 
 #[tokio::test]
+async fn concurrent_reservations_cannot_overdraw_the_shared_account() {
+    let Some(pool) = budget_pool().await else { return; };
+    let budgets = BudgetRepository::new(pool.clone());
+    let owner = new_owner();
+    let account_id = create(&budgets, &owner, 100).await.expect("create");
+    let first = budgets.clone();
+    let second = budgets.clone();
+    let first_owner = owner.clone();
+    let second_owner = owner.clone();
+    let first_account = account_id.clone();
+    let second_account = account_id.clone();
+    let (left, right) = tokio::join!(
+        first.reserve(&first_owner, &first_account, "contender-left", 80),
+        second.reserve(&second_owner, &second_account, "contender-right", 80),
+    );
+    assert_eq!(usize::from(left.is_ok()) + usize::from(right.is_ok()), 1);
+    assert_eq!(account(&pool, &account_id).await.reserved, 80);
+}
+
+#[tokio::test]
 async fn settlement_moves_reserved_to_settled_exactly_once() {
     let Some(pool) = budget_pool().await else {
         return;
     };
     let budgets = BudgetRepository::new(pool.clone());
     let owner = new_owner();
-    let account_id = budgets.create(&owner, 5_000).await.expect("create");
+    let account_id = create(&budgets, &owner, 5_000).await.expect("create");
     let ReservationAdmission::Admitted(reservation) = budgets
         .reserve(&owner, &account_id, "dispatch", 400)
         .await
@@ -232,7 +256,7 @@ async fn settlement_rejects_negative_unknown_and_contradictory_spend() {
     };
     let budgets = BudgetRepository::new(pool);
     let owner = new_owner();
-    let account_id = budgets.create(&owner, 5_000).await.expect("create");
+    let account_id = create(&budgets, &owner, 5_000).await.expect("create");
     let ReservationAdmission::Admitted(reservation) = budgets
         .reserve(&owner, &account_id, "dispatch", 400)
         .await
@@ -291,7 +315,7 @@ async fn overspending_a_reservation_freezes_the_account() {
     };
     let budgets = BudgetRepository::new(pool.clone());
     let owner = new_owner();
-    let account_id = budgets.create(&owner, 5_000).await.expect("create");
+    let account_id = create(&budgets, &owner, 5_000).await.expect("create");
     let ReservationAdmission::Admitted(reservation) = budgets
         .reserve(&owner, &account_id, "dispatch", 100)
         .await

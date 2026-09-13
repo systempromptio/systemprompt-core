@@ -5,7 +5,7 @@
 
 mod assignments;
 mod events;
-pub use assignments::{AssignmentRepository, ExecutionAssignment};
+pub use assignments::{AssignmentRepository, ExecutionAssignment, ManagedWorkspaceReference};
 pub use events::{ExecutionEvent, ExecutionEventBuilder, ExecutionEventRepository, ExecutionStage};
 mod budget;
 mod capabilities;
@@ -16,6 +16,7 @@ pub use capabilities::{
 mod evidence;
 mod gateway;
 mod leases;
+mod lifecycle;
 mod revisions;
 mod runs;
 mod workers;
@@ -23,9 +24,15 @@ mod workers;
 pub use budget::{BudgetRepository, ReservationAdmission};
 pub use evidence::EvidenceRepository;
 pub use gateway::{
-    AdmissionRequest, AdmissionRequestBuilder, GatewayEvaluationRepository, RequestAdmission,
+    AdmissionRequest, AdmissionRequestBuilder, EvaluationTrafficClass,
+    GatewayEvaluationRepository, RequestAdmission,
 };
 pub use leases::{ExecutionCompletion, ExecutionLease, ExecutionLeaseBuilder, TerminalOutcome};
+pub use lifecycle::{
+    ApprovalAuthorization, ApprovalDecision, ComparisonReport, DeterministicMeasurement,
+    ExecutionAccounting, GeneratedSuggestion,
+    EvaluationLifecycleRepository, ExecutionApproval, SuggestionRequest,
+};
 pub use revisions::RevisionRepository;
 pub use runs::ExperimentRepository;
 pub use workers::{WorkerCredential, WorkerRecord, WorkerRecordBuilder, WorkerRepository};

@@ -14,7 +14,7 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
-use crate::CliConfig;
+use crate::CommandContext;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 use super::types::{SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config};
@@ -31,9 +31,36 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let skills_path = get_skills_path()?;
-    execute_with_path(args, &skills_path)
+    if let Some(name) = args.name {
+        return show_resolved_skill(&name, ctx).await;
+    }
+    let mut skills = scan_skills(&skills_path)?;
+    let (repository, owner) = managed_context(ctx).await?;
+    let resolver = systemprompt_marketplace::ManagedResourceResolver::new(repository.clone());
+    let mut offset = 0;
+    loop {
+        let page = repository.list_resources(&owner, offset).await?;
+        let count = page.len();
+        for resource in page.into_iter().filter(|resource| resource.kind == "skill") {
+            let managed = resolver.resolve_skill(&owner, &resource.resource_key).await?
+                .ok_or_else(|| anyhow!("Managed skill '{}' lost its binding", resource.resource_key))?;
+            skills.retain(|item| item.skill_id.as_str() != resource.resource_key);
+            skills.push(SkillSummary {
+                skill_id: managed.id,
+                name: managed.name.clone(),
+                display_name: managed.name,
+                enabled: true,
+                tags: Vec::new(),
+                file_path: Some(format!("managed:generation:{}:{}", managed.generation, managed.bundle_digest.as_str())),
+            });
+        }
+        if count < 51 { break; }
+        offset += 51;
+    }
+    skills.sort_by(|left, right| left.skill_id.cmp(&right.skill_id));
+    render_list(args.enabled, args.disabled, skills)
 }
 
 pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOutput> {
@@ -43,12 +70,16 @@ pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOu
 
     let skills = scan_skills(skills_path)?;
 
+    render_list(args.enabled, args.disabled, skills)
+}
+
+fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Result<CommandOutput> {
     let filtered: Vec<SkillSummary> = skills
         .into_iter()
         .filter(|s| {
-            if args.enabled {
+            if enabled {
                 s.enabled
-            } else if args.disabled {
+            } else if disabled {
                 !s.enabled
             } else {
                 true
@@ -63,6 +94,32 @@ pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOu
         &output.skills,
     )
     .with_title("Skills"))
+}
+
+async fn managed_context(ctx: &CommandContext) -> Result<(systemprompt_marketplace::ManagedRepository, systemprompt_identifiers::UserId)> {
+    let app = ctx.app_context().await?;
+    let pool = app.db_pool().pool_arc()?;
+    Ok((systemprompt_marketplace::ManagedRepository::new(pool.as_ref().clone()), app.system_admin().id().clone()))
+}
+
+pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Result<CommandOutput> {
+    let (repository, owner) = managed_context(ctx).await?;
+    let resolver = systemprompt_marketplace::ManagedResourceResolver::new(repository);
+    if let Some(skill) = resolver.resolve_skill(&owner, skill_name).await? {
+        let output = SkillDetailOutput {
+            skill_id: skill.id,
+            name: skill.name.clone(),
+            display_name: skill.name,
+            description: skill.description,
+            enabled: true,
+            tags: Vec::new(),
+            category: Some(format!("managed generation {}", skill.generation)),
+            file_path: Some(format!("managed:{}", skill.bundle_digest.as_str())),
+            instructions_preview: truncate_with_ellipsis(&skill.instructions, 200),
+        };
+        return Ok(CommandOutput::card_value(format!("Skill: {skill_name}"), &output));
+    }
+    show_skill_detail(skill_name, &get_skills_path()?)
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {

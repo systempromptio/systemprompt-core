@@ -31,7 +31,7 @@ struct RunRow {
 
 pub async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
-    let runs = eval.evaluation.list_runs(args.limit).await?;
+    let runs = eval.repositories.runs.list_recent(args.limit).await?;
 
     let rows: Vec<RunRow> = runs
         .into_iter()

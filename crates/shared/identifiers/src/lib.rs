@@ -106,7 +106,8 @@ pub use context::ContextId;
 pub use email::Email;
 pub use evaluation::{
     EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalJudgeCallId, EvalPairId,
-    EvalReservationId, EvalResultId, EvalRevisionId, EvalRubricId, EvalRunId, EvalWorkerId,
+    EvalApprovalId, EvalReservationId, EvalResultId, EvalRevisionId, EvalRubricId, EvalRunId,
+    EvalSuggestionId, EvalWorkerId,
 };
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
@@ -119,8 +120,9 @@ pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
 pub use managed::{
-    InstallationReceiptId, ManagedResourceId, ManagedSourceId, PublicationId, PublicationReviewId,
-    ResourceRevisionId, SourceSnapshotId,
+    DistributionId, InstallationReceiptId, InvocationAttributionId, ManagedReconciliationId,
+    ManagedResourceId, ManagedSourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
+    SourceSnapshotId, WithdrawalProposalId,
 };
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};

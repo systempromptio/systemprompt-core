@@ -11,11 +11,14 @@ use systemprompt_evaluation::experiments::resources::{
     CaseContent, Partition, ResourceContent, RubricContent, WeightedDimension,
 };
 use systemprompt_evaluation::experiments::{
-    ClientKind, ExecutionMode, ExperimentSpec, Objective, VariantSpec,
+    ClientKind, ExecutionMode, ExperimentSpec, FrozenCostEnvelope, FrozenSettings, Objective,
+    VariantSpec, content_digest,
 };
-use systemprompt_evaluation::repository::experiments::{ExperimentRepository, RevisionRepository};
+use systemprompt_evaluation::repository::experiments::{
+    BudgetRepository, ExperimentRepository, RevisionRepository,
+};
 use systemprompt_identifiers::{
-    EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
+    EvalBudgetId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
@@ -38,6 +41,7 @@ fn case_content(prompt: &str) -> ResourceContent {
         expected_behavior: vec!["Cites its sources".to_owned()],
         fixtures: BTreeMap::new(),
         partition: Partition::Development,
+        assertions: vec!["response_present".to_owned()],
     })
 }
 
@@ -53,29 +57,15 @@ fn rubric_content() -> ResourceContent {
     })
 }
 
-fn variant(version: &str) -> VariantSpec {
+fn variant(bundle_digest: &str) -> VariantSpec {
     VariantSpec {
         client: ClientKind::ClaudeCode,
-        client_version: version.to_owned(),
+        client_version: "1.0.0".to_owned(),
         model: ModelId::new("claude-sonnet-5"),
         provider: ProviderId::new("anthropic"),
-        skill_bundle_digest: "a".repeat(64),
+        skill_bundle_digest: bundle_digest.to_owned(),
         configuration_digest: "b".repeat(64),
         worker_image_digest: "c".repeat(64),
-    }
-}
-
-fn spec(cases: Vec<EvalRevisionId>, rubric: EvalRevisionId, repetitions: u32) -> ExperimentSpec {
-    ExperimentSpec {
-        schema_version: 1,
-        name: "matrix".to_owned(),
-        cases,
-        rubric,
-        variants: vec![variant("1.0.0")],
-        repetitions,
-        budget_microdollars: 5_000_000,
-        execution_mode: ExecutionMode::Fixture,
-        objective: Objective::Quality,
     }
 }
 
@@ -84,6 +74,48 @@ struct Fixture {
     owner: UserId,
     case: EvalRevisionId,
     rubric: EvalRevisionId,
+    dataset: EvalRevisionId,
+    dataset_digest: String,
+    rubric_digest: String,
+    budget: EvalBudgetId,
+}
+
+impl Fixture {
+    fn spec(&self, cases: Vec<EvalRevisionId>, rubric: EvalRevisionId, repetitions: u32) -> ExperimentSpec {
+        let executions = i64::try_from(cases.len()).expect("case count") * 2 * i64::from(repetitions);
+        ExperimentSpec {
+            schema_version: 1,
+            name: "matrix".to_owned(),
+            cases,
+            rubric,
+            dataset: Some(self.dataset.clone()),
+            variants: vec![variant(&"a".repeat(64)), variant(&"d".repeat(64))],
+            repetitions,
+            budget_microdollars: executions,
+            execution_mode: ExecutionMode::Fixture,
+            objective: Objective::Quality,
+            frozen: Some(FrozenSettings {
+                provider_prices_digest: "e".repeat(64),
+                tool_configuration_digest: "f".repeat(64),
+                fixture_clock: "2026-09-12T08:00:00Z".to_owned(),
+                fixture_timezone: "UTC".to_owned(),
+                permissions_digest: "1".repeat(64),
+                dataset_digest: self.dataset_digest.clone(),
+                rubric_digest: self.rubric_digest.clone(),
+                cost_envelope: FrozenCostEnvelope {
+                    maximum_attempts_per_execution: 1,
+                    generation_microdollars_per_attempt: 1,
+                    judging_microdollars_per_attempt: 0,
+                    tool_microdollars_per_attempt: 0,
+                    suggestion_calls: 0,
+                    suggestion_microdollars_per_call: 0,
+                    auxiliary_calls: 0,
+                    auxiliary_microdollars_per_call: 0,
+                },
+            }),
+            claim_independent_improvement: false,
+        }
+    }
 }
 
 async fn fixture(pool: &PgPool) -> Fixture {
@@ -97,11 +129,22 @@ async fn fixture(pool: &PgPool) -> Fixture {
         .create(&owner, "rubric-key", &rubric_content())
         .await
         .expect("rubric revision");
+    let dataset_content = ResourceContent::Dataset(vec![case.clone()]);
+    let dataset = revisions.create(&owner, "dataset-key", &dataset_content).await.expect("dataset revision");
+    for (revision, digest) in [("base", "a".repeat(64)), ("configuration", "b".repeat(64)), ("candidate", "d".repeat(64))] {
+        let manifest = serde_json::json!({"projection": revision});
+        sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)", owner.as_str(), &digest, revision, manifest).execute(pool).await.expect("managed projection");
+    }
+    let budget = BudgetRepository::new(pool.clone()).create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000).await.expect("budget");
     Fixture {
         experiments: ExperimentRepository::new(pool.clone()),
         owner,
         case,
+        dataset,
+        dataset_digest: content_digest(&dataset_content).expect("dataset digest"),
+        rubric_digest: content_digest(&rubric_content()).expect("rubric digest"),
         rubric,
+        budget,
     }
 }
 
@@ -111,12 +154,11 @@ async fn create_freezes_the_full_execution_matrix() {
         return;
     };
     let f = fixture(&pool).await;
-    let mut matrix = spec(vec![f.case.clone()], f.rubric.clone(), 2);
-    matrix.variants.push(variant("2.0.0"));
+    let matrix = f.spec(vec![f.case.clone()], f.rubric.clone(), 2);
 
     let id = f
         .experiments
-        .create(&f.owner, "key-1", &matrix)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &matrix)
         .await
         .expect("create");
 
@@ -156,16 +198,16 @@ async fn create_is_idempotent_per_key_and_conflicts_on_a_changed_spec() {
         return;
     };
     let f = fixture(&pool).await;
-    let first_spec = spec(vec![f.case.clone()], f.rubric.clone(), 1);
+    let first_spec = f.spec(vec![f.case.clone()], f.rubric.clone(), 1);
 
     let id = f
         .experiments
-        .create(&f.owner, "key-1", &first_spec)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &first_spec)
         .await
         .expect("create");
     let repeated = f
         .experiments
-        .create(&f.owner, "key-1", &first_spec)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &first_spec)
         .await
         .expect("repeat");
     assert_eq!(
@@ -179,14 +221,14 @@ async fn create_is_idempotent_per_key_and_conflicts_on_a_changed_spec() {
             .expect("get")
             .executions
             .len(),
-        1,
+        2,
         "the replay must not duplicate executions"
     );
 
     let mut changed = first_spec;
     changed.name = "different".to_owned();
     assert!(matches!(
-        f.experiments.create(&f.owner, "key-1", &changed).await,
+        f.experiments.create_with_budget(&f.owner, "key-1", &f.budget, &changed).await,
         Err(EvaluationError::ExperimentConflict(_))
     ));
 }
@@ -197,12 +239,12 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
         return;
     };
     let f = fixture(&pool).await;
-    let valid = spec(vec![f.case.clone()], f.rubric.clone(), 1);
+    let valid = f.spec(vec![f.case.clone()], f.rubric.clone(), 1);
 
     for key in ["", "   "] {
         assert!(
             matches!(
-                f.experiments.create(&f.owner, key, &valid).await,
+                f.experiments.create_with_budget(&f.owner, key, &f.budget, &valid).await,
                 Err(EvaluationError::InvalidSpec(_))
             ),
             "key {key:?} must be rejected"
@@ -210,7 +252,7 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
     }
     let long_key = "k".repeat(256);
     assert!(matches!(
-        f.experiments.create(&f.owner, &long_key, &valid).await,
+        f.experiments.create_with_budget(&f.owner, &long_key, &f.budget, &valid).await,
         Err(EvaluationError::InvalidSpec(_))
     ));
 
@@ -218,36 +260,36 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
     empty_matrix.variants.clear();
     assert!(
         matches!(
-            f.experiments.create(&f.owner, "key-2", &empty_matrix).await,
+            f.experiments.create_with_budget(&f.owner, "key-2", &f.budget, &empty_matrix).await,
             Err(EvaluationError::InvalidSpec(_))
         ),
         "the spec is validated before anything is persisted"
     );
 
-    let swapped = spec(vec![f.rubric.clone()], f.case.clone(), 1);
+    let swapped = f.spec(vec![f.rubric.clone()], f.case.clone(), 1);
     assert!(
         matches!(
-            f.experiments.create(&f.owner, "key-3", &swapped).await,
+            f.experiments.create_with_budget(&f.owner, "key-3", &f.budget, &swapped).await,
             Err(EvaluationError::InvalidSpec(_))
         ),
         "a case revision cannot stand in for the rubric"
     );
 
-    let case_is_rubric = spec(vec![f.rubric.clone()], f.rubric.clone(), 1);
+    let case_is_rubric = f.spec(vec![f.rubric.clone()], f.rubric.clone(), 1);
     assert!(
         matches!(
             f.experiments
-                .create(&f.owner, "key-4", &case_is_rubric)
+                .create_with_budget(&f.owner, "key-4", &f.budget, &case_is_rubric)
                 .await,
             Err(EvaluationError::InvalidSpec(_))
         ),
         "a rubric revision cannot stand in for a case"
     );
 
-    let foreign = spec(vec![EvalRevisionId::generate()], f.rubric.clone(), 1);
+    let foreign = f.spec(vec![EvalRevisionId::generate()], f.rubric.clone(), 1);
     assert!(matches!(
-        f.experiments.create(&f.owner, "key-5", &foreign).await,
-        Err(EvaluationError::ResourceNotFound(_))
+        f.experiments.create_with_budget(&f.owner, "key-5", &f.budget, &foreign).await,
+        Err(EvaluationError::InvalidSpec(_))
     ));
 }
 
@@ -257,11 +299,11 @@ async fn reads_are_owner_scoped_and_listed_newest_first() {
         return;
     };
     let f = fixture(&pool).await;
-    let matrix = spec(vec![f.case.clone()], f.rubric.clone(), 1);
+    let matrix = f.spec(vec![f.case.clone()], f.rubric.clone(), 1);
 
     let first = f
         .experiments
-        .create(&f.owner, "key-1", &matrix)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &matrix)
         .await
         .expect("create");
     sqlx::query("UPDATE eval_experiments SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1")
@@ -271,7 +313,7 @@ async fn reads_are_owner_scoped_and_listed_newest_first() {
         .expect("age the first experiment");
     let second = f
         .experiments
-        .create(&f.owner, "key-2", &matrix)
+        .create_with_budget(&f.owner, "key-2", &f.budget, &matrix)
         .await
         .expect("create");
 
@@ -306,10 +348,10 @@ async fn cancellation_leaves_the_budget_open_and_drains_only_its_queue() {
         return;
     };
     let f = fixture(&pool).await;
-    let matrix = spec(vec![f.case.clone()], f.rubric.clone(), 2);
+    let matrix = f.spec(vec![f.case.clone()], f.rubric.clone(), 2);
     let id = f
         .experiments
-        .create(&f.owner, "key-1", &matrix)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &matrix)
         .await
         .expect("create");
 
@@ -349,10 +391,10 @@ async fn claim_leases_one_execution_and_starts_its_experiment() {
         return;
     };
     let f = fixture(&pool).await;
-    let matrix = spec(vec![f.case.clone()], f.rubric.clone(), 1);
+    let matrix = f.spec(vec![f.case.clone()], f.rubric.clone(), 1);
     let id = f
         .experiments
-        .create(&f.owner, "key-1", &matrix)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &matrix)
         .await
         .expect("create");
     let worker = EvalWorkerId::new("worker-1");
@@ -426,9 +468,9 @@ async fn claim_holds_the_owner_to_two_live_leases() {
         return;
     };
     let f = fixture(&pool).await;
-    let matrix = spec(vec![f.case.clone()], f.rubric.clone(), 3);
+    let matrix = f.spec(vec![f.case.clone()], f.rubric.clone(), 3);
     f.experiments
-        .create(&f.owner, "key-1", &matrix)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &matrix)
         .await
         .expect("create");
     let worker = EvalWorkerId::new("worker-1");
@@ -466,10 +508,10 @@ async fn claim_reaps_expired_leases_before_handing_out_work() {
         return;
     };
     let f = fixture(&pool).await;
-    let matrix = spec(vec![f.case.clone()], f.rubric.clone(), 2);
+    let matrix = f.spec(vec![f.case.clone()], f.rubric.clone(), 2);
     let id = f
         .experiments
-        .create(&f.owner, "key-1", &matrix)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &matrix)
         .await
         .expect("create");
     let worker = EvalWorkerId::new("worker-1");
@@ -521,10 +563,10 @@ async fn claim_completes_an_experiment_once_its_executions_are_terminal() {
         return;
     };
     let f = fixture(&pool).await;
-    let matrix = spec(vec![f.case.clone()], f.rubric.clone(), 1);
+    let matrix = f.spec(vec![f.case.clone()], f.rubric.clone(), 1);
     let id = f
         .experiments
-        .create(&f.owner, "key-1", &matrix)
+        .create_with_budget(&f.owner, "key-1", &f.budget, &matrix)
         .await
         .expect("create");
     let worker = EvalWorkerId::new("worker-1");

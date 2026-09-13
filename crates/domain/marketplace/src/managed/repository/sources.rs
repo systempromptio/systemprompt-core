@@ -50,11 +50,9 @@ impl ManagedRepository {
         provenance.validate(&self.get_source(owner, source).await?)?;
         let digest = AssetDigest::of(&serde_jcs::to_vec(provenance)?);
         let id = SourceSnapshotId::generate();
-        sqlx::query!("INSERT INTO managed_source_snapshots(id,owner_id,source_id,digest,provenance) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,source_id,digest) DO NOTHING",
+        sqlx::query!("INSERT INTO managed_source_snapshots(id,owner_id,source_id,digest,provenance) VALUES($1,$2,$3,$4,$5)",
             id.as_str(), owner.as_str(), source.as_str(), digest.as_str(), Json(provenance) as _).execute(&self.pool).await?;
-        let existing = sqlx::query_scalar!("SELECT id FROM managed_source_snapshots WHERE owner_id=$1 AND source_id=$2 AND digest=$3",
-            owner.as_str(), source.as_str(), digest.as_str()).fetch_one(&self.pool).await?;
-        Ok(SourceSnapshotId::new(existing))
+        Ok(id)
     }
 
     pub async fn bind_resource(

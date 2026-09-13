@@ -16,5 +16,7 @@ crate::define_id!(EvalExecutionId, generate, schema);
 crate::define_id!(EvalRevisionId, generate, schema);
 crate::define_id!(EvalBudgetId, generate, schema);
 crate::define_id!(EvalReservationId, generate, schema);
+crate::define_id!(EvalSuggestionId, generate, schema);
+crate::define_id!(EvalApprovalId, generate, schema);
 
 crate::define_id!(EvalWorkerId, generate, schema);

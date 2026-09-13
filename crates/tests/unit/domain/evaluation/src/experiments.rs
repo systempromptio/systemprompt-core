@@ -88,6 +88,7 @@ fn fixture_paths_cannot_escape_execution_workspace() {
             expected_behavior: vec!["Cite sources".into()],
             fixtures: BTreeMap::from([(path.into(), "fixture".into())]),
             partition: Partition::Development,
+            assertions: vec!["response_present".into()],
         });
         assert!(case.validate().is_err(), "{path}");
     }

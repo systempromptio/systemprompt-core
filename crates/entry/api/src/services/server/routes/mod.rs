@@ -48,7 +48,14 @@ pub(super) fn configure_routes(
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
     let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
-    let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
+    let evaluation_pool = ctx.db_pool().pool_arc().map_err(|error| LoaderError::InitializationFailed {
+        extension: "evaluation-mcp-auth".to_owned(),
+        message: error.to_string(),
+    })?;
+    let mcp_middleware = McpContextMiddleware::new(jwt_extractor).with_execution_capabilities(
+        systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(evaluation_pool.as_ref().clone()),
+        ctx.config().api_external_url.clone(),
+    );
 
     let mount = protocol::MountCtx {
         ctx,

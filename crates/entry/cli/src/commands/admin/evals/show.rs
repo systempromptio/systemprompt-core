@@ -34,8 +34,8 @@ struct ResultRow {
 pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let eval = eval_context(ctx).await?;
     let run_id = EvalRunId::new(args.run_id);
-    let run = eval.evaluation.get_run(&run_id).await?;
-    let results = eval.evaluation.list_results(&run_id).await?;
+    let run = eval.repositories.runs.get(&run_id).await?;
+    let results = eval.repositories.results.list_by_run(&run_id).await?;
 
     let rows: Vec<ResultRow> = results
         .into_iter()

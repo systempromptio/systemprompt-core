@@ -6,7 +6,7 @@
 
 use crate::experiments::records::BudgetRecord;
 use crate::{EvaluationError, Result};
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use systemprompt_identifiers::{AiRequestId, EvalBudgetId, EvalReservationId, UserId};
 
 use crate::experiments::invalid;
@@ -41,53 +41,39 @@ impl BudgetRepository {
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, owner).await?;
         let id = EvalBudgetId::generate();
-        sqlx::query("INSERT INTO eval_budget_accounts(id,owner_id,cap,operation_key) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,operation_key) DO NOTHING")
-        .bind(id.as_str())
-        .bind(owner.as_str())
-        .bind(cap)
-        .bind(operation)
+        sqlx::query!("INSERT INTO eval_budget_accounts(id,owner_id,cap,operation_key) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,operation_key) DO NOTHING",
+        id.as_str(), owner.as_str(), cap, operation)
         .execute(&mut *tx)
         .await?;
-        let stored = sqlx::query(
+        let stored = sqlx::query!(
             "SELECT id,cap FROM eval_budget_accounts WHERE owner_id=$1 AND operation_key=$2",
+            owner.as_str(), operation
         )
-        .bind(owner.as_str())
-        .bind(operation)
         .fetch_one(&mut *tx)
         .await?;
-        if stored.try_get::<i64, _>("cap")? != cap {
+        if stored.cap != cap {
             return Err(crate::experiments::conflict(
                 "Budget idempotency key conflicts with another cap",
             ));
         }
         tx.commit().await?;
-        Ok(EvalBudgetId::new(stored.try_get::<String, _>("id")?))
-    }
-
-    pub async fn create(&self, owner: &UserId, cap: i64) -> Result<EvalBudgetId> {
-        self.create_shared(
-            owner,
-            &format!("legacy-budget-{}", EvalBudgetId::generate()),
-            cap,
-        )
-        .await
+        Ok(EvalBudgetId::new(stored.id))
     }
 
     pub async fn get(&self, owner: &UserId, id: &EvalBudgetId) -> Result<BudgetRecord> {
-        let record = sqlx::query(
+        let record = sqlx::query!(
             "SELECT id,cap,reserved,settled,frozen FROM eval_budget_accounts WHERE owner_id=$1 AND id=$2",
+            owner.as_str(), id.as_str()
         )
-        .bind(owner.as_str())
-        .bind(id.as_str())
         .fetch_optional(&self.pool)
         .await?
         .ok_or_else(|| crate::experiments::missing("Budget unavailable in this scope"))?;
         Ok(BudgetRecord {
-            id: EvalBudgetId::new(record.try_get::<String, _>("id")?),
-            cap: record.try_get("cap")?,
-            reserved: record.try_get("reserved")?,
-            settled: record.try_get("settled")?,
-            frozen: record.try_get("frozen")?,
+            id: EvalBudgetId::new(record.id),
+            cap: record.cap,
+            reserved: record.reserved,
+            settled: record.settled,
+            frozen: record.frozen,
         })
     }
 

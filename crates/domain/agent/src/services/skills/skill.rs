@@ -15,6 +15,8 @@ use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::SkillId;
 use systemprompt_loader::ServicesRootBootstrap;
+use systemprompt_marketplace::managed::{ManagedRepository, ManagedResourceResolver};
+use systemprompt_database::DbPool;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::{
     AgUiEventBuilder, DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter,
@@ -30,6 +32,7 @@ pub struct SkillMetadata {
 pub struct SkillService {
     skills_root: Arc<PathBuf>,
     execution_step_repo: Option<Arc<ExecutionStepRepository>>,
+    managed: Option<ManagedResourceResolver>,
 }
 
 impl std::fmt::Debug for SkillService {
@@ -53,7 +56,20 @@ impl SkillService {
         Ok(Self {
             skills_root: Arc::new(skills_root),
             execution_step_repo: None,
+            managed: None,
         })
+    }
+
+    /// Enable fail-closed managed resolution for runtime loads. Disk remains
+    /// available only for keys that are not registered as managed resources.
+    pub fn with_managed_repository(mut self, db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc().map_err(|error| {
+            AgentServiceError::Internal(format!("Managed skill repository unavailable: {error}"))
+        })?;
+        self.managed = Some(ManagedResourceResolver::new(ManagedRepository::new(
+            pool.as_ref().clone(),
+        )));
+        Ok(self)
     }
 
     pub fn with_execution_step_repo(mut self, repo: Arc<ExecutionStepRepository>) -> Self {
@@ -62,9 +78,9 @@ impl SkillService {
     }
 
     pub async fn load_skill(&self, skill_id: &SkillId, ctx: &RequestContext) -> Result<String> {
-        let loaded = load_disk_skill(self.skills_root.as_ref(), skill_id)?;
+        let loaded = self.resolve_runtime_skill(skill_id, ctx.user_id()).await?;
 
-        tracing::info!(skill_id = %loaded.skill_id, "Loaded skill from disk");
+        tracing::info!(skill_id = %loaded.skill_id, "Loaded resolved skill");
 
         let event = AgUiEventBuilder::skill_loaded(
             loaded.skill_id.clone(),
@@ -82,6 +98,24 @@ impl SkillService {
         self.track_skill_usage(&loaded, ctx).await;
 
         Ok(loaded.instructions)
+    }
+
+    async fn resolve_runtime_skill(&self, skill_id: &SkillId, owner: &systemprompt_identifiers::UserId) -> Result<LoadedDiskSkill> {
+        if let Some(resolver) = &self.managed {
+            match resolver.resolve_skill(owner, skill_id.as_str()).await {
+                Ok(Some(skill)) => return Ok(LoadedDiskSkill {
+                    skill_id: skill.id,
+                    name: skill.name,
+                    description: skill.description,
+                    instructions: skill.instructions,
+                }),
+                Ok(None) => {},
+                Err(error) => return Err(AgentServiceError::Internal(format!(
+                    "Managed skill {} is unavailable: {error}", skill_id.as_str()
+                ))),
+            }
+        }
+        load_disk_skill(self.skills_root.as_ref(), skill_id)
     }
 
     async fn track_skill_usage(&self, loaded: &LoadedDiskSkill, ctx: &RequestContext) {

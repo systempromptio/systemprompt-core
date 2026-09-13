@@ -20,18 +20,35 @@ impl ExperimentSpec {
                 schema_version: 1,
                 name: name.into(),
                 rubric,
+                dataset: None,
                 cases: Vec::new(),
                 variants: Vec::new(),
                 repetitions: 1,
                 budget_microdollars: 0,
                 execution_mode: ExecutionMode::Fixture,
                 objective: Objective::Quality,
+                frozen: None,
+                claim_independent_improvement: false,
             },
         }
     }
 }
 
 impl ExperimentSpecBuilder {
+    pub fn dataset(mut self, dataset: EvalRevisionId) -> Self {
+        self.spec.dataset = Some(dataset);
+        self
+    }
+
+    pub fn frozen(mut self, frozen: super::FrozenSettings) -> Self {
+        self.spec.frozen = Some(frozen);
+        self
+    }
+
+    pub const fn claim_independent_improvement(mut self, claim: bool) -> Self {
+        self.spec.claim_independent_improvement = claim;
+        self
+    }
     pub fn cases(mut self, cases: Vec<EvalRevisionId>) -> Self {
         self.spec.cases = cases;
         self

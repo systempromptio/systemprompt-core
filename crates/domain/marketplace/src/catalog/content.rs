@@ -18,6 +18,7 @@ use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
 use systemprompt_models::services::ServicesConfig;
+use systemprompt_identifiers::UserId;
 
 use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::hash_dir_metadata;
@@ -112,6 +113,43 @@ impl CatalogContent {
         *guard = Some((fingerprint, Arc::clone(&catalog)));
         drop(guard);
         Ok(catalog)
+    }
+
+    /// Overlay published managed skills and fail closed for every managed key
+    /// that does not resolve to intact retained content.
+    pub async fn with_managed_skills(
+        mut self,
+        repository: crate::managed::ManagedRepository,
+        owner: &UserId,
+    ) -> Result<Self, MarketplaceError> {
+        let resolver = crate::managed::ManagedResourceResolver::new(repository.clone());
+        let mut offset = 0;
+        loop {
+            let page = repository
+                .list_resources(owner, offset)
+                .await
+                .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+            let page_len = page.len();
+            for resource in page.into_iter().filter(|item| item.kind == "skill") {
+                let skill = resolver
+                    .resolve_skill(owner, &resource.resource_key)
+                    .await
+                    .map_err(|error| MarketplaceError::Catalog(format!(
+                        "managed skill {} unavailable: {error}", resource.resource_key
+                    )))?
+                    .ok_or_else(|| MarketplaceError::Catalog(format!(
+                        "managed skill {} lost its resource binding", resource.resource_key
+                    )))?;
+                self.skills.retain(|entry| entry.id.as_str() != resource.resource_key);
+                self.skills.push(crate::catalog::skills::build_managed_skill_entry(skill)?);
+            }
+            if page_len < 51 {
+                break;
+            }
+            offset += 51;
+        }
+        self.skills.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+        Ok(self)
     }
 
     #[must_use]

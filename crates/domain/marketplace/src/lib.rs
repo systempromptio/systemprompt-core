@@ -81,6 +81,7 @@ pub use filter::{AllowAllFilter, MarketplaceFilter};
 pub use import::{ImportOptions, ImportReport, ImportWarning, import_anthropic_tree};
 pub use keep::{KeepSetsSubject, keep_sets};
 pub use manifest::ManifestService;
+pub use managed::{ManagedRepository, ManagedResourceResolver};
 pub use membership::MarketplaceMembership;
 pub use registry::{MarketplaceFilterRegistration, discover_filters};
 pub use scope::{enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include};

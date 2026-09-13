@@ -9,4 +9,8 @@ crate::define_id!(ManagedResourceId, generate, schema);
 crate::define_id!(ResourceRevisionId, generate, schema);
 crate::define_id!(PublicationReviewId, generate, schema);
 crate::define_id!(PublicationId, generate, schema);
+crate::define_id!(ManagedReconciliationId, generate, schema);
+crate::define_id!(WithdrawalProposalId, generate, schema);
+crate::define_id!(DistributionId, generate, schema);
 crate::define_id!(InstallationReceiptId, generate, schema);
+crate::define_id!(InvocationAttributionId, generate, schema);
