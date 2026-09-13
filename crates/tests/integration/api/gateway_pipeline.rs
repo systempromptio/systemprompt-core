@@ -136,11 +136,26 @@ fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
 }
 
 fn raw_body(request: &CanonicalRequest) -> Bytes {
+    let messages: Vec<serde_json::Value> = request
+        .messages
+        .iter()
+        .map(|message| {
+            let text: String = message
+                .content
+                .iter()
+                .filter_map(|part| match part {
+                    CanonicalContent::Text(text) => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect();
+            serde_json::json!({"role": "user", "content": text})
+        })
+        .collect();
     Bytes::from(
         serde_json::to_vec(&serde_json::json!({
             "model": request.model,
             "max_tokens": request.max_tokens,
-            "messages": [{"role": "user", "content": "hello gateway"}],
+            "messages": messages,
         }))
         .expect("serialize raw body"),
     )

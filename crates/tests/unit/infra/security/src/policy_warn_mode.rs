@@ -102,16 +102,17 @@ fn entry_result(
 }
 
 #[test]
-fn mode_defaults_to_enforce_everywhere() {
+fn a_parsed_config_defaults_to_enforce() {
     let cfg = GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n").unwrap();
     assert_eq!(cfg.mode, PolicyMode::Enforce);
     assert_eq!(cfg.policies[0].mode, PolicyMode::Enforce);
-    assert!(
-        GovernanceConfig::defaults()
-            .policies
-            .iter()
-            .all(|p| p.mode == PolicyMode::Enforce)
-    );
+}
+
+#[test]
+fn the_missing_config_fallback_is_warn_only() {
+    let defaults = GovernanceConfig::defaults();
+    assert_eq!(defaults.mode, PolicyMode::Warn);
+    assert!(defaults.policies.iter().all(|p| p.mode == PolicyMode::Warn));
 }
 
 #[test]

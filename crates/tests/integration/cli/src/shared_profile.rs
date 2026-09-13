@@ -1,6 +1,6 @@
 use systemprompt_cli::shared::profile::{
-    DiscoveredProfile, ProfileResolutionError, discover_profiles, generate_oauth_at_rest_pepper,
-    is_path_input, resolve_profile_from_path, resolve_profile_path,
+    DiscoveredProfile, ProfileResolutionError, ProfileSource, discover_profiles,
+    generate_oauth_at_rest_pepper, is_path_input, resolve_profile_from_path, resolve_profile_path,
 };
 use tempfile::tempdir;
 
@@ -90,7 +90,8 @@ fn resolve_profile_path_from_env_override() {
     let p = dir.path().join("profile.yaml");
     std::fs::write(&p, "name: env\n").unwrap();
     let resolved = resolve_profile_path(None, Some(p.to_str().unwrap()), None).unwrap();
-    assert_eq!(resolved, p);
+    assert_eq!(resolved.path, p);
+    assert_eq!(resolved.source, ProfileSource::Env);
 }
 
 #[test]
@@ -100,7 +101,8 @@ fn resolve_profile_path_with_cli_override_takes_priority() {
     let p = dir.path().join("profile.yaml");
     std::fs::write(&p, "name: override\n").unwrap();
     let resolved = resolve_profile_path(Some(p.to_str().unwrap()), None, None).unwrap();
-    assert_eq!(resolved, p);
+    assert_eq!(resolved.path, p);
+    assert_eq!(resolved.source, ProfileSource::Cli);
 }
 
 #[test]

@@ -48,8 +48,8 @@ fn device_action_assets_are_embedded() {
         .expect("sp-device-action.js should resolve");
     assert_eq!(component.content_type, "text/javascript; charset=utf-8");
 
-    let styles = lookup_path("/assets/css/device-action.css")
-        .expect("device-action.css should resolve");
+    let styles =
+        lookup_path("/assets/css/device-action.css").expect("device-action.css should resolve");
     assert_eq!(styles.content_type, "text/css; charset=utf-8");
 
     let index = render_index();

@@ -227,8 +227,6 @@ mod ai_sampling;
 mod ai_media_types;
 
 #[cfg(test)]
-mod config_environment;
-
 #[cfg(test)]
 mod config_rate_limits;
 
