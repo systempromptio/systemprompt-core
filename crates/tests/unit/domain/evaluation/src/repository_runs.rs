@@ -301,7 +301,7 @@ async fn reads_are_owner_scoped_and_listed_newest_first() {
 }
 
 #[tokio::test]
-async fn cancellation_freezes_the_budget_and_drains_the_queue() {
+async fn cancellation_leaves_the_budget_open_and_drains_only_its_queue() {
     let Some(pool) = runs_pool().await else {
         return;
     };
@@ -324,10 +324,7 @@ async fn cancellation_freezes_the_budget_and_drains_the_queue() {
     f.experiments.cancel(&f.owner, &id).await.expect("cancel");
     let detail = f.experiments.get(&f.owner, &id).await.expect("get");
     assert_eq!(detail.experiment.status, ExperimentStatus::Cancelled);
-    assert!(
-        detail.experiment.accounting.frozen,
-        "a cancelled experiment must admit no further spend"
-    );
+    assert!(!detail.experiment.accounting.frozen);
     assert!(
         detail
             .executions

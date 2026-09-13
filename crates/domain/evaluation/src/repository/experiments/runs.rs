@@ -6,8 +6,8 @@
 use crate::Result;
 use crate::experiments::records::{ExecutionRecord, ExperimentDetail, ExperimentRecord};
 use crate::experiments::resources::ResourceContent;
-use sqlx::PgPool;
 use sqlx::types::Json;
+use sqlx::{PgPool, Row};
 use systemprompt_identifiers::{
     EvalBudgetId, EvalExecutionId, EvalExperimentId, EvalWorkerId, UserId,
 };
@@ -29,10 +29,11 @@ impl ExperimentRepository {
         }
     }
 
-    pub async fn create(
+    pub async fn create_with_budget(
         &self,
         owner: &UserId,
         key: &str,
+        budget: &EvalBudgetId,
         spec: &ExperimentSpec,
     ) -> Result<EvalExperimentId> {
         spec.validate()?;
@@ -62,36 +63,57 @@ impl ExperimentRepository {
         )
         .execute(&mut *tx)
         .await?;
-        let existing = sqlx::query!(
-            "SELECT id,spec_digest FROM eval_experiments WHERE owner_id=$1 AND idempotency_key=$2",
-            owner.as_str(),
-            key
+        let existing = sqlx::query(
+            "SELECT id,spec_digest,budget_id FROM eval_experiments WHERE owner_id=$1 AND idempotency_key=$2",
         )
+        .bind(owner.as_str())
+        .bind(key)
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(existing) = existing {
-            if existing.spec_digest != digest {
+            if existing.try_get::<String, _>("spec_digest")? != digest
+                || existing.try_get::<String, _>("budget_id")? != budget.as_str()
+            {
                 return Err(crate::experiments::conflict(
                     "Idempotency key conflicts with another experiment",
                 ));
             }
-            return Ok(EvalExperimentId::new(existing.id));
+            return Ok(EvalExperimentId::new(existing.try_get::<String, _>("id")?));
         }
-        let budget = EvalBudgetId::generate();
-        sqlx::query!(
-            "INSERT INTO eval_budget_accounts(id,owner_id,cap) VALUES($1,$2,$3)",
-            budget.as_str(),
-            owner.as_str(),
-            spec.budget_microdollars
+        let account = sqlx::query(
+            "SELECT id FROM eval_budget_accounts WHERE id=$1 AND owner_id=$2 AND NOT frozen",
         )
-        .execute(&mut *tx)
+        .bind(budget.as_str())
+        .bind(owner.as_str())
+        .fetch_optional(&mut *tx)
         .await?;
+        if account.is_none() {
+            return Err(crate::experiments::missing(
+                "Active budget unavailable in this scope",
+            ));
+        }
         let id = EvalExperimentId::generate();
         sqlx::query!("INSERT INTO eval_experiments(id,owner_id,spec,spec_digest,budget_id,idempotency_key) VALUES($1,$2,$3,$4,$5,$6)", id.as_str(), owner.as_str(), Json(spec) as _, digest, budget.as_str(), key)
             .execute(&mut *tx).await?;
         Self::insert_executions(&mut tx, &id, spec).await?;
         tx.commit().await?;
         Ok(id)
+    }
+
+    pub async fn create(
+        &self,
+        owner: &UserId,
+        key: &str,
+        spec: &ExperimentSpec,
+    ) -> Result<EvalExperimentId> {
+        let budget = super::BudgetRepository::new(self.pool.clone())
+            .create_shared(
+                owner,
+                &format!("legacy-experiment-{key}"),
+                spec.budget_microdollars,
+            )
+            .await?;
+        self.create_with_budget(owner, key, &budget, spec).await
     }
 
     async fn insert_executions(
@@ -140,16 +162,11 @@ impl ExperimentRepository {
     pub async fn cancel(&self, owner: &UserId, id: &EvalExperimentId) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, owner).await?;
-        let budget: Option<String> = sqlx::query_scalar!("UPDATE eval_experiments SET status='cancelled' WHERE id=$1 AND owner_id=$2 AND status IN ('queued','running','cancelled','blocked') RETURNING budget_id", id.as_str(), owner.as_str())
+        let changed = sqlx::query("UPDATE eval_experiments SET status='cancelled' WHERE id=$1 AND owner_id=$2 AND status IN ('queued','running','cancelled','blocked') RETURNING id")
+            .bind(id.as_str())
+            .bind(owner.as_str())
             .fetch_optional(&mut *tx).await?;
-        let budget =
-            budget.ok_or_else(|| crate::experiments::conflict("Experiment cannot be cancelled"))?;
-        sqlx::query!(
-            "UPDATE eval_budget_accounts SET frozen=TRUE WHERE id=$1",
-            budget
-        )
-        .execute(&mut *tx)
-        .await?;
+        changed.ok_or_else(|| crate::experiments::conflict("Experiment cannot be cancelled"))?;
         sqlx::query!("UPDATE eval_executions SET status='cancelled',finished_at=NOW() WHERE experiment_id=$1 AND status='queued'", id.as_str())
             .execute(&mut *tx).await?;
         tx.commit().await?;

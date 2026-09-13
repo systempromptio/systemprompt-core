@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.51.0] - 2026-09-13
+
+### Added
+
+- Shared budget accounts have idempotent owner-scoped creation and inspection.
+
+### Changed
+
+- Experiment launch can reference an existing shared account. Cancelling one experiment no longer freezes the account or blocks unrelated experiments that share its cap.
+
 ## [0.49.0] - 2026-09-09
 
 ### Breaking

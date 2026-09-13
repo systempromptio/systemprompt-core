@@ -4,8 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::experiments::records::BudgetRecord;
 use crate::{EvaluationError, Result};
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use systemprompt_identifiers::{AiRequestId, EvalBudgetId, EvalReservationId, UserId};
 
 use crate::experiments::invalid;
@@ -26,20 +27,68 @@ impl BudgetRepository {
         Self { pool }
     }
 
-    pub async fn create(&self, owner: &UserId, cap: i64) -> Result<EvalBudgetId> {
-        if cap <= 0 {
-            return Err(invalid("Budget must be positive"));
+    pub async fn create_shared(
+        &self,
+        owner: &UserId,
+        operation: &str,
+        cap: i64,
+    ) -> Result<EvalBudgetId> {
+        if cap <= 0 || operation.trim().is_empty() || operation.len() > 255 {
+            return Err(invalid(
+                "Budget requires a positive cap and an idempotency key",
+            ));
         }
+        let mut tx = self.pool.begin().await?;
+        super::lock_owner(&mut tx, owner).await?;
         let id = EvalBudgetId::generate();
-        sqlx::query!(
-            "INSERT INTO eval_budget_accounts(id,owner_id,cap) VALUES($1,$2,$3)",
-            id.as_str(),
-            owner.as_str(),
-            cap
-        )
-        .execute(&self.pool)
+        sqlx::query("INSERT INTO eval_budget_accounts(id,owner_id,cap,operation_key) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,operation_key) DO NOTHING")
+        .bind(id.as_str())
+        .bind(owner.as_str())
+        .bind(cap)
+        .bind(operation)
+        .execute(&mut *tx)
         .await?;
-        Ok(id)
+        let stored = sqlx::query(
+            "SELECT id,cap FROM eval_budget_accounts WHERE owner_id=$1 AND operation_key=$2",
+        )
+        .bind(owner.as_str())
+        .bind(operation)
+        .fetch_one(&mut *tx)
+        .await?;
+        if stored.try_get::<i64, _>("cap")? != cap {
+            return Err(crate::experiments::conflict(
+                "Budget idempotency key conflicts with another cap",
+            ));
+        }
+        tx.commit().await?;
+        Ok(EvalBudgetId::new(stored.try_get::<String, _>("id")?))
+    }
+
+    pub async fn create(&self, owner: &UserId, cap: i64) -> Result<EvalBudgetId> {
+        self.create_shared(
+            owner,
+            &format!("legacy-budget-{}", EvalBudgetId::generate()),
+            cap,
+        )
+        .await
+    }
+
+    pub async fn get(&self, owner: &UserId, id: &EvalBudgetId) -> Result<BudgetRecord> {
+        let record = sqlx::query(
+            "SELECT id,cap,reserved,settled,frozen FROM eval_budget_accounts WHERE owner_id=$1 AND id=$2",
+        )
+        .bind(owner.as_str())
+        .bind(id.as_str())
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| crate::experiments::missing("Budget unavailable in this scope"))?;
+        Ok(BudgetRecord {
+            id: EvalBudgetId::new(record.try_get::<String, _>("id")?),
+            cap: record.try_get("cap")?,
+            reserved: record.try_get("reserved")?,
+            settled: record.try_get("settled")?,
+            frozen: record.try_get("frozen")?,
+        })
     }
 
     pub async fn reserve(
