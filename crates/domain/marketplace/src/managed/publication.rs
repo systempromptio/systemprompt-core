@@ -102,14 +102,13 @@ impl ManagedRepository {
         };
         let request_digest = request_digest(request, reviewer, bundle_digest.as_ref())?;
         let mut tx = self.pool.begin().await?;
-        let resource = sqlx::query(
-            "SELECT id FROM managed_resources WHERE id=$1 AND owner_id=$2 FOR UPDATE",
-        )
-        .bind(request.resource_id.as_str())
-        .bind(owner.as_str())
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or(ManagedError::Unavailable)?;
+        let resource =
+            sqlx::query("SELECT id FROM managed_resources WHERE id=$1 AND owner_id=$2 FOR UPDATE")
+                .bind(request.resource_id.as_str())
+                .bind(owner.as_str())
+                .fetch_optional(&mut *tx)
+                .await?
+                .ok_or(ManagedError::Unavailable)?;
         let _: String = resource.try_get("id")?;
 
         if let Some(existing) = sqlx::query(
