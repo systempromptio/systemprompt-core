@@ -5,6 +5,7 @@
 ### Added
 
 - Managed authoring stores owner-scoped sources, exact snapshots, immutable binary assets and resource revisions. Bounded authoring capture rejects symlinks and changing trees; imports are idempotent and never activate a revision. Text candidates inherit supporting assets and dependencies, and same-resource comparisons report exact file and metadata changes. Runtime publication remains a separate integration boundary.
+- Managed publication records immutable reviews and generation history, advances the owner-scoped selection atomically with a distribution outbox event, and exposes explicit never-adopted, published and withdrawn resolution. Publication downloads remain pinned to the bundle digest and generation advertised to a client.
 
 ### Changed
 

@@ -8,13 +8,14 @@
 
 mod assets;
 mod bundle;
-pub use bundle::RevisionBundle;
+pub use bundle::{ASSEMBLER_VERSION, RevisionBundle};
 mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
 mod error;
 mod import;
 mod manifest;
 mod provenance;
+mod publication;
 mod repository;
 mod text;
 mod tree;
@@ -24,6 +25,9 @@ pub use error::{ManagedError, Result};
 pub use import::ImportedSkills;
 pub use manifest::{DependencyRef, FileEntry, RevisionManifest};
 pub use provenance::{SnapshotProvenance, SourceSpec};
+pub use publication::{
+    ManagedResolution, PublicationAction, PublicationDecision, PublicationRequest,
+};
 pub use repository::{
     ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,
     RevisionSummary, TextCandidate,

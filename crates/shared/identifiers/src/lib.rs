@@ -119,7 +119,8 @@ pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
 pub use managed::{
-    ManagedResourceId, ManagedSourceId, PublicationId, ResourceRevisionId, SourceSnapshotId,
+    InstallationReceiptId, ManagedResourceId, ManagedSourceId, PublicationId,
+    PublicationReviewId, ResourceRevisionId, SourceSnapshotId,
 };
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};

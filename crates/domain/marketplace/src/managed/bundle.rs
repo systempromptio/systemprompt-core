@@ -16,6 +16,7 @@ use systemprompt_identifiers::{ResourceRevisionId, UserId};
 const MAX_REVISIONS: usize = 64;
 const MAX_FILES: usize = 256;
 const MAX_BYTES: usize = 8 * 1024 * 1024;
+pub const ASSEMBLER_VERSION: &str = "managed-bundle-v1";
 
 /// The wire form is untrusted until `verify` succeeds. Hashes prove integrity,
 /// not authorization; repository resolution checks ownership independently.
@@ -26,6 +27,7 @@ const MAX_BYTES: usize = 8 * 1024 * 1024;
 #[serde(deny_unknown_fields)]
 pub struct RevisionBundle {
     pub schema_version: u32,
+    pub assembler_version: String,
     pub root: ResourceRevisionId,
     pub revisions: BTreeMap<ResourceRevisionId, RevisionManifest>,
     pub assets: BTreeMap<AssetDigest, Vec<u8>>,
@@ -45,6 +47,7 @@ impl std::fmt::Debug for RevisionBundle {
 impl RevisionBundle {
     pub fn verify(&self) -> Result<()> {
         if self.schema_version != 1
+            || self.assembler_version != ASSEMBLER_VERSION
             || self.revisions.is_empty()
             || self.revisions.len() > MAX_REVISIONS
         {
@@ -174,6 +177,7 @@ impl ManagedRepository {
     ) -> Result<RevisionBundle> {
         let mut bundle = RevisionBundle {
             schema_version: 1,
+            assembler_version: ASSEMBLER_VERSION.to_owned(),
             root: root.clone(),
             revisions: BTreeMap::new(),
             assets: BTreeMap::new(),
