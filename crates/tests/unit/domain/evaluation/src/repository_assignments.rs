@@ -30,10 +30,7 @@ async fn assignment_hands_a_live_lease_its_frozen_inputs() {
     };
     assert_eq!(case.prompt, "Write a specification");
     assert!(matches!(assignment.rubric, ResourceContent::Rubric(_)));
-    assert_eq!(
-        assignment.skill_bundle.digest,
-        harness.bundle_digest
-    );
+    assert_eq!(assignment.skill_bundle.digest, harness.bundle_digest);
     assert_eq!(
         assignment.configuration.digest,
         harness.configuration_digest

@@ -21,8 +21,8 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_marketplace::{
-    CatalogContent, ManagedRepository, MarketplaceService, plugin_bundles_cached, render_marketplace_json,
-    render_marketplace_list,
+    CatalogContent, ManagedRepository, MarketplaceService, plugin_bundles_cached,
+    render_marketplace_json, render_marketplace_list,
 };
 use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_models::services::ServicesConfig;
@@ -169,10 +169,16 @@ async fn serve_plugin_file(
 
     let disk_catalog = CatalogContent::load_cached(&services, services_root, api_external_url)
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
-    let pool = ctx.db_pool().pool_arc()
+    let pool = ctx
+        .db_pool()
+        .pool_arc()
         .map_err(|error| ApiHttpError::internal_error(error.to_string()))?;
-    let catalog = (*disk_catalog).clone()
-        .with_managed_skills(ManagedRepository::new(pool.as_ref().clone()), ctx.system_admin().id())
+    let catalog = (*disk_catalog)
+        .clone()
+        .with_managed_skills(
+            ManagedRepository::new(pool.as_ref().clone()),
+            ctx.system_admin().id(),
+        )
         .await
         .map_err(|error| ApiHttpError::internal_error(error.to_string()))?;
     let bundles = plugin_bundles_cached(&services, &catalog.as_content())

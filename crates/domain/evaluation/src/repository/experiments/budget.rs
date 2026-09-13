@@ -47,7 +47,8 @@ impl BudgetRepository {
         .await?;
         let stored = sqlx::query!(
             "SELECT id,cap FROM eval_budget_accounts WHERE owner_id=$1 AND operation_key=$2",
-            owner.as_str(), operation
+            owner.as_str(),
+            operation
         )
         .fetch_one(&mut *tx)
         .await?;

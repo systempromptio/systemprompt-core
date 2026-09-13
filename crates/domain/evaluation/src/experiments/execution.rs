@@ -61,7 +61,12 @@ pub struct EvidenceArchive {
 impl EvidenceArchive {
     pub fn validate(&self) -> Result<()> {
         if self.files.len() > 256
-            || self.files.values().map(|file| file.bytes.len()).sum::<usize>() > 16 * 1024 * 1024
+            || self
+                .files
+                .values()
+                .map(|file| file.bytes.len())
+                .sum::<usize>()
+                > 16 * 1024 * 1024
         {
             return Err(invalid("Workspace exceeds 256 files or 16 MiB"));
         }
@@ -156,7 +161,13 @@ impl ExecutionEvidence {
         for (index, artifact) in self.artifacts.iter().enumerate() {
             validate_digest(&artifact.sha256)?;
             let workspace = EvidenceArchive {
-                files: BTreeMap::from([(artifact.relative_path.clone(), ArtifactFile { bytes: Vec::new(), executable: false })]),
+                files: BTreeMap::from([(
+                    artifact.relative_path.clone(),
+                    ArtifactFile {
+                        bytes: Vec::new(),
+                        executable: false,
+                    },
+                )]),
             };
             workspace.validate()?;
             if self.artifacts[..index]

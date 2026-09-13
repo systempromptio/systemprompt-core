@@ -68,7 +68,9 @@ pub fn evaluate(input: VerificationInput<'_>) -> VerificationResult {
         "write_readbacks",
     ];
     if result.checks.len() != required.len()
-        || required.iter().any(|name| !result.checks.contains_key(*name))
+        || required
+            .iter()
+            .any(|name| !result.checks.contains_key(*name))
     {
         return VerificationResult::fail_closed(format!(
             "Deterministic evaluator {} omitted a required check",

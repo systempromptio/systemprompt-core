@@ -114,7 +114,13 @@ fn evidence_archive_rejects_non_portable_paths() {
         "",
     ] {
         let workspace = EvidenceArchive {
-            files: BTreeMap::from([(path.to_owned(), ArtifactFile { bytes: b"body".to_vec(), executable: false })]),
+            files: BTreeMap::from([(
+                path.to_owned(),
+                ArtifactFile {
+                    bytes: b"body".to_vec(),
+                    executable: false,
+                },
+            )]),
         };
         let error = workspace.validate().expect_err("non-portable path");
         assert!(
@@ -123,7 +129,13 @@ fn evidence_archive_rejects_non_portable_paths() {
         );
     }
     let control = EvidenceArchive {
-        files: BTreeMap::from([("src/lib.rs\u{7}".to_owned(), ArtifactFile { bytes: b"body".to_vec(), executable: false })]),
+        files: BTreeMap::from([(
+            "src/lib.rs\u{7}".to_owned(),
+            ArtifactFile {
+                bytes: b"body".to_vec(),
+                executable: false,
+            },
+        )]),
     };
     assert!(control.validate().is_err());
 }
@@ -132,14 +144,28 @@ fn evidence_archive_rejects_non_portable_paths() {
 fn evidence_archive_rejects_oversized_manifests() {
     let too_many = EvidenceArchive {
         files: (0..257)
-            .map(|index| (format!("file-{index}"), ArtifactFile { bytes: Vec::new(), executable: false }))
+            .map(|index| {
+                (
+                    format!("file-{index}"),
+                    ArtifactFile {
+                        bytes: Vec::new(),
+                        executable: false,
+                    },
+                )
+            })
             .collect(),
     };
     let error = too_many.validate().expect_err("file count");
     assert!(error.to_string().contains("256 files or 16 MiB"));
 
     let too_large = EvidenceArchive {
-        files: BTreeMap::from([("big".to_owned(), ArtifactFile { bytes: vec![b'x'; 16 * 1024 * 1024 + 1], executable: false })]),
+        files: BTreeMap::from([(
+            "big".to_owned(),
+            ArtifactFile {
+                bytes: vec![b'x'; 16 * 1024 * 1024 + 1],
+                executable: false,
+            },
+        )]),
     };
     assert!(too_large.validate().is_err());
 }
@@ -147,19 +173,37 @@ fn evidence_archive_rejects_oversized_manifests() {
 #[test]
 fn evidence_archive_digest_is_content_addressed_and_validates_first() {
     let workspace = EvidenceArchive {
-        files: BTreeMap::from([("src/main.rs".to_owned(), ArtifactFile { bytes: b"fn main() {}".to_vec(), executable: true })]),
+        files: BTreeMap::from([(
+            "src/main.rs".to_owned(),
+            ArtifactFile {
+                bytes: b"fn main() {}".to_vec(),
+                executable: true,
+            },
+        )]),
     };
     let digest = workspace.digest().expect("digest");
     assert_eq!(digest.len(), 64);
     assert_eq!(digest, workspace.digest().expect("stable digest"));
 
     let changed = EvidenceArchive {
-        files: BTreeMap::from([("src/main.rs".to_owned(), ArtifactFile { bytes: b"fn main() { }".to_vec(), executable: true })]),
+        files: BTreeMap::from([(
+            "src/main.rs".to_owned(),
+            ArtifactFile {
+                bytes: b"fn main() { }".to_vec(),
+                executable: true,
+            },
+        )]),
     };
     assert_ne!(digest, changed.digest().expect("digest"));
 
     let invalid = EvidenceArchive {
-        files: BTreeMap::from([("/etc/passwd".to_owned(), ArtifactFile { bytes: Vec::new(), executable: false })]),
+        files: BTreeMap::from([(
+            "/etc/passwd".to_owned(),
+            ArtifactFile {
+                bytes: Vec::new(),
+                executable: false,
+            },
+        )]),
     };
     assert!(invalid.digest().is_err());
 }

@@ -28,8 +28,8 @@ pub use assets::{AssetDigest, AssetFile, RevisionFiles};
 pub use error::{ManagedError, Result};
 pub use import::ImportedSkills;
 pub use installation::{
-    DistributionClaim, DistributionStatus, InstallationReceipt, InstallationReceiptRequest, InstalledFile,
-    InvocationAttribution, InvocationAttributionRequest, TrafficClass,
+    DistributionClaim, DistributionStatus, InstallationReceipt, InstallationReceiptRequest,
+    InstalledFile, InvocationAttribution, InvocationAttributionRequest, TrafficClass,
 };
 pub use manifest::{DependencyRef, FileEntry, RevisionManifest};
 pub use provenance::{SnapshotProvenance, SourceSpec};
@@ -40,11 +40,11 @@ pub use publication::{
 pub use reconciliation::{
     ConflictResolution, ReconciliationConflict, ReconciliationRecord, ReconciliationRequest,
 };
-pub use resolver::{ManagedResourceResolver, ManagedSkill, ResolvedManagedResource};
-pub use source_sync::{GitSyncRequest, GitSyncResult, WithdrawalProposal};
 pub use repository::{
     ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,
     RevisionSummary, TextCandidate,
 };
+pub use resolver::{ManagedResourceResolver, ManagedSkill, ResolvedManagedResource};
+pub use source_sync::{GitSyncRequest, GitSyncResult, WithdrawalProposal};
 pub use text::normalize_form_text;
 pub use tree::{CapturedSkills, capture_skills};

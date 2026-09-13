@@ -5,9 +5,9 @@
 
 use sqlx::PgPool;
 use systemprompt_evaluation::repository::experiments::{
-    AssignmentRepository, EvidenceRepository, ExecutionCapabilityRepository,
-    ExecutionEventRepository, ExperimentRepository, WorkerRepository,
-    EvaluationLifecycleRepository,
+    AssignmentRepository, EvaluationLifecycleRepository, EvidenceRepository,
+    ExecutionCapabilityRepository, ExecutionEventRepository, ExperimentRepository,
+    WorkerRepository,
 };
 
 #[derive(Clone, Debug)]

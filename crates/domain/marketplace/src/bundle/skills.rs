@@ -135,15 +135,22 @@ fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) 
 }
 
 fn append_managed_files(kebab: &str, encoded: &str, bundle: &mut PluginBundle) {
-    let Ok(serialized) = hex::decode(encoded) else { return; };
-    let Ok(files) = serde_json::from_slice::<crate::managed::RevisionFiles>(&serialized) else { return; };
+    let Ok(serialized) = hex::decode(encoded) else {
+        return;
+    };
+    let Ok(files) = serde_json::from_slice::<crate::managed::RevisionFiles>(&serialized) else {
+        return;
+    };
     for (path, file) in files.0 {
         if path == "config.yaml" || path.ends_with(".md") && !path.contains('/') {
             continue;
         }
         bundle.insert(
             format!("skills/{kebab}/{path}"),
-            BundleFile { bytes: file.bytes, executable: file.executable },
+            BundleFile {
+                bytes: file.bytes,
+                executable: file.executable,
+            },
         );
     }
 }

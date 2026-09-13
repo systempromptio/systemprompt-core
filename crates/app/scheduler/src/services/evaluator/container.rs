@@ -64,9 +64,13 @@ impl ContainerLaunch {
         purpose: ClientPurpose,
         prompt: &str,
     ) -> SchedulerResult<ContainerExecution> {
-        let output = self.directory.join(format!("{}-events.jsonl", self.output_stem));
+        let output = self
+            .directory
+            .join(format!("{}-events.jsonl", self.output_stem));
         let log = private_log(&output)?;
-        let errors_path = self.directory.join(format!("{}-stderr.log", self.output_stem));
+        let errors_path = self
+            .directory
+            .join(format!("{}-stderr.log", self.output_stem));
         let errors = private_log(&errors_path)?;
         let mut command = Command::new(&self.docker);
         command.args([
@@ -99,7 +103,9 @@ impl ContainerLaunch {
         command
             .arg("--env-file")
             .arg(self.directory.join("client.env"));
-        command.arg(&self.image).args(client.arguments_for(purpose, prompt));
+        command
+            .arg(&self.image)
+            .args(client.arguments_for(purpose, prompt));
         command
             .stdin(Stdio::null())
             .stdout(Stdio::from(log))
@@ -134,14 +140,21 @@ impl ContainerExecution {
         {
             self.cancel()?;
             return Err(SchedulerError::ConfigError {
-                message: "Client exceeded execution time, output, or writable-storage limit".to_owned(),
+                message: "Client exceeded execution time, output, or writable-storage limit"
+                    .to_owned(),
             });
         }
         Ok(self.child.try_wait()?)
     }
 
     fn directory(&self) -> SchedulerResult<PathBuf> {
-        Ok(self.output.parent().ok_or_else(|| SchedulerError::config_error("Evaluator output path has no workspace parent"))?.join("home"))
+        Ok(self
+            .output
+            .parent()
+            .ok_or_else(|| {
+                SchedulerError::config_error("Evaluator output path has no workspace parent")
+            })?
+            .join("home"))
     }
 
     pub fn cancel(&mut self) -> SchedulerResult<()> {
@@ -208,7 +221,8 @@ impl ContainerLaunchBuilder {
         self
     }
     pub fn output_stem(mut self, output_stem: impl Into<String>) -> Self {
-        self.output_stem = output_stem.into(); self
+        self.output_stem = output_stem.into();
+        self
     }
     pub fn ownership(mut self, owner: impl Into<String>, execution: impl Into<String>) -> Self {
         self.owner_label = owner.into();
@@ -220,14 +234,21 @@ impl ContainerLaunchBuilder {
             SchedulerError::ConfigError { message: "Evaluator requires an absolute Docker path, workspace, pinned image, private network and execution name".to_owned() }
         };
         let image = self.image.ok_or_else(invalid)?;
-        let digest = image.rsplit_once("sha256:").map(|(_, digest)| digest).ok_or_else(invalid)?;
+        let digest = image
+            .rsplit_once("sha256:")
+            .map(|(_, digest)| digest)
+            .ok_or_else(invalid)?;
         let network = self.network.ok_or_else(invalid)?;
         let name = self.name.ok_or_else(invalid)?;
         #[cfg(unix)]
         let runtime_user = {
             use std::os::unix::fs::MetadataExt;
             let metadata = std::fs::metadata(&self.directory)?;
-            if metadata.uid() == 0 { return Err(SchedulerError::config_error("Evaluator supervisor must not run as root")); }
+            if metadata.uid() == 0 {
+                return Err(SchedulerError::config_error(
+                    "Evaluator supervisor must not run as root",
+                ));
+            }
             format!("{}:{}", metadata.uid(), metadata.gid())
         };
         #[cfg(not(unix))]
@@ -272,42 +293,149 @@ pub struct ExecutionNetwork {
 }
 
 impl ExecutionNetwork {
-    pub fn create(docker: PathBuf, name: String, owner: &str, execution: &str) -> SchedulerResult<Self> {
-        if !docker.is_absolute() || !safe_name(&name) || !safe_label(owner) || !safe_label(execution) || matches!(name.as_str(), "host" | "bridge" | "default" | "none") {
-            return Err(SchedulerError::config_error("Invalid evaluator network configuration"));
+    pub fn create(
+        docker: PathBuf,
+        name: String,
+        owner: &str,
+        execution: &str,
+    ) -> SchedulerResult<Self> {
+        if !docker.is_absolute()
+            || !safe_name(&name)
+            || !safe_label(owner)
+            || !safe_label(execution)
+            || matches!(name.as_str(), "host" | "bridge" | "default" | "none")
+        {
+            return Err(SchedulerError::config_error(
+                "Invalid evaluator network configuration",
+            ));
         }
-        docker_status(&docker, &["network", "create", "--internal", "--label", "systemprompt.evaluator=true", "--label", &format!("systemprompt.evaluator.owner={owner}"), "--label", &format!("systemprompt.evaluator.execution={execution}"), &name])?;
-        let network = Self { docker, name, relay: None, removed: false, owner_label: owner.to_owned(), execution_label: execution.to_owned() };
+        docker_status(
+            &docker,
+            &[
+                "network",
+                "create",
+                "--internal",
+                "--label",
+                "systemprompt.evaluator=true",
+                "--label",
+                &format!("systemprompt.evaluator.owner={owner}"),
+                "--label",
+                &format!("systemprompt.evaluator.execution={execution}"),
+                &name,
+            ],
+        )?;
+        let network = Self {
+            docker,
+            name,
+            relay: None,
+            removed: false,
+            owner_label: owner.to_owned(),
+            execution_label: execution.to_owned(),
+        };
         network.verify(&[])?;
         Ok(network)
     }
 
-    pub fn name(&self) -> &str { &self.name }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 
-    pub fn start_relay(&mut self, image: &str, control_network: &str, upstream: &str, name: String) -> SchedulerResult<()> {
-        if !safe_name(control_network) || matches!(control_network, "host" | "bridge" | "default" | "none") || !safe_name(&name) || !image.contains("@sha256:") {
-            return Err(SchedulerError::config_error("Relay requires pinned image and dedicated control network"));
+    pub fn start_relay(
+        &mut self,
+        image: &str,
+        control_network: &str,
+        upstream: &str,
+        name: String,
+    ) -> SchedulerResult<()> {
+        if !safe_name(control_network)
+            || matches!(control_network, "host" | "bridge" | "default" | "none")
+            || !safe_name(&name)
+            || !image.contains("@sha256:")
+        {
+            return Err(SchedulerError::config_error(
+                "Relay requires pinned image and dedicated control network",
+            ));
         }
-        docker_status(&self.docker, &["run", "-d", "--name", &name, "--label", "systemprompt.evaluator=true", "--label", &format!("systemprompt.evaluator.owner={}", self.owner_label), "--label", &format!("systemprompt.evaluator.execution={}", self.execution_label), "--network", &self.name, "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=64", "--memory=256m", "--cpus=.25", "--user=1002:1002", "-e", &format!("SYSTEMPROMPT_RELAY_UPSTREAM={upstream}"), image])?;
-        docker_status(&self.docker, &["network", "connect", control_network, &name])?;
+        docker_status(
+            &self.docker,
+            &[
+                "run",
+                "-d",
+                "--name",
+                &name,
+                "--label",
+                "systemprompt.evaluator=true",
+                "--label",
+                &format!("systemprompt.evaluator.owner={}", self.owner_label),
+                "--label",
+                &format!("systemprompt.evaluator.execution={}", self.execution_label),
+                "--network",
+                &self.name,
+                "--read-only",
+                "--cap-drop=ALL",
+                "--security-opt=no-new-privileges",
+                "--pids-limit=64",
+                "--memory=256m",
+                "--cpus=.25",
+                "--user=1002:1002",
+                "-e",
+                &format!("SYSTEMPROMPT_RELAY_UPSTREAM={upstream}"),
+                image,
+            ],
+        )?;
+        docker_status(
+            &self.docker,
+            &["network", "connect", control_network, &name],
+        )?;
         self.relay = Some(name.clone());
         self.verify(&[name])
     }
 
     pub fn verify(&self, expected: &[String]) -> SchedulerResult<()> {
-        let output = Command::new(&self.docker).args(["network", "inspect", &self.name]).output()?;
-        if !output.status.success() { return Err(SchedulerError::config_error("Execution network inspection failed")); }
-        let value: serde_json::Value = serde_json::from_slice(&output.stdout).map_err(|error| SchedulerError::Internal(error.to_string()))?;
-        let network = value.as_array().and_then(|values| values.first()).ok_or_else(|| SchedulerError::config_error("Execution network inspection returned no network"))?;
-        if network.get("Internal").and_then(serde_json::Value::as_bool) != Some(true) { return Err(SchedulerError::config_error("Execution network is not internal")); }
-        let mut actual = network.get("Containers").and_then(serde_json::Value::as_object).into_iter().flat_map(|containers| containers.values()).filter_map(|container| container.get("Name").and_then(serde_json::Value::as_str)).map(str::to_owned).collect::<Vec<_>>();
-        let mut expected = expected.to_vec(); actual.sort(); expected.sort();
-        if actual != expected { return Err(SchedulerError::config_error("Execution network has unexpected members")); }
+        let output = Command::new(&self.docker)
+            .args(["network", "inspect", &self.name])
+            .output()?;
+        if !output.status.success() {
+            return Err(SchedulerError::config_error(
+                "Execution network inspection failed",
+            ));
+        }
+        let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+            .map_err(|error| SchedulerError::Internal(error.to_string()))?;
+        let network = value
+            .as_array()
+            .and_then(|values| values.first())
+            .ok_or_else(|| {
+                SchedulerError::config_error("Execution network inspection returned no network")
+            })?;
+        if network.get("Internal").and_then(serde_json::Value::as_bool) != Some(true) {
+            return Err(SchedulerError::config_error(
+                "Execution network is not internal",
+            ));
+        }
+        let mut actual = network
+            .get("Containers")
+            .and_then(serde_json::Value::as_object)
+            .into_iter()
+            .flat_map(|containers| containers.values())
+            .filter_map(|container| container.get("Name").and_then(serde_json::Value::as_str))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        let mut expected = expected.to_vec();
+        actual.sort();
+        expected.sort();
+        if actual != expected {
+            return Err(SchedulerError::config_error(
+                "Execution network has unexpected members",
+            ));
+        }
         Ok(())
     }
 
     pub fn cleanup(&mut self) -> SchedulerResult<()> {
-        if let Some(relay) = self.relay.take() { docker_status(&self.docker, &["rm", "--force", &relay])?; }
+        if let Some(relay) = self.relay.take() {
+            docker_status(&self.docker, &["rm", "--force", &relay])?;
+        }
         docker_status(&self.docker, &["network", "rm", &self.name])?;
         self.removed = true;
         Ok(())
@@ -317,15 +445,26 @@ impl ExecutionNetwork {
 impl Drop for ExecutionNetwork {
     fn drop(&mut self) {
         if !self.removed {
-            if let Some(relay) = self.relay.take() { let _ = docker_status(&self.docker, &["rm", "--force", &relay]); }
+            if let Some(relay) = self.relay.take() {
+                let _ = docker_status(&self.docker, &["rm", "--force", &relay]);
+            }
             let _ = docker_status(&self.docker, &["network", "rm", &self.name]);
         }
     }
 }
 
 fn docker_status(docker: &Path, arguments: &[&str]) -> SchedulerResult<()> {
-    let status = Command::new(docker).args(arguments).stdout(Stdio::null()).stderr(Stdio::null()).status()?;
-    if !status.success() { return Err(SchedulerError::config_error(format!("Docker {} failed", arguments.first().copied().unwrap_or("command")))); }
+    let status = Command::new(docker)
+        .args(arguments)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()?;
+    if !status.success() {
+        return Err(SchedulerError::config_error(format!(
+            "Docker {} failed",
+            arguments.first().copied().unwrap_or("command")
+        )));
+    }
     Ok(())
 }
 
@@ -338,7 +477,11 @@ fn safe_name(value: &str) -> bool {
 }
 
 fn safe_label(value: &str) -> bool {
-    !value.is_empty() && value.len() <= 255 && value.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'))
+    !value.is_empty()
+        && value.len() <= 255
+        && value
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'))
 }
 
 fn private_log(path: &Path) -> std::io::Result<std::fs::File> {

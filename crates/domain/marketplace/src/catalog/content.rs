@@ -14,11 +14,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock};
 
 use sha2::{Digest, Sha256};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
 use systemprompt_models::services::ServicesConfig;
-use systemprompt_identifiers::UserId;
 
 use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::hash_dir_metadata;
@@ -134,21 +134,30 @@ impl CatalogContent {
                 let skill = resolver
                     .resolve_skill(owner, &resource.resource_key)
                     .await
-                    .map_err(|error| MarketplaceError::Catalog(format!(
-                        "managed skill {} unavailable: {error}", resource.resource_key
-                    )))?
-                    .ok_or_else(|| MarketplaceError::Catalog(format!(
-                        "managed skill {} lost its resource binding", resource.resource_key
-                    )))?;
-                self.skills.retain(|entry| entry.id.as_str() != resource.resource_key);
-                self.skills.push(crate::catalog::skills::build_managed_skill_entry(skill)?);
+                    .map_err(|error| {
+                        MarketplaceError::Catalog(format!(
+                            "managed skill {} unavailable: {error}",
+                            resource.resource_key
+                        ))
+                    })?
+                    .ok_or_else(|| {
+                        MarketplaceError::Catalog(format!(
+                            "managed skill {} lost its resource binding",
+                            resource.resource_key
+                        ))
+                    })?;
+                self.skills
+                    .retain(|entry| entry.id.as_str() != resource.resource_key);
+                self.skills
+                    .push(crate::catalog::skills::build_managed_skill_entry(skill)?);
             }
             if page_len < 51 {
                 break;
             }
             offset += 51;
         }
-        self.skills.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+        self.skills
+            .sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
         Ok(self)
     }
 

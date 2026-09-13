@@ -83,7 +83,11 @@ impl GatewayEvaluationRepository {
     ) -> Result<()> {
         let changed = sqlx::query!("UPDATE eval_session_bindings b SET traffic_class=$5 FROM eval_executions x,eval_experiments e WHERE b.execution_id=x.id AND x.experiment_id=e.id AND b.owner_id=$1 AND b.execution_id=$2 AND x.lease_owner=$3 AND b.fencing_token=$4 AND x.fencing_token=b.fencing_token AND x.status='running' AND e.status='running' AND x.lease_expires_at>NOW() AND x.deadline_at>NOW()",
             owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token, traffic_class.as_str()).execute(&self.pool).await?;
-        if changed.rows_affected() != 1 { return Err(conflict("Traffic classification requires the current live fence")); }
+        if changed.rows_affected() != 1 {
+            return Err(conflict(
+                "Traffic classification requires the current live fence",
+            ));
+        }
         Ok(())
     }
 

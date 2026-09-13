@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::SkillId;
 use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_marketplace::managed::{ManagedRepository, ManagedResourceResolver};
-use systemprompt_database::DbPool;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::{
     AgUiEventBuilder, DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter,
@@ -100,19 +100,28 @@ impl SkillService {
         Ok(loaded.instructions)
     }
 
-    async fn resolve_runtime_skill(&self, skill_id: &SkillId, owner: &systemprompt_identifiers::UserId) -> Result<LoadedDiskSkill> {
+    async fn resolve_runtime_skill(
+        &self,
+        skill_id: &SkillId,
+        owner: &systemprompt_identifiers::UserId,
+    ) -> Result<LoadedDiskSkill> {
         if let Some(resolver) = &self.managed {
             match resolver.resolve_skill(owner, skill_id.as_str()).await {
-                Ok(Some(skill)) => return Ok(LoadedDiskSkill {
-                    skill_id: skill.id,
-                    name: skill.name,
-                    description: skill.description,
-                    instructions: skill.instructions,
-                }),
+                Ok(Some(skill)) => {
+                    return Ok(LoadedDiskSkill {
+                        skill_id: skill.id,
+                        name: skill.name,
+                        description: skill.description,
+                        instructions: skill.instructions,
+                    });
+                },
                 Ok(None) => {},
-                Err(error) => return Err(AgentServiceError::Internal(format!(
-                    "Managed skill {} is unavailable: {error}", skill_id.as_str()
-                ))),
+                Err(error) => {
+                    return Err(AgentServiceError::Internal(format!(
+                        "Managed skill {} is unavailable: {error}",
+                        skill_id.as_str()
+                    )));
+                },
             }
         }
         load_disk_skill(self.skills_root.as_ref(), skill_id)

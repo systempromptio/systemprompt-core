@@ -46,8 +46,12 @@ impl NativeClient {
                         "Bash,Agent,Task,WebSearch,WebFetch",
                         self.limits.max_turns,
                     ),
-                    ClientPurpose::Judge => ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 2),
-                    ClientPurpose::Suggestion => ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 3),
+                    ClientPurpose::Judge => {
+                        ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 2)
+                    },
+                    ClientPurpose::Suggestion => {
+                        ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 3)
+                    },
                 };
                 [
                     "claude",
@@ -71,7 +75,7 @@ impl NativeClient {
                 .iter()
                 .map(OsString::from)
                 .collect()
-            }
+            },
             ClientKind::Opencode => [
                 "opencode",
                 "run",

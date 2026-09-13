@@ -17,7 +17,9 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::JwtToken;
-use systemprompt_marketplace::{CatalogContent, ManagedRepository, ManifestService, NoopTrace, plugin_bundles_cached};
+use systemprompt_marketplace::{
+    CatalogContent, ManagedRepository, ManifestService, NoopTrace, plugin_bundles_cached,
+};
 use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
@@ -58,8 +60,12 @@ pub async fn handle(
         &profile.server.api_external_url,
     )
     .map_err(|e| internal("catalog", &e))?;
-    let pool = ctx.db_pool().pool_arc().map_err(|error| internal("database", &error))?;
-    let catalog = (*disk_catalog).clone()
+    let pool = ctx
+        .db_pool()
+        .pool_arc()
+        .map_err(|error| internal("database", &error))?;
+    let catalog = (*disk_catalog)
+        .clone()
         .with_managed_skills(ManagedRepository::new(pool.as_ref().clone()), &user.id)
         .await
         .map_err(|error| internal("managed-catalog", &error))?;

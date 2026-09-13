@@ -44,8 +44,12 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
         let page = repository.list_resources(&owner, offset).await?;
         let count = page.len();
         for resource in page.into_iter().filter(|resource| resource.kind == "skill") {
-            let managed = resolver.resolve_skill(&owner, &resource.resource_key).await?
-                .ok_or_else(|| anyhow!("Managed skill '{}' lost its binding", resource.resource_key))?;
+            let managed = resolver
+                .resolve_skill(&owner, &resource.resource_key)
+                .await?
+                .ok_or_else(|| {
+                    anyhow!("Managed skill '{}' lost its binding", resource.resource_key)
+                })?;
             skills.retain(|item| item.skill_id.as_str() != resource.resource_key);
             skills.push(SkillSummary {
                 skill_id: managed.id,
@@ -53,10 +57,16 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
                 display_name: managed.name,
                 enabled: true,
                 tags: Vec::new(),
-                file_path: Some(format!("managed:generation:{}:{}", managed.generation, managed.bundle_digest.as_str())),
+                file_path: Some(format!(
+                    "managed:generation:{}:{}",
+                    managed.generation,
+                    managed.bundle_digest.as_str()
+                )),
             });
         }
-        if count < 51 { break; }
+        if count < 51 {
+            break;
+        }
         offset += 51;
     }
     skills.sort_by(|left, right| left.skill_id.cmp(&right.skill_id));
@@ -96,10 +106,18 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Resu
     .with_title("Skills"))
 }
 
-async fn managed_context(ctx: &CommandContext) -> Result<(systemprompt_marketplace::ManagedRepository, systemprompt_identifiers::UserId)> {
+async fn managed_context(
+    ctx: &CommandContext,
+) -> Result<(
+    systemprompt_marketplace::ManagedRepository,
+    systemprompt_identifiers::UserId,
+)> {
     let app = ctx.app_context().await?;
     let pool = app.db_pool().pool_arc()?;
-    Ok((systemprompt_marketplace::ManagedRepository::new(pool.as_ref().clone()), app.system_admin().id().clone()))
+    Ok((
+        systemprompt_marketplace::ManagedRepository::new(pool.as_ref().clone()),
+        app.system_admin().id().clone(),
+    ))
 }
 
 pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -117,7 +135,10 @@ pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Resu
             file_path: Some(format!("managed:{}", skill.bundle_digest.as_str())),
             instructions_preview: truncate_with_ellipsis(&skill.instructions, 200),
         };
-        return Ok(CommandOutput::card_value(format!("Skill: {skill_name}"), &output));
+        return Ok(CommandOutput::card_value(
+            format!("Skill: {skill_name}"),
+            &output,
+        ));
     }
     show_skill_detail(skill_name, &get_skills_path()?)
 }

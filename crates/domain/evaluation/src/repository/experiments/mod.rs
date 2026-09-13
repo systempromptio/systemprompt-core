@@ -24,14 +24,14 @@ mod workers;
 pub use budget::{BudgetRepository, ReservationAdmission};
 pub use evidence::EvidenceRepository;
 pub use gateway::{
-    AdmissionRequest, AdmissionRequestBuilder, EvaluationTrafficClass,
-    GatewayEvaluationRepository, RequestAdmission,
+    AdmissionRequest, AdmissionRequestBuilder, EvaluationTrafficClass, GatewayEvaluationRepository,
+    RequestAdmission,
 };
 pub use leases::{ExecutionCompletion, ExecutionLease, ExecutionLeaseBuilder, TerminalOutcome};
 pub use lifecycle::{
     ApprovalAuthorization, ApprovalDecision, ComparisonReport, DeterministicMeasurement,
-    ExecutionAccounting, GeneratedSuggestion,
-    EvaluationLifecycleRepository, ExecutionApproval, SuggestionRequest,
+    EvaluationLifecycleRepository, ExecutionAccounting, ExecutionApproval, GeneratedSuggestion,
+    SuggestionRequest,
 };
 pub use revisions::RevisionRepository;
 pub use runs::ExperimentRepository;

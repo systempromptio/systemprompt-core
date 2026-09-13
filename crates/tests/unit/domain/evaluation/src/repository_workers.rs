@@ -14,11 +14,12 @@ use systemprompt_evaluation::experiments::resources::{
     CaseContent, Partition, ResourceContent, RubricContent, WeightedDimension,
 };
 use systemprompt_evaluation::experiments::{
-    ClientKind, ExecutionMode, ExperimentSpec, FrozenSettings, Objective, VariantSpec, content_digest,
+    ClientKind, ExecutionMode, ExperimentSpec, FrozenSettings, Objective, VariantSpec,
+    content_digest,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository, WorkerRecord,
-    WorkerRepository,
+    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository,
+    WorkerRecord, WorkerRepository,
 };
 use systemprompt_identifiers::{
     EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
@@ -109,8 +110,25 @@ impl Harness {
         let (bundle, bundle_digest, bundle_bytes) = workspace("bundle");
         let (candidate, candidate_digest, candidate_bytes) = workspace("candidate");
         let (configuration, configuration_digest, configuration_bytes) = workspace("configuration");
-        for (revision, manifest, digest, bytes) in [("revision-bundle", &bundle, &bundle_digest, bundle_bytes), ("revision-candidate", &candidate, &candidate_digest, candidate_bytes), ("revision-configuration", &configuration, &configuration_digest, configuration_bytes)] {
-            evidence.register_managed_workspace(&owner, revision, Some(1), manifest, digest, 1, bytes).await.expect("managed projection");
+        for (revision, manifest, digest, bytes) in [
+            ("revision-bundle", &bundle, &bundle_digest, bundle_bytes),
+            (
+                "revision-candidate",
+                &candidate,
+                &candidate_digest,
+                candidate_bytes,
+            ),
+            (
+                "revision-configuration",
+                &configuration,
+                &configuration_digest,
+                configuration_bytes,
+            ),
+        ] {
+            evidence
+                .register_managed_workspace(&owner, revision, Some(1), manifest, digest, 1, bytes)
+                .await
+                .expect("managed projection");
         }
 
         let revisions = RevisionRepository::new(pg.clone());
@@ -123,7 +141,10 @@ impl Harness {
             .await
             .expect("case revision");
         let dataset_content = ResourceContent::Dataset(vec![case_revision.clone()]);
-        let dataset_revision = revisions.create(&owner, "dataset", &dataset_content).await.expect("dataset revision");
+        let dataset_revision = revisions
+            .create(&owner, "dataset", &dataset_content)
+            .await
+            .expect("dataset revision");
         let rubric_content = ResourceContent::Rubric(rubric_content());
 
         let spec = ExperimentSpec {
@@ -132,25 +153,55 @@ impl Harness {
             cases: vec![case_revision.clone()],
             rubric: rubric_revision.clone(),
             dataset: Some(dataset_revision),
-            variants: vec![VariantSpec {
-                client: ClientKind::ClaudeCode,
-                client_version: "1.0.0".to_owned(),
-                model: ModelId::new(MODEL),
-                provider: ProviderId::new(PROVIDER),
-                skill_bundle_digest: bundle_digest.clone(),
-                configuration_digest: configuration_digest.clone(),
-                worker_image_digest: "c".repeat(64),
-            }, VariantSpec {
-                client: ClientKind::ClaudeCode, client_version: "1.0.0".to_owned(), model: ModelId::new(MODEL), provider: ProviderId::new(PROVIDER), skill_bundle_digest: candidate_digest, configuration_digest: configuration_digest.clone(), worker_image_digest: "c".repeat(64),
-            }],
+            variants: vec![
+                VariantSpec {
+                    client: ClientKind::ClaudeCode,
+                    client_version: "1.0.0".to_owned(),
+                    model: ModelId::new(MODEL),
+                    provider: ProviderId::new(PROVIDER),
+                    skill_bundle_digest: bundle_digest.clone(),
+                    configuration_digest: configuration_digest.clone(),
+                    worker_image_digest: "c".repeat(64),
+                },
+                VariantSpec {
+                    client: ClientKind::ClaudeCode,
+                    client_version: "1.0.0".to_owned(),
+                    model: ModelId::new(MODEL),
+                    provider: ProviderId::new(PROVIDER),
+                    skill_bundle_digest: candidate_digest,
+                    configuration_digest: configuration_digest.clone(),
+                    worker_image_digest: "c".repeat(64),
+                },
+            ],
             repetitions,
             budget_microdollars: i64::from(repetitions) * 1_000_000,
             execution_mode: ExecutionMode::Fixture,
             objective: Objective::Quality,
-            frozen: Some(FrozenSettings { provider_prices_digest: "d".repeat(64), tool_configuration_digest: "e".repeat(64), fixture_clock: "2026-09-12T08:00:00Z".to_owned(), fixture_timezone: "UTC".to_owned(), permissions_digest: "f".repeat(64), dataset_digest: content_digest(&dataset_content).expect("dataset digest"), rubric_digest: content_digest(&rubric_content).expect("rubric digest"), cost_envelope: systemprompt_evaluation::experiments::FrozenCostEnvelope { maximum_attempts_per_execution: 1, generation_microdollars_per_attempt: 250_000, judging_microdollars_per_attempt: 250_000, tool_microdollars_per_attempt: 0, suggestion_calls: 0, suggestion_microdollars_per_call: 0, auxiliary_calls: 0, auxiliary_microdollars_per_call: 0 } }),
+            frozen: Some(FrozenSettings {
+                provider_prices_digest: "d".repeat(64),
+                tool_configuration_digest: "e".repeat(64),
+                fixture_clock: "2026-09-12T08:00:00Z".to_owned(),
+                fixture_timezone: "UTC".to_owned(),
+                permissions_digest: "f".repeat(64),
+                dataset_digest: content_digest(&dataset_content).expect("dataset digest"),
+                rubric_digest: content_digest(&rubric_content).expect("rubric digest"),
+                cost_envelope: systemprompt_evaluation::experiments::FrozenCostEnvelope {
+                    maximum_attempts_per_execution: 1,
+                    generation_microdollars_per_attempt: 250_000,
+                    judging_microdollars_per_attempt: 250_000,
+                    tool_microdollars_per_attempt: 0,
+                    suggestion_calls: 0,
+                    suggestion_microdollars_per_call: 0,
+                    auxiliary_calls: 0,
+                    auxiliary_microdollars_per_call: 0,
+                },
+            }),
             claim_independent_improvement: false,
         };
-        let budget = BudgetRepository::new(pg.clone()).create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000).await.expect("shared budget");
+        let budget = BudgetRepository::new(pg.clone())
+            .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000)
+            .await
+            .expect("shared budget");
         let experiment = ExperimentRepository::new(pg.clone())
             .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
             .await

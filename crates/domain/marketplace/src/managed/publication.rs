@@ -115,18 +115,28 @@ impl ManagedRepository {
             owner.as_str(), resource_id.as_str())
             .fetch_all(&self.pool)
             .await?;
-        rows.into_iter().map(|row| {
-            Ok(PublicationHistoryEntry {
-                decision: decision_from_fields(resource_id, row.id, row.review_id, row.generation, &row.action, row.revision_id, row.bundle_digest)?,
-                approved: true,
-                distributed: row.distributed,
-                installation_verified: row.installation_verified,
-                reviewer_id: UserId::new(row.reviewer_id),
-                comparison_evidence: row.comparison_evidence,
-                limitations: row.limitations,
-                created_at: row.created_at,
+        rows.into_iter()
+            .map(|row| {
+                Ok(PublicationHistoryEntry {
+                    decision: decision_from_fields(
+                        resource_id,
+                        row.id,
+                        row.review_id,
+                        row.generation,
+                        &row.action,
+                        row.revision_id,
+                        row.bundle_digest,
+                    )?,
+                    approved: true,
+                    distributed: row.distributed,
+                    installation_verified: row.installation_verified,
+                    reviewer_id: UserId::new(row.reviewer_id),
+                    comparison_evidence: row.comparison_evidence,
+                    limitations: row.limitations,
+                    created_at: row.created_at,
+                })
             })
-        }).collect()
+            .collect()
     }
     pub async fn review_and_publish(
         &self,
@@ -142,12 +152,14 @@ impl ManagedRepository {
         };
         let request_digest = request_digest(request, reviewer, bundle_digest.as_ref())?;
         let mut tx = self.pool.begin().await?;
-        let resource =
-            sqlx::query!("SELECT id FROM managed_resources WHERE id=$1 AND owner_id=$2 FOR UPDATE",
-                request.resource_id.as_str(), owner.as_str())
-                .fetch_optional(&mut *tx)
-                .await?
-                .ok_or(ManagedError::Unavailable)?;
+        let resource = sqlx::query!(
+            "SELECT id FROM managed_resources WHERE id=$1 AND owner_id=$2 FOR UPDATE",
+            request.resource_id.as_str(),
+            owner.as_str()
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(ManagedError::Unavailable)?;
         let _ = resource.id;
 
         if let Some(existing) = sqlx::query!(
@@ -171,7 +183,9 @@ impl ManagedRepository {
         if let Some(revision) = &request.revision_id {
             let found = sqlx::query!(
                 "SELECT id FROM managed_revisions WHERE owner_id=$1 AND resource_id=$2 AND id=$3",
-                owner.as_str(), request.resource_id.as_str(), revision.as_str()
+                owner.as_str(),
+                request.resource_id.as_str(),
+                revision.as_str()
             )
             .fetch_optional(&mut *tx)
             .await?;
@@ -198,7 +212,11 @@ impl ManagedRepository {
             let digest = bundle_digest.as_ref().map(AssetDigest::as_str);
             let retained = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 AND revision_id=$3 AND bundle_digest=$4 AND generation<=$5)",
                 owner.as_str(), request.resource_id.as_str(), revision, digest, current_generation).fetch_one(&mut *tx).await?.unwrap_or(false);
-            if !retained { return Err(ManagedError::Conflict("Rollback must reference content retained by an earlier generation".to_owned())); }
+            if !retained {
+                return Err(ManagedError::Conflict(
+                    "Rollback must reference content retained by an earlier generation".to_owned(),
+                ));
+            }
         }
         let generation = current_generation
             .checked_add(1)
@@ -254,7 +272,9 @@ impl ManagedRepository {
     ) -> Result<ManagedResolution> {
         let resource = sqlx::query!(
             "SELECT id FROM managed_resources WHERE owner_id=$1 AND kind=$2 AND resource_key=$3",
-            owner.as_str(), kind.as_str(), resource_key
+            owner.as_str(),
+            kind.as_str(),
+            resource_key
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -269,7 +289,14 @@ impl ManagedRepository {
         let Some(selection) = selection else {
             return Ok(ManagedResolution::NeverAdopted { resource_id });
         };
-        resolution_from_fields(resource_id, selection.generation, &selection.state, selection.publication_id, selection.revision_id, selection.bundle_digest)
+        resolution_from_fields(
+            resource_id,
+            selection.generation,
+            &selection.state,
+            selection.publication_id,
+            selection.revision_id,
+            selection.bundle_digest,
+        )
     }
 
     pub async fn get_publication_bundle(
@@ -304,7 +331,10 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
         || request.limitations.len() > 4000
         || serde_jcs::to_vec(&request.comparison_evidence)?.len() > 65_536
         || (request.action == PublicationAction::PublishImprovement
-            && request.comparison_evidence.as_object().is_none_or(serde_json::Map::is_empty))
+            && request
+                .comparison_evidence
+                .as_object()
+                .is_none_or(serde_json::Map::is_empty))
     {
         return Err(invalid("Invalid publication review input"));
     }

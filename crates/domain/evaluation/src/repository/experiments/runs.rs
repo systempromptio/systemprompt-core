@@ -4,10 +4,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
-use crate::experiments::records::{ExecutionRecord, ExperimentDetail, ExperimentPreflight, ExperimentRecord};
+use crate::experiments::records::{
+    ExecutionRecord, ExperimentDetail, ExperimentPreflight, ExperimentRecord,
+};
 use crate::experiments::resources::ResourceContent;
-use sqlx::types::Json;
 use sqlx::PgPool;
+use sqlx::types::Json;
 use systemprompt_identifiers::{
     EvalBudgetId, EvalExecutionId, EvalExperimentId, EvalWorkerId, UserId,
 };
@@ -76,9 +78,7 @@ impl ExperimentRepository {
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(existing) = existing {
-            if existing.spec_digest != digest
-                || existing.budget_id != budget.as_str()
-            {
+            if existing.spec_digest != digest || existing.budget_id != budget.as_str() {
                 return Err(crate::experiments::conflict(
                     "Idempotency key conflicts with another experiment",
                 ));
@@ -87,7 +87,8 @@ impl ExperimentRepository {
         }
         let account = sqlx::query!(
             "SELECT id FROM eval_budget_accounts WHERE id=$1 AND owner_id=$2 AND NOT frozen",
-            budget.as_str(), owner.as_str()
+            budget.as_str(),
+            owner.as_str()
         )
         .fetch_optional(&mut *tx)
         .await?;
@@ -108,40 +109,113 @@ impl ExperimentRepository {
         Ok(id)
     }
 
-    pub async fn preflight(&self, owner: &UserId, budget: &EvalBudgetId, spec: &ExperimentSpec) -> Result<ExperimentPreflight> {
+    pub async fn preflight(
+        &self,
+        owner: &UserId,
+        budget: &EvalBudgetId,
+        spec: &ExperimentSpec,
+    ) -> Result<ExperimentPreflight> {
         spec.validate()?;
-        let dataset = spec.dataset.as_ref().ok_or_else(|| invalid("Preflight requires a dataset revision"))?;
-        let frozen = spec.frozen.as_ref().ok_or_else(|| invalid("Preflight requires frozen environment settings"))?;
-        let ResourceContent::Dataset(dataset_cases) = self.revisions.get(owner, dataset).await? else { return Err(invalid("Dataset reference must identify a dataset revision")); };
-        if spec.cases.iter().any(|case| !dataset_cases.contains(case)) { return Err(invalid("Selected cases must belong to the frozen dataset")); }
+        let dataset = spec
+            .dataset
+            .as_ref()
+            .ok_or_else(|| invalid("Preflight requires a dataset revision"))?;
+        let frozen = spec
+            .frozen
+            .as_ref()
+            .ok_or_else(|| invalid("Preflight requires frozen environment settings"))?;
+        let ResourceContent::Dataset(dataset_cases) = self.revisions.get(owner, dataset).await?
+        else {
+            return Err(invalid(
+                "Dataset reference must identify a dataset revision",
+            ));
+        };
+        if spec.cases.iter().any(|case| !dataset_cases.contains(case)) {
+            return Err(invalid("Selected cases must belong to the frozen dataset"));
+        }
         let rubric = self.revisions.get(owner, &spec.rubric).await?;
-        if content_digest(&rubric)? != frozen.rubric_digest || content_digest(&ResourceContent::Dataset(dataset_cases))? != frozen.dataset_digest { return Err(invalid("Dataset or rubric digest differs from frozen settings")); }
-        if spec.variants.len() != 2 { return Err(invalid("Paired comparison requires baseline and candidate variants")); }
-        let baseline = &spec.variants[0]; let candidate = &spec.variants[1];
-        if baseline.client != candidate.client || baseline.client_version != candidate.client_version || baseline.model != candidate.model || baseline.provider != candidate.provider || baseline.configuration_digest != candidate.configuration_digest || baseline.worker_image_digest != candidate.worker_image_digest || baseline.skill_bundle_digest == candidate.skill_bundle_digest {
-            return Err(invalid("Only the candidate skill bundle may differ between paired variants"));
+        if content_digest(&rubric)? != frozen.rubric_digest
+            || content_digest(&ResourceContent::Dataset(dataset_cases))? != frozen.dataset_digest
+        {
+            return Err(invalid(
+                "Dataset or rubric digest differs from frozen settings",
+            ));
         }
-        if baseline.client != crate::experiments::ClientKind::ClaudeCode { return Err(invalid("Only pinned Claude Code execution is supported")); }
-        for digest in [&baseline.skill_bundle_digest, &candidate.skill_bundle_digest, &baseline.configuration_digest] {
+        if spec.variants.len() != 2 {
+            return Err(invalid(
+                "Paired comparison requires baseline and candidate variants",
+            ));
+        }
+        let baseline = &spec.variants[0];
+        let candidate = &spec.variants[1];
+        if baseline.client != candidate.client
+            || baseline.client_version != candidate.client_version
+            || baseline.model != candidate.model
+            || baseline.provider != candidate.provider
+            || baseline.configuration_digest != candidate.configuration_digest
+            || baseline.worker_image_digest != candidate.worker_image_digest
+            || baseline.skill_bundle_digest == candidate.skill_bundle_digest
+        {
+            return Err(invalid(
+                "Only the candidate skill bundle may differ between paired variants",
+            ));
+        }
+        if baseline.client != crate::experiments::ClientKind::ClaudeCode {
+            return Err(invalid("Only pinned Claude Code execution is supported"));
+        }
+        for digest in [
+            &baseline.skill_bundle_digest,
+            &candidate.skill_bundle_digest,
+            &baseline.configuration_digest,
+        ] {
             let found = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_managed_workspace_projections WHERE owner_id=$1 AND digest=$2)", owner.as_str(), digest).fetch_one(&self.pool).await?.unwrap_or(false);
-            if !found { return Err(crate::experiments::missing("Managed workspace projection is unavailable")); }
+            if !found {
+                return Err(crate::experiments::missing(
+                    "Managed workspace projection is unavailable",
+                ));
+            }
         }
-        let account = super::BudgetRepository::new(self.pool.clone()).get(owner, budget).await?;
+        let account = super::BudgetRepository::new(self.pool.clone())
+            .get(owner, budget)
+            .await?;
         if spec.claim_independent_improvement {
             let holdouts = sqlx::query_scalar!("SELECT id FROM eval_resource_revisions WHERE owner_id=$1 AND id=ANY($2) AND content->'content'->>'partition'='holdout'",
                 owner.as_str(), &spec.cases.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).fetch_all(&self.pool).await?;
-            if holdouts.is_empty() { return Err(invalid("Independent improvement claims require a holdout partition")); }
+            if holdouts.is_empty() {
+                return Err(invalid(
+                    "Independent improvement claims require a holdout partition",
+                ));
+            }
             let consumed = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_holdout_consumption WHERE owner_id=$1 AND case_revision_id=ANY($2))",
                 owner.as_str(), &holdouts).fetch_one(&self.pool).await?.unwrap_or(false);
-            if consumed { return Err(crate::experiments::conflict("A fresh holdout revision is required for another independent-improvement claim")); }
+            if consumed {
+                return Err(crate::experiments::conflict(
+                    "A fresh holdout revision is required for another independent-improvement claim",
+                ));
+            }
         }
-        let execution_count = u64::try_from(spec.cases.len()).unwrap_or(u64::MAX).saturating_mul(2).saturating_mul(u64::from(spec.repetitions));
-        let maximum_cost_microdollars = frozen.cost_envelope.maximum_microdollars(execution_count)?;
+        let execution_count = u64::try_from(spec.cases.len())
+            .unwrap_or(u64::MAX)
+            .saturating_mul(2)
+            .saturating_mul(u64::from(spec.repetitions));
+        let maximum_cost_microdollars =
+            frozen.cost_envelope.maximum_microdollars(execution_count)?;
         if spec.budget_microdollars != maximum_cost_microdollars {
-            return Err(invalid("Experiment budget must equal the conservatively derived frozen cost envelope"));
+            return Err(invalid(
+                "Experiment budget must equal the conservatively derived frozen cost envelope",
+            ));
         }
-        let available = account.cap.saturating_sub(account.reserved).saturating_sub(account.settled);
-        Ok(ExperimentPreflight { execution_count, maximum_cost_microdollars, available_microdollars: available, affordable: !account.frozen && maximum_cost_microdollars <= available, matrix_digest: content_digest(spec)? })
+        let available = account
+            .cap
+            .saturating_sub(account.reserved)
+            .saturating_sub(account.settled);
+        Ok(ExperimentPreflight {
+            execution_count,
+            maximum_cost_microdollars,
+            available_microdollars: available,
+            affordable: !account.frozen && maximum_cost_microdollars <= available,
+            matrix_digest: content_digest(spec)?,
+        })
     }
 
     async fn insert_executions(

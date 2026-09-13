@@ -30,12 +30,16 @@ pub enum SkillsCommands {
 pub async fn execute(command: SkillsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         SkillsCommands::List(args) => {
-            let result = list::execute(args, ctx).await.context("Failed to list skills")?;
+            let result = list::execute(args, ctx)
+                .await
+                .context("Failed to list skills")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         SkillsCommands::Show(args) => {
-            let result = list::show_resolved_skill(&args.name, ctx).await.context("Failed to show skill")?;
+            let result = list::show_resolved_skill(&args.name, ctx)
+                .await
+                .context("Failed to show skill")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

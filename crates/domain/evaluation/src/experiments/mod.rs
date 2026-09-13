@@ -27,7 +27,10 @@ pub mod verification;
 pub use crate::repository::experiments::{
     BudgetRepository, ExperimentRepository, ReservationAdmission, RevisionRepository,
 };
-pub use model::{ClientKind, ExecutionMode, ExperimentSpec, FrozenCostEnvelope, FrozenSettings, Objective, VariantSpec};
+pub use model::{
+    ClientKind, ExecutionMode, ExperimentSpec, FrozenCostEnvelope, FrozenSettings, Objective,
+    VariantSpec,
+};
 
 use crate::{EvaluationError, Result};
 use serde::Serialize;

@@ -148,7 +148,9 @@ fn build_skill_entry(
     }))
 }
 
-pub(crate) fn build_managed_skill_entry(skill: ManagedSkill) -> Result<SkillEntry, MarketplaceError> {
+pub(crate) fn build_managed_skill_entry(
+    skill: ManagedSkill,
+) -> Result<SkillEntry, MarketplaceError> {
     let id = SkillId::try_new(skill.id.as_str())
         .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
     let name = SkillName::try_new(skill.name)

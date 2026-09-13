@@ -61,7 +61,8 @@ fn fake_disconnected_provider(directory: &Path) -> PathBuf {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("executable fixture");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+            .expect("executable fixture");
     }
     path
 }
@@ -121,7 +122,8 @@ fn every_required_field_must_be_supplied() {
         ContainerLaunch::builder(
             PathBuf::from("/usr/bin/docker"),
             workspace.path().to_path_buf(),
-        ).ownership("owner-1", "execution-1")
+        )
+        .ownership("owner-1", "execution-1")
     };
 
     assert!(
@@ -258,7 +260,10 @@ fn a_provider_disconnect_is_a_failed_native_client_execution() {
         .start(&client(ExecutionLimits::default()), "prompt")
         .expect("spawn disconnected provider fixture");
     std::thread::sleep(std::time::Duration::from_millis(200));
-    let status = execution.poll().expect("poll status").expect("terminal status");
+    let status = execution
+        .poll()
+        .expect("poll status")
+        .expect("terminal status");
     assert_eq!(status.code(), Some(42));
     assert!(!status.success());
 }
@@ -268,7 +273,10 @@ fn missing_output_during_evidence_export_is_not_treated_as_success() {
     let (_workspace, mut execution) = started("exit 0", ExecutionLimits::default());
     let output = execution.output_paths().0.to_path_buf();
     std::fs::remove_file(output).expect("inject missing evidence output");
-    assert!(execution.poll().is_err(), "missing retained output must fail closed");
+    assert!(
+        execution.poll().is_err(),
+        "missing retained output must fail closed"
+    );
 }
 
 #[test]

@@ -44,7 +44,10 @@ pub async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandO
         })?;
 
     let prompt = sampled.canonical_prompt();
-    let case_id = eval.repositories.cases.create(&NewCaseParams {
+    let case_id = eval
+        .repositories
+        .cases
+        .create(&NewCaseParams {
             name: args.name.unwrap_or_else(|| args.ai_request_id.clone()),
             prompt,
             source_ai_request_id: Some(AiRequestId::new(args.ai_request_id)),
@@ -52,7 +55,8 @@ pub async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandO
             tags: args.tags,
             created_by: eval.admin_id.clone(),
             prepared_body_sha256: sampled.prepared_body_sha256,
-    }).await?;
+        })
+        .await?;
 
     Ok(CommandOutput::text(format!("Promoted case {case_id}")))
 }

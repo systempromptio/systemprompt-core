@@ -185,40 +185,86 @@ pub(super) struct ApprovalSubmission {
 }
 
 pub(super) async fn request_approval(
-    State(state): State<EvaluationWorkerState>, headers: HeaderMap, Json(input): Json<ApprovalSubmission>,
+    State(state): State<EvaluationWorkerState>,
+    headers: HeaderMap,
+    Json(input): Json<ApprovalSubmission>,
 ) -> Result<impl axum::response::IntoResponse, WorkerHttpError> {
-    let worker = authenticate(&state, &headers).await?; verify_worker(&worker, &input.lease)?;
-    Ok((StatusCode::ACCEPTED, Json(state.lifecycle.request_approval(&worker.owner_id, &input.lease, input.operation, &input.precondition_digest).await?)))
+    let worker = authenticate(&state, &headers).await?;
+    verify_worker(&worker, &input.lease)?;
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(
+            state
+                .lifecycle
+                .request_approval(
+                    &worker.owner_id,
+                    &input.lease,
+                    input.operation,
+                    &input.precondition_digest,
+                )
+                .await?,
+        ),
+    ))
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct MeasurementSubmission { lease: ExecutionLease, measurement: DeterministicMeasurement }
+pub(super) struct MeasurementSubmission {
+    lease: ExecutionLease,
+    measurement: DeterministicMeasurement,
+}
 
 pub(super) async fn measurement(
-    State(state): State<EvaluationWorkerState>, headers: HeaderMap, Json(input): Json<MeasurementSubmission>,
+    State(state): State<EvaluationWorkerState>,
+    headers: HeaderMap,
+    Json(input): Json<MeasurementSubmission>,
 ) -> Result<StatusCode, WorkerHttpError> {
     let worker = authenticate(&state, &headers).await?;
     verify_worker(&worker, &input.lease)?;
-    state.lifecycle.record_measurement(&worker.owner_id, &input.lease, &input.measurement).await?;
+    state
+        .lifecycle
+        .record_measurement(&worker.owner_id, &input.lease, &input.measurement)
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct CleanupSubmission { lease: ExecutionLease, container_id: Option<String>, network_id: Option<String>, succeeded: bool, error: Option<String> }
+pub(super) struct CleanupSubmission {
+    lease: ExecutionLease,
+    container_id: Option<String>,
+    network_id: Option<String>,
+    succeeded: bool,
+    error: Option<String>,
+}
 
 pub(super) async fn cleanup(
-    State(state): State<EvaluationWorkerState>, headers: HeaderMap, Json(input): Json<CleanupSubmission>,
+    State(state): State<EvaluationWorkerState>,
+    headers: HeaderMap,
+    Json(input): Json<CleanupSubmission>,
 ) -> Result<StatusCode, WorkerHttpError> {
-    let worker = authenticate(&state, &headers).await?; verify_worker(&worker, &input.lease)?;
-    state.lifecycle.record_cleanup(&worker.owner_id, &input.lease, input.container_id.as_deref(), input.network_id.as_deref(), input.succeeded, input.error.as_deref()).await?;
+    let worker = authenticate(&state, &headers).await?;
+    verify_worker(&worker, &input.lease)?;
+    state
+        .lifecycle
+        .record_cleanup(
+            &worker.owner_id,
+            &input.lease,
+            input.container_id.as_deref(),
+            input.network_id.as_deref(),
+            input.succeeded,
+            input.error.as_deref(),
+        )
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 pub(super) async fn reconcile(
-    State(state): State<EvaluationWorkerState>, headers: HeaderMap,
+    State(state): State<EvaluationWorkerState>,
+    headers: HeaderMap,
 ) -> Result<Json<u64>, WorkerHttpError> {
     let worker = authenticate(&state, &headers).await?;
-    Ok(Json(state.lifecycle.reconcile_restart(&worker.owner_id).await?))
+    Ok(Json(
+        state.lifecycle.reconcile_restart(&worker.owner_id).await?,
+    ))
 }

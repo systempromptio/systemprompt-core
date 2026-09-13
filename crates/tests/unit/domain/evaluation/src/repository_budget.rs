@@ -26,8 +26,14 @@ fn new_request() -> AiRequestId {
     AiRequestId::new(format!("eval-budget-req-{}", Uuid::new_v4()))
 }
 
-async fn create(budgets: &BudgetRepository, owner: &UserId, cap: i64) -> systemprompt_evaluation::Result<EvalBudgetId> {
-    budgets.create_shared(owner, &format!("account-{}", Uuid::new_v4()), cap).await
+async fn create(
+    budgets: &BudgetRepository,
+    owner: &UserId,
+    cap: i64,
+) -> systemprompt_evaluation::Result<EvalBudgetId> {
+    budgets
+        .create_shared(owner, &format!("account-{}", Uuid::new_v4()), cap)
+        .await
 }
 
 struct Account {
@@ -197,7 +203,9 @@ async fn reservation_stops_at_the_cap_and_at_a_frozen_account() {
 
 #[tokio::test]
 async fn concurrent_reservations_cannot_overdraw_the_shared_account() {
-    let Some(pool) = budget_pool().await else { return; };
+    let Some(pool) = budget_pool().await else {
+        return;
+    };
     let budgets = BudgetRepository::new(pool.clone());
     let owner = new_owner();
     let account_id = create(&budgets, &owner, 100).await.expect("create");

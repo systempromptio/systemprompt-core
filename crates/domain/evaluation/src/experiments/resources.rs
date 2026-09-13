@@ -70,7 +70,10 @@ impl ResourceContent {
     pub fn validate(&self) -> Result<()> {
         match self {
             Self::Case(case) => {
-                if case.prompt.trim().is_empty() || case.expected_behavior.is_empty() || case.assertions.is_empty() {
+                if case.prompt.trim().is_empty()
+                    || case.expected_behavior.is_empty()
+                    || case.assertions.is_empty()
+                {
                     return Err(invalid("Cases require a prompt and expected behavior"));
                 }
                 if case.fixtures.keys().any(|path| {

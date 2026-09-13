@@ -101,22 +101,28 @@ impl FrozenCostEnvelope {
                 self.tool_microdollars_per_attempt,
                 self.suggestion_microdollars_per_call,
                 self.auxiliary_microdollars_per_call,
-            ].iter().any(|value| *value < 0)
+            ]
+            .iter()
+            .any(|value| *value < 0)
             || self.suggestion_calls > 100
             || self.auxiliary_calls > 100
         {
-            return Err(invalid("Frozen cost envelope contains invalid prices or call counts"));
+            return Err(invalid(
+                "Frozen cost envelope contains invalid prices or call counts",
+            ));
         }
         Ok(())
     }
 
     pub fn maximum_microdollars(&self, executions: u64) -> Result<i64> {
         self.validate()?;
-        let per_attempt = self.generation_microdollars_per_attempt
+        let per_attempt = self
+            .generation_microdollars_per_attempt
             .checked_add(self.judging_microdollars_per_attempt)
             .and_then(|value| value.checked_add(self.tool_microdollars_per_attempt))
             .ok_or_else(|| invalid("Frozen cost envelope overflow"))?;
-        let execution_total = i64::try_from(executions).ok()
+        let execution_total = i64::try_from(executions)
+            .ok()
             .and_then(|count| count.checked_mul(i64::from(self.maximum_attempts_per_execution)))
             .and_then(|count| count.checked_mul(per_attempt))
             .ok_or_else(|| invalid("Frozen execution cost overflow"))?;
@@ -126,7 +132,9 @@ impl FrozenCostEnvelope {
         let auxiliary = i64::from(self.auxiliary_calls)
             .checked_mul(self.auxiliary_microdollars_per_call)
             .ok_or_else(|| invalid("Frozen auxiliary cost overflow"))?;
-        execution_total.checked_add(suggestions).and_then(|value| value.checked_add(auxiliary))
+        execution_total
+            .checked_add(suggestions)
+            .and_then(|value| value.checked_add(auxiliary))
             .ok_or_else(|| invalid("Frozen total cost overflow"))
     }
 }
@@ -134,13 +142,29 @@ impl FrozenCostEnvelope {
 impl FrozenSettings {
     pub fn validate(&self) -> Result<()> {
         self.cost_envelope.validate()?;
-        if [&self.provider_prices_digest, &self.tool_configuration_digest, &self.permissions_digest, &self.dataset_digest, &self.rubric_digest]
-            .iter().any(|digest| digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
-            || self.fixture_clock.parse::<chrono::DateTime<chrono::FixedOffset>>().is_err()
+        if [
+            &self.provider_prices_digest,
+            &self.tool_configuration_digest,
+            &self.permissions_digest,
+            &self.dataset_digest,
+            &self.rubric_digest,
+        ]
+        .iter()
+        .any(|digest| {
+            digest.len() != 64
+                || !digest
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        }) || self
+            .fixture_clock
+            .parse::<chrono::DateTime<chrono::FixedOffset>>()
+            .is_err()
             || self.fixture_timezone.trim().is_empty()
             || self.fixture_timezone.len() > 64
         {
-            return Err(invalid("Frozen settings require exact digests, an RFC3339 clock and timezone"));
+            return Err(invalid(
+                "Frozen settings require exact digests, an RFC3339 clock and timezone",
+            ));
         }
         Ok(())
     }
@@ -199,7 +223,9 @@ impl ExperimentSpec {
                 ));
             }
         }
-        if let Some(frozen) = &self.frozen { frozen.validate()?; }
+        if let Some(frozen) = &self.frozen {
+            frozen.validate()?;
+        }
         Ok(())
     }
 }

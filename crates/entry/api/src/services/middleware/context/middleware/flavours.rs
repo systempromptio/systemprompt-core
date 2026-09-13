@@ -13,9 +13,9 @@
 use std::sync::Arc;
 
 use axum::extract::Request;
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use axum::http::StatusCode;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -190,7 +190,8 @@ impl A2AContextMiddleware {
 #[derive(Clone)]
 pub struct McpContextMiddleware {
     extractor: DynExtractor,
-    execution_capabilities: Option<systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository>,
+    execution_capabilities:
+        Option<systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository>,
     execution_environment: Option<String>,
 }
 
@@ -227,32 +228,67 @@ impl McpContextMiddleware {
         let path = request.uri().path().to_owned();
         let method = request.method().to_string();
 
-        let execution_token = request.headers().get(http::header::AUTHORIZATION)
+        let execution_token = request
+            .headers()
+            .get(http::header::AUTHORIZATION)
             .and_then(|value| value.to_str().ok())
             .and_then(|value| value.strip_prefix("Bearer "))
-            .filter(|value| value.starts_with(systemprompt_evaluation::repository::experiments::EXECUTION_TOKEN_PREFIX));
+            .filter(|value| {
+                value.starts_with(
+                    systemprompt_evaluation::repository::experiments::EXECUTION_TOKEN_PREFIX,
+                )
+            });
         if let Some(token) = execution_token {
             let Some(capabilities) = &self.execution_capabilities else {
-                return (StatusCode::UNAUTHORIZED, "Execution capabilities are unavailable").into_response();
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    "Execution capabilities are unavailable",
+                )
+                    .into_response();
             };
             let Some(environment) = &self.execution_environment else {
-                return (StatusCode::UNAUTHORIZED, "Execution environment is unavailable").into_response();
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    "Execution environment is unavailable",
+                )
+                    .into_response();
             };
             let principal = match capabilities.authenticate(token, environment).await {
                 Ok(principal) => principal,
-                Err(_) => return (StatusCode::UNAUTHORIZED, "Invalid or expired execution capability").into_response(),
+                Err(_) => {
+                    return (
+                        StatusCode::UNAUTHORIZED,
+                        "Invalid or expired execution capability",
+                    )
+                        .into_response();
+                },
             };
-            let header_session = request.headers().get("x-session-id").and_then(|value| value.to_str().ok());
+            let header_session = request
+                .headers()
+                .get("x-session-id")
+                .and_then(|value| value.to_str().ok());
             if header_session != Some(principal.session_id.as_str()) {
-                return (StatusCode::UNAUTHORIZED, "Execution capability session mismatch").into_response();
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    "Execution capability session mismatch",
+                )
+                    .into_response();
             }
             let context_id = ContextId::derived_from_session(&principal.session_id);
             let agent = HeaderExtractor::extract_agent_name(request.headers());
-            let actor = Actor::job(principal.identity.owner_id, format!("evaluation:{}", principal.identity.execution_id));
-            let context = RequestContext::new(SessionId::new(principal.session_id.as_str()), trace_id, context_id, agent)
-                .with_actor(actor)
-                .with_user_type(UserType::Mcp)
-                .with_auth_token(token);
+            let actor = Actor::job(
+                principal.identity.owner_id,
+                format!("evaluation:{}", principal.identity.execution_id),
+            );
+            let context = RequestContext::new(
+                SessionId::new(principal.session_id.as_str()),
+                trace_id,
+                context_id,
+                agent,
+            )
+            .with_actor(actor)
+            .with_user_type(UserType::Mcp)
+            .with_auth_token(token);
             let span = create_request_span(&context);
             let mut req = request;
             req.extensions_mut().insert(context);
