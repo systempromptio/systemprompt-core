@@ -22,6 +22,15 @@ use systemprompt_test_fixtures as fixtures;
 use crate::support::{minimal_request, seed_user, setup_db};
 use systemprompt_security::policy::types::AccessScope;
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 // Why: every cell taps the Anthropic surface with the same model, and the
 // render options are one struct so the tap's own signature stays readable.
 fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
@@ -41,8 +50,12 @@ fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynC
 fn gateway_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(db, materializer(db))
-        .expect("gateway repositories")
+    systemprompt_api::services::gateway::GatewayRepositories::new(
+        db,
+        gateway_journal(),
+        materializer(db),
+    )
+    .expect("gateway repositories")
 }
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {

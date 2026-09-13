@@ -1,11 +1,19 @@
 # Changelog
 
-## [0.52.0] - 2026-09-12
+## [0.52.0] - 2026-09-13
+
+### Breaking
+
+- The gateway requires the `encryption_master_key` secret (32 bytes as 64 hex characters) whenever it is enabled: `GatewayJournal::open` validates it at router construction and the server refuses to start without it, instead of failing every `/v1/messages` at admission. With `secrets.source: env` the key must also be listed in `SYSTEMPROMPT_CUSTOM_SECRETS`.
+- `GatewayRepositories::new` takes the `GatewayJournal`; `gateway_router` returns `Result<Option<Router>>`. The repository bundle no longer carries a raw `PgPool`.
+- A `metadata.user_id` that is not a string, or a `_session_` suffix that is not a UUID, is rejected with 400 instead of silently falling back to the conversation-derived context.
 
 ### Changed
 
 - Gateway admission now propagates request and governance persistence failures before provider dispatch. Session and trace identity are required, and pricing is pinned for every request.
-- Terminal gateway accounting uses encrypted, bounded, profile-scoped receipts with replayable database settlement. Failed storage preserves terminal evidence for recovery; abandoned admissions retain an explicit unknown-usage failure.
+- Terminal gateway accounting uses encrypted, bounded, profile-scoped receipts with replayable database settlement through `AiRequestRepository::settle`. Failed storage preserves terminal evidence for recovery; abandoned admissions retain an explicit unknown-usage failure.
+- Receipt recovery runs once at server start and every 30 s on a task owned by the run loop and aborted at shutdown; admission only reserves a receipt. An unreadable receipt is quarantined as `<name>.bad` and a receipt whose settlement fails is retained for the next pass, neither blocks other receipts or the request path. The journal bound is 4096 receipts per replica.
+- Captured tool calls in a receipt carry a typed `AiToolCallId`.
 
 - The bridge release feed authenticates to GitHub with the secret named by `gateway.bridge_releases.token_secret`, resolved through `SecretsBootstrap`, instead of reading the process variable named by the former `token_env`.
 

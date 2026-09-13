@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-13
+
+### Changed
+
+- `ContextRepository::ensure_context` returns `NotFound` when the scoped upsert touches no row — a context id owned by another user is never adopted.
+
 ## [0.51.0] - 2026-09-11
 
 ### Removed

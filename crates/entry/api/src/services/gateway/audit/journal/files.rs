@@ -3,43 +3,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::Receipt;
-use anyhow::{Context, Result, ensure};
+use super::{GatewayJournal, Receipt};
+use anyhow::{Result, ensure};
+use chacha20poly1305::Nonce;
 use chacha20poly1305::aead::rand_core::RngCore;
-use chacha20poly1305::aead::{Aead, KeyInit, OsRng};
-use chacha20poly1305::{ChaCha20Poly1305, Nonce};
+use chacha20poly1305::aead::{Aead, OsRng};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::AiRequestId;
 
-const MAX_ENTRIES: usize = 64;
+// Why: a receipt is held for the whole life of an in-flight request, so this is
+// a disk-safety bound against a runaway directory, not a concurrency ceiling.
+const MAX_ENTRIES: usize = 4096;
 const MAX_BYTES: usize = 16 * 1024 * 1024;
 
-fn directory() -> Result<PathBuf> {
-    let profile = systemprompt_config::ProfileBootstrap::get_path()?;
-    let root = Path::new(profile)
-        .parent()
-        .context("Profile has no directory")?
-        .join("gateway-journal");
-    fs::create_dir_all(&root)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
-    }
-    Ok(root)
-}
-
-fn cipher() -> Result<ChaCha20Poly1305> {
-    let secrets = systemprompt_config::SecretsBootstrap::get()?;
-    let key = secrets
-        .get("encryption_master_key")
-        .context("Gateway journal requires encryption_master_key")?;
-    let decoded = hex::decode(key)?;
-    ChaCha20Poly1305::new_from_slice(&decoded)
-        .map_err(|error| anyhow::anyhow!("Invalid journal encryption key: {error}"))
+pub(super) enum Listed {
+    Receipt(Receipt),
+    Quarantined { path: PathBuf, reason: String },
 }
 
 fn name(id: &AiRequestId) -> String {
@@ -60,10 +42,10 @@ fn lock(root: &Path) -> Result<File> {
     Ok(file)
 }
 
-pub(super) fn reserve(receipt: &Receipt) -> Result<File> {
-    let root = directory()?;
-    let _lock = lock(&root)?;
-    let entries = fs::read_dir(&root)?.collect::<std::io::Result<Vec<_>>>()?;
+pub(super) fn reserve(journal: &GatewayJournal, receipt: &Receipt) -> Result<File> {
+    let root = journal.root();
+    let _lock = lock(root)?;
+    let entries = fs::read_dir(root)?.collect::<std::io::Result<Vec<_>>>()?;
     ensure!(
         entries
             .iter()
@@ -76,35 +58,37 @@ pub(super) fn reserve(receipt: &Receipt) -> Result<File> {
         !root.join(name(&receipt.request_id)).exists(),
         "Request already admitted"
     );
-    let lease = lease(&root, &receipt.request_id)?;
+    let lease = lease(root, &receipt.request_id)?;
     lease.try_lock()?;
-    write(&root, &receipt.request_id, &serde_json::to_vec(receipt)?)?;
+    write(journal, &receipt.request_id, &serde_json::to_vec(receipt)?)?;
     Ok(lease)
 }
 
-pub(super) fn replace(id: &AiRequestId, bytes: &[u8]) -> Result<()> {
-    let root = directory()?;
-    let _lock = lock(&root)?;
+pub(super) fn replace(journal: &GatewayJournal, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
+    let root = journal.root();
+    let _lock = lock(root)?;
     ensure!(
         root.join(name(id)).exists(),
         "Missing durable admission receipt"
     );
-    let previous = read(&root.join(name(id)), &cipher()?)?;
+    let previous = read(journal, &root.join(name(id)))?;
     ensure!(
         previous.completion.is_none() && previous.failure.is_none(),
         "Terminal accounting receipt already exists; recovery will settle it"
     );
-    write(&root, id, bytes)
+    write(journal, id, bytes)
 }
 
-fn write(root: &Path, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
+fn write(journal: &GatewayJournal, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
     ensure!(
         bytes.len() <= MAX_BYTES,
         "Gateway completion exceeds journal capacity"
     );
+    let root = journal.root();
     let mut nonce = [0u8; 12];
     OsRng.fill_bytes(&mut nonce);
-    let encrypted = cipher()?
+    let encrypted = journal
+        .cipher()
         .encrypt(&Nonce::from(nonce), bytes)
         .map_err(|error| anyhow::anyhow!("Journal encryption failed: {error}"))?;
     let temp = root.join(format!("{}.tmp", uuid::Uuid::new_v4()));
@@ -124,28 +108,37 @@ fn write(root: &Path, id: &AiRequestId, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn remove(id: &AiRequestId) -> Result<()> {
-    let root = directory()?;
-    let _lock = lock(&root)?;
-    match fs::remove_file(root.join(name(id))) {
-        Ok(()) => File::open(&root)?.sync_all()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-        Err(e) => return Err(e.into()),
-    }
-    match fs::remove_file(root.join(format!("{}.lease", name(id)))) {
-        Ok(()) => File::open(&root)?.sync_all()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-        Err(e) => return Err(e.into()),
+pub(super) fn remove(journal: &GatewayJournal, id: &AiRequestId) -> Result<()> {
+    let root = journal.root();
+    let _lock = lock(root)?;
+    for path in [
+        root.join(name(id)),
+        root.join(format!("{}.lease", name(id))),
+    ] {
+        match fs::remove_file(&path) {
+            Ok(()) => File::open(root)?.sync_all()?,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
+            Err(e) => return Err(e.into()),
+        }
     }
     Ok(())
 }
 
-pub(super) fn list() -> Result<Vec<Receipt>> {
-    let root = directory()?;
-    let _lock = lock(&root)?;
-    let cipher = cipher()?;
+pub(super) fn quarantine(journal: &GatewayJournal, path: &Path) -> Result<()> {
+    let root = journal.root();
+    let _lock = lock(root)?;
+    let mut target = path.as_os_str().to_owned();
+    target.push(".bad");
+    fs::rename(path, &target)?;
+    File::open(root)?.sync_all()?;
+    Ok(())
+}
+
+pub(super) fn list(journal: &GatewayJournal) -> Result<Vec<Listed>> {
+    let root = journal.root();
+    let _lock = lock(root)?;
     let mut result = Vec::new();
-    for entry in fs::read_dir(&root)? {
+    for entry in fs::read_dir(root)? {
         let path = entry?.path();
         // Why: an interrupted atomic write must not accumulate unbounded temporary
         // files.
@@ -156,24 +149,33 @@ pub(super) fn list() -> Result<Vec<Receipt>> {
         if path.extension().is_none_or(|x| x != "receipt") {
             continue;
         }
-        let mut receipt = read(&path, &cipher)?;
+        let mut receipt = match read(journal, &path) {
+            Ok(receipt) => receipt,
+            Err(error) => {
+                result.push(Listed::Quarantined {
+                    path,
+                    reason: error.to_string(),
+                });
+                continue;
+            },
+        };
         if receipt.completion.is_none() && receipt.failure.is_none() {
-            let lease = lease(&root, &receipt.request_id)?;
+            let lease = lease(root, &receipt.request_id)?;
             match lease.try_lock() {
                 Ok(()) => {
                     receipt.failure = Some("Accounting incomplete: request ended before a terminal receipt was persisted; upstream usage is unknown".to_owned());
-                    write(&root, &receipt.request_id, &serde_json::to_vec(&receipt)?)?;
+                    write(journal, &receipt.request_id, &serde_json::to_vec(&receipt)?)?;
                 },
                 Err(fs::TryLockError::WouldBlock) => continue,
                 Err(error) => return Err(error.into()),
             }
         }
-        result.push(receipt);
+        result.push(Listed::Receipt(receipt));
     }
     Ok(result)
 }
 
-fn read(path: &Path, cipher: &ChaCha20Poly1305) -> Result<Receipt> {
+fn read(journal: &GatewayJournal, path: &Path) -> Result<Receipt> {
     ensure!(
         fs::metadata(path)?.len() <= (MAX_BYTES + 64) as u64,
         "Oversized journal receipt"
@@ -181,7 +183,8 @@ fn read(path: &Path, cipher: &ChaCha20Poly1305) -> Result<Receipt> {
     let bytes = fs::read(path)?;
     ensure!(bytes.len() >= 12, "Truncated journal receipt");
     let nonce: [u8; 12] = bytes[..12].try_into()?;
-    let plain = cipher
+    let plain = journal
+        .cipher()
         .decrypt(&Nonce::from(nonce), &bytes[12..])
         .map_err(|error| anyhow::anyhow!("Journal authentication failed: {error}"))?;
     Ok(serde_json::from_slice(&plain)?)

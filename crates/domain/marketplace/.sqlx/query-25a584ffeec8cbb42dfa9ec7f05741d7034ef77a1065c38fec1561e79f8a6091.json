@@ -50,7 +50,8 @@
       {
         "ordinal": 4,
         "name": "created_at!",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {

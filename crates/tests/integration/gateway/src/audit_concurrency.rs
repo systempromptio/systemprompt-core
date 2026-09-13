@@ -8,6 +8,15 @@ use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 use crate::support::{minimal_request, seed_user, setup_db};
 use systemprompt_security::policy::types::AccessScope;
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
         systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
@@ -15,7 +24,7 @@ fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynC
 }
 
 fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
-    GatewayRepositories::new(db, materializer(db)).expect("gateway repositories")
+    GatewayRepositories::new(db, gateway_journal(), materializer(db)).expect("gateway repositories")
 }
 
 #[tokio::test]

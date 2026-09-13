@@ -46,6 +46,10 @@ use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
 pub(crate) use self::access_log::{GatewayLogIdentity, TerminalOutcome, log_gateway_terminal};
 
+pub fn gateway_enabled(ctx: &AppContext) -> bool {
+    ctx.analytics_provider().is_some() && ctx.user_provider().is_some()
+}
+
 fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
     let Some(analytics) = ctx.analytics_provider() else {
         tracing::warn!("Gateway router: analytics provider unavailable — gateway disabled");
@@ -64,17 +68,27 @@ fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
     )))
 }
 
-pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
-    let jwt_extractor = build_jwt_extractor(ctx)?;
-    let gateway_repos = crate::services::gateway::GatewayRepositories::new(
+pub fn gateway_repositories(
+    ctx: &AppContext,
+) -> anyhow::Result<crate::services::gateway::GatewayRepositories> {
+    let journal = crate::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path()?,
+        systemprompt_config::SecretsBootstrap::get()?,
+    )?;
+    Ok(crate::services::gateway::GatewayRepositories::new(
         ctx.db_pool(),
+        journal,
         ctx.context_materializer(),
-    )
-    .inspect_err(|e| tracing::error!(error = %e, "Gateway repositories init failed"))
-    .ok()
-    .map(Arc::new)?;
+    )?)
+}
 
-    Some(
+pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Option<Router>> {
+    let Some(jwt_extractor) = build_jwt_extractor(ctx) else {
+        return Ok(None);
+    };
+    let gateway_repos = Arc::new(gateway_repositories(ctx)?);
+
+    Ok(Some(
         Router::new()
             .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_auth_routes(ctx, &jwt_extractor))
@@ -93,5 +107,5 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             .route("/", get(models::root))
             .layer(Extension(ctx.clone()))
             .layer(axum::middleware::from_fn(log_gateway_request)),
-    )
+    ))
 }

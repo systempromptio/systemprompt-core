@@ -172,6 +172,6 @@ impl GovernancePolicy for RateLimit {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Box::new(RateLimit::from_yaml(v)),
+        factory: |v| Ok(Box::new(RateLimit::from_yaml(v))),
     }
 }

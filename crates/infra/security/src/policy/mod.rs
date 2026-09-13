@@ -50,9 +50,8 @@ pub use governed::{
     GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,
     UNKNOWN_TARGET_NAME,
 };
-pub use registry::{PolicyFactory, PolicyRegistration};
+pub use registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 pub use secrets::{
     EntropyConfig, SecretPattern, SecretPatternError, SecretScanner, SignatureExemptions,
-    detect_secrets, detect_secrets_with, scan_str_for_secret,
 };
 pub use types::{AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation};

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.52.0] - 2026-09-13
+
+### Breaking
+
+- `ClientSessionId::from_metadata_user_id` returns `Result<Option<Self>, IdValidationError>` and also accepts a JSON object carrying `session_id`; a `_session_` suffix that is not a UUID is an error rather than `None`.
+- `ContextId::derived_from_gateway_conversation(user_id, conversation)` takes the owner, so derived context ids are namespaced per user.
+
+### Added
+
+- Managed-resource identifiers: `ManagedResourceId`, `ManagedRevisionId`, `ManagedAssetId`, `ManagedSourceSnapshotId`, `ManagedPublicationId`, `ManagedSelectionId`, `ManagedDistributionId`.
+
 ## [0.50.0] - 2026-09-10
 
 ### Changed

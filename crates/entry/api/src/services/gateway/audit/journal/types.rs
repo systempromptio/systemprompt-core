@@ -2,9 +2,17 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
 use crate::services::gateway::audit::payload::PayloadCapture;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AiRequestId, UserId};
+use systemprompt_identifiers::{AiRequestId, AiToolCallId, UserId};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct CapturedToolCall {
+    pub id: AiToolCallId,
+    pub name: String,
+    pub input: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Completion {
@@ -14,7 +22,7 @@ pub(crate) struct Completion {
     pub upstream_latency: Option<i32>,
     pub payload: PayloadCapture,
     pub assistant: Option<String>,
-    pub tools: Vec<(String, String, String)>,
+    pub tools: Vec<CapturedToolCall>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

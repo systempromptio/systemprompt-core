@@ -33,7 +33,9 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
     install_test_signing_key();
-    let app = gateway_router(&ctx).expect("gateway router");
+    let app = gateway_router(&ctx)
+        .expect("gateway journal opens")
+        .expect("gateway router");
     let cred = seed_admin_credential(&pool, "manifest-badcfg@example.invalid").await?;
 
     let resp = app

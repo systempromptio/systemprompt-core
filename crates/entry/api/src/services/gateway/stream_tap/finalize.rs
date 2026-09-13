@@ -31,9 +31,7 @@ pub enum FinalizeDecision {
 /// here: `Upstream` is the provider failing mid-stream, `Truncated` is the
 /// stream stopping without a terminal event. `client_gone` says who stopped
 /// it — the consumer dropped the body before the stop event (the client hung
-/// up, status 499) or upstream closed the stream early (status 502). The two
-/// used to share one message, so an ordinary client abort read as an
-/// upstream defect in the audit log.
+/// up, status 499) or upstream closed the stream early (status 502).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailCause {
     Upstream,

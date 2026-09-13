@@ -56,8 +56,8 @@ impl GovernancePolicy for WarnModeAllow {
     }
 }
 
-register_governance_policy!("t_warnable", |_| Box::new(WarnModeDeny));
-register_governance_policy!("t_warnable_allow", |_| Box::new(WarnModeAllow));
+register_governance_policy!("t_warnable", |_| Ok(Box::new(WarnModeDeny)));
+register_governance_policy!("t_warnable_allow", |_| Ok(Box::new(WarnModeAllow)));
 
 fn ctx<'a>(
     session: &'a SessionId,

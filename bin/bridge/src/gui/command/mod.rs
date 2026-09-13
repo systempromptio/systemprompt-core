@@ -4,11 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod args;
+mod diagnostics;
 mod general;
 mod hosts;
+mod removal;
 
 #[doc(hidden)]
-pub use general::removal_method;
+pub use removal::method as removal_method;
 
 use serde_json::Value;
 
@@ -16,9 +18,8 @@ use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
-use general::{
-    auth_dispatch, diagnostics_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch,
-};
+use diagnostics::diagnostics_dispatch;
+use general::{auth_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch};
 use hosts::{agent_dispatch, host_dispatch};
 
 #[derive(Debug)]

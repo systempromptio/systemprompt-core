@@ -34,6 +34,7 @@ pub async fn run_server(
         tx.phase_started(Phase::ApiServer);
     }
     let router = crate::services::server::setup_api_server(&ctx, events.as_ref())?;
+    let accounting_recovery = start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 
     early.activate(router);
@@ -54,6 +55,9 @@ pub async fn run_server(
 
     super::shutdown::arm_forced_exit();
     heartbeat.abort();
+    if let Some(recovery) = accounting_recovery {
+        recovery.abort();
+    }
     if let Some(listener) = metrics_listener {
         listener.abort();
     }
@@ -158,5 +162,21 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
     Ok(Some(
         super::metrics::serve_metrics_listener(addr, handle).await?,
+    ))
+}
+
+async fn start_accounting_recovery(
+    ctx: &AppContext,
+) -> Result<Option<tokio::task::JoinHandle<()>>> {
+    if !crate::routes::gateway::gateway_enabled(ctx) {
+        return Ok(None);
+    }
+    let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
+    let settled = crate::services::gateway::audit::journal::recover(&settlement).await?;
+    if settled > 0 {
+        tracing::info!(settled, "Gateway accounting receipts recovered at startup");
+    }
+    Ok(Some(
+        crate::services::gateway::audit::journal::spawn_recovery(settlement),
     ))
 }

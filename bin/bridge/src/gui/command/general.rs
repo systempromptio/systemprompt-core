@@ -55,7 +55,7 @@ pub(super) fn meta_dispatch(
             CommandOutcome::Sync(Ok(json!({})))
         },
         "openExternalUrl" => open_external_url(args.clone()),
-        "application.removalGuidance" => removal_guidance(),
+        "application.removalGuidance" => super::removal::guidance(),
         "application.reveal" => {
             send(app, UiEvent::RevealApplication);
             CommandOutcome::Sync(Ok(json!({})))
@@ -187,34 +187,6 @@ pub(super) fn auth_dispatch(
     })
 }
 
-fn removal_guidance() -> CommandOutcome {
-    match crate::update::installed_path() {
-        Ok(path) => {
-            let method = removal_method(&path, std::env::consts::OS);
-            CommandOutcome::Sync(Ok(json!({
-                "method": method,
-                "path": path.display().to_string(),
-            })))
-        },
-        Err(e) => CommandOutcome::Sync(Err(BridgeError::internal(e.to_string()))),
-    }
-}
-
-#[doc(hidden)]
-pub fn removal_method(path: &std::path::Path, platform: &str) -> &'static str {
-    let normalized = path
-        .to_string_lossy()
-        .replace('\\', "/")
-        .to_ascii_lowercase();
-    if platform == "windows" && normalized.contains("/scoop/apps/bridge/") {
-        "scoop"
-    } else if platform == "macos" && path.extension().is_some_and(|e| e == "app") {
-        "macos"
-    } else {
-        "standalone"
-    }
-}
-
 pub(super) fn sync_dispatch(
     app: &GuiApp,
     cmd: &str,
@@ -295,40 +267,6 @@ fn open_external_url(args: Value) -> CommandOutcome {
         },
         Err(e) => CommandOutcome::Sync(Err(e)),
     }
-}
-
-pub(super) fn diagnostics_dispatch(
-    app: &GuiApp,
-    cmd: &str,
-    reply_id: ReplyId,
-) -> Option<CommandOutcome> {
-    Some(match cmd {
-        "diagnostics.openLogDirectory" | "openLogFolder" => {
-            send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
-            CommandOutcome::Async
-        },
-        "diagnostics.exportBundle" => {
-            send(app, UiEvent::ExportDiagnosticBundle { reply_to: reply_id });
-            CommandOutcome::Async
-        },
-        "proxy.resetSecret" => {
-            send(
-                app,
-                UiEvent::ProxySecretResetRequested { reply_to: reply_id },
-            );
-            CommandOutcome::Async
-        },
-        "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
-            "version": crate::brand::brand().version,
-            "git_sha": crate::buildinfo::short_sha(),
-            "git_sha_full": crate::buildinfo::GIT_SHA,
-            "build_date": crate::buildinfo::GIT_COMMIT_DATE,
-            "build_timestamp": crate::buildinfo::BUILD_TIMESTAMP,
-            "branch": crate::buildinfo::GIT_BRANCH,
-            "rendered": crate::buildinfo::render(),
-        }))),
-        _ => return None,
-    })
 }
 
 fn marketplace_listing(app: &GuiApp) -> Result<Value, BridgeError> {

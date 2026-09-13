@@ -37,7 +37,9 @@ async fn app() -> Result<(Router, DbPool)> {
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
     Ok((
-        gateway_router(&ctx).expect("gateway router available"),
+        gateway_router(&ctx)
+            .expect("gateway journal opens")
+            .expect("gateway router available"),
         pool,
     ))
 }

@@ -9,6 +9,7 @@
 use crate::gateway_hash::conversation_prefix_hash;
 use crate::wire::inspect::ForwardedSurface;
 use serde_json::Value;
+use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{ClientSessionId, GatewayConversationId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -221,14 +222,15 @@ impl CanonicalRequest {
 
     // Why: the caller's own session travels inside `metadata.user_id`; it is
     // read here, before the identity is stripped for the upstream.
-    pub fn client_session_id(&self) -> Result<Option<ClientSessionId>, String> {
+    pub fn client_session_id(&self) -> Result<Option<ClientSessionId>, IdValidationError> {
         let Some(value) = self.metadata.as_ref().and_then(|m| m.get("user_id")) else {
             return Ok(None);
         };
-        let value = value
-            .as_str()
-            .ok_or_else(|| "metadata.user_id must be a string".to_owned())?;
-        ClientSessionId::from_metadata_user_id(value).map_err(|e| e.to_string())
+        let value = value.as_str().ok_or_else(|| IdValidationError::Invalid {
+            id_type: "ClientSessionId",
+            message: "metadata.user_id must be a string".to_owned(),
+        })?;
+        ClientSessionId::from_metadata_user_id(value)
     }
 
     pub fn flatten_message_text(&self, role: Role) -> Option<String> {

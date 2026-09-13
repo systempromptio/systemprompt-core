@@ -19,6 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod complete;
+pub mod journal;
 pub mod message_text;
 mod open;
 pub mod payload;
@@ -70,10 +71,9 @@ pub struct GatewayRequestContext {
     reason = "service type holds repository clients that intentionally do not implement Debug"
 )]
 pub struct GatewayAudit {
-    audit_pool: sqlx::PgPool,
+    settlement: journal::Settlement,
     journal_lease: std::sync::OnceLock<std::fs::File>,
     pricing_snapshot: std::sync::OnceLock<systemprompt_models::services::ModelPricing>,
-    evaluations: systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
     context_materializer: systemprompt_traits::DynContextMaterializer,
@@ -92,10 +92,9 @@ struct UpstreamClock {
 impl GatewayAudit {
     pub fn new(repos: &super::GatewayRepositories, ctx: GatewayRequestContext) -> Self {
         Self {
-            audit_pool: repos.audit_pool.clone(),
+            settlement: repos.settlement(),
             journal_lease: std::sync::OnceLock::new(),
             pricing_snapshot: std::sync::OnceLock::new(),
-            evaluations: repos.evaluations.clone(),
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
             context_materializer: Arc::clone(&repos.context_materializer),
@@ -159,9 +158,9 @@ impl GatewayAudit {
             journal::Receipt::pending(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone());
         receipt.failure = Some(error.to_owned());
         if self.journal_lease.get().is_some() {
-            journal::record(receipt, &self.audit_pool).await?;
+            journal::record(&self.settlement, receipt).await?;
         } else {
-            journal::settle_unadmitted_failure(&self.audit_pool, &receipt).await?;
+            journal::settle_unadmitted_failure(&self.settlement, &receipt).await?;
         }
         tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,
@@ -223,5 +222,3 @@ impl GatewayAudit {
 fn millis_i32(since: Instant) -> i32 {
     since.elapsed().as_millis().min(i32::MAX as u128) as i32
 }
-
-pub(crate) mod journal;

@@ -69,18 +69,6 @@ impl AiRequestRepository {
         .map_err(RepositoryError::from)
     }
 
-    pub async fn get_max_sequence(&self, request_id: &AiRequestId) -> Result<i32, RepositoryError> {
-        let request_id_str = request_id.as_str();
-
-        let result = sqlx::query_scalar!(
-            r#"SELECT COALESCE(MAX(sequence_number), 0) as "max!" FROM ai_request_messages WHERE request_id = $1"#,
-            request_id_str
-        )
-        .fetch_one(self.pool())
-        .await?;
-        Ok(result)
-    }
-
     pub async fn insert_tool_call(
         &self,
         params: InsertToolCallParams<'_>,
@@ -126,31 +114,6 @@ impl AiRequestRepository {
         .fetch_all(self.pool())
         .await
         .map_err(RepositoryError::from)
-    }
-
-    pub async fn add_response_message(
-        &self,
-        request_id: &AiRequestId,
-        content: &str,
-    ) -> Result<(), RepositoryError> {
-        let max_seq = self.get_max_sequence(request_id).await?;
-        let id = Uuid::new_v4().to_string();
-        let request_id_str = request_id.as_str();
-
-        let seq = max_seq + 1;
-        sqlx::query!(
-            r#"
-            INSERT INTO ai_request_messages (id, request_id, role, content, sequence_number, created_at)
-            VALUES ($1, $2, 'assistant', $3, $4, CURRENT_TIMESTAMP)
-            "#,
-            id,
-            request_id_str,
-            content,
-            seq
-        )
-        .execute(self.write_pool())
-        .await?;
-        Ok(())
     }
 
     pub async fn link_tool_calls_to_recent_executions(

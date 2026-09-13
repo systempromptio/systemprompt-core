@@ -1,22 +1,42 @@
 # Changelog
 
-## [Unreleased]
+## [0.52.0] - 2026-09-13
+
+Governance becomes installation-owned: the secret scan has no built-in
+vendor signatures, the credential catalog is the `patterns` list in
+`governance/config.yaml`, and a config file that exists but is rejected now
+refuses to start the engine instead of silently downgrading every policy to
+warn-only. Gateway accounting is durable end to end — an encrypted receipt
+per admission, replay-safe settlement in the AI domain, recovery on an owned
+task — and the gateway refuses to boot without the key that protects it.
+Conversation contexts and thought-signature caches are scoped to their
+owner, the CLI no longer lets `--profile` rewrite the active session, and
+managed resources gain immutable revisions, reviewed publication and
+evaluation budget accounts.
 
 ### Breaking
 
-- **Governance:** `secret_scan` has no built-in credential signatures. Installations declare `patterns` entries with stable `id`, display `name`, `regex`, optional named `secret_capture`, optional structured-leaf `field`, and `redact_whole_value`. Pattern absence means disabled; `extra_patterns` and `disabled_patterns` are removed. Duplicate ids, invalid or empty-matching regexes, missing named captures, and field rules without whole-value recovery now fail governance-engine startup. `GovernanceEngine::secret_scanner` exposes the one compiled catalog used by ingress, response scanning, and prompt recovery. The missing-config fallback remains enabled but is vendor-neutral and warn-only.
+- **Governance:** `secret_scan` has no built-in credential signatures. Installations declare `patterns` entries with stable `id`, display `name`, `regex`, optional named `secret_capture`, optional structured-leaf `field`, and `redact_whole_value`. Pattern absence means disabled; `extra_patterns` and `disabled_patterns` are removed. Duplicate ids, invalid or empty-matching regexes, missing named captures, and field rules without whole-value recovery fail governance-engine startup. `GovernanceEngine::secret_scanner` exposes the one compiled catalog used by ingress, response scanning, and prompt recovery. A missing `governance/config.yaml` is the vendor-neutral warn-only fallback; a file that exists but is rejected (unreadable, invalid YAML, unknown mode, invalid catalog) is `GovernanceEngineError::ConfigRejected` and the server does not start. A high-entropy token is an observation on the decision and no longer denies the call. The pattern-less helpers `detect_secrets`, `detect_secrets_with`, `scan_str_for_secret` and `secret_findings` are removed; `PolicyFactory` is fallible.
+- **Gateway:** the gateway requires the `encryption_master_key` secret (32 bytes as 64 hex characters) whenever it is enabled; the server refuses to start without it. With `secrets.source: env` the key must be listed in `SYSTEMPROMPT_CUSTOM_SECRETS`. Terminal accounting settles through `AiRequestRepository::settle`; `update_completion`, `upsert_response` and `add_response_message` are removed from `systemprompt-ai`. Thought-signature caches and derived conversation contexts are owner-scoped (`ai_gateway_thought_signatures` is truncated and gains `user_id` in migration 023; `ContextId::derived_from_gateway_conversation` takes the owner). A malformed `metadata.user_id` is a 400.
 - **Config:** three process-environment readers are gone in favour of the profile and the secrets document: `gateway.bridge_releases.token_env` is renamed `token_secret` and names a key in the secrets document; the MCP credential-broker secret is read from `secrets.custom["MCP_CREDENTIAL_BROKER_SECRET"]` (injected into `fetch_external_bearer`); `PGCA_CERT_PATH` is dropped — name a private CA with `?sslrootcert=` in the database URL. `config::Environment` / `config::VerbosityLevel` (`SYSTEMPROMPT_ENV`, `SYSTEMPROMPT_QUIET|VERBOSE|DEBUG|LOG_LEVEL`) are removed; the profile's `runtime.environment` / `runtime.log_level` and the CLI flags are the only inputs. With `secrets.source: env`, a custom key must be listed in `SYSTEMPROMPT_CUSTOM_SECRETS`.
+
+### Added
+
+- **Marketplace:** managed resources — owner-scoped sources, bounded authoring snapshots, immutable revisions and assets, reviewed publication with generation history and a distribution outbox, and deterministic verified revision bundles.
+- **Evaluation:** budget accounts shared across experiments, execution runtime and lifecycle records, and a scheduler supervisor for evaluation workers.
+- **Bridge:** lifecycle actions (removal guidance, update install and restart) in the desktop UI.
 
 ### Changed
 
-- **CLI:** an explicit `--profile` never rewrites the active session, and `infra db migrate` / the destructive `infra db` subcommands / `infra jobs run` refuse a cloud profile selected implicitly (session or discovery) unless `--profile <name>` is passed. Closes the 0.51.0 near-miss where a consumer's `core-bump` migrated against production.
+- **CLI:** an explicit `--profile` (or `SYSTEMPROMPT_PROFILE`) never rewrites the active session, and `infra db migrate` / the destructive `infra db` subcommands / `infra jobs run` refuse a cloud profile selected implicitly (session or discovery) unless `--profile <name>` is passed or `SYSTEMPROMPT_PROFILE` is set.
+- **Gateway:** admission propagates request and governance persistence failures before provider dispatch; session and trace identity are required and pricing is pinned per request. Receipt recovery runs at server start and every 30 s on a task the run loop owns, never on the admission path; unreadable receipts are quarantined and a receipt whose settlement fails is retained for the next pass.
 - **Cloud:** `DockerCli::build_image` preflights the daemon and, on failure, names the resolved `docker` binary and the configured `credsStore`.
-- **Gates:** `just lint-env-vars` (every production env reader is in `scripts/env-var-allowlist.txt` with a reason), `just lint-native-test-deps` and `just lint-bridge-native-tests` (the native bridge test crates build offline and stay DB-free; package list in `scripts/bridge-native-crates.txt`, shared with `quality.yml`), `just sqlx-audit-caches` (each per-crate `.sqlx` holds only its own queries; `sqlx-prepare-publish` prunes foreign entries — 1,930 were removed from the committed caches). `just lint`, `check`, `lint-bridge*` and `style-check` run clippy/check with `--keep-going`, the bridge with `--all-features`. `just lint-fail-open` gains a `partial-projection` heuristic. CI test shards and the native bridge job carry step-level timeouts so a slow cache save cannot cancel a passed job.
+- **Gates:** `just lint-env-vars` (every production env reader is in `scripts/env-var-allowlist.txt` with a reason), `just lint-native-test-deps` and `just lint-bridge-native-tests` (the native bridge test crates build offline and stay DB-free; package list in `scripts/bridge-native-crates.txt`, shared with `quality.yml`), `just sqlx-audit-caches` (each per-crate `.sqlx` holds only its own queries; `sqlx-prepare-publish` prunes foreign entries). `just lint`, `check`, `lint-bridge*` and `style-check` run clippy/check with `--keep-going`, the bridge with `--all-features`. `just lint-fail-open` gains a `partial-projection` heuristic. CI test shards and the native bridge job carry step-level timeouts so a slow cache save cannot cancel a passed job.
 
 ### Fixed
 
-- A client that hung up on a streaming gateway response was audited as `stream ended without stop event`, the same message as a genuine upstream EOF, so an ordinary abort read as a provider defect. Claude Code's automatic session-title request is the routine case: `claude -p` exits as soon as the turn's result is printed while the title is still streaming from a slower model (prod row `23e3ad2c`, `zai.glm-5.2`, 4 s in). The tap now records who ended the stream — `client disconnected before stop event` (499) when the body was dropped, `upstream stream ended without stop event` (502) when the provider closed it — and only the latter is logged as a stream failure.
-- A client that hung up *before* the upstream produced its first byte left the `ai_requests` row `pending` forever. The dispatch future was cancelled inside the upstream send, after the audit row had opened but before any completion path owned it. An `AbandonGuard` armed at `open_audit` now fails the row with `client disconnected before upstream responded` when the future is dropped mid-flight; it is disarmed on every returned `Ok` and `Err`, which already close the row themselves.
+- A client that hung up on a streaming gateway response was audited with the same message as a genuine upstream EOF. The tap now records who ended the stream — `client disconnected before stop event` (499) when the body was dropped, `upstream stream ended without stop event` (502) when the provider closed it — and only the latter is logged as a stream failure.
+- A client that hung up before the upstream produced its first byte left the `ai_requests` row `pending` forever. An `AbandonGuard` armed at `open_audit` fails the row with `client disconnected before upstream responded` when the dispatch future is dropped mid-flight; it is disarmed on every returned `Ok` and `Err`.
 
 ## [0.51.0] - 2026-09-11
 

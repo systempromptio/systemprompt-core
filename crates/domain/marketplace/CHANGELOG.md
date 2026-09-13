@@ -1,11 +1,14 @@
 # Changelog
 
-## [0.51.0] - 2026-09-11
+## [0.52.0] - 2026-09-13
 
 ### Added
 
 - Managed authoring stores owner-scoped sources, exact snapshots, immutable binary assets and resource revisions. Bounded authoring capture rejects symlinks and changing trees; imports are idempotent and never activate a revision. Text candidates inherit supporting assets and dependencies, and same-resource comparisons report exact file and metadata changes. Runtime publication remains a separate integration boundary.
 - Managed publication records immutable reviews and generation history, advances the owner-scoped selection atomically with a distribution outbox event, and exposes explicit never-adopted, published and withdrawn resolution. Publication downloads remain pinned to the bundle digest and generation advertised to a client.
+- `ManagedResourcesExtension` registers the `managed.sql` schema and its migrations through `build.rs` / `extension_migrations!()`.
+
+## [0.51.0] - 2026-09-11
 
 ### Changed
 

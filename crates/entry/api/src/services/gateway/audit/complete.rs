@@ -58,12 +58,10 @@ impl GatewayAudit {
                 .map(|text| truncate_for_tool_input(&text)),
             tools: tool_calls
                 .iter()
-                .map(|tool| {
-                    (
-                        tool.ai_tool_call_id.to_string(),
-                        tool.tool_name.clone(),
-                        truncate_for_tool_input(&tool.tool_input),
-                    )
+                .map(|tool| super::journal::CapturedToolCall {
+                    id: tool.ai_tool_call_id.clone(),
+                    name: tool.tool_name.clone(),
+                    input: truncate_for_tool_input(&tool.tool_input),
                 })
                 .collect(),
         };
@@ -72,7 +70,7 @@ impl GatewayAudit {
             self.ctx.user_id.clone(),
         );
         receipt.completion = Some(completion);
-        super::journal::record(receipt, &self.audit_pool).await?;
+        super::journal::record(&self.settlement, receipt).await?;
 
         tracing::info!(
             ai_request_id = %self.ctx.ai_request_id,

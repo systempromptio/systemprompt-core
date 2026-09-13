@@ -80,7 +80,9 @@ async fn app() -> anyhow::Result<Router> {
     install_test_signing_key();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
-    Ok(gateway_router(&ctx).expect("gateway router available"))
+    Ok(gateway_router(&ctx)
+        .expect("gateway journal opens")
+        .expect("gateway router available"))
 }
 
 fn get(uri: &str) -> Request<Body> {

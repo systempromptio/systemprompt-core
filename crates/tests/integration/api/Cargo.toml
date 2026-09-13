@@ -22,6 +22,7 @@ async-trait = { workspace = true }
 inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-api = { workspace = true }
+systemprompt-config = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-storage = { workspace = true }

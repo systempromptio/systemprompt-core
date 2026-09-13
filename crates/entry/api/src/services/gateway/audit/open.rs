@@ -65,6 +65,7 @@ impl GatewayAudit {
         let mut record = self.build_record();
         if let Some(session) = &self.ctx.session_id
             && let Some(actor) = self
+                .settlement
                 .evaluations
                 .execution_actor(&self.ctx.user_id, session)
                 .await?
@@ -106,11 +107,11 @@ impl GatewayAudit {
         }
         self.persist_request_messages(request).await?;
         let lease = super::journal::reserve(
+            &self.settlement.journal,
             super::journal::Receipt::pending(
                 self.ctx.ai_request_id.clone(),
                 self.ctx.user_id.clone(),
             ),
-            &self.audit_pool,
         )
         .await?;
         self.journal_lease

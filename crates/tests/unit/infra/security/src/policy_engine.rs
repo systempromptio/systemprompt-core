@@ -54,8 +54,8 @@ impl GovernancePolicy for StaticDeny {
     }
 }
 
-register_governance_policy!("t_allow", |_| Box::new(StaticAllow));
-register_governance_policy!("t_deny", |_| Box::new(StaticDeny));
+register_governance_policy!("t_allow", |_| Ok(Box::new(StaticAllow)));
+register_governance_policy!("t_deny", |_| Ok(Box::new(StaticDeny)));
 
 fn ctx<'a>(
     session: &'a SessionId,

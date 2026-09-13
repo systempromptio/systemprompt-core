@@ -19,9 +19,19 @@ use systemprompt_security::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRepositories {
     systemprompt_api::services::gateway::GatewayRepositories::new(
         db,
+        gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
         )),

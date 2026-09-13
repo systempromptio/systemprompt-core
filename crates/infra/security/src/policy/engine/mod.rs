@@ -37,8 +37,8 @@ use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
 use super::config::{GovernanceConfig, PolicyConfig, PolicyMode};
 use super::governed::GovernedInput;
-use super::registry::{PolicyFactory, PolicyRegistration};
-use super::secrets::{SecretFinding, SecretPatternError, SecretScanner};
+use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
+use super::secrets::{SecretFinding, SecretScanner};
 use super::types::{GovernancePolicy, PolicyContext};
 use crate::authz::types::Decision;
 
@@ -60,8 +60,10 @@ pub enum GovernanceEngineError {
     InvalidPolicyConfiguration {
         id: String,
         #[source]
-        source: SecretPatternError,
+        source: PolicyConfigurationError,
     },
+    #[error("governance config at {path} was rejected: {message}")]
+    ConfigRejected { path: String, message: String },
 }
 
 struct ChainEntry {
@@ -94,8 +96,15 @@ impl GovernanceEngine {
     pub fn global() -> Result<&'static Self, GovernanceEngineError> {
         static ENGINE: LazyLock<Result<GovernanceEngine, GovernanceEngineError>> =
             LazyLock::new(|| {
-                let config = governance_config_path()
-                    .map_or_else(GovernanceConfig::defaults, |p| GovernanceConfig::load(&p));
+                let config = match governance_config_path() {
+                    Some(path) => GovernanceConfig::load(&path).map_err(|error| {
+                        GovernanceEngineError::ConfigRejected {
+                            path: path.display().to_string(),
+                            message: error.to_string(),
+                        }
+                    })?,
+                    None => GovernanceConfig::defaults(),
+                };
                 GovernanceEngine::from_config(&config)
             });
         ENGINE.as_ref().map_err(Clone::clone)
@@ -118,17 +127,15 @@ impl GovernanceEngine {
             let factory = factories
                 .get(cfg.id.as_str())
                 .ok_or_else(|| GovernanceEngineError::UnknownPolicyId { id: cfg.id.clone() })?;
-            if cfg.id == SECRET_SCAN_ID {
-                SecretScanner::from_policy_yaml(&cfg.params).map_err(|source| {
-                    GovernanceEngineError::InvalidPolicyConfiguration {
-                        id: cfg.id.clone(),
-                        source,
-                    }
-                })?;
-            }
+            let instance = factory(&cfg.params).map_err(|source| {
+                GovernanceEngineError::InvalidPolicyConfiguration {
+                    id: cfg.id.clone(),
+                    source,
+                }
+            })?;
             entries.push(ChainEntry {
                 config: cfg.clone(),
-                instance: factory(&cfg.params),
+                instance,
             });
         }
 
@@ -140,7 +147,12 @@ impl GovernanceEngine {
                 mode: PolicyMode::Enforce,
                 params: serde_yaml::Value::Null,
             };
-            let instance = (r.factory)(&config.params);
+            let instance = (r.factory)(&config.params).map_err(|source| {
+                GovernanceEngineError::InvalidPolicyConfiguration {
+                    id: r.id.to_owned(),
+                    source,
+                }
+            })?;
             entries.push(ChainEntry { config, instance });
         }
 

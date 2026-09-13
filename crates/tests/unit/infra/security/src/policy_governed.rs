@@ -100,7 +100,11 @@ fn a_secret_in_a_forwarded_part_is_reported_at_that_part() {
             "token ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789".to_owned(),
         ),
     ]);
-    let hit = systemprompt_security::policy::detect_secrets(&prompt).expect("must fire");
+    let scanner = systemprompt_security::policy::SecretScanner::from_policy_yaml(
+        &serde_yaml::from_str("patterns: []\n").unwrap(),
+    )
+    .unwrap();
+    let hit = scanner.detect(&prompt).expect("must fire");
     assert_eq!(hit.path, "forwarded.messages[0].content");
 }
 

@@ -98,7 +98,8 @@ pub fn require_explicit_cloud_profile(
     }
 
     bail!(
-        "profile `{}` is a cloud profile selected implicitly; pass `--profile {}` to target it",
+        "profile `{}` is a cloud profile selected implicitly (stored session or directory \
+         discovery); pass `--profile {}` or set SYSTEMPROMPT_PROFILE to target it",
         profile.name,
         profile.name
     )

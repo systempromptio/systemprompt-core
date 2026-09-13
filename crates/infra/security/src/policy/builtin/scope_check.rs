@@ -114,6 +114,6 @@ impl GovernancePolicy for ScopeCheck {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Box::new(ScopeCheck::from_yaml(v)),
+        factory: |v| Ok(Box::new(ScopeCheck::from_yaml(v))),
     }
 }

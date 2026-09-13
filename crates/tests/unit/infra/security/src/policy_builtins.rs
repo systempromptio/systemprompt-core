@@ -2,12 +2,9 @@ use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::secrets::SecretScanner;
+use systemprompt_security::policy::secrets::{SecretHit, SecretScanner};
 use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{
-    ChainEntryResult, EntropyConfig, GovernanceConfig, GovernanceEngine, detect_secrets,
-    detect_secrets_with, scan_str_for_secret,
-};
+use systemprompt_security::policy::{ChainEntryResult, GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
@@ -17,6 +14,18 @@ fn engine(yaml: &str) -> GovernanceEngine {
 fn scanner(yaml: &str) -> SecretScanner {
     let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
     SecretScanner::from_policy_yaml(&value).unwrap()
+}
+
+fn entropy_only() -> SecretScanner {
+    scanner("patterns: []\n")
+}
+
+fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
+    entropy_only().detect(input)
+}
+
+fn scan_str_for_secret(text: &str) -> Option<String> {
+    detect_secrets(&GovernedInput::prompt_text(text.to_owned())).map(|hit| hit.redacted)
 }
 
 struct Call {
@@ -104,31 +113,25 @@ fn a_base64_json_envelope_is_not_reported_as_a_credential() {
 #[test]
 fn the_entropy_allowlist_suppresses_a_named_token_shape() {
     let text = "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM";
-    let config = EntropyConfig {
-        allowlist: vec![regex::Regex::new("^PHL").expect("test regex compiles")],
-        ..EntropyConfig::default()
-    };
+    let allowlisted = scanner("patterns: []\nentropy:\n  allowlist: ['^PHL']\n");
     let input = GovernedInput::prompt_text(text.to_owned());
     assert!(detect_secrets(&input).is_some(), "unconfigured, it fires");
     assert!(
-        detect_secrets_with(&input, &config).is_none(),
+        allowlisted.detect(&input).is_none(),
         "an allowlisted shape is exempt"
     );
 }
 
 #[test]
 fn disabling_entropy_with_no_patterns_is_a_clean_scan() {
-    let config = EntropyConfig {
-        enabled: false,
-        ..EntropyConfig::default()
-    };
+    let disabled = scanner("patterns: []\nentropy:\n  enabled: false\n");
     let prefixless = GovernedInput::prompt_text(
         "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
     );
-    assert!(detect_secrets_with(&prefixless, &config).is_none());
+    assert!(disabled.detect(&prefixless).is_none());
 
     let vendor_shaped = GovernedInput::prompt_text("AKIAIOSFODNN7EXAMPLE".to_owned());
-    assert!(detect_secrets_with(&vendor_shaped, &config).is_none());
+    assert!(disabled.detect(&vendor_shaped).is_none());
 }
 
 #[test]

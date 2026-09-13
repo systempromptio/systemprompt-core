@@ -180,7 +180,7 @@ pub fn derive_conversation(
     };
     let client_session_id = gateway_request
         .client_session_id()
-        .map_err(|error| (StatusCode::BAD_REQUEST, error))?;
+        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
     let context_id = match (&client_session_id, header_supplied) {
         (Some(session), false) => ContextId::derived_from_client_session(session),
         _ => ContextId::derived_from_gateway_conversation(user_id, &gateway_conversation_id),

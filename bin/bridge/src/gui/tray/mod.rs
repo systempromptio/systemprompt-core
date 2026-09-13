@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use muda::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
-use super::error::{GuiError, GuiResult};
+mod icon;
+mod text;
+
+use super::error::GuiResult;
 use super::events::UiEvent;
 use super::state::{AppStateSnapshot, GatewayStatus};
 use crate::i18n;
@@ -44,33 +47,14 @@ pub enum TrayStatus {
     Alert,
 }
 
-#[cfg(target_os = "macos")]
-fn tray_image() -> Result<image::RgbaImage, image::ImageError> {
-    let assets = crate::brand::brand().assets;
-    Ok(image::load_from_memory(assets.tray_icon_png)?.to_rgba8())
-}
-
-#[cfg(target_os = "windows")]
-fn tray_image() -> Result<image::RgbaImage, image::ImageError> {
-    let assets = crate::brand::brand().assets;
-    let reader = image::codecs::ico::IcoDecoder::new(std::io::Cursor::new(assets.app_icon_ico));
-    match reader {
-        Ok(decoder) => Ok(image::DynamicImage::from_decoder(decoder)?.to_rgba8()),
-        Err(e) => {
-            tracing::warn!(error = %e, "app icon ICO undecodable; falling back to the window icon");
-            Ok(image::load_from_memory(assets.window_icon_png)?.to_rgba8())
-        },
-    }
-}
-
 pub fn build(
     initial: &AppStateSnapshot,
     schedule: &crate::schedule::status::ScheduleStatusCache,
 ) -> GuiResult<TrayHandles> {
     let menu = Menu::new();
 
-    let identity_item = MenuItem::new(format_identity(initial), false, None);
-    let last_sync_item = MenuItem::new(format_last_sync(initial), false, None);
+    let identity_item = MenuItem::new(text::format_identity(initial), false, None);
+    let last_sync_item = MenuItem::new(text::format_last_sync(initial), false, None);
     let sync_item = MenuItem::new(i18n::t("tray-sync-now"), true, None);
     let validate_item = MenuItem::new(i18n::t("tray-validate"), true, None);
     let (update_label, update_enabled, update_event) = update_menu(&initial.update);
@@ -84,7 +68,7 @@ pub fn build(
         autostart == ScheduleStatus::Installed,
         None,
     );
-    let logout_item = MenuItem::new(i18n::t("tray-sign-out"), is_signed_in(initial), None);
+    let logout_item = MenuItem::new(i18n::t("tray-sign-out"), text::is_signed_in(initial), None);
     let disconnect_item = MenuItem::new(i18n::t("tray-disconnect"), true, None);
     let purge_item = MenuItem::new(i18n::t("tray-purge"), true, None);
     let remove_item = MenuItem::new(i18n::t("tray-remove-application"), true, None);
@@ -141,13 +125,13 @@ pub fn build(
     );
     bindings.insert(quit_item.id().clone(), UiEvent::Quit);
 
-    let icon_normal = decode_icon()?;
-    let icon_alert = decode_alert_icon()?;
+    let icon_normal = icon::decode_icon()?;
+    let icon_alert = icon::decode_alert_icon()?;
 
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
         .with_menu_on_left_click(false)
-        .with_tooltip(tooltip(initial))
+        .with_tooltip(text::tooltip(initial))
         .with_icon(icon_normal.clone())
         .with_icon_as_template(cfg!(target_os = "macos"))
         .build()?;
@@ -173,8 +157,10 @@ pub fn refresh(
     snap: &AppStateSnapshot,
     schedule: &crate::schedule::status::ScheduleStatusCache,
 ) -> Result<(), tray_icon::Error> {
-    handles.identity_item.set_text(format_identity(snap));
-    handles.last_sync_item.set_text(format_last_sync(snap));
+    handles.identity_item.set_text(text::format_identity(snap));
+    handles
+        .last_sync_item
+        .set_text(text::format_last_sync(snap));
     handles.sync_item.set_enabled(!snap.sync_in_flight);
     let (update_label, update_enabled, update_event) = update_menu(&snap.update);
     handles.update_item.set_text(update_label);
@@ -182,7 +168,7 @@ pub fn refresh(
     handles
         .bindings
         .insert(handles.update_item.id().clone(), update_event);
-    handles.logout_item.set_enabled(is_signed_in(snap));
+    handles.logout_item.set_enabled(text::is_signed_in(snap));
     if snap.sync_in_flight {
         handles.sync_item.set_text(i18n::t("tray-syncing"));
     } else {
@@ -195,7 +181,7 @@ pub fn refresh(
     handles
         .autostart_item
         .set_checked(autostart == ScheduleStatus::Installed);
-    handles.tray.set_tooltip(Some(tooltip(snap)))?;
+    handles.tray.set_tooltip(Some(text::tooltip(snap)))?;
     let target = match snap.gateway_status {
         GatewayStatus::Unreachable { .. } => TrayStatus::Alert,
         _ => TrayStatus::Normal,
@@ -266,66 +252,4 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
         }
     }
     out
-}
-
-fn tooltip(snap: &AppStateSnapshot) -> String {
-    format!("{}\n{}", format_identity(snap), format_last_sync(snap))
-}
-
-const fn is_signed_in(snap: &AppStateSnapshot) -> bool {
-    snap.pat_present || snap.verified_identity.is_some()
-}
-
-fn format_identity(snap: &AppStateSnapshot) -> String {
-    match &snap.gateway_status {
-        GatewayStatus::Unknown | GatewayStatus::Probing => "Checking gateway…".to_owned(),
-        GatewayStatus::Unreachable { .. } => "Gateway unreachable".to_owned(),
-        GatewayStatus::Reachable { .. } => match snap.verified_identity.as_ref() {
-            Some(id) => {
-                let label = id
-                    .email
-                    .as_deref()
-                    .or_else(|| {
-                        id.user_id
-                            .as_ref()
-                            .map(systemprompt_identifiers::UserId::as_str)
-                    })
-                    .unwrap_or("(verified)");
-                format!("Signed in as {label}")
-            },
-            None if snap.pat_present => "PAT stored — verifying…".to_owned(),
-            None => "Not signed in".to_owned(),
-        },
-    }
-}
-
-fn format_last_sync(snap: &AppStateSnapshot) -> String {
-    snap.last_sync_summary.as_deref().map_or_else(
-        || "Last sync: never".to_owned(),
-        |s| format!("Last sync: {s}"),
-    )
-}
-
-fn decode_icon() -> GuiResult<Icon> {
-    let img = tray_image()?;
-    let (w, h) = img.dimensions();
-    Icon::from_rgba(img.into_raw(), w, h).map_err(GuiError::from)
-}
-
-fn decode_alert_icon() -> GuiResult<Icon> {
-    let mut img = tray_image()?;
-    let (w, h) = img.dimensions();
-    let dot_radius = (w.min(h) / 4).max(3);
-    let cx = w.saturating_sub(dot_radius).saturating_sub(1);
-    let cy = h.saturating_sub(dot_radius).saturating_sub(1);
-    for y in 0..h {
-        for x in 0..w {
-            let dx = x as i32 - cx as i32;
-            let dy = y as i32 - cy as i32;
-            if dx * dx + dy * dy <= (dot_radius as i32).pow(2) {
-                img.put_pixel(x, y, image::Rgba([220, 38, 38, 255]));
-            }
-        }
-    }
-    Icon::from_rgba(img.into_raw(), w, h).map_err(GuiError::from)
 }

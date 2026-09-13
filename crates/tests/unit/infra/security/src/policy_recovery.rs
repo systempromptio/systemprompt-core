@@ -125,9 +125,9 @@ impl systemprompt_security::policy::GovernancePolicy for CountEvaluations {
         }
     }
 }
-systemprompt_security::register_governance_policy!("recovery_count_evaluations", |_| Box::new(
+systemprompt_security::register_governance_policy!("recovery_count_evaluations", |_| Ok(Box::new(
     CountEvaluations
-));
+)));
 
 #[test]
 fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
@@ -185,8 +185,8 @@ impl systemprompt_security::policy::GovernancePolicy for LeaksWithoutFindings {
         }
     }
 }
-systemprompt_security::register_governance_policy!("recovery_leak_without_findings", |_| Box::new(
-    LeaksWithoutFindings
+systemprompt_security::register_governance_policy!("recovery_leak_without_findings", |_| Ok(
+    Box::new(LeaksWithoutFindings)
 ));
 
 #[test]

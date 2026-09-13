@@ -73,39 +73,6 @@ impl AiRequestPayloadRepository {
         Ok(())
     }
 
-    pub async fn upsert_response(
-        &self,
-        ai_request_id: &AiRequestId,
-        params: UpsertPayloadParams<'_>,
-    ) -> Result<(), RepositoryError> {
-        sqlx::query!(
-            r#"
-            INSERT INTO ai_request_payloads (
-                ai_request_id, response_body, response_excerpt,
-                response_truncated, response_bytes, response_body_sha256,
-                created_at, updated_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            ON CONFLICT (ai_request_id) DO UPDATE
-            SET response_body = EXCLUDED.response_body,
-                response_excerpt = EXCLUDED.response_excerpt,
-                response_truncated = EXCLUDED.response_truncated,
-                response_bytes = EXCLUDED.response_bytes,
-                response_body_sha256 = EXCLUDED.response_body_sha256,
-                updated_at = CURRENT_TIMESTAMP
-            "#,
-            ai_request_id.as_str(),
-            params.body,
-            params.excerpt,
-            params.truncated,
-            params.bytes,
-            params.sha256
-        )
-        .execute(self.write_pool.as_ref())
-        .await?;
-        Ok(())
-    }
-
     pub async fn upsert_offered_tools(
         &self,
         ai_request_id: &AiRequestId,

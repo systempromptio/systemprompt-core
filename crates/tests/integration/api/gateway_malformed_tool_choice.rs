@@ -97,7 +97,9 @@ async fn app() -> Result<(Router, DbPool)> {
     let pool = fixture_db_pool(&h.boot.database_url).await?;
     let ctx = fixture_app_context(&pool, &h.boot.database_url)?;
     Ok((
-        gateway_router(&ctx).expect("gateway router available"),
+        gateway_router(&ctx)
+            .expect("gateway journal opens")
+            .expect("gateway router available"),
         pool,
     ))
 }

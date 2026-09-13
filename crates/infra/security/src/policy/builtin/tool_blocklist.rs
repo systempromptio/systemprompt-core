@@ -83,6 +83,6 @@ impl GovernancePolicy for ToolBlocklist {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Box::new(ToolBlocklist::from_yaml(v)),
+        factory: |v| Ok(Box::new(ToolBlocklist::from_yaml(v))),
     }
 }

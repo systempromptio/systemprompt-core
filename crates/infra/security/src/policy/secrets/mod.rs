@@ -8,12 +8,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod entropy;
+mod entropy_yaml;
 mod fingerprint;
 mod patterns;
 mod recovery;
 mod signatures;
 
-use std::sync::LazyLock;
 
 use regex::Captures;
 
@@ -29,7 +29,6 @@ pub use recovery::{
 };
 pub use signatures::SignatureExemptions;
 
-/// A compiled installation-owned credential catalog and entropy configuration.
 #[derive(Debug, Clone)]
 pub struct SecretScanner {
     patterns: Vec<CompiledSecretPattern>,
@@ -40,7 +39,7 @@ impl SecretScanner {
     pub fn from_policy_yaml(value: &serde_yaml::Value) -> Result<Self, SecretPatternError> {
         Ok(Self {
             patterns: compile_patterns(value.get("patterns"))?,
-            entropy: super::builtin::secret_scan::entropy_from_yaml(value),
+            entropy: entropy_yaml::from_yaml(value),
         })
     }
 
@@ -124,7 +123,6 @@ fn redacted_snippet(value: &str, start: usize, end: usize) -> String {
     )
 }
 
-/// The stable identity and display name of a matched configured signature.
 #[derive(Debug)]
 pub struct MatchedSecretPattern {
     pub id: String,
@@ -138,37 +136,4 @@ pub struct SecretHit {
     pub path: String,
     pub redacted: String,
     pub observation: bool,
-}
-
-static VENDOR_NEUTRAL_SCANNER: LazyLock<SecretScanner> = LazyLock::new(|| SecretScanner {
-    patterns: Vec::new(),
-    entropy: EntropyConfig::default(),
-});
-
-#[must_use]
-pub fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
-    VENDOR_NEUTRAL_SCANNER.detect(input)
-}
-
-#[must_use]
-pub fn detect_secrets_with(input: &GovernedInput, entropy: &EntropyConfig) -> Option<SecretHit> {
-    SecretScanner {
-        patterns: Vec::new(),
-        entropy: entropy.clone(),
-    }
-    .detect(input)
-}
-
-#[must_use]
-pub fn scan_str_for_secret(text: &str) -> Option<String> {
-    detect_secrets(&GovernedInput::prompt_text(text.to_owned())).map(|hit| hit.redacted)
-}
-
-#[must_use]
-pub fn secret_findings(input: &GovernedInput, entropy: &EntropyConfig) -> Vec<SecretFinding> {
-    SecretScanner {
-        patterns: Vec::new(),
-        entropy: entropy.clone(),
-    }
-    .findings(input)
 }

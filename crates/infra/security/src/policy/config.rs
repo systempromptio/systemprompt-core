@@ -4,12 +4,11 @@
 //! enabled, ...params}]`) declares whether the chain runs at all, which
 //! policies it contains, in what order, and with what per-policy parameters.
 //!
-//! Two loaders, because startup and the request path want opposite failure
-//! modes. [`GovernanceConfig::validate`] is for boot: it returns the error so
-//! a misconfigured installation refuses to start.
-//! [`GovernanceConfig::load`] is for the request path: it degrades to
-//! [`GovernanceConfig::defaults`] and logs, because a governance deployment
-//! that failed closed on a config typo would block every tool call.
+//! [`GovernanceConfig::load`] reads the installation's file: a missing file is
+//! the documented warn-only fallback ([`GovernanceConfig::defaults`]), while a
+//! file that exists but is rejected — unreadable, invalid YAML, an unknown
+//! mode, a bad secret catalog — is an error the engine refuses to start on,
+//! so a typo can never silently downgrade enforcement.
 //! [`GovernanceConfig::parse`] is the strict form over a string.
 //!
 //! Each policy also carries a [`PolicyMode`]. A declared policy without a mode
@@ -203,29 +202,14 @@ impl GovernanceConfig {
         }
     }
 
-    pub fn validate(path: &Path) -> Result<(), GovernanceConfigError> {
-        Self::read(path).map(|_| ())
-    }
-
-    #[must_use]
-    pub fn load(path: &Path) -> Self {
-        match Self::read(path) {
-            Ok(Some(config)) => config,
-            Ok(None) => {
-                tracing::warn!(
-                    path = %path.display(),
-                    "governance config not found; falling back to the vendor-neutral warn-only chain"
-                );
-                Self::defaults()
-            },
-            Err(error) => {
-                tracing::error!(
-                    path = %path.display(),
-                    %error,
-                    "governance config rejected; falling back to the vendor-neutral warn-only chain"
-                );
-                Self::defaults()
-            },
-        }
+    pub fn load(path: &Path) -> Result<Self, GovernanceConfigError> {
+        let config = Self::read(path)?;
+        Ok(config.unwrap_or_else(|| {
+            tracing::warn!(
+                path = %path.display(),
+                "governance config not found; falling back to the vendor-neutral warn-only chain"
+            );
+            Self::defaults()
+        }))
     }
 }

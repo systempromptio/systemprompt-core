@@ -18,8 +18,14 @@ use super::types::GovernancePolicy;
 ///
 /// Runs once per [`super::GovernanceEngine::from_config`] call and must not
 /// block; a factory receives `YamlValue::Null` when the policy is absent from
-/// config.
-pub type PolicyFactory = fn(&YamlValue) -> Box<dyn GovernancePolicy>;
+/// config. A rejected entry is an error the engine refuses to start on.
+pub type PolicyFactory =
+    fn(&YamlValue) -> Result<Box<dyn GovernancePolicy>, PolicyConfigurationError>;
+
+/// Why a policy factory rejected its YAML entry.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0}")]
+pub struct PolicyConfigurationError(pub String);
 
 /// One inventory submission per policy. `id` is the stable referent used in
 /// `governance.policies` YAML and in `governance_decisions.policy`.

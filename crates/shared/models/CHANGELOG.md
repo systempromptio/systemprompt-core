@@ -1,8 +1,10 @@
 # Changelog
 
-## [0.52.0] - 2026-09-12
+## [0.52.0] - 2026-09-13
 
 ### Breaking
+
+- **Breaking:** `CanonicalRequest::client_session_id` returns `Result<Option<ClientSessionId>, IdValidationError>` instead of a `String` error.
 
 - **Breaking:** `config::Environment` and `config::VerbosityLevel` are removed. They classified the process from `SYSTEMPROMPT_ENV`, `RAILWAY_ENVIRONMENT`, `NODE_ENV`, `DOCKER_CONTAINER`, `SYSTEMPROMPT_QUIET`, `SYSTEMPROMPT_VERBOSE`, `SYSTEMPROMPT_DEBUG` and `SYSTEMPROMPT_LOG_LEVEL`; the profile's `runtime.environment` and `runtime.log_level` plus the CLI's `-v`/`-q`/`--debug` flags already carry both, and none of those variables is read any more.
 - **Breaking:** `config::stable_instance_id` takes the environment lookup closure (`|name| std::env::var(name).ok()` at the composition root) instead of reading `HOSTNAME` itself; `config::default_instance_id` is removed (unused).

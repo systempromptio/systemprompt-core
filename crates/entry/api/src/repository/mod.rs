@@ -6,7 +6,6 @@
 
 pub mod evaluation;
 pub mod gateway;
-pub(crate) mod gateway_accounting;
 
 pub use gateway::GatewayRepositories;
 

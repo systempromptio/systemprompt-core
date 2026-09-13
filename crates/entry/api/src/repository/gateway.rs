@@ -13,11 +13,12 @@ use systemprompt_ai::repository::{
 use systemprompt_database::DbPool;
 use systemprompt_traits::DynContextMaterializer;
 
+use crate::services::gateway::audit::journal::{GatewayJournal, Settlement};
 use crate::services::gateway::signature_cache::{TTL, ThoughtSignatureCache};
 
 #[derive(Clone)]
 pub struct GatewayRepositories {
-    pub audit_pool: sqlx::PgPool,
+    pub journal: Arc<GatewayJournal>,
     pub execution_capabilities:
         systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository,
     pub evaluations: systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository,
@@ -40,13 +41,14 @@ impl std::fmt::Debug for GatewayRepositories {
 impl GatewayRepositories {
     pub fn new(
         db: &DbPool,
+        journal: GatewayJournal,
         context_materializer: DynContextMaterializer,
     ) -> Result<Self, systemprompt_ai::error::RepositoryError> {
         let pool = db.write_pool_arc().map_err(|error| {
             systemprompt_ai::error::RepositoryError::PoolInitialization(error.to_string())
         })?;
         Ok(Self {
-            audit_pool: (*pool).clone(),
+            journal: Arc::new(journal),
             execution_capabilities:
                 systemprompt_evaluation::repository::experiments::ExecutionCapabilityRepository::new(
                     (*pool).clone(),
@@ -66,5 +68,13 @@ impl GatewayRepositories {
             )),
             context_materializer,
         })
+    }
+
+    pub fn settlement(&self) -> Settlement {
+        Settlement {
+            journal: Arc::clone(&self.journal),
+            requests: Arc::clone(&self.requests),
+            evaluations: self.evaluations.clone(),
+        }
     }
 }

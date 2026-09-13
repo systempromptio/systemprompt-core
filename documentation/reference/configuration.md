@@ -391,6 +391,7 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `github` | `github` | string | no | GitHub token. |
 | `moonshot` | `moonshot` | string | no | Moonshot/Kimi key. |
 | `qwen` | `qwen` | string | no | Qwen/DashScope key. |
+| `encryption_master_key` | `encryption_master_key` | string | yes when the gateway is enabled | 32 random bytes as 64 hex characters. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants). Validated when the gateway router is built; the server refuses to start without it. Preserve it across restarts and replicas. |
 | (custom) | any other key | string | no | Extra keys flatten into a `custom` map and are addressable by name. |
 
 `null` values are stripped before deserialization (`secrets.rs:62`).
@@ -414,6 +415,7 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 | `github` | `GITHUB_TOKEN` |
 | `moonshot` | `MOONSHOT_API_KEY` or `KIMI_API_KEY` |
 | `qwen` | `QWEN_API_KEY` or `DASHSCOPE_API_KEY` |
+| `encryption_master_key` | `ENCRYPTION_MASTER_KEY`, listed in `SYSTEMPROMPT_CUSTOM_SECRETS` (required when the gateway is enabled) |
 | (custom) | names listed in `SYSTEMPROMPT_CUSTOM_SECRETS` (comma-separated) |
 
 ## Bootstrap order
