@@ -74,11 +74,7 @@ impl EvaluatorSupervisor {
             .ownership(run.worker.owner_id.as_str(), run.record.id.as_str())
             .build()?;
         let evidence = outcome.artifacts.keys().collect::<Vec<_>>();
-        let prompt = suggestion_prompt(
-            &run.case,
-            &deterministic.hard_failures,
-            &evidence,
-        )?;
+        let prompt = suggestion_prompt(&run.case, &deterministic.hard_failures, &evidence)?;
         let mut execution = launch.start_for(&run.client, ClientPurpose::Suggestion, &prompt)?;
         run.network.verify(&[name, run.relay_name.clone()])?;
         let status = loop {
