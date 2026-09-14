@@ -20,9 +20,9 @@ impl ManagedRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         owner: &UserId,
     ) -> Result<Vec<InventoryResource>> {
-        let resources=sqlx::query!(r#"SELECT r.id,r.source_id,r.kind,r.resource_key,s.kind AS source_kind,p.state AS publication_state,p.revision_id AS published_revision,
+        let resources=sqlx::query!(r#"SELECT r.id,r.source_id,r.kind,r.resource_key,s.kind AS source_kind,p.state AS "publication_state?",p.revision_id AS published_revision,
             (SELECT v.id FROM managed_revisions v WHERE v.owner_id=r.owner_id AND v.resource_id=r.id ORDER BY v.created_at DESC,v.id DESC LIMIT 1) AS "latest_revision?",
-            b.entry_id AS bound_entry,e.configured_key AS bound_path,
+            b.entry_id AS "bound_entry?",e.configured_key AS bound_path,
             EXISTS(SELECT 1 FROM managed_reconciliations x WHERE x.owner_id=r.owner_id AND x.resource_id=r.id AND x.status='open') AS "open_reconciliation!",
             EXISTS(SELECT 1 FROM managed_withdrawal_proposals w WHERE w.owner_id=r.owner_id AND w.resource_id=r.id AND w.status='pending') AS "upstream_removed!"
             FROM managed_resources r JOIN managed_sources s ON s.owner_id=r.owner_id AND s.id=r.source_id

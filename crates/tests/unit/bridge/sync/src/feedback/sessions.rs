@@ -117,3 +117,60 @@ fn session_without_known_installation_does_not_acquire_future_publication() {
     outbox.enqueue(receipt).unwrap();
     assert!(outbox.entries().unwrap()[0].1.session_bindings.is_empty());
 }
+
+#[test]
+fn native_hook_files_contain_host_but_never_device_credentials() {
+    let dir = tempfile::tempdir().unwrap();
+    let skill = dir.path().join("skills/skill");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::create_dir_all(dir.path().join("hooks")).unwrap();
+    let path = dir.path().join("hooks/hooks.json");
+    std::fs::write(&path,r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"http","headers":{"Authorization":"Bearer loopback","x-systemprompt-device-credential":"must-remove"}}]}]}}"#).unwrap();
+    systemprompt_bridge::feedback::hooks::stamp_native_hooks(&skill, EvaluatorClient::ClaudeCode)
+        .unwrap();
+    let content = std::fs::read_to_string(&path).unwrap();
+    assert!(content.contains("claude-code"));
+    assert!(!content.contains("device-credential"));
+    assert!(!content.contains("must-remove"));
+}
+
+#[test]
+fn forwarded_hook_uses_protected_device_credential_and_strips_caller_credential() {
+    let dir = tempfile::tempdir().unwrap();
+    temp_env::with_var("XDG_STATE_HOME", Some(dir.path()), || {
+        let enrollment = Enrollment::new(
+            "https://example.invalid".to_owned(),
+            DeviceId::new("device"),
+            UserId::new("consumer"),
+            systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
+        )
+        .unwrap();
+        enrollment
+            .save(&systemprompt_bridge::feedback::metadata_root().unwrap())
+            .unwrap();
+        let mut headers = http::HeaderMap::new();
+        headers.insert(
+            "x-systemprompt-device-credential",
+            http::HeaderValue::from_static("forged"),
+        );
+        systemprompt_bridge::feedback::hooks::authenticate_forwarded_hook(
+            "https://example.invalid",
+            Some("claude-code"),
+            &mut headers,
+        )
+        .unwrap();
+        assert_eq!(
+            headers["x-systemprompt-device-credential"],
+            "sp_device_private"
+        );
+        assert!(headers["x-systemprompt-device-credential"].is_sensitive());
+        assert_eq!(headers["x-systemprompt-host"], "claude-code");
+        systemprompt_bridge::feedback::hooks::authenticate_forwarded_hook(
+            "https://example.invalid",
+            None,
+            &mut headers,
+        )
+        .unwrap();
+        assert!(!headers.contains_key("x-systemprompt-device-credential"));
+    });
+}

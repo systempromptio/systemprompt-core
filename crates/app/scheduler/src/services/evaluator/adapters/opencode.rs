@@ -83,6 +83,7 @@ impl NativeAdapter for OpenCodeAdapter {
                 serde_json::to_string(&config)?
             ),
             EXECUTABLE.to_owned(),
+            "--pure".to_owned(),
             "run".to_owned(),
             "--format".to_owned(),
             "json".to_owned(),

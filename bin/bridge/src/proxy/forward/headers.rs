@@ -22,6 +22,8 @@ const HOP_BY_HOP: &[&str] = &[
     "content-length",
     "authorization",
     "x-api-key",
+    "x-systemprompt-device-credential",
+    "x-systemprompt-host",
 ];
 
 pub(super) fn build_upstream_headers(

@@ -5,6 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod claude_code;
+pub mod codex;
+pub mod hermes;
 pub mod opencode;
 
 use super::client::ClientPurpose;
@@ -92,7 +94,12 @@ pub trait NativeAdapter: Sync + std::fmt::Debug {
     fn normalize(&self, output: &[u8]) -> systemprompt_evaluation::Result<NormalizedClientOutput>;
 }
 
-static REGISTERED_ADAPTERS: [&dyn NativeAdapter; 2] = [&claude_code::ADAPTER, &opencode::ADAPTER];
+static REGISTERED_ADAPTERS: [&dyn NativeAdapter; 4] = [
+    &claude_code::ADAPTER,
+    &opencode::ADAPTER,
+    &codex::ADAPTER,
+    &hermes::ADAPTER,
+];
 
 pub fn registered_adapters() -> &'static [&'static dyn NativeAdapter] {
     &REGISTERED_ADAPTERS
