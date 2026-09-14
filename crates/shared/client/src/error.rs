@@ -37,9 +37,6 @@ pub enum ClientError {
     #[error("Invalid configuration: {message}")]
     ConfigError { message: String },
 
-    #[error("Failed to create event stream")]
-    EventStreamSetup,
-
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -48,8 +45,8 @@ impl ClientError {
     pub fn from_response(status: u16, body: String) -> Self {
         Self::ApiError {
             status,
-            details: Some(body.clone()),
             message: body,
+            details: None,
         }
     }
 

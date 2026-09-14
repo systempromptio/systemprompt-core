@@ -19,7 +19,8 @@ workspace = true
 [dependencies]
 # HTTP client
 reqwest = { workspace = true }
-reqwest-eventsource = { workspace = true }
+sse-stream = { workspace = true }
+tokio = { workspace = true, features = ["net"] }
 
 # Async runtime
 futures = { workspace = true }
