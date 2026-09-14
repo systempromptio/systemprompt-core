@@ -2,7 +2,8 @@
 //!
 //! Tests cover:
 //! - Error creation and variants
-//! - from_response constructor (the body is the message once; details stay empty)
+//! - from_response constructor (the body is the message once; details stay
+//!   empty)
 //! - is_retryable method
 //! - Display implementations
 
