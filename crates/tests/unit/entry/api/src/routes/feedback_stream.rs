@@ -161,7 +161,15 @@ async fn reconnect_header_overrides_query_and_query_alone_emits_durable_resync()
 #[tokio::test]
 async fn invalid_resume_values_are_rejected_before_consuming_connection_capacity() {
     let router = router().await;
-    for value in ["-1.0.0", "9223372036854775808.0.0", "1.2.3.4", "", "1.2"] {
+    for value in [
+        "-1.0.0",
+        "+1.2.3",
+        "-0.2.3",
+        "9223372036854775808.0.0",
+        "1.2.3.4",
+        "",
+        "1.2",
+    ] {
         assert_eq!(
             call(&router, Some(value)).await.status(),
             StatusCode::BAD_REQUEST

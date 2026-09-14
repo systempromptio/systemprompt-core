@@ -13,7 +13,11 @@ pub(super) struct Generation {
 }
 impl Generation {
     pub(super) fn parse(value: &str) -> Option<Self> {
-        if value.len() > 96 {
+        if value.len() > 96
+            || value
+                .split('.')
+                .any(|part| part.is_empty() || !part.bytes().all(|byte| byte.is_ascii_digit()))
+        {
             return None;
         }
         let parts: Vec<_> = value.split('.').map(str::parse::<i64>).collect();
