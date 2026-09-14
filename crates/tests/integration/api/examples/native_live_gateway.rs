@@ -326,7 +326,21 @@ async fn dispatch(
         .await;
     let model = harness.native_model.as_str();
     let configured = config();
-    let providers = registry(&upstream.uri(), model, outbound, surface, true);
+    let mut providers = registry(
+        &upstream.uri(),
+        model,
+        outbound,
+        surface,
+        message["proof_probe"] != "unknown-pricing",
+    );
+    if message["proof_probe"] == "cost-bound" {
+        for provider in &mut providers.providers {
+            for model in &mut provider.models {
+                model.pricing.input_per_million = 1_000_000_000.0;
+                model.pricing.output_per_million = 1_000_000_000.0;
+            }
+        }
+    }
     let id = AiRequestId::generate();
     let ctx = GatewayRequestContext {
         ai_request_id: id.clone(),
