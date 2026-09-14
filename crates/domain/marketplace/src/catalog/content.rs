@@ -142,7 +142,7 @@ impl CatalogContent {
                 match resolution {
                     ManagedSkillResolution::Published(skill) => {
                         let (entry, files) =
-                            crate::catalog::skills::build_managed_skill_entry(skill)?;
+                            crate::catalog::skills::build_managed_skill_entry(*skill)?;
                         self.managed_files.insert(entry.id.clone(), files);
                         self.skills.push(entry);
                     },
