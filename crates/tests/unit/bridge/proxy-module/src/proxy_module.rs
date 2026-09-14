@@ -197,3 +197,24 @@ fn reloading_the_runtime_config_republishes_the_configured_gateway() {
     });
     assert_eq!(gateway, "http://reloaded.invalid:7700");
 }
+
+#[test]
+fn an_ipv4_bind_collision_never_publishes_an_ipv6_only_listener() {
+    let temp = tempfile::tempdir().expect("config tempdir");
+    temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
+        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let occupied = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("IPv4 fixture");
+        let address = occupied.local_addr().expect("fixture address");
+
+        let error = ctx
+            .block_on(proxy::server::try_bind(address.port()))
+            .expect_err("an IPv6 listener cannot serve the advertised IPv4 endpoint");
+        assert_eq!(error.kind(), std::io::ErrorKind::AddrInUse);
+
+        drop(occupied);
+        let successor = ctx
+            .block_on(proxy::server::try_bind(address.port()))
+            .expect("released IPv4 port can be acquired");
+        assert_eq!(successor.local_addr().expect("successor address"), address);
+    });
+}

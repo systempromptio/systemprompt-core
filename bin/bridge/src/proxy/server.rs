@@ -257,10 +257,6 @@ async fn run_listener(
 }
 
 pub async fn try_bind(port: u16) -> std::io::Result<TcpListener> {
-    let v4: SocketAddr = SocketAddr::from(([127u8, 0, 0, 1], port));
-    if let Ok(l) = TcpListener::bind(v4).await {
-        return Ok(l);
-    }
-    let v6: SocketAddr = SocketAddr::from(([0u16, 0, 0, 0, 0, 0, 0, 1], port));
-    TcpListener::bind(v6).await
+    let address = SocketAddr::from(([127u8, 0, 0, 1], port));
+    TcpListener::bind(address).await
 }
