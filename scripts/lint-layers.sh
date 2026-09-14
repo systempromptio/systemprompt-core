@@ -22,7 +22,12 @@
 #      definition carries `net`, so a bare `workspace = true` inherits it.
 #      `systemprompt-client` is the one sanctioned network crate
 #      (architecture.md "The client crate performs network I/O") and is
-#      exempt from the `reqwest` / `tokio` rows only.
+#      exempt from the `reqwest` / `tokio` rows only. `axum` is exempt for
+#      exactly two crates: `systemprompt-extension` (the extension routing
+#      contract is `ApiExtensionTyped::router() -> axum::Router`) and
+#      `systemprompt-models` behind its optional `web` feature (the
+#      `IntoResponse` impls for the API envelopes). Neither opens a socket;
+#      replacing them is a router-abstraction redesign, not a dependency trim.
 #
 # Layer membership is read from each crate's position on disk (crates/<layer>/),
 # so a crate moved between layers is re-classified automatically. Only normal
@@ -106,6 +111,7 @@ for name in sorted(local):
         visit(name)
 
 NETWORK_CRATE = "systemprompt-client"
+ROUTER_CONTRACT_CRATES = {"systemprompt-extension", "systemprompt-models"}
 capability = []
 for name in sorted(local):
     if layer[name] != "shared":
@@ -115,6 +121,8 @@ for name in sorted(local):
             continue
         dep = d["name"]
         if dep in ("reqwest", "tokio") and name == NETWORK_CRATE:
+            continue
+        if dep == "axum" and name in ROUTER_CONTRACT_CRATES:
             continue
         if dep in ("reqwest", "axum", "libc"):
             optional = " (optional)" if d["optional"] else ""
