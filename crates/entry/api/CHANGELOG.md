@@ -1,5 +1,7 @@
 # Changelog
 
+- Expose the evaluator capability registry at `GET /api/v1/evaluator-capabilities`.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

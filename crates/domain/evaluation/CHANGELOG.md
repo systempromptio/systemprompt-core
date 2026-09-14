@@ -1,5 +1,8 @@
 # Changelog
 
+- Add a versioned, fail-closed evaluator capability registry covering Claude Code,
+  OpenCode, Codex, Hermes and Claude Desktop.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

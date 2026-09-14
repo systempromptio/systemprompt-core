@@ -9,6 +9,7 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
+use systemprompt_evaluation::capabilities::{EvaluatorCapability, evaluator_capabilities};
 use systemprompt_evaluation::experiments::records::{
     BudgetRecord, ExperimentDetail, ExperimentRecord,
 };
@@ -34,6 +35,14 @@ pub(super) fn router() -> Router<AppContext> {
         .route("/revisions/{id}/bundle", get(bundle))
         .route("/revisions/{id}/workspace", post(workspace))
         .route("/source-verifications", post(verify_source))
+        .route(
+            "/evaluator-capabilities",
+            get(evaluator_capability_registry),
+        )
+}
+
+async fn evaluator_capability_registry() -> Json<Vec<EvaluatorCapability>> {
+    Json(evaluator_capabilities())
 }
 
 async fn experiments(

@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod campaigns;
+pub mod capabilities;
 pub mod error;
 pub mod experiments;
 pub mod extension;
