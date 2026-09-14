@@ -46,6 +46,7 @@ pub enum GitSyncResult {
         snapshot_id: SourceSnapshotId,
         revision_id: ResourceRevisionId,
         commit: String,
+        reconciliation_id: Option<systemprompt_identifiers::ManagedReconciliationId>,
     },
     WithdrawalProposed {
         snapshot_id: SourceSnapshotId,
@@ -179,6 +180,14 @@ impl ManagedRepository {
                 commit,
             });
         }
+        let candidate = self
+            .latest_inventory_revision(owner, &request.resource_id)
+            .await?;
+        let dependencies = if let Some(base) = &request.upstream_base_revision_id {
+            self.get_revision(owner, base).await?.dependencies
+        } else {
+            BTreeMap::new()
+        };
         let revision_id = self
             .create_revision(
                 owner,
@@ -187,15 +196,25 @@ impl ManagedRepository {
                     snapshot_id: snapshot_id.clone(),
                     parent_id: request.upstream_base_revision_id.clone(),
                     files,
-                    dependencies: BTreeMap::new(),
+                    dependencies,
                     rationale: format!("Incoming synchronization from Git commit {commit}"),
                 },
+            )
+            .await?;
+        let reconciliation_id = self
+            .reconcile_inventory_incoming(
+                owner,
+                &request.resource_id,
+                request.upstream_base_revision_id.as_ref(),
+                candidate.as_ref(),
+                &revision_id,
             )
             .await?;
         Ok(GitSyncResult::Incoming {
             snapshot_id,
             revision_id,
             commit,
+            reconciliation_id,
         })
     }
 

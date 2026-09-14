@@ -223,3 +223,38 @@ fn executable(path: &Path) -> Result<bool> {
         Some("sh" | "py")
     ))
 }
+
+pub(crate) fn capture_inventory_files(
+    services_root: &Path,
+    relative: &str,
+) -> Result<RevisionFiles> {
+    super::assets::validate_path(relative)?;
+    reject_link(services_root)?;
+    let mut path = services_root.to_path_buf();
+    for component in Path::new(relative).components() {
+        path.push(component);
+        reject_link(&path)?;
+    }
+    let capture = || -> Result<RevisionFiles> {
+        let mut files = RevisionFiles::default();
+        let mut budget = CaptureBudget::default();
+        if path.is_dir() {
+            capture_directory(&path, &path, &mut files, &mut budget)?;
+        } else {
+            capture_file(
+                path.parent()
+                    .ok_or_else(|| invalid("Missing resource parent"))?,
+                &path,
+                &mut files,
+                &mut budget,
+            )?;
+        }
+        files.validate()?;
+        Ok(files)
+    };
+    let first = capture()?;
+    if serde_jcs::to_vec(&first)? != serde_jcs::to_vec(&capture()?)? {
+        return Err(invalid("Configured resource changed during capture"));
+    }
+    Ok(first)
+}

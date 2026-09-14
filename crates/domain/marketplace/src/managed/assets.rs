@@ -96,7 +96,7 @@ impl RevisionFiles {
     }
 }
 
-pub(super) fn validate_path(path: &str) -> Result<()> {
+pub(crate) fn validate_path(path: &str) -> Result<()> {
     if path.is_empty()
         || path.len() > 1024
         || path.starts_with('/')

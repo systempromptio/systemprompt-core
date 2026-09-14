@@ -20,6 +20,7 @@ use super::optimization_error::OptimizationHttpError;
 pub fn router() -> Router<AppContext> {
     Router::new()
         .merge(super::optimization_resources::router())
+        .merge(super::inventory::router())
         .merge(super::consumer::admin_router())
         .route("/campaigns", get(list).post(create))
         .route("/campaigns/{id}", get(show))

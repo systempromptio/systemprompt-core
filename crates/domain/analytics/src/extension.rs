@@ -22,6 +22,10 @@ impl Extension for AnalyticsExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new(
+                "analytics_ingestion_producers",
+                include_str!("../schema/ingestion_producers.sql"),
+            ),
+            SchemaDefinition::new(
                 "analytics_feedback_facts",
                 include_str!("../schema/feedback_facts.sql"),
             ),

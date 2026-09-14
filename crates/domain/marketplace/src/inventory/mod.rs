@@ -1,0 +1,18 @@
+//! Canonical configured and managed inventory with explicit adoption and
+//! observed membership.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+mod baseline;
+mod captures;
+mod catalog;
+mod membership;
+mod projection;
+mod repository;
+mod service;
+mod sources;
+mod types;
+pub use catalog::scan_configured_inventory;
+pub use service::InventoryService;
+pub use types::*;

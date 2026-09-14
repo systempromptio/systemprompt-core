@@ -22,7 +22,7 @@ use super::{DependencyRef, RevisionFiles};
 
 #[derive(Debug, Clone)]
 pub struct ManagedRepository {
-    pub(super) pool: PgPool,
+    pub(crate) pool: PgPool,
 }
 
 impl ManagedRepository {

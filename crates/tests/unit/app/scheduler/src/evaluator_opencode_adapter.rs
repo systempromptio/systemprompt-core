@@ -87,6 +87,7 @@ fn native_invocation_enforces_limits_and_purpose_permissions() {
         let args = args(purpose, "--dangerously-skip-permissions");
         assert_eq!(args[0], "/usr/bin/env");
         assert_eq!(args[2], ADAPTER.executable());
+        assert!(args.iter().any(|arg| arg == "--pure"));
         assert_eq!(value(&args, "--format"), "json");
         assert_eq!(value(&args, "--model"), "systemprompt/claude-opus-5");
         assert_eq!(value(&args, "--agent"), "evaluation");
