@@ -124,3 +124,15 @@ Sessions with score >= 50 are marked as behavioral bots.
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial license. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).
 
 ---
+
+Skill feedback facts use `feedback::FeedbackFactsRepository`, constructed once in `AppContext::feedback_facts_repository()`. The `feedback_facts_processing` scheduler job resumes committed pending changes every five seconds under an explicitly configured real owner. The worker also exposes bounded `drain` and owned cancellable `run` operations.
+
+Invocation, request, assessment and resource-association facts each use a source-qualified deduplication key and monotonic revision. Equal evidence retries acknowledge the original change; conflicting equal revisions are rejected. Corrections replace facts, and tombstones retain revision ordering so older changes cannot resurrect deleted contributions. Authenticated identity remains present when resource attribution is unknown. Failed spend and unknown pricing remain distinct, and reference totals count shared requests once and assessments by explicit conversation key. Resource-related request spend is non-additive across resources.
+
+Each PostgreSQL change lease has an owner, worker, epoch and expiry. Completion verifies the current lease with database time and atomically replaces the normalized projection, emits a before/after delta, and advances an owner checkpoint. Checkpoint generations are allocated while holding the owner row lock through commit. Workers find every committed pending row independently, including transactions that commit after a later-recorded change; sequence allocation is not used as a completeness watermark.
+
+Downstream snapshot workers use `claim_deltas`, `delta_batch`, and `lock_delta_lease`/`complete_delta_batch` inside their aggregation transaction. Consumed timestamps advance only after all registered downstream consumers pass a generation. Pending deltas retain the old contribution needed for corrections and privacy removals. This facts module does not compact raw evidence; retention must coordinate the pending change and delta queues before removing identity.
+
+Backfill pages persist their digest, enqueue their changes and advance their cursor in one transaction. Replaying a committed page is idempotent; invalid pages roll back entirely. Backfill callers enumerate a stable source export and keep submitting live changes separately. A source cursor does not establish that concurrent source transactions have committed.
+
+Functional tests cover reordered corrections, identical/conflicting retries, tombstones, independent leases, stale workers, late transaction commits, checkpoint rollback/restart, shared request costs, conversation assessment denominators and late resource attribution. Throughput and latency percentile performance remain unmeasured.
