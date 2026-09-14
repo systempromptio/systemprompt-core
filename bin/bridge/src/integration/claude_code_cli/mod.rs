@@ -308,3 +308,29 @@ pub(crate) fn clear_install() -> Result<(), ApplyError> {
 }
 
 crate::register_host_sync!(ClaudeCodeCliSync);
+
+pub(crate) fn feedback_skill_roots(
+    manifest: &SignedManifest,
+    skill: &crate::gateway::manifest::SkillEntry,
+) -> Vec<PathBuf> {
+    if !claude_cli_installed() {
+        return Vec::new();
+    }
+    let Some(plugins) = paths::claude_cli_plugins_dir() else {
+        return Vec::new();
+    };
+    host_marketplaces(manifest)
+        .iter()
+        .flat_map(|marketplace| {
+            marketplace
+                .plugin_ids
+                .iter()
+                .filter(|id| skill.plugins.contains(id))
+                .map(|plugin| {
+                    cache_install_dir(&plugins, &marketplace.id, plugin)
+                        .join("skills")
+                        .join(skill.id.as_str().replace('_', "-"))
+                })
+        })
+        .collect()
+}

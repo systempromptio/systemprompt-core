@@ -49,6 +49,9 @@ pub async fn run_loop(
     loop {
         interval.tick().await;
         let cfg = runtime_config.load_full();
+        if let Err(error) = crate::feedback::retry_pending(cfg.gateway_base.as_str()).await {
+            tracing::debug!(%error,"Installation feedback retry remains pending");
+        }
         if token_cache.sign_in_required() {
             if !waiting_for_sign_in {
                 tracing::warn!("bridge heartbeat paused until the user signs in");

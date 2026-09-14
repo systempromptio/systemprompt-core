@@ -110,7 +110,7 @@ pub(super) async fn correct_session(
 }
 
 async fn correct_one(tx: &mut Transaction<'_, Postgres>, evidence_id: &str) -> Result<()> {
-    let matches = sqlx::query!("SELECT DISTINCT r.id FROM managed_consumer_invocation_evidence e JOIN managed_consumer_session_bindings b ON b.consumer_id=e.consumer_id AND b.device_id=e.device_id AND b.host=e.host AND b.native_session_id=e.native_session_id JOIN managed_installation_receipts r ON r.id=b.receipt_id AND r.consumer_id=e.consumer_id AND r.device_id=e.device_id AND r.host=e.host AND r.installation_id=e.installation_id AND r.resource_id=e.resource_id AND r.generation=e.generation JOIN managed_publications p ON p.id=r.publication_id AND p.revision_id=e.revision_id WHERE e.id=$1 AND r.fully_verified=true LIMIT 2", evidence_id)
+    let matches = sqlx::query!("SELECT DISTINCT r.id FROM managed_consumer_invocation_evidence e JOIN managed_consumer_session_bindings b ON b.consumer_id=e.consumer_id AND b.device_id=e.device_id AND b.host=e.host AND b.native_session_id=e.native_session_id JOIN managed_installation_receipts r ON r.id=b.receipt_id AND r.consumer_id=e.consumer_id AND r.device_id=e.device_id AND r.host=e.host AND r.installation_id=e.installation_id AND r.resource_id=e.resource_id AND r.generation=e.generation JOIN managed_publications p ON p.id=r.publication_id AND p.revision_id=e.revision_id WHERE e.id=$1 AND r.fully_verified=true AND jsonb_array_length(COALESCE(r.consumer_evidence->'runtime_files','[]'::jsonb))>0 LIMIT 2", evidence_id)
         .fetch_all(&mut **tx).await?;
     let receipt = if matches.len() == 1 {
         Some(matches[0].id.as_str())

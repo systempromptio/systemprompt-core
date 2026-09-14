@@ -60,6 +60,7 @@ mod error;
 mod extension;
 mod filter;
 pub mod import;
+pub mod inventory;
 mod keep;
 pub mod managed;
 mod manifest;

@@ -40,6 +40,12 @@ pub(crate) async fn apply_manifest(
     manifest: &SignedManifest,
     location: &OrgPluginsLocation,
 ) -> Result<ApplyReport, ApplyError> {
+    let _installation_lock = crate::feedback::installation_lock()
+        .await
+        .map_err(|error| ApplyError::Io {
+            context: "serialize native host installation".to_owned(),
+            source: std::io::Error::other(error),
+        })?;
     let loopback = bridge.proxy.loopback();
     let root = &location.path;
     let (meta_dir, staging_root) = prepare_dirs(root)?;
@@ -96,11 +102,25 @@ pub(crate) async fn apply_manifest(
             .enabled_hosts
             .iter()
             .any(|h| h == host_id);
-        let outcome = if enabled {
+        let mut outcome = if enabled {
             emitter.apply(&ctx).await
         } else {
             emitter.clear(&ctx)
         };
+        if enabled && outcome.is_ok() {
+            if let Err(error) = crate::feedback::capture_host(host_id, &ctx).await {
+                warnings.push(
+                    host_id,
+                    format!("Installation evidence unacknowledged: {error}"),
+                );
+                if matches!(error, crate::feedback::FeedbackError::Readback) {
+                    outcome = Err(ApplyError::Io {
+                        context: "verify installed skill evidence".to_owned(),
+                        source: std::io::Error::other(error),
+                    });
+                }
+            }
+        }
         if let Err(e) = &outcome {
             report.host_failures.push(HostFailure {
                 host_id: host_id.to_owned(),

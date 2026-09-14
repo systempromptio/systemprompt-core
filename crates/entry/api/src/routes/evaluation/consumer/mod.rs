@@ -22,6 +22,10 @@ use error::ConsumerHttpError;
 
 pub(crate) fn router() -> Router<AppContext> {
     Router::new()
+        .route(
+            "/consumer/resources/{resource}/publications/{publication}/bundle",
+            get(bundle),
+        )
         .route("/consumer-devices/enrollment", post(enroll))
         .route("/consumer/receipts", post(receipt))
         .route("/consumer/receipts/{id}", get(receipt_status))
@@ -116,4 +120,27 @@ async fn enroll(
         device_id: identity.device_id,
         consumer_id: identity.consumer_id,
     }))
+}
+
+#[derive(serde::Deserialize)]
+struct BundleQuery {
+    host: systemprompt_models::feedback::EvaluatorClient,
+}
+
+async fn bundle(
+    State(ctx): State<AppContext>,
+    headers: HeaderMap,
+    Path((resource, publication)): Path<(
+        systemprompt_identifiers::ManagedResourceId,
+        systemprompt_identifiers::PublicationId,
+    )>,
+    axum::extract::Query(query): axum::extract::Query<BundleQuery>,
+) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
+    let credential = authorization::credential(&headers)?;
+    authorization::resource(&ctx, credential, &resource, query.host).await?;
+    Ok(Json(
+        ctx.managed_repository()
+            .consumer_installation_plan(credential, &resource, &publication, query.host)
+            .await?,
+    ))
 }

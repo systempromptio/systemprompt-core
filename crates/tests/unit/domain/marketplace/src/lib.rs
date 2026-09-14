@@ -174,3 +174,9 @@ mod git_https;
 
 #[cfg(test)]
 mod git_verification;
+
+#[cfg(test)]
+mod inventory;
+
+#[cfg(test)]
+mod consumer_plan;

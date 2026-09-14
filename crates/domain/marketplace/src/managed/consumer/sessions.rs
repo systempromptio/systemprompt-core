@@ -29,7 +29,7 @@ impl ManagedRepository {
         let mut tx = self.pool.begin().await?;
         let identity = credentials::authenticate(&mut tx, credential).await?;
         let host = host_key(request.host);
-        let receipt = sqlx::query!("SELECT owner_id,resource_id FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3 AND host=$4 AND fully_verified=true", request.receipt_id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host)
+        let receipt = sqlx::query!("SELECT owner_id,resource_id FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3 AND host=$4 AND fully_verified=true AND jsonb_array_length(COALESCE(consumer_evidence->'runtime_files','[]'::jsonb))>0", request.receipt_id.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str(), host)
             .fetch_optional(&mut *tx).await?.ok_or(ManagedError::Unavailable)?;
         credentials::require_grant(
             &mut tx,

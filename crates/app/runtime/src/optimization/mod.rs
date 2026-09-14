@@ -14,6 +14,7 @@ use systemprompt_marketplace::managed::{AssetDigest, ManagedRepository};
 mod candidate;
 mod capture;
 pub mod git_sources;
+pub mod inventory;
 mod iteration;
 
 #[derive(Debug, thiserror::Error)]

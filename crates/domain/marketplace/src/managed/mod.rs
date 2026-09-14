@@ -59,3 +59,6 @@ pub use source_sync::{
 };
 pub use text::normalize_form_text;
 pub use tree::{CapturedSkills, capture_skills};
+
+pub(crate) use assets::validate_path as validate_inventory_path;
+pub(crate) use tree::capture_inventory_files;

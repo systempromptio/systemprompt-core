@@ -213,3 +213,56 @@ Tag `bridge-vX.Y.Z` triggers `.github/workflows/bridge-release.yml`. Workspace C
 ---
 
 Part of [systemprompt.io](https://systemprompt.io), self-hosted AI governance infrastructure.
+
+
+## Installation receipts and native sessions
+
+An administrator provisions a device-scoped credential through
+`POST /api/v1/consumer-devices/{enrolled_certificate_id}/credential`. Transfer that
+secret to the intended device in a protected file, then run
+`systemprompt-bridge device-enroll --token-file <file>`. Enrollment verifies the
+credential against `/api/v1/consumer-devices/enrollment` before atomically storing
+it with the authenticated consumer, enrolled device, and gateway identity.
+The existing per-user bridge token and a supplied certificate fingerprint cannot
+substitute for this credential. Local secret storage uses mode 0600 on Unix and a
+verified private ACL on Windows. Same-device credential rotation preserves the
+installation identity; another device or account uses a separate outbox and cannot
+replay its predecessor's evidence.
+
+Every implemented skill host participates after its native emitter succeeds:
+Claude Code's active plugin cache, Codex's source and active cache, OpenCode and
+Hermes skill directories, and Claude Desktop's enabled org-provisioned plugin
+roots. A device-authorized download supplies a deterministic host installation
+plan derived from the retained publication and full dependency bundle. Readback
+checks native `SKILL.md`, every active supporting/dependency file, and retained
+source material. A `.systemprompt-source` copy alone cannot pass: changing an
+active script or entrypoint independently prevents acknowledgment. Unix file
+permissions are checked against the applied 0644/0755 modes. Windows executable
+mode verification is explicitly unavailable, so those receipts cannot support
+verified session attribution.
+
+Pending plan downloads are retained before network access, including their signed
+publication, host and actual target directories. Sync retries materialization and
+readback under a cross-process installation lock. A newer generation supersedes an
+unresolved old plan; recovery cannot install the old plan over the newer version.
+Receipt and session retries run during sync and the existing owned heartbeat task;
+the heartbeat does not mutate native installations. The bounded outbox retains
+unacknowledged evidence across process restarts, acknowledges identical retries,
+and exposes conflicts and rejected credentials explicitly. Limits are 512 receipts,
+512 pending plans and 16 MiB per identity-scoped outbox. Pending evidence is never
+evicted to create room. `systemprompt-bridge feedback-status` reports acknowledged,
+unacknowledged, fully verified and superseded states separately.
+
+Session observation uses native client metadata on authenticated loopback requests:
+Claude session UUIDs in `metadata.user_id`, Codex thread metadata (or compatible
+native session headers), OpenCode's per-session header, and Hermes's native
+`session_id` when present. It never binds the bridge-generated `x-session-id`.
+Client versions/transports that omit native metadata retain unknown session
+attribution; a user-agent alone cannot establish a session. Session bindings freeze
+the observed generation instead of silently following later upgrades. These wire
+parsers and filesystem contracts do not establish Windows/macOS native acceptance,
+paid inference acceptance, or automated evaluator capability.
+
+The upstream wire references inspected for these parsers are
+[Codex response metadata](https://github.com/openai/codex/blob/main/codex-rs/core/src/responses_metadata.rs)
+and [Hermes auxiliary request routing](https://github.com/NousResearch/hermes-agent/blob/main/agent/auxiliary_client.py).

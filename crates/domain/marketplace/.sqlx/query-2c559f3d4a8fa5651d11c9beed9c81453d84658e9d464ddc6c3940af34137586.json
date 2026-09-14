@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id,verified_at,(fully_verified AND jsonb_array_length(COALESCE(consumer_evidence->'runtime_files','[]'::jsonb))>0) AS fully_verified FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_installation_receipts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "verified_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "managed_installation_receipts",
+            "name": "verified_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "fully_verified",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "2c559f3d4a8fa5651d11c9beed9c81453d84658e9d464ddc6c3940af34137586"
+}
