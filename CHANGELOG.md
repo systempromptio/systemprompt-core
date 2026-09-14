@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.52.0] - 2026-09-13
+## [0.52.0] - 2026-09-14
 
 Governance becomes installation-owned: the secret scan has no built-in
 vendor signatures, the credential catalog is the `patterns` list in
