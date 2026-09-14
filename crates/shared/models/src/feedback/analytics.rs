@@ -96,7 +96,15 @@ pub enum AssessmentOutcome {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct AssessmentConversationKey {
+    pub source: String,
+    pub id: AnalyticsFactId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NormalizedAssessmentFact {
+    pub conversation_key: AssessmentConversationKey,
     pub assessment_key: AnalyticsFactKey,
     pub invocation_key: AnalyticsFactKey,
     pub occurred_at: DateTime<Utc>,
