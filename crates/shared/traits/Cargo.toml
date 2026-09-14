@@ -34,7 +34,6 @@ tracing = { workspace = true }
 serde = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
-uuid = { workspace = true }
 xxhash-rust = { workspace = true }
 
 [dev-dependencies]

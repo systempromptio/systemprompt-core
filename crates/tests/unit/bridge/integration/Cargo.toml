@@ -21,7 +21,6 @@ tempfile = { workspace = true }
 temp-env = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
-sha2 = { workspace = true }
 keyring-core = { workspace = true }
 
 # The kernel keyring backs the headless credential store on Linux CI; other

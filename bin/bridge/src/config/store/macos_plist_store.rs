@@ -132,35 +132,6 @@ pub(super) fn delete_values(hive: PolicyHive, names: &[&str]) -> Result<usize, C
     }
     Ok(removed)
 }
-
-pub(super) fn delete_key(hive: PolicyHive) -> Result<bool, ConfigStoreError> {
-    let path = plist_path(hive)
-        .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;
-    match std::fs::remove_file(&path) {
-        Ok(()) => {
-            if path.try_exists().map_err(|e| map_io(&path, &e))? {
-                return Err(ConfigStoreError::VerifyMismatch {
-                    hive: hive.label().to_owned(),
-                    subkey: path.display().to_string(),
-                    name: "<deleted key>".to_owned(),
-                });
-            }
-            Ok(true)
-        },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            Err(ConfigStoreError::AccessDenied {
-                hive: hive.label().to_owned(),
-                subkey: path.display().to_string(),
-            })
-        },
-        Err(e) => Err(ConfigStoreError::Backend(format!(
-            "remove {}: {e}",
-            path.display()
-        ))),
-    }
-}
-
 fn read_all(hive: PolicyHive) -> Result<PolicyDocument, ConfigStoreError> {
     let path = plist_path(hive)
         .ok_or_else(|| ConfigStoreError::Backend("per-user policy path unresolvable".to_owned()))?;

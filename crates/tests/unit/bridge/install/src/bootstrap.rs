@@ -1,5 +1,7 @@
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::install::{InstallError, InstallOptions, install};
+#[cfg(unix)]
+use systemprompt_bridge::install::InstallError;
+use systemprompt_bridge::install::{InstallOptions, install};
 use tempfile::TempDir;
 
 struct Dirs {

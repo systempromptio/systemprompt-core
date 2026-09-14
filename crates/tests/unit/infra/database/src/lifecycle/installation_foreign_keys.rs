@@ -50,11 +50,9 @@ async fn forget_migrations(db: &systemprompt_database::DbPool, ext_id: &str) {
         .await;
 }
 
-/// The 2026-09-14 incident: `parent` already exists on the database without
-/// the composite unique index, the declarative schema declares it with a
-/// `UNIQUE(user_id, id)` and a `child` whose composite key references it, and
-/// migration 001 is what gives the existing database that index. An inline
-/// key failed in the structural phase; the deferred key waits for 001.
+// Why: the 2026-09-14 incident — `parent` already exists without the composite
+// unique index that migration 001 adds, so an inline key failed in the
+// structural phase and only a key deferred past 001 can succeed.
 #[tokio::test]
 async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_index() {
     let Some((provider, db)) = provider_and_db_or_skip().await else {
@@ -131,8 +129,6 @@ async fn installing_twice_adds_exactly_one_foreign_key() {
     drop_table(&db, parent).await;
 }
 
-/// A key a migration created under its own name counts: the installer matches
-/// on the constrained and referenced columns, never on the name.
 #[tokio::test]
 async fn a_migration_authored_key_under_another_name_is_not_duplicated() {
     let Some((provider, db)) = provider_and_db_or_skip().await else {
@@ -173,9 +169,6 @@ async fn a_migration_authored_key_under_another_name_is_not_duplicated() {
     drop_table(&db, parent).await;
 }
 
-/// Rows that already violate the key must not turn a boot into an outage:
-/// the key is added `NOT VALID` — enforced for new rows — and installation
-/// succeeds.
 #[tokio::test]
 async fn orphan_rows_leave_the_key_not_valid_and_install_succeeds() {
     let Some((provider, db)) = provider_and_db_or_skip().await else {
