@@ -70,7 +70,10 @@ impl EvaluatorSupervisor {
             )
             .await
             .map_err(internal)?;
-        let terminal = if outcome.status.success() && cleanup_confirmed {
+        let terminal = if outcome.status.success()
+            && cleanup_confirmed
+            && outcome.native_completion == super::super::adapters::NativeCompletion::Completed
+        {
             TerminalOutcome::Completed
         } else {
             TerminalOutcome::Error

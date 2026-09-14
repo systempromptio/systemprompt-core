@@ -29,6 +29,8 @@ fn every_unverified_native_client_is_rejected_even_with_well_formed_caller_pins(
 #[test]
 fn normalized_output_preserves_unknown_metering_and_bounds_tool_evidence() {
     let mut evidence = NormalizedClientOutput {
+        completion:
+            systemprompt_scheduler::services::evaluator::adapters::NativeCompletion::Incomplete,
         text: "fixture response".to_owned(),
         reported_input_tokens: None,
         reported_output_tokens: None,

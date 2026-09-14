@@ -79,3 +79,6 @@ mod evaluator_admission;
 
 #[cfg(all(test, unix))]
 mod evaluator_probe_cleanup;
+
+#[cfg(test)]
+mod evaluator_claude_adapter;

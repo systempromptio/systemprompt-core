@@ -36,7 +36,7 @@ fn claude_code_arguments_pin_the_model_and_end_with_the_prompt() {
 
     assert_eq!(
         arguments.first().map(String::as_str),
-        Some("claude"),
+        Some("/usr/local/bin/claude"),
         "the executable is the fixed client name, never suite-supplied"
     );
     assert_eq!(

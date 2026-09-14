@@ -4,6 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod claude_code;
+
 use super::client::ClientPurpose;
 use std::ffi::OsString;
 use systemprompt_evaluation::experiments::ClientKind;
@@ -36,10 +38,19 @@ impl std::fmt::Debug for AdapterContext<'_> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NativeCompletion {
+    Completed,
+    Failed,
+    Incomplete,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedClientOutput {
     pub text: String,
+    pub completion: NativeCompletion,
     pub reported_input_tokens: Option<u64>,
     pub reported_output_tokens: Option<u64>,
     pub tool_calls: Vec<String>,
@@ -81,7 +92,7 @@ pub trait NativeAdapter: Sync + std::fmt::Debug {
 }
 
 pub fn registered_adapters() -> &'static [&'static dyn NativeAdapter] {
-    &[]
+    &[&claude_code::ADAPTER]
 }
 
 pub fn adapter(kind: ClientKind) -> systemprompt_evaluation::Result<&'static dyn NativeAdapter> {
@@ -94,4 +105,33 @@ pub fn adapter(kind: ClientKind) -> systemprompt_evaluation::Result<&'static dyn
                 "Native client adapter is unavailable".to_owned(),
             )
         })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NormalizationEvidence {
+    #[serde(flatten)]
+    pub output: NormalizedClientOutput,
+    pub diagnostic: Option<String>,
+}
+
+pub fn normalize_evidence(adapter: &dyn NativeAdapter, bytes: &[u8]) -> NormalizationEvidence {
+    match adapter.normalize(bytes).and_then(|output| {
+        output.validate()?;
+        Ok(output)
+    }) {
+        Ok(output) => NormalizationEvidence {
+            output,
+            diagnostic: None,
+        },
+        Err(error) => NormalizationEvidence {
+            output: NormalizedClientOutput {
+                text: String::new(),
+                completion: NativeCompletion::Incomplete,
+                reported_input_tokens: None,
+                reported_output_tokens: None,
+                tool_calls: Vec::new(),
+            },
+            diagnostic: Some(error.to_string().chars().take(1024).collect()),
+        },
+    }
 }

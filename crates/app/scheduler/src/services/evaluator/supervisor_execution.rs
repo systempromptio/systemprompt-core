@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::super::adapters::{NativeCompletion, normalize_evidence};
 use super::{
     ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, ContainerLaunch, Duration,
     EvaluationTrafficClass, EvaluatorSupervisor, EvidenceJudgment, ExecutionStage, ExitStatus,
@@ -14,6 +15,7 @@ use systemprompt_evaluation::repository::experiments::CleanupReport;
 
 pub(super) struct ExecutionOutcome {
     pub status: ExitStatus,
+    pub native_completion: NativeCompletion,
     pub started: Instant,
     pub last_heartbeat: Instant,
     pub artifacts: BTreeMap<String, ArtifactFile>,
@@ -68,13 +70,8 @@ impl EvaluatorSupervisor {
             },
         );
         let stdout = capture_outputs(&execution, "client", &mut artifacts)?;
-        let normalized = run
-            .client
-            .adapter()
-            .map_err(internal)?
-            .normalize(&stdout)
-            .map_err(internal)?;
-        normalized.validate().map_err(internal)?;
+        let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &stdout);
+        let native_completion = normalized.output.completion;
         artifacts.insert(
             "client-normalized.json".to_owned(),
             ArtifactFile {
@@ -98,6 +95,7 @@ impl EvaluatorSupervisor {
         );
         Ok(ExecutionOutcome {
             status,
+            native_completion,
             started,
             last_heartbeat,
             artifacts,
@@ -110,7 +108,7 @@ impl EvaluatorSupervisor {
         run: &mut PreparedExecution,
         outcome: &mut ExecutionOutcome,
     ) -> SchedulerResult<Option<EvidenceJudgment>> {
-        if !outcome.status.success() {
+        if !outcome.status.success() || outcome.native_completion != NativeCompletion::Completed {
             return Ok(None);
         }
         let stdout = outcome
@@ -165,14 +163,18 @@ impl EvaluatorSupervisor {
         if !status.success() {
             return Ok(None);
         }
-        let normalized = run
-            .client
-            .adapter()
-            .map_err(internal)?
-            .normalize(&bytes)
-            .map_err(internal)?;
-        normalized.validate().map_err(internal)?;
-        match parse_judgment(normalized.text.as_bytes()) {
+        let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &bytes);
+        outcome.artifacts.insert(
+            "judge-normalized.json".to_owned(),
+            ArtifactFile {
+                bytes: serde_json::to_vec(&normalized).map_err(internal)?,
+                executable: false,
+            },
+        );
+        if normalized.output.completion != NativeCompletion::Completed {
+            return Ok(None);
+        }
+        match parse_judgment(normalized.output.text.as_bytes()) {
             Ok(judgment) => Ok(Some(judgment)),
             Err(error) => {
                 tracing::warn!(
