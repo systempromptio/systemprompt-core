@@ -1,40 +1,12 @@
-//! `Has*` capability traits and the [`CapabilityContext`] composition
-//! helper.
+//! `Has*` capability traits an extension context implements to advertise
+//! which host subsystems it exposes.
 //!
-//! Extension authors mix these traits into their context type to advertise
-//! which subsystems they need access to. The host application can then
-//! satisfy each capability independently — for example, an extension that
-//! requires only configuration access does not need the host to wire up a
-//! database handle.
+//! The host application implements each capability independently on its
+//! context type, so an extension that only needs the route classifier is not
+//! coupled to analytics or user services.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use std::sync::Arc;
-
-use systemprompt_traits::{ConfigProvider, DatabaseHandle};
-
-pub trait HasConfig: Send + Sync {
-    type Config: ConfigProvider;
-
-    fn config(&self) -> &Self::Config;
-}
-
-pub trait HasDatabase: Send + Sync {
-    type Database: DatabaseHandle;
-
-    fn database(&self) -> &Self::Database;
-}
-
-pub trait HasHttpClient: Send + Sync {
-    fn http_client(&self) -> &reqwest::Client;
-}
-
-pub trait HasEventBus: Send + Sync {
-    type Publisher: systemprompt_traits::UserEventPublisher + Send + Sync;
-
-    fn event_bus(&self) -> &Self::Publisher;
-}
 
 pub trait HasAnalytics: Send + Sync {
     type Analytics: Send + Sync;
@@ -58,70 +30,4 @@ pub trait HasRouteClassifier: Send + Sync {
     type RouteClassifier: Send + Sync;
 
     fn route_classifier(&self) -> &Self::RouteClassifier;
-}
-
-pub trait FullContext: HasConfig + HasDatabase + HasEventBus {}
-
-impl<T: HasConfig + HasDatabase + HasEventBus> FullContext for T {}
-
-#[derive(Debug)]
-pub struct CapabilityContext<C, D, E> {
-    config: Arc<C>,
-    database: Arc<D>,
-    event_bus: Arc<E>,
-}
-
-impl<C, D, E> CapabilityContext<C, D, E>
-where
-    C: ConfigProvider,
-    D: DatabaseHandle,
-    E: systemprompt_traits::UserEventPublisher + Send + Sync,
-{
-    #[must_use]
-    pub const fn new(config: Arc<C>, database: Arc<D>, event_bus: Arc<E>) -> Self {
-        Self {
-            config,
-            database,
-            event_bus,
-        }
-    }
-}
-
-impl<C, D, E> HasConfig for CapabilityContext<C, D, E>
-where
-    C: ConfigProvider + Send + Sync,
-    D: Send + Sync,
-    E: Send + Sync,
-{
-    type Config = C;
-
-    fn config(&self) -> &Self::Config {
-        &self.config
-    }
-}
-
-impl<C, D, E> HasDatabase for CapabilityContext<C, D, E>
-where
-    C: Send + Sync,
-    D: DatabaseHandle + Send + Sync,
-    E: Send + Sync,
-{
-    type Database = D;
-
-    fn database(&self) -> &Self::Database {
-        &self.database
-    }
-}
-
-impl<C, D, E> HasEventBus for CapabilityContext<C, D, E>
-where
-    C: Send + Sync,
-    D: Send + Sync,
-    E: systemprompt_traits::UserEventPublisher + Send + Sync,
-{
-    type Publisher = E;
-
-    fn event_bus(&self) -> &Self::Publisher {
-        &self.event_bus
-    }
 }

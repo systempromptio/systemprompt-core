@@ -29,25 +29,14 @@
 //! exactly like an occupied one, refilling a spent slot fails the **build**,
 //! long before a deployment discovers it as a checksum mismatch naming a
 //! migration nobody recognises.
+//!
+//! [`emit_migrations`] panics when invoked outside a build script, when a file
+//! in the migrations directory is not named `NNN_<name>.sql` or
+//! `NNN[-MMM]_<name>.tombstone`, or when two files claim the same version: a
+//! panic is the only way a build script aborts the build.
 
 use std::path::{Path, PathBuf};
 
-/// Generate the migration list from the conventional `schema/migrations`
-/// directory and write it to `OUT_DIR/migrations.rs`.
-///
-/// Call from a `build.rs`:
-///
-/// ```rust,ignore
-/// fn main() {
-///     systemprompt_extension::build::emit_migrations();
-/// }
-/// ```
-///
-/// # Panics
-///
-/// Panics if invoked outside a build script, if a file in the migrations
-/// directory is not named `NNN_<name>.sql` or `NNN[-MMM]_<name>.tombstone`, or
-/// if two files claim the same version.
 pub fn emit_migrations() {
     let manifest = required_env("CARGO_MANIFEST_DIR");
     let dir = Path::new(&manifest).join("schema/migrations");
