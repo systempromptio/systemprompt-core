@@ -15,7 +15,7 @@ async fn routers() -> (Router, Router, String) {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("feedback-boundaries"),
+        AgentName::try_new("feedback-boundaries").expect("valid fixture agent name"),
     )
     .with_actor(Actor::user(UserId::new(format!(
         "http-{}",
@@ -150,7 +150,7 @@ async fn consumer_identity_does_not_confer_administrative_access() {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("consumer-policy"),
+        AgentName::try_new("consumer-policy").expect("valid fixture agent name"),
     )
     .with_user_type(UserType::User)
     .with_actor(Actor::user(UserId::new("consumer-policy")));
