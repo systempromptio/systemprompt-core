@@ -14,6 +14,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use systemprompt_identifiers::AgentId;
+
+use crate::managed::RevisionFiles;
 use systemprompt_models::bridge::ids::SkillId;
 use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::{ComponentSource, PluginConfig};
@@ -60,7 +62,10 @@ pub(super) fn append_skill_files(
                 executable: false,
             },
         );
-        append_aux_files(&kebab, skill, bundle);
+        match content.managed_files.get(&skill.id) {
+            Some(files) => append_managed_files(&kebab, files, bundle),
+            None => append_disk_aux_files(&kebab, skill, bundle),
+        }
     }
 }
 
@@ -118,11 +123,7 @@ fn skill_md(kebab: &str, skill: &SkillEntry) -> String {
     )
 }
 
-fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) {
-    if let Some(encoded) = skill.file_path.strip_prefix("managed:") {
-        append_managed_files(kebab, encoded, bundle);
-        return;
-    }
+fn append_disk_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) {
     let Some(skill_dir) = Path::new(&skill.file_path).parent() else {
         return;
     };
@@ -134,22 +135,8 @@ fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) 
     }
 }
 
-fn append_managed_files(kebab: &str, encoded: &str, bundle: &mut PluginBundle) {
-    let serialized = match hex::decode(encoded) {
-        Ok(serialized) => serialized,
-        Err(error) => {
-            tracing::error!(skill = %kebab, %error, "managed skill files are not hex; aux files dropped from the bundle");
-            return;
-        },
-    };
-    let files = match serde_json::from_slice::<crate::managed::RevisionFiles>(&serialized) {
-        Ok(files) => files,
-        Err(error) => {
-            tracing::error!(skill = %kebab, %error, "managed skill files do not decode; aux files dropped from the bundle");
-            return;
-        },
-    };
-    for (path, file) in files.0 {
+fn append_managed_files(kebab: &str, files: &RevisionFiles, bundle: &mut PluginBundle) {
+    for (path, file) in &files.0 {
         let top_level_markdown = !path.contains('/')
             && Path::new(&path)
                 .extension()
@@ -160,7 +147,7 @@ fn append_managed_files(kebab: &str, encoded: &str, bundle: &mut PluginBundle) {
         bundle.insert(
             format!("skills/{kebab}/{path}"),
             BundleFile {
-                bytes: file.bytes,
+                bytes: file.bytes.clone(),
                 executable: file.executable,
             },
         );

@@ -13,10 +13,12 @@
 
 mod message_operations;
 mod mutations;
+mod orphans;
 mod queries;
 mod repository;
 mod settlement;
 
 pub use message_operations::InsertToolCallParams;
+pub use orphans::{ORPHANED_REASON, OrphanedRequest};
 pub use repository::AiRequestRepository;
 pub use settlement::{SettleCompletion, SettledToolCall, SettlementOutcome, SettlementUsage};

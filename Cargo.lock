@@ -5382,7 +5382,6 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-marketplace",
- "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",

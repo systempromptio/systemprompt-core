@@ -28,6 +28,7 @@ use systemprompt_models::Secrets;
 use tokio::task::JoinHandle;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
+pub const ORPHAN_AGE: Duration = Duration::from_hours(1);
 
 #[derive(Clone)]
 pub struct GatewayJournal {
@@ -154,6 +155,17 @@ pub async fn recover(settlement: &Settlement) -> Result<usize> {
         let journal = Arc::clone(&settlement.journal);
         tokio::task::spawn_blocking(move || files::remove(&journal, &id)).await??;
         settled += 1;
+    }
+    for orphan in settlement
+        .requests
+        .fail_orphaned_pending(ORPHAN_AGE)
+        .await?
+    {
+        tracing::warn!(
+            ai_request_id = %orphan.id,
+            user_id = %orphan.owner,
+            "Gateway request outlived every receipt; failed with unknown usage"
+        );
     }
     Ok(settled)
 }

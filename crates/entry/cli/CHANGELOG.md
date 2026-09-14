@@ -2,9 +2,15 @@
 
 ## [0.52.0] - 2026-09-13
 
+### Changed
+
+- `core skills list|show` overlay published managed skills on the disk catalogue and hide a managed key that is withheld; a managed skill reports `managed://<id>@<bundle digest>` as its path. Without an application context the commands list disk skills and warn.
+- The implicit-cloud refusal names `SYSTEMPROMPT_PROFILE` as an explicit selection alongside `--profile`.
+
 ### Removed
 
 - `cloud profile show` (`--json`/`--yaml`, `env` filter) no longer reports `systemprompt.env` and `systemprompt.verbosity`; both were derived from environment variables that are no longer read. The profile's `runtime.environment` and `runtime.log_level` are the source of truth.
+- `admin evals run`, `replay`, `list` and `show`. Paid evaluation runs only through supervised experiments; `admin evals promote` remains.
 
 ### Fixed
 

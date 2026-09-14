@@ -38,7 +38,6 @@ impl ManagedRepository {
                             bundle_digest: row.bundle_digest,
                         },
                     )?,
-                    approved: true,
                     distributed: row.distributed,
                     installation_verified: row.installation_verified,
                     reviewer_id: UserId::new(row.reviewer_id),

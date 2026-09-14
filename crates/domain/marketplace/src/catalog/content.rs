@@ -9,12 +9,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock};
 
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::ids::SkillId;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
@@ -27,7 +28,7 @@ use crate::catalog::{
     validate_artifact_tools,
 };
 use crate::error::MarketplaceError;
-use crate::managed::ManagedSkillResolution;
+use crate::managed::{ManagedSkillResolution, RevisionFiles};
 
 /// The owned entry lists a [`CatalogContent`] yields, in the order
 /// [`CatalogContent::into_parts`] returns them: skills, rules, agents, managed
@@ -49,6 +50,7 @@ pub struct CatalogContent {
     disabled_mcp_servers: BTreeSet<String>,
     artifacts: Vec<ArtifactEntry>,
     plugins_root: PathBuf,
+    managed_files: BTreeMap<SkillId, RevisionFiles>,
 }
 
 impl CatalogContent {
@@ -83,6 +85,7 @@ impl CatalogContent {
                 artifacts
             },
             plugins_root: services_root.join("plugins"),
+            managed_files: BTreeMap::new(),
         })
     }
 
@@ -138,8 +141,10 @@ impl CatalogContent {
                     .retain(|entry| entry.id.as_str() != resource.resource_key);
                 match resolution {
                     ManagedSkillResolution::Published(skill) => {
-                        self.skills
-                            .push(crate::catalog::skills::build_managed_skill_entry(skill)?);
+                        let (entry, files) =
+                            crate::catalog::skills::build_managed_skill_entry(skill)?;
+                        self.managed_files.insert(entry.id.clone(), files);
+                        self.skills.push(entry);
                     },
                     ManagedSkillResolution::Withheld(reason) => {
                         tracing::info!(
@@ -178,6 +183,7 @@ impl CatalogContent {
             disabled_mcp_servers: &self.disabled_mcp_servers,
             artifacts: &self.artifacts,
             plugins_root: &self.plugins_root,
+            managed_files: &self.managed_files,
         }
     }
 

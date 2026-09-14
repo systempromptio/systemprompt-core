@@ -53,16 +53,16 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
                 .await?
             {
                 ManagedSkillResolution::Published(managed) => skills.push(SkillSummary {
+                    file_path: Some(format!(
+                        "managed://{}@{}",
+                        managed.id.as_str(),
+                        managed.bundle_digest.as_str()
+                    )),
                     skill_id: managed.id,
                     name: managed.name.clone(),
                     display_name: managed.name,
                     enabled: true,
                     tags: Vec::new(),
-                    file_path: Some(format!(
-                        "managed:generation:{}:{}",
-                        managed.generation,
-                        managed.bundle_digest.as_str()
-                    )),
                 }),
                 ManagedSkillResolution::Withheld(_) => {},
                 ManagedSkillResolution::NotManaged => {
@@ -157,6 +157,11 @@ pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Resu
             ManagedSkillResolution::NotManaged => {},
             ManagedSkillResolution::Published(skill) => {
                 let output = SkillDetailOutput {
+                    file_path: Some(format!(
+                        "managed://{}@{}",
+                        skill.id.as_str(),
+                        skill.bundle_digest.as_str()
+                    )),
                     skill_id: skill.id,
                     name: skill.name.clone(),
                     display_name: skill.name,
@@ -164,7 +169,6 @@ pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Resu
                     enabled: true,
                     tags: Vec::new(),
                     category: Some(format!("managed generation {}", skill.generation)),
-                    file_path: Some(format!("managed:{}", skill.bundle_digest.as_str())),
                     instructions_preview: truncate_with_ellipsis(&skill.instructions, 200),
                 };
                 return Ok(CommandOutput::card_value(

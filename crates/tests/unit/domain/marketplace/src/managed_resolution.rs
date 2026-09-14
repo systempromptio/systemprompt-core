@@ -229,7 +229,24 @@ async fn a_published_managed_skill_replaces_its_disk_copy() {
     let skills = &overlaid.as_content().skills;
     assert_eq!(skills.len(), 1);
     assert!(skills[0].instructions.contains("managed instructions"));
-    assert!(skills[0].file_path.starts_with("managed:"));
+    let ManagedSkillResolution::Published(published) = f
+        .resolver
+        .resolve_skill(&f.owner, &f.key)
+        .await
+        .expect("resolve")
+    else {
+        panic!("published skill must resolve");
+    };
+    assert_eq!(
+        skills[0].file_path,
+        format!("managed://{}@{}", f.key, published.bundle_digest.as_str())
+    );
+    let bundle_content = overlaid.as_content();
+    let files = bundle_content
+        .managed_files
+        .get(&skills[0].id)
+        .expect("the published revision files ride with the catalogue");
+    assert!(files.0.contains_key("index.md"));
 
     let runtime: &dyn ManagedSkillResolver = &f.resolver;
     let SkillResolution::Published(skill) = runtime

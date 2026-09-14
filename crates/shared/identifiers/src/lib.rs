@@ -105,9 +105,8 @@ pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
 pub use evaluation::{
-    EvalApprovalId, EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalJudgeCallId,
-    EvalPairId, EvalReservationId, EvalResultId, EvalRevisionId, EvalRubricId, EvalRunId,
-    EvalSuggestionId, EvalWorkerId,
+    EvalApprovalId, EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalReservationId,
+    EvalRevisionId, EvalSuggestionId, EvalWorkerId,
 };
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};

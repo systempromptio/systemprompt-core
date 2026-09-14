@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-13
+
+### Added
+
+- `managed_resources`: the `ManagedSkillResolver` trait (`DynManagedSkillResolver`) with `SkillResolution::{NotManaged, Published(ResolvedManagedSkill), Withheld(WithheldReason)}`, `WithheldReason::{NeverAdopted, Withdrawn}` and `ManagedSkillResolverError::{Integrity, Unavailable}` — the seam through which agents resolve managed skills without a marketplace dependency.
+
 ## [0.44.0] - 2026-09-02
 
 ### Changed

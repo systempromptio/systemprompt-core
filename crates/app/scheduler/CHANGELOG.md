@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.52.0] - 2026-09-13
+
+### Breaking
+
+- The `evaluation_loop` job is replaced by `evaluation_supervisor` (every 5 s): it claims frozen evaluator assignments with fenced leases, provisions an internal Docker network per execution with a verified relay, runs the variant client, captures evidence, finalises the verdict and tears the network down. Its settings come from `profile.evaluator` (`worker_id`, `client_image`, `relay_image`, `control_network`, `docker`, `workspace_root`); the `SYSTEMPROMPT_EVALUATOR_*` process variables are no longer read.
+
+### Changed
+
+- `docker network inspect` output is parsed into a typed shape; a drifted or partial inspect record fails verification instead of reading as an empty network. A leaked execution network is logged on drop.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

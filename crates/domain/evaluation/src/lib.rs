@@ -20,12 +20,8 @@ pub mod services;
 pub use error::{EvaluationError, Result};
 pub use extension::EvaluationExtension;
 pub use models::{
-    CanonicalMessage, CanonicalPrompt, DimensionScore, EvalCase, EvalResult, EvalRun, EvalRunKind,
-    EvalRunStatus, JudgeVerdict, NewCaseParams, NewResultParams, NewRunParams, Rubric,
-    RubricDimension, SampleFilter, SampleMode, SampledRequest, TriggerSource, Verdict,
+    CanonicalMessage, CanonicalPrompt, EvalCase, NewCaseParams, SampleFilter, SampleMode,
+    SampledRequest,
 };
-pub use repository::{
-    EvalCaseRepository, EvalJudgeCallRepository, EvalRepositories, EvalResultRepository,
-    EvalRubricRepository, EvalRunRepository, SamplingRepository,
-};
+pub use repository::{EvalCaseRepository, EvalRepositories, SamplingRepository};
 pub use services::SamplerService;

@@ -9,7 +9,11 @@
 
 ### Added
 
-- Managed-resource identifiers: `ManagedResourceId`, `ManagedRevisionId`, `ManagedAssetId`, `ManagedSourceSnapshotId`, `ManagedPublicationId`, `ManagedSelectionId`, `ManagedDistributionId`.
+- Managed-resource identifiers: `ManagedSourceId`, `SourceSnapshotId`, `ManagedResourceId`, `ResourceRevisionId`, `PublicationReviewId`, `PublicationId`, `ManagedReconciliationId`, `WithdrawalProposalId`, `DistributionId`, `InstallationReceiptId`, `InvocationAttributionId`; evaluation identifiers `EvalSuggestionId` and `EvalApprovalId`.
+
+### Removed
+
+- `EvalRunId`, `EvalResultId`, `EvalPairId`, `EvalJudgeCallId`, `EvalRubricId` and `ContextId::derived_from_evaluation_run` with the judge-run surface.
 
 ## [0.50.0] - 2026-09-10
 

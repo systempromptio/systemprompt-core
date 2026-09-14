@@ -246,14 +246,16 @@ async fn lookup_refreshes_ttl() {
         return;
     };
     let conv = conv();
-    let cache = h.cache_with_ttl(Duration::from_millis(60));
+    // Two waits of 600 ms exceed the 1 s TTL only if the first lookup did not
+    // refresh it; 400 ms of slack absorbs scheduler oversleep under a loaded shard.
+    let cache = h.cache_with_ttl(Duration::from_secs(1));
     cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
-    tokio::time::sleep(Duration::from_millis(40)).await;
+    tokio::time::sleep(Duration::from_millis(600)).await;
     assert_eq!(
         cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
         Some("sig-a")
     );
-    tokio::time::sleep(Duration::from_millis(40)).await;
+    tokio::time::sleep(Duration::from_millis(600)).await;
     assert_eq!(
         cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
         Some("sig-a")

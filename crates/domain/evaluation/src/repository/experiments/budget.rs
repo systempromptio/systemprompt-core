@@ -141,6 +141,37 @@ impl BudgetRepository {
         Ok(ReservationAdmission::Admitted(id))
     }
 
+    pub async fn retain_orphaned(&self, owner: &UserId) -> Result<u64> {
+        let mut tx = self.pool.begin().await?;
+        super::lock_owner(&mut tx, owner).await?;
+        let retained = sqlx::query_scalar!(
+            r#"WITH orphaned AS (
+                SELECT r.id,r.account_id,r.reserved,m.request_id,
+                    CASE WHEN q.status='completed' AND q.completed_at IS NOT NULL THEN q.cost_microdollars ELSE r.reserved END AS actual
+                FROM eval_budget_reservations r
+                JOIN eval_budget_accounts a ON a.id=r.account_id AND a.owner_id=$1
+                JOIN eval_request_reservations m ON m.reservation_id=r.id
+                JOIN eval_executions x ON x.id=m.execution_id
+                LEFT JOIN ai_requests q ON q.id=m.request_id AND q.user_id=$1
+                WHERE r.actual IS NULL AND x.status NOT IN ('queued','running')
+            ), settled AS (
+                UPDATE eval_budget_reservations r SET actual=o.actual,request_id=o.request_id,settled_at=NOW()
+                FROM orphaned o WHERE r.id=o.id
+                RETURNING o.account_id,o.reserved,o.actual
+            ), accounts AS (
+                UPDATE eval_budget_accounts a SET reserved=a.reserved-t.reserved,settled=a.settled+t.actual,frozen=a.frozen OR t.overrun
+                FROM (SELECT account_id,SUM(reserved) AS reserved,SUM(actual) AS actual,BOOL_OR(actual>reserved) AS overrun FROM settled GROUP BY account_id) t
+                WHERE a.id=t.account_id
+            )
+            SELECT COUNT(*) AS "retained!" FROM settled"#,
+            owner.as_str()
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(retained.try_into().unwrap_or(0))
+    }
+
     pub async fn settle(
         &self,
         owner: &UserId,

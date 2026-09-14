@@ -96,7 +96,6 @@ pub enum ManagedResolution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PublicationHistoryEntry {
     pub decision: PublicationDecision,
-    pub approved: bool,
     pub distributed: bool,
     pub installation_verified: bool,
     pub reviewer_id: UserId,

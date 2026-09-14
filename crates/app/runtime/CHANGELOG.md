@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.52.0] - 2026-09-13
+
+### Added
+
+- `AppContext::managed_repository()` and `AppContext::evaluation_repositories()` expose the managed-resource and experiment repository bundles built once in the data plane; the A2A repository bundle is composed with the managed skill resolver so agents resolve managed skills through the shared `ManagedSkillResolver` seam.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

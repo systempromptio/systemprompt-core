@@ -7,6 +7,9 @@ use super::{
     Child, Command, ContainerExecution, ExitStatus, Instant, Path, PathBuf, SchedulerError,
     SchedulerResult, Stdio,
 };
+use serde::Deserialize;
+use std::collections::BTreeMap;
+
 #[derive(Debug)]
 pub struct ExecutionNetwork {
     docker: PathBuf,
@@ -125,26 +128,20 @@ impl ExecutionNetwork {
                 "Execution network inspection failed",
             ));
         }
-        let value: serde_json::Value = serde_json::from_slice(&output.stdout)
+        let inspected: Vec<NetworkInspect> = serde_json::from_slice(&output.stdout)
             .map_err(|error| SchedulerError::Internal(error.to_string()))?;
-        let network = value
-            .as_array()
-            .and_then(|values| values.first())
-            .ok_or_else(|| {
-                SchedulerError::config_error("Execution network inspection returned no network")
-            })?;
-        if network.get("Internal").and_then(serde_json::Value::as_bool) != Some(true) {
+        let network = inspected.into_iter().next().ok_or_else(|| {
+            SchedulerError::config_error("Execution network inspection returned no network")
+        })?;
+        if !network.internal {
             return Err(SchedulerError::config_error(
                 "Execution network is not internal",
             ));
         }
         let mut actual = network
-            .get("Containers")
-            .and_then(serde_json::Value::as_object)
-            .into_iter()
-            .flat_map(|containers| containers.values())
-            .filter_map(|container| container.get("Name").and_then(serde_json::Value::as_str))
-            .map(str::to_owned)
+            .containers
+            .into_values()
+            .map(|container| container.name)
             .collect::<Vec<_>>();
         let mut expected = expected.to_vec();
         actual.sort();
@@ -165,6 +162,21 @@ impl ExecutionNetwork {
         self.removed = true;
         Ok(())
     }
+}
+
+// JSON: shape of `docker network inspect`; a missing key is a shape drift, not
+// an empty network, so nothing here defaults.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct NetworkInspect {
+    internal: bool,
+    containers: BTreeMap<String, NetworkMember>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct NetworkMember {
+    name: String,
 }
 
 impl Drop for ExecutionNetwork {

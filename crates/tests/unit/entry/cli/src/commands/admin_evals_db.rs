@@ -1,7 +1,7 @@
 //! The `admin evals` command tree.
 //!
-//! Read-only inspection and reviewed case capture intentionally construct no
-//! AI provider. Paid evaluation is available only through experiments.
+//! Reviewed case capture intentionally constructs no AI provider. Paid
+//! evaluation is available only through experiments.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -90,31 +90,28 @@ fn message(err: &anyhow::Error) -> String {
     format!("{err:#}")
 }
 
-#[tokio::test]
-async fn the_eval_context_builds_without_an_inference_provider() {
-    run(&["list"])
-        .await
-        .expect("listing runs should build the whole eval context");
-}
-
-#[tokio::test]
-async fn listing_accepts_an_explicit_limit() {
-    run(&["list", "--limit", "5"]).await.expect("list --limit");
-}
-
 // Why: the assertions below name the specific refusal rather than accepting
 // any error. An earlier draft asserted only that *some* error came back, and
 // passed while every command was failing on `AiService::new` — reporting
 // success for refusals it never reached.
-#[tokio::test]
-async fn showing_a_run_that_does_not_exist_names_the_run_it_could_not_find() {
-    let err = run(&["show", "eval-run-that-does-not-exist"])
-        .await
-        .expect_err("an unknown run id must not render as an empty report");
+#[test]
+fn the_judge_run_commands_are_gone() {
+    for removed in ["run", "replay", "list", "show"] {
+        assert!(
+            Harness::try_parse_from(["evals", removed]).is_err(),
+            "`admin evals {removed}` must not parse: paid evaluation runs only through experiments"
+        );
+    }
+}
 
+#[tokio::test]
+async fn the_eval_context_builds_without_an_inference_provider() {
+    let err = run(&["promote", "eval-request-that-does-not-exist"])
+        .await
+        .expect_err("promote reaches its own refusal, so the context was built");
     assert!(
-        message(&err).contains("eval-run-that-does-not-exist"),
-        "the error should name the run rather than fail earlier in the chain: {}",
+        message(&err).contains("eval-request-that-does-not-exist"),
+        "the refusal names the request rather than failing earlier in the chain: {}",
         message(&err)
     );
 }

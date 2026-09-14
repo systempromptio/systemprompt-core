@@ -46,6 +46,14 @@ impl EvaluationLifecycleRepository {
     pub async fn reconcile_restart(&self, owner: &UserId) -> Result<u64> {
         let changed = sqlx::query!("WITH expired AS (UPDATE eval_executions x SET status='error',finished_at=NOW(),lease_expires_at=NULL,result=jsonb_build_object('outcome','error','summary','Supervisor restart invalidated lease; uncertain writes require review') FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND x.status='running' AND x.lease_expires_at<=NOW() RETURNING x.id) INSERT INTO eval_execution_cleanup(execution_id,status,attempts) SELECT id,'retrying',1 FROM expired ON CONFLICT(execution_id) DO UPDATE SET status='retrying',attempts=eval_execution_cleanup.attempts+1,updated_at=NOW()",
             owner.as_str()).execute(&self.pool).await?;
+        let retained = self.budgets.retain_orphaned(owner).await?;
+        if retained > 0 {
+            tracing::warn!(
+                owner = owner.as_str(),
+                retained,
+                "restart retained the reserved bound of unsettled requests on finished executions"
+            );
+        }
         Ok(changed.rows_affected())
     }
 

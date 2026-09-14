@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use systemprompt_identifiers::{MarketplaceId, PluginId};
@@ -138,6 +139,7 @@ fn write_anthropic_tree(root: &Path, plugin: &PluginConfig, marketplace: &Market
         artifacts: &[],
         rules: &rules,
         plugins_root: root,
+        managed_files: &BTreeMap::new(),
     };
     let bundle = build_plugin_bundle(plugin, &content).expect("bundle builds");
 

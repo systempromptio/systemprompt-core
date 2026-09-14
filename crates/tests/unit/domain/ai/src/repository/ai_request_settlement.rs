@@ -4,7 +4,7 @@
 use serde_json::json;
 use systemprompt_ai::error::RepositoryError;
 use systemprompt_ai::repository::ai_requests::{
-    SettleCompletion, SettledToolCall, SettlementOutcome, SettlementUsage,
+    ORPHANED_REASON, SettleCompletion, SettledToolCall, SettlementOutcome, SettlementUsage,
 };
 use systemprompt_ai::repository::{AiRequestRepository, UpsertPayloadParams};
 use systemprompt_database::DbPool;
@@ -253,5 +253,63 @@ async fn a_failure_marks_the_request_failed_with_its_reason() {
     assert_eq!(
         error.as_deref(),
         Some("upstream stream ended without stop event")
+    );
+}
+
+#[tokio::test]
+async fn the_orphan_sweep_fails_only_pending_rows_older_than_the_bound() {
+    let Some(pool) = pool_or_skip().await else {
+        return;
+    };
+    let uid = user();
+    let stale = seed_request(&pool, &uid).await;
+    let fresh = seed_request(&pool, &uid).await;
+    let settled = seed_request(&pool, &uid).await;
+    let repo = AiRequestRepository::new(&pool).expect("repo");
+    let write = pool.write_pool_arc().expect("write pool");
+    sqlx::query!(
+        "UPDATE ai_requests SET created_at = NOW() - INTERVAL '3 hours' WHERE id = ANY($1)",
+        &[stale.as_str().to_owned(), settled.as_str().to_owned()]
+    )
+    .execute(write.as_ref())
+    .await
+    .expect("age rows");
+    repo.settle(
+        &settled,
+        &uid,
+        SettlementOutcome::Failed {
+            error: "upstream refused",
+        },
+    )
+    .await
+    .expect("settle");
+
+    let orphaned = repo
+        .fail_orphaned_pending(std::time::Duration::from_secs(3600))
+        .await
+        .expect("sweep");
+    let mine: Vec<_> = orphaned
+        .iter()
+        .filter(|orphan| orphan.owner == uid)
+        .collect();
+    assert_eq!(mine.len(), 1, "only the stale pending row is swept");
+    assert_eq!(mine[0].id, stale);
+
+    let (status, _, _, error) = row(&pool, &stale).await;
+    assert_eq!(status, "failed");
+    assert_eq!(error.as_deref(), Some(ORPHANED_REASON));
+    assert_eq!(row(&pool, &fresh).await.0, "pending");
+    assert_eq!(
+        row(&pool, &settled).await.3.as_deref(),
+        Some("upstream refused"),
+        "an already settled row keeps its own verdict"
+    );
+    assert!(
+        repo.fail_orphaned_pending(std::time::Duration::from_secs(3600))
+            .await
+            .expect("second sweep")
+            .iter()
+            .all(|orphan| orphan.owner != uid),
+        "the sweep is idempotent"
     );
 }

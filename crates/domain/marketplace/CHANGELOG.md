@@ -7,6 +7,13 @@
 - Managed authoring stores owner-scoped sources, exact snapshots, immutable binary assets and resource revisions. Bounded authoring capture rejects symlinks and changing trees; imports are idempotent and never activate a revision. Text candidates inherit supporting assets and dependencies, and same-resource comparisons report exact file and metadata changes. Runtime publication remains a separate integration boundary.
 - Managed publication records immutable reviews and generation history, advances the owner-scoped selection atomically with a distribution outbox event, and exposes explicit never-adopted, published and withdrawn resolution. Publication downloads remain pinned to the bundle digest and generation advertised to a client.
 - `ManagedResourcesExtension` registers the `managed.sql` schema and its migrations through `build.rs` / `extension_migrations!()`.
+- `ManagedResourceResolver` implements `ManagedSkillResolver`; `CatalogContent::with_managed_skills(repository, owner)` overlays published managed skills on the disk catalogue and withholds the disk copy of a managed key that is not published (never adopted or withdrawn) instead of failing the catalogue. Managed revision files travel on `BundleContent::managed_files`, so a managed skill's aux files come from its revision; `SkillEntry.file_path` for a managed skill is the locator `managed://<id>@<bundle digest>`.
+- Source sync (`SourceSyncService`) polls git and managed sources through `validate_outbound_url`, records three-way reconciliation with explicit conflicts, and proposes withdrawals; installation receipts and invocation attributions are recorded per distribution. Migration `002_managed_resolution.sql` scopes resource keys per owner and retains every snapshot observation.
+- `MarketplaceError::Managed(ManagedError)` maps to 404 (`Unavailable`), 400 (`Invalid`), 409 (`Conflict`) and 500 elsewhere.
+
+### Removed
+
+- `PublicationHistoryEntry.approved` — it was always `true`; a publication row is by definition a reviewed one.
 
 ## [0.51.0] - 2026-09-11
 

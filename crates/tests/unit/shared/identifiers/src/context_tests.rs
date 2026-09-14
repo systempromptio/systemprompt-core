@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use systemprompt_identifiers::{
-    ClientSessionId, ContextId, DbValue, EvalRunId, GatewayConversationId, SessionId, TaskId,
-    ToDbValue,
+    ClientSessionId, ContextId, DbValue, GatewayConversationId, SessionId, TaskId, ToDbValue,
 };
 
 #[test]
@@ -181,16 +180,6 @@ fn derived_from_session_is_pinned_to_its_namespace_forever() {
 }
 
 #[test]
-fn derived_from_evaluation_run_is_pinned_and_deterministic() {
-    let ctx = ContextId::derived_from_evaluation_run(&EvalRunId::new("run-1"));
-    assert_eq!(ctx.as_str(), "6bcd29eb-7ce3-5eeb-a8a4-3f986aab216e");
-    assert_ne!(
-        ctx,
-        ContextId::derived_from_evaluation_run(&EvalRunId::new("run-2"))
-    );
-}
-
-#[test]
 fn derived_from_cli_probe_is_pinned_and_deterministic() {
     let ctx = ContextId::derived_from_cli_probe("server-a");
     assert_eq!(ctx.as_str(), "f85364b9-1f5b-527b-935f-22e274e31de7");
@@ -224,7 +213,6 @@ fn every_derivation_namespace_is_disjoint_for_the_same_key() {
     let key = "same-key";
     let ids = [
         ContextId::derived_from_session(&SessionId::new(key)),
-        ContextId::derived_from_evaluation_run(&EvalRunId::new(key)),
         ContextId::derived_from_cli_probe(key),
         ContextId::derived_from_mcp_validation(key),
         ContextId::derived_from_task(&TaskId::new(key)),

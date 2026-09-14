@@ -50,7 +50,6 @@ systemprompt-analytics = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-evaluation = { workspace = true }
 systemprompt-loader = { workspace = true }
-systemprompt-mcp = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
