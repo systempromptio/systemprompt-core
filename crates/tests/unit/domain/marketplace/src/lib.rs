@@ -165,3 +165,12 @@ async fn errors_propagate() {
 mod consumer_evidence;
 #[cfg(test)]
 mod consumer_fixture;
+
+#[cfg(test)]
+mod git_execution;
+
+#[cfg(test)]
+mod git_https;
+
+#[cfg(test)]
+mod git_verification;
