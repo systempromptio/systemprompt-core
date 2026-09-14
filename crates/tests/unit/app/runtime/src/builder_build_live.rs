@@ -153,3 +153,55 @@ async fn build_fails_when_system_admin_lacks_admin_role() {
 
     remove_admin(&pool, &admin).await;
 }
+
+#[tokio::test]
+async fn build_rehomes_the_legacy_context_onto_the_current_system_admin() {
+    let previous = unique_admin("prev");
+    let admin = unique_admin("cur");
+    let Some(fixture) = boot(&BootOptions {
+        admin_username: admin.clone(),
+        ..BootOptions::default() // skip-ok: no bootable profile on this machine
+    }) else {
+        return;
+    };
+    let pool = seed_admin(
+        &fixture.database_url,
+        &previous,
+        "active",
+        &["admin", "user"],
+    )
+    .await;
+    seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
+    let legacy = systemprompt_identifiers::ContextId::legacy();
+    sqlx::query(
+        "INSERT INTO user_contexts (context_id, user_id, name, kind) VALUES ($1, $2, 'Legacy (pre-context)', 'legacy')
+         ON CONFLICT (context_id) DO UPDATE SET user_id = EXCLUDED.user_id",
+    )
+    .bind(legacy.as_str())
+    .bind(format!("usr_{previous}"))
+    .execute(&pool)
+    .await
+    .expect("legacy context owned by the previous admin");
+
+    let ctx = AppContext::builder()
+        .with_extensions(systemprompt_extension::ExtensionRegistry::new())
+        .build()
+        .await
+        .expect("a legacy context owned by an earlier admin must not block boot");
+    assert_eq!(ctx.system_admin().username(), admin);
+
+    let owner: String =
+        sqlx::query_scalar("SELECT user_id FROM user_contexts WHERE context_id = $1")
+            .bind(legacy.as_str())
+            .fetch_one(&pool)
+            .await
+            .expect("legacy context row");
+    assert_eq!(
+        owner,
+        format!("usr_{admin}"),
+        "the legacy context follows the system admin"
+    );
+
+    remove_admin(&pool, &admin).await;
+    remove_admin(&pool, &previous).await;
+}

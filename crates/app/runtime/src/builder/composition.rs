@@ -58,14 +58,10 @@ pub(super) async fn ensure_legacy_context(
     repositories
         .a2a
         .contexts
-        .ensure_context(
-            &systemprompt_traits::EnsureContextParams {
-                context_id: &systemprompt_identifiers::ContextId::legacy(),
-                user_id: system_admin.id(),
-                session_id: None,
-                name: "Legacy (pre-context)",
-                kind: systemprompt_models::ContextKind::Legacy.as_str(),
-            },
+        .ensure_system_context(
+            &systemprompt_identifiers::ContextId::legacy(),
+            system_admin.id(),
+            "Legacy (pre-context)",
             systemprompt_models::ContextKind::Legacy,
         )
         .await

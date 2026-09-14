@@ -84,6 +84,33 @@ impl ContextRepository {
         Ok(())
     }
 
+    pub async fn ensure_system_context(
+        &self,
+        context_id: &ContextId,
+        system_admin: &UserId,
+        name: &str,
+        kind: ContextKind,
+    ) -> Result<(), RepositoryError> {
+        let now = Utc::now();
+        sqlx::query!(
+            "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
+             updated_at)
+             VALUES ($1, $2, NULL, $3, $4, $5, $5)
+             ON CONFLICT (context_id) DO UPDATE
+             SET user_id = EXCLUDED.user_id,
+                 updated_at = EXCLUDED.updated_at",
+            context_id.as_str(),
+            system_admin.as_str(),
+            name,
+            kind.as_str(),
+            now
+        )
+        .execute(&*self.write_pool)
+        .await
+        .map_err(RepositoryError::database)?;
+        Ok(())
+    }
+
     pub async fn get_or_create_cli_context(
         &self,
         user_id: &UserId,
