@@ -46,7 +46,14 @@ pub struct Launch {
 
 impl Launch {
     #[must_use]
-    pub const fn detect() -> Self {
+    #[cfg_attr(
+        not(any(target_os = "windows", target_os = "macos")),
+        expect(
+            clippy::missing_const_for_fn,
+            reason = "the console probe is a runtime call on Windows and macOS"
+        )
+    )]
+    pub fn detect() -> Self {
         Self {
             gui_by_default: args::launched_without_console(),
         }

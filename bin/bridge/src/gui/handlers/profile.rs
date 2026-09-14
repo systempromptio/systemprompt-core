@@ -24,7 +24,7 @@ pub(crate) fn on_profile_fetch_requested(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
-        let result = build_profile(snapshot, http).await.map_err(Arc::new);
+        let result = Box::new(build_profile(snapshot, http).await.map_err(Arc::new));
         proxy.send_event(UiEvent::ProfileFetchFinished { result, reply_to });
     });
 }

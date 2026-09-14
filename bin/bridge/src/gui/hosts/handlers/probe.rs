@@ -70,6 +70,7 @@ pub(crate) fn on_probe_requested(
     });
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ProbeResult<'a> {
     pub host_id: &'a HostId,
     pub seq: ProbeSeq,
@@ -77,13 +78,13 @@ pub(crate) struct ProbeResult<'a> {
     pub snapshot: &'a HostAppSnapshot,
 }
 
-pub(crate) fn on_probe_finished(app: &mut GuiApp, result: ProbeResult<'_>, reply_to: ReplyId) {
+pub(crate) fn on_probe_finished(app: &mut GuiApp, result: &ProbeResult<'_>, reply_to: ReplyId) {
     let ProbeResult {
         host_id,
         seq,
         cause,
         snapshot,
-    } = result;
+    } = *result;
     let summary = describe_snapshot(snapshot, app.ctx.proxy.port());
     let prev = app
         .state
@@ -247,12 +248,12 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
 
 pub(crate) fn on_probe_failed(
     app: &mut GuiApp,
-    host_id: Option<(HostId, ProbeSeq)>,
+    host_id: Option<&(HostId, ProbeSeq)>,
     error: &str,
     reply_to: ReplyId,
 ) {
     app.state
-        .finish_failed_probe(host_id.as_ref().map(|(id, seq)| (id.as_str(), *seq)));
+        .finish_failed_probe(host_id.map(|(id, seq)| (id.as_str(), *seq)));
     app.append_log_error(error);
     if let Some(id) = reply_to {
         emit::send_reply_payload(app, id, &IpcReplyPayload::err(BridgeError::internal(error)));

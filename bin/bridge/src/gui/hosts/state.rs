@@ -14,7 +14,7 @@ use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 pub struct ProbeSeq(u64);
 
 impl ProbeSeq {
-    fn next(self) -> Self {
+    const fn next(self) -> Self {
         Self(self.0.wrapping_add(1))
     }
 }
@@ -28,7 +28,7 @@ pub struct HostState {
 }
 
 impl HostState {
-    pub fn issue_probe(&mut self) -> ProbeSeq {
+    pub const fn issue_probe(&mut self) -> ProbeSeq {
         self.probe_seq = self.probe_seq.next();
         self.probe_in_flight = true;
         self.probe_seq

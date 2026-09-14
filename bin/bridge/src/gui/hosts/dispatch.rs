@@ -13,7 +13,7 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             host_id,
             error,
             reply_to,
-        } => handlers::on_probe_failed(app, host_id, &error, reply_to),
+        } => handlers::on_probe_failed(app, host_id.as_ref(), &error, reply_to),
         HostUiEvent::ProbeRequested {
             host_id,
             cause,
@@ -27,7 +27,7 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             reply_to,
         } => handlers::on_probe_finished(
             app,
-            handlers::ProbeResult {
+            &handlers::ProbeResult {
                 host_id: &host_id,
                 seq,
                 cause,

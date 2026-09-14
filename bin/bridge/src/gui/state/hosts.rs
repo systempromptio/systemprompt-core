@@ -39,7 +39,9 @@ impl AppState {
         if exclusive && entry.probe_in_flight {
             return None;
         }
-        Some(entry.issue_probe())
+        let seq = entry.issue_probe();
+        drop(guard);
+        Some(seq)
     }
 
     pub fn set_last_generated_profile(

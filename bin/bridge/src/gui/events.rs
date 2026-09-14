@@ -143,7 +143,7 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     ProfileFetchFinished {
-        result: Result<ProfileView, Arc<GuiError>>,
+        result: Box<Result<ProfileView, Arc<GuiError>>>,
         reply_to: ReplyId,
     },
 

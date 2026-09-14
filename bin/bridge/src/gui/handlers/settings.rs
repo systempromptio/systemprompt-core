@@ -12,7 +12,10 @@ use crate::stdio::diag;
 
 #[tracing::instrument(level = "info", skip(app, event_loop))]
 pub(crate) fn on_open_settings(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop) {
-    if let Some(url) = app.ensure_server().map(|server| server.url()) {
+    if let Some(url) = app
+        .ensure_server()
+        .map(super::super::server::FocusServer::url)
+    {
         app.append_log(format!("single-instance focus server on {url}"));
     }
 

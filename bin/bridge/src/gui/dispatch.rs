@@ -227,7 +227,7 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
             handlers::mcp_auth_probe::on_mcp_auth_probe_finished(app, results, reply_to);
         },
         UiEvent::ProfileFetchFinished { result, reply_to } => {
-            handlers::profile::on_profile_fetch_finished(app, result, reply_to);
+            handlers::profile::on_profile_fetch_finished(app, *result, reply_to);
         },
         UiEvent::UpdateCheckFinished { result, reply_to } => {
             handlers::update::on_update_check_finished(app, result, reply_to);

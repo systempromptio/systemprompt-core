@@ -133,7 +133,7 @@ impl MarketplaceItemBuilder {
     }
 
     #[must_use]
-    pub fn change(mut self, change: ChangeKind) -> Self {
+    pub const fn change(mut self, change: ChangeKind) -> Self {
         self.item.change = Some(change);
         self
     }
