@@ -40,7 +40,7 @@ impl SyncSummary {
             String::new()
         } else {
             format!(
-                " — WARNING: {} malformed plugin(s) missing claude-plugin/plugin.json: {}",
+                " — WARNING: {} malformed plugin(s) with no readable claude-plugin/plugin.json: {}",
                 self.malformed.len(),
                 self.malformed.join(", "),
             )

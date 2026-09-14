@@ -71,7 +71,7 @@ fn build_hooks_file(
     hook_pool: &[ManifestHookEntry],
 ) -> Result<HooksFile, ApplyError> {
     let plugin_id = &plugin.id;
-    let secret = loopback.secret().map_err(|e| ApplyError::Io {
+    let secret = loopback.secret_or_mint().map_err(|e| ApplyError::Io {
         context: format!("loopback secret for hooks.json ({plugin_id})"),
         source: e,
     })?;
@@ -109,11 +109,20 @@ fn build_hooks_file(
     Ok(body)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum PluginJsonShape {
+    Stamped,
+    Absent,
+    Malformed(String),
+}
+
 // Why: Cowork auto-installs a managed plugin only when its manifest sets
 // `installationPreference`.
-pub(super) fn ensure_plugin_json_managed_fields(plugin_dir: &Path) -> Result<(), ApplyError> {
+pub(super) fn ensure_plugin_json_managed_fields(
+    plugin_dir: &Path,
+) -> Result<PluginJsonShape, ApplyError> {
     let Some(path) = super::plugin_manifest_path(plugin_dir) else {
-        return Ok(());
+        return Ok(PluginJsonShape::Absent);
     };
     let bytes = fs::read(&path).map_err(|e| ApplyError::Io {
         context: format!("read {}", path.display()),
@@ -121,16 +130,20 @@ pub(super) fn ensure_plugin_json_managed_fields(plugin_dir: &Path) -> Result<(),
     })?;
     // JSON: plugin.json is the host's own manifest; only the two managed
     // fields are stamped and everything else passes through untouched.
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&bytes).map_err(|e| ApplyError::Serialize {
-            what: format!("{} is not valid JSON", path.display()),
-            source: e,
-        })?;
+    let mut value: serde_json::Value = match serde_json::from_slice(&bytes) {
+        Ok(value) => value,
+        Err(e) => {
+            return Ok(PluginJsonShape::Malformed(format!(
+                "{} is not valid JSON: {e}",
+                path.display()
+            )));
+        },
+    };
     let Some(obj) = value.as_object_mut() else {
-        return Err(ApplyError::Io {
-            context: format!("read {}", path.display()),
-            source: std::io::Error::other("plugin.json is not a JSON object"),
-        });
+        return Ok(PluginJsonShape::Malformed(format!(
+            "{} is not a JSON object",
+            path.display()
+        )));
     };
     let hooks_ok = obj
         .get("hooks")
@@ -141,7 +154,7 @@ pub(super) fn ensure_plugin_json_managed_fields(plugin_dir: &Path) -> Result<(),
         .and_then(serde_json::Value::as_str)
         .is_some_and(|s| s == super::PLUGIN_INSTALLATION_PREFERENCE);
     if hooks_ok && pref_ok {
-        return Ok(());
+        return Ok(PluginJsonShape::Stamped);
     }
     obj.insert(
         "hooks".to_owned(),
@@ -160,7 +173,7 @@ pub(super) fn ensure_plugin_json_managed_fields(plugin_dir: &Path) -> Result<(),
         source: e,
     })?;
     FileReceipt::verify(&path, &next)
-        .map(|_| ())
+        .map(|_| PluginJsonShape::Stamped)
         .map_err(|e| ApplyError::Io {
             context: format!("verify {}", path.display()),
             source: e,

@@ -11,7 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::fetch::fetch_plugin_into_staging;
-use super::hooks::{ensure_plugin_json_managed_fields, write_hooks_json};
+use super::hooks::{PluginJsonShape, ensure_plugin_json_managed_fields, write_hooks_json};
 use super::swap::promote_staged;
 use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
@@ -86,12 +86,23 @@ pub(super) async fn apply_plugins(
         if !servers.is_empty() {
             mcp_servers_by_plugin.insert(plugin.id.to_string(), servers);
         }
-        if !is_well_formed(&plugin_dir) {
-            tracing::warn!(
-                plugin_id = %plugin.id,
-                "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
-            );
-            malformed.push(plugin.id.to_string());
+        match applied.manifest_shape {
+            PluginJsonShape::Stamped => {},
+            PluginJsonShape::Absent => {
+                tracing::warn!(
+                    plugin_id = %plugin.id,
+                    "synced plugin is missing claude-plugin/plugin.json — Claude Desktop will skip it"
+                );
+                malformed.push(plugin.id.to_string());
+            },
+            PluginJsonShape::Malformed(detail) => {
+                tracing::warn!(
+                    plugin_id = %plugin.id,
+                    detail = %detail,
+                    "synced plugin.json cannot be read; delivered verbatim and reported"
+                );
+                malformed.push(plugin.id.to_string());
+            },
         }
     }
     if ctx.cancel.is_cancelled() {
@@ -153,10 +164,6 @@ fn extract_mcp_servers(plugin_dir: &Path) -> Result<Vec<String>, super::ApplyErr
     Ok(names)
 }
 
-fn is_well_formed(plugin_dir: &Path) -> bool {
-    super::plugin_manifest_path(plugin_dir).is_some()
-}
-
 enum PluginChange {
     Installed(String),
     Updated(String),
@@ -165,6 +172,7 @@ enum PluginChange {
 struct PluginApplied {
     change: PluginChange,
     hooks_receipt: crate::fsutil::FileReceipt,
+    manifest_shape: PluginJsonShape,
 }
 
 pub(super) struct PluginSyncCtx<'a> {
@@ -194,7 +202,7 @@ async fn sync_one_plugin(
     let was_present = promote_staged(&stage, &target, plugin.id.as_str())?;
 
     let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
-    ensure_plugin_json_managed_fields(&target)?;
+    let manifest_shape = ensure_plugin_json_managed_fields(&target)?;
 
     let change = if was_present {
         PluginChange::Updated(plugin.id.to_string())
@@ -204,6 +212,7 @@ async fn sync_one_plugin(
     Ok(PluginApplied {
         change,
         hooks_receipt,
+        manifest_shape,
     })
 }
 

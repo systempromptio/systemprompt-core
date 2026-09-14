@@ -159,11 +159,14 @@ fn policy_values(
     inputs: &super::MdmPayloadInputs<'_>,
     base_url: &str,
 ) -> Result<Vec<(&'static str, &'static str, String)>, MdmError> {
-    let secret = inputs.loopback.secret().map_err(|source| MdmError::Io {
-        action: "read loopback secret",
-        path: crate::proxy::secret::secret_path().unwrap_or_default(),
-        source,
-    })?;
+    let secret = inputs
+        .loopback
+        .secret_or_mint()
+        .map_err(|source| MdmError::Io {
+            action: "read loopback secret",
+            path: crate::proxy::secret::secret_path().unwrap_or_default(),
+            source,
+        })?;
     let host_token = super::policy::desktop_host_token(&secret);
     let servers =
         super::policy::mcp_entries(inputs.loopback, inputs.registry).map_err(|source| {
