@@ -14,6 +14,8 @@ use super::{AssetDigest, ManagedError, ManagedRepository, ResourceKind, Result, 
 
 #[path = "publication_repository.rs"]
 mod repository_impl;
+#[path = "publication_history.rs"]
+mod history;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

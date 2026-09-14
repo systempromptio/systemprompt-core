@@ -1,5 +1,8 @@
 //! Cross-domain source verification and evaluation attestation. The managed
 //! domain owns content; evaluation owns measurements; this layer binds them.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_evaluation::campaigns::report::{self, CampaignReport};
 use systemprompt_evaluation::repository::experiments::{

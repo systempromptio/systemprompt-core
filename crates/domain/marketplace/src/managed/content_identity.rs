@@ -1,5 +1,8 @@
 //! Source-independent content identity retains dependency names, exact file
 //! digests, media types and executable modes while excluding revision history.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{AssetDigest, ManagedError, Result, RevisionBundle};
 use serde::Serialize;

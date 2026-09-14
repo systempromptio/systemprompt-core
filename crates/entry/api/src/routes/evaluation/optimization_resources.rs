@@ -1,4 +1,7 @@
 //! Core REST inputs and retained experiment results, independent of any UI.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::optimization_error::OptimizationHttpError;
 use axum::extract::{Path, State};

@@ -1,5 +1,8 @@
 //! Publication attestations are produced by application-level evaluation and
 //! source verification. Repository publication verifies the retained binding.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{AssetDigest, ManagedError, ManagedRepository, Result};
 use serde::{Deserialize, Serialize};
@@ -23,7 +26,10 @@ pub(super) async fn admit_improvement(
         .ok_or_else(|| {
             ManagedError::Conflict("Improvement requires an attested experiment".to_owned())
         })?;
-    let revision = request.revision_id.as_ref().ok_or(ManagedError::Integrity)?;
+    let revision = request
+        .revision_id
+        .as_ref()
+        .ok_or(ManagedError::Integrity)?;
     let digest = bundle_digest.ok_or(ManagedError::Integrity)?;
     let eligible = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_evaluation_attestations WHERE owner_id=$1 AND resource_id=$2 AND revision_id=$3 AND bundle_digest=$4 AND experiment_id=$5)", owner.as_str(), request.resource_id.as_str(), revision.as_str(), digest.as_str(), experiment).fetch_one(&mut **tx).await?.unwrap_or(false);
     if !eligible {

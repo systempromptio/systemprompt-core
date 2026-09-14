@@ -96,6 +96,9 @@ jobs:
           tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
           mkdir -p test-tools
           cp "$tests_target/debug/systemprompt-test-migrate" target/debug/systemprompt test-tools/
+      - name: Report test lockfile drift
+        if: always()
+        run: git diff --exit-code -- crates/tests/Cargo.lock
       - run: sccache --show-stats
       - uses: actions/upload-artifact@v4
         with:

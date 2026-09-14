@@ -1,5 +1,8 @@
 //! Organizational campaign REST surface. Authentication is supplied by the
 //! core admin middleware; actor identity is never accepted from JSON.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;

@@ -1,5 +1,8 @@
 //! Capture only configured authoring roots; clients cannot request arbitrary
 //! server files through source specifications.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::{OptimizationError, SkillOptimizationOrchestrator};
 use systemprompt_identifiers::{ManagedSourceId, UserId};

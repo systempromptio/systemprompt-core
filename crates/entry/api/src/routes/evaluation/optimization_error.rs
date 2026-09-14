@@ -1,4 +1,7 @@
 //! Problem details preserve domain failures without exposing storage internals.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
 use axum::http::{StatusCode, header};

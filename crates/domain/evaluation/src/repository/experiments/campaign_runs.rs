@@ -1,5 +1,8 @@
 //! Campaign dispatch atomically reserves an iteration and creates its frozen
 //! execution matrix, so a restart cannot leave an untracked paid experiment.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::ExperimentRepository;
 use crate::Result;

@@ -1,4 +1,7 @@
 //! Prove Git content independently of caller-asserted snapshot provenance.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use super::git_import::{GitCheckout, import_tree};
 use super::git_spec;

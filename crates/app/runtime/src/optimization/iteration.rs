@@ -1,5 +1,8 @@
 //! Bounded development iterations reuse frozen execution settings and the
 //! campaign budget. Holdout cases never enter automatic improvement runs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 use systemprompt_evaluation::experiments::Objective;

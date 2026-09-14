@@ -1,5 +1,8 @@
 //! Durable optimization policy and source-change provenance. Campaigns retain
 //! immutable experiments; publication remains an independently reviewed action.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{EvalBudgetId, ManagedResourceId, ResourceRevisionId};

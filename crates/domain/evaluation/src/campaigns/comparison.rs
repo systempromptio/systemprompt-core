@@ -1,5 +1,8 @@
 //! Paired comparison eligibility uses complete accounting and conservative
 //! confidence bounds. Observational production associations are not inputs.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 
@@ -102,8 +105,7 @@ fn improvement(objective: OptimizationObjective, pair: &PairedOutcome) -> f64 {
     }
 }
 
-/// Repeated runs of one case are one sampling unit, not independent evidence.
-/// Preserve the worst quality and every hard failure across repetitions.
+// Why: repeated runs of one case are not independent statistical evidence.
 pub fn collapse_repetitions(pairs: &[PairedOutcome]) -> Result<PairedOutcome> {
     if pairs.is_empty() {
         return Err(EvaluationError::InvalidSpec(

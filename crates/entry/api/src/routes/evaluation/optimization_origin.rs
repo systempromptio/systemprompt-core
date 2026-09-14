@@ -1,5 +1,8 @@
 //! Cookie-authenticated mutations require a matching origin; bearer-only
 //! machine clients use the existing authenticated admin transport.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Request, State};
 use axum::http::{StatusCode, header};

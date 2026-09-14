@@ -1,4 +1,7 @@
 //! Development-only suggestions retained by the metered evaluator.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
 use crate::repository::experiments::EvaluationLifecycleRepository;

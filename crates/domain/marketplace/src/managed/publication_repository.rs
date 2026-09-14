@@ -5,49 +5,13 @@
 
 use super::{
     AssetDigest, EventOutboxId, ManagedError, ManagedRepository, ManagedResolution,
-    ManagedResourceId, PublicationAction, PublicationDecision, PublicationHistoryEntry,
+    ManagedResourceId, PublicationAction, PublicationDecision,
     PublicationId, PublicationRequest, PublicationReviewId, PublicationRow, ResourceKind,
     ResourceRevisionId, Result, RevisionBundle, SelectionRow, UserId, decision_from_row,
     request_digest, resolution_from_row, validate_request,
 };
 
 impl ManagedRepository {
-    pub async fn list_publication_history(
-        &self,
-        owner: &UserId,
-        resource_id: &ManagedResourceId,
-    ) -> Result<Vec<PublicationHistoryEntry>> {
-        let rows = sqlx::query!(r#"SELECT p.id,p.review_id,p.generation,p.action,p.revision_id,p.bundle_digest,p.created_at,r.reviewer_id,r.comparison_evidence,r.limitations,
-            EXISTS(SELECT 1 FROM managed_distribution_deliveries d WHERE d.owner_id=p.owner_id AND d.publication_id=p.id AND d.status='distributed') AS "distributed!",
-            EXISTS(SELECT 1 FROM managed_installation_receipts i WHERE i.owner_id=p.owner_id AND i.publication_id=p.id) AS "installation_verified!"
-            FROM managed_publications p JOIN managed_publication_reviews r ON r.id=p.review_id AND r.owner_id=p.owner_id WHERE p.owner_id=$1 AND p.resource_id=$2 ORDER BY p.generation DESC"#,
-            owner.as_str(), resource_id.as_str())
-            .fetch_all(&self.pool)
-            .await?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(PublicationHistoryEntry {
-                    decision: decision_from_row(
-                        resource_id,
-                        PublicationRow {
-                            id: row.id,
-                            review_id: row.review_id,
-                            generation: row.generation,
-                            action: row.action,
-                            revision_id: row.revision_id,
-                            bundle_digest: row.bundle_digest,
-                        },
-                    )?,
-                    distributed: row.distributed,
-                    installation_verified: row.installation_verified,
-                    reviewer_id: UserId::new(row.reviewer_id),
-                    comparison_evidence: row.comparison_evidence,
-                    limitations: row.limitations,
-                    created_at: row.created_at,
-                })
-            })
-            .collect()
-    }
     pub async fn review_and_publish(
         &self,
         owner: &UserId,
@@ -78,8 +42,13 @@ impl ManagedRepository {
             return Ok(decision);
         }
         let generation = admit_generation(&mut tx, owner, request, bundle_digest.as_ref()).await?;
-        super::evaluation::admit_improvement(&mut tx, owner, request, bundle_digest.as_ref())
-            .await?;
+        crate::managed::evaluation::admit_improvement(
+            &mut tx,
+            owner,
+            request,
+            bundle_digest.as_ref(),
+        )
+        .await?;
         let decision = record_publication(
             &mut tx,
             &Publication {

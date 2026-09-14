@@ -1,5 +1,8 @@
 //! Resource metrics count each request and assessed conversation once within
 //! a cohort. Related conversation spend remains non-additive across cohorts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
