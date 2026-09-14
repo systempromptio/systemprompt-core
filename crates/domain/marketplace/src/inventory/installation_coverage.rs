@@ -11,7 +11,7 @@ use systemprompt_identifiers::{ManagedResourceId, UserId};
 
 /// Current eligible enrolled-device coverage and retained authenticated
 /// installation evidence.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InstallationCoverage {
     pub eligible_devices: i64,
     pub current_acknowledged_devices: i64,
@@ -21,7 +21,7 @@ pub struct InstallationCoverage {
     pub legacy_receipts: i64,
 }
 /// Durable generation and last completed installation-coverage observation.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InstallationCoverageStatus {
     pub generation: i64,
     pub observed_at: Option<DateTime<Utc>>,

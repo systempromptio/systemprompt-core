@@ -10,7 +10,7 @@ use crate::experiments::invalid;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{EvalExecutionId, EvalWorkerId, UserId};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExecutionLease {
     pub execution_id: EvalExecutionId,
@@ -18,7 +18,7 @@ pub struct ExecutionLease {
     pub fencing_token: i64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TerminalOutcome {
     Completed,
@@ -40,7 +40,7 @@ impl TerminalOutcome {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExecutionCompletion {
     pub outcome: TerminalOutcome,

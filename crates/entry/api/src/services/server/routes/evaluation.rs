@@ -20,7 +20,10 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Load
             ))
             .with_state(mount.ctx.clone())
             .with_rate_limit(mount.limits, 10, "admin")?
-            .with_auth(mount.user_middleware.clone(), AuthzPolicy::admin()),
+            .with_auth(mount.user_middleware.clone(), AuthzPolicy::admin())
+            .layer(axum::middleware::from_fn(
+                crate::routes::evaluation::contract::normalize,
+            )),
     );
     let router = router.nest(
         "/api/v1",
@@ -30,7 +33,10 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Load
                 crate::routes::evaluation::optimization_origin::protect,
             ))
             .with_state(mount.ctx.clone())
-            .with_rate_limit(mount.limits, 10, "consumer_evidence")?,
+            .with_rate_limit(mount.limits, 10, "consumer_evidence")?
+            .layer(axum::middleware::from_fn(
+                crate::routes::evaluation::contract::normalize,
+            )),
     );
     mount_worker(router, mount)
 }

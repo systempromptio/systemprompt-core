@@ -27,7 +27,10 @@ pub(super) fn router() -> Router<AppContext> {
             "/inventory/{id}/installation-coverage",
             get(installation_coverage),
         )
-        .route("/inventory/reconciliations", post(refresh))
+        .route(
+            "/inventory/reconciliations",
+            post(super::operation_handlers::refresh),
+        )
         .route("/inventory/baselines", post(baselines))
         .route("/inventory/{id}", get(entry))
         .route("/inventory/{id}/bindings", post(bind))
@@ -37,14 +40,15 @@ pub(super) fn router() -> Router<AppContext> {
         .route("/inventory/{id}/captures/{operation}", get(capture))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Cursor {
+pub(crate) struct Cursor {
     after: Option<InventoryEntryId>,
+    #[schemars(range(min = 1, max = 100))]
     limit: Option<u32>,
 }
-#[derive(Debug, Serialize)]
-struct Page {
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+pub(crate) struct Page {
     items: Vec<InventoryEntry>,
     next_cursor: Option<InventoryEntryId>,
 }
@@ -84,27 +88,25 @@ async fn entry(
             .await?,
     ))
 }
-async fn refresh(
-    State(ctx): State<AppContext>,
-) -> Result<Json<InventoryStatus>, OptimizationHttpError> {
-    Ok(Json(
-        inventory::refresh(&ctx, ctx.system_admin().id()).await?,
-    ))
-}
 async fn baselines(
     State(ctx): State<AppContext>,
     Extension(actor): Extension<RequestContext>,
     Json(input): Json<BaselinePreparation>,
-) -> Result<Json<Vec<BaselineCapture>>, OptimizationHttpError> {
-    Ok(Json(
+) -> Result<Json<super::collections::Page<BaselineCapture>>, OptimizationHttpError> {
+    let items =
         inventory::prepare_baselines(&ctx, ctx.system_admin().id(), actor.user_id(), &input)
-            .await?,
-    ))
+            .await?;
+    let next_cursor = if items.len() == input.limit as usize {
+        items.last().map(|item| item.entry_id.to_string())
+    } else {
+        None
+    };
+    Ok(Json(super::collections::Page { items, next_cursor }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Binding {
+pub(crate) struct Binding {
     resource_id: ManagedResourceId,
 }
 async fn bind(
@@ -125,9 +127,9 @@ async fn bind(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct MembershipTime {
+pub(crate) struct MembershipTime {
     at: chrono::DateTime<chrono::Utc>,
 }
 async fn membership(
@@ -153,9 +155,9 @@ async fn capture(
     ))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct ReconciliationCursor {
+pub(crate) struct ReconciliationCursor {
     after: Option<systemprompt_identifiers::ManagedReconciliationId>,
 }
 async fn reconciliations(
@@ -163,14 +165,19 @@ async fn reconciliations(
     Path(id): Path<InventoryEntryId>,
     Query(query): Query<ReconciliationCursor>,
 ) -> Result<
-    Json<Vec<systemprompt_marketplace::inventory::InventoryReconciliation>>,
+    Json<super::collections::Page<systemprompt_marketplace::inventory::InventoryReconciliation>>,
     OptimizationHttpError,
 > {
-    Ok(Json(
-        ctx.managed_repository()
-            .inventory_reconciliations(ctx.system_admin().id(), &id, query.after.as_ref())
-            .await?,
-    ))
+    let mut items = ctx
+        .managed_repository()
+        .inventory_reconciliations(ctx.system_admin().id(), &id, query.after.as_ref())
+        .await?;
+    let next_cursor = if items.len() == 50 {
+        items.last().map(|item| item.id.to_string())
+    } else {
+        None
+    };
+    Ok(Json(super::collections::Page { items, next_cursor }))
 }
 async fn git_binding(
     State(ctx): State<AppContext>,

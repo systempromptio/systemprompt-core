@@ -102,7 +102,7 @@ pub(super) async fn lock_owner(
 }
 
 /// Current admission decision for the exact frozen execution variants.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, schemars::JsonSchema)]
 pub struct CampaignAvailability {
     pub platform: String,
     pub architecture: String,
@@ -110,3 +110,5 @@ pub struct CampaignAvailability {
     pub reason: Option<String>,
     pub variants: Vec<crate::experiments::VariantSpec>,
 }
+
+mod collections;

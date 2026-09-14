@@ -9,7 +9,7 @@ use systemprompt_identifiers::{EvalRevisionId, ModelId, ProviderId};
 
 use super::invalid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ClientKind {
     ClaudeCode,
@@ -19,14 +19,14 @@ pub enum ClientKind {
     Hermes,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionMode {
     Fixture,
     Live,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Objective {
     Quality,
@@ -35,7 +35,7 @@ pub enum Objective {
     Latency,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VariantSpec {
     pub client: ClientKind,
@@ -47,7 +47,7 @@ pub struct VariantSpec {
     pub worker_image_digest: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExperimentSpec {
     pub schema_version: u32,
@@ -67,7 +67,7 @@ pub struct ExperimentSpec {
     pub claim_independent_improvement: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FrozenSettings {
     pub provider_prices_digest: String,
@@ -82,7 +82,7 @@ pub struct FrozenSettings {
 
 /// The price digest proves which configured provider/tool price snapshot
 /// supplied the frozen maximum-cost inputs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FrozenCostEnvelope {
     pub maximum_attempts_per_execution: u32,

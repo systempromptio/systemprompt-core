@@ -12,7 +12,7 @@ use systemprompt_models::feedback::receipts::AuthenticatedConsumerDevice;
 
 use crate::managed::{ManagedError, ManagedRepository, Result};
 
-#[derive(Serialize)]
+#[derive(Serialize, schemars::JsonSchema)]
 pub struct IssuedConsumerCredential {
     pub device_id: DeviceId,
     pub consumer_id: UserId,

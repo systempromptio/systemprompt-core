@@ -11,7 +11,7 @@ use systemprompt_models::feedback::receipts::SessionBindingRequest;
 use super::{attribution, credentials, host_key};
 use crate::managed::{ManagedError, ManagedRepository, Result};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ConsumerSessionBinding {
     pub id: InstallationSessionBindingId,
     pub bound_at: DateTime<Utc>,

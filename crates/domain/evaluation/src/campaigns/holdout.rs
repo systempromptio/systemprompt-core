@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, UserId};
 
 /// Frozen paired confirmation matrix retained before human authorization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct HoldoutProposal {
     pub id: String,
     pub campaign_id: EvalCampaignId,

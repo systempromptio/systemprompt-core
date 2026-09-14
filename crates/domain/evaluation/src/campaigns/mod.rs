@@ -16,7 +16,7 @@ pub mod report;
 pub mod repository;
 pub mod suggestions;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CampaignPolicy {
     pub name: String,
@@ -30,7 +30,7 @@ pub struct CampaignPolicy {
     pub automatic: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum OptimizationObjective {
     Quality,

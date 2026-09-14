@@ -23,7 +23,7 @@ use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub(super) struct FeedbackWake {
     generation: Generation,
     resync: bool,
@@ -38,7 +38,7 @@ impl ToSse for FeedbackWake {
 }
 pub(super) static CONNECTIONS: LazyLock<GenericBroadcaster<FeedbackWake>> =
     LazyLock::new(GenericBroadcaster::new);
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Resume {
     after: Option<String>,

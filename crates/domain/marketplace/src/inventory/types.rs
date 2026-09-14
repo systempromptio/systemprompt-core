@@ -11,7 +11,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
 pub struct InventoryEntry {
     pub entry_id: InventoryEntryId,
     pub kind: String,
@@ -26,7 +26,7 @@ pub struct InventoryEntry {
     pub diagnostic: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ConfiguredInventoryEntry {
     pub kind: String,
     pub resource_key: String,
@@ -35,7 +35,7 @@ pub struct ConfiguredInventoryEntry {
     pub diagnostic: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InventoryStatus {
     pub generation: i64,
     pub observed_at: Option<DateTime<Utc>>,
@@ -43,7 +43,7 @@ pub struct InventoryStatus {
     pub last_error: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum ObservedMembership {
     Unknown,
@@ -54,7 +54,7 @@ pub enum ObservedMembership {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct BaselineCapture {
     pub entry_id: InventoryEntryId,
     pub operation_id: TaskId,
@@ -75,7 +75,7 @@ pub(super) fn managed_identity(resource: &ManagedResourceId) -> InventoryEntryId
     InventoryEntryId::new(format!("managed-{resource}"))
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InventoryCoverage {
     pub observation_available: bool,
     pub known_total: i64,
@@ -84,7 +84,7 @@ pub struct InventoryCoverage {
     pub as_of: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BaselinePreparation {
     pub operation_id: TaskId,
@@ -92,7 +92,7 @@ pub struct BaselinePreparation {
     pub limit: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InventoryReconciliation {
     pub id: ManagedReconciliationId,
     pub status: String,
@@ -102,7 +102,7 @@ pub struct InventoryReconciliation {
     pub resolved_revision_id: Option<ResourceRevisionId>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InventoryGitBinding {
     pub source_id: ManagedSourceId,
     pub relative_root: String,

@@ -41,7 +41,7 @@ pub(super) async fn admit_improvement(
     Ok(())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EvaluationAttestation {
     pub resource_id: ManagedResourceId,

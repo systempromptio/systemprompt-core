@@ -11,7 +11,9 @@ use sha2::{Digest, Sha256};
 use super::error::invalid;
 use super::{ManagedError, Result};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
 pub struct AssetDigest(String);
 
@@ -46,7 +48,7 @@ impl From<AssetDigest> for String {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AssetFile {
     pub bytes: Vec<u8>,
@@ -64,7 +66,7 @@ impl std::fmt::Debug for AssetFile {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(transparent)]
 pub struct RevisionFiles(pub BTreeMap<String, AssetFile>);
 

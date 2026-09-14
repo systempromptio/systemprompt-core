@@ -15,7 +15,7 @@ use super::error::invalid;
 use super::provenance::validate_key;
 use super::{AssetDigest, AssetFile, FileEntry, ManagedError, Result, RevisionFiles};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct CapturedSkills {
     pub(super) skills: BTreeMap<String, RevisionFiles>,
     pub(super) tree_digest: AssetDigest,

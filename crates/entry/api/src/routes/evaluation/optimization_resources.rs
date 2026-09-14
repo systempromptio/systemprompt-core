@@ -10,24 +10,23 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use systemprompt_evaluation::capabilities::{EvaluatorCapability, evaluator_capabilities};
-use systemprompt_evaluation::experiments::records::{
-    BudgetRecord, ExperimentDetail, ExperimentRecord,
-};
+use systemprompt_evaluation::experiments::records::{BudgetRecord, ExperimentRecord};
 use systemprompt_evaluation::experiments::resources::ResourceContent;
 use systemprompt_identifiers::{
     EvalBudgetId, EvalExperimentId, EvalRevisionId, ManagedSourceId, ResourceRevisionId,
 };
 use systemprompt_marketplace::managed::{RevisionBundle, SourceSpec};
-use systemprompt_models::feedback::verification::{
-    DependencyVerificationManifest, DependencyVerificationRequest,
-};
+use systemprompt_models::feedback::verification::DependencyVerificationManifest;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::optimization::git_sources::GitSourceOrchestrator;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
         .route("/experiments", get(experiments))
-        .route("/experiments/{id}", get(experiment))
+        .route("/experiments/{id}", get(super::execution_pages::detail))
+        .route(
+            "/experiments/{id}/executions",
+            get(super::execution_pages::list),
+        )
         .route("/experiments/{id}/cancellation", post(cancel))
         .route("/budgets", post(create_budget))
         .route("/budgets/{id}", get(budget))
@@ -39,10 +38,16 @@ pub(super) fn router() -> Router<AppContext> {
             "/sources/{id}/verification-bindings",
             post(bind_verification_source),
         )
-        .route("/sources/{id}/captures", post(capture_source))
+        .route(
+            "/sources/{id}/captures",
+            post(super::operation_handlers::capture),
+        )
         .route("/revisions/{id}/bundle", get(bundle))
         .route("/revisions/{id}/workspace", post(workspace))
-        .route("/source-verifications", post(verify_source))
+        .route(
+            "/source-verifications",
+            post(super::operation_handlers::verify),
+        )
         .route("/source-verifications/{id}", get(source_verification))
         .route(
             "/evaluator-capabilities",
@@ -50,32 +55,46 @@ pub(super) fn router() -> Router<AppContext> {
         )
 }
 
-async fn evaluator_capability_registry() -> Json<Vec<EvaluatorCapability>> {
-    Json(evaluator_capabilities())
+async fn evaluator_capability_registry(
+    axum::extract::Query(query): axum::extract::Query<super::collections::Cursor>,
+) -> Result<Json<super::collections::Page<EvaluatorCapability>>, OptimizationHttpError> {
+    let limit = query.limit()?;
+    let mut items = evaluator_capabilities();
+    items.sort_by_key(|item| systemprompt_marketplace::managed::consumer::host_key(item.client));
+    items.retain(|item| {
+        query.after.as_ref().is_none_or(|after| {
+            systemprompt_marketplace::managed::consumer::host_key(item.client) > after.as_str()
+        })
+    });
+    items.truncate(limit as usize);
+    let next_cursor = if items.len() == limit as usize {
+        items.last().map(|item| {
+            systemprompt_marketplace::managed::consumer::host_key(item.client).to_owned()
+        })
+    } else {
+        None
+    };
+    Ok(Json(super::collections::Page { items, next_cursor }))
 }
 
 async fn experiments(
     State(ctx): State<AppContext>,
-) -> Result<Json<Vec<ExperimentRecord>>, OptimizationHttpError> {
-    Ok(Json(
-        ctx.evaluation_repositories()
-            .experiments
-            .list(ctx.system_admin().id())
-            .await?,
-    ))
+    axum::extract::Query(query): axum::extract::Query<super::collections::Cursor>,
+) -> Result<Json<super::collections::Page<ExperimentRecord>>, OptimizationHttpError> {
+    let limit = query.limit()?;
+    let items = ctx
+        .evaluation_repositories()
+        .experiments
+        .list_page(ctx.system_admin().id(), query.after.as_deref(), limit)
+        .await?;
+    let next_cursor = if items.len() == limit as usize {
+        items.last().map(|item| item.id.to_string())
+    } else {
+        None
+    };
+    Ok(Json(super::collections::Page { items, next_cursor }))
 }
 
-async fn experiment(
-    State(ctx): State<AppContext>,
-    Path(id): Path<EvalExperimentId>,
-) -> Result<Json<ExperimentDetail>, OptimizationHttpError> {
-    Ok(Json(
-        ctx.evaluation_repositories()
-            .experiments
-            .get(ctx.system_admin().id(), &id)
-            .await?,
-    ))
-}
 
 async fn cancel(
     State(ctx): State<AppContext>,
@@ -88,9 +107,9 @@ async fn cancel(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct CreateBudget {
+pub(crate) struct CreateBudget {
     idempotency_key: String,
     cap_microdollars: i64,
 }
@@ -127,9 +146,9 @@ async fn budget(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct CreateEvaluationRevision {
+pub(crate) struct CreateEvaluationRevision {
     key: String,
     content: ResourceContent,
 }
@@ -162,9 +181,9 @@ async fn evaluation_revision(
     ))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct CreateSource {
+pub(crate) struct CreateSource {
     name: String,
     specification: SourceSpec,
 }
@@ -195,29 +214,6 @@ async fn source(
     ))
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CaptureSource {
-    skill_ids: Vec<String>,
-}
-
-async fn capture_source(
-    State(ctx): State<AppContext>,
-    Path(id): Path<ManagedSourceId>,
-    Json(input): Json<CaptureSource>,
-) -> Result<Json<systemprompt_marketplace::managed::ImportedSkills>, OptimizationHttpError> {
-    Ok(Json(
-        super::campaigns::orchestrator(&ctx)
-            .capture_authoring_skills(
-                ctx.system_admin().id(),
-                &id,
-                ctx.app_paths().system().services(),
-                input.skill_ids,
-            )
-            .await?,
-    ))
-}
-
 async fn bundle(
     State(ctx): State<AppContext>,
     Path(id): Path<ResourceRevisionId>,
@@ -240,17 +236,6 @@ async fn workspace(
     ))
 }
 
-async fn verify_source(
-    State(ctx): State<AppContext>,
-    Json(input): Json<DependencyVerificationRequest>,
-) -> Result<Json<DependencyVerificationManifest>, OptimizationHttpError> {
-    Ok(Json(
-        GitSourceOrchestrator::new(ctx.managed_repository().as_ref().clone())
-            .verify(ctx.system_admin().id(), &input)
-            .await?,
-    ))
-}
-
 async fn source_verification(
     State(ctx): State<AppContext>,
     Path(id): Path<systemprompt_identifiers::DependencyVerificationId>,
@@ -262,9 +247,9 @@ async fn source_verification(
     ))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct VerificationSourceBinding {
+pub(crate) struct VerificationSourceBinding {
     resource_id: systemprompt_identifiers::ManagedResourceId,
     relative_root: String,
 }

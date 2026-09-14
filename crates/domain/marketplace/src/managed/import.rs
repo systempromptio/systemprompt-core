@@ -11,7 +11,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedSourceId, ResourceRevisionId, SourceSnapshotId, UserId};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ImportedSkills {
     pub source_id: ManagedSourceId,
     pub snapshot_id: SourceSnapshotId,

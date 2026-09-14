@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedResourceId, TaskId};
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema,
+)]
 #[serde(default)]
 /// Additive counts and measured denominators for the selected contribution
 /// range.
@@ -27,7 +29,7 @@ pub struct SnapshotMetrics {
     pub assessment_conversations: i64,
     pub failed_assessments: i64,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 /// A retained aggregate result with explicit identity and suppression
 /// availability.
 pub struct FeedbackSnapshot {
@@ -46,7 +48,7 @@ pub struct FeedbackSnapshot {
     pub suppressed_days: i64,
     pub historical_identity_available: bool,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 /// Durable generation watermarks and outstanding producer, fact, and range
 /// work.
 pub struct SnapshotHealth {
@@ -59,7 +61,7 @@ pub struct SnapshotHealth {
     pub facts_generation: i64,
     pub pending_jobs: i64,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 /// An idempotent bounded request for a UTC-day aggregate range.
 pub struct SnapshotRangeRequest {
@@ -68,7 +70,7 @@ pub struct SnapshotRangeRequest {
     pub from_day: NaiveDate,
     pub to_day: NaiveDate,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 /// A durable custom-range operation and its current result or diagnostic.
 pub struct SnapshotRangeJob {
     pub operation_id: TaskId,
@@ -83,7 +85,7 @@ pub struct SnapshotJobLease {
     pub worker_id: TaskId,
     pub epoch: i64,
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 /// One organizational scope compacted behind drained evidence barriers.
 pub struct RetentionOutcome {
     pub compacted_before: NaiveDate,
@@ -93,7 +95,7 @@ pub struct RetentionOutcome {
 
 /// Aggregate results after every initialized organizational scope is compacted
 /// atomically.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RetentionSummary {
     pub organizations: u64,
     pub removed_facts: u64,

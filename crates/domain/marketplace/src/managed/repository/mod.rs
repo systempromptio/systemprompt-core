@@ -33,7 +33,7 @@ impl ManagedRepository {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ResourceKind {
     Skill,
@@ -53,7 +53,7 @@ impl ResourceKind {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NewResource {
     pub source_id: ManagedSourceId,
@@ -62,7 +62,7 @@ pub struct NewResource {
     pub resource_key: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NewRevision {
     pub resource_id: ManagedResourceId,

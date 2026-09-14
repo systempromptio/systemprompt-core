@@ -40,10 +40,10 @@ pub(crate) fn router_from_context(
 }
 mod inventory;
 mod optimization_error;
-pub(crate) mod optimization_origin;
+pub mod optimization_origin;
 mod optimization_resources;
 
-pub(crate) mod consumer;
+pub mod consumer;
 
 mod snapshots;
 
@@ -51,3 +51,15 @@ mod snapshot_stream;
 mod snapshot_wakeup;
 
 mod snapshot_generation;
+
+pub mod contract;
+
+pub mod collections;
+
+pub mod operations;
+
+mod operation_handlers;
+
+mod publications;
+
+mod execution_pages;

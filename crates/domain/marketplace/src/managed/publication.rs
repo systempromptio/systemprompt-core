@@ -17,7 +17,7 @@ mod history;
 #[path = "publication_repository.rs"]
 mod repository_impl;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PublicationAction {
     InitialAdoption,
@@ -47,7 +47,7 @@ impl PublicationAction {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PublicationRequest {
     pub resource_id: ManagedResourceId,
@@ -59,7 +59,7 @@ pub struct PublicationRequest {
     pub limitations: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PublicationDecision {
     pub publication_id: PublicationId,
     pub review_id: PublicationReviewId,
@@ -70,7 +70,7 @@ pub struct PublicationDecision {
     pub bundle_digest: Option<AssetDigest>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum ManagedResolution {
     NotManaged,
@@ -95,7 +95,7 @@ pub enum ManagedResolution {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PublicationHistoryEntry {
     pub decision: PublicationDecision,
     pub distributed: bool,

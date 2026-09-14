@@ -21,14 +21,75 @@ pub(crate) fn router() -> Router<AppContext> {
         .route("/resources/{id}/consumer-grants", post(grant))
 }
 
+/// The token exists only in the first successful response; retry status never
+/// rotates it.
+#[derive(serde::Serialize, schemars::JsonSchema)]
+pub struct CredentialIssueResponse {
+    pub operation: super::super::operations::OperationStatus,
+    pub result: Option<super::CredentialIssueStatus>,
+    pub credential: Option<String>,
+}
 async fn issue(
     State(ctx): State<AppContext>,
+    headers: axum::http::HeaderMap,
     Path(id): Path<DeviceCertId>,
-) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
-    Ok(Json(
-        ctx.managed_repository()
-            .issue_consumer_credential(&id)
-            .await?,
+) -> Result<
+    impl axum::response::IntoResponse,
+    super::super::optimization_error::OptimizationHttpError,
+> {
+    use systemprompt_marketplace::managed::operations::ApiOperationClaim;
+    let claim = super::super::operations::begin(&ctx, &headers, "credential_issue", &id).await?;
+    let response = match claim {
+        ApiOperationClaim::Retained(operation) => {
+            let result = operation
+                .result
+                .clone()
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(systemprompt_evaluation::EvaluationError::from)?;
+            CredentialIssueResponse {
+                operation: super::super::operations::OperationStatus::from(&operation),
+                result,
+                credential: None,
+            }
+        },
+        ApiOperationClaim::Acquired(operation) => {
+            let result = ctx
+                .managed_repository()
+                .issue_api_consumer_credential(ctx.system_admin().id(), &operation, &id)
+                .await;
+            let (status, credential) = match result {
+                Ok(value) => value,
+                Err(error) => {
+                    ctx.managed_repository()
+                        .fail_api_operation(ctx.system_admin().id(), &operation)
+                        .await?;
+                    return Err(error.into());
+                },
+            };
+            let operation = ctx
+                .managed_repository()
+                .api_operation(ctx.system_admin().id(), &operation.id)
+                .await?;
+            CredentialIssueResponse {
+                operation: super::super::operations::OperationStatus::from(&operation),
+                result: Some(status),
+                credential,
+            }
+        },
+    };
+    let status = if response.operation.state == "pending" {
+        StatusCode::ACCEPTED
+    } else {
+        StatusCode::OK
+    };
+    Ok((
+        status,
+        [(
+            "location",
+            format!("/api/v1/operations/{}", response.operation.id),
+        )],
+        Json(response),
     ))
 }
 
@@ -42,9 +103,9 @@ async fn revoke(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Grant {
+pub(crate) struct Grant {
     consumer_id: UserId,
     enabled: bool,
 }

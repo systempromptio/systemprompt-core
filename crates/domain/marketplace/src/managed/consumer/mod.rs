@@ -8,6 +8,7 @@ mod credentials;
 mod plan;
 mod receipts;
 mod sessions;
+mod status;
 
 pub use credentials::IssuedConsumerCredential;
 pub use receipts::verify_readback;
@@ -21,7 +22,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::feedback::EvaluatorClient;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConsumerInvocationRequest {
     pub invocation_id: ResourceInvocationId,
@@ -35,7 +36,7 @@ pub struct ConsumerInvocationRequest {
     pub evidence: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ConsumerAttribution {
     pub receipt_id: Option<InstallationReceiptId>,
     pub version: i64,

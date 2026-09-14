@@ -11,7 +11,7 @@ use crate::experiments::{ExperimentSpec, conflict, content_digest, missing};
 use sqlx::types::Json;
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, UserId};
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CampaignExperiment {
     pub campaign_id: EvalCampaignId,

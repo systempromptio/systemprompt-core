@@ -12,6 +12,8 @@ use systemprompt_runtime::optimization::OptimizationError;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum OptimizationHttpError {
+    #[error("{0}")]
+    NotFound(String),
     #[error(transparent)]
     Analytics(#[from] systemprompt_analytics::AnalyticsError),
     #[error(transparent)]
@@ -25,6 +27,7 @@ pub(super) enum OptimizationHttpError {
 impl IntoResponse for OptimizationHttpError {
     fn into_response(self) -> Response {
         let status = match &self {
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::Analytics(systemprompt_analytics::AnalyticsError::InvalidArgument(_)) => {
                 StatusCode::BAD_REQUEST
             },

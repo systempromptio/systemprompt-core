@@ -33,6 +33,10 @@ impl Extension for ManagedResourcesExtension {
                 "managed_installation_coverage",
                 include_str!("../schema/installation_coverage.sql"),
             ),
+            SchemaDefinition::new(
+                "managed_api_operations",
+                include_str!("../schema/api_operations.sql"),
+            ),
         ]
     }
 

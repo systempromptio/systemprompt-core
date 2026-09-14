@@ -12,7 +12,7 @@ use systemprompt_identifiers::{DependencyVerificationId, ManagedSourceId, Resour
 
 use super::{ContentDigest, FeedbackContractError, validate_relative_path};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DependencyVerificationInput {
     pub revision_id: ResourceRevisionId,
@@ -22,7 +22,7 @@ pub struct DependencyVerificationInput {
     pub dependencies: Vec<ResourceRevisionId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DependencyVerificationRequest {
     pub root_revision_id: ResourceRevisionId,
@@ -86,7 +86,7 @@ fn visit<'a>(
     Ok(())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct VerifiedRevisionManifest {
     pub provenance: DependencyVerificationInput,
     pub content_digest: ContentDigest,
@@ -95,7 +95,7 @@ pub struct VerifiedRevisionManifest {
     pub modes_verified: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DependencyVerificationManifest {
     pub id: DependencyVerificationId,
     pub version: u16,

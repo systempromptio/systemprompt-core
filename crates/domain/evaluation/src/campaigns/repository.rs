@@ -19,7 +19,7 @@ pub struct CampaignRepository {
     pub(super) pool: PgPool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CampaignRecord {
     pub id: EvalCampaignId,
     pub owner_id: UserId,
@@ -30,7 +30,7 @@ pub struct CampaignRecord {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CampaignAction {
     Pause,
@@ -173,6 +173,21 @@ impl CampaignRepository {
     ) -> Result<()> {
         let (generation, action) = command;
         let mut tx = self.pool.begin().await?;
+        sqlx::query!(
+            "SELECT id FROM eval_campaigns WHERE owner_id=$1 AND id=$2 FOR UPDATE",
+            owner.as_str(),
+            id.as_str()
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| missing("Campaign unavailable"))?;
+        if generation < 0 || generation == i64::MAX {
+            return Err(conflict("Invalid campaign generation"));
+        }
+        let already=sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_campaign_events e JOIN eval_campaigns c ON c.id=e.campaign_id WHERE c.owner_id=$1 AND c.id=$2 AND e.generation=$3 AND e.action=$4)",owner.as_str(),id.as_str(),generation+1,action.status()).fetch_one(&mut *tx).await?.unwrap_or(false);
+        if already {
+            return Ok(());
+        }
         let changed = sqlx::query!("UPDATE eval_campaigns SET status=$4,generation=generation+1,updated_at=NOW() WHERE owner_id=$1 AND id=$2 AND generation=$3 AND status IN ('active','paused') AND status<>$4 RETURNING generation", owner.as_str(), id.as_str(), generation, action.status()).fetch_optional(&mut *tx).await?.ok_or_else(|| conflict("Campaign state or generation changed"))?;
         sqlx::query!("INSERT INTO eval_campaign_events(campaign_id,generation,actor_id,action) VALUES($1,$2,$3,$4)", id.as_str(), changed.generation, actor.as_str(), action.status()).execute(&mut *tx).await?;
         tx.commit().await?;
