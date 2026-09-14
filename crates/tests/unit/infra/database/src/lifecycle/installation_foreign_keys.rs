@@ -35,7 +35,8 @@ async fn foreign_key_validated(db: &systemprompt_database::DbPool, table: &str) 
 
 async fn run_sql(db: &systemprompt_database::DbPool, sql: String) {
     let pg = db.write_pool_arc().expect("write pool");
-    sqlx::query(sqlx::AssertSqlSafe(sql))
+    // Why: the fixtures are several statements; a prepared statement takes one.
+    sqlx::raw_sql(sqlx::AssertSqlSafe(sql))
         .execute(&*pg)
         .await
         .expect("fixture sql");
