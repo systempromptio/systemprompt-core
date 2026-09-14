@@ -16,6 +16,7 @@ pub mod mcp_probe;
 pub mod peer;
 pub mod portfile;
 mod refresh;
+pub mod scoped_token;
 pub mod secret;
 pub mod server;
 pub mod session;

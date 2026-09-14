@@ -22,8 +22,6 @@ pub mod opencode;
 pub mod profile_state;
 pub mod reapply;
 pub mod registry;
-#[cfg(feature = "dev-stub-host")]
-pub mod stub_host;
 pub mod sync_only;
 pub mod uninstall;
 

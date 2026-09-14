@@ -213,6 +213,8 @@ bridge_define_token!(PatToken);
 bridge_define_token!(BearerToken);
 bridge_define_token!(LoopbackSecret);
 bridge_define_token!(ProxySecret);
+bridge_define_token!(HookToken);
+bridge_define_token!(HostToken);
 bridge_define_token!(PinnedPubKey);
 
 bridge_define_id!(HostId);
