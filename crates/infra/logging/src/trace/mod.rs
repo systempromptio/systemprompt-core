@@ -19,6 +19,7 @@ mod mcp_trace_queries;
 mod models;
 mod queries;
 mod request_queries;
+mod request_stats_queries;
 mod service;
 mod step_queries;
 mod tool_queries;
