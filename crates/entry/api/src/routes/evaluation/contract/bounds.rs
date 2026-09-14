@@ -28,6 +28,7 @@ pub(super) async fn validate(request: Request) -> Result<Request, Response> {
         .and_then(|value| value.to_str().ok())
         .is_some_and(|value| {
             value.split(';').next().is_some_and(|mime| {
+                let mime = mime.trim().to_ascii_lowercase();
                 mime == "application/json"
                     || (mime.starts_with("application/") && mime.ends_with("+json"))
             })

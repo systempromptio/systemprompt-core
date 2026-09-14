@@ -77,6 +77,18 @@ async fn invalid_json_query_and_oversized_identifiers_share_problem_contract() {
         Request::builder()
             .method("POST")
             .uri("/typed")
+            .header("content-type", "Application/JSON; charset=utf-8")
+            .body(Body::from(
+                serde_json::json!({"revision_id":"x".repeat(513)}).to_string(),
+            ))
+            .unwrap(),
+        StatusCode::BAD_REQUEST,
+    )
+    .await;
+    check(
+        Request::builder()
+            .method("POST")
+            .uri("/typed")
             .header("content-type", "application/vendor+json")
             .body(Body::from(
                 serde_json::json!({"revision_id":"x".repeat(513)}).to_string(),
