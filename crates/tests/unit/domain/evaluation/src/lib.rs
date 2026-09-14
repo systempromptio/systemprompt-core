@@ -22,12 +22,6 @@ mod experiments;
 mod execution_builder;
 
 #[cfg(test)]
-mod repository_runs;
-
-#[cfg(test)]
-mod repository_evidence;
-
-#[cfg(test)]
 mod repository_budget;
 
 #[cfg(test)]
@@ -47,6 +41,15 @@ mod repository_capabilities;
 
 #[cfg(test)]
 mod repository_assignments;
+
+#[cfg(test)]
+mod repository_lifecycle;
+
+#[cfg(test)]
+mod repository_evidence;
+
+#[cfg(test)]
+mod repository_runs;
 
 #[cfg(test)]
 mod experiments_execution;

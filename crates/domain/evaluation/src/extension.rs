@@ -29,21 +29,8 @@ impl Extension for EvaluationExtension {
                 "eval_execution_evidence",
                 include_str!("../schema/execution_evidence.sql"),
             ),
-            SchemaDefinition::new("eval_runs", include_str!("../schema/eval_runs.sql"))
-                .with_required_columns(vec!["id".into(), "kind".into(), "status".into()]),
             SchemaDefinition::new("eval_cases", include_str!("../schema/eval_cases.sql"))
                 .with_required_columns(vec!["id".into(), "name".into(), "prompt_body".into()]),
-            SchemaDefinition::new("eval_results", include_str!("../schema/eval_results.sql"))
-                .with_required_columns(vec!["id".into(), "run_id".into(), "verdict".into()]),
-            SchemaDefinition::new("eval_pairs", include_str!("../schema/eval_pairs.sql"))
-                .with_required_columns(vec!["id".into(), "run_id".into(), "winner".into()]),
-            SchemaDefinition::new(
-                "eval_judge_calls",
-                include_str!("../schema/eval_judge_calls.sql"),
-            )
-            .with_required_columns(vec!["conversation_id".into()]),
-            SchemaDefinition::new("eval_rubrics", include_str!("../schema/eval_rubrics.sql"))
-                .with_required_columns(vec!["id".into(), "name".into()]),
         ]
     }
 

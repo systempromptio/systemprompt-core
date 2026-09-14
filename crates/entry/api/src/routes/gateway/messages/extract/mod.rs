@@ -75,12 +75,7 @@ pub(super) async fn extract_request_context(
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
-    let presented = extract_credential(request.headers()).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
+    let presented = headers::require_credential(request.headers())?;
 
     let client_headers = classify_client_headers(request.headers());
 
@@ -103,8 +98,12 @@ pub(super) async fn extract_request_context(
 
     let (body_bytes, mut gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
-    let (gateway_conversation_id, context_id, client_session_id) =
-        derive_conversation(header_gateway_conversation, &gateway_request, partial)?;
+    let (gateway_conversation_id, context_id, client_session_id) = derive_conversation(
+        principal.user_id(),
+        header_gateway_conversation,
+        &gateway_request,
+        partial,
+    )?;
     let route = gateway_config
         .resolve_route(&rc.services.providers, &gateway_request)
         .ok_or_else(|| {
@@ -120,9 +119,15 @@ pub(super) async fn extract_request_context(
         .providers
         .find_provider(route.provider.as_str())
         .map(|p| p.wire);
+    ensure_owned_context(rc, principal.user_id(), &context_id, &session_id).await?;
     rc.repos
         .thought_signatures
-        .hydrate_request(&gateway_conversation_id, &mut gateway_request, wire)
+        .hydrate_request(
+            principal.user_id(),
+            &gateway_conversation_id,
+            &mut gateway_request,
+            wire,
+        )
         .await;
 
     let upstream_model = upstream_model_for(&rc.services.providers, &route, &gateway_request.model);
@@ -155,6 +160,7 @@ pub(super) async fn extract_request_context(
 // session when it names one, so every thread of one Claude Code run shares
 // the context its hook events already write to. An explicit header pins both.
 pub fn derive_conversation(
+    user_id: &UserId,
     header_gateway_conversation: Option<GatewayConversationId>,
     gateway_request: &CanonicalRequest,
     partial: &mut RejectionPartial,
@@ -172,10 +178,12 @@ pub fn derive_conversation(
                 )
             })?,
     };
-    let client_session_id = gateway_request.client_session_id();
+    let client_session_id = gateway_request
+        .client_session_id()
+        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
     let context_id = match (&client_session_id, header_supplied) {
         (Some(session), false) => ContextId::derived_from_client_session(session),
-        _ => ContextId::derived_from_gateway_conversation(&gateway_conversation_id),
+        _ => ContextId::derived_from_gateway_conversation(user_id, &gateway_conversation_id),
     };
     partial.context_id = Some(context_id.clone());
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
@@ -198,4 +206,29 @@ fn upstream_model_for(
                     .to_owned()
             },
         )
+}
+
+async fn ensure_owned_context(
+    rc: &RequestContext<'_>,
+    user_id: &UserId,
+    context_id: &ContextId,
+    session_id: &SessionId,
+) -> Result<(), (StatusCode, String)> {
+    rc.repos
+        .context_materializer
+        .ensure_context(systemprompt_traits::EnsureContextParams {
+            context_id,
+            user_id,
+            session_id: Some(session_id),
+            name: "Gateway conversation",
+            kind: "derived",
+        })
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "Conversation binding unavailable");
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Conversation binding unavailable".to_owned(),
+            )
+        })
 }

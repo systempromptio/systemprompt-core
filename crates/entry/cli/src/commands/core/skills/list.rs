@@ -14,10 +14,11 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_loader::ServicesRootBootstrap;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
-use crate::CliConfig;
+use crate::CommandContext;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 use super::types::{SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config};
+use systemprompt_marketplace::ManagedSkillResolution;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -31,9 +32,54 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let skills_path = get_skills_path()?;
-    execute_with_path(args, &skills_path)
+    if let Some(name) = args.name {
+        return show_resolved_skill(&name, ctx).await;
+    }
+    let mut skills = scan_skills(&skills_path)?;
+    let Some((resolver, owner)) = managed_context(ctx).await? else {
+        return Ok(render_list(args.enabled, args.disabled, skills));
+    };
+    let repository = resolver.repository();
+    let mut offset = 0;
+    loop {
+        let page = repository.list_resources(&owner, offset).await?;
+        let count = i64::try_from(page.len()).unwrap_or(i64::MAX);
+        for resource in page.into_iter().filter(|resource| resource.kind == "skill") {
+            skills.retain(|item| item.skill_id.as_str() != resource.resource_key);
+            match resolver
+                .resolve_skill(&owner, &resource.resource_key)
+                .await?
+            {
+                ManagedSkillResolution::Published(managed) => skills.push(SkillSummary {
+                    file_path: Some(format!(
+                        "managed://{}@{}",
+                        managed.id.as_str(),
+                        managed.bundle_digest.as_str()
+                    )),
+                    skill_id: managed.id,
+                    name: managed.name.clone(),
+                    display_name: managed.name,
+                    enabled: true,
+                    tags: Vec::new(),
+                }),
+                ManagedSkillResolution::Withheld(_) => {},
+                ManagedSkillResolution::NotManaged => {
+                    return Err(anyhow!(
+                        "Managed skill '{}' lost its binding",
+                        resource.resource_key
+                    ));
+                },
+            }
+        }
+        if count < systemprompt_marketplace::ManagedRepository::PAGE_SIZE {
+            break;
+        }
+        offset += systemprompt_marketplace::ManagedRepository::PAGE_SIZE;
+    }
+    skills.sort_by(|left, right| left.skill_id.cmp(&right.skill_id));
+    Ok(render_list(args.enabled, args.disabled, skills))
 }
 
 pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOutput> {
@@ -43,12 +89,16 @@ pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOu
 
     let skills = scan_skills(skills_path)?;
 
+    Ok(render_list(args.enabled, args.disabled, skills))
+}
+
+fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> CommandOutput {
     let filtered: Vec<SkillSummary> = skills
         .into_iter()
         .filter(|s| {
-            if args.enabled {
+            if enabled {
                 s.enabled
-            } else if args.disabled {
+            } else if disabled {
                 !s.enabled
             } else {
                 true
@@ -58,11 +108,77 @@ pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOu
 
     let output = SkillListOutput { skills: filtered };
 
-    Ok(CommandOutput::table_of(
+    CommandOutput::table_of(
         vec!["skill_id", "name", "enabled", "tags", "file_path"],
         &output.skills,
     )
-    .with_title("Skills"))
+    .with_title("Skills")
+}
+
+async fn managed_context(
+    ctx: &CommandContext,
+) -> Result<
+    Option<(
+        systemprompt_marketplace::ManagedResourceResolver,
+        systemprompt_identifiers::UserId,
+    )>,
+> {
+    let app = match ctx.app_context().await {
+        Ok(app) => app,
+        Err(error) => {
+            tracing::warn!(
+                %error,
+                "managed skills are not resolved: no application context; listing disk skills only"
+            );
+            return Ok(None);
+        },
+    };
+    if app.db_pool().pool_arc()?.is_closed() {
+        return Ok(None);
+    }
+    Ok(Some((
+        systemprompt_marketplace::ManagedResourceResolver::new(
+            app.managed_repository().as_ref().clone(),
+        ),
+        app.system_admin().id().clone(),
+    )))
+}
+
+pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Result<CommandOutput> {
+    if let Some((resolver, owner)) = managed_context(ctx).await? {
+        match resolver.resolve_skill(&owner, skill_name).await? {
+            ManagedSkillResolution::Withheld(reason) => {
+                return Err(anyhow!(
+                    "Skill '{}' is managed but withheld ({})",
+                    skill_name,
+                    reason.as_str()
+                ));
+            },
+            ManagedSkillResolution::NotManaged => {},
+            ManagedSkillResolution::Published(skill) => {
+                let output = SkillDetailOutput {
+                    file_path: Some(format!(
+                        "managed://{}@{}",
+                        skill.id.as_str(),
+                        skill.bundle_digest.as_str()
+                    )),
+                    skill_id: skill.id,
+                    name: skill.name.clone(),
+                    display_name: skill.name,
+                    description: skill.description,
+                    enabled: true,
+                    tags: Vec::new(),
+                    category: Some(format!("managed generation {}", skill.generation)),
+                    instructions_preview: truncate_with_ellipsis(&skill.instructions, 200),
+                };
+                return Ok(CommandOutput::card_value(
+                    format!("Skill: {skill_name}"),
+                    &output,
+                ));
+            },
+        }
+    }
+    show_skill_detail(skill_name, &get_skills_path()?)
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {

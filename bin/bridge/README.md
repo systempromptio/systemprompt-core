@@ -146,10 +146,17 @@ under *Add agent* rather than listed with a status.
 |---|---|
 | `SP_BRIDGE_CONFIG` | Path to `systemprompt-bridge.toml` (default: `<config_dir>/systemprompt/systemprompt-bridge.toml`) |
 | `SP_BRIDGE_PAT` | Inline PAT (overrides file-based `[pat]`) |
+| `SP_BRIDGE_POLICY_TRUST` | Managed manifest trust record as JSON (`{"gateway","key","source"}`); takes precedence over the OS policy store `manifestTrust` key |
 | `SP_BRIDGE_POLICY_PUBKEY` | Pinned manifest signing pubkey (overrides operator value) |
 | `SP_BRIDGE_ORG_PLUGINS_SYSTEM` | Override the system-scope org-plugins root (nonstandard installs, hermetic tests) |
+| `SP_BRIDGE_EGRESS_ALLOWED_HOSTS` | Comma-separated Cowork egress allowlist for `install --apply` when `--egress-allowed-hosts` is absent; `loopback` expands to `127.0.0.1` |
 | `SP_BRIDGE_LOG_FORMAT` | `json` for structured logs; default human-readable |
-| `SP_BRIDGE_DEVICE_CERT_SHA256` | Pin a specific device cert by SHA-256 fingerprint |
+| `SP_BRIDGE_DEVICE_CERT` | Linux: path to the device certificate (PEM or DER); takes precedence over `mtls.cert_keystore_ref` |
+| `SP_BRIDGE_DEVICE_CERT_LABEL` | macOS: Keychain label of the device certificate |
+| `SP_BRIDGE_DEVICE_CERT_SHA256` | Windows: pin a specific device cert in the `MY` store by SHA-256 fingerprint |
+| `RUST_LOG` | `tracing` filter directive; default `info,systemprompt_bridge::proxy=debug`. A malformed value fails start-up |
+
+The `SP_BRIDGE_` prefix is the brand's `env_prefix`; a white-label build reads the same suffixes under its own prefix. Every other environment read is an OS directory or identity probe (`HOME`, `XDG_CONFIG_HOME`/`XDG_CACHE_HOME`/`XDG_DATA_HOME`/`XDG_STATE_HOME`, `USER`, `SUDO_USER`, `HOSTNAME`/`COMPUTERNAME`, `LANG`, `PATH`, and the Windows `LOCALAPPDATA`/`APPDATA`/`USERPROFILE`/`ProgramData`/`ProgramFiles` folders) or a home override the managed host tool itself defines (`CODEX_HOME`, `CODEX_SYSTEM_CONFIG`, `HERMES_HOME`). Bridge behaviour is never switched by an undocumented variable; `just lint-env-vars` holds that line.
 
 Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 0600 on Unix).
 

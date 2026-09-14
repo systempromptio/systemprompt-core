@@ -18,6 +18,7 @@ enum Call {
 struct StubRunner {
     calls: Arc<Mutex<Vec<Call>>>,
     exit_code: i32,
+    status_exit_code: i32,
     fail_io: bool,
 }
 
@@ -28,16 +29,24 @@ impl StubRunner {
             Self {
                 calls: Arc::clone(&calls),
                 exit_code,
+                status_exit_code: exit_code,
                 fail_io: false,
             },
             calls,
         )
     }
 
+    fn with_status_exit_code(exit_code: i32) -> (Self, Arc<Mutex<Vec<Call>>>) {
+        let (mut runner, calls) = Self::new(0);
+        runner.status_exit_code = exit_code;
+        (runner, calls)
+    }
+
     fn failing_io() -> Self {
         Self {
             calls: Arc::new(Mutex::new(Vec::new())),
             exit_code: 0,
+            status_exit_code: 0,
             fail_io: true,
         }
     }
@@ -51,6 +60,10 @@ impl StubRunner {
 
     fn exit_status(&self) -> ExitStatus {
         ExitStatus::from_raw(self.exit_code << 8)
+    }
+
+    fn status_exit_status(&self) -> ExitStatus {
+        ExitStatus::from_raw(self.status_exit_code << 8)
     }
 }
 
@@ -68,7 +81,7 @@ impl CommandRunner for StubRunner {
     fn status(&self, spec: &CommandSpec) -> io::Result<ExitStatus> {
         self.check_io()?;
         self.calls.lock().unwrap().push(Call::Status(spec.clone()));
-        Ok(self.exit_status())
+        Ok(self.status_exit_status())
     }
 
     fn status_with_stdin(&self, spec: &CommandSpec, stdin: &[u8]) -> io::Result<ExitStatus> {
@@ -91,7 +104,15 @@ fn test_build_image_invokes_docker_build_in_context_dir() {
         .unwrap();
 
     let calls = calls.lock().unwrap();
-    let Call::Status(spec) = &calls[0] else {
+    let Call::Output(preflight) = &calls[0] else {
+        panic!("expected the daemon preflight before the build");
+    };
+    assert_eq!(preflight.program, "docker");
+    assert_eq!(
+        preflight.args,
+        vec!["version", "--format", "{{.Server.Version}}"]
+    );
+    let Call::Status(spec) = &calls[1] else {
         panic!("expected a status call");
     };
     assert_eq!(spec.program, "docker");
@@ -112,7 +133,7 @@ fn test_build_image_invokes_docker_build_in_context_dir() {
 
 #[test]
 fn test_build_image_failure_message() {
-    let (runner, _calls) = StubRunner::new(1);
+    let (runner, _calls) = StubRunner::with_status_exit_code(1);
     let docker = DockerCli::with_runner(Box::new(runner));
 
     let err = docker
@@ -125,15 +146,49 @@ fn test_build_image_failure_message() {
 }
 
 #[test]
+fn test_build_image_unreachable_daemon_names_binary_and_creds_store() {
+    let (runner, calls) = StubRunner::new(1);
+    let docker = DockerCli::with_runner(Box::new(runner));
+
+    let err = docker
+        .build_image(Path::new("/proj"), Path::new("/proj/Dockerfile"), "img:1")
+        .unwrap_err();
+    let message = err.to_string();
+    assert!(
+        message.starts_with(
+            "Docker daemon unreachable via `docker version --format {{.Server.Version}}`: no output"
+        ),
+        "{message}"
+    );
+    assert!(message.contains("\n  docker binary: "), "{message}");
+    assert!(message.contains("\n  credsStore: "), "{message}");
+    assert!(
+        !calls
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|call| matches!(call, Call::Status(_))),
+        "a failed preflight must not start the build"
+    );
+}
+
+#[test]
 fn test_build_image_spawn_failure_message() {
     let docker = DockerCli::with_runner(Box::new(StubRunner::failing_io()));
 
     let err = docker
         .build_image(Path::new("/proj"), Path::new("/proj/Dockerfile"), "img:1")
         .unwrap_err();
-    assert_eq!(
-        err.to_string(),
-        "Failed to run: docker build --no-cache -f /proj/Dockerfile -t img:1 ."
+    let message = err.to_string();
+    assert!(
+        message.starts_with(
+            "Docker daemon unreachable via `docker version --format {{.Server.Version}}`: no docker binary"
+        ),
+        "{message}"
+    );
+    assert!(
+        message.contains("docker binary: unresolved (no docker binary)"),
+        "{message}"
     );
 }
 
@@ -190,7 +245,7 @@ fn test_build_image_success_returns_ok() {
         .build_image(Path::new("/proj"), Path::new("/proj/Dockerfile"), "img:ok")
         .expect("build succeeds on exit 0");
 
-    assert_eq!(calls.lock().unwrap().len(), 1);
+    assert_eq!(calls.lock().unwrap().len(), 2);
 }
 
 #[test]

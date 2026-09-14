@@ -73,7 +73,13 @@
 # therefore decides whether this test's request or response is blocked, and the
 # per-process 60s resolver cache pins whichever spec won. Serialise them so each
 # test's policy is the only one installed while it runs.
+# The service-registry repository tests exercise `delete_dead_instances`, a
+# table-wide reaper by design (any replica may reap a dead one), so a concurrent
+# test's 90-day sweep reaps the row another test just aged to 400 days before
+# that test's own boundary sweep runs, and its `>= 1` reads zero. Serialise the
+# two suites that call the reaper.
 [test-groups]
+services-reaper-db = { max-threads = 1 }
 gateway-policy-db = { max-threads = 1 }
 logs-cleanup-db = { max-threads = 1 }
 agent-artifacts-db = { max-threads = 1 }
@@ -157,6 +163,14 @@ test-group = 'cloud-checkout-port'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
 test-group = 'cloud-checkout-port'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-database-tests) and test(/(service_registry_db|service_registry_lifecycle_db)::/)'
+test-group = 'services-reaper-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-database-tests) and test(/(service_registry_db|service_registry_lifecycle_db)::/)'
+test-group = 'services-reaper-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'

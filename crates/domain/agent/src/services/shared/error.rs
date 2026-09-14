@@ -52,6 +52,19 @@ pub enum AgentServiceError {
 
     #[error("capacity exceeded: {0}")]
     Capacity(String),
+
+    #[error("skill {skill_id} is managed but withheld ({reason})")]
+    SkillWithheld {
+        skill_id: systemprompt_identifiers::SkillId,
+        reason: &'static str,
+    },
+
+    #[error("skill {skill_id} could not be resolved: {source}")]
+    SkillSource {
+        skill_id: systemprompt_identifiers::SkillId,
+        #[source]
+        source: systemprompt_traits::ManagedSkillResolverError,
+    },
 }
 
 impl From<std::io::Error> for AgentServiceError {

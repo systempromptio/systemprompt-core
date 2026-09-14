@@ -15,6 +15,13 @@ pub struct NativeClient {
     limits: ExecutionLimits,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClientPurpose {
+    Execution,
+    Judge,
+    Suggestion,
+}
+
 impl NativeClient {
     pub fn builder(kind: ClientKind, model: ModelId) -> NativeClientBuilder {
         NativeClientBuilder {
@@ -27,29 +34,48 @@ impl NativeClient {
     }
 
     pub fn arguments(&self, prompt: &str) -> Vec<OsString> {
+        self.arguments_for(ClientPurpose::Execution, prompt)
+    }
+
+    pub fn arguments_for(&self, purpose: ClientPurpose, prompt: &str) -> Vec<OsString> {
         match self.kind {
-            ClientKind::ClaudeCode => [
-                "claude",
-                "-p",
-                "--output-format",
-                "stream-json",
-                "--verbose",
-                "--model",
-                self.model.as_str(),
-                "--max-turns",
-                &self.limits.max_turns.to_string(),
-                "--tools",
-                "Read,Write,Edit,Glob,Grep,Skill",
-                "--allowedTools",
-                "Read,Write,Edit,Glob,Grep,Skill",
-                "--disallowedTools",
-                "Bash,Agent,Task,WebSearch,WebFetch",
-                "--",
-                prompt,
-            ]
-            .iter()
-            .map(OsString::from)
-            .collect(),
+            ClientKind::ClaudeCode => {
+                let (tools, disallowed, turns) = match purpose {
+                    ClientPurpose::Execution => (
+                        "Read,Write,Edit,Glob,Grep,Skill,mcp__evaluation_fixture__evaluation_fixture",
+                        "Bash,Agent,Task,WebSearch,WebFetch",
+                        self.limits.max_turns,
+                    ),
+                    ClientPurpose::Judge => {
+                        ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 2)
+                    },
+                    ClientPurpose::Suggestion => {
+                        ("Read", "Bash,Agent,Task,WebSearch,WebFetch,Write,Edit", 3)
+                    },
+                };
+                [
+                    "claude",
+                    "-p",
+                    "--output-format",
+                    "stream-json",
+                    "--verbose",
+                    "--model",
+                    self.model.as_str(),
+                    "--max-turns",
+                    &turns.to_string(),
+                    "--tools",
+                    tools,
+                    "--allowedTools",
+                    tools,
+                    "--disallowedTools",
+                    disallowed,
+                    "--",
+                    prompt,
+                ]
+                .iter()
+                .map(OsString::from)
+                .collect()
+            },
             ClientKind::Opencode => [
                 "opencode",
                 "run",

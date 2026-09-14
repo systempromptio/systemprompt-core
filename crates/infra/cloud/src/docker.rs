@@ -8,6 +8,13 @@
 //! execution flows through [`CommandRunner`], so tests can substitute a stub
 //! instead of spawning real processes.
 //!
+//! `build_image` first proves the daemon is reachable through the `docker`
+//! binary that `PATH` resolves. A wrapper shim ahead of the real binary (a
+//! `credsStore` helper that is not installed, a desktop-app shim on a headless
+//! box) fails `docker build` with a message that names neither, so the
+//! preflight failure reports the resolved binary and the configured
+//! credential store alongside the daemon's own error.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -83,6 +90,22 @@ impl CommandRunner for SystemCommandRunner {
     }
 }
 
+fn configured_creds_store() -> String {
+    let Some(config) = dirs::home_dir().map(|home| home.join(".docker").join("config.json")) else {
+        return "unknown (no home directory)".to_owned();
+    };
+    let Ok(raw) = std::fs::read_to_string(&config) else {
+        return format!("none ({} absent)", config.display());
+    };
+    match serde_json::from_str::<serde_json::Value>(&raw) {
+        Ok(value) => value
+            .get("credsStore")
+            .and_then(serde_json::Value::as_str)
+            .map_or_else(|| "none".to_owned(), ToOwned::to_owned),
+        Err(e) => format!("unreadable ({}: {e})", config.display()),
+    }
+}
+
 pub struct DockerCli {
     runner: Box<dyn CommandRunner>,
 }
@@ -112,12 +135,66 @@ impl DockerCli {
         Self { runner }
     }
 
+    pub fn preflight_daemon(&self) -> CloudResult<String> {
+        let spec = CommandSpec::docker(["version", "--format", "{{.Server.Version}}"]);
+        let outcome = self.runner.output(&spec);
+        let failure = match outcome {
+            Ok(output) if output.status.success() => {
+                return Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned());
+            },
+            Ok(output) => String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+            Err(e) => e.to_string(),
+        };
+
+        Err(CloudError::docker(format!(
+            "Docker daemon unreachable via `{}`: {}\n  docker binary: {}\n  credsStore: {}",
+            spec.rendered(),
+            if failure.is_empty() {
+                "no output".to_owned()
+            } else {
+                failure
+            },
+            self.resolved_docker_binary(),
+            configured_creds_store(),
+        )))
+    }
+
+    fn resolved_docker_binary(&self) -> String {
+        let spec = if cfg!(windows) {
+            CommandSpec {
+                program: "where".to_owned(),
+                args: vec!["docker".to_owned()],
+                current_dir: None,
+            }
+        } else {
+            CommandSpec {
+                program: "sh".to_owned(),
+                args: vec!["-c".to_owned(), "command -v docker".to_owned()],
+                current_dir: None,
+            }
+        };
+        match self.runner.output(&spec) {
+            Ok(output) if output.status.success() => {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+                if path.is_empty() {
+                    "not on PATH".to_owned()
+                } else {
+                    path
+                }
+            },
+            Ok(_) => "not on PATH".to_owned(),
+            Err(e) => format!("unresolved ({e})"),
+        }
+    }
+
     pub fn build_image(
         &self,
         context_dir: &Path,
         dockerfile: &Path,
         image: &str,
     ) -> CloudResult<()> {
+        self.preflight_daemon()?;
+
         let dockerfile_arg = dockerfile.to_string_lossy().into_owned();
         let mut spec = CommandSpec::docker([
             "build",

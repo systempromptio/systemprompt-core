@@ -54,7 +54,9 @@ gateway:
     install_test_signing_key();
     let pool = fixture_db_pool(&boot.database_url).await?;
     let ctx = fixture_app_context(&pool, &boot.database_url)?;
-    let app = gateway_router(&ctx).expect("gateway enabled");
+    let app = gateway_router(&ctx)
+        .expect("gateway journal opens")
+        .expect("gateway enabled");
     let cred = seed_admin_credential(
         &pool,
         &format!("google-{}@example.invalid", uuid::Uuid::new_v4()),

@@ -6,7 +6,7 @@ use systemprompt_cli::session::{
     clear_all_sessions, clear_session, get_or_create_session, load_session_store,
 };
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_cloud::CloudCredentials;
+use systemprompt_cloud::{CloudCredentials, SessionKey};
 use systemprompt_identifiers::{CloudAuthToken, Email, UserId};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_db_pool, install_test_signing_key, seed_user_row_with_roles,
@@ -100,10 +100,14 @@ async fn coverage_local_session_creation_persists_identity_and_reuses_the_sessio
     assert_eq!(second.session_id, first.session_id);
     assert_eq!(second.context_id, first.context_id);
     let stored = load_session_store().unwrap();
-    assert_eq!(stored.active_profile_name.as_deref(), Some("coverage"));
-    let active = stored.active_session_for_profile_discovery().unwrap();
-    assert_eq!(active.user_id, user);
-    assert_eq!(active.session_id, first.session_id);
+    assert_eq!(
+        stored.active_profile_name, None,
+        "an explicit --profile is a one-shot target and never becomes the active session"
+    );
+    assert!(stored.active_key.is_none());
+    let kept = stored.get_session(&SessionKey::Local).unwrap();
+    assert_eq!(kept.user_id, user);
+    assert_eq!(kept.session_id, first.session_id);
 }
 
 #[tokio::test]
@@ -128,7 +132,6 @@ async fn coverage_logout_removes_active_and_explicit_profile_sessions() {
     let user = admin().await;
     let project = Project::new(user.as_str(), false);
     for args in [
-        &["logout", "--yes"][..],
         &["logout", "--profile", "coverage", "--yes"][..],
         &["logout", "--all", "--yes"][..],
     ] {
@@ -139,7 +142,18 @@ async fn coverage_logout_removes_active_and_explicit_profile_sessions() {
         command(&project, args).await.unwrap();
         assert!(load_session_store().unwrap().is_empty());
     }
-    command(&project, &["logout", "--yes"]).await.unwrap();
+
+    get_or_create_session(&project.context(false))
+        .await
+        .unwrap();
+    let err = command(&project, &["logout", "--yes"])
+        .await
+        .expect_err("a session minted under --profile is not the active session");
+    assert!(format!("{err:#}").contains("No active session"), "{err:#}");
+    assert!(!load_session_store().unwrap().is_empty());
+    command(&project, &["logout", "--all", "--yes"])
+        .await
+        .unwrap();
     assert!(load_session_store().unwrap().is_empty());
 }
 

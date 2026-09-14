@@ -44,6 +44,8 @@ mod env_overrides;
 #[cfg(test)]
 mod environment;
 #[cfg(test)]
+mod explicit_cloud_profile;
+#[cfg(test)]
 mod help_env_values;
 #[cfg(test)]
 mod interactive;

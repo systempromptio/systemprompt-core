@@ -205,20 +205,28 @@ mod all_jobs_inventory {
     }
 
     #[test]
-    fn all_seven_jobs_are_registered_in_inventory() {
+    fn every_built_in_job_is_registered_in_inventory() {
         let registered: HashSet<&'static str> = inventory::iter::<&'static dyn Job>
             .into_iter()
             .map(|j| j.name())
             .collect();
 
+        // Every `submit_job!` under crates/app/scheduler/src/jobs. A name
+        // missing here is a job the scheduler and `admin config validate`
+        // would reject as unknown the moment a config names it.
         let expected = [
+            "backfill_session_geo",
             "behavioral_analysis",
             "cleanup_empty_contexts",
             "cleanup_inactive_sessions",
             "database_cleanup",
+            "evaluation_supervisor",
             "ghost_session_cleanup",
             "malicious_ip_blacklist",
             "no_js_cleanup",
+            "service_registry_gc",
+            "thought_signature_cleanup",
+            "vertex_discovery",
         ];
 
         for name in expected {

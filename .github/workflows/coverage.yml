@@ -7,20 +7,20 @@ on:
         description: "Commit SHA or branch to gate. Defaults to the triggering ref."
         type: string
         required: false
-  # `main` is the canonical line: the pull_request trigger measures the
-  # promote -> main release PR before it is merged, and the push trigger
-  # produces the number for the commit that became main, which is the baseline
+  # Coverage is a measurement, not a gate. It is the slowest workflow here
+  # (~70 min instrumented build) and it used to be the only required check on
+  # the `main` ruleset, running on the release PR and again on the merge
+  # commit — an hour and more on the release critical path for a number that
+  # never changed the release decision. The PR trigger is gone: the release PR
+  # waits on CI, Quality and Supply Chain, and the push to `main` produces the
+  # published number for the commit that was released, which is the baseline
   # the ratchet below reads back.
   #
-  # `next` runs too, despite this being the heaviest job here (the instrumented
-  # build is ~2-3x). Measuring only the released line meant coverage spoke once
-  # per release, on the promote PR — so a 0.93pt erosion across four releases
-  # went unseen until the moment it was most expensive to discover, and the
-  # crates that caused it had shipped weeks earlier. A number that arrives after
-  # the code is merged cannot influence the code. The concurrency group below is
+  # `next` runs too. Measuring only the released line meant coverage spoke
+  # once per release — so a 0.93pt erosion across four releases went unseen
+  # until the moment it was most expensive to discover. The `next` run is the
+  # erosion signal, off the critical path; the concurrency group below is
   # cancel-in-progress, so a burst of pushes collapses to one live run.
-  pull_request:
-    branches: [main]
   push:
     branches: [main, next]
 
@@ -33,7 +33,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
   id-token: write
   # The ratchet step downloads the previous successful run's coverage artifact.
   actions: read
@@ -356,7 +355,7 @@ jobs:
           # between promotes, which is most of the time and exactly the window
           # it is meant to cover. Run-to-run on `next` is the comparison that
           # catches a regression while the code is still being written; the
-          # promote PR and the `main` push still measure against `main`.
+          # `main` push still measures against `main`.
           BASELINE_BRANCH="main"
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "next" ]; then
             BASELINE_BRANCH="next"

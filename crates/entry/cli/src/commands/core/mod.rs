@@ -67,7 +67,7 @@ pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
         CoreCommands::Content(cmd) => content::execute(cmd, ctx).await,
         CoreCommands::Files(cmd) => files::execute(cmd, ctx).await,
         CoreCommands::Contexts(cmd) => contexts::execute(cmd, ctx).await,
-        CoreCommands::Skills(cmd) => skills::execute(cmd, ctx),
+        CoreCommands::Skills(cmd) => skills::execute(cmd, ctx).await,
         CoreCommands::Plugins(cmd) => plugins::execute(cmd, ctx),
         CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, ctx).await,
         CoreCommands::Hooks(cmd) => hooks::execute(cmd, ctx),

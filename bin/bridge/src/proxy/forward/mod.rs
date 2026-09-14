@@ -174,13 +174,15 @@ pub(crate) async fn forward(
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context).await?;
 
-    let upstream_headers = build_upstream_headers(
+    let mut upstream_headers = build_upstream_headers(
         &parts.headers,
         &upstream_bearer,
         session_context.session_id(),
         gateway_conversation_id.as_ref(),
         &route.extra_headers,
     )?;
+
+    headers::ensure_ingestion_delivery_id(&request_path, &mut upstream_headers)?;
 
     let upstream_response = send_with_replay(UpstreamRequest {
         client: &client,

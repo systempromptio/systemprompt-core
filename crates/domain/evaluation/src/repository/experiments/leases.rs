@@ -50,8 +50,8 @@ pub struct ExecutionCompletion {
 impl ExperimentRepository {
     pub async fn heartbeat(&self, owner: &UserId, lease: &ExecutionLease) -> Result<()> {
         let changed = sqlx::query!(
-            "UPDATE eval_executions x SET lease_expires_at=LEAST(x.deadline_at,NOW()+INTERVAL '60 seconds') FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND e.status='running' AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.lease_expires_at>NOW() AND x.deadline_at>NOW() AND x.status='running'",
-            owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token
+            "UPDATE eval_executions x SET active_runtime_ms=LEAST(1800000,x.active_runtime_ms+(EXTRACT(EPOCH FROM (NOW()-x.last_heartbeat_at))*1000)::BIGINT),last_heartbeat_at=NOW(),lease_expires_at=LEAST(x.deadline_at,NOW()+INTERVAL '60 seconds') FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND e.status='running' AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.lease_expires_at>NOW() AND x.deadline_at>NOW() AND x.status='running' AND x.active_runtime_ms<1800000"
+            , owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token
         ).execute(&self.pool).await?;
         if changed.rows_affected() != 1 {
             return Err(crate::experiments::conflict(
@@ -83,7 +83,7 @@ impl ExperimentRepository {
             return Ok(());
         }
         let changed = sqlx::query!(
-            "UPDATE eval_executions x SET status=$5,result=$6,finished_at=NOW(),lease_expires_at=NULL FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND e.status='running' AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.lease_expires_at>NOW() AND x.deadline_at>NOW() AND x.status='running' RETURNING x.experiment_id",
+            "UPDATE eval_executions x SET status=$5,result=$6,finished_at=NOW(),active_runtime_ms=LEAST(1800000,x.active_runtime_ms+(EXTRACT(EPOCH FROM (NOW()-x.last_heartbeat_at))*1000)::BIGINT),last_heartbeat_at=NOW(),lease_expires_at=NULL FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND e.status='running' AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4 AND x.lease_expires_at>NOW() AND x.deadline_at>NOW() AND x.status='running' RETURNING x.experiment_id",
             owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token,
             completion.outcome.name(), sqlx::types::Json(completion) as _
         ).fetch_optional(&mut *tx).await?.ok_or_else(|| crate::experiments::conflict("Completion rejected: stale or foreign lease"))?;

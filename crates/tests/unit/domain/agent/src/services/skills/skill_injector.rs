@@ -69,16 +69,16 @@ async fn inject_for_tool_with_known_skill_appends_guidance() {
 }
 
 #[tokio::test]
-async fn inject_for_tool_with_unknown_skill_returns_base() {
+async fn inject_for_tool_with_unknown_skill_is_rejected() {
     let svc = make_service();
     let injector = SkillInjector::new(svc);
     let ctx = make_ctx();
     let id = SkillId::new("inj_does_not_exist_qq");
-    let out = injector
+    let error = injector
         .inject_for_tool(Some(&id), "BASE".to_string(), &ctx)
         .await
-        .expect("inject");
-    assert_eq!(out, "BASE");
+        .expect_err("unknown skill must not silently change the governed prompt");
+    assert!(error.to_string().contains("Skill not found on disk"));
 }
 
 #[tokio::test]

@@ -8,6 +8,15 @@ use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 use crate::support::{minimal_request, seed_user, setup_db};
 use systemprompt_security::policy::types::AccessScope;
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
         systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
@@ -15,7 +24,7 @@ fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynC
 }
 
 fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
-    GatewayRepositories::new(db, materializer(db)).expect("gateway repositories")
+    GatewayRepositories::new(db, gateway_journal(), materializer(db)).expect("gateway repositories")
 }
 
 #[tokio::test]
@@ -26,7 +35,7 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
     let gw_conv = request
         .derived_gateway_conversation_id()
         .expect("gateway conversation id");
-    let context_id = ContextId::derived_from_gateway_conversation(&gw_conv);
+    let context_id = ContextId::derived_from_gateway_conversation(&user_id, &gw_conv);
     let ai_request_id = AiRequestId::generate();
     let body = Bytes::from(r#"{"messages":[{"role":"user","content":"concurrent first turn"}]}"#);
 
@@ -40,11 +49,11 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
         let ctx = GatewayRequestContext {
             ai_request_id: ai_request_id.clone(),
             user_id: user_id.clone(),
-            session_id: None,
+            session_id: Some(crate::support::session_for(&user_id)),
             context_id: context_id.clone(),
             gateway_conversation_id: Some(gw_conv.clone()),
             client_session_id: None,
-            trace_id: None,
+            trace_id: Some(systemprompt_identifiers::TraceId::generate()),
             access_scope: AccessScope::Unknown,
             client_id: None,
             provider: "anthropic".to_string(),
@@ -115,17 +124,17 @@ async fn gateway_audit_open_persists_derived_context_id() {
     let user_id = seed_user(&db).await;
     let request = minimal_request(Some("persist-context-id"), "first turn for persistence");
     let gw_conv = request.derived_gateway_conversation_id().unwrap();
-    let context_id = ContextId::derived_from_gateway_conversation(&gw_conv);
+    let context_id = ContextId::derived_from_gateway_conversation(&user_id, &gw_conv);
     let ai_request_id = AiRequestId::generate();
 
     let ctx = GatewayRequestContext {
         ai_request_id: ai_request_id.clone(),
-        user_id,
-        session_id: None,
+        user_id: user_id.clone(),
+        session_id: Some(crate::support::session_for(&user_id)),
         context_id: context_id.clone(),
         gateway_conversation_id: Some(gw_conv.clone()),
         client_session_id: None,
-        trace_id: None,
+        trace_id: Some(systemprompt_identifiers::TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_string(),

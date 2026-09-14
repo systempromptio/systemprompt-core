@@ -27,6 +27,8 @@ mod import_warnings;
 #[cfg(test)]
 mod keep;
 #[cfg(test)]
+mod managed_resolution;
+#[cfg(test)]
 mod manifest;
 #[cfg(test)]
 mod registry;

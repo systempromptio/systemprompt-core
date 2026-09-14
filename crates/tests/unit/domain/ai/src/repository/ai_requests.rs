@@ -2,7 +2,6 @@
 // aggregates, and per-turn message / tool-call writes.
 
 use systemprompt_ai::models::{AiRequestRecord, RequestStatus};
-use systemprompt_ai::repository::ai_requests::UpdateCompletionParams;
 use systemprompt_ai::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, AiToolCallId, ContextId};
 use uuid::Uuid;
@@ -114,48 +113,6 @@ async fn insert_with_id_uses_supplied_id() {
     let returned = repo.insert_with_id(&id, &record).await.expect("insert");
     assert_eq!(returned, id);
     assert!(repo.get_by_id(&id).await.expect("get").is_some());
-}
-
-#[tokio::test]
-async fn update_completion_sets_tokens_and_status() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
-    let uid = user();
-    let id = seed_request(&pool, &uid).await;
-
-    let updated = repo
-        .update_completion(UpdateCompletionParams {
-            id: id.clone(),
-            tokens_used: 300,
-            input_tokens: 200,
-            output_tokens: 100,
-            cost_microdollars: 9_000,
-            latency_ms: 750,
-            upstream_latency_ms: Some(600),
-            cache_hit: true,
-            cache_read_tokens: 128,
-            cache_creation_tokens: 0,
-            reasoning_tokens: 40,
-        })
-        .await
-        .expect("update");
-    assert_eq!(updated.id, id);
-    assert_eq!(updated.status, "completed");
-    assert_eq!(updated.tokens_used, Some(300));
-    assert_eq!(updated.input_tokens, Some(200));
-    assert_eq!(updated.output_tokens, Some(100));
-    assert_eq!(updated.cost_microdollars, 9_000);
-    assert_eq!(updated.latency_ms, Some(750));
-    assert_eq!(updated.upstream_latency_ms, Some(600));
-    assert!(updated.cache_hit);
-    assert_eq!(updated.cache_read_tokens, Some(128));
-    assert_eq!(
-        updated.reasoning_tokens,
-        Some(40),
-        "the thinking share of output_tokens is persisted, not dropped"
-    );
-    assert!(updated.completed_at.is_some());
 }
 
 #[tokio::test]
@@ -302,40 +259,6 @@ async fn insert_and_get_messages_in_sequence_order() {
     assert_eq!(messages[0].sequence_number, 0);
     assert_eq!(messages[1].sequence_number, 1);
     assert_eq!(messages[0].content, "hello");
-}
-
-#[tokio::test]
-async fn get_max_sequence_reflects_inserted_messages() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
-    let uid = user();
-    let id = seed_request(&pool, &uid).await;
-    assert_eq!(repo.get_max_sequence(&id).await.expect("empty"), 0);
-
-    repo.insert_message(&id, "user", "a", 0).await.expect("0");
-    repo.insert_message(&id, "user", "b", 5).await.expect("5");
-    assert_eq!(repo.get_max_sequence(&id).await.expect("max"), 5);
-}
-
-#[tokio::test]
-async fn add_response_message_appends_after_max() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
-    let uid = user();
-    let id = seed_request(&pool, &uid).await;
-    repo.insert_message(&id, "user", "q", 0).await.expect("0");
-    repo.add_response_message(&id, "the answer")
-        .await
-        .expect("append");
-
-    let messages = repo.list_messages(&id).await.expect("messages");
-    assert_eq!(messages.len(), 2);
-    let last = messages.last().expect("last");
-    assert_eq!(last.role, "assistant");
-    assert_eq!(last.content, "the answer");
-    assert_eq!(last.sequence_number, 1);
 }
 
 #[tokio::test]

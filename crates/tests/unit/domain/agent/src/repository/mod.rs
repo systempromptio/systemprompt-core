@@ -57,8 +57,7 @@ pub(crate) async fn seed_context_and_task(
     user_id: &UserId,
     session_id: &SessionId,
 ) -> (ContextId, TaskId) {
-    let ctx_repo = systemprompt_agent::repository::ContextRepository::new(repos.db_pool())
-        .expect("context repo");
+    let ctx_repo = repos.contexts.clone();
     let context_id = ctx_repo
         .create_context(user_id, Some(session_id), "seed-context", ContextKind::User)
         .await

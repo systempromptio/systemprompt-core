@@ -4,7 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::Result;
-use crate::experiments::records::{ExecutionRecord, ExperimentDetail, ExperimentRecord};
+use crate::experiments::records::{
+    ExecutionRecord, ExperimentDetail, ExperimentPreflight, ExperimentRecord,
+};
 use crate::experiments::resources::ResourceContent;
 use sqlx::PgPool;
 use sqlx::types::Json;
@@ -13,7 +15,10 @@ use systemprompt_identifiers::{
 };
 
 use super::RevisionRepository;
-use crate::experiments::{ExperimentSpec, content_digest, invalid};
+use crate::experiments::{ExperimentSpec, VariantSpec, content_digest, invalid};
+
+#[path = "run_claims.rs"]
+mod claims;
 
 #[derive(Clone, Debug)]
 pub struct ExperimentRepository {
@@ -29,13 +34,20 @@ impl ExperimentRepository {
         }
     }
 
-    pub async fn create(
+    pub async fn create_with_budget(
         &self,
         owner: &UserId,
         key: &str,
+        budget: &EvalBudgetId,
         spec: &ExperimentSpec,
     ) -> Result<EvalExperimentId> {
-        spec.validate()?;
+        let preflight = self.preflight(owner, budget, spec).await?;
+        if !preflight.affordable {
+            return Err(crate::EvaluationError::BudgetExhausted {
+                spent: preflight.available_microdollars,
+                budget: preflight.maximum_cost_microdollars,
+            });
+        }
         if key.trim().is_empty() || key.len() > 255 {
             return Err(invalid("An idempotency key is required"));
         }
@@ -63,35 +75,143 @@ impl ExperimentRepository {
         .execute(&mut *tx)
         .await?;
         let existing = sqlx::query!(
-            "SELECT id,spec_digest FROM eval_experiments WHERE owner_id=$1 AND idempotency_key=$2",
-            owner.as_str(),
-            key
+            "SELECT id,spec_digest,budget_id FROM eval_experiments WHERE owner_id=$1 AND idempotency_key=$2",
+            owner.as_str(), key
         )
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(existing) = existing {
-            if existing.spec_digest != digest {
+            if existing.spec_digest != digest || existing.budget_id != budget.as_str() {
                 return Err(crate::experiments::conflict(
                     "Idempotency key conflicts with another experiment",
                 ));
             }
             return Ok(EvalExperimentId::new(existing.id));
         }
-        let budget = EvalBudgetId::generate();
-        sqlx::query!(
-            "INSERT INTO eval_budget_accounts(id,owner_id,cap) VALUES($1,$2,$3)",
+        let account = sqlx::query!(
+            "SELECT id FROM eval_budget_accounts WHERE id=$1 AND owner_id=$2 AND NOT frozen",
             budget.as_str(),
-            owner.as_str(),
-            spec.budget_microdollars
+            owner.as_str()
         )
-        .execute(&mut *tx)
+        .fetch_optional(&mut *tx)
         .await?;
+        if account.is_none() {
+            return Err(crate::experiments::missing(
+                "Active budget unavailable in this scope",
+            ));
+        }
         let id = EvalExperimentId::generate();
         sqlx::query!("INSERT INTO eval_experiments(id,owner_id,spec,spec_digest,budget_id,idempotency_key) VALUES($1,$2,$3,$4,$5,$6)", id.as_str(), owner.as_str(), Json(spec) as _, digest, budget.as_str(), key)
             .execute(&mut *tx).await?;
         Self::insert_executions(&mut tx, &id, spec).await?;
+        if spec.claim_independent_improvement {
+            sqlx::query!("INSERT INTO eval_holdout_consumption(owner_id,case_revision_id,experiment_id) SELECT $1,c.id,$2 FROM eval_resource_revisions c WHERE c.owner_id=$1 AND c.id=ANY($3) AND c.content->'content'->>'partition'='holdout'",
+                owner.as_str(), id.as_str(), &spec.cases.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).execute(&mut *tx).await?;
+        }
         tx.commit().await?;
         Ok(id)
+    }
+
+    pub async fn preflight(
+        &self,
+        owner: &UserId,
+        budget: &EvalBudgetId,
+        spec: &ExperimentSpec,
+    ) -> Result<ExperimentPreflight> {
+        spec.validate()?;
+        let dataset = spec
+            .dataset
+            .as_ref()
+            .ok_or_else(|| invalid("Preflight requires a dataset revision"))?;
+        let frozen = spec
+            .frozen
+            .as_ref()
+            .ok_or_else(|| invalid("Preflight requires frozen environment settings"))?;
+        let ResourceContent::Dataset(dataset_cases) = self.revisions.get(owner, dataset).await?
+        else {
+            return Err(invalid(
+                "Dataset reference must identify a dataset revision",
+            ));
+        };
+        if spec.cases.iter().any(|case| !dataset_cases.contains(case)) {
+            return Err(invalid("Selected cases must belong to the frozen dataset"));
+        }
+        let rubric = self.revisions.get(owner, &spec.rubric).await?;
+        if content_digest(&rubric)? != frozen.rubric_digest
+            || content_digest(&ResourceContent::Dataset(dataset_cases))? != frozen.dataset_digest
+        {
+            return Err(invalid(
+                "Dataset or rubric digest differs from frozen settings",
+            ));
+        }
+        let (baseline, candidate) = paired_variants(spec)?;
+        self.require_projections(
+            owner,
+            [
+                &baseline.skill_bundle_digest,
+                &candidate.skill_bundle_digest,
+                &baseline.configuration_digest,
+            ],
+        )
+        .await?;
+        let account = super::BudgetRepository::new(self.pool.clone())
+            .get(owner, budget)
+            .await?;
+        if spec.claim_independent_improvement {
+            self.require_fresh_holdout(owner, spec).await?;
+        }
+        let execution_count = u64::try_from(spec.cases.len())
+            .unwrap_or(u64::MAX)
+            .saturating_mul(2)
+            .saturating_mul(u64::from(spec.repetitions));
+        let maximum_cost_microdollars =
+            frozen.cost_envelope.maximum_microdollars(execution_count)?;
+        if spec.budget_microdollars != maximum_cost_microdollars {
+            return Err(invalid(
+                "Experiment budget must equal the conservatively derived frozen cost envelope",
+            ));
+        }
+        let available = account
+            .cap
+            .saturating_sub(account.reserved)
+            .saturating_sub(account.settled);
+        Ok(ExperimentPreflight {
+            execution_count,
+            maximum_cost_microdollars,
+            available_microdollars: available,
+            affordable: !account.frozen && maximum_cost_microdollars <= available,
+            matrix_digest: content_digest(spec)?,
+        })
+    }
+
+    async fn require_projections(&self, owner: &UserId, digests: [&String; 3]) -> Result<()> {
+        for digest in digests {
+            let found = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_managed_workspace_projections WHERE owner_id=$1 AND digest=$2)", owner.as_str(), digest).fetch_one(&self.pool).await?.unwrap_or(false);
+            if !found {
+                return Err(crate::experiments::missing(
+                    "Managed workspace projection is unavailable",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    async fn require_fresh_holdout(&self, owner: &UserId, spec: &ExperimentSpec) -> Result<()> {
+        let holdouts = sqlx::query_scalar!("SELECT id FROM eval_resource_revisions WHERE owner_id=$1 AND id=ANY($2) AND content->'content'->>'partition'='holdout'",
+            owner.as_str(), &spec.cases.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).fetch_all(&self.pool).await?;
+        if holdouts.is_empty() {
+            return Err(invalid(
+                "Independent improvement claims require a holdout partition",
+            ));
+        }
+        let consumed = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_holdout_consumption WHERE owner_id=$1 AND case_revision_id=ANY($2))",
+            owner.as_str(), &holdouts).fetch_one(&self.pool).await?.unwrap_or(false);
+        if consumed {
+            return Err(crate::experiments::conflict(
+                "A fresh holdout revision is required for another independent-improvement claim",
+            ));
+        }
+        Ok(())
     }
 
     async fn insert_executions(
@@ -140,68 +260,39 @@ impl ExperimentRepository {
     pub async fn cancel(&self, owner: &UserId, id: &EvalExperimentId) -> Result<()> {
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, owner).await?;
-        let budget: Option<String> = sqlx::query_scalar!("UPDATE eval_experiments SET status='cancelled' WHERE id=$1 AND owner_id=$2 AND status IN ('queued','running','cancelled','blocked') RETURNING budget_id", id.as_str(), owner.as_str())
+        let changed = sqlx::query!("UPDATE eval_experiments SET status='cancelled' WHERE id=$1 AND owner_id=$2 AND status IN ('queued','running','cancelled','blocked') RETURNING id",
+            id.as_str(), owner.as_str())
             .fetch_optional(&mut *tx).await?;
-        let budget =
-            budget.ok_or_else(|| crate::experiments::conflict("Experiment cannot be cancelled"))?;
-        sqlx::query!(
-            "UPDATE eval_budget_accounts SET frozen=TRUE WHERE id=$1",
-            budget
-        )
-        .execute(&mut *tx)
-        .await?;
-        sqlx::query!("UPDATE eval_executions SET status='cancelled',finished_at=NOW() WHERE experiment_id=$1 AND status='queued'", id.as_str())
+        changed.ok_or_else(|| crate::experiments::conflict("Experiment cannot be cancelled"))?;
+        sqlx::query!("UPDATE eval_executions SET status='cancelled',finished_at=NOW(),lease_expires_at=NULL WHERE experiment_id=$1 AND status IN ('queued','running','awaiting_approval')", id.as_str())
             .execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())
     }
+}
 
-    pub async fn claim(
-        &self,
-        owner: &UserId,
-        worker: &EvalWorkerId,
-    ) -> Result<Option<ExecutionRecord>> {
-        if worker.as_str().trim().is_empty() || worker.as_str().len() > 255 {
-            return Err(invalid("Worker identity required"));
-        }
-        let mut tx = self.pool.begin().await?;
-        super::lock_owner(&mut tx, owner).await?;
-        let expired = super::ExecutionCompletion {
-            outcome: super::TerminalOutcome::Error,
-            summary: "Worker lease expired; billing reservations remain held until reconciled"
-                .to_owned(),
-        };
-        sqlx::query!(
-            "UPDATE eval_executions x SET status='error',result=$2,finished_at=NOW() FROM eval_experiments e WHERE x.experiment_id=e.id AND e.owner_id=$1 AND x.status='running' AND (x.lease_expires_at<NOW() OR x.deadline_at<=NOW())",
-            owner.as_str(), Json(&expired) as _
-        ).execute(&mut *tx).await?;
-        let active = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND x.status='running' AND x.lease_expires_at>NOW() AND x.deadline_at>NOW()",
-            owner.as_str()
-        ).fetch_one(&mut *tx).await?.unwrap_or(0);
-        if active >= 2 {
-            tx.commit().await?;
-            return Ok(None);
-        }
-        let row = sqlx::query!("SELECT x.id,x.experiment_id FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND e.status IN ('queued','running') AND x.status='queued' ORDER BY x.created_at FOR UPDATE OF x SKIP LOCKED LIMIT 1", owner.as_str())
-            .fetch_optional(&mut *tx).await?;
-        let Some(row) = row else {
-            sqlx::query!(
-                "UPDATE eval_experiments e SET status='completed' WHERE owner_id=$1 AND status='running' AND NOT EXISTS(SELECT 1 FROM eval_executions x WHERE x.experiment_id=e.id AND x.status IN ('queued','running','awaiting_approval'))",
-                owner.as_str()
-            ).execute(&mut *tx).await?;
-            tx.commit().await?;
-            return Ok(None);
-        };
-        let execution = sqlx::query_scalar!(r#"UPDATE eval_executions SET status='running',lease_owner=$2,lease_expires_at=NOW()+INTERVAL '60 seconds',deadline_at=NOW()+INTERVAL '30 minutes',fencing_token=fencing_token+1 WHERE id=$1 RETURNING to_jsonb(eval_executions) AS "record!: Json<ExecutionRecord>""#, row.id, worker.as_str())
-            .fetch_one(&mut *tx).await?;
-        sqlx::query!(
-            "UPDATE eval_experiments SET status='running' WHERE id=$1 AND status='queued'",
-            row.experiment_id
-        )
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        Ok(Some(execution.0))
+fn paired_variants(spec: &ExperimentSpec) -> Result<(&VariantSpec, &VariantSpec)> {
+    if spec.variants.len() != 2 {
+        return Err(invalid(
+            "Paired comparison requires baseline and candidate variants",
+        ));
     }
+    let baseline = &spec.variants[0];
+    let candidate = &spec.variants[1];
+    if baseline.client != candidate.client
+        || baseline.client_version != candidate.client_version
+        || baseline.model != candidate.model
+        || baseline.provider != candidate.provider
+        || baseline.configuration_digest != candidate.configuration_digest
+        || baseline.worker_image_digest != candidate.worker_image_digest
+        || baseline.skill_bundle_digest == candidate.skill_bundle_digest
+    {
+        return Err(invalid(
+            "Only the candidate skill bundle may differ between paired variants",
+        ));
+    }
+    if baseline.client != crate::experiments::ClientKind::ClaudeCode {
+        return Err(invalid("Only pinned Claude Code execution is supported"));
+    }
+    Ok((baseline, candidate))
 }

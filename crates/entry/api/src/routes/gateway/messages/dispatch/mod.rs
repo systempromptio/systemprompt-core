@@ -78,7 +78,7 @@ pub(super) async fn dispatch_to_provider(
         persist: true,
     })?;
 
-    match GatewayService::dispatch(
+    match Box::pin(GatewayService::dispatch(
         gateway_config,
         &rc.services.providers,
         rc.ctx.db_pool(),
@@ -91,7 +91,7 @@ pub(super) async fn dispatch_to_provider(
             forward_headers: client_headers.forward,
             identity_headers: client_headers.identity,
         },
-    )
+    ))
     .await
     {
         Ok(resp) => Ok(resp),

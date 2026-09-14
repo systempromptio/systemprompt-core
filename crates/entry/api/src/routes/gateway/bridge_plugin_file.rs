@@ -52,12 +52,17 @@ pub async fn handle(
 
     let services = bridge_data::load_services_config().map_err(|e| internal("services", &e))?;
     let profile = ProfileBootstrap::get().map_err(|e| internal("profile", &e))?;
-    let catalog = CatalogContent::load_cached(
+    let disk_catalog = CatalogContent::load_cached(
         &services,
         ctx.app_paths().system().services(),
         &profile.server.api_external_url,
     )
     .map_err(|e| internal("catalog", &e))?;
+    let catalog = (*disk_catalog)
+        .clone()
+        .with_managed_skills(ctx.managed_repository().as_ref().clone(), &user.id)
+        .await
+        .map_err(|error| internal("managed-catalog", &error))?;
 
     if !plugin_is_granted(&ctx, &services, &catalog, &id, &user.id).await? {
         tracing::warn!(

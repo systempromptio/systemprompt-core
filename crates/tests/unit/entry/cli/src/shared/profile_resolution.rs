@@ -76,7 +76,7 @@ fn resolve_profile_path_passes_through_path_override() {
     std::fs::write(&yaml, "name: t\n").expect("write");
     let resolved =
         resolve_profile_path(Some(yaml.to_str().expect("utf8")), None, None).expect("resolves");
-    assert_eq!(resolved, yaml);
+    assert_eq!(resolved.path, yaml);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn resolve_profile_path_uses_env_override_when_no_cli_override() {
     std::fs::write(&yaml, "name: t\n").expect("write");
     let resolved =
         resolve_profile_path(None, Some(yaml.to_str().expect("utf8")), None).expect("resolves");
-    assert_eq!(resolved, yaml);
+    assert_eq!(resolved.path, yaml);
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn resolve_profile_path_uses_session_path_when_exists() {
     let yaml = dir.path().join("profile.yaml");
     std::fs::write(&yaml, "name: t\n").expect("write");
     let resolved = resolve_profile_path(None, None, Some(yaml.clone())).expect("resolves");
-    assert_eq!(resolved, yaml);
+    assert_eq!(resolved.path, yaml);
 }
 
 #[test]
@@ -111,5 +111,5 @@ fn resolve_profile_path_cli_override_beats_env_override() {
         None,
     )
     .expect("resolves");
-    assert_eq!(resolved, cli_yaml);
+    assert_eq!(resolved.path, cli_yaml);
 }

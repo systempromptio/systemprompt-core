@@ -1,173 +1,31 @@
-//! `secret_scan`: refuse governed input containing a plaintext credential
-//! matching one of the built-in patterns. That input is a tool call's
-//! arguments or, for a prompt submission, the prompt itself — a key pasted
-//! into the chat reaches the model exactly as one passed as a tool argument
-//! would. The pattern list ships with the binary; per-deployment additions go
-//! in the governance config under `policies[id=secret_scan].extra_patterns`.
+//! `secret_scan`: evaluate governed input with the installation's configured
+//! credential catalog.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::borrow::Cow;
 
-use regex::Regex;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::{PolicyId, SecretPatternId};
 
 use super::super::governed::GovernedInput;
-use super::super::registry::PolicyRegistration;
-use super::super::secrets::{
-    EntropyConfig, MAX_RECOVERY_FINDINGS, SecretFinding, SecretSource, detect_secrets_with,
-    secret_findings,
-};
+use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
+use super::super::secrets::{MAX_RECOVERY_FINDINGS, SecretFinding, SecretScanner};
 use super::super::types::{GovernancePolicy, PolicyContext, SecretLocation};
 use super::SECRET_SCAN_ID as ID;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
-#[derive(Debug, Clone)]
-struct ExtraPattern {
-    id: String,
-    name: String,
-    prefix: String,
-}
-
 #[derive(Debug)]
 struct SecretScan {
-    extra_patterns: Vec<ExtraPattern>,
-    entropy: EntropyConfig,
-}
-
-const ENTROPY_KEYS: [&str; 4] = ["enabled", "min_len", "threshold", "allowlist"];
-
-fn entropy_from_yaml(v: &YamlValue) -> EntropyConfig {
-    let defaults = EntropyConfig::default();
-    let Some(block) = v.get("entropy") else {
-        return defaults;
-    };
-    report_entropy_block_typos(block);
-    let allowlist = block
-        .get("allowlist")
-        .and_then(YamlValue::as_sequence)
-        .map(|seq| {
-            seq.iter()
-                .filter_map(YamlValue::as_str)
-                .filter_map(|expr| match Regex::new(expr) {
-                    Ok(re) => Some(re),
-                    Err(error) => {
-                        tracing::error!(
-                            %expr,
-                            %error,
-                            "secret_scan: entropy.allowlist entry skipped; regex failed to compile"
-                        );
-                        None
-                    },
-                })
-                .collect()
-        })
-        .unwrap_or(defaults.allowlist);
-    EntropyConfig {
-        enabled: block
-            .get("enabled")
-            .and_then(YamlValue::as_bool)
-            .unwrap_or(defaults.enabled),
-        min_len: block
-            .get("min_len")
-            .and_then(YamlValue::as_u64)
-            .and_then(|n| usize::try_from(n).ok())
-            .unwrap_or(defaults.min_len),
-        threshold: block
-            .get("threshold")
-            .and_then(YamlValue::as_f64)
-            .unwrap_or(defaults.threshold),
-        allowlist,
-    }
-}
-
-fn report_entropy_block_typos(block: &YamlValue) {
-    let Some(map) = block.as_mapping() else {
-        tracing::error!(
-            "secret_scan: `entropy` is not a mapping; the block is ignored and \
-             built-in defaults apply"
-        );
-        return;
-    };
-    for key in map.keys() {
-        let name = key.as_str().unwrap_or("<non-string>");
-        if !ENTROPY_KEYS.contains(&name) {
-            tracing::error!(
-                key = %name,
-                "secret_scan: unknown `entropy` key ignored; valid keys are \
-                 enabled, min_len, threshold, allowlist"
-            );
-        }
-    }
-    let wrong_shape = [
-        (
-            "enabled",
-            map.get("enabled").is_some_and(|v| v.as_bool().is_none()),
-        ),
-        (
-            "min_len",
-            map.get("min_len").is_some_and(|v| v.as_u64().is_none()),
-        ),
-        (
-            "threshold",
-            map.get("threshold").is_some_and(|v| v.as_f64().is_none()),
-        ),
-        (
-            "allowlist",
-            map.get("allowlist")
-                .is_some_and(|v| v.as_sequence().is_none()),
-        ),
-    ];
-    for (name, mistyped) in wrong_shape {
-        if mistyped {
-            tracing::error!(
-                key = %name,
-                "secret_scan: entropy key has the wrong type; the built-in \
-                 default is used instead"
-            );
-        }
-    }
+    scanner: SecretScanner,
 }
 
 impl SecretScan {
-    fn from_yaml(v: &YamlValue) -> Self {
-        let extras = v
-            .get("extra_patterns")
-            .and_then(|s| s.as_sequence())
-            .map(|seq| {
-                let mut out: Vec<ExtraPattern> = Vec::new();
-                for entry in seq {
-                    let Some(name) = entry.get("name").and_then(|n| n.as_str()) else {
-                        continue;
-                    };
-                    let Some(prefix) = entry.get("prefix").and_then(|n| n.as_str()) else {
-                        continue;
-                    };
-                    let id = slugify(name);
-                    if out.iter().any(|p| p.id == id) {
-                        tracing::error!(
-                            extra_pattern_name = %name,
-                            extra_pattern_id = %id,
-                            "secret_scan: duplicate extra_pattern id derived from name; \
-                             keeping first occurrence and skipping the duplicate"
-                        );
-                        continue;
-                    }
-                    out.push(ExtraPattern {
-                        id,
-                        name: name.to_owned(),
-                        prefix: prefix.to_owned(),
-                    });
-                }
-                out
-            })
-            .unwrap_or_default();
-        Self {
-            extra_patterns: extras,
-            entropy: entropy_from_yaml(v),
-        }
+    fn from_yaml(v: &YamlValue) -> Result<Self, PolicyConfigurationError> {
+        SecretScanner::from_policy_yaml(v)
+            .map(|scanner| Self { scanner })
+            .map_err(|error| PolicyConfigurationError(error.to_string()))
     }
 }
 
@@ -179,91 +37,52 @@ impl GovernancePolicy for SecretScan {
         "Secret Scan"
     }
     fn description(&self) -> &'static str {
-        "Block a tool call or submitted prompt containing an AWS key, GitHub PAT, \
-         PEM block, connection string, or other plaintext credential pattern."
+        "Detect configured plaintext credential signatures in tool calls and submitted prompts."
     }
     fn prompt_secret_findings(&self, input: &GovernedInput) -> Option<Vec<SecretFinding>> {
-        let mut findings = secret_findings(input, &self.entropy);
-        let strings = input.strings();
-        let custom = strings.iter().enumerate().flat_map(|(part_index, found)| {
-            self.extra_patterns
-                .iter()
-                .filter(|extra| found.value.contains(&extra.prefix))
-                .map(move |extra| SecretFinding {
-                    source: SecretSource { part_index },
-                    span: 0..found.value.len(),
-                    pattern_id: SecretPatternId::new(extra.id.clone()),
-                })
-        });
-        findings.extend(custom);
+        let mut findings = self.scanner.findings(input);
+        findings.retain(|finding| finding.pattern_id.as_str() != "high-entropy-token");
         findings.truncate(MAX_RECOVERY_FINDINGS + 1);
         Some(findings)
     }
+    fn secret_scanner(&self) -> Option<&SecretScanner> {
+        Some(&self.scanner)
+    }
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         let kind = ctx.input.location_kind();
-        if let Some(hit) = detect_secrets_with(ctx.input, &self.entropy) {
+        let hit = self.scanner.detect(ctx.input);
+        if let Some(hit) = hit.as_ref().filter(|hit| !hit.observation) {
             return Decision::Deny {
                 reason: DenyReason::SecretLeak {
-                    pattern_id: SecretPatternId::new(hit.pattern.id),
-                    pattern_name: Cow::Borrowed(hit.pattern.name),
-                    location: SecretLocation::new(kind, hit.path, hit.redacted),
+                    pattern_id: SecretPatternId::new(hit.pattern.id.clone()),
+                    pattern_name: Cow::Owned(hit.pattern.name.clone()),
+                    location: SecretLocation::new(kind, hit.path.clone(), hit.redacted.clone()),
                 },
             };
-        }
-        for found in ctx.input.strings() {
-            for extra in &self.extra_patterns {
-                if found.value.contains(extra.prefix.as_str()) {
-                    return Decision::Deny {
-                        reason: DenyReason::SecretLeak {
-                            pattern_id: SecretPatternId::new(extra.id.clone()),
-                            pattern_name: Cow::Owned(extra.name.clone()),
-                            location: SecretLocation::new(kind, found.path, "custom_pattern"),
-                        },
-                    };
-                }
-            }
         }
         Decision::Allow {
             matched_by: MatchedBy::PolicyAllow {
                 policy_id: PolicyId::new(ID),
-                detail: Cow::Borrowed("No plaintext secrets detected in governed input"),
+                detail: hit.map_or(
+                    Cow::Borrowed("No plaintext secrets detected in governed input"),
+                    |hit| {
+                        Cow::Owned(format!(
+                            "observation: high-entropy-token at {} (unconfirmed; allow; {})",
+                            hit.path, hit.redacted
+                        ))
+                    },
+                ),
             },
         }
     }
 }
 
-fn slugify(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut last_was_dash = false;
-    for ch in input.chars() {
-        let mapped = if ch.is_ascii_alphanumeric() {
-            Some(ch.to_ascii_lowercase())
-        } else if ch.is_whitespace() || matches!(ch, '_' | '-' | '/' | '(' | ')' | '.') {
-            Some('-')
-        } else {
-            None
-        };
-        if let Some(c) = mapped {
-            if c == '-' {
-                if !last_was_dash && !out.is_empty() {
-                    out.push('-');
-                    last_was_dash = true;
-                }
-            } else {
-                out.push(c);
-                last_was_dash = false;
-            }
-        }
-    }
-    while out.ends_with('-') {
-        out.pop();
-    }
-    out
-}
-
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Box::new(SecretScan::from_yaml(v)),
+        factory: |v| {
+            let policy: Box<dyn GovernancePolicy> = Box::new(SecretScan::from_yaml(v)?);
+            Ok(policy)
+        },
     }
 }

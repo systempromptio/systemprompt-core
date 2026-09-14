@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.52.0] - 2026-09-14
+
+### Breaking
+
+- `SkillInjector` resolves a skill through the injected `ManagedSkillResolver` first: a published managed skill replaces the disk copy, a managed key that is withheld is `AgentServiceError::SkillWithheld` and a resolver failure is `AgentServiceError::SkillSource` — there is no fallback to the disk copy of a managed key. `A2ARepositories::with_managed_skill_resolver` / `managed_skill_resolver()` carry the seam; `A2ARepositories::db_pool()` is removed.
+
+### Changed
+
+- `ContextRepository::ensure_context` returns `NotFound` when the scoped upsert touches no row — a context id owned by another user is never adopted.
+
 ## [0.51.0] - 2026-09-11
 
 ### Removed

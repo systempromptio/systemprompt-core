@@ -99,9 +99,8 @@ fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<Strin
         return Some(level.to_owned());
     }
 
-    if let Ok(profile_path) =
-        bootstrap::resolve_profile(cli_config.profile_override.as_deref(), env)
-        && let Some(log_level) = bootstrap::try_load_log_level(&profile_path)
+    if let Ok(resolved) = bootstrap::resolve_profile(cli_config.profile_override.as_deref(), env)
+        && let Some(log_level) = bootstrap::try_load_log_level(&resolved.path)
     {
         return Some(log_level.as_tracing_filter().to_owned());
     }

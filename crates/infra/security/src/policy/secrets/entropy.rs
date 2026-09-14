@@ -1,7 +1,7 @@
 //! The high-entropy backstop for credentials carrying no vendor prefix.
 //!
-//! A random base64 blob pasted into a prompt matches none of
-//! [`super::SECRET_PATTERNS`] but still reads as machine-generated key
+//! A random base64 blob pasted into a prompt can match no configured signature
+//! but still read as machine-generated key
 //! material. Randomness alone cannot say so: a serialised protobuf, a base64
 //! JSON envelope, and a 32-byte key are all dense mixed-case base64 of similar
 //! measured entropy. [`is_structured_payload`] supplies the missing

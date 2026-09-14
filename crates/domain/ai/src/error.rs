@@ -25,7 +25,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use systemprompt_database::resilience::Outcome;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{AiRequestId, McpServerId};
 use systemprompt_provider_contracts::LlmProviderError;
 
 #[derive(Debug, Error)]
@@ -154,6 +154,12 @@ pub enum RepositoryError {
 
     #[error("Database pool initialization failed: {0}")]
     PoolInitialization(String),
+
+    #[error("Settlement of AI request {request_id} rejected: {reason}")]
+    SettlementConflict {
+        request_id: AiRequestId,
+        reason: String,
+    },
 }
 
 impl AiError {

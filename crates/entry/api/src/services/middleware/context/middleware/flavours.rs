@@ -13,9 +13,11 @@
 use std::sync::Arc;
 
 use axum::extract::Request;
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
-use systemprompt_identifiers::{AgentName, ContextId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId};
+use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::HeaderExtractor;
 use tracing::Instrument;
@@ -23,6 +25,10 @@ use tracing::Instrument;
 use super::super::extractors::ContextExtractor;
 use super::error::log_error_response;
 use super::support::{DynExtractor, create_request_span, session_context_required_error};
+
+#[path = "mcp_flavour.rs"]
+mod mcp_flavour;
+pub use mcp_flavour::McpContextMiddleware;
 
 /// Public route flavour: admits `UserType::Anon`.
 ///
@@ -170,67 +176,6 @@ impl A2AContextMiddleware {
                 next.run(req).instrument(span).await
             },
             Err(e) => log_error_response(&e, &trace_id, &path, &method),
-        }
-    }
-}
-
-/// MCP flavour: headers-only extraction with session fallback.
-///
-/// Extracts a real user from headers when an `Authorization` header is present;
-/// otherwise forwards the session-derived [`RequestContext`] (Anon) so the
-/// downstream MCP proxy handler can emit an RFC 9728 `WWW-Authenticate` 401
-/// challenge to start the OAuth dance.
-///
-/// The session-context fallback is load-bearing: MCP clients (Cowork,
-/// Claude Code, etc.) only begin OAuth discovery on a 401 carrying the
-/// challenge — collapsing this to a 4xx-without-challenge breaks them. See
-/// `crates/tests/integration/api/routes_mcp_unauth_challenge.rs`.
-#[derive(Clone)]
-pub struct McpContextMiddleware {
-    extractor: DynExtractor,
-}
-
-impl std::fmt::Debug for McpContextMiddleware {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("McpContextMiddleware").finish()
-    }
-}
-
-impl McpContextMiddleware {
-    pub fn new<E>(extractor: E) -> Self
-    where
-        E: ContextExtractor + Send + Sync + 'static,
-    {
-        Self {
-            extractor: Arc::new(extractor),
-        }
-    }
-
-    pub async fn handle(&self, request: Request, next: Next) -> Response {
-        let trace_id = HeaderExtractor::extract_trace_id(request.headers());
-        let path = request.uri().path().to_owned();
-        let method = request.method().to_string();
-
-        match self.extractor.extract_from_headers(request.headers()).await {
-            Ok(context) => {
-                let span = create_request_span(&context);
-                let mut req = request;
-                req.extensions_mut().insert(context);
-                next.run(req).instrument(span).await
-            },
-            Err(e) => {
-                if let Some(ctx) = request.extensions().get::<RequestContext>().cloned() {
-                    tracing::debug!(
-                        error = %e,
-                        trace_id = %trace_id,
-                        "MCP header extraction failed, using session context"
-                    );
-                    let span = create_request_span(&ctx);
-                    next.run(request).instrument(span).await
-                } else {
-                    session_context_required_error(&trace_id, &path, &method)
-                }
-            },
         }
     }
 }

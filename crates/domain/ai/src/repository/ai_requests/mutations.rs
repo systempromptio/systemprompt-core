@@ -12,72 +12,7 @@ use systemprompt_identifiers::{
 
 use super::AiRequestRepository;
 
-#[derive(Debug)]
-pub struct UpdateCompletionParams {
-    pub id: AiRequestId,
-    pub tokens_used: i32,
-    pub input_tokens: i32,
-    pub output_tokens: i32,
-    pub cost_microdollars: i64,
-    pub latency_ms: i32,
-    pub upstream_latency_ms: Option<i32>,
-    pub cache_hit: bool,
-    pub cache_read_tokens: i32,
-    pub cache_creation_tokens: i32,
-    pub reasoning_tokens: i32,
-}
-
 impl AiRequestRepository {
-    #[must_use = "this returns a Result that should not be ignored"]
-    pub async fn update_completion(
-        &self,
-        params: UpdateCompletionParams,
-    ) -> Result<AiRequest, RepositoryError> {
-        sqlx::query_as!(
-            AiRequest,
-            r#"
-            UPDATE ai_requests
-            SET tokens_used = $1, input_tokens = $2, output_tokens = $3,
-                cost_microdollars = $4, latency_ms = $5,
-                upstream_latency_ms = COALESCE($6, upstream_latency_ms),
-                cache_hit = $7, cache_read_tokens = $8, cache_creation_tokens = $9,
-                reasoning_tokens = $10,
-                status = $11,
-                completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $12
-            RETURNING id as "id!: AiRequestId",
-                      request_id as "request_id!: AiRequestId",
-                      user_id as "user_id!: UserId",
-                      session_id as "session_id: SessionId",
-                      task_id as "task_id: TaskId",
-                      context_id as "context_id: ContextId",
-                      gateway_conversation_id as "gateway_conversation_id: GatewayConversationId",
-                      provider_request_id as "provider_request_id: ProviderRequestId",
-                      trace_id as "trace_id: TraceId",
-                      provider, model, temperature, top_p, max_tokens, tokens_used,
-                      input_tokens, output_tokens, cost_microdollars, latency_ms, upstream_latency_ms, cache_hit,
-                      cache_read_tokens, cache_creation_tokens, reasoning_tokens,
-                      is_streaming, status,
-                      error_message, created_at, updated_at, completed_at
-            "#,
-            params.tokens_used,
-            params.input_tokens,
-            params.output_tokens,
-            params.cost_microdollars,
-            params.latency_ms,
-            params.upstream_latency_ms,
-            params.cache_hit,
-            params.cache_read_tokens,
-            params.cache_creation_tokens,
-            params.reasoning_tokens,
-            RequestStatus::Completed.as_str(),
-            params.id.as_str()
-        )
-        .fetch_one(self.write_pool())
-        .await
-        .map_err(RepositoryError::from)
-    }
-
     #[must_use = "this returns a Result that should not be ignored"]
     pub async fn update_error(
         &self,

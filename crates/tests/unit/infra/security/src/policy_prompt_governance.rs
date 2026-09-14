@@ -2,7 +2,7 @@
 //!
 //! The `/v1/messages` gateway runs the same chain as the MCP tool-call
 //! webhook, but against a prompt rather than tool arguments. These tests pin
-//! the two properties that make that safe: an operator's `extra_patterns`
+//! the two properties that make that safe: an operator's configured patterns
 //! reach inference (the capability the hardcoded safety scanner lacks), and
 //! every enforcement point shares one engine, so the rate limiter charges one
 //! budget rather than one per plane.
@@ -16,7 +16,7 @@ use systemprompt_security::policy::{
     ChainEntryResult, GovernanceConfig, GovernanceEngine, PROMPT_TARGET_NAME,
 };
 
-const EXTRA_PATTERN: &str = "governance:\n  policies:\n    - id: secret_scan\n      extra_patterns:\n        - name: Demo Key\n          prefix: \"XDEMO-\"\n";
+const EXTRA_PATTERN: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: demo-key\n          name: Demo Key\n          regex: 'XDEMO-[0-9]+'\n";
 
 fn engine(yaml: &str) -> GovernanceEngine {
     GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
@@ -41,10 +41,9 @@ fn prompt_ctx<'a>(
     }
 }
 
-// Why: this is the capability the gateway's hardcoded SECRET_PATTERNS scanner
-// cannot offer — an operator-configured pattern denying an inference request.
+// Why: this pins that an operator-configured pattern governs inference input.
 #[test]
-fn operator_extra_patterns_deny_an_inference_prompt() {
+fn operator_patterns_deny_an_inference_prompt() {
     let e = engine(EXTRA_PATTERN);
     let (session, user, call) = (
         SessionId::generate(),

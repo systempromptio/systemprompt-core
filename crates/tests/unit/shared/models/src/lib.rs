@@ -48,8 +48,6 @@ mod ai_tool_call;
 mod message_artifact;
 
 #[cfg(test)]
-mod config;
-
 #[cfg(test)]
 mod events;
 
@@ -229,8 +227,6 @@ mod ai_sampling;
 mod ai_media_types;
 
 #[cfg(test)]
-mod config_environment;
-
 #[cfg(test)]
 mod config_rate_limits;
 

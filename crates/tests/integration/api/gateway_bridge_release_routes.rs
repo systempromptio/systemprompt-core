@@ -89,7 +89,9 @@ async fn app() -> anyhow::Result<(Router, String)> {
     let fixture = seed_admin_credential(&pool, "bridge-release").await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
     Ok((
-        gateway_router(&ctx).expect("gateway router available"),
+        gateway_router(&ctx)
+            .expect("gateway journal opens")
+            .expect("gateway router available"),
         fixture.jwt.as_str().to_owned(),
     ))
 }

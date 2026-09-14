@@ -53,7 +53,7 @@ pub use extension::SchedulerExtension;
 
 pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
-    GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
+    EvaluationSupervisorJob, GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::{JobRepository, SchedulerRepository};

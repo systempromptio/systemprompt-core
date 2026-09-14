@@ -4,7 +4,7 @@ This document defines what is stable in systemprompt.io and what is not. It desc
 
 ## Current Version
 
-`0.51.x` across the workspace. See root `Cargo.toml` for the exact current version.
+`0.52.x` across the workspace. See root `Cargo.toml` for the exact current version.
 
 The workspace uses pre-1.0 versioning. The sections below distinguish maintained interfaces from provider and protocol adapters that track upstream changes. Version-specific breaking changes and migration requirements are recorded in the changelog.
 
@@ -110,8 +110,8 @@ can be pointed at systemprompt unchanged:
 The following ship as functional surface but are **not yet classified as stable**, and may
 change shape within a minor while they settle:
 
-- `crates/domain/marketplace` — plugin and skill catalogue, ABAC attribute floor
-- `crates/domain/evaluation` — sample / judge / replay framework
+- `crates/domain/marketplace` — plugin and skill catalogue, managed resources, ABAC attribute floor
+- `crates/domain/evaluation` — supervised experiments, budgets and golden cases
 - `crates/domain/slack` and `crates/domain/teams` — outbound messaging integrations
 
 ### 2.6 Internal Implementation

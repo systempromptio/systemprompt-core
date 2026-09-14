@@ -30,6 +30,7 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `services` | object | no | all-defaults | Where the services tree comes from. See [`services`](#services). |
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
+| `evaluator` | object | no | absent | Evaluator worker identity and pinned images. See [`evaluator`](#evaluator). |
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
 
@@ -123,6 +124,21 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `shared` | bool | no | `false` | Declare that `paths.storage` is one mount every replica sees. Boot probes the root by writing a per-instance marker and reading it back (failure refuses to boot), and warns when `shared` disagrees with the markers other replicas left. With `false` those files are node-local, which only a single replica can serve. |
 
 File records hold the path relative to `paths.storage` (for example `files/uploads/contexts/<ctx>/images/<id>.png`); public URLs and the on-disk layout are unchanged.
+
+## `evaluator`
+
+`crates/shared/models/src/profile/evaluator.rs`. Optional. Present only on replicas that run evaluator assignments; without it the `evaluation_supervisor` job reports itself idle every tick. Unknown keys are rejected.
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `worker_id` | string | yes | — | The `eval_workers` identity this replica claims assignments under. |
+| `client_image` | string | yes | — | Digest-pinned image the native client runs in. |
+| `relay_image` | string | yes | — | Digest-pinned image of the gateway relay placed on the execution's internal network. |
+| `control_network` | string | yes | — | Docker network the relay uses to reach the gateway. |
+| `docker` | path | no | `/usr/bin/docker` | Absolute path of the Docker CLI. |
+| `workspace_root` | path | no | `/var/lib/systemprompt/evaluator` | Absolute directory under which per-execution workspaces are created. |
+
+Validation rejects empty strings and relative paths.
 
 ## `security`
 
@@ -391,6 +407,7 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `github` | `github` | string | no | GitHub token. |
 | `moonshot` | `moonshot` | string | no | Moonshot/Kimi key. |
 | `qwen` | `qwen` | string | no | Qwen/DashScope key. |
+| `encryption_master_key` | `encryption_master_key` | string | yes when the gateway is enabled | 32 random bytes as 64 hex characters. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants). Validated when the gateway router is built; the server refuses to start without it. Preserve it across restarts and replicas. |
 | (custom) | any other key | string | no | Extra keys flatten into a `custom` map and are addressable by name. |
 
 `null` values are stripped before deserialization (`secrets.rs:62`).
@@ -414,6 +431,7 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 | `github` | `GITHUB_TOKEN` |
 | `moonshot` | `MOONSHOT_API_KEY` or `KIMI_API_KEY` |
 | `qwen` | `QWEN_API_KEY` or `DASHSCOPE_API_KEY` |
+| `encryption_master_key` | `ENCRYPTION_MASTER_KEY`, listed in `SYSTEMPROMPT_CUSTOM_SECRETS` (required when the gateway is enabled) |
 | (custom) | names listed in `SYSTEMPROMPT_CUSTOM_SECRETS` (comma-separated) |
 
 ## Bootstrap order

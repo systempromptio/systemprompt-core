@@ -27,7 +27,7 @@ pub(super) async fn record_governance_decision(
     evaluation: Evaluation,
     call_id: CallId,
     session_id: SessionId,
-) {
+) -> anyhow::Result<()> {
     let decision_audit = DecisionAudit {
         id: uuid::Uuid::new_v4().to_string(),
         call_id: call_id.as_str().to_owned(),
@@ -52,31 +52,16 @@ pub(super) async fn record_governance_decision(
         context_id: Some(ctx.context_id.as_str().to_owned()),
         trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
     };
-    match db.write_pool_arc() {
-        Ok(pool) => {
-            if let Err(e) = record_decision(&pool, &decision_audit).await {
-                tracing::error!(
-                    target: "governance.audit.write_failed",
-                    error = %e,
-                    ai_request_id = %ctx.ai_request_id,
-                    "gateway governance audit write failed; row dropped"
-                );
-            }
-        },
-        Err(e) => tracing::error!(
-            target: "governance.audit.write_failed",
-            error = %e,
-            ai_request_id = %ctx.ai_request_id,
-            "no write pool for the gateway governance decision; row dropped"
-        ),
-    }
+    let pool = db.write_pool_arc()?;
+    record_decision(&pool, &decision_audit).await?;
+    Ok(())
 }
 
 pub(in crate::services::gateway::service) async fn record_quota_warning(
     db: &DbPool,
     ctx: &GatewayRequestContext,
     message: &str,
-) {
+) -> anyhow::Result<()> {
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let reason = DenyReason::PolicyViolation {
@@ -92,7 +77,7 @@ pub(in crate::services::gateway::service) async fn record_quota_warning(
             duration_ms: 0.0,
         }],
     };
-    record_governance_decision(db, ctx, evaluation, call_id, session_id).await;
+    record_governance_decision(db, ctx, evaluation, call_id, session_id).await
 }
 
 pub(super) struct PromptEvaluation {

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 
 use systemprompt_marketplace::catalog::{
@@ -457,6 +457,7 @@ fn load_plugins_empty_config_returns_empty() {
         disabled_mcp_servers: &no_disabled,
         artifacts: &[],
         plugins_root: &plugins_root,
+        managed_files: &BTreeMap::new(),
     };
     let plugins = load_plugins(&config, &content).expect("load plugins");
     assert!(plugins.is_empty());

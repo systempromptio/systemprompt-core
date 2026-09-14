@@ -1,119 +1,139 @@
-//! Built-in plaintext secret-pattern registry and scanner.
+//! Installation-configured plaintext secret scanning and recovery.
 //!
-//! [`SECRET_PATTERNS`] holds the vendor-prefix ruleset (seeded from the
-//! gitleaks MIT ruleset); [`find_high_entropy_token`] backstops it: a
-//! credential with no recognisable vendor prefix — a random base64 blob pasted
-//! into a prompt — matches no pattern but still reads as machine-generated key
-//! material, and is reported under the pseudo-pattern id `high-entropy-token`.
-//!
-//! [`SignatureExemptions`] narrows the backstop: a provider-signed reasoning
-//! blob the client must echo back verbatim is not a credential, so the entropy
-//! detector is suppressed at those paths while every vendor pattern still runs.
-//!
-//! [`detect_secrets`] drives the `secret_scan` builtin policy;
-//! [`scan_str_for_secret`] is the string-level entry point shared with gateway
-//! safety scanners so every enforcement surface flags the same credentials.
+//! [`SecretScanner`] compiles one installation-owned signature catalog and
+//! applies it consistently to governance evaluation, gateway responses, and
+//! prompt recovery. Entropy detection remains an observation-only heuristic.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod entropy;
+mod entropy_yaml;
+mod fingerprint;
 mod patterns;
 mod recovery;
 mod signatures;
 
-use std::sync::LazyLock;
 
-use regex::Regex;
+use regex::Captures;
 
-use super::governed::GovernedInput;
+use super::governed::{GovernedInput, GovernedString};
 pub use entropy::{DEFAULT_MIN_LEN, DEFAULT_THRESHOLD, EntropyConfig, find_high_entropy_token};
-use patterns::HIGH_ENTROPY_PATTERN;
-pub use patterns::{SECRET_PATTERNS, SecretPattern};
+use patterns::{
+    CompiledSecretPattern, HIGH_ENTROPY_PATTERN_ID, HIGH_ENTROPY_PATTERN_NAME, compile_patterns,
+    field_matches,
+};
+pub use patterns::{SecretPattern, SecretPatternError};
 pub use recovery::{
     MAX_RECOVERY_FINDINGS, REDACTION_MARKER, SecretFinding, SecretSource, redact_spans,
-    secret_findings,
 };
 pub use signatures::SignatureExemptions;
 
-static DEFAULT_ENTROPY: LazyLock<EntropyConfig> = LazyLock::new(EntropyConfig::default);
+#[derive(Debug, Clone)]
+pub struct SecretScanner {
+    patterns: Vec<CompiledSecretPattern>,
+    entropy: EntropyConfig,
+}
 
-static COMPILED: LazyLock<Vec<(usize, Regex)>> = LazyLock::new(|| {
-    SECRET_PATTERNS
-        .iter()
-        .enumerate()
-        .filter_map(|(i, p)| match Regex::new(p.expr) {
-            Ok(re) => Some((i, re)),
-            Err(e) => {
-                tracing::error!(pattern_id = %p.id, error = %e, "secret pattern disabled: regex failed to compile");
-                None
-            },
+impl SecretScanner {
+    pub fn from_policy_yaml(value: &serde_yaml::Value) -> Result<Self, SecretPatternError> {
+        Ok(Self {
+            patterns: compile_patterns(value.get("patterns"))?,
+            entropy: entropy_yaml::from_yaml(value),
         })
-        .collect()
-});
-
-#[must_use]
-pub fn compiled_pattern_count() -> usize {
-    COMPILED.len()
-}
-
-fn redacted_snippet(s: &str, match_start: usize) -> String {
-    let mut snippet_end = (match_start + 12).min(s.len());
-    while !s.is_char_boundary(snippet_end) {
-        snippet_end -= 1;
     }
-    format!("{}...[REDACTED]", &s[match_start..snippet_end])
+
+    #[must_use]
+    pub const fn pattern_count(&self) -> usize {
+        self.patterns.len()
+    }
+
+    #[must_use]
+    pub const fn entropy(&self) -> &EntropyConfig {
+        &self.entropy
+    }
+
+    #[must_use]
+    pub fn detect(&self, input: &GovernedInput) -> Option<SecretHit> {
+        let strings = input.strings();
+        let exemptions = SignatureExemptions::from_strings(&strings);
+        strings
+            .iter()
+            .find_map(|found| self.detect_confirmed(found))
+            .or_else(|| {
+                strings.iter().find_map(|found| {
+                    if exemptions.exempts_entropy(&found.path) {
+                        return None;
+                    }
+                    entropy::high_entropy_spans(found.value, &self.entropy)
+                        .next()
+                        .map(|(span, _)| SecretHit {
+                            pattern: MatchedSecretPattern {
+                                id: HIGH_ENTROPY_PATTERN_ID.to_owned(),
+                                name: HIGH_ENTROPY_PATTERN_NAME.to_owned(),
+                            },
+                            path: found.path.clone(),
+                            redacted: redacted_snippet(found.value, span.start, span.end),
+                            observation: true,
+                        })
+                })
+            })
+    }
+
+    #[must_use]
+    pub fn findings(&self, input: &GovernedInput) -> Vec<SecretFinding> {
+        recovery::secret_findings(self, input)
+    }
+
+    fn detect_confirmed(&self, found: &GovernedString<'_>) -> Option<SecretHit> {
+        self.patterns.iter().find_map(|pattern| {
+            if !field_matches(&found.path, pattern.definition.field.as_deref()) {
+                return None;
+            }
+            pattern.regex.captures(found.value).and_then(|captures| {
+                selected_match(pattern, &captures).map(|matched| SecretHit {
+                    pattern: MatchedSecretPattern {
+                        id: pattern.definition.id.as_str().to_owned(),
+                        name: pattern.definition.name.clone(),
+                    },
+                    path: found.path.clone(),
+                    redacted: redacted_snippet(found.value, matched.start(), matched.end()),
+                    observation: false,
+                })
+            })
+        })
+    }
 }
 
-fn scan_patterns(s: &str) -> Option<(&'static SecretPattern, String)> {
-    COMPILED.iter().find_map(|(i, re)| {
-        re.find(s)
-            .map(|m| (&SECRET_PATTERNS[*i], redacted_snippet(s, m.start())))
-    })
+fn selected_match<'a>(
+    pattern: &CompiledSecretPattern,
+    captures: &'a Captures<'a>,
+) -> Option<regex::Match<'a>> {
+    pattern
+        .definition
+        .secret_capture
+        .as_deref()
+        .map_or_else(|| captures.get(0), |name| captures.name(name))
 }
 
-fn scan_str(s: &str, entropy: &EntropyConfig) -> Option<(&'static SecretPattern, String)> {
-    scan_patterns(s).or_else(|| {
-        entropy::high_entropy_spans(s, entropy)
-            .next()
-            .map(|(span, _)| (&HIGH_ENTROPY_PATTERN, redacted_snippet(s, span.start)))
-    })
+fn redacted_snippet(value: &str, start: usize, end: usize) -> String {
+    format!(
+        "fingerprint:{}...[REDACTED]",
+        fingerprint::of(&value[start..end])
+    )
 }
 
-#[must_use]
-pub fn scan_str_for_secret(text: &str) -> Option<String> {
-    scan_str(text, &DEFAULT_ENTROPY).map(|(_, redacted)| redacted)
+#[derive(Debug)]
+pub struct MatchedSecretPattern {
+    pub id: String,
+    pub name: String,
 }
 
-/// One credential found in a governed input: the pattern that fired, the
-/// dotted JSON path it fired at, and a truncated redacted snippet safe for
-/// deny messages and audit rows.
+/// A credential or entropy observation found in governed input.
 #[derive(Debug)]
 pub struct SecretHit {
-    pub pattern: &'static SecretPattern,
+    pub pattern: MatchedSecretPattern,
     pub path: String,
     pub redacted: String,
-}
-
-#[must_use]
-pub fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
-    detect_secrets_with(input, &DEFAULT_ENTROPY)
-}
-
-#[must_use]
-pub fn detect_secrets_with(input: &GovernedInput, entropy: &EntropyConfig) -> Option<SecretHit> {
-    let strings = input.strings();
-    let exemptions = SignatureExemptions::from_strings(&strings);
-    strings.into_iter().find_map(|s| {
-        let found = if exemptions.exempts_entropy(&s.path) {
-            scan_patterns(s.value)
-        } else {
-            scan_str(s.value, entropy)
-        };
-        found.map(|(pattern, redacted)| SecretHit {
-            pattern,
-            path: s.path,
-            redacted,
-        })
-    })
+    pub observation: bool,
 }

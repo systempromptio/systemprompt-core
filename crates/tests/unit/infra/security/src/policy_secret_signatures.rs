@@ -1,8 +1,8 @@
 //! The secret scanner must not read a provider-signed reasoning blob as a
 //! credential, and must still read a real credential parked in that field.
 
-use systemprompt_security::policy::detect_secrets;
 use systemprompt_security::policy::governed::GovernedInput;
+use systemprompt_security::policy::secrets::SecretScanner;
 
 const BLOB: &str = "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM";
 
@@ -17,6 +17,14 @@ fn parts(pairs: &[(&str, &str)]) -> GovernedInput {
     )
 }
 
+fn scanner() -> SecretScanner {
+    let yaml: serde_yaml::Value = serde_yaml::from_str(
+        "patterns:\n  - id: pem-private-key-rsa\n    name: RSA Private Key\n    regex: '-----BEGIN RSA PRIVATE KEY-----'\n    redact_whole_value: true\n",
+    )
+    .unwrap();
+    SecretScanner::from_policy_yaml(&yaml).unwrap()
+}
+
 #[test]
 fn a_gemini_thought_signature_is_not_a_finding() {
     let input = parts(&[(
@@ -24,7 +32,7 @@ fn a_gemini_thought_signature_is_not_a_finding() {
         BLOB,
     )]);
     assert!(
-        detect_secrets(&input).is_none(),
+        scanner().detect(&input).is_none(),
         "a thoughtSignature the client must echo back is not a credential"
     );
 }
@@ -32,7 +40,9 @@ fn a_gemini_thought_signature_is_not_a_finding() {
 #[test]
 fn the_same_blob_in_user_text_is_still_a_finding() {
     let input = parts(&[("prompt.forwarded.$.contents[1].parts[0].text", BLOB)]);
-    let hit = detect_secrets(&input).expect("the exemption is keyed on the field, not the value");
+    let hit = scanner()
+        .detect(&input)
+        .expect("the exemption is keyed on the field, not the value");
     assert_eq!(hit.pattern.id, "high-entropy-token");
 }
 
@@ -43,7 +53,7 @@ fn an_anthropic_thinking_signature_is_not_a_finding() {
         ("prompt.forwarded.$.messages[0].content[0].signature", BLOB),
     ]);
     assert!(
-        detect_secrets(&input).is_none(),
+        scanner().detect(&input).is_none(),
         "a signature on a thinking block is a provider-signed blob"
     );
 }
@@ -56,7 +66,7 @@ fn a_signature_on_an_unrelated_block_is_still_a_finding() {
         ("prompt.forwarded.$.messages[0].content[0].type", "text"),
         ("prompt.forwarded.$.messages[0].content[0].signature", BLOB),
     ]);
-    assert!(detect_secrets(&input).is_some());
+    assert!(scanner().detect(&input).is_some());
 }
 
 #[test]
@@ -65,6 +75,8 @@ fn a_pem_key_inside_a_thought_signature_is_still_a_finding() {
         "prompt.forwarded.$.contents[0].parts[0].thoughtSignature",
         PEM,
     )]);
-    let hit = detect_secrets(&input).expect("vendor patterns still run on an exempted path");
+    let hit = scanner()
+        .detect(&input)
+        .expect("configured patterns still run on an exempted path");
     assert_ne!(hit.pattern.id, "high-entropy-token");
 }

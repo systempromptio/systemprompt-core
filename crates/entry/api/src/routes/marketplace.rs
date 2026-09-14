@@ -167,8 +167,16 @@ async fn serve_plugin_file(
     let api_external_url = &profile.server.api_external_url;
     let services_root = ctx.app_paths().system().services();
 
-    let catalog = CatalogContent::load_cached(&services, services_root, api_external_url)
+    let disk_catalog = CatalogContent::load_cached(&services, services_root, api_external_url)
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+    let catalog = (*disk_catalog)
+        .clone()
+        .with_managed_skills(
+            ctx.managed_repository().as_ref().clone(),
+            ctx.system_admin().id(),
+        )
+        .await
+        .map_err(|error| ApiHttpError::internal_error(error.to_string()))?;
     let bundles = plugin_bundles_cached(&services, &catalog.as_content())
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
 

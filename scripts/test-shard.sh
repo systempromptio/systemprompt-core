@@ -60,7 +60,13 @@ echo "shard $group: $PKGS"
 
 # The entry-cli and integration shards spawn the real `systemprompt` binary;
 # prebuild it once so subprocess fixtures never pay for (or time out on) a
-# cold `cargo build` inside a running test.
+# cold `cargo build` inside a running test. CI hands in a binary built once by
+# the `test-tools` job via SYSTEMPROMPT_BIN; when it is set (and exists) the
+# build is skipped.
+if [ -n "${SYSTEMPROMPT_BIN:-}" ]; then
+  test -x "$SYSTEMPROMPT_BIN" || { echo "SYSTEMPROMPT_BIN=$SYSTEMPROMPT_BIN is not executable" >&2; exit 1; }
+  echo "==> Using prebuilt systemprompt binary: $SYSTEMPROMPT_BIN"
+fi
 case "$group" in
   bridge)
     echo "==> Prebuilding bridge binary for subprocess tests"
@@ -69,9 +75,11 @@ case "$group" in
     export SP_BRIDGE_BIN="$bridge_target_dir/debug/systemprompt-bridge"
     ;;
   entry-cli|integration-api|integration-cli|integration-rest*)
-    echo "==> Prebuilding systemprompt binary for subprocess tests"
-    cargo build -p systemprompt-cli --bin systemprompt
-    export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
+    if [ -z "${SYSTEMPROMPT_BIN:-}" ]; then
+      echo "==> Prebuilding systemprompt binary for subprocess tests"
+      cargo build -p systemprompt-cli --bin systemprompt
+      export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
+    fi
     ;;
 esac
 

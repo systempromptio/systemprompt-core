@@ -4,8 +4,9 @@
 
 use crate::repository_workers::{Harness, MODEL, PROVIDER};
 use systemprompt_evaluation::repository::experiments::{
-    AdmissionRequest, ExecutionCapabilityRepository, ExecutionCompletion, ExecutionLease,
-    GatewayEvaluationRepository, RequestAdmission, TerminalOutcome,
+    AdmissionRequest, EvaluationLifecycleRepository, ExecutionCapabilityRepository,
+    ExecutionCompletion, ExecutionLease, GatewayEvaluationRepository, RequestAdmission,
+    TerminalOutcome,
 };
 use systemprompt_identifiers::{ActorKind, AiRequestId, ModelId, ProviderId, SessionId, UserId};
 use systemprompt_test_fixtures::seed_user_session;
@@ -419,4 +420,78 @@ fn admission_request_builder_requires_every_dispatch_input() {
             .build()
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn restart_retains_the_full_bound_of_an_unsettled_request_on_an_expired_lease() {
+    let Some(harness) = Harness::start().await else {
+        return;
+    };
+    let (execution, lease) = harness.claimed_lease().await;
+    let gateway = GatewayEvaluationRepository::new(harness.pg.clone());
+    let access = ExecutionCapabilityRepository::new(harness.pg.clone())
+        .issue(&harness.owner, &lease)
+        .await
+        .expect("issue");
+    let model = ModelId::new(MODEL);
+    let provider = ProviderId::new(PROVIDER);
+    let request = harness
+        .seed_pending_request(access.session_id.as_str())
+        .await;
+    let RequestAdmission::Reserved(reservation) = gateway
+        .admit(&admission(
+            &harness,
+            &access.session_id,
+            &request,
+            &model,
+            &provider,
+        ))
+        .await
+        .expect("admit")
+    else {
+        panic!("an evaluation session must be admitted against its budget");
+    };
+    assert_eq!(harness.budget().await, (50_000, 0));
+
+    harness.set_lease_expiry(&execution.id, -1.0).await;
+    let lifecycle = EvaluationLifecycleRepository::new(harness.pg.clone());
+    assert_eq!(
+        lifecycle
+            .reconcile_restart(&harness.owner)
+            .await
+            .expect("reconcile"),
+        1
+    );
+    assert_eq!(
+        harness.budget().await,
+        (0, 50_000),
+        "spend the provider never confirmed is charged at its reserved bound, not released"
+    );
+    let settled = sqlx::query_scalar::<_, Option<i64>>(
+        "SELECT actual FROM eval_budget_reservations WHERE id = $1",
+    )
+    .bind(reservation.as_str())
+    .fetch_one(&harness.pg)
+    .await
+    .expect("read reservation");
+    assert_eq!(settled, Some(50_000));
+
+    lifecycle
+        .reconcile_restart(&harness.owner)
+        .await
+        .expect("reconcile again");
+    assert_eq!(
+        harness.budget().await,
+        (0, 50_000),
+        "retention is idempotent"
+    );
+    assert!(
+        gateway
+            .settle_recorded(&harness.owner, &request)
+            .await
+            .is_err(),
+        "late usage cannot re-settle a retained reservation"
+    );
+
+    harness.cleanup().await;
 }

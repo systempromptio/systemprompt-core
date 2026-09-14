@@ -52,6 +52,7 @@ pub mod events;
 pub mod extension_error;
 pub mod jwt;
 pub mod log_service;
+pub mod managed_resources;
 pub mod module;
 pub mod registry;
 pub mod repository;
@@ -86,6 +87,11 @@ pub use repository::RepositoryError;
 pub use service::{AsyncService, Service};
 
 pub use log_service::LogService;
+
+pub use managed_resources::{
+    DynManagedSkillResolver, ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill,
+    SkillResolution, WithheldReason,
+};
 
 pub use context_provider::{
     ContextMaterializer, ContextProvider, ContextProviderError, ContextWithStats,

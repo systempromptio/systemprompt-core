@@ -202,6 +202,6 @@ impl GovernancePolicy for RequireApproval {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Box::new(RequireApproval::from_yaml(v)),
+        factory: |v| Ok(Box::new(RequireApproval::from_yaml(v))),
     }
 }

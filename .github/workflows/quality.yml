@@ -41,6 +41,12 @@ jobs:
   lint:
     name: Clippy lint baseline
     runs-on: ubuntu-latest
+    # sccache (GitHub Actions cache backend) shares content-hashed objects
+    # across every Linux Rust job in CI and Quality; see ci.yml.
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,13 +64,10 @@ jobs:
               sleep 15
           done
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            bin/bridge
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: extractions/setup-just@v2
       - run: just lint
+      - run: sccache --show-stats
 
   bridge-native:
     # The bridge's GUI, winproc, and keystore backends are cfg-gated to
@@ -73,8 +76,9 @@ jobs:
     name: Bridge native checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     # A test that raises a native modal, or waits on elevation, hangs a runner
-    # silently; the whole job is well under this when healthy.
-    timeout-minutes: 45
+    # silently; the two cargo steps carry their own timeouts so a slow
+    # rust-cache post-step cannot cancel a job whose checks already passed.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -87,14 +91,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: bin/bridge
-      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --locked -- -D warnings
-      - run: cargo test --manifest-path crates/tests/Cargo.toml --locked -p systemprompt-bridge-config-tests -p systemprompt-bridge-install-tests -p systemprompt-bridge-fsutil-tests -p systemprompt-bridge-gui-tests -p systemprompt-bridge-verdicts-tests
+      - name: Clippy (native target)
+        timeout-minutes: 20
+        run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
+      - name: Bridge test crates (native, offline)
+        # The package list is scripts/bridge-native-crates.txt — the same file
+        # `just lint-bridge-native-tests` reads, so the local mirror and this
+        # job can never drift.
+        timeout-minutes: 25
+        shell: bash
+        run: bash scripts/bridge-native-tests.sh
 
   docs:
     name: Rustdoc (warnings as errors)
     runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: "-D warnings"
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,13 +125,10 @@ jobs:
               sleep 15
           done
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            bin/bridge
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - run: cargo doc --workspace --no-deps --all-features
       - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps
+      - run: sccache --show-stats
 
   source-gates:
     name: Schema / SQL / comment / header / typed-ID linters
@@ -220,6 +232,9 @@ jobs:
     # assertion below is what stops that regressing quietly a second time.
     env:
       RUSTUP_TOOLCHAIN: "1.96.0"
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -235,11 +250,7 @@ jobs:
               sleep 15
           done
       - uses: dtolnay/rust-toolchain@1.96.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            bin/bridge
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Assert the toolchain under test really is the MSRV
         run: |
           want="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
@@ -264,3 +275,14 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
       - uses: extractions/setup-just@v2
       - run: just file-size
+
+  # One stable context for the `main` ruleset (see ci.yml `ci-passed`).
+  quality-passed:
+    name: Quality passed
+    runs-on: ubuntu-latest
+    needs: [bridge-web, lint, bridge-native, docs, source-gates, msrv, file-size]
+    if: always()
+    steps:
+      - run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success")' >/dev/null \
+            || { echo "::error::a required Quality job did not succeed"; echo '${{ toJSON(needs) }}' | jq '.'; exit 1; }

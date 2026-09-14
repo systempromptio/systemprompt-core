@@ -45,18 +45,30 @@ impl ExecutionLimits {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct FrozenWorkspace {
-    pub files: BTreeMap<String, String>,
+pub struct ArtifactFile {
+    pub bytes: Vec<u8>,
+    pub executable: bool,
 }
 
-impl FrozenWorkspace {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EvidenceArchive {
+    pub files: BTreeMap<String, ArtifactFile>,
+}
+
+impl EvidenceArchive {
     pub fn validate(&self) -> Result<()> {
         if self.files.len() > 256
-            || self.files.values().map(String::len).sum::<usize>() > 8 * 1024 * 1024
+            || self
+                .files
+                .values()
+                .map(|file| file.bytes.len())
+                .sum::<usize>()
+                > 16 * 1024 * 1024
         {
-            return Err(invalid("Workspace exceeds 256 files or 8 MiB"));
+            return Err(invalid("Workspace exceeds 256 files or 16 MiB"));
         }
         for path in self.files.keys() {
             if path.starts_with('/')
@@ -148,8 +160,14 @@ impl ExecutionEvidence {
         }
         for (index, artifact) in self.artifacts.iter().enumerate() {
             validate_digest(&artifact.sha256)?;
-            let workspace = FrozenWorkspace {
-                files: BTreeMap::from([(artifact.relative_path.clone(), String::new())]),
+            let workspace = EvidenceArchive {
+                files: BTreeMap::from([(
+                    artifact.relative_path.clone(),
+                    ArtifactFile {
+                        bytes: Vec::new(),
+                        executable: false,
+                    },
+                )]),
             };
             workspace.validate()?;
             if self.artifacts[..index]

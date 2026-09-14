@@ -88,9 +88,12 @@ impl MessageProcessor {
     ) -> Result<Self> {
         let context_service = ContextService::new(repositories.tasks.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());
-        let skill_service = Arc::new(
-            SkillService::new()?.with_execution_step_repo(Arc::clone(&execution_step_repo)),
-        );
+        let mut skill_service =
+            SkillService::new()?.with_execution_step_repo(Arc::clone(&execution_step_repo));
+        if let Some(resolver) = repositories.managed_skill_resolver() {
+            skill_service = skill_service.with_managed_resolver(resolver);
+        }
+        let skill_service = Arc::new(skill_service);
 
         Ok(Self {
             repositories,

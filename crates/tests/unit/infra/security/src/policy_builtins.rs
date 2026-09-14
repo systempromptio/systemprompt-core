@@ -2,16 +2,30 @@ use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::secrets::{self, SECRET_PATTERNS};
+use systemprompt_security::policy::secrets::{SecretHit, SecretScanner};
 use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{
-    ChainEntryResult, EntropyConfig, GovernanceConfig, GovernanceEngine, detect_secrets,
-    detect_secrets_with, scan_str_for_secret,
-};
+use systemprompt_security::policy::{ChainEntryResult, GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
     GovernanceEngine::from_config(&config).expect("registered test governance policies")
+}
+
+fn scanner(yaml: &str) -> SecretScanner {
+    let value: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
+    SecretScanner::from_policy_yaml(&value).unwrap()
+}
+
+fn entropy_only() -> SecretScanner {
+    scanner("patterns: []\n")
+}
+
+fn detect_secrets(input: &GovernedInput) -> Option<SecretHit> {
+    entropy_only().detect(input)
+}
+
+fn scan_str_for_secret(text: &str) -> Option<String> {
+    detect_secrets(&GovernedInput::prompt_text(text.to_owned())).map(|hit| hit.redacted)
 }
 
 struct Call {
@@ -99,32 +113,25 @@ fn a_base64_json_envelope_is_not_reported_as_a_credential() {
 #[test]
 fn the_entropy_allowlist_suppresses_a_named_token_shape() {
     let text = "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM";
-    let config = EntropyConfig {
-        allowlist: vec![regex::Regex::new("^PHL").expect("test regex compiles")],
-        ..EntropyConfig::default()
-    };
+    let allowlisted = scanner("patterns: []\nentropy:\n  allowlist: ['^PHL']\n");
     let input = GovernedInput::prompt_text(text.to_owned());
     assert!(detect_secrets(&input).is_some(), "unconfigured, it fires");
     assert!(
-        detect_secrets_with(&input, &config).is_none(),
+        allowlisted.detect(&input).is_none(),
         "an allowlisted shape is exempt"
     );
 }
 
 #[test]
-fn disabling_the_entropy_heuristic_leaves_the_vendor_patterns_live() {
-    let config = EntropyConfig {
-        enabled: false,
-        ..EntropyConfig::default()
-    };
+fn disabling_entropy_with_no_patterns_is_a_clean_scan() {
+    let disabled = scanner("patterns: []\nentropy:\n  enabled: false\n");
     let prefixless = GovernedInput::prompt_text(
         "PHL+ERIbxzlQOeiiRybQwgV7GvYmIclsJe1zsFIyuuM here is my api key".to_owned(),
     );
-    assert!(detect_secrets_with(&prefixless, &config).is_none());
+    assert!(disabled.detect(&prefixless).is_none());
 
-    let vendor = GovernedInput::prompt_text("AKIAIOSFODNN7EXAMPLE".to_owned());
-    let hit = detect_secrets_with(&vendor, &config).expect("vendor patterns are not tunable");
-    assert_eq!(hit.pattern.id, "aws-access-key");
+    let vendor_shaped = GovernedInput::prompt_text("AKIAIOSFODNN7EXAMPLE".to_owned());
+    assert!(disabled.detect(&vendor_shaped).is_none());
 }
 
 #[test]
@@ -138,8 +145,8 @@ fn an_absent_entropy_block_keeps_the_built_in_behaviour() {
     let target = tool("read_file");
     let evaluation = engine.evaluate(&call.ctx(&target, AccessScope::Unknown, &input));
     assert!(
-        matches!(evaluation.decision, Decision::Deny { .. }),
-        "defaults must still deny an unprefixed key"
+        matches!(evaluation.decision, Decision::Allow { .. }),
+        "entropy alone must remain observational"
     );
 }
 
@@ -161,36 +168,75 @@ fn a_configured_entropy_allowlist_reaches_the_policy() {
 }
 
 #[test]
-fn every_builtin_pattern_compiles() {
-    assert_eq!(secrets::compiled_pattern_count(), SECRET_PATTERNS.len());
+fn arbitrary_configured_patterns_compile() {
+    let scanner = scanner(
+        "patterns:\n  - id: internal-key\n    name: Internal Key\n    regex: 'XINT-[0-9]{8}'\n",
+    );
+    assert_eq!(scanner.pattern_count(), 1);
+}
+
+#[test]
+fn invalid_pattern_definitions_fail_engine_startup() {
+    for patterns in [
+        "- {id: duplicate, name: One, regex: x}\n        - {id: duplicate, name: Two, regex: y}",
+        "- {id: broken, name: Broken, regex: '['}",
+        "- {id: empty, name: Empty, regex: 'x*'}",
+        "- {id: capture, name: Capture, regex: 'x+', secret_capture: missing}",
+        "- {id: field, name: Field, regex: '.+', field: password}",
+    ] {
+        let yaml = format!(
+            "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        {patterns}\n"
+        );
+        if let Ok(config) = GovernanceConfig::parse(&yaml) {
+            assert!(GovernanceEngine::from_config(&config).is_err(), "{yaml}");
+        }
+    }
 }
 
 // Why: fixtures are assembled at runtime so no credential-shaped literal
 // exists in the source — GitHub push protection scans this file too.
 #[test]
-fn full_length_vendor_keys_match_their_patterns() {
-    let mailgun = format!("key-{}", "0123456789abcdef".repeat(2));
-    let cases = [
-        ("AKIAIOSFODNN7EXAMPLE", "aws-access-key"),
-        (
-            "ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
-            "github-token-classic",
-        ),
-        ("sk-ant-api03-AbCdEfGhIjKlMnOpQrStUv", "anthropic-api-key"),
-        (mailgun.as_str(), "mailgun-api-key"),
-        (
-            "postgresql://admin:hunter2@db.internal:5432/prod",
-            "postgres-url-with-password",
-        ),
-    ];
-    for (text, id) in cases {
-        let input = GovernedInput::prompt_text(text.to_owned());
-        let hit = detect_secrets(&input);
-        assert!(
-            matches!(&hit, Some(h) if h.pattern.id == id),
-            "{id} should match {text}, got {hit:?}"
-        );
-    }
+fn configured_regex_and_structured_field_patterns_match_without_vendor_knowledge() {
+    let scanner = scanner(
+        "patterns:\n  - id: internal-key\n    name: Internal Key\n    regex: 'XINT-(?P<value>[0-9]{8})'\n    secret_capture: value\n  - id: deployment-secret\n    name: Deployment Secret\n    field: deploy_secret\n    regex: '.+'\n    redact_whole_value: true\nentropy:\n  enabled: false\n",
+    );
+    let text = GovernedInput::prompt_text("XINT-12345678".to_owned());
+    assert_eq!(scanner.detect(&text).unwrap().pattern.id, "internal-key");
+    let structured = args(json!({"deploy_secret": "opaque-value"}));
+    assert_eq!(
+        scanner.detect(&structured).unwrap().pattern.id,
+        "deployment-secret"
+    );
+    assert!(
+        scanner
+            .detect(&args(json!({"note": "opaque-value"})))
+            .is_none()
+    );
+}
+
+#[test]
+fn engine_evaluation_and_exposed_scanner_share_one_catalog() {
+    let yaml = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: shared-key\n          name: Shared Key\n          regex: 'XSHARED-[0-9]+'\n";
+    let engine = engine(yaml);
+    let input = GovernedInput::prompt_text("XSHARED-1234".to_owned());
+    assert_eq!(
+        engine
+            .secret_scanner()
+            .unwrap()
+            .detect(&input)
+            .unwrap()
+            .pattern
+            .id,
+        "shared-key"
+    );
+    let call = Call::new("u-shared-catalog");
+    let evaluation = engine.evaluate(&call.ctx(&tool("write_note"), AccessScope::User, &input));
+    assert!(matches!(
+        evaluation.decision,
+        Decision::Deny {
+            reason: DenyReason::SecretLeak { ref pattern_id, .. }
+        } if pattern_id.as_str() == "shared-key"
+    ));
 }
 
 #[test]
@@ -313,8 +359,8 @@ fn a_mistyped_entropy_tunable_falls_back_to_the_default_loudly() {
     let target = tool("read_file");
     let evaluation = engine.evaluate(&call.ctx(&target, AccessScope::Unknown, &input));
     assert!(
-        matches!(evaluation.decision, Decision::Deny { .. }),
-        "a typo must fall back to the default threshold, not disable detection"
+        matches!(evaluation.decision, Decision::Allow { .. }),
+        "a typo must not promote entropy observations to blocking"
     );
 }
 
@@ -322,7 +368,9 @@ fn a_mistyped_entropy_tunable_falls_back_to_the_default_loudly() {
 
 #[test]
 fn secret_scan_denies_a_credential_in_tool_arguments() {
-    let e = engine("governance:\n  policies:\n    - id: secret_scan\n");
+    let e = engine(
+        "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: github-token-classic\n          name: GitHub Token\n          regex: '\\bghp_[A-Za-z0-9]{36,}'\n",
+    );
     let call = Call::new("u-secret");
     let input = args(json!({ "content": "token ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789" }));
     let evaluation = e.evaluate(&call.ctx(&tool("write_note"), AccessScope::User, &input));
@@ -335,9 +383,9 @@ fn secret_scan_denies_a_credential_in_tool_arguments() {
 }
 
 #[test]
-fn secret_scan_extra_patterns_deny_on_configured_prefix() {
+fn secret_scan_denies_on_an_arbitrary_configured_regex() {
     let e = engine(
-        "governance:\n  policies:\n    - id: secret_scan\n      extra_patterns:\n        - name: Demo Key\n          prefix: \"XDEMO-\"\n",
+        "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: demo-key\n          name: Demo Key\n          regex: 'XDEMO-[0-9]+'\n",
     );
     let call = Call::new("u-extra");
     let input = args(json!({ "note": "XDEMO-1234" }));

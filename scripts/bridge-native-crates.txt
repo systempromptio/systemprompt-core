@@ -1,0 +1,9 @@
+# Test crates that run in the native (Windows/macOS) bridge matrix. They are
+# compiled and run with no database, so none of them may depend on
+# systemprompt-test-fixtures or any crate that uses sqlx::query*! — see
+# scripts/lint-native-test-deps.sh. One package name per line; `#` comments.
+systemprompt-bridge-config-tests
+systemprompt-bridge-install-tests
+systemprompt-bridge-fsutil-tests
+systemprompt-bridge-gui-tests
+systemprompt-bridge-verdicts-tests

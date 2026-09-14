@@ -47,7 +47,7 @@ fn store_json(home: &Path) -> serde_json::Value {
 }
 
 #[test]
-fn session_from_profile_flag_creates_store() {
+fn session_from_profile_flag_records_session_without_activating_it() {
     let Some(home) = isolated_home_or_skip() else {
         return;
     };
@@ -62,7 +62,10 @@ fn session_from_profile_flag_creates_store() {
         .stderr(predicate::str::contains("not found"));
 
     let store = store_json(home.path());
-    assert!(store["active_key"].is_string());
+    assert!(
+        store["active_key"].is_null(),
+        "an explicit --profile is a one-shot target and must not become the active session"
+    );
     assert_eq!(
         store["sessions"].as_object().map(serde_json::Map::len),
         Some(1)
@@ -94,7 +97,7 @@ fn session_from_env_profile_resolves() {
 }
 
 #[test]
-fn session_from_stored_active_key_resolves() {
+fn profile_flag_alone_leaves_a_bare_invocation_unresolved() {
     let Some(home) = isolated_home_or_skip() else {
         return;
     };
@@ -116,8 +119,53 @@ fn session_from_stored_active_key_resolves() {
     second
         .assert()
         .failure()
+        .stderr(predicate::str::contains("Profile resolution failed"));
+}
+
+#[test]
+fn session_from_stored_active_key_resolves_after_switch() {
+    let Some(home) = isolated_home_or_skip() else {
+        return;
+    };
+    let fixture_profile = fixture_or_skip()
+        .expect("fixture present")
+        .profile_path
+        .clone();
+    let profile_dir = home.path().join(".systemprompt/profiles/switched");
+    std::fs::create_dir_all(&profile_dir).expect("mkdir profiles dir");
+    std::fs::copy(&fixture_profile, profile_dir.join("profile.yaml"))
+        .expect("copy fixture profile");
+
+    let Some(mut switch) = command_or_skip() else {
+        return;
+    };
+    switch.env("HOME", home.path());
+    switch.current_dir(home.path());
+    switch.args(["admin", "session", "switch", "switched"]);
+    switch.assert().success();
+
+    let store = store_json(home.path());
+    assert_eq!(store["active_profile_name"], "switched");
+    assert!(store["active_key"].is_string());
+
+    let Some(mut login) = command_bare_or_skip() else {
+        return;
+    };
+    login.env("HOME", home.path());
+    login.current_dir(home.path());
+    login.args(["admin", "session", "login"]);
+    login.assert().success();
+
+    let Some(mut bare) = command_bare_or_skip() else {
+        return;
+    };
+    bare.env("HOME", home.path());
+    bare.current_dir(home.path());
+    bare.args(session_probe_args());
+    bare.assert()
+        .failure()
         .stderr(predicate::str::contains("not found"))
-        .stderr(predicate::str::contains("Profile required").not());
+        .stderr(predicate::str::contains("Profile resolution failed").not());
 }
 
 #[test]

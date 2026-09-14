@@ -23,6 +23,7 @@ fn launch(
         .image(DIGEST.to_owned())
         .network("eval-net-1".to_owned())
         .name("eval-run-1".to_owned())
+        .ownership("owner-1", "execution-1")
         .build()
 }
 
@@ -47,6 +48,21 @@ fn fake_docker(directory: &Path, cleanup_body: &str) -> PathBuf {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
             .expect("the stand-in docker binary must be executable");
+    }
+    path
+}
+
+fn fake_disconnected_provider(directory: &Path) -> PathBuf {
+    let path = directory.join("fake-disconnected-docker");
+    std::fs::write(
+        &path,
+        "#!/bin/sh\nif [ \"$1\" = \"rm\" ]; then exit 0; fi\necho provider-disconnected >&2\nexit 42\n",
+    ).expect("provider failure fixture");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+            .expect("executable fixture");
     }
     path
 }
@@ -91,6 +107,7 @@ fn the_image_must_be_a_pinned_digest() {
             .image(image.to_owned())
             .network("eval-net-1".to_owned())
             .name("eval-run-1".to_owned())
+            .ownership("owner-1", "execution-1")
             .build()
             .is_err(),
             "{image} is not a 64-character sha256 digest and must be refused"
@@ -106,6 +123,7 @@ fn every_required_field_must_be_supplied() {
             PathBuf::from("/usr/bin/docker"),
             workspace.path().to_path_buf(),
         )
+        .ownership("owner-1", "execution-1")
     };
 
     assert!(
@@ -146,6 +164,7 @@ fn shared_networks_are_refused() {
             .image(DIGEST.to_owned())
             .network(network.to_owned())
             .name("eval-run-1".to_owned())
+            .ownership("owner-1", "execution-1")
             .build()
             .is_err(),
             "network {network:?} would break evaluation isolation and must be refused"
@@ -170,6 +189,7 @@ fn execution_names_must_be_namespaced_and_shell_safe() {
             .image(DIGEST.to_owned())
             .network("eval-net-1".to_owned())
             .name(name.to_owned())
+            .ownership("owner-1", "execution-1")
             .build()
             .is_err(),
             "name {name:?} must be refused"
@@ -232,6 +252,34 @@ fn polling_reports_the_client_exit_status() {
 }
 
 #[test]
+fn a_provider_disconnect_is_a_failed_native_client_execution() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let docker = fake_disconnected_provider(workspace.path());
+    let mut execution = launch(docker, workspace.path().to_path_buf())
+        .expect("valid launch")
+        .start(&client(ExecutionLimits::default()), "prompt")
+        .expect("spawn disconnected provider fixture");
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    let status = execution
+        .poll()
+        .expect("poll status")
+        .expect("terminal status");
+    assert_eq!(status.code(), Some(42));
+    assert!(!status.success());
+}
+
+#[test]
+fn missing_output_during_evidence_export_is_not_treated_as_success() {
+    let (_workspace, mut execution) = started("exit 0", ExecutionLimits::default());
+    let output = execution.output_paths().0.to_path_buf();
+    std::fs::remove_file(output).expect("inject missing evidence output");
+    assert!(
+        execution.poll().is_err(),
+        "missing retained output must fail closed"
+    );
+}
+
+#[test]
 fn exceeding_the_output_budget_cancels_the_run() {
     let (_workspace, mut execution) = started(
         "exit 0",
@@ -246,7 +294,9 @@ fn exceeding_the_output_budget_cancels_the_run() {
         .expect_err("output beyond the budget must fail the execution");
 
     assert!(
-        error.to_string().contains("execution time or output limit"),
+        error
+            .to_string()
+            .contains("execution time, output, or writable-storage limit"),
         "the failure must name the breached limit, got: {error}"
     );
 }
@@ -267,7 +317,9 @@ fn exceeding_the_active_timeout_cancels_the_run() {
         .expect_err("an execution past its active timeout must fail");
 
     assert!(
-        error.to_string().contains("execution time or output limit"),
+        error
+            .to_string()
+            .contains("execution time, output, or writable-storage limit"),
         "the failure must name the breached limit, got: {error}"
     );
 }

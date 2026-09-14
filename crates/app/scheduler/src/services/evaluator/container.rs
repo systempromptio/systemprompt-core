@@ -3,8 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::client::NativeClient;
+use super::client::{ClientPurpose, NativeClient};
 use crate::{SchedulerError, SchedulerResult};
+
+#[path = "network.rs"]
+mod network;
+pub use network::ExecutionNetwork;
+use network::{private_log, safe_label, safe_name, wait_bounded};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::Instant;
@@ -20,6 +25,7 @@ pub struct ContainerExecution {
     started: Instant,
     timeout_seconds: u32,
     max_output_bytes: u64,
+    max_writable_bytes: u64,
 }
 
 #[derive(Debug)]
@@ -29,16 +35,23 @@ pub struct ContainerLaunch {
     network: String,
     name: String,
     directory: PathBuf,
+    output_stem: String,
+    owner_label: String,
+    execution_label: String,
+    runtime_user: String,
 }
 
 impl ContainerLaunch {
-    pub const fn builder(docker: PathBuf, directory: PathBuf) -> ContainerLaunchBuilder {
+    pub fn builder(docker: PathBuf, directory: PathBuf) -> ContainerLaunchBuilder {
         ContainerLaunchBuilder {
             docker,
             directory,
             image: None,
             network: None,
             name: None,
+            output_stem: "client".to_owned(),
+            owner_label: String::new(),
+            execution_label: String::new(),
         }
     }
 
@@ -47,9 +60,22 @@ impl ContainerLaunch {
         client: &NativeClient,
         prompt: &str,
     ) -> SchedulerResult<ContainerExecution> {
-        let output = self.directory.join("client-events.jsonl");
+        self.start_for(client, ClientPurpose::Execution, prompt)
+    }
+
+    pub fn start_for(
+        &self,
+        client: &NativeClient,
+        purpose: ClientPurpose,
+        prompt: &str,
+    ) -> SchedulerResult<ContainerExecution> {
+        let output = self
+            .directory
+            .join(format!("{}-events.jsonl", self.output_stem));
         let log = private_log(&output)?;
-        let errors_path = self.directory.join("client-stderr.log");
+        let errors_path = self
+            .directory
+            .join(format!("{}-stderr.log", self.output_stem));
         let errors = private_log(&errors_path)?;
         let mut command = Command::new(&self.docker);
         command.args([
@@ -59,6 +85,10 @@ impl ContainerLaunch {
             &self.name,
             "--label",
             "systemprompt.evaluator=true",
+            "--label",
+            &format!("systemprompt.evaluator.owner={}", self.owner_label),
+            "--label",
+            &format!("systemprompt.evaluator.execution={}", self.execution_label),
             "--network",
             &self.network,
             "--read-only",
@@ -67,7 +97,7 @@ impl ContainerLaunch {
             "--pids-limit=128",
             "--memory=2g",
             "--cpus=1",
-            "--user=1001:1001",
+            &format!("--user={}", self.runtime_user),
             "--tmpfs=/tmp:rw,nosuid,nodev,size=256m",
             "--workdir=/home/tester/work",
         ]);
@@ -78,7 +108,9 @@ impl ContainerLaunch {
         command
             .arg("--env-file")
             .arg(self.directory.join("client.env"));
-        command.arg(&self.image).args(client.arguments(prompt));
+        command
+            .arg(&self.image)
+            .args(client.arguments_for(purpose, prompt));
         command
             .stdin(Stdio::null())
             .stdout(Stdio::from(log))
@@ -94,24 +126,40 @@ impl ContainerLaunch {
             started: Instant::now(),
             timeout_seconds: client.limits().active_timeout_seconds,
             max_output_bytes: client.limits().max_artifact_bytes,
+            max_writable_bytes: 512 * 1024 * 1024,
         })
     }
 }
 
 impl ContainerExecution {
+    pub fn output_paths(&self) -> (&Path, &Path) {
+        (&self.output, &self.errors)
+    }
     pub fn poll(&mut self) -> SchedulerResult<Option<ExitStatus>> {
         if self.started.elapsed().as_secs() > u64::from(self.timeout_seconds)
             || std::fs::metadata(&self.output)?
                 .len()
                 .saturating_add(std::fs::metadata(&self.errors)?.len())
                 > self.max_output_bytes
+            || directory_bytes(&self.directory()?)? > self.max_writable_bytes
         {
             self.cancel()?;
             return Err(SchedulerError::ConfigError {
-                message: "Client exceeded execution time or output limit".to_owned(),
+                message: "Client exceeded execution time, output, or writable-storage limit"
+                    .to_owned(),
             });
         }
         Ok(self.child.try_wait()?)
+    }
+
+    fn directory(&self) -> SchedulerResult<PathBuf> {
+        Ok(self
+            .output
+            .parent()
+            .ok_or_else(|| {
+                SchedulerError::config_error("Evaluator output path has no workspace parent")
+            })?
+            .join("home"))
     }
 
     pub fn cancel(&mut self) -> SchedulerResult<()> {
@@ -132,6 +180,33 @@ impl ContainerExecution {
     }
 }
 
+fn directory_bytes(root: &Path) -> std::io::Result<u64> {
+    let mut total = 0u64;
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let entries = match std::fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && directory == root => {
+                return Ok(0);
+            },
+            Err(error) => return Err(error),
+        };
+        for entry in entries {
+            let entry = entry?;
+            let metadata = std::fs::symlink_metadata(entry.path())?;
+            if metadata.file_type().is_symlink() {
+                continue;
+            }
+            if metadata.is_dir() {
+                pending.push(entry.path());
+            } else if metadata.is_file() {
+                total = total.saturating_add(metadata.len());
+            }
+        }
+    }
+    Ok(total)
+}
+
 #[derive(Debug)]
 pub struct ContainerLaunchBuilder {
     docker: PathBuf,
@@ -139,6 +214,9 @@ pub struct ContainerLaunchBuilder {
     image: Option<String>,
     network: Option<String>,
     name: Option<String>,
+    output_stem: String,
+    owner_label: String,
+    execution_label: String,
 }
 
 impl ContainerLaunchBuilder {
@@ -154,14 +232,39 @@ impl ContainerLaunchBuilder {
         self.name = Some(name);
         self
     }
+    pub fn output_stem(mut self, output_stem: impl Into<String>) -> Self {
+        self.output_stem = output_stem.into();
+        self
+    }
+    pub fn ownership(mut self, owner: impl Into<String>, execution: impl Into<String>) -> Self {
+        self.owner_label = owner.into();
+        self.execution_label = execution.into();
+        self
+    }
     pub fn build(self) -> SchedulerResult<ContainerLaunch> {
         let invalid = || {
             SchedulerError::ConfigError { message: "Evaluator requires an absolute Docker path, workspace, pinned image, private network and execution name".to_owned() }
         };
         let image = self.image.ok_or_else(invalid)?;
-        let digest = image.strip_prefix("sha256:").ok_or_else(invalid)?;
+        let digest = image
+            .rsplit_once("sha256:")
+            .map(|(_, digest)| digest)
+            .ok_or_else(invalid)?;
         let network = self.network.ok_or_else(invalid)?;
         let name = self.name.ok_or_else(invalid)?;
+        #[cfg(unix)]
+        let runtime_user = {
+            use std::os::unix::fs::MetadataExt;
+            let metadata = std::fs::metadata(&self.directory)?;
+            if metadata.uid() == 0 {
+                return Err(SchedulerError::config_error(
+                    "Evaluator supervisor must not run as root",
+                ));
+            }
+            format!("{}:{}", metadata.uid(), metadata.gid())
+        };
+        #[cfg(not(unix))]
+        let runtime_user = "1001:1001".to_owned();
         if digest.len() != 64
             || !digest.bytes().all(|c| c.is_ascii_hexdigit())
             || !self.docker.is_absolute()
@@ -171,6 +274,9 @@ impl ContainerLaunchBuilder {
             || !safe_name(&name)
             || !safe_name(&network)
             || matches!(network.as_str(), "host" | "bridge" | "default" | "none")
+            || !safe_name(&self.output_stem)
+            || !safe_label(&self.owner_label)
+            || !safe_label(&self.execution_label)
         {
             return Err(invalid());
         }
@@ -180,72 +286,10 @@ impl ContainerLaunchBuilder {
             image,
             network,
             name,
+            output_stem: self.output_stem,
+            owner_label: self.owner_label,
+            execution_label: self.execution_label,
+            runtime_user,
         })
-    }
-}
-
-fn safe_name(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && value
-            .bytes()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_'))
-}
-
-fn private_log(path: &Path) -> std::io::Result<std::fs::File> {
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    options.open(path)
-}
-
-// Why: cancellation runs from `Drop`, which cannot be async, so the bounded
-// wait has to block. On a multi-threaded runtime it is handed to
-// `block_in_place` so the ten seconds are spent off the async scheduler rather
-// than stalling a worker that still owns other tasks.
-fn wait_bounded(child: &mut Child) -> std::io::Result<ExitStatus> {
-    match tokio::runtime::Handle::try_current().map(|handle| handle.runtime_flavor()) {
-        Ok(tokio::runtime::RuntimeFlavor::MultiThread) => {
-            tokio::task::block_in_place(|| poll_until_exit(child))
-        },
-        _ => poll_until_exit(child),
-    }
-}
-
-fn poll_until_exit(child: &mut Child) -> std::io::Result<ExitStatus> {
-    let started = Instant::now();
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return Ok(status);
-        }
-        if started.elapsed().as_secs() >= 10 {
-            child.kill()?;
-            child.wait()?;
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::TimedOut,
-                "Container command timed out",
-            ));
-        }
-        std::thread::sleep(std::time::Duration::from_millis(25));
-    }
-}
-
-impl Drop for ContainerExecution {
-    fn drop(&mut self) {
-        match self.child.try_wait() {
-            Ok(Some(_)) => {},
-            Ok(None) => {
-                if let Err(error) = self.cancel() {
-                    tracing::error!(error = %error, container = %self.name, "Evaluator cleanup requires reconciliation");
-                }
-            },
-            Err(error) => {
-                tracing::error!(error = %error, container = %self.name, "Cannot establish evaluator child state");
-            },
-        }
     }
 }

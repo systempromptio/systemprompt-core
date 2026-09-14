@@ -4,27 +4,25 @@
 //! enabled, ...params}]`) declares whether the chain runs at all, which
 //! policies it contains, in what order, and with what per-policy parameters.
 //!
-//! Two loaders, because startup and the request path want opposite failure
-//! modes. [`GovernanceConfig::validate`] is for boot: it returns the error so
-//! a misconfigured installation refuses to start.
-//! [`GovernanceConfig::load`] is for the request path: it degrades to
-//! [`GovernanceConfig::defaults`] and logs, because a governance deployment
-//! that failed closed on a config typo would block every tool call.
+//! [`GovernanceConfig::load`] reads the installation's file: a missing file is
+//! the documented warn-only fallback ([`GovernanceConfig::defaults`]), while a
+//! file that exists but is rejected — unreadable, invalid YAML, an unknown
+//! mode, a bad secret catalog — is an error the engine refuses to start on,
+//! so a typo can never silently downgrade enforcement.
 //! [`GovernanceConfig::parse`] is the strict form over a string.
 //!
-//! Each policy also carries a [`PolicyMode`]. `enforce` is the default and
-//! halts the chain on a deny; `warn` records the identical finding and lets
-//! the call through, so tunables can be calibrated against real traffic
-//! instead of guesses. A top-level `governance.mode` sets the default for
-//! every policy that does not name its own. An unrecognised mode is a parse
-//! error rather than a silent fallback: reading `mode: warnn` as `enforce`
-//! would block traffic an operator believed they had unblocked, and reading it
-//! as `warn` would disable enforcement nobody asked to disable.
+//! Each policy also carries a [`PolicyMode`]. A declared policy without a mode
+//! defaults to `enforce`, while the vendor-neutral fallback chain is explicitly
+//! warn-only. `enforce` halts the chain on a deny; `warn` records the identical
+//! finding and lets the call through, so tunables can be calibrated against
+//! real traffic instead of guesses. A top-level `governance.mode` sets the
+//! default for every policy that does not name its own. An unrecognised mode is
+//! a parse error rather than a silent fallback: reading `mode: warnn` as
+//! `enforce` would block traffic an operator believed they had unblocked, and
+//! reading it as `warn` would disable enforcement nobody asked to disable.
 //!
-//! Note the fallback direction: defaults enable every policy, so a file that
-//! cannot be read yields *more* enforcement than it declared, never less.
-//! Governance cannot be disabled by deleting or breaking this file — only by
-//! `governance.enabled: false` or per-policy `enabled: false`.
+//! The fallback chain runs every policy in warn mode. Its secret scanner has no
+//! signatures because credential applicability belongs to the installation.
 //!
 //! Path resolution is the caller's concern: core takes a path, extensions
 //! resolve it from their profile (`<services>/governance/config.yaml`).
@@ -36,6 +34,9 @@ use std::path::Path;
 
 use serde_yaml::Value as YamlValue;
 use thiserror::Error;
+
+use super::builtin::SECRET_SCAN_ID;
+use super::secrets::{SecretPatternError, SecretScanner};
 
 #[derive(Debug, Error)]
 pub enum GovernanceConfigError {
@@ -51,6 +52,8 @@ pub enum GovernanceConfigError {
         "governance config has an unknown mode `{value}` at {location}; expected `enforce` or `warn`"
     )]
     InvalidMode { location: String, value: String },
+    #[error("governance secret pattern catalog is invalid: {0}")]
+    InvalidSecretPatterns(#[from] SecretPatternError),
 }
 
 /// Whether a policy halts the chain on a finding or only records it.
@@ -137,13 +140,13 @@ impl GovernanceConfig {
             .map(|id| PolicyConfig {
                 id: id.to_owned(),
                 enabled: true,
-                mode: PolicyMode::Enforce,
+                mode: PolicyMode::Warn,
                 params: YamlValue::Null,
             })
             .collect();
         Self {
             enabled: true,
-            mode: PolicyMode::Enforce,
+            mode: PolicyMode::Warn,
             policies,
         }
     }
@@ -174,6 +177,9 @@ impl GovernanceConfig {
                 .unwrap_or(true);
             let mode = read_mode(Some(entry), &format!("governance.policies[{index}] ({id})"))?
                 .unwrap_or(default_mode);
+            if id == SECRET_SCAN_ID {
+                SecretScanner::from_policy_yaml(entry)?;
+            }
             out.push(PolicyConfig {
                 id,
                 enabled,
@@ -196,31 +202,14 @@ impl GovernanceConfig {
         }
     }
 
-    pub fn validate(path: &Path) -> Result<(), GovernanceConfigError> {
-        Self::read(path).map(|_| ())
-    }
-
-    #[must_use]
-    pub fn load(path: &Path) -> Self {
-        match Self::read(path) {
-            Ok(Some(config)) => config,
-            Ok(None) => {
-                tracing::warn!(
-                    path = %path.display(),
-                    "governance config not found; falling back to the built-in defaults, \
-                     which enable every policy"
-                );
-                Self::defaults()
-            },
-            Err(error) => {
-                tracing::error!(
-                    path = %path.display(),
-                    %error,
-                    "governance config rejected; falling back to the built-in defaults, \
-                     which enable every policy and may not be what this file asked for"
-                );
-                Self::defaults()
-            },
-        }
+    pub fn load(path: &Path) -> Result<Self, GovernanceConfigError> {
+        let config = Self::read(path)?;
+        Ok(config.unwrap_or_else(|| {
+            tracing::warn!(
+                path = %path.display(),
+                "governance config not found; falling back to the vendor-neutral warn-only chain"
+            );
+            Self::defaults()
+        }))
     }
 }

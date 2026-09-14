@@ -113,11 +113,12 @@ pub struct CoreEnvVars {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystempromptEnvVars {
-    pub env: String,
-    pub verbosity: String,
-    pub services_path: Option<String>,
-    pub skills_path: Option<String>,
-    pub config_path: Option<String>,
+    #[serde(rename = "services_path")]
+    pub services: Option<String>,
+    #[serde(rename = "skills_path")]
+    pub skills: Option<String>,
+    #[serde(rename = "config_path")]
+    pub config: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -161,9 +162,6 @@ pub fn build_env_config(
     config: &systemprompt_models::Config,
     paths: Option<&systemprompt_models::AppPaths>,
 ) -> EnvironmentConfig {
-    let env = systemprompt_models::config::Environment::detect();
-    let verbosity = systemprompt_models::config::VerbosityLevel::resolve();
-
     EnvironmentConfig {
         core: CoreEnvVars {
             sitename: config.sitename.clone(),
@@ -177,11 +175,9 @@ pub fn build_env_config(
             cors_allowed_origins: config.cors_allowed_origins.clone(),
         },
         systemprompt: SystempromptEnvVars {
-            env: format!("{:?}", env),
-            verbosity: format!("{:?}", verbosity),
-            services_path: paths.map(|p| p.system().services().display().to_string()),
-            skills_path: paths.map(|p| p.system().skills().display().to_string()),
-            config_path: paths.map(|p| p.system().settings().display().to_string()),
+            services: paths.map(|p| p.system().services().display().to_string()),
+            skills: paths.map(|p| p.system().skills().display().to_string()),
+            config: paths.map(|p| p.system().settings().display().to_string()),
         },
         database: DatabaseEnvVars {
             database_type: config.database_type.clone(),

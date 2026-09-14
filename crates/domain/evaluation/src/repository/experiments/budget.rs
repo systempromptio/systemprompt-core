@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::experiments::records::BudgetRecord;
 use crate::{EvaluationError, Result};
 use sqlx::PgPool;
 use systemprompt_identifiers::{AiRequestId, EvalBudgetId, EvalReservationId, UserId};
@@ -26,20 +27,55 @@ impl BudgetRepository {
         Self { pool }
     }
 
-    pub async fn create(&self, owner: &UserId, cap: i64) -> Result<EvalBudgetId> {
-        if cap <= 0 {
-            return Err(invalid("Budget must be positive"));
+    pub async fn create_shared(
+        &self,
+        owner: &UserId,
+        operation: &str,
+        cap: i64,
+    ) -> Result<EvalBudgetId> {
+        if cap <= 0 || operation.trim().is_empty() || operation.len() > 255 {
+            return Err(invalid(
+                "Budget requires a positive cap and an idempotency key",
+            ));
         }
+        let mut tx = self.pool.begin().await?;
+        super::lock_owner(&mut tx, owner).await?;
         let id = EvalBudgetId::generate();
-        sqlx::query!(
-            "INSERT INTO eval_budget_accounts(id,owner_id,cap) VALUES($1,$2,$3)",
-            id.as_str(),
-            owner.as_str(),
-            cap
-        )
-        .execute(&self.pool)
+        sqlx::query!("INSERT INTO eval_budget_accounts(id,owner_id,cap,operation_key) VALUES($1,$2,$3,$4) ON CONFLICT(owner_id,operation_key) DO NOTHING",
+        id.as_str(), owner.as_str(), cap, operation)
+        .execute(&mut *tx)
         .await?;
-        Ok(id)
+        let stored = sqlx::query!(
+            "SELECT id,cap FROM eval_budget_accounts WHERE owner_id=$1 AND operation_key=$2",
+            owner.as_str(),
+            operation
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        if stored.cap != cap {
+            return Err(crate::experiments::conflict(
+                "Budget idempotency key conflicts with another cap",
+            ));
+        }
+        tx.commit().await?;
+        Ok(EvalBudgetId::new(stored.id))
+    }
+
+    pub async fn get(&self, owner: &UserId, id: &EvalBudgetId) -> Result<BudgetRecord> {
+        let record = sqlx::query!(
+            "SELECT id,cap,reserved,settled,frozen FROM eval_budget_accounts WHERE owner_id=$1 AND id=$2",
+            owner.as_str(), id.as_str()
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| crate::experiments::missing("Budget unavailable in this scope"))?;
+        Ok(BudgetRecord {
+            id: EvalBudgetId::new(record.id),
+            cap: record.cap,
+            reserved: record.reserved,
+            settled: record.settled,
+            frozen: record.frozen,
+        })
     }
 
     pub async fn reserve(
@@ -103,6 +139,37 @@ impl BudgetRepository {
         .execute(&mut **tx)
         .await?;
         Ok(ReservationAdmission::Admitted(id))
+    }
+
+    pub async fn retain_orphaned(&self, owner: &UserId) -> Result<u64> {
+        let mut tx = self.pool.begin().await?;
+        super::lock_owner(&mut tx, owner).await?;
+        let retained = sqlx::query_scalar!(
+            r#"WITH orphaned AS (
+                SELECT r.id,r.account_id,r.reserved,m.request_id,
+                    CASE WHEN q.status='completed' AND q.completed_at IS NOT NULL THEN q.cost_microdollars ELSE r.reserved END AS actual
+                FROM eval_budget_reservations r
+                JOIN eval_budget_accounts a ON a.id=r.account_id AND a.owner_id=$1
+                JOIN eval_request_reservations m ON m.reservation_id=r.id
+                JOIN eval_executions x ON x.id=m.execution_id
+                LEFT JOIN ai_requests q ON q.id=m.request_id AND q.user_id=$1
+                WHERE r.actual IS NULL AND x.status NOT IN ('queued','running')
+            ), settled AS (
+                UPDATE eval_budget_reservations r SET actual=o.actual,request_id=o.request_id,settled_at=NOW()
+                FROM orphaned o WHERE r.id=o.id
+                RETURNING o.account_id,o.reserved,o.actual
+            ), accounts AS (
+                UPDATE eval_budget_accounts a SET reserved=a.reserved-t.reserved,settled=a.settled+t.actual,frozen=a.frozen OR t.overrun
+                FROM (SELECT account_id,SUM(reserved) AS reserved,SUM(actual) AS actual,BOOL_OR(actual>reserved) AS overrun FROM settled GROUP BY account_id) t
+                WHERE a.id=t.account_id
+            )
+            SELECT COUNT(*) AS "retained!" FROM settled"#,
+            owner.as_str()
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(retained.try_into().unwrap_or(0))
     }
 
     pub async fn settle(

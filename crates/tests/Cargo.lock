@@ -34,6 +34,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "aead"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d122413f284cf2d62fb1b7db97e02edb8cda96d769b16e443a4f6195e35662b0"
+dependencies = [
+ "crypto-common 0.1.6",
+ "generic-array",
+]
+
+[[package]]
 name = "aes"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -734,7 +744,7 @@ version = "3.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dee98b0db6a962de883bf5d20362dee4d7ca0d12fe39a7c6c73c844e1cd7c1f"
 dependencies = [
- "darling 0.20.11",
+ "darling 0.23.0",
  "ident_case",
  "prettyplease",
  "proc-macro2",
@@ -961,6 +971,17 @@ checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
 name = "chacha20"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3613f74bd2eac03dad61bd53dbe620703d4371614fe0bc3b9f04dd36fe4e818"
+dependencies = [
+ "cfg-if",
+ "cipher 0.4.4",
+ "cpufeatures 0.2.17",
+]
+
+[[package]]
+name = "chacha20"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
@@ -968,6 +989,19 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.3.0",
  "rand_core 0.10.1",
+]
+
+[[package]]
+name = "chacha20poly1305"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10cd79432192d1c0f4e1a0fef9527696cc039165d729fb41b3f4f4f354c2dc35"
+dependencies = [
+ "aead",
+ "chacha20 0.9.1",
+ "cipher 0.4.4",
+ "poly1305",
+ "zeroize",
 ]
 
 [[package]]
@@ -1002,6 +1036,7 @@ checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
  "crypto-common 0.1.6",
  "inout 0.1.4",
+ "zeroize",
 ]
 
 [[package]]
@@ -1291,6 +1326,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
 dependencies = [
  "generic-array",
+ "rand_core 0.6.4",
  "typenum",
 ]
 
@@ -4274,6 +4310,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
+name = "opaque-debug"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
+
+[[package]]
 name = "open"
 version = "5.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4804,6 +4846,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "poly1305"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8159bd90725d2df49889a078b54f4f79e87f1f8a8444194cdca81d38f5393abf"
+dependencies = [
+ "cpufeatures 0.2.17",
+ "opaque-debug",
+ "universal-hash",
+]
+
+[[package]]
 name = "portable-atomic"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5281,7 +5334,7 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
- "chacha20",
+ "chacha20 0.10.2",
  "getrandom 0.4.3",
  "rand_core 0.10.1",
 ]
@@ -6707,7 +6760,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -6797,7 +6850,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -6855,7 +6908,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6919,7 +6972,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-api"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -6928,6 +6981,7 @@ dependencies = [
  "base64 0.22.1",
  "bcrypt",
  "bytes",
+ "chacha20poly1305",
  "chrono",
  "futures-util",
  "hex",
@@ -7009,6 +7063,7 @@ dependencies = [
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
+ "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-evaluation",
@@ -7080,6 +7135,7 @@ dependencies = [
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-users",
+ "tempfile",
  "tokio",
  "tower",
  "url",
@@ -7089,7 +7145,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",
@@ -7575,7 +7631,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cli"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -7710,7 +7766,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "chrono",
  "futures",
@@ -7737,12 +7793,13 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
  "clap",
+ "dirs",
  "ipnet",
  "open",
  "reqwest",
@@ -7811,7 +7868,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "base64 0.22.1",
  "rand 0.10.2",
@@ -7852,7 +7909,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -7927,7 +7984,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -7986,7 +8043,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-evaluation"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "chrono",
  "hex",
@@ -8008,23 +8065,20 @@ dependencies = [
 name = "systemprompt-evaluation-tests"
 version = "0.0.11"
 dependencies = [
- "anyhow",
  "chrono",
  "serde_json",
  "sqlx",
  "systemprompt-database",
  "systemprompt-evaluation",
  "systemprompt-identifiers",
- "systemprompt-models",
  "systemprompt-test-fixtures",
- "systemprompt-test-mocks",
  "tokio",
  "uuid",
 ]
 
 [[package]]
 name = "systemprompt-events"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "axum",
  "chrono",
@@ -8072,7 +8126,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -8120,7 +8174,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -8200,6 +8254,7 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-api",
+ "systemprompt-config",
  "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
@@ -8212,7 +8267,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -8280,7 +8335,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -8303,7 +8358,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -8353,7 +8408,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -8399,19 +8454,24 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-marketplace"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "hex",
  "inventory",
  "serde",
+ "serde_jcs",
  "serde_json",
  "serde_yaml_ng",
  "sha2 0.11.0",
+ "sqlx",
  "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-security",
+ "systemprompt-traits",
  "thiserror 2.0.19",
  "tokio",
  "tracing",
@@ -8435,6 +8495,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "tempfile",
  "tokio",
  "tracing",
@@ -8444,7 +8505,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -8530,7 +8591,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -8592,7 +8653,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "base64 0.22.1",
  "bcrypt",
@@ -8694,7 +8755,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -8724,7 +8785,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "axum",
  "indicatif",
@@ -8739,6 +8800,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
+ "systemprompt-evaluation",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
@@ -8793,6 +8855,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
+ "systemprompt-evaluation",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
@@ -8814,15 +8877,19 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-scheduler"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
  "futures",
+ "hex",
  "inventory",
  "nix",
  "serde",
+ "serde_jcs",
  "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.0",
  "sqlx",
  "systemprompt-ai",
  "systemprompt-analytics",
@@ -8833,7 +8900,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
- "systemprompt-mcp",
+ "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
@@ -8897,7 +8964,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -8985,7 +9052,6 @@ dependencies = [
  "chrono",
  "ed25519-dalek 2.2.0",
  "jsonwebtoken",
- "regex",
  "reqwest",
  "rsa",
  "serde",
@@ -9007,7 +9073,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-slack"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "hex",
  "hmac 0.13.0",
@@ -9042,7 +9108,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-storage"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -9066,7 +9132,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-teams"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "inventory",
  "jsonwebtoken",
@@ -9102,7 +9168,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-template-provider"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "systemprompt-provider-contracts",
@@ -9124,7 +9190,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-templates"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "handlebars",
  "serde",
@@ -9170,6 +9236,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
+ "systemprompt-evaluation",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
@@ -9234,7 +9301,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -9270,7 +9337,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10121,6 +10188,16 @@ name = "unit-prefix"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
+
+[[package]]
+name = "universal-hash"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
+dependencies = [
+ "crypto-common 0.1.6",
+ "subtle",
+]
 
 [[package]]
 name = "unsafe-libyaml"

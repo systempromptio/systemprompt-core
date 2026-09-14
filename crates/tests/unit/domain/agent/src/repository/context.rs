@@ -450,9 +450,12 @@ async fn ensure_context_by_another_user_never_writes_into_the_owners_row() {
         name: "intruder-name",
         ..owned
     };
-    repo.ensure_context(&foreign, ContextKind::Session)
-        .await
-        .expect("a foreign ensure is a no-op, not an error");
+    assert!(matches!(
+        repo.ensure_context(&foreign, ContextKind::Session)
+            .await
+            .unwrap_err(),
+        systemprompt_traits::RepositoryError::NotFound(_)
+    ));
 
     let after = repo.get_context(&context_id, &owner).await.expect("get");
     assert_eq!(after.updated_at, before.updated_at);

@@ -360,6 +360,28 @@ const COMMANDS = {
     emit("state.changed", state);
     return {};
   },
+  "system.disconnect": () => {
+    state.agents_onboarded = false;
+    state.last_sync_summary = null;
+    state.pending_device_action = null;
+    emit("state.changed", state);
+    return {};
+  },
+  "device.action.open": ({ action }) => {
+    state.pending_device_action = action;
+    emit("state.changed", state);
+    return {};
+  },
+  "device.action.dismiss": () => {
+    state.pending_device_action = null;
+    emit("state.changed", state);
+    return {};
+  },
+  "application.removalGuidance": () => ({
+    method: state.platform === "windows" ? "scoop" : "macos",
+    path: state.platform === "windows" ? "C:\\Users\\demo\\scoop\\apps\\bridge\\current\\systemprompt-bridge.exe" : "/Applications/systemprompt bridge.app",
+  }),
+  "application.reveal": () => ({}),
   "setup.complete": () => {
     state.agents_onboarded = true;
     emit("state.changed", state);
@@ -437,6 +459,7 @@ const FAIL_SCOPE = {
   login: "identity",
   logout: "identity",
   "system.purge": "identity",
+  "system.disconnect": "identity",
   "profile.fetch": "identity",
 };
 

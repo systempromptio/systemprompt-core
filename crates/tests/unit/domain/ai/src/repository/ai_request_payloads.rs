@@ -2,7 +2,12 @@
 // ai_requests).
 
 use serde_json::json;
-use systemprompt_ai::repository::{AiRequestPayloadRepository, UpsertPayloadParams};
+use systemprompt_ai::repository::ai_requests::{
+    SettleCompletion, SettlementOutcome, SettlementUsage,
+};
+use systemprompt_ai::repository::{
+    AiRequestPayloadRepository, AiRequestRepository, UpsertPayloadParams,
+};
 
 use super::{pool_or_skip, seed_request, user};
 
@@ -30,18 +35,29 @@ async fn upsert_request_then_response_coexist() {
     .expect("upsert request");
 
     let resp_body = json!({"content": "hi"});
-    repo.upsert_response(
-        &request_id,
-        UpsertPayloadParams {
-            body: Some(&resp_body),
-            excerpt: Some("hi"),
-            truncated: true,
-            bytes: Some(8),
-            sha256: Some("bbbb"),
-        },
-    )
-    .await
-    .expect("upsert response");
+    AiRequestRepository::new(&pool)
+        .expect("requests repo")
+        .settle(
+            &request_id,
+            &uid,
+            SettlementOutcome::Completed(SettleCompletion {
+                usage: SettlementUsage::default(),
+                cost_microdollars: 0,
+                latency_ms: 1,
+                upstream_latency_ms: None,
+                payload: UpsertPayloadParams {
+                    body: Some(&resp_body),
+                    excerpt: Some("hi"),
+                    truncated: true,
+                    bytes: Some(8),
+                    sha256: Some("bbbb"),
+                },
+                assistant_text: None,
+                tool_calls: &[],
+            }),
+        )
+        .await
+        .expect("settle response");
 
     // Read back both columns directly to confirm the second upsert took the
     // ON CONFLICT branch rather than overwriting the request payload.

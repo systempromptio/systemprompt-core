@@ -11,6 +11,7 @@
 use systemprompt_agent::{AgentError, ProtocolError};
 use systemprompt_loader::BundleError;
 use systemprompt_marketplace::MarketplaceError;
+use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::errors::ServiceError;
 use systemprompt_models::execution::ContextExtractionError;
@@ -50,11 +51,20 @@ impl From<AgentError> for ApiHttpError {
 impl From<MarketplaceError> for ApiHttpError {
     fn from(err: MarketplaceError) -> Self {
         let api = match &err {
-            MarketplaceError::NotFound(_) | MarketplaceError::NoDefault => {
+            MarketplaceError::NotFound(_)
+            | MarketplaceError::NoDefault
+            | MarketplaceError::Managed(ManagedError::Unavailable) => {
                 ApiError::not_found(err.to_string())
             },
-            MarketplaceError::Validation(_) => ApiError::bad_request(err.to_string()),
+            MarketplaceError::Validation(_)
+            | MarketplaceError::Managed(ManagedError::Invalid(_)) => {
+                ApiError::bad_request(err.to_string())
+            },
+            MarketplaceError::Managed(ManagedError::Conflict(_)) => {
+                ApiError::conflict(err.to_string())
+            },
             MarketplaceError::Catalog(_)
+            | MarketplaceError::Managed(_)
             | MarketplaceError::Import { .. }
             | MarketplaceError::Signing(_)
             | MarketplaceError::Filter(_) => ApiError::internal_error(err.to_string()),

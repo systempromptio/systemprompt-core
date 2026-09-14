@@ -108,14 +108,25 @@ async fn assemble_candidate(
     let bridge_policy = services.bridge_policy.unwrap_or_default();
 
     let services_root = ctx.app_paths().system().services();
-    let catalog =
+    let disk_catalog =
         CatalogContent::load_cached(&services, services_root, &profile.server.api_external_url)
             .map_err(|e| {
                 tracing::warn!(error = %e, "manifest: catalog load failed");
                 (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
             })?;
+    let catalog = (*disk_catalog)
+        .clone()
+        .with_managed_skills(ctx.managed_repository().as_ref().clone(), user_id)
+        .await
+        .map_err(|error| {
+            tracing::warn!(%error, "manifest: managed catalogue resolution failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("manifest: {error}"),
+            )
+        })?;
     ManifestService::assemble_candidate_from_catalog(
-        (*catalog).clone(),
+        catalog,
         &services,
         services_root,
         ctx.marketplace_filter().as_ref(),

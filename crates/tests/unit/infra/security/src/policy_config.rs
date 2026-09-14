@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use systemprompt_security::policy::{GovernanceConfig, GovernanceConfigError};
+use systemprompt_security::policy::{GovernanceConfig, GovernanceConfigError, PolicyMode};
 
 #[test]
 fn defaults_declare_the_four_builtins_in_order() {
@@ -11,7 +11,16 @@ fn defaults_declare_the_four_builtins_in_order() {
         ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
     );
     assert!(cfg.policies.iter().all(|p| p.enabled));
+    assert!(cfg.policies.iter().all(|p| p.mode == PolicyMode::Warn));
+    assert_eq!(cfg.mode, PolicyMode::Warn);
     assert!(cfg.enabled);
+}
+
+#[test]
+fn defaults_have_no_vendor_catalog() {
+    let cfg = GovernanceConfig::defaults();
+    let engine = systemprompt_security::policy::GovernanceEngine::from_config(&cfg).unwrap();
+    assert_eq!(engine.secret_scanner().unwrap().pattern_count(), 0);
 }
 
 #[test]
@@ -84,8 +93,10 @@ fn parse_rejects_invalid_yaml() {
 }
 
 #[test]
-fn load_falls_back_to_defaults_when_the_file_is_absent() {
-    let cfg = GovernanceConfig::load(Path::new("/nonexistent/governance/config.yaml"));
+fn load_falls_back_to_the_warn_only_chain_only_when_the_file_is_absent() {
+    let cfg = GovernanceConfig::load(Path::new("/nonexistent/governance/config.yaml"))
+        .expect("an absent file is the documented fallback");
+    assert_eq!(cfg.mode, PolicyMode::Warn);
     assert_eq!(
         cfg.policies.len(),
         GovernanceConfig::defaults().policies.len()
@@ -93,43 +104,50 @@ fn load_falls_back_to_defaults_when_the_file_is_absent() {
 }
 
 #[test]
-fn load_falls_back_to_defaults_on_malformed_yaml() {
-    let dir = std::env::temp_dir().join(format!("gov-cfg-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("config.yaml");
-    std::fs::write(&path, ": : :").unwrap();
-    let cfg = GovernanceConfig::load(&path);
-    assert_eq!(cfg.policies.len(), 4);
-    std::fs::remove_dir_all(&dir).ok();
-}
-
-#[test]
-fn validate_accepts_an_absent_file() {
-    assert!(GovernanceConfig::validate(Path::new("/nonexistent/governance/config.yaml")).is_ok());
-}
-
-#[test]
-fn validate_rejects_what_load_would_silently_swallow() {
-    let dir = std::env::temp_dir().join(format!("gov-cfg-validate-{}", std::process::id()));
+fn load_rejects_a_present_but_broken_file_instead_of_downgrading_enforcement() {
+    let dir = std::env::temp_dir().join(format!("gov-cfg-load-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
 
     let malformed = dir.join("malformed.yaml");
     std::fs::write(&malformed, ": : :").unwrap();
     assert!(matches!(
-        GovernanceConfig::validate(&malformed),
+        GovernanceConfig::load(&malformed),
         Err(GovernanceConfigError::Yaml(_))
     ));
 
     let no_policies = dir.join("no-policies.yaml");
     std::fs::write(&no_policies, "governance: {}").unwrap();
     assert!(matches!(
-        GovernanceConfig::validate(&no_policies),
+        GovernanceConfig::load(&no_policies),
         Err(GovernanceConfigError::MissingPolicies)
+    ));
+
+    let bad_mode = dir.join("bad-mode.yaml");
+    std::fs::write(
+        &bad_mode,
+        "governance:\n  mode: warnn\n  policies:\n    - id: secret_scan\n",
+    )
+    .unwrap();
+    assert!(matches!(
+        GovernanceConfig::load(&bad_mode),
+        Err(GovernanceConfigError::InvalidMode { .. })
+    ));
+
+    let bad_regex = dir.join("bad-regex.yaml");
+    std::fs::write(
+        &bad_regex,
+        "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: broken\n          name: Broken\n          regex: '('\n",
+    )
+    .unwrap();
+    assert!(matches!(
+        GovernanceConfig::load(&bad_regex),
+        Err(GovernanceConfigError::InvalidSecretPatterns(_))
     ));
 
     let good = dir.join("good.yaml");
     std::fs::write(&good, "governance:\n  policies:\n    - id: secret_scan\n").unwrap();
-    assert!(GovernanceConfig::validate(&good).is_ok());
+    let cfg = GovernanceConfig::load(&good).expect("valid file loads");
+    assert_eq!(cfg.mode, PolicyMode::Enforce);
 
     std::fs::remove_dir_all(&dir).ok();
 }

@@ -96,6 +96,7 @@ pub fn state_payload<'a>(
             mcp_auth_probe_in_flight: snap.mcp_auth_probe_in_flight,
             mcp_auth_tone: snap.mcp_auth_tone(),
             update: UpdatePayload::from(&snap.update),
+            pending_device_action: snap.pending_device_action,
 
             app_name: crate::brand::brand().app_name,
             sign_in_label: crate::brand::brand().sign_in_label,

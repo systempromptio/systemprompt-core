@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
+use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, GatewayConversationId, UserId};
 use systemprompt_scheduler::jobs::{ServiceRegistryGcJob, ThoughtSignatureCleanupJob};
@@ -128,20 +129,39 @@ async fn thought_signature_cleanup_fails_without_a_db_pool_in_context() {
 #[tokio::test]
 async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
     let pool = pool().await;
+    let user_id = UserId::new(Uuid::new_v4().to_string());
+    let write = pool.write_pool_arc().expect("write pool");
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
+        .bind(user_id.as_str())
+        .bind(format!("{}@signature.test", user_id.as_str()))
+        .execute(write.as_ref())
+        .await
+        .expect("seed owner");
     let repo = AiThoughtSignatureRepository::new(&pool).expect("repo");
     let conv = GatewayConversationId::new_unchecked(&format!(
         "ctx_{:016x}",
         u64::from(Uuid::new_v4().as_u128() as u32)
     ));
 
-    repo.upsert(&conv, "expired", "sig-expired", Duration::from_secs(3600))
-        .await
-        .expect("seed expired");
-    repo.upsert(&conv, "live", "sig-live", Duration::from_secs(3600))
-        .await
-        .expect("seed live");
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "expired",
+        signature: "sig-expired",
+        ttl: Duration::from_secs(3600),
+    })
+    .await
+    .expect("seed expired");
+    repo.upsert(&ThoughtSignatureWrite {
+        user_id: &user_id,
+        conversation: &conv,
+        tool_use_id: "live",
+        signature: "sig-live",
+        ttl: Duration::from_secs(3600),
+    })
+    .await
+    .expect("seed live");
 
-    let write = pool.write_pool_arc().expect("write pool");
     sqlx::query(
         "UPDATE ai_gateway_thought_signatures SET expires_at = NOW() - INTERVAL '1 hour' \
          WHERE conversation_id = $1 AND tool_use_id = 'expired'",
@@ -174,7 +194,7 @@ async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
          read filter"
     );
     assert_eq!(
-        repo.find(&conv, "live", Duration::from_secs(3600))
+        repo.find(&user_id, &conv, "live", Duration::from_secs(3600))
             .await
             .expect("find live")
             .as_deref(),
@@ -182,8 +202,8 @@ async fn thought_signature_cleanup_drops_expired_rows_and_keeps_live_ones() {
         "an unexpired signature must survive the sweep"
     );
 
-    sqlx::query("DELETE FROM ai_gateway_thought_signatures WHERE conversation_id = $1")
-        .bind(conv.as_str())
+    sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user_id.as_str())
         .execute(write.as_ref())
         .await
         .expect("cleanup signatures");

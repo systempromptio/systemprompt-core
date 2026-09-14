@@ -5,7 +5,6 @@
 
 use super::{EvidenceRepository, ExecutionLease, WorkerRecord};
 use crate::Result;
-use crate::experiments::execution::FrozenWorkspace;
 use crate::experiments::records::ExecutionRecord;
 use crate::experiments::resources::ResourceContent;
 use crate::experiments::{ExperimentSpec, conflict, content_digest, invalid};
@@ -22,8 +21,16 @@ pub struct ExecutionAssignment {
     pub case_digest: String,
     pub rubric: ResourceContent,
     pub rubric_digest: String,
-    pub skill_bundle: FrozenWorkspace,
-    pub configuration: FrozenWorkspace,
+    pub skill_bundle: ManagedWorkspaceReference,
+    pub configuration: ManagedWorkspaceReference,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ManagedWorkspaceReference {
+    pub managed_revision_id: String,
+    pub digest: String,
+    pub publication_generation: Option<i64>,
+    pub manifest: serde_json::Value,
 }
 
 #[derive(Debug, Clone)]
@@ -79,11 +86,11 @@ impl AssignmentRepository {
             .ok_or_else(|| invalid("Assignment variant unavailable"))?;
         let skill_bundle = self
             .evidence
-            .get_workspace(&worker.owner_id, &variant.skill_bundle_digest)
+            .get_managed_workspace(&worker.owner_id, &variant.skill_bundle_digest)
             .await?;
         let configuration = self
             .evidence
-            .get_workspace(&worker.owner_id, &variant.configuration_digest)
+            .get_managed_workspace(&worker.owner_id, &variant.configuration_digest)
             .await?;
         Ok(ExecutionAssignment {
             execution: row.execution.0,

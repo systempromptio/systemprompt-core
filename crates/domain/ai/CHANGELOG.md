@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.52.0] - 2026-09-14
+
+### Breaking
+
+- `AiRequestRepository::settle(request_id, owner, SettlementOutcome)` settles a request's terminal outcome in one transaction: the owner is checked under `FOR UPDATE`, a completion writes usage, cost, latency, the response payload, the assistant turn and the tool calls (replay-safe; a different response for an already-settled request is a `RepositoryError::SettlementConflict`), and a failure marks the row `failed` unless it is already `completed`. `update_completion`, `UpdateCompletionParams`, `AiRequestPayloadRepository::upsert_response`, `add_response_message` and `get_max_sequence` are removed.
+- `AiThoughtSignatureRepository::upsert` takes a `ThoughtSignatureWrite` and `find` takes the owning `user_id`; migration `023_thought_signature_owner.sql` truncates `ai_gateway_thought_signatures` and adds `user_id` to its primary key.
+
+### Added
+
+- `AiRequestRepository::fail_orphaned_pending(older_than)` fails every `pending` row older than the bound with `ORPHANED_REASON` and returns the affected `OrphanedRequest { id, owner }` rows; settled rows are untouched.
+
+### Changed
+
+- `HeuristicScanner` scans `CanonicalRequest::safety_parts`, the provider-bound payload, rather than the canonical message list.
+
 ## [0.50.0] - 2026-09-10
 
 ### Added

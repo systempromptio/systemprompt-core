@@ -64,6 +64,7 @@ pub struct ExecutionRecord {
     pub case_revision_id: EvalRevisionId,
     pub repetition: i32,
     pub status: ExecutionStatus,
+    pub lease_owner: Option<systemprompt_identifiers::EvalWorkerId>,
     pub lease_expires_at: Option<DateTime<Utc>>,
     pub fencing_token: i64,
     pub created_at: DateTime<Utc>,
@@ -75,4 +76,13 @@ pub struct ExecutionRecord {
 pub struct ExperimentDetail {
     pub experiment: ExperimentRecord,
     pub executions: Vec<ExecutionRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExperimentPreflight {
+    pub execution_count: u64,
+    pub maximum_cost_microdollars: i64,
+    pub available_microdollars: i64,
+    pub affordable: bool,
+    pub matrix_digest: String,
 }

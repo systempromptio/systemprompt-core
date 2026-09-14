@@ -22,6 +22,15 @@ use systemprompt_test_fixtures as fixtures;
 use crate::support::{minimal_request, seed_user, setup_db};
 use systemprompt_security::policy::types::AccessScope;
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 // Why: every cell taps the Anthropic surface with the same model, and the
 // render options are one struct so the tap's own signature stays readable.
 fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
@@ -41,8 +50,12 @@ fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynC
 fn gateway_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(db, materializer(db))
-        .expect("gateway repositories")
+    systemprompt_api::services::gateway::GatewayRepositories::new(
+        db,
+        gateway_journal(),
+        materializer(db),
+    )
+    .expect("gateway repositories")
 }
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {
@@ -64,16 +77,16 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
     let gw_conv = request
         .derived_gateway_conversation_id()
         .expect("gateway conversation id");
-    let context_id = ContextId::derived_from_gateway_conversation(&gw_conv);
+    let context_id = ContextId::derived_from_gateway_conversation(&user_id, &gw_conv);
     let ai_request_id = AiRequestId::generate();
     let ctx = GatewayRequestContext {
         ai_request_id: ai_request_id.clone(),
-        user_id,
-        session_id: None,
+        user_id: user_id.clone(),
+        session_id: Some(crate::support::session_for(&user_id)),
         context_id,
         gateway_conversation_id: Some(gw_conv),
         client_session_id: None,
-        trace_id: None,
+        trace_id: Some(systemprompt_identifiers::TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_string(),
@@ -85,6 +98,9 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(db), ctx);
+    audit
+        .pin_pricing(Default::default())
+        .expect("explicit fixture pricing");
     audit
         .open(&request, &Bytes::from_static(b"{\"stream\":true}"))
         .await
@@ -286,7 +302,7 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
 }
 
 #[tokio::test]
-async fn tap_dropped_before_polling_fails_audit_as_empty_stream() {
+async fn tap_dropped_before_polling_fails_audit_as_client_disconnected() {
     let db = setup_db().await;
     let user_id = seed_user(&db).await;
     let (audit, ai_request_id) = open_audit(&db, user_id).await;
@@ -307,7 +323,10 @@ async fn tap_dropped_before_polling_fails_audit_as_empty_stream() {
 
     let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
     assert_eq!(status, "failed");
-    assert_eq!(error.as_deref(), Some("empty upstream stream"));
+    assert_eq!(
+        error.as_deref(),
+        Some("client disconnected before stop event")
+    );
 }
 
 #[tokio::test]

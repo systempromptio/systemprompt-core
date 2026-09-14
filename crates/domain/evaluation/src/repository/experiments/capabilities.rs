@@ -91,7 +91,7 @@ impl ExecutionCapabilityRepository {
         let digest = hex::encode(Sha256::digest(token.as_bytes()));
         sqlx::query!("UPDATE eval_execution_capabilities SET revoked_at=NOW() WHERE execution_id=$1 AND revoked_at IS NULL",
             lease.execution_id.as_str()).execute(&mut *tx).await?;
-        sqlx::query!("INSERT INTO eval_execution_capabilities(token_hash,execution_id,worker_id,session_id,fencing_token,expires_at) VALUES($1,$2,$3,$4,$5,NOW()+INTERVAL '5 minutes')",
+        sqlx::query!("INSERT INTO eval_execution_capabilities(token_hash,execution_id,worker_id,session_id,fencing_token,expires_at) SELECT $1,$2,$3,$4,$5,LEAST(x.deadline_at,NOW()+INTERVAL '31 minutes') FROM eval_executions x WHERE x.id=$2",
             digest,lease.execution_id.as_str(),lease.worker_id.as_str(),session_id.as_str(),lease.fencing_token).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(ExecutionAccess { token, session_id })

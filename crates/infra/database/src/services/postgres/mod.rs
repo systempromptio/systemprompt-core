@@ -59,10 +59,6 @@ impl PostgresProvider {
             .ssl_mode(ssl_mode)
             .options([("client_min_messages", "warning")]);
 
-        if let Some(ca_cert_path) = Self::get_cert_path() {
-            connect_options = connect_options.ssl_root_cert(&ca_cert_path);
-        }
-
         let pool = connection::connect_with_retry(
             connection::build_pool_options(pool_config),
             connect_options,
@@ -77,12 +73,6 @@ impl PostgresProvider {
     #[must_use]
     pub const fn from_pool(pool: Arc<PgPool>) -> Self {
         Self { pool }
-    }
-
-    fn get_cert_path() -> Option<std::path::PathBuf> {
-        std::env::var("PGCA_CERT_PATH")
-            .ok()
-            .map(std::path::PathBuf::from)
     }
 
     #[must_use]

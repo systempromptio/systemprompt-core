@@ -89,6 +89,12 @@ sqlx-prepare:
 sqlx-prepare-publish:
     scripts/sqlx-prepare.sh publish
 
+# Every per-crate .sqlx cache must hold only the queries its own src/ issues
+# (ownership by SQL text). `sqlx-prepare-publish` prunes foreign entries as it
+# goes; this is the read-only check, no database or rebuild needed.
+sqlx-audit-caches:
+    scripts/sqlx-audit-caches.sh
+
 # Verify every SQLx crate compiles against its own per-crate .sqlx cache.
 #
 # Run from each crate directory so the macros resolve that crate's `.sqlx/`
@@ -172,8 +178,8 @@ check-lockfile-registry:
     ./scripts/check-lockfile-registry.sh
 
 # Check without building
-check: check-version-strings check-lockfile-registry lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
-    cargo check --workspace
+check: check-version-strings check-lockfile-registry lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+    cargo check --workspace --keep-going
 
 # Check offline (uses cached .sqlx metadata, no database required)
 check-offline:
@@ -210,8 +216,10 @@ doc-check:
 # The separate `crates/tests` workspace is clippied by `just style-check` (it
 # needs a live database for its `query!` fixtures, which CI's lint job lacks);
 # CI compiles it in the dedicated Test job instead.
-lint: lint-bridge
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+# `--keep-going` mirrors CI: a compile error in one crate must not hide the
+# clippy findings in every crate behind it (0.51.0 lost a gate round that way).
+lint: lint-bridge lint-bridge-native-tests
+    cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings
 
 # `bin/bridge` is its own workspace, so the root `--workspace` clippy above
 # never sees it.
@@ -225,7 +233,7 @@ lint: lint-bridge
 lint-bridge:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
+    cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets --all-features --keep-going -- -D warnings
     if [ "$(uname -s)" = "Linux" ]; then
         echo "note: src/gui/** and the Windows/macOS-only modules were configured out of that run."
         echo "note: run 'just lint-bridge-native' before calling desktop work done."
@@ -236,18 +244,32 @@ lint-bridge:
 # toolchain is needed); macOS cannot be linted from Linux at all, because ring
 # and objc2-exception-helper build scripts need a real cc — CI's `bridge-native`
 # job covers that on a mac runner.
-lint-bridge-native:
+lint-bridge-native: lint-bridge-native-tests
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "$(uname -s)" = "Linux" ]; then
         rustup target add x86_64-pc-windows-gnu
         cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
-            --all-targets --target x86_64-pc-windows-gnu -- -D warnings
+            --all-targets --all-features --keep-going --target x86_64-pc-windows-gnu -- -D warnings
         echo "note: macOS-only code is unlinted here; quality.yml's bridge-native job covers it."
     else
         cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge \
-            --all-targets -- -D warnings
+            --all-targets --all-features --keep-going -- -D warnings
     fi
+
+# The native quality matrix compiles the bridge test crates with no database
+# (SQLX_OFFLINE=true). Nothing on Linux mirrored that until 0.51.0 lost a gate
+# round to a DB-backed fixture pulled into `bridge/install`. This is the
+# offline build of exactly the crates quality.yml runs
+# (scripts/bridge-native-crates.txt); the run itself stays on the native OS.
+lint-bridge-native-tests:
+    ./scripts/bridge-native-tests.sh --no-run
+
+# Cheap, script-only form of the same failure: none of the native test crates
+# may reach systemprompt-test-fixtures or a `sqlx::query*!` user, even
+# transitively within crates/tests.
+lint-native-test-deps:
+    ./scripts/lint-native-test-deps.sh
 
 # The bridge mirrors the root [workspace.lints] tables by hand (standalone
 # workspace, no inheritance). Fail when the copies drift.
@@ -441,7 +463,7 @@ style-check:
     cargo fmt --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
-    cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings
     echo ""
     echo "3️⃣  Checking sqlx::query allowlist..."
     ./scripts/check-sqlx.sh
@@ -451,7 +473,7 @@ style-check:
     echo ""
     echo "5️⃣  Checking the test workspace (fmt + clippy + compile)..."
     (cd crates/tests && cargo fmt --all -- --check)
-    (cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings)
+    (cd crates/tests && cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings)
     (cd crates/tests && cargo test --workspace --no-run)
     echo ""
     echo "6️⃣  Building rustdoc (both workspaces)..."
@@ -1721,30 +1743,52 @@ webauthn-admin EMAIL="admin@localhost":
 
 # Run every pre-release gate against a ref (default: the tip of `next`).
 #
-# Every push to `next` already runs these same workflows. This recipe is for
-# gating one specific frozen commit before `just promote` — it dispatches them
-# with an explicit ref, so the runs are pinned to the SHA you are about to
-# promote rather than to whatever `next` points at now. The heavy compile
-# happens on runners rather than this machine.
-gate REF="":
+# Every push to `next` already runs these same workflows on that exact SHA,
+# and a green push run is a gate run: the recipe first looks for completed
+# CI / Quality / Supply Chain runs on the commit and dispatches only what is
+# missing or red. `just gate SHA --force` re-dispatches everything. Dispatched
+# runs carry an explicit ref, so they are pinned to the SHA you are about to
+# promote rather than to whatever `next` points at now. Coverage is not a
+# gate (it measures `main` after the merge) and is not dispatched here.
+gate REF="" FORCE="":
     #!/usr/bin/env bash
     set -euo pipefail
     REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
     REF="{{REF}}"; [ -n "$REF" ] || REF=$(git rev-parse origin/next)
     REF=$(git rev-parse "$REF")
     echo "Gating ${REF:0:9} on $REPO"
-    WFS=(ci.yml quality.yml coverage.yml)
+    WFS=(ci.yml quality.yml)
     [ -f .github/workflows/supply-chain.yml ] && WFS+=(supply-chain.yml)
+    declare -A RUN_ID
+    NEED=()
     for wf in "${WFS[@]}"; do
-        gh workflow run "$wf" --ref "$(git rev-parse --abbrev-ref HEAD)" -f ref="$REF"
+        ID=""
+        if [ "{{FORCE}}" != "--force" ]; then
+            ID=$(gh run list -R "$REPO" --workflow="$wf" --commit "$REF" --status success \
+                    --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+        fi
+        if [ -n "$ID" ]; then
+            RUN_ID[$wf]=$ID
+            printf "  %-18s already green (run %s)\n" "$wf" "$ID"
+        else
+            NEED+=("$wf")
+        fi
+    done
+    for wf in "${NEED[@]}"; do
+        gh workflow run "$wf" -R "$REPO" --ref "$(git rev-parse --abbrev-ref HEAD)" -f ref="$REF"
         echo "  dispatched $wf"
     done
-    echo "Waiting for results (ctrl-c is safe; the runs continue)..."
-    sleep 15
+    if [ "${#NEED[@]}" -gt 0 ]; then
+        echo "Waiting for results (ctrl-c is safe; the runs continue)..."
+        sleep 15
+        for wf in "${NEED[@]}"; do
+            RUN_ID[$wf]=$(gh run list -R "$REPO" --workflow="$wf" --event workflow_dispatch \
+                            --limit 1 --json databaseId --jq '.[0].databaseId')
+        done
+    fi
     FAIL=0
-    for wf in "${WFS[@]}"; do
-        ID=$(gh run list --workflow="$wf" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')
-        gh run watch "$ID" --exit-status >/dev/null 2>&1 && R=pass || { R=FAIL; FAIL=1; }
+    for wf in "${NEED[@]}"; do
+        gh run watch "${RUN_ID[$wf]}" -R "$REPO" --exit-status >/dev/null 2>&1 && R=pass || { R=FAIL; FAIL=1; }
         printf "  %-18s %s\n" "$wf" "$R"
     done
     [ "$FAIL" = 0 ] && echo "All gates green for ${REF:0:9} — 'just promote ${REF:0:9}' to open the release PR." \
@@ -1773,7 +1817,7 @@ promote SHA="":
     if [ -z "$NUM" ]; then
         NUM=$(gh api -X POST "repos/$REPO/pulls" -f title="Release: promote next to main" \
                 -f head=promote -f base=main \
-                -f body="Frozen at $SHA. Gate with 'just gate $SHA' before merging." --jq .number)
+                -f body="Frozen at $SHA. The required checks (CI, Quality, Supply Chain) run on this PR." --jq .number)
     fi
     echo
     echo "Opened https://github.com/$REPO/pull/$NUM"
@@ -1781,6 +1825,11 @@ promote SHA="":
 
 lint-discarded-results:
     ./scripts/check-discarded-results.sh
+
+# Profiles are the source of truth; an env read outside the sanctioned boot
+# readers (scripts/env-var-allowlist.txt) is an undocumented kill switch.
+lint-env-vars:
+    ./scripts/lint-env-vars.sh
 
 lint-fail-open:
     ./scripts/check-fail-open.sh

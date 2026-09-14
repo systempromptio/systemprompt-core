@@ -1,15 +1,7 @@
 //! The `admin evals` command tree.
 //!
-//! Every subcommand opens with `eval_context`, a hard chain ending in
-//! `AiService::new`. That needs both halves of the AI configuration — the
-//! profile's `providers:` registry for connectivity and the services config's
-//! `ai.providers` for the policy saying which are enabled — so the suite boots
-//! with `init_services_bootstrap` rather than the shared fixture, whose
-//! services config has no `ai:` section at all.
-//!
-//! The provider endpoint is a closed port. The read commands never dial it,
-//! and `run` does — completing anyway, because the loop swallows a judge
-//! failure per sampled request.
+//! Reviewed case capture intentionally constructs no AI provider. Paid
+//! evaluation is available only through experiments.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -98,34 +90,28 @@ fn message(err: &anyhow::Error) -> String {
     format!("{err:#}")
 }
 
-// Why: this is the suite's precondition. If any link of `eval_context` fails —
-// app context, services config, profile, MCP tool provider, analytics session
-// provider, `AiService::new` — every subcommand covers one line and stops.
-#[tokio::test]
-async fn the_eval_context_chain_builds_against_a_provider_profile() {
-    run(&["list"])
-        .await
-        .expect("listing runs should build the whole eval context");
-}
-
-#[tokio::test]
-async fn listing_accepts_an_explicit_limit() {
-    run(&["list", "--limit", "5"]).await.expect("list --limit");
-}
-
 // Why: the assertions below name the specific refusal rather than accepting
 // any error. An earlier draft asserted only that *some* error came back, and
 // passed while every command was failing on `AiService::new` — reporting
 // success for refusals it never reached.
-#[tokio::test]
-async fn showing_a_run_that_does_not_exist_names_the_run_it_could_not_find() {
-    let err = run(&["show", "eval-run-that-does-not-exist"])
-        .await
-        .expect_err("an unknown run id must not render as an empty report");
+#[test]
+fn the_judge_run_commands_are_gone() {
+    for removed in ["run", "replay", "list", "show"] {
+        assert!(
+            Harness::try_parse_from(["evals", removed]).is_err(),
+            "`admin evals {removed}` must not parse: paid evaluation runs only through experiments"
+        );
+    }
+}
 
+#[tokio::test]
+async fn the_eval_context_builds_without_an_inference_provider() {
+    let err = run(&["promote", "eval-request-that-does-not-exist"])
+        .await
+        .expect_err("promote reaches its own refusal, so the context was built");
     assert!(
-        message(&err).contains("eval-run-that-does-not-exist"),
-        "the error should name the run rather than fail earlier in the chain: {}",
+        message(&err).contains("eval-request-that-does-not-exist"),
+        "the refusal names the request rather than failing earlier in the chain: {}",
         message(&err)
     );
 }
@@ -141,33 +127,4 @@ async fn promoting_a_result_that_does_not_exist_names_the_result() {
         "the refusal should name the result: {}",
         message(&err)
     );
-}
-
-#[tokio::test]
-async fn replaying_a_run_with_no_failures_names_the_run() {
-    let err = run(&["replay", "eval-run-that-does-not-exist"])
-        .await
-        .expect_err("replaying an unknown run must not start one");
-
-    assert!(
-        message(&err).contains("eval-run-that-does-not-exist"),
-        "the refusal should name the run: {}",
-        message(&err)
-    );
-}
-
-// Why: an unreachable provider does NOT fail the command. `AutoImproveLoop`
-// swallows a judge failure per sampled request so one bad response cannot
-// discard a whole run, so the command completes and reports nothing scored.
-// That is surprising enough to pin: if judge failures were ever made fatal,
-// this test fails and forces the decision to be made deliberately rather than
-// discovered by an operator whose run aborted halfway.
-//
-// The swallow itself is asserted where it can be observed, against the report
-// counters, in the evaluation service tests.
-#[tokio::test]
-async fn a_run_against_an_unreachable_provider_completes_rather_than_aborting() {
-    run(&["run", "--sample-size", "1"])
-        .await
-        .expect("a judge failure is swallowed per request, so the run completes");
 }

@@ -37,6 +37,7 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
 }
 
 pub async fn setup_db() -> DbPool {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     ensure_test_secrets_bootstrap();
     let url = fixture_database_url().expect("DATABASE_URL required for gateway audit tests");
     fixture_db_pool(&url)
@@ -54,5 +55,16 @@ pub async fn seed_user(db: &DbPool) -> UserId {
         .execute(pool.as_ref())
         .await
         .expect("seed user");
-    UserId::new(id)
+    let user = UserId::new(id);
+    sqlx::query("INSERT INTO user_sessions(session_id,user_id) VALUES($1,$2)")
+        .bind(session_for(&user).as_str())
+        .bind(user.as_str())
+        .execute(pool.as_ref())
+        .await
+        .expect("seed authenticated session");
+    user
+}
+
+pub fn session_for(user: &UserId) -> systemprompt_identifiers::SessionId {
+    systemprompt_identifiers::SessionId::new(format!("session-{user}"))
 }

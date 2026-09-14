@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::IdValidationError;
-use crate::{ClientSessionId, EvalRunId, GatewayConversationId, SessionId, TaskId};
+use crate::{ClientSessionId, GatewayConversationId, SessionId, TaskId, UserId};
 
 crate::define_id!(ContextId, validated, schema, validate_uuid_v4);
 
@@ -22,9 +22,6 @@ const MESSAGING_NAMESPACE: uuid::Uuid =
 const SESSION_NAMESPACE: uuid::Uuid =
     uuid::Uuid::from_u128(0x4c1e_8b02_7a63_4d51_9f2c_0e58_a7d4_31bb);
 
-const EVALUATION_NAMESPACE: uuid::Uuid =
-    uuid::Uuid::from_u128(0x7f3a_c2d1_5b09_4e87_a6f4_2c91_d05e_88a3);
-
 const CLI_PROBE_NAMESPACE: uuid::Uuid =
     uuid::Uuid::from_u128(0x2d84_9f60_1c3b_4a72_8e15_b7d0_63f9_a541);
 
@@ -41,10 +38,10 @@ impl ContextId {
     }
 
     #[must_use]
-    pub fn derived_from_gateway_conversation(gw: &GatewayConversationId) -> Self {
-        Self::new_unchecked(
-            uuid::Uuid::new_v5(&GATEWAY_CONVERSATION_NAMESPACE, gw.as_str().as_bytes()).to_string(),
-        )
+    pub fn derived_from_gateway_conversation(user_id: &UserId, gw: &GatewayConversationId) -> Self {
+        let owner =
+            uuid::Uuid::new_v5(&GATEWAY_CONVERSATION_NAMESPACE, user_id.as_str().as_bytes());
+        Self::new_unchecked(uuid::Uuid::new_v5(&owner, gw.as_str().as_bytes()).to_string())
     }
 
     #[must_use]
@@ -70,12 +67,6 @@ impl ContextId {
         )
     }
 
-    #[must_use]
-    pub fn derived_from_evaluation_run(run_id: &EvalRunId) -> Self {
-        Self::new_unchecked(
-            uuid::Uuid::new_v5(&EVALUATION_NAMESPACE, run_id.as_str().as_bytes()).to_string(),
-        )
-    }
 
     #[must_use]
     pub fn derived_from_cli_probe(server_name: &str) -> Self {

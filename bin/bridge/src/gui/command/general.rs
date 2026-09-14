@@ -11,8 +11,8 @@ use crate::gui::{GuiApp, server_json};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
-    CancelArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs, RecentArgs,
-    SessionLoginArgs,
+    CancelArgs, DeviceActionArgs, GatewaySetArgs, LoginArgs, McpProbeArgs, OpenExternalUrlArgs,
+    RecentArgs, SessionLoginArgs,
 };
 use super::{CommandOutcome, parse, send};
 
@@ -55,6 +55,11 @@ pub(super) fn meta_dispatch(
             CommandOutcome::Sync(Ok(json!({})))
         },
         "openExternalUrl" => open_external_url(args.clone()),
+        "application.removalGuidance" => super::removal::guidance(),
+        "application.reveal" => {
+            send(app, UiEvent::RevealApplication);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
         "quit" => {
             send(app, UiEvent::Quit);
             CommandOutcome::Sync(Ok(json!({})))
@@ -157,6 +162,23 @@ pub(super) fn auth_dispatch(
             send(app, UiEvent::PurgeRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        "system.disconnect" => {
+            send(app, UiEvent::DisconnectRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
+        "device.action.open" => match parse::<DeviceActionArgs>(args) {
+            Ok(a) => {
+                app.state.set_pending_device_action(Some(a.action));
+                send(app, UiEvent::StateRefreshed);
+                CommandOutcome::Sync(Ok(json!({})))
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "device.action.dismiss" => {
+            app.state.set_pending_device_action(None);
+            send(app, UiEvent::StateRefreshed);
+            CommandOutcome::Sync(Ok(json!({})))
+        },
         "profile.fetch" => {
             send(app, UiEvent::ProfileFetchRequested { reply_to: reply_id });
             CommandOutcome::Async
@@ -245,40 +267,6 @@ fn open_external_url(args: Value) -> CommandOutcome {
         },
         Err(e) => CommandOutcome::Sync(Err(e)),
     }
-}
-
-pub(super) fn diagnostics_dispatch(
-    app: &GuiApp,
-    cmd: &str,
-    reply_id: ReplyId,
-) -> Option<CommandOutcome> {
-    Some(match cmd {
-        "diagnostics.openLogDirectory" | "openLogFolder" => {
-            send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
-            CommandOutcome::Async
-        },
-        "diagnostics.exportBundle" => {
-            send(app, UiEvent::ExportDiagnosticBundle { reply_to: reply_id });
-            CommandOutcome::Async
-        },
-        "proxy.resetSecret" => {
-            send(
-                app,
-                UiEvent::ProxySecretResetRequested { reply_to: reply_id },
-            );
-            CommandOutcome::Async
-        },
-        "diagnostics.info" => CommandOutcome::Sync(Ok(json!({
-            "version": crate::brand::brand().version,
-            "git_sha": crate::buildinfo::short_sha(),
-            "git_sha_full": crate::buildinfo::GIT_SHA,
-            "build_date": crate::buildinfo::GIT_COMMIT_DATE,
-            "build_timestamp": crate::buildinfo::BUILD_TIMESTAMP,
-            "branch": crate::buildinfo::GIT_BRANCH,
-            "rendered": crate::buildinfo::render(),
-        }))),
-        _ => return None,
-    })
 }
 
 fn marketplace_listing(app: &GuiApp) -> Result<Value, BridgeError> {

@@ -33,11 +33,21 @@ use tower::ServiceExt;
 use super::common::setup_ctx;
 use systemprompt_security::policy::types::AccessScope;
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
     systemprompt_api::services::gateway::GatewayRepositories::new(
         db,
+        gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
         )),
@@ -48,7 +58,9 @@ fn gw_repos(
 async fn router_and_pool() -> Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    let router = gateway_router(&ctx).expect("gateway router available");
+    let router = gateway_router(&ctx)
+        .expect("gateway journal opens")
+        .expect("gateway router available");
     Ok((router, pool))
 }
 

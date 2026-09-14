@@ -236,7 +236,7 @@ async fn buffered_completion(
         Some(conversation) => {
             ctx.repos
                 .thought_signatures
-                .store_from_response(conversation, &canonical)
+                .store_from_response(&audit.ctx.user_id, conversation, &canonical)
                 .await;
         },
         None => ThoughtSignatureCache::note_uncacheable_response(&canonical, "no_conversation_id"),

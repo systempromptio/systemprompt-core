@@ -14,6 +14,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use systemprompt_identifiers::AgentId;
+
+use crate::managed::RevisionFiles;
 use systemprompt_models::bridge::ids::SkillId;
 use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::{ComponentSource, PluginConfig};
@@ -60,7 +62,10 @@ pub(super) fn append_skill_files(
                 executable: false,
             },
         );
-        append_aux_files(&kebab, skill, bundle);
+        match content.managed_files.get(&skill.id) {
+            Some(files) => append_managed_files(&kebab, files, bundle),
+            None => append_disk_aux_files(&kebab, skill, bundle),
+        }
     }
 }
 
@@ -118,7 +123,7 @@ fn skill_md(kebab: &str, skill: &SkillEntry) -> String {
     )
 }
 
-fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) {
+fn append_disk_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) {
     let Some(skill_dir) = Path::new(&skill.file_path).parent() else {
         return;
     };
@@ -127,6 +132,25 @@ fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) 
         if dir.is_dir() {
             collect_aux(&dir, &dir, kebab, subdir, bundle);
         }
+    }
+}
+
+fn append_managed_files(kebab: &str, files: &RevisionFiles, bundle: &mut PluginBundle) {
+    for (path, file) in &files.0 {
+        let top_level_markdown = !path.contains('/')
+            && Path::new(&path)
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("md"));
+        if path == "config.yaml" || top_level_markdown {
+            continue;
+        }
+        bundle.insert(
+            format!("skills/{kebab}/{path}"),
+            BundleFile {
+                bytes: file.bytes.clone(),
+                executable: file.executable,
+            },
+        );
     }
 }
 

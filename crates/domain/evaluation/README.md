@@ -2,28 +2,31 @@
 
 Evaluation framework for the [systemprompt.io](https://systemprompt.io) platform.
 
-Evaluation services sample recorded requests, score them against rubrics and replay cases with repair hints. Experiment services support immutable inputs, worker leases, evidence validation and budget reservations. Available evidence depends on the recorded request path.
+Every paid evaluation is a supervised experiment: immutable case and rubric
+revisions, a shared budget account with per-request reservations, leased
+executions fenced by a token, evidence validated before a verdict is
+recorded, and restart reconciliation that never requeues uncertain work.
+Golden cases are captured from recorded traffic.
 
 ## What it provides
 
-- **Evaluation tables** — `eval_runs`, `eval_cases`, `eval_results`,
-  `eval_pairs`, `eval_judge_calls`, `eval_rubrics`, installed via the
-  extension framework.
-- **Sampling** — candidate selection from `ai_requests`, excluding the
-  framework's own judge and replay traffic.
-- **Judge** — rubric-driven structured scoring (1–5 overall, per-dimension
-  scores, pass/partial/fail verdicts) through any configured AI provider.
-- **Replay** — canonical prompt reconstruction plus repair-hint injection,
-  re-scored by the same judge and linked to the failing result.
-- **Auto-improve loop** — sample → judge → repair → replay → re-score,
-  designed to run as a scheduled job or on demand from the CLI.
+- **Experiments** — `eval_experiments`, `eval_executions`, revisions,
+  budgets and reservations, worker leases, approvals, session bindings and
+  cleanup records, installed via the extension framework.
+- **Evidence** — `eval_execution_evidence` with structural validation of
+  each artifact before it can support a verdict.
+- **Gateway admission** — bounded spend reserved per request on a bound
+  session and settled once the provider reports usage; a lease that expires
+  before settlement retains its reserved bound.
+- **Golden cases** — `eval_cases`, promoted from `ai_requests` with the
+  sampling reader.
 
 ## Usage
 
-The crate registers its schema through `systemprompt-extension`; services are
-constructed with a database pool and an `AiService` from `systemprompt-ai`.
-See the `systemprompt` facade crate (feature `evaluation`) and the
-`systemprompt admin evals` CLI command group.
+The crate registers its schema through `systemprompt-extension`. The
+evaluator supervisor in `systemprompt-scheduler` drives executions through
+the worker routes in `systemprompt-api`; `systemprompt admin evals promote`
+captures cases. See the `systemprompt` facade crate (feature `evaluation`).
 
 ## License
 

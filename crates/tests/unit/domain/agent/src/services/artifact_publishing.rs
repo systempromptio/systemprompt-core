@@ -78,7 +78,7 @@ async fn publish_from_a2a_persists_artifact() {
         .await
         .expect("publish a2a");
 
-    let repo = ArtifactRepository::new(r.db_pool()).expect("artifact repo");
+    let repo = r.artifacts.clone();
     let fetched = repo
         .get_artifact_by_id(&id)
         .await
@@ -106,7 +106,7 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
         .await
         .expect("publish");
 
-    let repo = ArtifactRepository::new(r.db_pool()).expect("artifact repo");
+    let repo = r.artifacts.clone();
     let fetched = repo
         .get_artifact_by_id(&id)
         .await

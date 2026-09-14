@@ -15,7 +15,6 @@ mod admin_config_sections;
 mod admin_config_services_fs;
 mod admin_config_writes_fs;
 mod admin_evals_db;
-mod admin_evals_show_db;
 mod admin_identity_generate;
 mod admin_keys_generate_fs;
 mod admin_prompts;

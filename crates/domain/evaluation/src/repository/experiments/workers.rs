@@ -86,6 +86,18 @@ impl WorkerRepository {
         ).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Worker credential unavailable"))?.0)
     }
 
+    pub async fn get_owned(
+        &self,
+        owner: &UserId,
+        worker: &EvalWorkerId,
+        environment: &str,
+    ) -> Result<WorkerRecord> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT to_jsonb(w) - 'token_hash' AS "record!: Json<WorkerRecord>" FROM eval_workers w WHERE id=$1 AND owner_id=$2 AND environment=$3 AND enabled=TRUE AND expires_at>NOW()"#,
+            worker.as_str(), owner.as_str(), environment
+        ).fetch_optional(&self.pool).await?.ok_or_else(|| missing("Worker unavailable in this scope"))?.0)
+    }
+
     pub async fn revoke(&self, owner: &UserId, worker: &EvalWorkerId) -> Result<()> {
         let changed = sqlx::query!(
             "UPDATE eval_workers SET enabled=FALSE WHERE id=$1 AND owner_id=$2",

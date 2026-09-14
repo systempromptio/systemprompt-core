@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.52.0] - 2026-09-14
+
+### Breaking
+
+- `ClientSessionId::from_metadata_user_id` returns `Result<Option<Self>, IdValidationError>` and also accepts a JSON object carrying `session_id`; a `_session_` suffix that is not a UUID is an error rather than `None`.
+- `ContextId::derived_from_gateway_conversation(user_id, conversation)` takes the owner, so derived context ids are namespaced per user.
+
+### Added
+
+- Managed-resource identifiers: `ManagedSourceId`, `SourceSnapshotId`, `ManagedResourceId`, `ResourceRevisionId`, `PublicationReviewId`, `PublicationId`, `ManagedReconciliationId`, `WithdrawalProposalId`, `DistributionId`, `InstallationReceiptId`, `InvocationAttributionId`; evaluation identifiers `EvalSuggestionId` and `EvalApprovalId`.
+
+### Removed
+
+- `EvalRunId`, `EvalResultId`, `EvalPairId`, `EvalJudgeCallId`, `EvalRubricId` and `ContextId::derived_from_evaluation_run` with the judge-run surface.
+
 ## [0.50.0] - 2026-09-10
 
 ### Changed

@@ -69,7 +69,22 @@ fn services_yaml(provider_url: &str, ext_name: &str, int_name: &str) -> String {
     )
 }
 
+const ENFORCED_SECRET_SCAN_GOVERNANCE: &str = "governance:
+  mode: enforce
+  policies:
+    - id: secret_scan
+      patterns:
+        - id: cloud-access-key
+          name: Cloud Access Key
+          regex: 'AKIA[0-9A-Z]{16}'
+          redact_whole_value: true
+";
+
 async fn harness() -> anyhow::Result<Harness> {
+    harness_with_governance(None).await
+}
+
+async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Result<Harness> {
     let server = MockServer::start().await;
     let suffix = Uuid::new_v4().simple().to_string();
     let ext_name = format!("cov-ext-{}", &suffix[..8]);
@@ -77,6 +92,11 @@ async fn harness() -> anyhow::Result<Harness> {
     let provider_url = format!("{}/provider/mcp", server.uri());
     let yaml = services_yaml(&provider_url, &ext_name, &int_name);
     let b = systemprompt_test_fixtures::bootstrap::init_isolated_bootstrap(&server.uri(), &yaml);
+    if let Some(governance) = governance_yaml {
+        let governance_dir = b.services_path.join("governance");
+        std::fs::create_dir_all(&governance_dir)?;
+        std::fs::write(governance_dir.join("config.yaml"), governance)?;
+    }
 
     let manifest_dir = b.system_path.join("extensions").join(&int_name);
     std::fs::create_dir_all(&manifest_dir)?;
@@ -432,7 +452,7 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
 
 #[tokio::test]
 async fn external_secret_is_denied_before_provider_receives_call() -> anyhow::Result<()> {
-    let h = harness().await?;
+    let h = harness_with_governance(Some(ENFORCED_SECRET_SCAN_GOVERNANCE)).await?;
     mount_accessor(&h.server).await;
     Mock::given(method("POST"))
         .and(path("/provider/mcp"))

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
 
 use super::governed::{GovernedInput, GovernedTarget};
-use super::secrets::SecretFinding;
+use super::secrets::{SecretFinding, SecretScanner};
 use crate::authz::error::AuthzError;
 use crate::authz::types::Decision;
 
@@ -187,6 +187,9 @@ impl PolicyContext<'_> {
 /// [`DenyReason::SecretLeak`][crate::authz::types::DenyReason::SecretLeak];
 /// only a policy that returns `Some` takes part in prompt recovery.
 pub trait GovernancePolicy: Send + Sync + fmt::Debug {
+    fn secret_scanner(&self) -> Option<&SecretScanner> {
+        None
+    }
     fn id(&self) -> PolicyId;
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;

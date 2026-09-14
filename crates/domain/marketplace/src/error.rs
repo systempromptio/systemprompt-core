@@ -32,6 +32,9 @@ pub enum MarketplaceError {
     #[error("catalogue load failed: {0}")]
     Catalog(String),
 
+    #[error("managed resource resolution failed: {0}")]
+    Managed(#[from] crate::managed::ManagedError),
+
     #[error("manifest signing failed: {0}")]
     Signing(String),
 

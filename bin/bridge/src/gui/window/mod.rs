@@ -30,6 +30,12 @@ pub fn open_path(path: &Path) {
     open_target(&path.to_string_lossy());
 }
 
+pub fn reveal_path(path: &Path) {
+    if let Err(e) = opener::reveal(path) {
+        tracing::error!(path = %path.display(), error = %e, "failed to reveal application");
+    }
+}
+
 pub fn open_external_url(url: &str) {
     open_target(url);
 }

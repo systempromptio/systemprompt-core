@@ -21,7 +21,7 @@
 mod rate_limit;
 mod require_approval;
 mod scope_check;
-mod secret_scan;
+pub(crate) mod secret_scan;
 mod tool_blocklist;
 
 pub use require_approval::ApprovalSettings;

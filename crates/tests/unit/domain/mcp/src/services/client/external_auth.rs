@@ -42,7 +42,7 @@ async fn fetch_bearer_returns_access_token() {
         .mount(&server)
         .await;
 
-    let bearer = fetch_external_bearer(&format!("{}/token", server.uri()), "my-jwt", "srv")
+    let bearer = fetch_external_bearer(&format!("{}/token", server.uri()), "my-jwt", None, "srv")
         .await
         .expect("bearer resolves");
     assert_eq!(bearer, "banked-token");
@@ -59,7 +59,7 @@ async fn fetch_bearer_rejects_empty_access_token() {
         .mount(&server)
         .await;
 
-    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", "srv")
+    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", None, "srv")
         .await
         .expect_err("empty token rejected");
     assert!(err.to_string().contains("empty access_token"));
@@ -74,7 +74,7 @@ async fn fetch_bearer_maps_not_found_to_unconnected_account() {
         .mount(&server)
         .await;
 
-    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", "srv")
+    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", None, "srv")
         .await
         .expect_err("404 surfaces");
     assert!(err.to_string().contains("no token banked"));
@@ -89,7 +89,7 @@ async fn fetch_bearer_surfaces_other_statuses() {
         .mount(&server)
         .await;
 
-    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", "srv")
+    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", None, "srv")
         .await
         .expect_err("503 surfaces");
     assert!(err.to_string().contains("503"));
@@ -104,7 +104,7 @@ async fn fetch_bearer_rejects_unreadable_body() {
         .mount(&server)
         .await;
 
-    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", "srv")
+    let err = fetch_external_bearer(&format!("{}/token", server.uri()), "jwt", None, "srv")
         .await
         .expect_err("bad body surfaces");
     assert!(err.to_string().contains("unreadable body"));
@@ -112,7 +112,7 @@ async fn fetch_bearer_rejects_unreadable_body() {
 
 #[tokio::test]
 async fn fetch_bearer_maps_transport_failure() {
-    let err = fetch_external_bearer("http://127.0.0.1:1/token", "jwt", "srv")
+    let err = fetch_external_bearer("http://127.0.0.1:1/token", "jwt", None, "srv")
         .await
         .expect_err("connection refused surfaces");
     assert!(err.to_string().contains("token accessor request failed"));
@@ -157,25 +157,6 @@ fn static_headers_reject_invalid_value() {
 #[tokio::test]
 async fn fetch_bearer_authenticates_the_broker() {
     const SECRET: &str = "test-broker-credential";
-    if std::env::var("MCP_CREDENTIAL_BROKER_SECRET").as_deref() != Ok(SECRET) {
-        let result = std::process::Command::new(std::env::current_exe().expect("test executable"))
-            .args([
-                "--exact",
-                "services::client::external_auth::fetch_bearer_authenticates_the_broker",
-                "--nocapture",
-            ])
-            .env("MCP_CREDENTIAL_BROKER_SECRET", SECRET)
-            .output()
-            .expect("run with isolated broker environment");
-        assert!(
-            result.status.success(),
-            "{}\n{}",
-            String::from_utf8_lossy(&result.stdout),
-            String::from_utf8_lossy(&result.stderr)
-        );
-        assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
-        return;
-    }
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/token"))
@@ -191,11 +172,43 @@ async fn fetch_bearer_authenticates_the_broker() {
     let bearer = fetch_external_bearer(
         &format!("{}/token", server.uri()),
         "employee-token",
+        Some(SECRET),
         "provider",
     )
     .await
     .expect("broker authenticated");
     assert_eq!(bearer, "provider-token");
+}
+
+#[tokio::test]
+async fn fetch_bearer_omits_the_broker_header_without_a_secret() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/token"))
+        .and(header("authorization", "Bearer employee-token"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({"access_token":"provider-token"})),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let bearer = fetch_external_bearer(
+        &format!("{}/token", server.uri()),
+        "employee-token",
+        None,
+        "provider",
+    )
+    .await
+    .expect("accessor answered");
+    assert_eq!(bearer, "provider-token");
+    let requests = server.received_requests().await.unwrap();
+    assert!(
+        requests[0]
+            .headers
+            .get("x-systemprompt-credential-broker")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -213,7 +226,7 @@ async fn fetch_bearer_does_not_forward_credentials_to_redirects() {
         .respond_with(ResponseTemplate::new(302).insert_header("location", destination.uri()))
         .mount(&accessor)
         .await;
-    let error = fetch_external_bearer(&accessor.uri(), "employee-token", "provider")
+    let error = fetch_external_bearer(&accessor.uri(), "employee-token", None, "provider")
         .await
         .expect_err("redirect refused");
     assert!(error.to_string().contains("302"));

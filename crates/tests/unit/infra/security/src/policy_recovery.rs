@@ -1,21 +1,26 @@
 use systemprompt_identifiers::{CallId, SessionId, UserId};
 use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::secrets::{
-    EntropyConfig, REDACTION_MARKER, redact_spans, secret_findings,
-};
+use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretScanner, redact_spans};
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
     AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernedInput,
     GovernedTarget, PolicyContext,
 };
 
-const KEY: &str = "AKIAIOSFODNN7EXAMPLE";
+const KEY: &str = "XRECOVERY-1234567890";
+const PATTERNS: &str = "patterns:\n  - id: recovery-key\n    name: Recovery Key\n    regex: 'XRECOVERY-[0-9]+'\n  - id: private-key\n    name: Private Key\n    regex: '-----BEGIN PRIVATE KEY-----'\n    redact_whole_value: true\n  - id: bearer\n    name: Bearer\n    regex: 'Bearer eyJ[A-Za-z0-9_.]+'\n    redact_whole_value: true\n";
+const POLICY: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n";
+
+fn scanner() -> SecretScanner {
+    let yaml: serde_yaml::Value = serde_yaml::from_str(PATTERNS).unwrap();
+    SecretScanner::from_policy_yaml(&yaml).unwrap()
+}
 
 #[test]
 fn recovery_finds_all_spans_with_utf8_offsets_and_no_credential_in_debug() {
     let text = format!("Résumé 🔒 {KEY} and {KEY} done");
     let input = GovernedInput::prompt_text(text.clone());
-    let findings = secret_findings(&input, &EntropyConfig::default());
+    let findings = scanner().findings(&input);
     assert_eq!(findings.len(), 2);
     assert!(findings.iter().all(|f| &text[f.span.clone()] == KEY));
     assert!(!format!("{findings:?}").contains(KEY));
@@ -41,11 +46,10 @@ fn overlapping_findings_are_merged_and_invalid_offsets_are_rejected() {
 fn prefix_only_patterns_remove_the_entire_secret_bearing_value() {
     for text in [
         "-----BEGIN PRIVATE KEY-----\nthis-is-sensitive\n-----END PRIVATE KEY-----",
-        "aws_secret_access_key = sensitive-value",
         "Bearer eyJhbGciOiABC.payload.signature",
     ] {
         let input = GovernedInput::prompt_text(text.to_owned());
-        let findings = secret_findings(&input, &EntropyConfig::default());
+        let findings = scanner().findings(&input);
         assert_eq!(
             redact_spans(text, findings.into_iter().map(|f| f.span)).unwrap(),
             REDACTION_MARKER
@@ -55,8 +59,7 @@ fn prefix_only_patterns_remove_the_entire_secret_bearing_value() {
 
 #[test]
 fn recovery_is_explicit_reverified_and_never_applied_to_tools() {
-    let config =
-        GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n").unwrap();
+    let config = GovernanceConfig::parse(POLICY).unwrap();
     let engine = GovernanceEngine::from_config(&config).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
@@ -122,13 +125,13 @@ impl systemprompt_security::policy::GovernancePolicy for CountEvaluations {
         }
     }
 }
-systemprompt_security::register_governance_policy!("recovery_count_evaluations", |_| Box::new(
+systemprompt_security::register_governance_policy!("recovery_count_evaluations", |_| Ok(Box::new(
     CountEvaluations
-));
+)));
 
 #[test]
 fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
-    let config = GovernanceConfig::parse("governance:\n  policies:\n    - id: recovery_count_evaluations\n    - id: secret_scan\n    - id: rate_limit\n      requests_per_window: 0\n").unwrap();
+    let config = GovernanceConfig::parse("governance:\n  policies:\n    - id: recovery_count_evaluations\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n    - id: rate_limit\n      requests_per_window: 0\n").unwrap();
     let engine = GovernanceEngine::from_config(&config).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
@@ -182,8 +185,8 @@ impl systemprompt_security::policy::GovernancePolicy for LeaksWithoutFindings {
         }
     }
 }
-systemprompt_security::register_governance_policy!("recovery_leak_without_findings", |_| Box::new(
-    LeaksWithoutFindings
+systemprompt_security::register_governance_policy!("recovery_leak_without_findings", |_| Ok(
+    Box::new(LeaksWithoutFindings)
 ));
 
 #[test]

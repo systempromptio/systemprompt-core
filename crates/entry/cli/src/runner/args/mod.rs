@@ -218,9 +218,21 @@ impl DescribeCommand for Commands {
                 CommandDescriptor::PROFILE_SECRETS_AND_PATHS
             },
             Self::Infra(infrastructure::InfraCommands::Jobs(
-                infrastructure::jobs::JobsCommands::Run(_)
-                | infrastructure::jobs::JobsCommands::List,
+                infrastructure::jobs::JobsCommands::Run(_),
+            )) => CommandDescriptor::FULL
+                .with_skip_validation()
+                .with_explicit_cloud_profile(),
+            Self::Infra(infrastructure::InfraCommands::Jobs(
+                infrastructure::jobs::JobsCommands::List,
             )) => CommandDescriptor::FULL.with_skip_validation(),
+            Self::Infra(infrastructure::InfraCommands::Db(
+                infrastructure::db::DbCommands::Migrate { .. }
+                | infrastructure::db::DbCommands::MigrateDown { .. }
+                | infrastructure::db::DbCommands::MigrateRepair { .. }
+                | infrastructure::db::DbCommands::MigrateMarkApplied { .. }
+                | infrastructure::db::DbCommands::Execute { .. }
+                | infrastructure::db::DbCommands::AssignAdmin { .. },
+            )) => CommandDescriptor::FULL.with_explicit_cloud_profile(),
             Self::Analytics(_) => CommandDescriptor::FULL
                 .with_skip_validation()
                 .with_read_only(),

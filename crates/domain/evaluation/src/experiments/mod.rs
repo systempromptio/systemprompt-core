@@ -22,11 +22,15 @@ pub use builder::ExperimentSpecBuilder;
 pub mod records;
 pub mod resources;
 pub mod scoring;
+pub mod verification;
 
 pub use crate::repository::experiments::{
     BudgetRepository, ExperimentRepository, ReservationAdmission, RevisionRepository,
 };
-pub use model::{ClientKind, ExecutionMode, ExperimentSpec, Objective, VariantSpec};
+pub use model::{
+    ClientKind, ExecutionMode, ExperimentSpec, FrozenCostEnvelope, FrozenSettings, Objective,
+    VariantSpec,
+};
 
 use crate::{EvaluationError, Result};
 use serde::Serialize;

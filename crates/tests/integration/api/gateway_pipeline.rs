@@ -35,11 +35,21 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::common::setup_ctx;
 use systemprompt_security::policy::types::AccessScope;
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 pub(super) fn gw_repos(
     db: &systemprompt_database::DbPool,
 ) -> systemprompt_api::services::gateway::GatewayRepositories {
     systemprompt_api::services::gateway::GatewayRepositories::new(
         db,
+        gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
         )),
@@ -136,11 +146,26 @@ fn canonical_request(model: &str, stream: bool) -> CanonicalRequest {
 }
 
 fn raw_body(request: &CanonicalRequest) -> Bytes {
+    let messages: Vec<serde_json::Value> = request
+        .messages
+        .iter()
+        .map(|message| {
+            let text: String = message
+                .content
+                .iter()
+                .filter_map(|part| match part {
+                    CanonicalContent::Text(text) => Some(text.as_str()),
+                    _ => None,
+                })
+                .collect();
+            serde_json::json!({"role": "user", "content": text})
+        })
+        .collect();
     Bytes::from(
         serde_json::to_vec(&serde_json::json!({
             "model": request.model,
             "max_tokens": request.max_tokens,
-            "messages": [{"role": "user", "content": "hello gateway"}],
+            "messages": messages,
         }))
         .expect("serialize raw body"),
     )
@@ -824,6 +849,7 @@ async fn dispatch_against_jailbreak_upstream(
         pool,
         &systemprompt_api::services::gateway::GatewayRepositories::new(
             pool,
+            gateway_journal(),
             std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
                 systemprompt_agent::repository::ContextRepository::new(pool)
                     .expect("context repository"),

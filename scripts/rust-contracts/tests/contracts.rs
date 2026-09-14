@@ -89,3 +89,24 @@ fn fallible_side_effect_defaults_and_parse_guards_are_rejected() {
         1
     );
 }
+
+#[test]
+fn a_guard_projecting_an_inventory_must_be_fallible() {
+    let projected = "fn allowed_tools(known_tools: &[Tool]) -> Vec<Tool> { known_tools.iter().filter(|t| t.ok).cloned().collect() }";
+    let findings = inspect(projected, "fail-open").unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule, "partial-projection");
+
+    let looped = "fn is_allowed(inventory: Inventory) -> bool { for item in inventory { if item.bad { return false; } } true }";
+    assert_eq!(
+        inspect(looped, "fail-open").unwrap()[0].rule,
+        "partial-projection"
+    );
+
+    let withheld = "fn allowed_tools(tool_catalog: &Catalog) -> Option<Vec<Tool>> { if tool_catalog.is_empty() { return None; } Some(tool_catalog.iter().cloned().collect()) }";
+    assert!(inspect(withheld, "fail-open").unwrap().is_empty());
+
+    let unrelated =
+        "fn allowed_tools(tools: &[Tool]) -> Vec<Tool> { tools.iter().cloned().collect() }";
+    assert!(inspect(unrelated, "fail-open").unwrap().is_empty());
+}

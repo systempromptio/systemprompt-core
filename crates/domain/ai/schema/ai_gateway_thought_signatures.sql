@@ -1,9 +1,10 @@
 CREATE TABLE IF NOT EXISTS ai_gateway_thought_signatures (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     conversation_id TEXT NOT NULL,
     tool_use_id TEXT NOT NULL,
     signature TEXT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (conversation_id, tool_use_id)
+    PRIMARY KEY (user_id, conversation_id, tool_use_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_ai_gateway_thought_signatures_expires_at

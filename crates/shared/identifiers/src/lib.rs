@@ -64,6 +64,7 @@ mod instance;
 mod jobs;
 mod links;
 mod locale;
+mod managed;
 mod marketplace;
 mod mcp;
 mod oauth;
@@ -104,8 +105,8 @@ pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
 pub use evaluation::{
-    EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalJudgeCallId, EvalPairId,
-    EvalReservationId, EvalResultId, EvalRevisionId, EvalRubricId, EvalRunId, EvalWorkerId,
+    EvalApprovalId, EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalReservationId,
+    EvalRevisionId, EvalSuggestionId, EvalWorkerId,
 };
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
@@ -117,6 +118,11 @@ pub use instance::InstanceId;
 pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
+pub use managed::{
+    DistributionId, InstallationReceiptId, InvocationAttributionId, ManagedReconciliationId,
+    ManagedResourceId, ManagedSourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
+    SourceSnapshotId, WithdrawalProposalId,
+};
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
 pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};

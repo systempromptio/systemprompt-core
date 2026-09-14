@@ -57,6 +57,7 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
         mcp_auth_probe_in_flight: false,
         mcp_auth_tone: Tone::Unknown,
         update: UpdatePayload::from(update),
+        pending_device_action: None,
         app_name: "Bridge",
         sign_in_label: "Sign in",
         sign_in_hint: "",

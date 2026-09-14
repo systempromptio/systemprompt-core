@@ -15,7 +15,7 @@ fn spec(server: &MockServer) -> BridgeReleasesSpec {
     assets.insert("linux-x64".to_owned(), ASSET.to_owned());
     BridgeReleasesSpec {
         repo: "systempromptio/bridge".to_owned(),
-        token_env: None,
+        token_secret: None,
         tag_prefix: "bridge-v".to_owned(),
         pinned_version: None,
         assets,

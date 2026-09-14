@@ -172,6 +172,7 @@ fn fixture_app_context_assembled(
         systemprompt_models::profile::StorageBackend::Local,
         app_paths.storage().root(),
     );
+    let sqlx_pool = pool.pool_arc()?.as_ref().clone();
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),
@@ -199,6 +200,14 @@ fn fixture_app_context_assembled(
             file_repository: Arc::new(systemprompt_files::FileRepository::new(pool)?),
             mcp_session_repository: Arc::new(
                 systemprompt_mcp::repository::McpSessionRepository::new(pool)?,
+            ),
+            managed_repository: Arc::new(
+                systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
+            ),
+            evaluation_repositories: Arc::new(
+                systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
+                    &sqlx_pool,
+                ),
             ),
         },
         ConfigPlane {

@@ -1,11 +1,10 @@
 //! Unit tests for small model edges: protocol bindings, security schemes,
-//! path errors, service-error HTTP mapping, cloud claims, verbosity, and
-//! process filtering.
+//! path errors, service-error HTTP mapping, cloud claims, and process
+//! filtering.
 
 use std::str::FromStr;
 use systemprompt_models::a2a::{ApiKeyLocation, ProtocolBinding, SecurityScheme};
 use systemprompt_models::auth::CloudAuthClaims;
-use systemprompt_models::config::{Environment, VerbosityLevel};
 use systemprompt_models::repository::process_utils::filter_running_services;
 use systemprompt_models::{ApiError, PathNotConfiguredError, ServiceError};
 
@@ -127,54 +126,6 @@ fn filter_running_services_drops_dead_and_untracked_pids() {
 
     assert_eq!(running.len(), 1);
     assert_eq!(running[0].0, "d");
-}
-
-#[test]
-fn verbosity_maps_environment_and_predicates() {
-    assert_eq!(
-        VerbosityLevel::from_environment(Environment::Production),
-        VerbosityLevel::Quiet
-    );
-    assert_eq!(
-        VerbosityLevel::from_environment(Environment::Test),
-        VerbosityLevel::Normal
-    );
-
-    assert!(VerbosityLevel::Quiet.is_quiet());
-    assert!(!VerbosityLevel::Quiet.should_log_to_db());
-    assert!(VerbosityLevel::Debug.is_verbose());
-    assert!(VerbosityLevel::Verbose.should_show_verbose());
-    assert!(!VerbosityLevel::Normal.is_verbose());
-    assert!(VerbosityLevel::Normal.should_log_to_db());
-}
-
-#[test]
-fn verbosity_from_env_var_priority_order() {
-    unsafe {
-        std::env::remove_var("SYSTEMPROMPT_QUIET");
-        std::env::remove_var("SYSTEMPROMPT_VERBOSE");
-        std::env::remove_var("SYSTEMPROMPT_DEBUG");
-        std::env::remove_var("SYSTEMPROMPT_LOG_LEVEL");
-    }
-    assert_eq!(VerbosityLevel::from_env_var(), None);
-
-    unsafe { std::env::set_var("SYSTEMPROMPT_LOG_LEVEL", "debug") };
-    assert_eq!(VerbosityLevel::from_env_var(), Some(VerbosityLevel::Debug));
-
-    unsafe { std::env::set_var("SYSTEMPROMPT_LOG_LEVEL", "banana") };
-    assert_eq!(VerbosityLevel::from_env_var(), None);
-
-    unsafe { std::env::set_var("SYSTEMPROMPT_QUIET", "1") };
-    assert_eq!(VerbosityLevel::from_env_var(), Some(VerbosityLevel::Quiet));
-
-    unsafe {
-        std::env::remove_var("SYSTEMPROMPT_QUIET");
-        std::env::set_var("SYSTEMPROMPT_VERBOSE", "1");
-    }
-    assert_eq!(
-        VerbosityLevel::from_env_var(),
-        Some(VerbosityLevel::Verbose)
-    );
 }
 
 #[test]

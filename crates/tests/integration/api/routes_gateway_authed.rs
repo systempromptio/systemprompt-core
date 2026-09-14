@@ -17,7 +17,9 @@ use super::common::setup_ctx;
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    let router = gateway_router(&ctx).expect("gateway router available");
+    let router = gateway_router(&ctx)
+        .expect("gateway journal opens")
+        .expect("gateway router available");
     Ok((router, pool))
 }
 

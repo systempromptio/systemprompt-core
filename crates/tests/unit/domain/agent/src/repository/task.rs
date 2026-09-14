@@ -481,7 +481,7 @@ async fn create_task_returns_id_string() {
     };
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let ctx_repo = systemprompt_agent::repository::ContextRepository::new(r.db_pool()).unwrap();
+    let ctx_repo = r.contexts.clone();
     let context_id = ctx_repo
         .create_context(&user_id, Some(&session_id), "c", ContextKind::User)
         .await

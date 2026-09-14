@@ -22,6 +22,16 @@ use payloads::{
     StartupFaultPayload, UpdatePayload, ValidationPayload, VerifiedIdentityPayload,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub enum DeviceAction {
+    Disconnect,
+    Purge,
+    RemoveApplication,
+}
+
 /// The whole state snapshot as the webview receives it on `state.snapshot`
 /// and every `state.changed`.
 #[derive(Debug, Serialize)]
@@ -75,6 +85,7 @@ pub struct StatePayload<'a> {
     pub mcp_auth_probe_in_flight: bool,
     pub mcp_auth_tone: Tone,
     pub update: UpdatePayload<'a>,
+    pub pending_device_action: Option<DeviceAction>,
     pub app_name: &'static str,
     pub sign_in_label: &'static str,
     pub sign_in_hint: &'static str,

@@ -13,7 +13,25 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::GatewayConversationId;
+use systemprompt_identifiers::{GatewayConversationId, UserId};
+
+pub struct ThoughtSignatureWrite<'a> {
+    pub user_id: &'a UserId,
+    pub conversation: &'a GatewayConversationId,
+    pub tool_use_id: &'a str,
+    pub signature: &'a str,
+    pub ttl: Duration,
+}
+
+impl std::fmt::Debug for ThoughtSignatureWrite<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ThoughtSignatureWrite")
+            .field("user_id", self.user_id)
+            .field("conversation", self.conversation)
+            .field("tool_use_id", &self.tool_use_id)
+            .finish_non_exhaustive()
+    }
+}
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -29,26 +47,21 @@ impl AiThoughtSignatureRepository {
         Ok(Self { write_pool })
     }
 
-    pub async fn upsert(
-        &self,
-        conversation: &GatewayConversationId,
-        tool_use_id: &str,
-        signature: &str,
-        ttl: Duration,
-    ) -> Result<(), RepositoryError> {
+    pub async fn upsert(&self, write: &ThoughtSignatureWrite<'_>) -> Result<(), RepositoryError> {
         sqlx::query!(
             r#"
             INSERT INTO ai_gateway_thought_signatures
-                (conversation_id, tool_use_id, signature, expires_at)
-            VALUES ($1, $2, $3, NOW() + make_interval(secs => $4))
-            ON CONFLICT (conversation_id, tool_use_id) DO UPDATE SET
+                (conversation_id, tool_use_id, signature, expires_at, user_id)
+            VALUES ($1, $2, $3, NOW() + make_interval(secs => $4), $5)
+            ON CONFLICT (user_id, conversation_id, tool_use_id) DO UPDATE SET
                 signature = EXCLUDED.signature,
                 expires_at = EXCLUDED.expires_at
             "#,
-            conversation.as_str(),
-            tool_use_id,
-            signature,
-            ttl.as_secs_f64(),
+            write.conversation.as_str(),
+            write.tool_use_id,
+            write.signature,
+            write.ttl.as_secs_f64(),
+            write.user_id.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;
@@ -57,6 +70,7 @@ impl AiThoughtSignatureRepository {
 
     pub async fn find(
         &self,
+        user_id: &UserId,
         conversation: &GatewayConversationId,
         tool_use_id: &str,
         ttl: Duration,
@@ -67,12 +81,14 @@ impl AiThoughtSignatureRepository {
             SET expires_at = NOW() + make_interval(secs => $3)
             WHERE conversation_id = $1
               AND tool_use_id = $2
+              AND user_id = $4
               AND expires_at > NOW()
             RETURNING signature
             "#,
             conversation.as_str(),
             tool_use_id,
             ttl.as_secs_f64(),
+            user_id.as_str(),
         )
         .fetch_optional(&*self.write_pool)
         .await?;

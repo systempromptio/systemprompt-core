@@ -1,3 +1,4 @@
+mod abandon_guard;
 mod audit_payload;
 mod canonical_request;
 mod canonical_response;
@@ -16,6 +17,7 @@ mod inbound_stream_usage;
 mod inbound_tool_choice;
 mod inbound_trait_defaults;
 mod inspect_equals_send;
+mod journal_open;
 mod openai_passthrough;
 mod outbound;
 mod outbound_deep;

@@ -19,6 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod complete;
+pub mod journal;
 pub mod message_text;
 mod open;
 pub mod payload;
@@ -70,8 +71,9 @@ pub struct GatewayRequestContext {
     reason = "service type holds repository clients that intentionally do not implement Debug"
 )]
 pub struct GatewayAudit {
-    evaluation_pricing: std::sync::OnceLock<systemprompt_models::services::ModelPricing>,
-    evaluations: systemprompt_evaluation::repository::experiments::GatewayEvaluationRepository,
+    settlement: journal::Settlement,
+    journal_lease: std::sync::OnceLock<std::fs::File>,
+    pricing_snapshot: std::sync::OnceLock<systemprompt_models::services::ModelPricing>,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
     context_materializer: systemprompt_traits::DynContextMaterializer,
@@ -90,8 +92,9 @@ struct UpstreamClock {
 impl GatewayAudit {
     pub fn new(repos: &super::GatewayRepositories, ctx: GatewayRequestContext) -> Self {
         Self {
-            evaluation_pricing: std::sync::OnceLock::new(),
-            evaluations: repos.evaluations.clone(),
+            settlement: repos.settlement(),
+            journal_lease: std::sync::OnceLock::new(),
+            pricing_snapshot: std::sync::OnceLock::new(),
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
             context_materializer: Arc::clone(&repos.context_materializer),
@@ -151,12 +154,13 @@ impl GatewayAudit {
 
     pub async fn fail(&self, error: &str) -> Result<()> {
         let latency_ms = self.elapsed_ms();
-        if let Err(e) = self
-            .requests
-            .update_error(&self.ctx.ai_request_id, RequestStatus::Failed, error)
-            .await
-        {
-            tracing::warn!(error = %e, "audit fail update failed");
+        let mut receipt =
+            journal::Receipt::pending(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone());
+        receipt.failure = Some(error.to_owned());
+        if self.journal_lease.get().is_some() {
+            journal::record(&self.settlement, receipt).await?;
+        } else {
+            journal::settle_unadmitted_failure(&self.settlement, &receipt).await?;
         }
         tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use systemprompt_identifiers::PluginId;
@@ -63,6 +63,7 @@ fn build(rules: PluginComponentRef, available: &[RuleEntry]) -> PluginBundle {
         artifacts: &[],
         rules: available,
         plugins_root: Path::new("/nonexistent/plugins"),
+        managed_files: &BTreeMap::new(),
     };
     build_plugin_bundle(&plugin_with_rules(rules), &content).expect("bundle builds")
 }

@@ -58,6 +58,7 @@ impl LocalProfileBuilder {
 
         Profile {
             storage: systemprompt_models::profile::StorageConfig::default(),
+            evaluator: None,
             name: self.name,
             display_name,
             target: ProfileType::Local,

@@ -35,8 +35,9 @@ async fn owned_context(
     user: &UserId,
     session: &SessionId,
 ) -> ContextId {
-    systemprompt_agent::repository::ContextRepository::new(repositories.db_pool())
-        .expect("context repo")
+    repositories
+        .contexts
+        .clone()
         .create_context(
             user,
             Some(session),

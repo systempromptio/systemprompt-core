@@ -27,7 +27,7 @@ pub(super) async fn execute(
     yaml_output: bool,
     ctx: &CommandContext,
 ) -> Result<()> {
-    let profile_path = resolve_profile_path(name, ctx.env.profile.as_deref(), None)?;
+    let profile_path = resolve_profile_path(name, ctx.env.profile.as_deref(), None)?.path;
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 

@@ -97,3 +97,21 @@ pub(super) fn copy_response_headers(src: &HeaderMap, dest: &mut HeaderMap) {
 fn is_hop_by_hop(name: &str) -> bool {
     HOP_BY_HOP.iter().any(|h| name.eq_ignore_ascii_case(h))
 }
+
+pub(super) fn ensure_ingestion_delivery_id(
+    request_path: &str,
+    headers: &mut HeaderMap,
+) -> ForwardResult<()> {
+    // Why: retries of one inbound delivery must carry the same ingestion identity.
+    if request_path.starts_with("/api/public/hooks/")
+        && !headers.contains_key("x-ingestion-event-id")
+    {
+        let value = uuid::Uuid::new_v4()
+            .to_string()
+            .parse()
+            .map_err(|error| ForwardError::BadHeader(format!("ingestion event ID: {error}")))?;
+        headers.insert("x-ingestion-event-id", value);
+    }
+
+    Ok(())
+}

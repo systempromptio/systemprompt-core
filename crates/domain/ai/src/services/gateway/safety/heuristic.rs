@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse, Role};
+use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
 
 use super::{
     Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyScanner, Severity,
@@ -64,21 +64,15 @@ impl SafetyScanner for HeuristicScanner {
 
     async fn scan_request(&self, req: &CanonicalRequest) -> Vec<Finding> {
         let mut findings = Vec::new();
-        if let Some(sys) = &req.system {
-            scan_text(&self.phrases, PHASE_REQUEST, sys, &mut findings);
-        }
-        if let Some(text) = req.latest_message_text(Role::User) {
+        for (_, text) in req.safety_parts(false) {
             scan_text(&self.phrases, PHASE_REQUEST, &text, &mut findings);
-        }
-        for leaf in req.forwarded_surface.leaves() {
-            scan_text(&self.phrases, PHASE_REQUEST, &leaf.value, &mut findings);
         }
         findings
     }
 
     async fn scan_request_history(&self, req: &CanonicalRequest) -> Vec<Finding> {
         let mut findings = Vec::new();
-        for unit in history_units(req) {
+        for (_, unit) in req.safety_parts(true) {
             scan_text(&self.phrases, PHASE_REQUEST_HISTORY, &unit, &mut findings);
         }
         findings
@@ -91,19 +85,6 @@ impl SafetyScanner for HeuristicScanner {
         }
         findings
     }
-}
-
-fn history_units(req: &CanonicalRequest) -> Vec<String> {
-    let mut units = req.message_units();
-    if req.system.is_some() && !units.is_empty() {
-        units.remove(0);
-    }
-    if let Some(newest) = req.latest_message_text(Role::User)
-        && units.last() == Some(&newest)
-    {
-        units.pop();
-    }
-    units
 }
 
 fn scan_text(phrases: &[String], phase: &'static str, text: &str, out: &mut Vec<Finding>) {

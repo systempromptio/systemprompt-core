@@ -19,9 +19,19 @@ use systemprompt_security::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
 
+fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
+    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+        systemprompt_config::ProfileBootstrap::get_path().expect("profile bootstrapped"),
+        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+    )
+    .expect("gateway journal opens")
+}
+
+
 fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRepositories {
     systemprompt_api::services::gateway::GatewayRepositories::new(
         db,
+        gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
         )),
@@ -43,12 +53,12 @@ fn dead_pool() -> DbPool {
 fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestContext {
     GatewayRequestContext {
         ai_request_id,
-        user_id,
-        session_id: None,
+        user_id: user_id.clone(),
+        session_id: Some(crate::support::session_for(&user_id)),
         context_id: ContextId::generate(),
         gateway_conversation_id: None,
         client_session_id: None,
-        trace_id: None,
+        trace_id: Some(systemprompt_identifiers::TraceId::generate()),
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_owned(),

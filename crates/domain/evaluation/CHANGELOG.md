@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.52.0] - 2026-09-14
+
+### Breaking
+
+- The standalone judge-run surface is removed: `EvalRunRepository`, `EvalResultRepository`, `EvalRubricRepository`, `EvalJudgeCallRepository`, the `EvalRun`/`EvalResult`/`Rubric`/`JudgeVerdict` models and the `eval_runs`, `eval_results`, `eval_pairs`, `eval_judge_calls` and `eval_rubrics` tables (migration `010_drop_judge_run_tables.sql` drops them). `EvalRepositories` keeps `cases` and `sampling`. Every paid evaluation is a supervised experiment.
+- Experiments carry the supervised evaluator schema: migrations `005`–`009` add managed workspace projections and assets (immutable, cleanup-only deletes), execution runtime and lifecycle columns, session bindings, approvals, cleanup records and forwarded owner constraints. `EvaluationRepositories::new(&PgPool)` bundles the experiment repositories; `EvaluationLifecycleRepository`, `GatewayEvaluationRepository`, `ExecutionCapabilityRepository` and `WorkerRepository` are new.
+
+### Added
+
+- Shared budget accounts have idempotent owner-scoped creation and inspection.
+
+### Changed
+
+- Experiment launch can reference an existing shared account. Cancelling one experiment no longer freezes the account or blocks unrelated experiments that share its cap.
+
+### Fixed
+
+- `reconcile_restart` retains the budget of every unsettled reservation on an execution that has finished: a request whose provider usage is recorded settles at that cost, one whose usage never arrived is charged its full reserved bound. Expired leases used to leave `reserved` held forever, exhausting the account.
+
 ## [0.49.0] - 2026-09-09
 
 ### Breaking

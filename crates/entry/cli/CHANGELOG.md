@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.52.0] - 2026-09-14
+
+### Changed
+
+- `core skills list|show` overlay published managed skills on the disk catalogue and hide a managed key that is withheld; a managed skill reports `managed://<id>@<bundle digest>` as its path. Without an application context the commands list disk skills and warn.
+- The implicit-cloud refusal names `SYSTEMPROMPT_PROFILE` as an explicit selection alongside `--profile`.
+
+### Removed
+
+- `cloud profile show` (`--json`/`--yaml`, `env` filter) no longer reports `systemprompt.env` and `systemprompt.verbosity`; both were derived from environment variables that are no longer read. The profile's `runtime.environment` and `runtime.log_level` are the source of truth.
+- `admin evals run`, `replay`, `list` and `show`. Paid evaluation runs only through supervised experiments; `admin evals promote` remains.
+
+### Fixed
+
+- An explicit `--profile <name>` (or `SYSTEMPROMPT_PROFILE`) no longer rewrites the active session. Minting a session for the override used to call `set_active_with_profile`, so `just deploy-check --profile production` left `.systemprompt/sessions/index.json` pointing at production and the next bare `infra db migrate` targeted it. The resolver now carries a `ProfileSource` (`Cli`, `Env`, `Session`, `Discovery`); the session is stored under its key for reuse, and only a session-sourced profile — plus `admin session switch|login`, unchanged — moves `active_key`. Operators who relied on `--profile` to switch the active profile must run `admin session switch <name>`.
+- `infra db migrate`, `migrate-down`, `migrate-repair`, `migrate-mark-applied`, `execute`, `assign-admin` and `infra jobs run` refuse a cloud profile that was selected implicitly (stored session or directory discovery): `profile \`<name>\` is a cloud profile selected implicitly (stored session or directory discovery); pass \`--profile <name>\` or set SYSTEMPROMPT_PROFILE to target it`. `SYSTEMPROMPT_PROFILE` counts as explicit because cloud and subprocess boots select their profile through it. `CommandDescriptor::with_explicit_cloud_profile` / `requires_explicit_cloud_profile` mark the commands; the check runs in the runner before routing, so it cannot be bypassed by `external_db_access`. Local profiles are unaffected.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

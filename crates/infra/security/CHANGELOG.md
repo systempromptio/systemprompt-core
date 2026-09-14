@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.52.0] - 2026-09-14
+
+### Breaking
+
+- `secret_scan.patterns` is the complete installation-owned credential catalog. Each entry declares `id`, `name`, `regex`, optional `secret_capture`, optional structured-leaf `field`, and `redact_whole_value`; there is no runtime vendor table, `extra_patterns`, or `disabled_patterns`. The engine exposes its compiled `SecretScanner` so ingress evaluation, response scanning, and recovery share one catalog. `detect_secrets`, `detect_secrets_with`, `scan_str_for_secret` and `secret_findings` are removed; build a `SecretScanner` from the policy YAML instead.
+- `GovernanceConfig::load` returns `Result`: a missing `governance/config.yaml` is the vendor-neutral warn-only fallback, while a file that exists but is rejected (unreadable, invalid YAML, unknown mode, invalid catalog) is `GovernanceEngineError::ConfigRejected` and the engine refuses to start. `GovernanceConfig::validate` is removed.
+- `PolicyFactory` returns `Result<Box<dyn GovernancePolicy>, PolicyConfigurationError>`; a factory that rejects its entry fails `GovernanceEngine::from_config` with `InvalidPolicyConfiguration`. Extensions registering policies through `register_governance_policy!` wrap their constructor in `Ok`.
+- A high-entropy token is an observation: it is recorded on the decision and no longer denies the call or is redacted on recovery. Configured patterns are the enforcement.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

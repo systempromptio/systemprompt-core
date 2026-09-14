@@ -69,10 +69,10 @@ fn an_explicit_override_wins_over_discovery() {
     let path_str = boot.profile_path.to_string_lossy().to_string();
 
     let by_cli = resolve_profile_path(Some(&path_str), None, None).unwrap();
-    assert_eq!(by_cli, boot.profile_path);
+    assert_eq!(by_cli.path, boot.profile_path);
 
     let by_env = resolve_profile_path(None, Some(&path_str), None).unwrap();
-    assert_eq!(by_env, boot.profile_path);
+    assert_eq!(by_env.path, boot.profile_path);
 }
 
 #[test]
@@ -80,12 +80,12 @@ fn a_session_path_is_used_only_when_it_exists() {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
 
     let from_session = resolve_profile_path(None, None, Some(boot.profile_path.clone())).unwrap();
-    assert_eq!(from_session, boot.profile_path);
+    assert_eq!(from_session.path, boot.profile_path);
 
     let stale = std::path::PathBuf::from("/nonexistent/profile.yaml");
     let result = resolve_profile_path(None, None, Some(stale));
     match result {
-        Ok(path) => assert_ne!(path, Path::new("/nonexistent/profile.yaml")),
+        Ok(resolved) => assert_ne!(resolved.path, Path::new("/nonexistent/profile.yaml")),
         Err(e) => assert!(!e.to_string().is_empty()),
     }
 }

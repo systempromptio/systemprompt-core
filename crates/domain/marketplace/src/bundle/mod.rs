@@ -31,6 +31,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
+use systemprompt_models::bridge::ids::SkillId;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
@@ -40,6 +41,7 @@ use systemprompt_models::bridge::plugin_bundle::{
 use systemprompt_models::services::PluginConfig;
 
 use crate::error::MarketplaceError;
+use crate::managed::RevisionFiles;
 
 mod agents;
 mod artifacts;
@@ -68,6 +70,7 @@ pub struct BundleContent<'a> {
     pub disabled_mcp_servers: &'a BTreeSet<String>,
     pub artifacts: &'a [ArtifactEntry],
     pub plugins_root: &'a Path,
+    pub managed_files: &'a BTreeMap<SkillId, RevisionFiles>,
 }
 
 const HOOKS_RELPATH: &str = "./hooks/hooks.json";
