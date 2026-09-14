@@ -76,7 +76,7 @@ pub(super) async fn asset_digest(
     sums_url: &str,
     asset_name: &str,
 ) -> Result<String, (StatusCode, String)> {
-    let body = github(http, spec, sums_url)
+    let body = github(http, spec, sums_url)?
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
@@ -106,7 +106,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
     spec: &BridgeReleasesSpec,
     url: &str,
 ) -> Result<T, (StatusCode, String)> {
-    let resp = github(http, spec, url)
+    let resp = github(http, spec, url)?
         .send()
         .await
         .map_err(|e| (StatusCode::BAD_GATEWAY, format!("github request: {e}")))?;
@@ -125,18 +125,29 @@ pub(super) fn github(
     http: &reqwest::Client,
     spec: &BridgeReleasesSpec,
     url: &str,
-) -> reqwest::RequestBuilder {
+) -> Result<reqwest::RequestBuilder, (StatusCode, String)> {
     let mut req = http
         .get(url)
         // Why: GitHub rejects requests that send no User-Agent.
         .header(header::USER_AGENT, "systemprompt-gateway")
         .header("X-GitHub-Api-Version", "2022-11-28");
-    if let Some(token) = spec.token_secret.as_deref().and_then(|key| {
-        systemprompt_config::SecretsBootstrap::get()
-            .ok()
-            .and_then(|secrets| secrets.get(key).cloned())
-    }) {
-        req = req.bearer_auth(token);
+    if let Some(key) = spec.token_secret.as_deref() {
+        req = req.bearer_auth(release_token(key)?);
     }
-    req
+    Ok(req)
+}
+
+fn release_token(key: &str) -> Result<String, (StatusCode, String)> {
+    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("bridge release token secret unavailable: {e}"),
+        )
+    })?;
+    secrets.get(key).cloned().ok_or_else(|| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!("bridge release token secret {key} is not configured"),
+        )
+    })
 }

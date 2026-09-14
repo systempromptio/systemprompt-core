@@ -10,8 +10,8 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ServicesSourceBootstrap;
 use systemprompt_loader::bundle::source::{AnyFetcher, BundleFetcher};
 use systemprompt_loader::bundle::{BundleCache, cache_root};
-use systemprompt_models::Profile;
 use systemprompt_models::services::bundle::ServicesBundleState;
+use systemprompt_models::{Profile, Secrets};
 
 use super::reconcile::{ReconcileRow, reconcile_after_swap};
 use crate::context::CommandContext;
@@ -53,14 +53,16 @@ pub struct SourceRow {
 
 pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let secrets = SecretsBootstrap::get()
+        .context("Secrets required to resolve the services bundle sources")?;
     let cache = BundleCache::new(cache_root(profile));
     let before = cache.read_state();
 
     let (rows, outcome, reconciled) = if args.check {
-        let (rows, outcome) = check_sources(profile, &before).await?;
+        let (rows, outcome) = check_sources(profile, secrets, &before).await?;
         (rows, outcome, Vec::new())
     } else {
-        Box::pin(swap_sources(profile, &cache, &before, ctx)).await?
+        Box::pin(swap_sources(profile, secrets, &cache, &before, ctx)).await?
     };
 
     let title = if args.check {
@@ -117,6 +119,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
 
 async fn check_sources(
     profile: &Profile,
+    secrets: &Secrets,
     before: &ServicesBundleState,
 ) -> Result<(Vec<SourceRow>, RefreshOutcome)> {
     let client = reqwest::Client::builder()
@@ -126,7 +129,9 @@ async fn check_sources(
 
     let mut rows = Vec::new();
     for source in &profile.services.sources {
-        let auth = source.auth_secret().and_then(lookup_secret);
+        let auth = source
+            .auth_secret()
+            .and_then(|name| secrets.get(name).cloned());
         let fetcher = AnyFetcher::from_source(source, auth, &client)
             .with_context(|| format!("Source {} is not usable", source.name))?;
         let remote = fetcher
@@ -158,13 +163,18 @@ pub fn outcome_for(rows: &[SourceRow]) -> RefreshOutcome {
 
 async fn swap_sources(
     profile: &Profile,
+    secrets: &Secrets,
     cache: &BundleCache,
     before: &ServicesBundleState,
     ctx: &CommandContext,
 ) -> Result<(Vec<SourceRow>, RefreshOutcome, Vec<ReconcileRow>)> {
-    let root = ServicesSourceBootstrap::resolve(profile, lookup_secret, env!("CARGO_PKG_VERSION"))
-        .await
-        .context("Failed to resolve the services bundle sources")?;
+    let root = ServicesSourceBootstrap::resolve(
+        profile,
+        |name| secrets.get(name).cloned(),
+        env!("CARGO_PKG_VERSION"),
+    )
+    .await
+    .context("Failed to resolve the services bundle sources")?;
 
     let after = cache.read_state();
     let rows = diff_states(before, &after);
@@ -194,10 +204,4 @@ pub fn diff_states(before: &ServicesBundleState, after: &ServicesBundleState) ->
             }
         })
         .collect()
-}
-
-fn lookup_secret(name: &str) -> Option<String> {
-    SecretsBootstrap::get()
-        .ok()
-        .and_then(|secrets| secrets.get(name).cloned())
 }

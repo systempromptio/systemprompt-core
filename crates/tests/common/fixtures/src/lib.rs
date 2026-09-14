@@ -37,6 +37,7 @@ pub use bootstrap::{
     messaging_config_yaml_with_teams_endpoints, refresh_services_config, test_messaging_agent,
     TestBootstrap, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID,
     TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
+    TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_row_with_roles,

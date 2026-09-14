@@ -47,13 +47,11 @@ pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
 ) -> RuntimeResult<CoreLayer> {
     let profile = ProfileBootstrap::get()?;
+    let secrets = SecretsBootstrap::get()
+        .map_err(|err| RuntimeError::Internal(format!("services bundle secrets: {err}")))?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
-        |name| {
-            SecretsBootstrap::get()
-                .ok()
-                .and_then(|s| s.get(name).cloned())
-        },
+        |name| secrets.get(name).cloned(),
         env!("CARGO_PKG_VERSION"),
     )
     .await

@@ -27,6 +27,10 @@ pub const TEST_TEAMS_TENANT_ID: &str = "tenant-test";
 // The Microsoft App (bot) id — the audience inbound Teams activity tokens
 // must carry, and the `client_id` for outbound token acquisition.
 pub const TEST_TEAMS_APP_ID: &str = "app-test-1";
+// A second Teams app whose `app_password_ref` names a secret the fixture store
+// never loads, so a route can be driven into its secrets-failure arm.
+pub const TEST_TEAMS_UNRESOLVABLE_TENANT_ID: &str = "tenant-unresolvable";
+pub const TEST_TEAMS_UNRESOLVABLE_APP_ID: &str = "app-test-unresolvable";
 // The agent both messaging apps route to. A `services` backend row plus the
 // matching `config.yaml` entry (`oauth.required = false`) make it
 // dispatchable.
@@ -369,11 +373,22 @@ teams_apps:
     authz:
       allowed_roles:
         - user
+  test_teams_unresolvable:
+    tenant_id: {unresolvable_tenant}
+    app_id: {unresolvable_app}
+    app_password_ref: teams_app_password_unresolvable{endpoints}
+    enabled: true
+    default_agent: {agent}
+    authz:
+      allowed_roles:
+        - user
 "#,
         agent = test_messaging_agent(),
         slack_ws = TEST_SLACK_WORKSPACE_ID,
         teams_tenant = TEST_TEAMS_TENANT_ID,
         teams_app = TEST_TEAMS_APP_ID,
+        unresolvable_tenant = TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
+        unresolvable_app = TEST_TEAMS_UNRESOLVABLE_APP_ID,
         endpoints = endpoints,
     )
 }

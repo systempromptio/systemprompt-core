@@ -178,13 +178,11 @@ pub(super) async fn init_secrets() -> Result<()> {
 
 pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
+    let secrets = SecretsBootstrap::get()
+        .context("Secrets required to resolve the services bundle sources")?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
-        |name| {
-            SecretsBootstrap::get()
-                .ok()
-                .and_then(|s| s.get(name).cloned())
-        },
+        |name| secrets.get(name).cloned(),
         env!("CARGO_PKG_VERSION"),
     )
     .await
