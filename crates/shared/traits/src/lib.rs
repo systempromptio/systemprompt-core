@@ -51,6 +51,7 @@ pub mod extension_error;
 pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
+pub mod ownership;
 pub mod registry;
 pub mod repository;
 pub mod storage;
@@ -73,6 +74,8 @@ pub use systemprompt_identifiers::{
 };
 
 pub use repository::RepositoryError;
+
+pub use ownership::{DynOwnerReassignment, OwnerReassignment, ReassignedRows};
 
 pub use log_service::LogService;
 
