@@ -25,7 +25,9 @@ pub enum StaleReason {
 }
 
 /// Whether one fact a fresh profile depends on could be checked, and what it
-/// said. `Unchecked` is a host that does not carry the fact at all (a CLI host
+/// said.
+///
+/// `Unchecked` is a host that does not carry the fact at all (a CLI host
 /// keeps the secret in a file the probe does not read); `Unverifiable` is a
 /// fact the host carries but the probe could not evaluate — a guard that
 /// cannot evaluate never reports green.

@@ -213,7 +213,7 @@ fn apply_error_to_sync(e: apply::ApplyError) -> SyncError {
             started_for,
             current,
         },
-        other => SyncError::ApplyFailed(other),
+        other => SyncError::ApplyFailed(Box::new(other)),
     }
 }
 

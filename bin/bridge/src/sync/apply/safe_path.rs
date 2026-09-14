@@ -1,7 +1,8 @@
-//! Manifest file paths are joined under a staging directory, so a path the
-//! gateway signs must be strictly relative on every platform the bridge runs
-//! on — including a Windows drive prefix or UNC root that Linux's
-//! `Path::components` would read as an ordinary segment.
+//! Strictly relative manifest file paths on every platform the bridge runs on.
+//!
+//! Manifest paths are joined under a staging directory, so a path the gateway
+//! signs must be relative even where Linux's `Path::components` would read a
+//! Windows drive prefix or UNC root as an ordinary segment.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

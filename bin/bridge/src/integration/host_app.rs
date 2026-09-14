@@ -87,10 +87,12 @@ impl ProbeEnv {
     }
 }
 
-/// Inputs a host renders its profile from. `default_model` is the gateway's
-/// configured default only when it is one of `models`. `api_key` is the raw
-/// loopback secret; a host whose profile other local accounts can read
-/// derives its own [`crate::ids::HostToken`] from it instead of writing it.
+/// Inputs a host renders its profile from.
+///
+/// `default_model` is the gateway's configured default only when it is one
+/// of `models`. `api_key` is the raw loopback secret; a host whose profile
+/// other local accounts can read derives its own [`crate::ids::HostToken`]
+/// from it instead of writing it.
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
     pub gateway_base_url: String,

@@ -34,10 +34,11 @@ use crate::context::{BridgeContext, ProxyMode};
 use crate::stdio::{self, diag};
 
 /// How the process was started, decided once before argument parsing.
+///
 /// `gui_by_default` is true only for a launch with no console of its own — a
 /// double-click on Windows (no parent console to attach) or an app-bundle
 /// launch on macOS — so a scheduler or a pipe with no subcommand gets the
-/// usage text, not a GUI.
+/// credential helper, not a GUI.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Launch {
     pub gui_by_default: bool,
@@ -45,7 +46,7 @@ pub struct Launch {
 
 impl Launch {
     #[must_use]
-    pub fn detect() -> Self {
+    pub const fn detect() -> Self {
         Self {
             gui_by_default: args::launched_without_console(),
         }

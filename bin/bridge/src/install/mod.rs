@@ -258,7 +258,7 @@ fn purge_plugin_dirs(
         if !kind.is_dir() || name.starts_with('.') {
             continue;
         }
-        if owned.iter().any(|o| *o == name) {
+        if owned.contains(&name) {
             fs::remove_dir_all(entry.path()).map_err(|source| InstallError::Remove {
                 path: entry.path(),
                 source,

@@ -1,5 +1,7 @@
-//! Foreign-key-preserving JSON reads and atomic writes for the open-schema
-//! host files (the Claude CLI registry, `opencode.json`). A malformed file, a
+//! Foreign-key-preserving JSON reads and atomic writes for open-schema host
+//! files.
+//!
+//! Covers the Claude CLI registry and `opencode.json`. A malformed file, a
 //! non-object root, or a bridge-owned key holding a foreign shape is an error;
 //! the file is never rewritten to fit.
 //!

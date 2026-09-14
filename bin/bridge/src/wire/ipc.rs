@@ -76,9 +76,11 @@ impl BridgeError {
     }
 }
 
-/// Which webview mount a request came from, and which reply it awaits. The
-/// mount nonce is minted by the bootstrap script on every page load so a reply
-/// produced for a previous mount can be recognised and dropped on both sides.
+/// Which webview mount a request came from, and which reply it awaits.
+///
+/// The mount nonce is minted by the bootstrap script on every page load so a
+/// reply produced for a previous mount can be recognised and dropped on both
+/// sides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReplyTarget {
     pub mount: u64,

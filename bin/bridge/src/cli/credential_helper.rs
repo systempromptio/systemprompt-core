@@ -1,7 +1,9 @@
 //! Credential-helper mode: the Codex `auth.command` / Claude Code
-//! `apiKeyHelper` stdout contract. The credential is the only line on stdout;
-//! diagnostics are a JSON object on stderr. A CLI host receives the token
-//! derived for it from the loopback secret, never the secret itself.
+//! `apiKeyHelper` contract.
+//!
+//! The credential is the only line on stdout; diagnostics are a JSON object
+//! on stderr. A CLI host receives the token derived for it from the loopback
+//! secret, never the secret itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

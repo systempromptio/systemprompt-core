@@ -1,7 +1,8 @@
-//! Re-applying host profiles that are installed but no longer valid: the one
-//! path the GUI's Re-apply button, `install --apply` and `login` share, so a
-//! profile whose loopback secret or proxy port moved on is repaired from any
-//! of them.
+//! Re-applying host profiles that are installed but no longer valid.
+//!
+//! The one path the GUI's Re-apply button, `install --apply` and `login`
+//! share, so a profile whose loopback secret or proxy port moved on is
+//! repaired from any of them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

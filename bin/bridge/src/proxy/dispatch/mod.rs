@@ -77,7 +77,7 @@ pub async fn handle_request(
 
     let credential = match auth::verify_loopback_credential(&req, &ctx, &log) {
         Ok(credential) => credential,
-        Err(rejection) => return Ok(rejection),
+        Err(rejection) => return Ok(*rejection),
     };
 
     forward_to_gateway(

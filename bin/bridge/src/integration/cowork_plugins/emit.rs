@@ -155,7 +155,6 @@ fn usable_org_dir(p: &std::path::Path) -> bool {
     p.join(paths::COWORK_PLUGINS_SUBDIR).is_dir()
 }
 
-#[must_use]
 pub fn pick_target(
     candidates: &[(SystemTime, PathBuf)],
 ) -> Result<Option<PathBuf>, ResolveTargetError> {

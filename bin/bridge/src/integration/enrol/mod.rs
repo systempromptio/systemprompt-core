@@ -1,8 +1,9 @@
-//! Enrolling a named host into the bridge from the command line: name a host,
-//! get its profile written, whether or not one was there before. Shares
-//! [`super::reapply::build_profile_inputs`] with the repair path, so an
-//! enrolled profile and a re-applied one are generated from the same live
-//! port, secret and model list.
+//! Enrolling a named host into the bridge from the command line.
+//!
+//! Name a host and get its profile written, whether or not one was there
+//! before. Shares [`super::reapply::build_profile_inputs`] with the repair
+//! path, so an enrolled profile and a re-applied one are generated from the
+//! same live port, secret and model list.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

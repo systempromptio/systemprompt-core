@@ -153,7 +153,7 @@ pub(super) fn org_plugins_denied(
              Modify grant on the whole tree, or remove the directory as an administrator",
             crate::brand::brand().binary_name
         ),
-        source: error,
+        source: Box::new(error),
     }
 }
 
@@ -173,7 +173,7 @@ pub(super) fn org_plugins_denied(
     SyncError::OrgPluginsDenied {
         path: location.path.clone(),
         remedy: String::new(),
-        source: error,
+        source: Box::new(error),
     }
 }
 

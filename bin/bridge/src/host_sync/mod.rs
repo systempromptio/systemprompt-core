@@ -81,10 +81,12 @@ pub struct HostSyncCtx<'a> {
     pub start_menu: &'a crate::probe_cache::StartMenuCache,
 }
 
-/// One emitter per host integration. `#[async_trait]` because emitters are
-/// collected through `inventory` as `&'static dyn HostSync`. Several emitters
-/// may share a `host_id` (the enable gate); `emitter_id` names the emitter
-/// itself so failures from siblings stay distinguishable.
+/// One emitter per host integration.
+///
+/// `#[async_trait]` because emitters are collected through `inventory` as
+/// `&'static dyn HostSync`. Several emitters may share a `host_id` (the
+/// enable gate); `emitter_id` names the emitter itself so failures from
+/// siblings stay distinguishable.
 #[async_trait]
 pub trait HostSync: std::any::Any + Send + Sync + 'static {
     fn host_id(&self) -> &'static str;

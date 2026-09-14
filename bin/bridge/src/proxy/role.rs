@@ -12,6 +12,8 @@ use crate::activity::ActivityLog;
 use crate::config::ConfigReadError;
 use crate::mcp_registry::McpRegistrySlot;
 
+/// What a process's relationship to the loopback port turned out to be.
+///
 /// `Option<&ServedProxy>` could not express the middle cases: a sibling window
 /// of this same install already serving the port is a success for the caller
 /// even though this process bound nothing, and a process that never tried to
@@ -28,10 +30,11 @@ pub enum ProxyRole {
     Failed(ProxyFailure),
 }
 
-/// Why this process is not serving the loopback port. A proxy that cannot
-/// read its config or its secret never binds: serving inference against a
-/// default gateway with whatever credential is on disk is worse than not
-/// serving.
+/// Why this process is not serving the loopback port.
+///
+/// A proxy that cannot read its config or its secret never binds: serving
+/// inference against a default gateway with whatever credential is on disk
+/// is worse than not serving.
 #[derive(Debug, thiserror::Error)]
 pub enum ProxyFailure {
     #[error("config unreadable; refusing to serve against defaults: {0}")]

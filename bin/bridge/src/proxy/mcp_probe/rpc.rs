@@ -70,7 +70,7 @@ fn with_session(
 }
 
 #[derive(Debug, serde::Serialize)]
-pub(super) struct JsonRpcRequest<P: serde::Serialize> {
+pub(super) struct JsonRpcRequest<P> {
     pub jsonrpc: &'static str,
     pub id: u32,
     pub method: &'static str,
@@ -93,7 +93,7 @@ pub(super) struct ClientInfo {
 }
 
 #[derive(Debug, serde::Serialize)]
-pub(super) struct EmptyParams {}
+pub(super) struct EmptyParams;
 
 #[derive(Debug, serde::Serialize)]
 struct JsonRpcNotification {

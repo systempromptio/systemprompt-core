@@ -45,13 +45,12 @@ pub fn managed_settings_path() -> Option<PathBuf> {
 fn can_write(path: &Path) -> bool {
     match fs::metadata(path) {
         Ok(meta) if meta.is_file() => fs::OpenOptions::new().write(true).open(path).is_ok(),
-        Ok(_) => false,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => path
             .ancestors()
             .skip(1)
             .find(|dir| dir.is_dir())
             .is_some_and(|dir| tempfile::Builder::new().tempfile_in(dir).is_ok()),
-        Err(_) => false,
+        Ok(_) | Err(_) => false,
     }
 }
 

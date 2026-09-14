@@ -27,8 +27,12 @@ pub(crate) enum ProbeError {
         #[source]
         source: std::num::ParseIntError,
     },
-    #[error("port '{raw}' is not a number")]
-    BadPort { raw: String },
+    #[error("port '{raw}' is not a number: {source}")]
+    BadPort {
+        raw: String,
+        #[source]
+        source: std::num::ParseIntError,
+    },
     #[error("missing scheme in {0}")]
     MissingScheme(String),
     #[error("unsupported scheme: {0}")]
@@ -159,8 +163,10 @@ pub(super) fn parse_host_port(raw: &str) -> Result<(String, u16), ProbeError> {
     let (host, port) = match authority.rsplit_once(':') {
         Some((h, p)) if !h.ends_with(']') || h.starts_with('[') => (
             h.to_owned(),
-            p.parse::<u16>()
-                .map_err(|_| ProbeError::BadPort { raw: p.to_owned() })?,
+            p.parse::<u16>().map_err(|source| ProbeError::BadPort {
+                raw: p.to_owned(),
+                source,
+            })?,
         ),
         Some(_) | None => (authority.to_owned(), default_port),
     };

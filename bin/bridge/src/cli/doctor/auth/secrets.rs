@@ -62,7 +62,7 @@ pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) 
             } => wrong_port.push(host.display_name()),
             ProfileState::Installed => any_installed = true,
             ProfileState::Unverifiable { reason } => {
-                unverifiable.push((host.display_name(), reason))
+                unverifiable.push((host.display_name(), reason));
             },
             ProfileState::Partial { .. } | ProfileState::Absent => {},
         }

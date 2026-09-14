@@ -147,7 +147,7 @@ impl BridgeContext {
     }
 
     #[must_use]
-    pub fn handle(&self) -> &Handle {
+    pub const fn handle(&self) -> &Handle {
         self.runtime.handle()
     }
 
@@ -182,7 +182,7 @@ impl OwnedRuntime {
         })
     }
 
-    fn handle(&self) -> &Handle {
+    const fn handle(&self) -> &Handle {
         &self.handle
     }
 }

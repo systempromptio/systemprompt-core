@@ -53,7 +53,7 @@ pub(super) fn verify_loopback_credential(
     req: &Request<Incoming>,
     ctx: &ProxyContext,
     log: &RequestLog<'_>,
-) -> Result<LoopbackCredential, Response<ProxyBody>> {
+) -> Result<LoopbackCredential, Box<Response<ProxyBody>>> {
     let presented = presented_bearer(req);
     let route = credential::classify_route(req.uri());
     let rejection = match credential::authenticate(&presented, ctx.secret.as_ref(), &route) {
@@ -66,7 +66,7 @@ pub(super) fn verify_loopback_credential(
         Rejection::SecretMismatch => mismatch_body(ctx),
         Rejection::ScopeMismatch => scope_mismatch_body(ctx, &route),
     };
-    Err(rejection_response(ctx, body, rejection))
+    Err(Box::new(rejection_response(ctx, body, rejection)))
 }
 
 fn presented_bearer(req: &Request<Incoming>) -> String {

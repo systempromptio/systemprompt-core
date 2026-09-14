@@ -51,9 +51,11 @@ pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &BearerToken, http: &
     tracing::info!(version = %manifest.version, "automatic update: relaunched");
 }
 
-/// Whether this install may stage releases on its own. Only a policy the
-/// configured gateway delivered enables it; a bridge that never synced, or
-/// whose sentinel cannot be read, is `Withheld` and stages nothing.
+/// Whether this install may stage releases on its own.
+///
+/// Only a policy the configured gateway delivered enables it; a bridge that
+/// never synced, or whose sentinel cannot be read, is `Withheld` and stages
+/// nothing.
 #[derive(Debug)]
 pub enum AutoUpdateDecision {
     Delivered(AutoUpdatePolicy),
@@ -63,7 +65,7 @@ pub enum AutoUpdateDecision {
 
 impl AutoUpdateDecision {
     #[must_use]
-    pub fn stages(&self) -> bool {
+    pub const fn stages(&self) -> bool {
         matches!(self, Self::Delivered(policy) if policy.stages())
     }
 

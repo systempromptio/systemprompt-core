@@ -151,7 +151,7 @@ pub fn start_with_listener(
         Arc::clone(&token_cache),
         session,
         Arc::clone(&stats),
-        client.clone(),
+        client,
     ));
     tasks.spawn(crate::proxy::comms::run_loop(
         runtime_config,
