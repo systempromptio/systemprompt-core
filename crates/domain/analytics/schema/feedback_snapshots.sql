@@ -35,9 +35,6 @@ CREATE TABLE IF NOT EXISTS analytics_snapshot_jobs (
  PRIMARY KEY(owner_id,job_id),CHECK(to_day>from_day AND to_day-from_day<=365)
 );
 CREATE INDEX IF NOT EXISTS analytics_snapshot_jobs_pending ON analytics_snapshot_jobs(owner_id,created_at) WHERE state IN('pending','leased');
-ALTER TABLE analytics_fact_deltas ADD COLUMN IF NOT EXISTS occurred_at TIMESTAMPTZ;
-UPDATE analytics_fact_deltas d SET occurred_at=COALESCE((after_fact->'value'->>'occurred_at')::timestamptz,(before_fact->'value'->>'occurred_at')::timestamptz,created_at) WHERE occurred_at IS NULL;
-ALTER TABLE analytics_fact_deltas ALTER COLUMN occurred_at SET NOT NULL;
 CREATE OR REPLACE VIEW analytics_snapshot_dimensions AS
 SELECT owner_id,fact_kind,source,fact_id,occurred_at,(occurred_at AT TIME ZONE 'UTC')::date AS day,
  fact->'value' AS value,
