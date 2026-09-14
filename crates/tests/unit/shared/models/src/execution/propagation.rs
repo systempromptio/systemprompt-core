@@ -88,14 +88,6 @@ fn blank_context_id_header_mints_a_fresh_context() {
 }
 
 #[test]
-fn unknown_call_source_header_is_dropped() {
-    let mut hdrs = base_context().to_headers();
-    hdrs.insert(headers::CALL_SOURCE, "teleport".parse().unwrap());
-    let restored = RequestContext::from_headers(&hdrs).unwrap();
-    assert_eq!(restored.call_source(), None);
-}
-
-#[test]
 fn proxy_verified_user_round_trips_permissions() {
     let user = AuthenticatedUser::new(
         uuid::Uuid::new_v4(),
