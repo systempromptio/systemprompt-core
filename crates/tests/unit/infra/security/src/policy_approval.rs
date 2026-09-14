@@ -273,7 +273,10 @@ async fn coverage_recent_decisions_preserve_audit_fields_and_exclude_pending_cal
     assert_eq!(row.arguments, arguments());
     assert_eq!(row.args_digest, args_digest(&arguments()));
     assert_eq!(row.requested_by, "approval-test-user");
-    assert_eq!(row.session_id.as_deref(), Some("sess-approval-test"));
+    assert_eq!(
+        row.session_id.as_ref().map(SessionId::as_str),
+        Some("sess-approval-test")
+    );
     assert_eq!(row.trace_id.as_deref(), Some("trace-approval-test"));
     assert_eq!(row.rule, "require_approval");
     assert_eq!(row.approver_id.as_deref(), Some("approver-test-user"));

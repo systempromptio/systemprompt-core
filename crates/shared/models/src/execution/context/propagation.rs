@@ -144,7 +144,7 @@ fn apply_optional_execution_fields(
 fn apply_proxy_verified_user(
     mut ctx: RequestContext,
     hdrs: &HeaderMap,
-    user_id: &str,
+    user_id: &UserId,
 ) -> ContextPropagationResult<RequestContext> {
     let proxy_verified = header_str(hdrs, headers::PROXY_VERIFIED).is_some_and(|v| v == "true");
     if !proxy_verified {
@@ -161,6 +161,7 @@ fn apply_proxy_verified_user(
         .map_err(|e| invalid_header(headers::USER_PERMISSIONS, e))?;
 
     let user_id_uuid = user_id
+        .as_str()
         .parse::<uuid::Uuid>()
         .map_err(|e| invalid_header(headers::USER_ID, format!("invalid UUID: {e}")))?;
     let user = crate::auth::AuthenticatedUser::new(
@@ -177,7 +178,7 @@ impl ContextPropagation for RequestContext {
     fn from_headers(hdrs: &HeaderMap) -> ContextPropagationResult<Self> {
         let session_id = required_header(hdrs, headers::SESSION_ID)?;
         let trace_id = required_header(hdrs, headers::TRACE_ID)?;
-        let user_id = required_header(hdrs, headers::USER_ID)?;
+        let user_id = UserId::new(required_header(hdrs, headers::USER_ID)?.to_owned());
         let agent_name = required_header(hdrs, headers::AGENT_NAME)?;
 
         let session_id = SessionId::new(session_id.to_owned());
@@ -195,10 +196,10 @@ impl ContextPropagation for RequestContext {
             context_id,
             agent_name,
         )
-        .with_actor(Actor::user(UserId::new(user_id.to_owned())));
+        .with_actor(Actor::user(user_id.clone()));
 
         let ctx = apply_optional_execution_fields(ctx, hdrs)?;
-        apply_proxy_verified_user(ctx, hdrs, user_id)
+        apply_proxy_verified_user(ctx, hdrs, &user_id)
     }
 
     fn to_headers(&self) -> HeaderMap {

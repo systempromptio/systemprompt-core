@@ -79,7 +79,7 @@ pub(super) async fn enforce(
         chain: evaluation.chain,
         approver: None,
         act_chain: request.auth.act_chain.clone(),
-        context_id: Some(request.context_id().to_string()),
+        context_id: Some(request.context_id().clone()),
         trace_id: Some(request.trace_id().to_string()),
     };
     let pool = ctx.db_pool().write_pool_arc().map_err(|error| {
@@ -101,7 +101,6 @@ fn principal(request: &RequestContext, scope: AccessScope) -> PrincipalSnapshot 
         agent_id: None,
         agent_scope: scope,
         client_id: request.client_id().cloned(),
-        claimed: None,
     }
 }
 

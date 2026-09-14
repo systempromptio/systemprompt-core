@@ -4,7 +4,7 @@ use systemprompt_ai::models::{
     AiRequestRecord, AiRequestRecordBuilder, CacheInfo, RequestStatus, TokenInfo,
 };
 use systemprompt_identifiers::{
-    Actor, ActorKind, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
+    Actor, ActorKind, AgentId, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
     ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_test_fixtures::{fixture_user_id, usage};
@@ -441,7 +441,7 @@ mod builder_optional_ids_tests {
         )
         .provider("openai")
         .model("gpt-4")
-        .actor(Actor::agent(user, "claude-code"))
+        .actor(Actor::agent(user, AgentId::new("claude-code")))
         .build();
         assert!(matches!(record.actor.kind, ActorKind::Agent { .. }));
     }

@@ -2,7 +2,7 @@
 //! fields added after `user_id` must be optional on the wire and derivable
 //! from it. These tests pin that contract in both directions.
 
-use systemprompt_identifiers::{Actor, ActorKind, ClientId, RouteId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ActorKind, AgentId, ClientId, RouteId, TraceId, UserId};
 use systemprompt_security::authz::{AuthzContext, AuthzRequest, EntityRef};
 use systemprompt_security::policy::types::AccessScope;
 
@@ -82,7 +82,7 @@ fn verified_agent_id_comes_only_from_an_agent_delegate() {
     );
 
     req.act_chain = vec![
-        Actor::agent(UserId::new("u1"), "planner"),
+        Actor::agent(UserId::new("u1"), AgentId::new("planner")),
         Actor::user(UserId::new("origin")),
     ];
     assert_eq!(req.verified_agent_id(), Some("planner"));
