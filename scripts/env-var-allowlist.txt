@@ -31,14 +31,10 @@ crates/entry/cli/src/commands/core/services/publish.rs  # --auth env:VAR — ope
 crates/entry/cli/src/commands/core/services/signing.rs  # --key env:VAR — operator names the signing-key variable explicitly on the CLI
 
 # --- bridge (bin/bridge/README.md § Runtime environment is the contract) ---
-bin/bridge/src/auth/mod.rs  # <PREFIX>_PAT inline PAT and the <PREFIX>_DEVICE_CERT / _DEVICE_CERT_LABEL / _DEVICE_CERT_SHA256 presence probe for the credential-source check
-bin/bridge/src/auth/cache.rs  # <PREFIX>_DEVICE_CERT / _DEVICE_CERT_LABEL / _DEVICE_CERT_SHA256 empty-value rejection when capturing the credential binding
+bin/bridge/src/auth/mod.rs  # <PREFIX>_PAT inline PAT presence probe for the credential-source check
 bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
-bin/bridge/src/auth/providers/mtls.rs  # <PREFIX>_DEVICE_CERT / _DEVICE_CERT_LABEL / _DEVICE_CERT_SHA256 presence gates the mTLS provider
-bin/bridge/src/auth/keystore/linux.rs  # <PREFIX>_DEVICE_CERT device-certificate path (Linux)
-bin/bridge/src/auth/keystore/macos.rs  # <PREFIX>_DEVICE_CERT_LABEL Keychain label (macOS)
-bin/bridge/src/auth/keystore/windows.rs  # <PREFIX>_DEVICE_CERT_SHA256 certificate-store fingerprint pin (Windows)
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
+bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
 bin/bridge/src/cli/login.rs  # HOSTNAME for the device display name at login
 bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
@@ -61,4 +57,5 @@ bin/bridge/src/integration/hermes/config.rs  # HERMES_HOME (Hermes-defined home 
 bin/bridge/src/integration/opencode/config.rs  # ProgramData / APPDATA Windows folder probes; USER for the per-user config path; SP_BRIDGE_OPENCODE_MANAGED_DIR managed-dir override via basedirs::env_dir
 bin/bridge/src/obs/mod.rs  # <PREFIX>_LOG_FORMAT, RUST_LOG filter presence, LOCALAPPDATA log directory (Windows)
 bin/bridge/src/sync/manifest.rs  # <PREFIX>_CONFIG presence noted in the credential-location diagnostic
+bin/bridge/src/winproc.rs  # SystemRoot to address System32 binaries by absolute path from the elevated child (Windows)
 bin/bridge/src/sync/provision.rs  # USER as the chown target when the elevated provisioning script creates the workspace (macOS)

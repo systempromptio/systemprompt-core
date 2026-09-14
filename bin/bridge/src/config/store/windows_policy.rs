@@ -39,6 +39,16 @@ pub(crate) fn clear_managed_claude_policy(
     )
 }
 
+pub(crate) fn machine_claude_policy_keys(names: &[&str]) -> Result<Vec<String>, ConfigStoreError> {
+    use super::ConfigStore;
+    let doc = windows_registry::WindowsRegistryStore.read_policy_document(
+        super::PolicyHive::Machine,
+        PolicyTarget::Claude,
+        names,
+    )?;
+    Ok(doc.keys().cloned().collect())
+}
+
 pub(crate) fn read_registry_string(
     hive: HKEY,
     subkey: &str,

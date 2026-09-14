@@ -21,15 +21,6 @@ pub enum SecretBackend {
     Memory,
 }
 
-impl SecretBackend {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Keyring => "keyring",
-            Self::Memory => "memory",
-        }
-    }
-}
-
 static BACKEND: OnceLock<SecretBackend> = OnceLock::new();
 static MEMORY_SECRETS: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -65,11 +56,10 @@ fn install_store() -> Result<(), PluginOAuthError> {
         return Ok(());
     }
     #[cfg(target_os = "macos")]
-    let store = apple_native_keyring_store::keychain::Store::new()
-        .map_err(|e| PluginOAuthError::Keyring(e.to_string()));
+    let store =
+        apple_native_keyring_store::keychain::Store::new().map_err(PluginOAuthError::Keyring);
     #[cfg(target_os = "windows")]
-    let store = windows_native_keyring_store::Store::new()
-        .map_err(|e| PluginOAuthError::Keyring(e.to_string()));
+    let store = windows_native_keyring_store::Store::new().map_err(PluginOAuthError::Keyring);
     #[cfg(all(unix, not(target_os = "macos")))]
     let store = linux_store();
 
@@ -84,19 +74,18 @@ fn install_store() -> Result<(), PluginOAuthError> {
 fn linux_store() -> Result<std::sync::Arc<keyring_core::CredentialStore>, PluginOAuthError> {
     let dbus_err = match dbus_secret_service_keyring_store::Store::new() {
         Ok(store) => return Ok(store),
-        Err(e) => e.to_string(),
+        Err(e) => e,
     };
     let store: std::sync::Arc<keyring_core::CredentialStore> =
-        linux_keyutils_keyring_store::Store::new().map_err(|e| {
-            PluginOAuthError::Keyring(format!(
-                "no usable credential store: secret-service ({dbus_err}), keyutils ({e})"
-            ))
+        linux_keyutils_keyring_store::Store::new().map_err(|keyutils| {
+            PluginOAuthError::NoCredentialStore {
+                secret_service: dbus_err.to_string(),
+                keyutils,
+            }
         })?;
-    probe_store(&store).map_err(|e| {
-        PluginOAuthError::Keyring(format!(
-            "no usable credential store: secret-service ({dbus_err}), \
-             keyutils built but is unusable ({e})"
-        ))
+    probe_store(&store).map_err(|keyutils| PluginOAuthError::NoCredentialStore {
+        secret_service: dbus_err.to_string(),
+        keyutils,
     })?;
     tracing::warn!(
         target: "bridge::auth::keystore",
@@ -128,14 +117,14 @@ fn probe_store(
 
 fn keyring_entry(client_id: &ClientId) -> Result<keyring_core::Entry, PluginOAuthError> {
     keyring_core::Entry::new(crate::brand::brand().keyring_service, client_id.as_str())
-        .map_err(|e| PluginOAuthError::Keyring(e.to_string()))
+        .map_err(PluginOAuthError::Keyring)
 }
 
 pub(super) fn write_secret(client_id: &ClientId, secret: &str) -> Result<(), PluginOAuthError> {
     match resolve_backend() {
         SecretBackend::Keyring => keyring_entry(client_id)?
             .set_password(secret)
-            .map_err(|e| PluginOAuthError::Keyring(e.to_string())),
+            .map_err(PluginOAuthError::Keyring),
         SecretBackend::Memory => {
             memory_secrets()?.insert(client_id.as_str().to_owned(), secret.to_owned());
             Ok(())
@@ -148,38 +137,28 @@ pub(super) fn read_secret(client_id: &ClientId) -> Result<Option<String>, Plugin
         SecretBackend::Keyring => match keyring_entry(client_id)?.get_password() {
             Ok(s) => Ok(Some(s)),
             Err(keyring_core::Error::NoEntry) => Ok(None),
-            Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
+            Err(e) => Err(PluginOAuthError::Keyring(e)),
         },
         SecretBackend::Memory => Ok(memory_secrets()?.get(client_id.as_str()).cloned()),
     }
 }
 
-pub(super) fn delete_secret(client_id: &ClientId) {
-    let outcome = match resolve_backend() {
-        SecretBackend::Keyring => {
-            keyring_entry(client_id).and_then(|e| match e.delete_credential() {
-                Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
-                Err(e) => Err(PluginOAuthError::Keyring(e.to_string())),
-            })
+pub(super) fn delete_secret(client_id: &ClientId) -> Result<(), PluginOAuthError> {
+    match resolve_backend() {
+        SecretBackend::Keyring => match keyring_entry(client_id)?.delete_credential() {
+            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+            Err(e) => Err(PluginOAuthError::Keyring(e)),
         },
-        SecretBackend::Memory => memory_secrets().map(|mut m| {
-            m.remove(client_id.as_str());
-        }),
-    };
-    if let Err(e) = outcome {
-        tracing::warn!(
-            target: "bridge::auth::keystore",
-            backend = resolve_backend().as_str(),
-            error = %e,
-            "could not delete the stored OAuth client secret; it will be overwritten on the next \
-             provision"
-        );
+        SecretBackend::Memory => {
+            memory_secrets()?.remove(client_id.as_str());
+            Ok(())
+        },
     }
 }
 
 fn memory_secrets()
 -> Result<std::sync::MutexGuard<'static, HashMap<String, String>>, PluginOAuthError> {
-    MEMORY_SECRETS.lock().map_err(|_poisoned| {
-        PluginOAuthError::Keyring("in-memory secret store lock was poisoned".to_owned())
-    })
+    MEMORY_SECRETS
+        .lock()
+        .map_err(|_poisoned| PluginOAuthError::MemoryStorePoisoned)
 }
