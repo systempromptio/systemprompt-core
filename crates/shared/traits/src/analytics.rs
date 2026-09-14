@@ -185,10 +185,11 @@ pub trait AnalyticsProvider: Send + Sync {
     async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()>;
 }
 
-/// Session-scoped usage counters bumped by domain workflows (task and message
-/// creation). Fire-and-forget at the call sites: failures are logged, never
-/// propagated into the owning workflow. Held as `Arc<dyn
-/// SessionUsageCounters>`, hence `#[async_trait]`.
+/// Session-scoped usage counters bumped by domain workflows.
+///
+/// Fire-and-forget at the call sites (task and message creation): failures
+/// are logged, never propagated into the owning workflow. Held as
+/// `Arc<dyn SessionUsageCounters>`, hence `#[async_trait]`.
 #[async_trait]
 pub trait SessionUsageCounters: Send + Sync {
     async fn increment_task_count(&self, session_id: &SessionId) -> AnalyticsResult<()>;
