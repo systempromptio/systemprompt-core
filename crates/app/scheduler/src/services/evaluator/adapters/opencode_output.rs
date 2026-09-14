@@ -172,8 +172,10 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
         text,
         completion: if failed {
             NativeCompletion::Failed
-        } else {
+        } else if runner_closed {
             completion
+        } else {
+            NativeCompletion::Incomplete
         },
         reported_input_tokens: if steps > 0 { input } else { None },
         reported_output_tokens: if steps > 0 { output } else { None },

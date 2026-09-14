@@ -260,6 +260,17 @@ fn event(kind: &str, id: &str, fields: serde_json::Value) -> serde_json::Value {
     serde_json::json!({"type":kind,"sessionID":"s1","part":part})
 }
 fn stream(events: &[serde_json::Value]) -> Vec<u8> {
+    let mut events = events.to_vec();
+    if !events.iter().any(|event| {
+        event["type"]
+            .as_str()
+            .is_some_and(|kind| kind.starts_with("opencode.runner_"))
+    }) {
+        events.push(serde_json::json!({"type":"opencode.runner_result","process_exit_code":0,"signal":null,"provider_attempts":2,"max_requests":12,"output_limit_reached":false}));
+    }
+    raw_stream(&events)
+}
+fn raw_stream(events: &[serde_json::Value]) -> Vec<u8> {
     events
         .iter()
         .map(ToString::to_string)
@@ -401,4 +412,35 @@ fn runner_bound_failure_preserves_native_usage_and_cannot_become_success() {
             .completion,
         NativeCompletion::Failed
     );
+}
+
+
+#[test]
+fn missing_runner_termination_never_completes_v2_but_retains_native_usage() {
+    let completed = event(
+        "step_finish",
+        "p1",
+        serde_json::json!({"reason":"stop","tokens":{"input":11,"output":7}}),
+    );
+    let text = event(
+        "text",
+        "t1",
+        serde_json::json!({"text":"retained native answer"}),
+    );
+    let missing = ADAPTER
+        .normalize(&raw_stream(&[text.clone(), completed.clone()]))
+        .unwrap();
+    assert_eq!(missing.completion, NativeCompletion::Incomplete);
+    assert_eq!(missing.text, "retained native answer");
+    assert_eq!(missing.reported_input_tokens, Some(11));
+    assert_eq!(missing.reported_output_tokens, Some(7));
+    let error = serde_json::json!({"type":"error","sessionID":"s1","error":{"name":"APIError"}});
+    let failed = ADAPTER
+        .normalize(&raw_stream(&[completed.clone(), error]))
+        .unwrap();
+    assert_eq!(failed.completion, NativeCompletion::Failed);
+    assert_eq!(failed.reported_input_tokens, Some(11));
+    assert_eq!(failed.reported_output_tokens, Some(7));
+    let terminated = ADAPTER.normalize(&stream(&[text, completed])).unwrap();
+    assert_eq!(terminated.completion, NativeCompletion::Completed);
 }
