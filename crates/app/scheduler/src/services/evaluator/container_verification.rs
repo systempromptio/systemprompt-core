@@ -12,7 +12,7 @@ use std::ffi::OsString;
 use std::io::Write;
 use std::process::{Child, Stdio};
 use std::time::{Duration, Instant};
-use systemprompt_models::subprocess::{place_in_own_process_group, spawn_owned_supervised};
+use systemprompt_loader::subprocess::{place_in_own_process_group, spawn_owned_supervised};
 
 pub trait ClientVerifier: Send + Sync + std::fmt::Debug {
     fn verify(&self, launch: &ContainerLaunch, client: &NativeClient) -> SchedulerResult<()>;

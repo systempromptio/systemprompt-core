@@ -6,6 +6,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use anyhow::Context;
+
 pub fn root_config() -> String {
     r#"# systemprompt.io Services Configuration
 settings:
@@ -83,16 +85,16 @@ oauth:
     .to_owned()
 }
 
-pub fn ai_config(default_provider: &str) -> String {
-    let seed = systemprompt_models::services::ProviderRegistry::default_seed().ok();
+pub fn ai_config(default_provider: &str) -> anyhow::Result<String> {
+    let seed = systemprompt_models::services::ProviderRegistry::default_seed()
+        .context("embedded provider catalog is unreadable")?;
     let default_model = |provider: &str| -> String {
-        seed.as_ref()
-            .and_then(|registry| registry.find_provider(provider))
+        seed.find_provider(provider)
             .and_then(|entry| entry.models.first())
             .map(|model| model.id.as_str().to_owned())
             .unwrap_or_default()
     };
-    format!(
+    Ok(format!(
         r#"# AI Configuration
 default_provider: "{provider}"
 
@@ -113,7 +115,7 @@ providers:
         anthropic = default_model("anthropic"),
         openai = default_model("openai"),
         gemini = default_model("gemini"),
-    )
+    ))
 }
 
 pub fn content_config() -> String {

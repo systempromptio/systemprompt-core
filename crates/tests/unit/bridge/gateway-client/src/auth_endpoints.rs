@@ -1,17 +1,20 @@
-//! Tests for the auth-mutating `GatewayClient` endpoints: mTLS/session/PAT
+//! Tests for the auth-mutating `GatewayClient` endpoints: session/PAT
 //! exchanges, OAuth client provisioning, and per-plugin hook token minting.
 //! Each test programs a `wiremock` mock and asserts either the decoded success
 //! payload or the specific `GatewayError` variant.
 
-use systemprompt_bridge::gateway::types::{MtlsRequest, SessionExchangeRequest, SessionPatRequest};
+use systemprompt_bridge::gateway::types::{SessionExchangeRequest, SessionPatRequest};
 use systemprompt_bridge::gateway::{GatewayClient, GatewayError};
-use systemprompt_bridge::ids::{BearerToken, CertFingerprint, PatToken};
+use systemprompt_bridge::ids::{BearerToken, PatToken};
 use systemprompt_identifiers::{ClientId, PluginId, SessionId, ValidatedUrl};
 use wiremock::matchers::{body_string_contains, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn client(server: &MockServer) -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new())
+    GatewayClient::new(
+        ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
+        reqwest::Client::new(),
+    )
 }
 
 fn session_id() -> SessionId {
@@ -24,53 +27,6 @@ fn auth_body() -> serde_json::Value {
         "ttl": 900,
         "headers": { "x-sp-user": "user_1" }
     })
-}
-
-#[tokio::test]
-async fn mtls_exchange_decodes_auth_response() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/auth/bridge/mtls"))
-        .and(body_string_contains("device_cert_fingerprint"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(auth_body()))
-        .mount(&server)
-        .await;
-
-    let req = MtlsRequest {
-        device_cert_fingerprint: CertFingerprint::try_new("a".repeat(64)).unwrap(),
-    };
-    let out = client(&server)
-        .mtls_exchange(&req, &session_id())
-        .await
-        .unwrap();
-    assert_eq!(out.ttl, 900);
-    assert_eq!(out.token.expose(), "jwt.abc.def");
-    assert_eq!(out.headers.len(), 1);
-}
-
-#[tokio::test]
-async fn mtls_exchange_403_maps_to_http_status() {
-    let server = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/v1/auth/bridge/mtls"))
-        .respond_with(ResponseTemplate::new(403))
-        .mount(&server)
-        .await;
-
-    let req = MtlsRequest {
-        device_cert_fingerprint: CertFingerprint::try_new("b".repeat(64)).unwrap(),
-    };
-    let err = client(&server)
-        .mtls_exchange(&req, &session_id())
-        .await
-        .unwrap_err();
-    match err {
-        GatewayError::HttpStatus { status, endpoint } => {
-            assert_eq!(status.as_u16(), 403);
-            assert_eq!(endpoint, "mtls");
-        },
-        other => panic!("expected HttpStatus, got {other:?}"),
-    }
 }
 
 #[tokio::test]

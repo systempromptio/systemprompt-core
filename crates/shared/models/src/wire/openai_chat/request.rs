@@ -28,6 +28,7 @@ pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
     limits: Option<ModelLimits>,
+    // JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 ) -> Value {
     let mut messages: Vec<Value> = Vec::new();
     if let Some(sys) = &request.system {
@@ -96,6 +97,7 @@ pub fn build_request_body(
     Value::Object(obj)
 }
 
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn response_format_to_chat(format: &ResponseFormat) -> Value {
     match format {
         ResponseFormat::JsonObject => json!({ "type": "json_object" }),
@@ -110,6 +112,7 @@ fn response_format_to_chat(format: &ResponseFormat) -> Value {
     }
 }
 
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn canonical_message_to_chat(msg: &CanonicalMessage) -> Vec<Value> {
     match msg.role {
         Role::System => vec![json!({
@@ -126,6 +129,7 @@ fn canonical_message_to_chat(msg: &CanonicalMessage) -> Vec<Value> {
     }
 }
 
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn tool_result_to_message(part: &CanonicalContent) -> Option<Value> {
     if let CanonicalContent::ToolResult {
         tool_use_id,
@@ -143,6 +147,7 @@ fn tool_result_to_message(part: &CanonicalContent) -> Option<Value> {
     }
 }
 
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn render_user_message(content: &[CanonicalContent]) -> Vec<Value> {
     let mut out: Vec<Value> = content.iter().filter_map(tool_result_to_message).collect();
     let parts: Vec<Value> = content.iter().filter_map(content_to_chat_part).collect();
@@ -164,6 +169,7 @@ fn render_user_message(content: &[CanonicalContent]) -> Vec<Value> {
 
 // Why: OpenAI-compatible reasoning providers use `reasoning_content` to replay
 // assistant reasoning across turns.
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
     let mut text = String::new();
     let mut reasoning = String::new();
@@ -204,6 +210,7 @@ fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
     vec![Value::Object(obj)]
 }
 
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn content_to_chat_part(part: &CanonicalContent) -> Option<Value> {
     match part {
         CanonicalContent::Text(t) => Some(json!({ "type": "text", "text": t })),
@@ -227,6 +234,7 @@ fn content_to_chat_part(part: &CanonicalContent) -> Option<Value> {
     }
 }
 
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn is_text_part(v: &Value) -> bool {
     v.get("type").and_then(Value::as_str) == Some("text")
 }
@@ -244,6 +252,7 @@ fn flatten_text(parts: &[CanonicalContent]) -> String {
     out
 }
 
+// JSON: OpenAI Chat Completions request body; upstream JSON is the contract.
 fn tool_choice_to_chat(tc: &CanonicalToolChoice) -> Value {
     match tc {
         CanonicalToolChoice::Auto => Value::String("auto".into()),

@@ -6,6 +6,13 @@
 crate::define_id!(PolicyVersion);
 crate::define_id!(PolicyId);
 crate::define_id!(SecretPatternId, non_empty);
+
+impl SecretPatternId {
+    #[must_use]
+    pub fn high_entropy() -> Self {
+        Self("high-entropy-token".to_owned())
+    }
+}
 crate::define_id!(CallId, generate, schema);
 
 impl PolicyVersion {

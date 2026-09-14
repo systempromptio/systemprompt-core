@@ -84,7 +84,11 @@ Commands (credential helper):
                              gateway JWT, injects identity headers, and refreshes
                              in the background. Point ANTHROPIC_BASE_URL /
                              ANTHROPIC_AUTH_TOKEN at the printed values.
-  login <sp-live-...>        Store a PAT securely and wire up {config_file}
+  login [<sp-live-...>]      Store a PAT securely and wire up {config_file}.
+    [--stdin]                 Read the PAT from stdin instead of the command line
+                              (preferred: argv is visible to other processes).
+    [--code <exchange-code>]  Redeem an administrator-issued one-shot code.
+                              With neither, signs in through the browser.
     [--gateway <url>]
   logout                     Remove the stored PAT and its config section
   clean                      Wipe all local {bin} state (config + PAT + token cache).
@@ -139,7 +143,8 @@ Commands (plugin + MCP sync):
                                           Scheduler / systemd --user). Idempotent;
                                           `uninstall` deregisters it.
                                           Config keys ({config_file}): gateway_url,
-                                          deployment_organization_uuid, [sync] pinned_pubkey,
+                                          deployment_organization_uuid, [sync.trust]
+                                          (gateway, key, source — the operator pin),
                                           and [cowork] session_org_dir — pins the Cowork
                                           session directory to sync into instead of
                                           resolving it. See README.
@@ -191,18 +196,16 @@ pub fn run() -> ExitCode {
 #[must_use]
 pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     brand::set_brand(brand);
-    #[cfg(target_os = "windows")]
-    winproc::attach_parent_console_if_present();
+    let launch = cli::Launch::detect();
     obs::install_panic_hook();
     if let Err(e) = obs::tracing_init::init() {
         stdio::eprint_str(&format!("bridge startup failed: {e}\n"));
         return ExitCode::FAILURE;
     }
     brand::warn_if_version_drifts();
-    purge_legacy_agents_state();
     await_predecessor_exit();
     update::sweep_leftovers();
-    cli::run()
+    cli::run(launch)
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -212,20 +215,6 @@ fn await_predecessor_exit() {
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 const fn await_predecessor_exit() {}
-
-fn purge_legacy_agents_state() {
-    let Some(base) = basedirs::config_dir() else {
-        return;
-    };
-    let path = base.join(brand::brand().config_dir).join("agents.json");
-    match std::fs::remove_file(&path) {
-        Ok(()) => tracing::info!(path = %path.display(), "purged legacy agents state file"),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-        Err(e) => {
-            tracing::warn!(path = %path.display(), error = %e, "purge legacy agents state failed");
-        },
-    }
-}
 
 pub(crate) mod tasks;
 

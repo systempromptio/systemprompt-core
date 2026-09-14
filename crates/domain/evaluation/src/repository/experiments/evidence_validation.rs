@@ -5,6 +5,7 @@
 
 use super::{EvidenceArchive, ExecutionEvidence, Result, VariantSpec, conflict, invalid};
 use sha2::{Digest, Sha256};
+use systemprompt_models::managed::RevisionBundle;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ManagedAsset {
@@ -14,56 +15,22 @@ pub(super) struct ManagedAsset {
     pub executable: bool,
 }
 
-pub(super) fn managed_assets(manifest: &serde_json::Value) -> Result<Vec<ManagedAsset>> {
-    let revisions = manifest
-        .get("revisions")
-        .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| invalid("Managed workspace requires revision manifests"))?;
-    let assets = manifest
-        .get("assets")
-        .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| invalid("Managed workspace requires exact assets"))?;
+pub(super) fn managed_assets(bundle: &RevisionBundle) -> Result<Vec<ManagedAsset>> {
+    bundle
+        .verify()
+        .map_err(|error| invalid(&format!("Managed workspace bundle rejected: {error}")))?;
     let mut rows = Vec::new();
-    for (revision, value) in revisions {
-        let files = value
-            .get("files")
-            .and_then(serde_json::Value::as_object)
-            .ok_or_else(|| invalid("Managed revision files are missing"))?;
-        for (path, entry) in files {
-            if path.starts_with('/')
-                || path.contains(['\\', ':'])
-                || path.split('/').any(|part| matches!(part, "" | "." | ".."))
-            {
-                return Err(invalid("Managed workspace contains a non-portable path"));
-            }
-            let digest = entry
-                .get("digest")
-                .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| invalid("Managed file digest is missing"))?;
-            let bytes: Vec<u8> = serde_json::from_value(
-                assets
-                    .get(digest)
-                    .cloned()
-                    .ok_or_else(|| invalid("Managed file asset is missing"))?,
-            )?;
-            let declared = entry
-                .get("bytes")
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| invalid("Managed file byte count is missing"))?;
-            let executable = entry
-                .get("executable")
-                .and_then(serde_json::Value::as_bool)
-                .ok_or_else(|| invalid("Managed file mode is missing"))?;
-            if bytes.len() as u64 != declared || hex::encode(Sha256::digest(&bytes)) != digest {
-                return Err(invalid(
-                    "Managed file bytes differ from their digest or length",
-                ));
-            }
+    for (revision, manifest) in &bundle.revisions {
+        for (path, entry) in &manifest.files {
+            let content = bundle
+                .assets
+                .get(&entry.digest)
+                .ok_or_else(|| invalid("Managed file asset is missing"))?;
             rows.push(ManagedAsset {
-                path: format!("{revision}/{path}"),
-                digest: digest.to_owned(),
-                content: bytes,
-                executable,
+                path: format!("{}/{path}", revision.as_str()),
+                digest: entry.digest.as_str().to_owned(),
+                content: content.clone(),
+                executable: entry.executable,
             });
         }
     }

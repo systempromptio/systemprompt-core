@@ -9,6 +9,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::LazyLock;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -58,10 +60,12 @@ impl PlanningResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlannedToolCall {
     pub tool_name: String,
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub arguments: Value,
 }
 
 impl PlannedToolCall {
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub fn new(tool_name: impl Into<String>, arguments: Value) -> Self {
         Self {
             tool_name: tool_name.into(),
@@ -73,10 +77,13 @@ impl PlannedToolCall {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCallResult {
     pub tool_name: String,
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub arguments: Value,
     pub success: bool,
+    // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub output: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    // JSON: MCP `_meta` is an open map of vendor-prefixed keys.
     pub meta: Option<Value>,
     pub error: Option<String>,
     pub duration_ms: u64,
@@ -85,7 +92,9 @@ pub struct ToolCallResult {
 impl ToolCallResult {
     pub const fn success(
         tool_name: String,
+        // JSON: MCP tool-call arguments / result are the tool's own JSON.
         arguments: Value,
+        // JSON: MCP tool-call arguments / result are the tool's own JSON.
         output: Value,
         duration_ms: u64,
     ) -> Self {
@@ -101,6 +110,7 @@ impl ToolCallResult {
     }
 
     #[must_use]
+    // JSON: MCP `_meta` is an open map of vendor-prefixed keys.
     pub fn with_meta(mut self, meta: Option<Value>) -> Self {
         self.meta = meta;
         self
@@ -108,6 +118,7 @@ impl ToolCallResult {
 
     pub fn failure(
         tool_name: String,
+        // JSON: MCP tool-call arguments / result are the tool's own JSON.
         arguments: Value,
         error: impl Into<String>,
         duration_ms: u64,
@@ -163,10 +174,18 @@ pub struct TemplateRef {
     pub field_path: Vec<String>,
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "compile-time-constant regex; failure is a programmer bug, not runtime input"
+)]
+static TEMPLATE_REF_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\$(\d+)\.output\.(.+)$")
+        .expect("TEMPLATE_REF_REGEX is a valid regex - this is a compile-time constant")
+});
+
 impl TemplateRef {
     pub fn parse(template: &str) -> Option<Self> {
-        let re = Regex::new(r"^\$(\d+)\.output\.(.+)$").ok()?;
-        let caps = re.captures(template)?;
+        let caps = TEMPLATE_REF_REGEX.captures(template)?;
 
         let tool_index = caps.get(1)?.as_str().parse().ok()?;
         let path = caps.get(2)?.as_str();

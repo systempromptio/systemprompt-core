@@ -199,13 +199,44 @@ jobs:
       - run: just lint-bridge-js-imports
         if: ${{ !cancelled() }}
       - run: just lint-bridge-no-window
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-verdicts
+        if: ${{ !cancelled() }}
       - run: just lint-discarded-results
+        if: ${{ !cancelled() }}
       - run: just lint-fail-open
+        if: ${{ !cancelled() }}
+      - run: just lint-tracing-messages
+        if: ${{ !cancelled() }}
+      - run: just lint-async-trait
+        if: ${{ !cancelled() }}
       - run: cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-layers
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-globals
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-file-size
+        if: ${{ !cancelled() }}
+      - run: just lint-env-vars
+        if: ${{ !cancelled() }}
+      - run: just lint-authoritative-reads
+        if: ${{ !cancelled() }}
+      - run: just lint-native-test-deps
+        if: ${{ !cancelled() }}
+      - run: just sqlx-audit-caches
+        if: ${{ !cancelled() }}
+      # Why: these three gates land with their sweeps (1.5k skip markers,
+      # ~760 JSON annotations, cross-domain table reads) so `next` is never
+      # red between the gate and the fix. They are in `just check-gates`
+      # today; the parity step below accepts a commented step only while it
+      # carries this marker.
+      # - run: just lint-silent-skips  # enabled in the sweep PR
+      #   if: ${{ !cancelled() }}
+      # - run: just lint-json-value  # enabled in the sweep PR
+      #   if: ${{ !cancelled() }}
+      # - run: just lint-table-ownership  # enabled in the sweep PR
+      #   if: ${{ !cancelled() }}
       - run: just bridge-bindings-check
         if: ${{ !cancelled() }}
       - run: just lint-repo-construction
@@ -220,6 +251,26 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just machete
         if: ${{ !cancelled() }}
+      # Why: `just check-gates` is the local gate list; this job is the CI one.
+      # Neither can be the other's source of truth (a single `just check-gates`
+      # step would stop at the first red gate, which is what the per-step
+      # `!cancelled()` guards exist to prevent), so the two lists are asserted
+      # equal instead. A gate listed in the recipe must appear here as a step,
+      # active or commented with `# enabled in the sweep PR`; a step here must
+      # be in the recipe.
+      - name: Local and CI gate lists match
+        if: ${{ !cancelled() }}
+        run: |
+          want=$(sed -n 's/^check-gates: //p' justfile | tr ' ' '\n' | sort -u)
+          have=$(awk '/^  source-gates:/ { on = 1; next } on && /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
+                 | grep -oE '^ *(# )?- run: just [a-z0-9-]+( +# enabled in the sweep PR)?$' | awk '{ print $NF == "PR" ? $(NF-6) : $NF }' | sort -u)
+          release_only="bridge-bindings-check check-crate-changelogs check-release-tag machete"
+          have=$(comm -23 <(echo "$have") <(echo "$release_only" | tr ' ' '\n' | sort))
+          if ! diff <(echo "$want") <(echo "$have"); then
+              echo "::error::justfile check-gates and quality.yml source-gates list different gates (< recipe only, > CI only)"
+              exit 1
+          fi
+          echo "gate lists match ($(echo "$want" | wc -l) gates)"
 
   msrv:
     name: MSRV check (Rust 1.96)

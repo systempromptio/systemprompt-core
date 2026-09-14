@@ -12,6 +12,7 @@ mod tools;
 
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::Value;
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::inspect::ForwardedSurface;
 
 use super::super::super::canonical::CanonicalRequest;
@@ -75,7 +76,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let metadata = value.get("metadata").cloned();
 
     Ok(CanonicalRequest {
-        model,
+        model: ModelId::new(model),
         system,
         messages,
         max_tokens,

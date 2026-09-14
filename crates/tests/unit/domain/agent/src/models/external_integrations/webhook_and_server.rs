@@ -11,7 +11,7 @@ use systemprompt_identifiers::{McpServerId, WebhookEndpointId};
 #[test]
 fn test_registered_mcp_server_serialize() {
     let server = RegisteredMcpServer {
-        id: McpServerId::new("server-1"),
+        id: McpServerId::try_new("server-1").expect("valid McpServerId"),
         name: "Brave Search".to_string(),
         url: "http://localhost:3000".to_string(),
         status: "connected".to_string(),
@@ -50,7 +50,7 @@ fn test_registered_mcp_server_deserialize() {
 fn test_tool_execution_result_serialize() {
     let result = ToolExecutionResult {
         tool_name: "brave_search".to_string(),
-        server_id: McpServerId::new("brave-server"),
+        server_id: McpServerId::try_new("brave-server").expect("valid McpServerId"),
         result: serde_json::json!({"results": ["item1", "item2"]}),
         execution_time_ms: 150,
         metadata: Some(serde_json::json!({"query": "test"})),
@@ -66,7 +66,7 @@ fn test_tool_execution_result_serialize() {
 fn test_tool_execution_result_without_metadata() {
     let result = ToolExecutionResult {
         tool_name: "file_read".to_string(),
-        server_id: McpServerId::new("fs-server"),
+        server_id: McpServerId::try_new("fs-server").expect("valid McpServerId"),
         result: serde_json::json!("file contents"),
         execution_time_ms: 50,
         metadata: None,

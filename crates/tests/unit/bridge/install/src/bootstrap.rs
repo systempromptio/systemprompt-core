@@ -111,9 +111,10 @@ fn an_unresolvable_sudo_user_fails_the_install_before_the_sentinel() {
         completed.is_empty(),
         "nothing is recorded as done before ownership is verified, got {completed:?}"
     );
-    let InstallError::Bootstrap(message) = *source else {
+    let InstallError::Bootstrap(source) = *source else {
         panic!("the failure is the bootstrap step, got {source:?}");
     };
+    let message = source.to_string();
     assert!(
         message.contains("no-such-user-987654"),
         "the error names the user that could not be resolved: {message}"

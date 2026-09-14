@@ -22,7 +22,7 @@ use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, GoogleSearchParams, McpTool, PlanningResult,
     SearchGroundedResponse, StreamChunk, ToolModelOverrides,
 };
-use systemprompt_models::errors::ProviderResult;
+use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as ProviderResult};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::services::PluginComponentRef;
 use systemprompt_traits::{
@@ -102,7 +102,9 @@ impl StubAiProvider {
         self.generate_responses
             .get_mut()
             .expect("lock")
-            .push(Err("stub generate failure".into()));
+            .push(Err(AiInferenceError::Internal(
+                "stub generate failure".to_owned(),
+            )));
         self
     }
 
@@ -137,7 +139,9 @@ impl StubAiProvider {
         self.responses
             .get_mut()
             .expect("lock")
-            .push(Err("stub response failure".into()));
+            .push(Err(AiInferenceError::Internal(
+                "stub response failure".to_owned(),
+            )));
         self
     }
 
@@ -187,7 +191,7 @@ impl AiProvider for StubAiProvider {
     ) -> ProviderResult<Pin<Box<dyn futures::Stream<Item = ProviderResult<StreamChunk>> + Send>>>
     {
         if self.fail_stream {
-            return Err("stub stream failure".into());
+            return Err(AiInferenceError::Internal("stub stream failure".to_owned()));
         }
         let batch = self
             .stream_chunks
@@ -393,7 +397,7 @@ pub(crate) fn request_context(
         session.clone(),
         TraceId::generate(),
         ctx.clone(),
-        AgentName::new(agent_name),
+        AgentName::try_new(agent_name).expect("valid AgentName"),
     );
     rc.auth.actor = systemprompt_identifiers::Actor::user(user.clone());
     rc.with_auth_token("test-token")

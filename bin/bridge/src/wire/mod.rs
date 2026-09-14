@@ -7,10 +7,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod codes;
+pub mod external_url;
 pub mod first_run;
 pub mod hosts;
 pub mod ipc;
 pub mod payloads;
+pub mod profile;
 mod semantic;
 
 use serde::Serialize;

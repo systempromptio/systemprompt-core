@@ -149,6 +149,9 @@ pub enum OverrideError {
     Failed { name: &'static str, message: String },
 }
 
+/// Registered through a factory as `Arc<dyn SystemPromptOverride>` and run by
+/// the override engine as a list of trait objects; `#[async_trait]` keeps it
+/// object-safe.
 #[async_trait]
 pub trait SystemPromptOverride: Send + Sync {
     fn name(&self) -> &'static str;

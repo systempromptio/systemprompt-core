@@ -32,21 +32,23 @@ impl AgentName {
         Ok(Self(name))
     }
 
-    #[expect(
-        clippy::expect_used,
-        reason = "infallible constructor reserved for already-validated inputs; untrusted input \
-                  must go through try_new"
-    )]
-    pub fn new(name: impl Into<String>) -> Self {
-        Self::try_new(name).expect("AgentName validation failed")
-    }
-
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     pub fn system() -> Self {
         Self("system".to_owned())
+    }
+
+    pub fn bridge() -> Self {
+        Self("bridge".to_owned())
+    }
+
+    // Why: placeholder for artifact metadata built before a request context
+    // exists; `with_request` replaces it, and "unset" is distinguishable from
+    // the reserved "unknown" that `try_new` rejects.
+    pub fn unset() -> Self {
+        Self("unset".to_owned())
     }
 }
 

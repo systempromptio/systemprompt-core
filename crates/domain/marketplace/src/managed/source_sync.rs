@@ -109,7 +109,7 @@ impl ManagedRepository {
         request: &GitSyncRequest,
         credential: Option<&str>,
     ) -> Result<GitSyncResult> {
-        super::assets::validate_path(&request.upstream_root)?;
+        systemprompt_models::managed::validate_path(&request.upstream_root)?;
         let source = self.get_source(owner, &request.source_id).await?;
         if matches!(
             &source,

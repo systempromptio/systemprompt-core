@@ -11,6 +11,7 @@ use crate::experiments::{VariantSpec, conflict, content_digest, invalid, missing
 use sqlx::PgPool;
 use sqlx::types::Json;
 use systemprompt_identifiers::{AiRequestId, EvalExecutionId, UserId};
+use systemprompt_models::managed::RevisionBundle;
 
 #[path = "evidence_validation.rs"]
 mod validation;
@@ -20,7 +21,7 @@ use validation::{ManagedAsset, managed_assets, validate_artifacts, validate_vari
 pub struct ManagedWorkspaceRegistration<'a> {
     pub managed_revision_id: &'a str,
     pub publication_generation: Option<i64>,
-    pub manifest: &'a serde_json::Value,
+    pub manifest: &'a RevisionBundle,
     pub expected_digest: &'a str,
     pub file_count: usize,
     pub byte_count: usize,
@@ -58,6 +59,7 @@ impl EvidenceRepository {
             ));
         }
         let assets = managed_assets(manifest)?;
+        let manifest = serde_json::to_value(manifest)?;
         let expanded_bytes = assets
             .iter()
             .try_fold(0usize, |total, asset| {
@@ -99,16 +101,20 @@ impl EvidenceRepository {
         let row = sqlx::query!("SELECT managed_revision_id,publication_generation,manifest,verified_file_count,verified_byte_count FROM eval_managed_workspace_projections WHERE owner_id=$1 AND digest=$2",
             owner.as_str(), digest).fetch_optional(&self.pool).await?
             .ok_or_else(|| missing("Managed workspace projection unavailable in this scope"))?;
-        let manifest = row.manifest;
         let managed_revision_id = row.managed_revision_id;
         if managed_revision_id.starts_with("legacy-archive:") {
             return Err(missing(
                 "Legacy workspace was retained as a verified archive and must be replaced by a managed bundle before execution",
             ));
         }
-        if content_digest(&manifest)? != digest {
+        if content_digest(&row.manifest)? != digest {
             return Err(invalid("Managed workspace projection digest mismatch"));
         }
+        let manifest: RevisionBundle = serde_json::from_value(row.manifest).map_err(|error| {
+            invalid(&format!(
+                "Managed workspace projection is malformed: {error}"
+            ))
+        })?;
         let mut expected = managed_assets(&manifest)?;
         let stored = sqlx::query!("SELECT path,asset_digest,content,executable FROM eval_managed_workspace_assets WHERE owner_id=$1 AND workspace_digest=$2 ORDER BY path",
             owner.as_str(), digest).fetch_all(&self.pool).await?;

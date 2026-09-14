@@ -6,7 +6,7 @@
 use crate::repository::OAuthRepository;
 use std::sync::Arc;
 use systemprompt_traits::{
-    AnalyticsProvider, FingerprintProvider, McpRegistryProvider, UserEventPublisher, UserProvider,
+    AnalyticsProvider, FingerprintProvider, McpRegistryProvider, UserProvider,
 };
 
 #[derive(Clone)]
@@ -15,7 +15,6 @@ pub struct OAuthState {
     analytics_provider: Arc<dyn AnalyticsProvider>,
     user_provider: Arc<dyn UserProvider>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
-    event_publisher: Option<Arc<dyn UserEventPublisher>>,
     mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
 }
 
@@ -28,10 +27,6 @@ impl std::fmt::Debug for OAuthState {
             .field(
                 "fingerprint_provider",
                 &self.fingerprint_provider.as_ref().map(|_| "<provider>"),
-            )
-            .field(
-                "event_publisher",
-                &self.event_publisher.as_ref().map(|_| "<publisher>"),
             )
             .field(
                 "mcp_registry",
@@ -53,7 +48,6 @@ impl OAuthState {
             analytics_provider,
             user_provider,
             fingerprint_provider: None,
-            event_publisher: None,
             mcp_registry: None,
         }
     }
@@ -74,12 +68,6 @@ impl OAuthState {
         self
     }
 
-    #[must_use]
-    pub fn with_event_publisher(mut self, publisher: Arc<dyn UserEventPublisher>) -> Self {
-        self.event_publisher = Some(publisher);
-        self
-    }
-
     pub const fn oauth_repository(&self) -> &OAuthRepository {
         &self.oauth_repository
     }
@@ -94,9 +82,5 @@ impl OAuthState {
 
     pub fn fingerprint_provider(&self) -> Option<&Arc<dyn FingerprintProvider>> {
         self.fingerprint_provider.as_ref()
-    }
-
-    pub fn event_publisher(&self) -> Option<&Arc<dyn UserEventPublisher>> {
-        self.event_publisher.as_ref()
     }
 }

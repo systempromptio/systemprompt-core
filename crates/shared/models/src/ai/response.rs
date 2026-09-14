@@ -1,4 +1,4 @@
-//! `AiResponse`: the canonical inference response shape.
+//! The canonical inference response shape.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -145,5 +145,14 @@ pub struct SearchGroundedResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub safety_ratings: Option<Vec<serde_json::Value>>,
+    pub safety_ratings: Option<Vec<SafetyRating>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SafetyRating {
+    pub category: String,
+    pub probability: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blocked: Option<bool>,
 }

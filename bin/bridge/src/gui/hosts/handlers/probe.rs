@@ -5,6 +5,7 @@
 
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
+use crate::gui::hosts::state::ProbeSeq;
 use crate::gui::{GuiApp, emit};
 use crate::host_sync::HostSync;
 use crate::ids::HostId;
@@ -29,7 +30,11 @@ pub(crate) fn on_probe_requested(
     };
     if cause == ProbeCause::Manual {
         app.append_log(format!("[{host_id}] re-verifying profile and process"));
-    } else if !app.state.mark_host_probing(host_id.as_str()) {
+    }
+    let Some(seq) = app
+        .state
+        .begin_host_probe(host_id.as_str(), cause == ProbeCause::Tick)
+    else {
         if let Some(id) = reply_to {
             let err = BridgeError::new(
                 ErrorScope::Host,
@@ -39,7 +44,7 @@ pub(crate) fn on_probe_requested(
             emit::send_reply_payload(app, id, &IpcReplyPayload::err(err));
         }
         return;
-    }
+    };
     let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
     let env = app.probe_env();
@@ -48,7 +53,7 @@ pub(crate) fn on_probe_requested(
             Ok(snap) => snap,
             Err(e) => {
                 proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFailed {
-                    host_id: Some(host_id_owned),
+                    host_id: Some((host_id_owned, seq)),
                     error: format!("host probe task failed: {e}"),
                     reply_to,
                 }));
@@ -57,6 +62,7 @@ pub(crate) fn on_probe_requested(
         };
         proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
             host_id: host_id_owned,
+            seq,
             cause,
             snapshot: snap,
             reply_to,
@@ -64,13 +70,21 @@ pub(crate) fn on_probe_requested(
     });
 }
 
-pub(crate) fn on_probe_finished(
-    app: &mut GuiApp,
-    host_id: &HostId,
-    cause: ProbeCause,
-    snapshot: &HostAppSnapshot,
-    reply_to: ReplyId,
-) {
+#[derive(Clone, Copy)]
+pub(crate) struct ProbeResult<'a> {
+    pub host_id: &'a HostId,
+    pub seq: ProbeSeq,
+    pub cause: ProbeCause,
+    pub snapshot: &'a HostAppSnapshot,
+}
+
+pub(crate) fn on_probe_finished(app: &mut GuiApp, result: &ProbeResult<'_>, reply_to: ReplyId) {
+    let ProbeResult {
+        host_id,
+        seq,
+        cause,
+        snapshot,
+    } = *result;
     let summary = describe_snapshot(snapshot, app.ctx.proxy.port());
     let prev = app
         .state
@@ -78,8 +92,14 @@ pub(crate) fn on_probe_finished(
         .hosts
         .get(host_id.as_str())
         .and_then(|s| s.snapshot.clone());
-    app.state
-        .apply_host_snapshot(host_id.as_str(), snapshot.clone());
+    if !app
+        .state
+        .apply_host_snapshot(host_id.as_str(), seq, snapshot.clone())
+    {
+        tracing::debug!(host_id = %host_id, "superseded host probe result discarded");
+        finish(app, Ok(json!({ "superseded": true })), reply_to);
+        return;
+    }
     app.refresh_ui();
     emit::emit_host_changed(app, host_id);
     let log_line = match cause {
@@ -114,13 +134,15 @@ fn cowork_session_now_available(app: &GuiApp, host_id: &HostId) -> bool {
     if snap.sync_in_flight {
         return false;
     }
-    let outstanding = snap.last_sync_report.as_ref().is_some_and(|report| {
-        report
-            .host_warnings
-            .iter()
-            .any(|w| w.host_id == host_id.as_str())
-    });
-    outstanding && crate::integration::cowork_plugins::resolve_target().is_some()
+    let outstanding = snap
+        .last_sync_report
+        .as_ref()
+        .is_some_and(|report| report.host_warnings.iter().any(|w| w.host_id == *host_id));
+    outstanding
+        && matches!(
+            crate::integration::cowork_plugins::resolve_target(),
+            Ok(Some(_))
+        )
 }
 
 fn state_change_line(
@@ -148,6 +170,7 @@ const fn profile_state_kind(s: &ProfileState) -> &'static str {
         ProfileState::Partial { .. } => "partial",
         ProfileState::Absent => "absent",
         ProfileState::Stale { .. } => "stale",
+        ProfileState::Unverifiable { .. } => "unverifiable",
     }
 }
 
@@ -158,6 +181,7 @@ fn describe_snapshot(snap: &HostAppSnapshot, proxy_port: u16) -> String {
         ProfileState::Partial { missing_required } => {
             format!("profile partial (missing: {})", missing_required.join(", "))
         },
+        ProfileState::Unverifiable { reason } => format!("profile unverifiable ({reason})"),
         ProfileState::Absent => "profile not installed".to_owned(),
         ProfileState::Stale { reason } => match reason {
             StaleReason::LoopbackSecret => {
@@ -169,10 +193,10 @@ fn describe_snapshot(snap: &HostAppSnapshot, proxy_port: u16) -> String {
             ),
         },
     };
-    let process = if snap.host_running {
-        "process running"
-    } else {
-        "process not running"
+    let process = match snap.host_running {
+        Some(true) => "process running",
+        Some(false) => "process not running",
+        None => "process state unknown (enumeration failed)",
     };
     format!("{profile}, {process}")
 }
@@ -224,11 +248,12 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
 
 pub(crate) fn on_probe_failed(
     app: &mut GuiApp,
-    host_id: Option<&HostId>,
+    host_id: Option<&(HostId, ProbeSeq)>,
     error: &str,
     reply_to: ReplyId,
 ) {
-    app.state.finish_failed_probe(host_id.map(HostId::as_str));
+    app.state
+        .finish_failed_probe(host_id.map(|(id, seq)| (id.as_str(), *seq)));
     app.append_log_error(error);
     if let Some(id) = reply_to {
         emit::send_reply_payload(app, id, &IpcReplyPayload::err(BridgeError::internal(error)));

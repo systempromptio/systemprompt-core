@@ -29,7 +29,8 @@ const fn snapshot(profile_state: ProfileState, app: AppInstallState) -> HostAppS
         profile_state,
         profile_source: None,
         profile_keys: BTreeMap::new(),
-        host_running: false,
+        probe_error: None,
+        host_running: Some(false),
         host_processes: Vec::new(),
         app_installed: app,
         probed_at_unix: 1_700_000_000,
@@ -155,7 +156,7 @@ fn proxy_state_decides_a_healthy_profile() {
 fn a_running_process_does_not_make_an_unconfigured_agent_working() {
     let px = proxy(ProxyProbeState::Listening);
     let mut snap = snapshot(ProfileState::Absent, AppInstallState::Installed);
-    snap.host_running = true;
+    snap.host_running = Some(true);
 
     let v = verdict(&inputs(Some(&snap), &px));
     assert_eq!(v.state, AgentState::NotSetUp);

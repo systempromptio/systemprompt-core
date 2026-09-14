@@ -63,7 +63,7 @@ async fn list_tool_stats_aggregates_a_seeded_execution() {
         SessionId::new("stats-s"),
         TraceId::new("stats-t"),
         ContextId::generate(),
-        AgentName::new("stats-agent"),
+        AgentName::try_new("stats-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
         "stats-u",
@@ -121,7 +121,7 @@ async fn start_and_complete_execution_roundtrip() {
         SessionId::new("s1"),
         TraceId::new("t1"),
         ContextId::generate(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
         "test-user",
@@ -196,7 +196,7 @@ async fn log_execution_sync_writes_row() {
         SessionId::new("s2"),
         TraceId::new("t2"),
         ContextId::generate(),
-        AgentName::new("agent-sync"),
+        AgentName::try_new("agent-sync").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new("u2")));
 

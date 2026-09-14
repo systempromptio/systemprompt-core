@@ -43,10 +43,10 @@ fn classify_database_error_not_null_constraint() {
 
 #[test]
 fn classify_database_error_generic() {
-    let error = RepositoryError::Database(Box::new(std::io::Error::new(
+    let error = RepositoryError::database(std::io::Error::new(
         std::io::ErrorKind::ConnectionRefused,
         "connection refused",
-    )));
+    ));
     let result = classify_database_error(&error);
     assert!(result.starts_with("Database error:"));
 }

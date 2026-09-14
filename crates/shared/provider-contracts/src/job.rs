@@ -1,6 +1,9 @@
 //! [`Job`] contract for scheduled / on-startup background jobs registered
 //! via the `inventory` crate.
 //!
+//! Jobs are dispatched as `&'static dyn Job` from the inventory, so the trait
+//! uses `#[async_trait]`; native `async fn` in traits is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

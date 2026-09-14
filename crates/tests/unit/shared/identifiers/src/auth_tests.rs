@@ -1,6 +1,21 @@
 use systemprompt_identifiers::{CloudAuthToken, DbValue, JwtToken, SessionToken, ToDbValue};
 
 #[test]
+fn token_debug_never_prints_the_secret() {
+    let token = JwtToken::new("secret-token-value-1234567890");
+    let debug = format!("{token:?}");
+    assert!(!debug.contains("secret-token-value-1234567890"), "{debug}");
+    assert!(debug.contains("..."), "{debug}");
+    assert!(debug.starts_with("JwtToken("), "{debug}");
+}
+
+#[test]
+fn token_redaction_slices_on_characters_not_bytes() {
+    let token = SessionToken::new("abcdefgé-and-a-long-tail-value");
+    assert_eq!(token.redacted(), "abcdefgé...alue");
+}
+
+#[test]
 fn jwt_token_redacted_short_token() {
     let token = JwtToken::new("short");
     assert_eq!(token.redacted(), "*****");

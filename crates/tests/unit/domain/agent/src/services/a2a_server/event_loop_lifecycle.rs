@@ -59,7 +59,8 @@ fn recorder() -> &'static Arc<RecordingBroadcaster> {
     static RECORDER: OnceLock<Arc<RecordingBroadcaster>> = OnceLock::new();
     RECORDER.get_or_init(|| {
         let recorder = Arc::new(RecordingBroadcaster::default());
-        install_for_test(Arc::clone(&recorder) as Arc<dyn WebhookBroadcaster>);
+        install_for_test(Arc::clone(&recorder) as Arc<dyn WebhookBroadcaster>)
+            .unwrap_or_else(|_| panic!("a webhook broadcaster was already installed"));
         recorder
     })
 }

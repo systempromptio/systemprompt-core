@@ -19,23 +19,11 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::MarketplaceId;
 
-use super::{io_err, legacy_marketplace_id};
+use super::io_err;
 use crate::fsutil;
 use crate::host_sync::ApplyError;
 
 pub const SIDECAR: &str = ".systemprompt-marketplaces.json";
-
-/// How the legacy marketplace is folded into a sidecar read.
-///
-/// `Always` makes a first sync against a marketplace-aware gateway purge the
-/// single-marketplace layout every bridge wrote before the sidecar existed.
-/// `WhenUnrecorded` names it only when nothing is recorded, the sole layout
-/// that could exist before the first sidecar write.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Legacy {
-    Always,
-    WhenUnrecorded,
-}
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct OwnedMarketplaces {
@@ -62,25 +50,15 @@ fn read(plugins: &Path) -> Result<Vec<MarketplaceId>, ApplyError> {
         })
 }
 
-pub fn owned_marketplaces(
-    plugins: &Path,
-    legacy: Legacy,
-) -> Result<Vec<MarketplaceId>, ApplyError> {
-    let mut owned = read(plugins)?;
-    let legacy_id = legacy_marketplace_id();
-    match legacy {
-        Legacy::Always if !owned.contains(&legacy_id) => owned.push(legacy_id),
-        Legacy::WhenUnrecorded if owned.is_empty() => owned.push(legacy_id),
-        _ => {},
-    }
-    Ok(owned)
+pub fn owned_marketplaces(plugins: &Path) -> Result<Vec<MarketplaceId>, ApplyError> {
+    read(plugins)
 }
 
 pub fn write(plugins: &Path, marketplaces: &[MarketplaceId]) -> Result<(), ApplyError> {
     let state = OwnedMarketplaces {
         marketplaces: marketplaces.to_vec(),
     };
-    super::json_io::write_json(
+    crate::integration::json_io::write_json(
         &plugins.join(SIDECAR),
         &serde_json::to_value(state).map_err(|e| ApplyError::Serialize {
             what: "claude-code marketplaces sidecar".into(),

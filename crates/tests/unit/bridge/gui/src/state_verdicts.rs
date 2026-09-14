@@ -108,6 +108,8 @@ fn applying_a_probe_carries_the_credential_error_into_the_snapshot() {
     let state = AppState::new_loaded(ctx);
 
     state.apply_probe(GatewayProbeOutcome {
+        gateway: systemprompt_identifiers::ValidatedUrl::try_new("https://gateway.example.com")
+            .expect("valid gateway url"),
         status: GatewayStatus::Reachable { latency_ms: 4 },
         identity: None,
         at_unix: 600,
@@ -131,6 +133,8 @@ fn a_later_clean_probe_clears_the_credential_error() {
     let state = AppState::new_loaded(ctx);
 
     state.apply_probe(GatewayProbeOutcome {
+        gateway: systemprompt_identifiers::ValidatedUrl::try_new("https://gateway.example.com")
+            .expect("valid gateway url"),
         status: GatewayStatus::Reachable { latency_ms: 4 },
         identity: None,
         at_unix: 600,
@@ -138,6 +142,8 @@ fn a_later_clean_probe_clears_the_credential_error() {
         credential_error: Some("authentication: token rejected".to_owned()),
     });
     state.apply_probe(GatewayProbeOutcome {
+        gateway: systemprompt_identifiers::ValidatedUrl::try_new("https://gateway.example.com")
+            .expect("valid gateway url"),
         status: GatewayStatus::Reachable { latency_ms: 4 },
         identity: Some(identity()),
         at_unix: 660,

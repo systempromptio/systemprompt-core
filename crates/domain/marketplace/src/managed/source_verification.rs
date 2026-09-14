@@ -126,7 +126,9 @@ impl ManagedRepository {
         let manifest = self
             .verify_git_dependencies(owner, &request, &BTreeMap::new())
             .await?;
-        AssetDigest::try_from(manifest.bundle_digest.as_str().to_owned())
+        Ok(AssetDigest::try_from(
+            manifest.bundle_digest.as_str().to_owned(),
+        )?)
     }
 
     pub async fn verify_git_dependencies(
@@ -148,7 +150,7 @@ impl ManagedRepository {
         source: &ManagedSourceId,
         relative_root: &str,
     ) -> Result<()> {
-        crate::managed::assets::validate_path(relative_root)?;
+        systemprompt_models::managed::validate_path(relative_root)?;
         if !matches!(
             self.get_source(owner, source).await?,
             crate::managed::SourceSpec::Git { .. }

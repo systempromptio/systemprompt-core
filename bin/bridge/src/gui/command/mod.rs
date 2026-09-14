@@ -9,14 +9,13 @@ mod general;
 mod hosts;
 mod removal;
 
-#[doc(hidden)]
 pub use removal::method as removal_method;
 
 use serde_json::Value;
 
 use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
-use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, ReplyTarget};
 
 use diagnostics::diagnostics_dispatch;
 use general::{auth_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch};
@@ -24,12 +23,18 @@ use hosts::{agent_dispatch, host_dispatch};
 
 #[derive(Debug)]
 pub enum CommandOutcome {
+    // JSON: webview IPC envelope, each command's typed reply serialized at the call site
     Sync(Result<Value, BridgeError>),
     Async,
 }
 
-pub(crate) fn dispatch(app: &GuiApp, id: u64, cmd: &str, args: &Value) -> CommandOutcome {
-    let reply_id: ReplyId = Some(id);
+pub(crate) fn dispatch(
+    app: &GuiApp,
+    target: ReplyTarget,
+    cmd: &str,
+    args: &Value,
+) -> CommandOutcome {
+    let reply_id: ReplyId = Some(target);
     if let Some(out) = meta_dispatch(app, cmd, args, reply_id) {
         return out;
     }

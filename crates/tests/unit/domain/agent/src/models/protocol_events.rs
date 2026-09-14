@@ -22,7 +22,7 @@ fn create_test_artifact(id: &str) -> Artifact {
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             "text".to_string(),
-            ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             TaskId::new("task-1"),
         ),
     }
@@ -51,7 +51,7 @@ fn test_task_status_update_event_new() {
     let status = create_working_status();
     let event = TaskStatusUpdateEvent::new(
         "task-123",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         false,
     );
@@ -67,7 +67,7 @@ fn test_task_status_update_event_final() {
     let status = create_completed_status();
     let event = TaskStatusUpdateEvent::new(
         "task-abc",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         true,
     );
@@ -81,7 +81,7 @@ fn test_task_status_update_event_serialize() {
     let status = create_failed_status();
     let event = TaskStatusUpdateEvent::new(
         "task-1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         true,
     );
@@ -98,7 +98,7 @@ fn test_task_status_update_event_to_jsonrpc_response() {
     let status = TaskStatus::default();
     let event = TaskStatusUpdateEvent::new(
         "t1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         status,
         false,
     );
@@ -113,7 +113,7 @@ fn test_task_artifact_update_event_new() {
     let artifact = create_test_artifact("art-1");
     let event = TaskArtifactUpdateEvent::new(
         "task-1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         false,
     );
@@ -133,7 +133,7 @@ fn test_task_artifact_update_event_with_parts() {
 
     let event = TaskArtifactUpdateEvent::new(
         "task-2",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         true,
     );
@@ -147,7 +147,7 @@ fn test_task_artifact_update_event_serialize() {
     let artifact = create_test_artifact("art-3");
     let event = TaskArtifactUpdateEvent::new(
         "t1",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         false,
     );
@@ -163,7 +163,7 @@ fn test_task_artifact_update_event_to_jsonrpc_response() {
     let artifact = create_test_artifact("art-4");
     let event = TaskArtifactUpdateEvent::new(
         "t",
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         artifact,
         true,
     );

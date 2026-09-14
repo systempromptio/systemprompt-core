@@ -132,8 +132,13 @@ async fn connect_and_validate(
         AgentName::system(),
     );
     let config = StreamableHttpClientTransportConfig::with_uri(url);
-    let transport =
-        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context), config);
+    let http_client = HttpClientWithContext::new(context).map_err(|e| {
+        crate::error::McpDomainError::ConnectionFailed {
+            server: service_name.to_owned(),
+            message: e.to_string(),
+        }
+    })?;
+    let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),

@@ -1,4 +1,5 @@
 use serde_json::json;
+use systemprompt_bridge::ids::HostId;
 use systemprompt_bridge::sync::{HostFailure, SyncSummary};
 
 fn summary() -> SyncSummary {
@@ -17,7 +18,8 @@ fn summary() -> SyncSummary {
         removed: vec![],
         malformed: vec!["broken-plugin".into()],
         host_failures: vec![HostFailure {
-            host_id: "claude-desktop".into(),
+            host_id: HostId::new("claude-desktop"),
+            emitter: "claude-desktop".to_owned(),
             error: "profile write denied by policy".into(),
         }],
         host_warnings: Vec::new(),

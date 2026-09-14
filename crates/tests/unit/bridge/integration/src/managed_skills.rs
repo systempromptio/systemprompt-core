@@ -22,6 +22,10 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -136,9 +140,10 @@ fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), 
         org_plugins_root: sb.org_plugins.as_path(),
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     block_on(host.apply(&ctx))
 }
@@ -371,9 +376,10 @@ fn clearing_a_host_removes_the_managed_dirs_and_the_sidecar() {
             org_plugins_root: sb.org_plugins.as_path(),
             plugin_mcp_servers: &plugin_mcp_servers,
             client: &client,
-            bearer: "",
+            bearer: &EMPTY_BEARER,
             loopback: &LOOPBACK,
             mcp_registry: &EMPTY_REGISTRY,
+            start_menu: &START_MENU,
         };
         HermesSync.clear(&ctx).expect("clear");
         assert!(

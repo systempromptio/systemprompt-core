@@ -30,14 +30,14 @@ impl Extension for TeamsExtension {
         serde_json::to_value(schemars::schema_for!(BTreeMap<String, TeamsAppConfig>)).ok()
     }
 
-    fn validate_config(&self, config: &JsonValue) -> Result<(), ConfigError> {
+    fn validate_config(&self, config: &JsonValue) -> Result<(), ExtensionConfigError> {
         let apps: BTreeMap<String, TeamsAppConfig> = serde_json::from_value(config.clone())
-            .map_err(|e| ConfigError::ParseError {
+            .map_err(|e| ExtensionConfigError::ParseError {
                 message: e.to_string(),
             })?;
         for (name, app) in &apps {
             app.validate(name)
-                .map_err(|e| ConfigError::SchemaValidation(e.to_string()))?;
+                .map_err(|e| ExtensionConfigError::SchemaValidation(e.to_string()))?;
         }
         Ok(())
     }

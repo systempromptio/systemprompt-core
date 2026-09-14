@@ -77,7 +77,7 @@ pub async fn execute_with_pool(
             .as_ref()
             .ok_or_else(|| anyhow!("Source ID required when using slug"))?;
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &identifier, &LocaleCode::new("en"))
+        repo.get_by_source_and_slug(&source, &identifier, &LocaleCode::english())
             .await?
             .ok_or_else(|| anyhow!("Content not found: {} in source {}", identifier, source_id))?
     };
@@ -138,7 +138,7 @@ async fn list_candidates(
 ) -> Result<Vec<systemprompt_content::Content>> {
     let contents = if let Some(source) = source {
         let source = SourceId::new(source.to_owned());
-        repo.list_by_source_limited(&source, &LocaleCode::new("en"), 50)
+        repo.list_by_source_limited(&source, &LocaleCode::english(), 50)
             .await?
     } else {
         repo.list(50, 0).await?

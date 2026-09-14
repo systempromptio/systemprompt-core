@@ -170,8 +170,10 @@ fn active_broadcaster() -> Arc<dyn WebhookBroadcaster> {
     Arc::clone(GLOBAL_BROADCASTER.get_or_init(default_broadcaster))
 }
 
-pub fn install_for_test(broadcaster: Arc<dyn WebhookBroadcaster>) {
-    drop(GLOBAL_BROADCASTER.set(broadcaster));
+pub fn install_for_test(
+    broadcaster: Arc<dyn WebhookBroadcaster>,
+) -> Result<(), Arc<dyn WebhookBroadcaster>> {
+    GLOBAL_BROADCASTER.set(broadcaster)
 }
 
 pub async fn broadcast_agui_event(

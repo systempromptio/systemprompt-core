@@ -12,8 +12,8 @@ use serde::Serialize;
 use systemprompt_models::DiskSkillConfig;
 
 use super::error::invalid;
-use super::provenance::validate_key;
 use super::{AssetDigest, AssetFile, FileEntry, ManagedError, Result, RevisionFiles};
+use systemprompt_models::managed::validate_key;
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct CapturedSkills {
@@ -142,7 +142,7 @@ fn capture_file(
         .to_str()
         .ok_or_else(|| invalid("Authoring paths must be UTF-8"))?
         .replace('\\', "/");
-    super::assets::validate_path(&relative)?;
+    systemprompt_models::managed::validate_path(&relative)?;
     let mut bytes = Vec::new();
     fs::File::open(path)
         .map_err(ManagedError::Io)?
@@ -228,7 +228,7 @@ pub(crate) fn capture_inventory_files(
     services_root: &Path,
     relative: &str,
 ) -> Result<RevisionFiles> {
-    super::assets::validate_path(relative)?;
+    systemprompt_models::managed::validate_path(relative)?;
     reject_link(services_root)?;
     let mut path = services_root.to_path_buf();
     for component in Path::new(relative).components() {

@@ -141,7 +141,7 @@ async fn files_config_validator_validate_returns_clean_when_uninitialised() {
 #[tokio::test]
 async fn files_config_validator_validate_when_initialised() {
     use std::sync::Arc;
-    use systemprompt_models::AppPaths;
+    use systemprompt_config::paths::AppPaths;
     use systemprompt_models::profile::PathsConfig;
     use systemprompt_runtime::FilesConfigValidator;
     use systemprompt_traits::DomainConfig;

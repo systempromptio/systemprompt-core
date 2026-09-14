@@ -41,6 +41,7 @@ pub(super) struct ToolCallProgress {
 
 pub(super) fn process_text_delta(
     state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     delta: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -82,6 +83,7 @@ pub(super) fn close_reasoning(
 // `reasoning_content` field; some compatible providers spell it `reasoning`.
 pub(super) fn process_reasoning_delta(
     state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     delta: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -118,6 +120,7 @@ pub(super) fn process_reasoning_delta(
 
 pub(super) fn process_tool_calls(
     state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     delta: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -151,6 +154,7 @@ pub(super) fn process_tool_calls(
 
 pub(super) fn open_new_tool_call(
     state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
     tc: &Value,
     provider_index: i64,
     events: &mut Vec<Result<CanonicalEvent, String>>,

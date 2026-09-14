@@ -76,7 +76,7 @@ pub async fn discover(
     let card = match VertexRateCard::embedded() {
         Ok(card) => card,
         Err(e) => {
-            tracing::warn!("catalog discovery skipped: {e}");
+            tracing::warn!(error = %e, "Catalog discovery skipped");
             report.failed_publishers.push(format!("rate card: {e}"));
             return report;
         },
@@ -159,7 +159,7 @@ pub async fn discover_with(
 }
 
 fn push_failure(report: &mut DiscoveryReport, note: String) {
-    tracing::warn!("catalog discovery: {note}");
+    tracing::warn!(note = %note, "Catalog discovery publisher failed");
     report.failed_publishers.push(note);
 }
 

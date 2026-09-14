@@ -30,6 +30,7 @@ pub struct RunStartedPayload {
     pub thread_id: ContextId,
     pub run_id: TaskId,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: AG-UI event payload; the protocol defines this field as free-form.
     pub input: Option<Value>,
 }
 
@@ -39,6 +40,7 @@ pub struct RunFinishedPayload {
     pub thread_id: ContextId,
     pub run_id: TaskId,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: AG-UI event payload; the protocol defines this field as free-form.
     pub result: Option<Value>,
 }
 
@@ -109,6 +111,7 @@ pub struct ToolCallEndPayload {
 pub struct ToolCallResultPayload {
     pub message_id: MessageId,
     pub tool_call_id: AiToolCallId,
+    // JSON: AG-UI event payload; the protocol defines this field as free-form.
     pub content: Value,
     pub role: MessageRole,
 }
@@ -116,6 +119,7 @@ pub struct ToolCallResultPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StateSnapshotPayload {
+    // JSON: AG-UI event payload; the protocol defines this field as free-form.
     pub snapshot: Value,
 }
 
@@ -128,6 +132,7 @@ pub struct StateDeltaPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessagesSnapshotPayload {
+    // JSON: AG-UI event payload; the protocol defines this field as free-form.
     pub messages: Vec<Value>,
 }
 
@@ -161,6 +166,7 @@ pub struct SkillLoadedCustomPayload {
 #[serde(rename_all = "camelCase")]
 pub struct GenericCustomPayload {
     pub name: String,
+    // JSON: AG-UI event payload; the protocol defines this field as free-form.
     pub value: Value,
 }
 

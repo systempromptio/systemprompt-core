@@ -40,7 +40,6 @@ pub(super) async fn record_governance_decision(
             agent_id: None,
             agent_scope: ctx.access_scope,
             client_id: ctx.client_id.clone(),
-            claimed: None,
         },
         target: AuditTarget {
             tool_name: GovernedTarget::Prompt.as_str().to_owned(),
@@ -49,7 +48,7 @@ pub(super) async fn record_governance_decision(
         chain: evaluation.chain,
         approver: None,
         act_chain: Vec::new(),
-        context_id: Some(ctx.context_id.as_str().to_owned()),
+        context_id: Some(ctx.context_id.clone()),
         trace_id: ctx.trace_id.as_ref().map(|t| t.as_str().to_owned()),
     };
     let pool = db.write_pool_arc()?;

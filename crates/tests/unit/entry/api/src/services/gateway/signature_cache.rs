@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{GatewayConversationId, UserId};
+use systemprompt_identifiers::{GatewayConversationId, ModelId, UserId};
 
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
@@ -72,10 +72,11 @@ impl Harness {
 const GEMINI: Option<WireProtocol> = Some(WireProtocol::Gemini);
 
 fn conv() -> GatewayConversationId {
-    GatewayConversationId::new_unchecked(format!(
+    GatewayConversationId::try_new(format!(
         "ctx_{:016x}",
         u64::from(uuid::Uuid::new_v4().as_u128() as u32)
     ))
+    .expect("valid GatewayConversationId")
 }
 
 fn tool_use(id: &str, signature: Option<&str>) -> CanonicalContent {
@@ -89,7 +90,7 @@ fn tool_use(id: &str, signature: Option<&str>) -> CanonicalContent {
 
 fn request_with(content: Vec<CanonicalContent>) -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".into(),
+        model: ModelId::new("m"),
         system: None,
         messages: vec![CanonicalMessage {
             role: Role::Assistant,

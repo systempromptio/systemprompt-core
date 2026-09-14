@@ -1,5 +1,9 @@
 //! [`RssFeedProvider`] contract for emitting RSS feed metadata + items.
 //!
+//! Providers are held as `Arc<dyn RssFeedProvider>` by the RSS generator, so
+//! the trait uses `#[async_trait]`; native `async fn` in traits is not
+//! `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

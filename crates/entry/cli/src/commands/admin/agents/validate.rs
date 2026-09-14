@@ -31,11 +31,11 @@ pub struct ValidationSources<'a> {
 pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let registry = &services_config.providers;
-    let secrets = SecretsBootstrap::get().ok();
+    let secrets = SecretsBootstrap::get().context("secrets are not initialised")?;
     let sources = ValidationSources {
         services_config: &services_config,
         registry,
-        secrets,
+        secrets: Some(secrets),
     };
 
     let mut errors = Vec::new();

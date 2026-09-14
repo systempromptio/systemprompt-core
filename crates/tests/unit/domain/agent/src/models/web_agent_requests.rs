@@ -55,7 +55,7 @@ fn test_create_agent_request_deserialize_minimal() {
         request.card.supported_interfaces[0].protocol_binding,
         TransportProtocol::JsonRpc
     );
-    assert!(request.is_active.is_none());
+    assert!(request.is_active);
     assert!(request.system_prompt.is_none());
     assert!(request.mcp_servers.is_none());
 }
@@ -75,7 +75,7 @@ fn test_create_agent_request_deserialize_full() {
         TransportProtocol::Grpc
     );
     assert_eq!(request.card.default_input_modes.len(), 2);
-    assert_eq!(request.is_active, Some(false));
+    assert!(!request.is_active);
     assert_eq!(request.system_prompt.as_deref(), Some("be helpful"));
     assert_eq!(request.mcp_servers, Some(vec![]));
 }
@@ -212,14 +212,15 @@ fn test_create_agent_get_version() {
 #[test]
 fn test_create_agent_is_active_default() {
     let request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
-    assert!(request.is_active());
+    assert!(request.is_active);
 }
 
 #[test]
 fn test_create_agent_is_active_false() {
-    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
-    request.is_active = Some(false);
-    assert!(!request.is_active());
+    let mut json = create_json_minimal();
+    json["is_active"] = serde_json::Value::Bool(false);
+    let request: CreateAgentRequest = serde_json::from_value(json).unwrap();
+    assert!(!request.is_active);
 }
 
 #[test]
@@ -428,7 +429,7 @@ async fn test_update_agent_validate_ok() {
 }
 
 #[test]
-fn test_update_agent_is_active_defaults_to_true() {
+fn test_update_agent_is_active_omitted_is_unset() {
     let json = serde_json::json!({
         "card": {
             "name": "upd",
@@ -437,7 +438,7 @@ fn test_update_agent_is_active_defaults_to_true() {
         }
     });
     let request: UpdateAgentRequest = serde_json::from_value(json).unwrap();
-    assert!(request.is_active());
+    assert!(request.is_active.is_none());
 }
 
 #[test]
@@ -451,7 +452,7 @@ fn test_update_agent_is_active_false() {
         "is_active": false,
     });
     let request: UpdateAgentRequest = serde_json::from_value(json).unwrap();
-    assert!(!request.is_active());
+    assert_eq!(request.is_active, Some(false));
 }
 
 #[test]

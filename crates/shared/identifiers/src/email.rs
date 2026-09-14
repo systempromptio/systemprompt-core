@@ -90,16 +90,6 @@ impl Email {
     }
 
     #[must_use]
-    #[expect(
-        clippy::expect_used,
-        reason = "infallible constructor reserved for already-validated inputs; untrusted input \
-                  must go through try_new"
-    )]
-    pub fn new(value: impl Into<String>) -> Self {
-        Self::try_new(value).expect("Email validation failed")
-    }
-
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -112,6 +102,14 @@ impl Email {
     #[must_use]
     pub fn domain(&self) -> &str {
         self.0.split('@').nth(1).unwrap_or("")
+    }
+
+    // Why: the placeholder mailbox generated profiles carry until an operator
+    // sets a real one; `localhost.localdomain` is RFC 6761-reserved so it can
+    // never receive mail.
+    #[must_use]
+    pub fn local_admin() -> Self {
+        Self("admin@localhost.localdomain".to_owned())
     }
 }
 

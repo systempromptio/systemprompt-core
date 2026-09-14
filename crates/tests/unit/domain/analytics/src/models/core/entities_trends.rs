@@ -122,7 +122,7 @@ mod recent_conversation_tests {
     fn recent_conversation_stores_values() {
         let now = Utc::now();
         let conv = RecentConversation {
-            context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_A.to_string()),
+            context_id: ContextId::try_new(TEST_CONTEXT_ID_A.to_string()).expect("valid ContextId"),
             agent_name: "assistant".to_string(),
             user_name: "John".to_string(),
             status: "active".to_string(),

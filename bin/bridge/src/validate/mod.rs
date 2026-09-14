@@ -158,23 +158,14 @@ fn check_pinned_pubkey(report: &mut Report) {
 }
 
 pub fn summarise_last_sync(raw: &str) -> String {
-    #[derive(serde::Deserialize)]
-    struct LastSyncRecord {
-        #[serde(default)]
-        synced_at: Option<String>,
-        #[serde(default)]
-        manifest_version: Option<String>,
-        #[serde(default)]
-        mcp_server_count: Option<u64>,
-    }
-
-    let Ok(record) = serde_json::from_str::<LastSyncRecord>(raw) else {
+    let Ok(record) = serde_json::from_str::<crate::last_sync::LastSyncState>(raw) else {
         return "unparseable".into();
     };
-    let synced_at = record.synced_at.as_deref().unwrap_or("unknown");
-    let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
-    let mcp_count = record.mcp_server_count.unwrap_or(0);
-    format!("{synced_at} (manifest {manifest_version}, {mcp_count} MCP server(s))")
+    format!(
+        "{}, {} MCP server(s))",
+        record.summary_line().trim_end_matches(')'),
+        record.mcp_server_count
+    )
 }
 
 pub fn count_installed_plugins(org_plugins: &std::path::Path) -> Option<usize> {

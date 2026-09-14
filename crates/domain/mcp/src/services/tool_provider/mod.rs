@@ -17,7 +17,7 @@ use tracing::{info, warn};
 
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_models::services::ResilienceSettings;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
@@ -94,7 +94,7 @@ impl McpToolProvider {
 impl ToolProvider for McpToolProvider {
     async fn list_tools(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         context: &ToolContext,
     ) -> ToolProviderResult<Vec<ToolDefinition>> {
         let assigned_servers =
@@ -103,7 +103,7 @@ impl ToolProvider for McpToolProvider {
             })?;
 
         info!(
-            agent = agent_name,
+            agent = %agent_name,
             servers = %assigned_servers.join(", "),
             "Listing tools for agent from MCP servers"
         );
@@ -139,7 +139,7 @@ impl ToolProvider for McpToolProvider {
         }
 
         info!(
-            agent = agent_name,
+            agent = %agent_name,
             total_tools = all_tools.len(),
             "Total tools loaded for agent"
         );
@@ -182,14 +182,14 @@ impl ToolProvider for McpToolProvider {
         Ok(to_tool_result(&result))
     }
 
-    async fn refresh_connections(&self, agent_name: &str) -> ToolProviderResult<()> {
+    async fn refresh_connections(&self, agent_name: &AgentName) -> ToolProviderResult<()> {
         let assigned_servers =
             load_agent_servers(agent_name).map_err(|e| ToolProviderError::ConfigurationError {
                 message: format!("Failed to load agent config: {e}"),
             })?;
 
         info!(
-            agent = agent_name,
+            agent = %agent_name,
             servers = %assigned_servers.join(", "),
             "Refreshing MCP connections for agent"
         );
@@ -199,9 +199,8 @@ impl ToolProvider for McpToolProvider {
         })?;
 
         let api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::Config {
-                message: "Failed to get configuration".to_owned(),
-                source: Box::new(e),
+            .map_err(|e| ToolProviderError::ConfigurationError {
+                message: format!("Failed to get configuration: {e}"),
             })?
             .api_server_url
             .clone();
@@ -217,9 +216,8 @@ impl ToolProvider for McpToolProvider {
         let mut health_status = HashMap::new();
 
         let config_api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::Config {
-                message: "Failed to get configuration".to_owned(),
-                source: Box::new(e),
+            .map_err(|e| ToolProviderError::ConfigurationError {
+                message: format!("Failed to get configuration: {e}"),
             })?
             .api_server_url
             .clone();

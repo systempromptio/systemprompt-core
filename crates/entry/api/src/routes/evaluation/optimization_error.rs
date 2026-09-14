@@ -8,6 +8,7 @@ use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use systemprompt_evaluation::EvaluationError;
 use systemprompt_marketplace::managed::ManagedError;
+use systemprompt_models::managed::RevisionBundleError;
 use systemprompt_runtime::optimization::OptimizationError;
 
 #[derive(Debug, thiserror::Error)]
@@ -38,6 +39,7 @@ impl IntoResponse for OptimizationHttpError {
             Self::Managed(error) | Self::Optimization(OptimizationError::Managed(error)) => {
                 managed_status(error)
             },
+            Self::Optimization(OptimizationError::Bundle(error)) => bundle_status(error),
             Self::Optimization(OptimizationError::Source(_)) => StatusCode::CONFLICT,
             Self::Optimization(OptimizationError::Json(_)) => StatusCode::BAD_REQUEST,
         };
@@ -61,6 +63,16 @@ const fn evaluation_status(error: &EvaluationError) -> StatusCode {
             StatusCode::CONFLICT
         },
         _ => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
+const fn bundle_status(error: &RevisionBundleError) -> StatusCode {
+    match error {
+        RevisionBundleError::MissingRevision(_) => StatusCode::NOT_FOUND,
+        RevisionBundleError::Invalid(_) => StatusCode::BAD_REQUEST,
+        RevisionBundleError::Integrity | RevisionBundleError::Json(_) => {
+            StatusCode::INTERNAL_SERVER_ERROR
+        },
     }
 }
 

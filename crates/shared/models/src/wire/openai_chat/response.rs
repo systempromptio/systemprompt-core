@@ -120,6 +120,7 @@ struct ChatFunction {
 }
 
 pub fn parse_response(
+    // JSON: OpenAI Chat Completions response body; upstream JSON is the contract.
     value: &Value,
     fallback_model: &str,
 ) -> Result<CanonicalResponse, WireParseError> {
@@ -202,6 +203,7 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
 }
 
 #[must_use]
+// JSON: OpenAI Chat Completions response body; upstream JSON is the contract.
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "choices", "usage")
 }

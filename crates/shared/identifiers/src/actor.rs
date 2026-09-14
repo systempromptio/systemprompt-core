@@ -12,7 +12,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::UserId;
+use crate::{AgentId, UserId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Actor {
@@ -66,12 +66,10 @@ impl Actor {
     }
 
     #[must_use]
-    pub fn agent(user_id: UserId, agent_id: impl Into<String>) -> Self {
+    pub const fn agent(user_id: UserId, agent_id: AgentId) -> Self {
         Self {
             user_id,
-            kind: ActorKind::Agent {
-                agent_id: agent_id.into(),
-            },
+            kind: ActorKind::Agent { agent_id },
         }
     }
 
@@ -81,7 +79,7 @@ impl Actor {
     }
 
     #[must_use]
-    pub fn from_tool_name(user_id: UserId, agent_id: Option<&str>, tool_name: &str) -> Self {
+    pub fn from_tool_name(user_id: UserId, agent_id: Option<&AgentId>, tool_name: &str) -> Self {
         if let Some(rest) = tool_name.strip_prefix("mcp__")
             && let Some(server) = rest.split("__").next()
             && !server.is_empty()
@@ -89,7 +87,7 @@ impl Actor {
             return Self::mcp(user_id, server);
         }
         match agent_id {
-            Some(id) if !id.is_empty() => Self::agent(user_id, id),
+            Some(id) if !id.as_str().is_empty() => Self::agent(user_id, id.clone()),
             _ => Self::user(user_id),
         }
     }
@@ -103,7 +101,7 @@ pub enum ActorKind {
     System,
     Job { job_name: String },
     Mcp { server_name: String },
-    Agent { agent_id: String },
+    Agent { agent_id: AgentId },
 }
 
 impl ActorKind {

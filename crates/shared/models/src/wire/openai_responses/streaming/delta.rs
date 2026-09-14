@@ -21,6 +21,7 @@ pub(super) enum DeltaShape {
 
 pub(super) fn emit_delta(
     state: &ResponsesStreamState,
+    // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
     want: SlotKindMatch,
     events: &mut Vec<Result<CanonicalEvent, String>>,
@@ -56,6 +57,7 @@ pub(super) fn emit_delta(
 
 pub(super) fn handle_item_done(
     state: &ResponsesStreamState,
+    // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -82,6 +84,7 @@ pub(super) fn handle_item_done(
 
 pub(super) fn handle_completed(
     state: &ResponsesStreamState,
+    // JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
     incomplete: bool,
@@ -129,6 +132,7 @@ pub(super) fn handle_completed(
     }));
 }
 
+// JSON: OpenAI Responses API streaming event; upstream JSON is the contract.
 pub(super) fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent, String>>) {
     let msg = value
         .get("error")

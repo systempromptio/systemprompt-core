@@ -1,13 +1,9 @@
 //! Database-value abstraction shared between repository code and the
 //! identifier crate.
 //!
-//! - [`DbValue`] is a tagged union of every scalar SQL value plus a NULL marker
-//!   per type, used to ferry values between Rust and the SQL driver.
-//! - [`ToDbValue`] / [`FromDbValue`] convert Rust types to and from
-//!   [`DbValue`].
-//! - [`JsonRow`] is a `HashMap<String, serde_json::Value>` row container.
-//! - [`parse_database_datetime`] coerces driver-provided JSON values into
-//!   `DateTime<Utc>`.
+//! [`DbValue`] carries a NULL marker per scalar type rather than one untyped
+//! NULL so that a bound parameter keeps its SQL type when the Rust value is
+//! absent; the conversion traits and [`JsonRow`] are built on that invariant.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -5,8 +5,9 @@
 //! `blocked`. The manifest wildcard applies to every name the tool catalog
 //! knows for that server, and a named tool's own entry wins over the wildcard.
 //! A wildcard `deny` is not expanded: it withholds the server from the policy
-//! (`denied_outright`), because a name the catalog has not seen would
-//! otherwise fall back to asking.
+//! (`denied_outright`). A wildcard over a server the catalog has no names for
+//! cannot be expanded either, and the projection is withheld (`None`) rather
+//! than published as a partial map Desktop would resolve to its own default.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,13 +40,16 @@ pub fn denied_outright(upstream: &crate::mcp_registry::McpUpstream) -> bool {
 pub fn desktop_tool_policy_map(
     upstream: &crate::mcp_registry::McpUpstream,
     known_tools: &[String],
-) -> BTreeMap<String, String> {
+) -> Option<BTreeMap<String, String>> {
     use systemprompt_models::bridge::manifest::ManagedMcpServer;
     let mut out = BTreeMap::new();
     if let Some(wildcard) = upstream
         .tool_policy
         .get(ManagedMcpServer::TOOL_POLICY_WILDCARD)
     {
+        if known_tools.is_empty() {
+            return None;
+        }
         for tool in known_tools {
             out.insert(tool.clone(), desktop_tool_policy(*wildcard).to_owned());
         }
@@ -55,5 +59,5 @@ pub fn desktop_tool_policy_map(
             out.insert(tool.clone(), desktop_tool_policy(*policy).to_owned());
         }
     }
-    out
+    Some(out)
 }

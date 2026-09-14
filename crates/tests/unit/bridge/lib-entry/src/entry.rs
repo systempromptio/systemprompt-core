@@ -2,15 +2,15 @@ use systemprompt_bridge::brand::Brand;
 use tempfile::TempDir;
 
 #[test]
-fn run_with_brand_installs_the_brand_and_purges_legacy_agent_state() {
+fn run_with_brand_installs_the_brand_and_leaves_foreign_state_alone() {
     let config = TempDir::new().expect("config");
     let state = TempDir::new().expect("state");
     let home = TempDir::new().expect("home");
 
-    let legacy_dir = config.path().join("systemprompt");
-    std::fs::create_dir_all(&legacy_dir).expect("legacy config dir");
-    let legacy = legacy_dir.join("agents.json");
-    std::fs::write(&legacy, "[]").expect("legacy agents state");
+    let config_dir = config.path().join("systemprompt");
+    std::fs::create_dir_all(&config_dir).expect("config dir");
+    let foreign = config_dir.join("agents.json");
+    std::fs::write(&foreign, "[]").expect("a file the bridge did not write");
 
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(home.path().display().to_string())),
@@ -26,8 +26,8 @@ fn run_with_brand_installs_the_brand_and_purges_legacy_agent_state() {
     });
 
     assert!(
-        !legacy.exists(),
-        "process start purges the legacy agents.json"
+        foreign.exists(),
+        "process start removes nothing it has no record of writing"
     );
     assert_eq!(
         systemprompt_bridge::brand::brand().binary_name,

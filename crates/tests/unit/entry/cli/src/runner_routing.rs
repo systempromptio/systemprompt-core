@@ -20,7 +20,7 @@ use systemprompt_cli::runner::routing::{
 };
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_cloud::SessionKey;
-use systemprompt_identifiers::{ContextId, TenantId};
+use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
 use systemprompt_models::Profile;
 
 fn cli(args: &[&str]) -> Cli {
@@ -202,16 +202,16 @@ fn a_confirmed_jobs_run_passes_the_gate() {
 }
 
 #[tokio::test]
-async fn an_unreachable_host_reports_a_failing_exit_code_through_the_terminal_sink() {
+async fn an_unreachable_host_is_a_connection_error_not_an_exit_code() {
     let context = ContextId::generate();
+    let token = SessionToken::new("token-that-is-never-checked");
 
-    // Why: a transport failure is not an `Err` here — the executor renders it
-    // through the sink the runner installs and returns the exit code the shell
-    // will see, so asserting `is_err` would have passed on `Ok(0)`.
-    let code = execute_remote(
+    // Why: a host that refuses the connection never produced a stream, so the
+    // runner must see an error rather than an exit code the shell would trust.
+    let err = execute_remote(
         "127.0.0.1:1",
-        "token-that-is-never-checked",
-        context.as_str(),
+        &token,
+        &context,
         &[
             "infra".to_owned(),
             "services".to_owned(),
@@ -220,10 +220,7 @@ async fn an_unreachable_host_reports_a_failing_exit_code_through_the_terminal_si
         1,
     )
     .await
-    .expect("a refused connection is reported, not propagated");
+    .expect_err("a refused connection is not a remote exit code");
 
-    assert_ne!(
-        code, 0,
-        "a host that refused the connection must not report success"
-    );
+    assert!(!err.to_string().is_empty());
 }

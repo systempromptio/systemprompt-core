@@ -10,7 +10,7 @@ use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, GoogleSearchParams, McpTool, PlanningResult,
     SearchGroundedResponse, StreamChunk, ToolModelOverrides,
 };
-use systemprompt_models::errors::ProviderResult as Result;
+use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as Result};
 use systemprompt_models::execution::context::RequestContext;
 use uuid::Uuid;
 
@@ -310,7 +310,8 @@ impl MockAiProviderBuilder {
     }
 
     pub fn with_generate_error(mut self, error: anyhow::Error) -> Self {
-        self.generate_responses.push_back(Err(error.into()));
+        self.generate_responses
+            .push_back(Err(AiInferenceError::Internal(error.to_string())));
         self
     }
 

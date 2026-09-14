@@ -141,7 +141,7 @@ async fn list_links_by_source_content_filters_correctly() {
     let slug = format!("link-src-{}", uuid::Uuid::new_v4().simple());
     let content_params = CreateContentParams {
         slug,
-        locale: LocaleCode::new("en"),
+        locale: LocaleCode::english(),
         title: "Source".to_owned(),
         description: "for link FK".to_owned(),
         body: "body".to_owned(),

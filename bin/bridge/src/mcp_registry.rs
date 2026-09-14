@@ -97,14 +97,6 @@ pub fn rehydrate_from_disk(slot: &McpRegistrySlot, gateway: &ValidatedUrl) -> st
     let Some(body) = crate::fsutil::read_optional(&path)? else {
         return Ok(());
     };
-    if serde_json::from_str::<Vec<ManagedMcpServer>>(&body).is_ok() {
-        tracing::info!(
-            target: "bridge::proxy",
-            path = %path.display(),
-            "MCP registry fragment predates gateway stamping; waiting for a sync"
-        );
-        return Ok(());
-    }
     let fragment = serde_json::from_str::<McpServersFragment>(&body)
         .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))?;
     if !same_origin(&fragment.gateway, gateway) {

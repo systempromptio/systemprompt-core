@@ -66,7 +66,6 @@ fn current(schedule: &crate::schedule::status::ScheduleStatusCache) -> Result<Va
         "gateway_url": config::gateway_url_or_default(&cfg).as_str(),
         "auth_scheme": claude.and_then(|c| c.auth_scheme.clone()),
         "models": claude.and_then(|c| c.models.clone()),
-        "cert_keystore_ref": cfg.cert_keystore_ref().map(crate::ids::KeystoreRef::as_str),
         "pinned_pubkey": pinned_pubkey_value()?,
         "config_file": config::config_path().map(|p| p.display().to_string()),
         "config_malformed": malformed,

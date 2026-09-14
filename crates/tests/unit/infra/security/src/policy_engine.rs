@@ -65,7 +65,7 @@ fn ctx<'a>(
 ) -> PolicyContext<'a> {
     PolicyContext {
         target: GovernedTarget::Tool {
-            tool: McpToolName::new("read_file"),
+            tool: McpToolName::try_new("read_file").expect("valid McpToolName"),
         },
         agent_scope: AgentScope::User {
             user_id: user.clone(),

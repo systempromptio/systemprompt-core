@@ -7,7 +7,7 @@ use super::ValidationConfigProvider;
 use super::validation_config_provider::{WebConfigRaw, WebMetadataRaw};
 use std::path::Path;
 use systemprompt_traits::validation_report::{
-    ValidationError, ValidationReport, ValidationWarning,
+    ValidationIssue, ValidationReport, ValidationWarning,
 };
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
@@ -55,7 +55,7 @@ impl DomainConfig for WebConfigValidator {
             && !base_url.starts_with("https://")
         {
             report.add_error(
-                ValidationError::new(
+                ValidationIssue::new(
                     "web_config.base_url",
                     format!("Invalid URL format: {}", base_url),
                 )
@@ -66,7 +66,7 @@ impl DomainConfig for WebConfigValidator {
         if let Some(ref site_name) = cfg.site_name
             && site_name.is_empty()
         {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 "web_config.site_name",
                 "Site name cannot be empty",
             ));
@@ -78,7 +78,7 @@ impl DomainConfig for WebConfigValidator {
                 && !dir.exists()
             {
                 report.add_error(
-                    ValidationError::new("web_config", "Web config directory does not exist")
+                    ValidationIssue::new("web_config", "Web config directory does not exist")
                         .with_path(dir),
                 );
             }
@@ -119,7 +119,7 @@ impl WebConfigValidator {
             let path = Path::new(&resolved);
             if !path.exists() {
                 report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         "web_config.paths.templates",
                         format!("Templates directory does not exist: {}", resolved),
                     )
@@ -131,7 +131,7 @@ impl WebConfigValidator {
                 );
             } else if !path.is_dir() {
                 report.add_error(
-                    ValidationError::new(
+                    ValidationIssue::new(
                         "web_config.paths.templates",
                         "Templates path is not a directory",
                     )
@@ -166,7 +166,7 @@ impl WebConfigValidator {
 
         let Some(branding) = cfg.branding.as_ref() else {
             report.add_error(
-                ValidationError::new(
+                ValidationIssue::new(
                     "web_config.branding",
                     "Missing 'branding' section in web.yaml",
                 )
@@ -233,6 +233,6 @@ fn require_branding_field(
     suggestion: &str,
 ) {
     if missing {
-        report.add_error(ValidationError::new(field, message).with_suggestion(suggestion));
+        report.add_error(ValidationIssue::new(field, message).with_suggestion(suggestion));
     }
 }

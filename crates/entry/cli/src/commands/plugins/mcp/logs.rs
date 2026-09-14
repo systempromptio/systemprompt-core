@@ -14,8 +14,8 @@ use crate::CliConfig;
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum LogLevel {

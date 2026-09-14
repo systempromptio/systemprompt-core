@@ -16,6 +16,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
+use systemprompt_bridge::sync::SyncOptions;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -206,6 +207,14 @@ fn run_verified_sync(
     sandbox: &VerifySandbox,
     allow_tofu: bool,
 ) -> Result<systemprompt_bridge::sync::SyncSummary, String> {
+    run_sync_with(sandbox, false, allow_tofu).map_err(|e| e.to_string())
+}
+
+fn run_sync_with(
+    sandbox: &VerifySandbox,
+    allow_unsigned: bool,
+    allow_tofu: bool,
+) -> Result<systemprompt_bridge::sync::SyncSummary, systemprompt_bridge::sync::SyncError> {
     temp_env::with_vars(
         sandbox
             .vars
@@ -219,11 +228,13 @@ fn run_verified_sync(
                 .unwrap()
                 .block_on(systemprompt_bridge::sync::run_once(
                     &bridge(),
-                    false,
-                    true,
-                    allow_tofu,
+                    &SyncOptions {
+                        allow_unsigned,
+                        force_replay: true,
+                        allow_tofu,
+                        ..SyncOptions::default()
+                    },
                 ))
-                .map_err(|e| e.to_string())
         },
     )
 }
@@ -458,4 +469,57 @@ fn tofu_persistence_failure_stops_before_applying_manifest() {
             .exists()
     );
     drop(server);
+}
+
+// `--allow-unsigned` is a development escape hatch; once an operator or a
+// managed policy has pinned a key for this gateway, an unsigned manifest is
+// refused outright instead of quietly bypassing the pin.
+#[test]
+fn allow_unsigned_is_refused_when_a_pubkey_is_pinned() {
+    let key = signing_key();
+    let env = SignedManifestEnvelope {
+        payload: serde_json::to_string(&manifest()).unwrap(),
+        signature: ManifestSignature::new(""),
+    };
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &env, None).await;
+        let dirs = sandbox(&server.uri(), Some(&pubkey_b64(&key)));
+        (server, dirs)
+    });
+    let _ = &server;
+
+    let err = run_sync_with(&dirs, true, false).expect_err("a pinned install refuses unsigned");
+    assert!(
+        matches!(
+            &err,
+            systemprompt_bridge::sync::SyncError::UnsignedRefusedPinned { pin_source, .. }
+                if *pin_source == "config file"
+        ),
+        "{err:?}"
+    );
+    assert_eq!(
+        format!("{:?}", err.exit_code()),
+        format!("{:?}", std::process::ExitCode::from(4)),
+        "the refusal exits like any other signature failure"
+    );
+}
+
+#[test]
+fn allow_unsigned_applies_an_unsigned_manifest_when_nothing_is_pinned() {
+    let env = SignedManifestEnvelope {
+        payload: serde_json::to_string(&manifest()).unwrap(),
+        signature: ManifestSignature::new(""),
+    };
+    let (server, dirs) = block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &env, None).await;
+        let dirs = sandbox(&server.uri(), None);
+        (server, dirs)
+    });
+    let _ = &server;
+
+    run_sync_with(&dirs, true, false).expect("an unpinned install may sync unsigned");
 }

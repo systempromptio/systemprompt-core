@@ -24,7 +24,10 @@ pub(super) fn roots(host: &str, ctx: &HostSyncCtx<'_>, skill: &SkillEntry) -> Re
             crate::integration::claude_code_cli::feedback_skill_roots(ctx.manifest, skill)
         },
         "claude-desktop" => {
-            if crate::integration::cowork_plugins::resolve_target().is_none() {
+            if crate::integration::cowork_plugins::resolve_target()
+                .map_err(|error| FeedbackError::Io(std::io::Error::other(error)))?
+                .is_none()
+            {
                 return Ok(Vec::new());
             }
             skill

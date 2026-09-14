@@ -136,6 +136,11 @@ mod secret_pattern_id {
 
     #[test]
     fn new_succeeds_on_non_empty() {
-        assert_eq!(SecretPatternId::new("token").as_str(), "token");
+        assert_eq!(
+            SecretPatternId::try_new("token")
+                .expect("valid SecretPatternId")
+                .as_str(),
+            "token"
+        );
     }
 }

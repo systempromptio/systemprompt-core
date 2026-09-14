@@ -65,7 +65,7 @@ async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result
         SessionId::new("art-pub-session"),
         TraceId::new("art-pub-trace"),
         fx.context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 
@@ -101,7 +101,7 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
         SessionId::new("art-pub-direct"),
         TraceId::new("art-pub-direct-trace"),
         fx.context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 

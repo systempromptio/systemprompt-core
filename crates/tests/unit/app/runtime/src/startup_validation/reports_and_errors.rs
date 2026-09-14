@@ -1,4 +1,4 @@
-//! Tests for StartupValidationReport, ValidationReport, ValidationError,
+//! Tests for StartupValidationReport, ValidationReport, ValidationIssue,
 //! ValidationWarning, and domain/expected domains
 
 use systemprompt_runtime::FilesConfigValidator;
@@ -78,10 +78,10 @@ fn test_validation_report_warnings_empty() {
 
 #[test]
 fn test_validation_report_add_error() {
-    use systemprompt_traits::validation_report::ValidationError;
+    use systemprompt_traits::validation_report::ValidationIssue;
 
     let mut report = ValidationReport::new("test");
-    report.add_error(ValidationError::new("field", "message"));
+    report.add_error(ValidationIssue::new("field", "message"));
     assert!(report.has_errors());
     assert_eq!(report.errors.len(), 1);
 }
@@ -98,11 +98,11 @@ fn test_validation_report_add_warning() {
 
 #[test]
 fn test_validation_report_multiple_errors() {
-    use systemprompt_traits::validation_report::ValidationError;
+    use systemprompt_traits::validation_report::ValidationIssue;
 
     let mut report = ValidationReport::new("test");
-    report.add_error(ValidationError::new("field1", "error 1"));
-    report.add_error(ValidationError::new("field2", "error 2"));
+    report.add_error(ValidationIssue::new("field1", "error 1"));
+    report.add_error(ValidationIssue::new("field2", "error 2"));
     assert_eq!(report.errors.len(), 2);
 }
 
@@ -118,9 +118,9 @@ fn test_validation_report_multiple_warnings() {
 
 #[test]
 fn test_validation_error_new() {
-    use systemprompt_traits::validation_report::ValidationError;
+    use systemprompt_traits::validation_report::ValidationIssue;
 
-    let error = ValidationError::new("field_name", "error message");
+    let error = ValidationIssue::new("field_name", "error message");
     assert_eq!(error.field, "field_name");
     assert_eq!(error.message, "error message");
 }
@@ -128,17 +128,17 @@ fn test_validation_error_new() {
 #[test]
 fn test_validation_error_with_path() {
     use std::path::PathBuf;
-    use systemprompt_traits::validation_report::ValidationError;
+    use systemprompt_traits::validation_report::ValidationIssue;
 
-    let error = ValidationError::new("field", "message").with_path(PathBuf::from("/path/to/file"));
+    let error = ValidationIssue::new("field", "message").with_path(PathBuf::from("/path/to/file"));
     error.path.as_ref().expect("Should have path");
 }
 
 #[test]
 fn test_validation_error_with_suggestion() {
-    use systemprompt_traits::validation_report::ValidationError;
+    use systemprompt_traits::validation_report::ValidationIssue;
 
-    let error = ValidationError::new("field", "message").with_suggestion("Try this fix");
+    let error = ValidationIssue::new("field", "message").with_suggestion("Try this fix");
     assert_eq!(
         error.suggestion.expect("Should have suggestion"),
         "Try this fix"
@@ -148,9 +148,9 @@ fn test_validation_error_with_suggestion() {
 #[test]
 fn test_validation_error_full_chain() {
     use std::path::PathBuf;
-    use systemprompt_traits::validation_report::ValidationError;
+    use systemprompt_traits::validation_report::ValidationIssue;
 
-    let error = ValidationError::new("database_url", "Connection failed")
+    let error = ValidationIssue::new("database_url", "Connection failed")
         .with_path(PathBuf::from("/config/db.yaml"))
         .with_suggestion("Check your database credentials");
     assert_eq!(error.field, "database_url");

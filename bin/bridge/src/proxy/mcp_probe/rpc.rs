@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::{MCP_PROTOCOL_VERSION, McpTool, SESSION_HEADER};
 
@@ -23,7 +23,10 @@ pub(super) async fn list_tools(
         session,
     );
     initialized
-        .json(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }))
+        .json(&JsonRpcNotification {
+            jsonrpc: "2.0",
+            method: "notifications/initialized",
+        })
         .send()
         .await?
         .error_for_status()?;
@@ -37,7 +40,12 @@ pub(super) async fn list_tools(
         session,
     );
     let resp = req
-        .json(&json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }))
+        .json(&JsonRpcRequest {
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/list",
+            params: EmptyParams {},
+        })
         .send()
         .await?
         .error_for_status()?;
@@ -61,17 +69,68 @@ fn with_session(
     }
 }
 
-pub(super) fn initialize_body() -> Value {
-    json!({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "initialize",
-        "params": {
-            "protocolVersion": MCP_PROTOCOL_VERSION,
-            "capabilities": {},
-            "clientInfo": { "name": "systemprompt-bridge-probe", "version": crate::brand::brand().version },
+#[derive(Debug, serde::Serialize)]
+pub(super) struct JsonRpcRequest<P> {
+    pub jsonrpc: &'static str,
+    pub id: u32,
+    pub method: &'static str,
+    pub params: P,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct InitializeParams {
+    pub protocol_version: &'static str,
+    // JSON: MCP `initialize` capabilities object; the probe advertises none.
+    pub capabilities: serde_json::Map<String, Value>,
+    pub client_info: ClientInfo,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub(super) struct ClientInfo {
+    pub name: &'static str,
+    pub version: &'static str,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub(super) struct EmptyParams;
+
+#[derive(Debug, serde::Serialize)]
+struct JsonRpcNotification {
+    jsonrpc: &'static str,
+    method: &'static str,
+}
+
+pub(super) fn initialize_body() -> JsonRpcRequest<InitializeParams> {
+    JsonRpcRequest {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: InitializeParams {
+            protocol_version: MCP_PROTOCOL_VERSION,
+            capabilities: serde_json::Map::new(),
+            client_info: ClientInfo {
+                name: "systemprompt-bridge-probe",
+                version: crate::brand::brand().version,
+            },
         },
-    })
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct ToolsListResponse {
+    result: Option<ToolsListResult>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct ToolsListResult {
+    tools: Option<Vec<Tool>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct Tool {
+    name: String,
+    description: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -85,11 +144,6 @@ pub(super) enum RpcError {
 }
 
 fn parse_tools(content_type: &str, body: &str) -> Result<Vec<McpTool>, RpcError> {
-    #[derive(serde::Deserialize)]
-    struct Tool {
-        name: String,
-        description: Option<String>,
-    }
     let data;
     let body = if content_type.contains("text/event-stream") {
         data = body
@@ -102,20 +156,16 @@ fn parse_tools(content_type: &str, body: &str) -> Result<Vec<McpTool>, RpcError>
     } else {
         body
     };
-    let value: Value = serde_json::from_str(body)?;
-    let tools = value
-        .get("result")
-        .and_then(|value| value.get("tools"))
-        .and_then(Value::as_array)
+    let response: ToolsListResponse = serde_json::from_str(body)?;
+    let tools = response
+        .result
+        .and_then(|result| result.tools)
         .ok_or(RpcError::MissingTools)?;
-    tools
-        .iter()
-        .map(|value| {
-            let tool: Tool = serde_json::from_value(value.clone())?;
-            Ok(McpTool {
-                name: tool.name,
-                description: tool.description,
-            })
+    Ok(tools
+        .into_iter()
+        .map(|tool| McpTool {
+            name: tool.name,
+            description: tool.description,
         })
-        .collect()
+        .collect())
 }

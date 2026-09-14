@@ -53,7 +53,7 @@ fn create_request_is_active_defaults_true() {
         }
     });
     let req = deserialize_create_request(json);
-    assert!(req.is_active());
+    assert!(req.is_active);
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn create_request_is_active_can_be_false() {
         "is_active": false
     });
     let req = deserialize_create_request(json);
-    assert!(!req.is_active());
+    assert!(!req.is_active);
 }
 
 #[test]
@@ -260,7 +260,7 @@ async fn create_request_validate_bad_version_fails() {
 }
 
 #[test]
-fn update_request_is_active_defaults_true() {
+fn update_request_is_active_omitted_is_unset() {
     let json = json!({
         "card": {
             "name": "upd-agent",
@@ -270,7 +270,7 @@ fn update_request_is_active_defaults_true() {
         }
     });
     let req = deserialize_update_request(json);
-    assert!(req.is_active());
+    assert!(req.is_active.is_none());
 }
 
 #[test]
@@ -296,7 +296,7 @@ fn update_request_from_raw_with_api_url() {
         mcp_servers: None,
     };
     let req = UpdateAgentRequest::from_raw(raw, "http://api.local");
-    assert!(!req.is_active());
+    assert_eq!(req.is_active, Some(false));
     let url = req.card.url().unwrap_or("");
     assert!(url.starts_with("http://api.local"));
 }

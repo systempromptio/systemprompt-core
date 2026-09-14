@@ -17,7 +17,7 @@ use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_models::AgentConfig;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
+use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 pub async fn reconcile_agents(
     ctx: &AppContext,

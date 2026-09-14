@@ -1,4 +1,5 @@
-use systemprompt_bridge::update::{DownloadProgress, hex_lower};
+use systemprompt_bridge::hash::hex_encode as hex_lower;
+use systemprompt_bridge::update::DownloadProgress;
 
 #[test]
 fn hex_is_lowercase_and_zero_padded() {

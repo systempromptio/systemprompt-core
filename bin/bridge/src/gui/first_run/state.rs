@@ -3,63 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-/// How far the run has got. `Complete` and `Failed` are both terminal; the
-/// difference is only what the wizard says, not whether the user may leave.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum FirstRunPhase {
-    #[default]
-    Idle,
-    Probing,
-    Installing,
-    Syncing,
-    Complete,
-    Failed,
-}
-
-impl FirstRunPhase {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Idle => "idle",
-            Self::Probing => "probing",
-            Self::Installing => "installing",
-            Self::Syncing => "syncing",
-            Self::Complete => "complete",
-            Self::Failed => "failed",
-        }
-    }
-}
-
-/// Where one host has got to. `Skipped` means the host app is not installed on
-/// this machine, which is not a failure.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum StepStatus {
-    #[default]
-    Pending,
-    Probing,
-    Generating,
-    Installing,
-    Done,
-    Failed,
-    Skipped,
-}
-
-impl StepStatus {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Probing => "probing",
-            Self::Generating => "generating",
-            Self::Installing => "installing",
-            Self::Done => "done",
-            Self::Failed => "failed",
-            Self::Skipped => "skipped",
-        }
-    }
-
-    pub const fn is_terminal(self) -> bool {
-        matches!(self, Self::Done | Self::Failed | Self::Skipped)
-    }
-}
+pub use crate::wire::first_run::{FirstRunPhase, StepStatus};
 
 #[derive(Debug, Clone)]
 pub struct FirstRunHost {

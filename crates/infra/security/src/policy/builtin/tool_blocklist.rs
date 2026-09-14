@@ -1,4 +1,5 @@
-//! `tool_blocklist`: block destructive tool names for non-admin agents.
+//! Block destructive tool names for non-admin agents; registered as the
+//! `tool_blocklist` policy.
 //!
 //! Configurable via:
 //! ```yaml

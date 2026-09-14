@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{
-    Actor, AgentName, ClientId, ContextId, SessionId, TaskId, TraceId, UserId,
+    Actor, AgentName, ClientId, ContextId, McpServerId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_mcp::middleware::rbac::build_mcp_authz_request;
 use systemprompt_models::auth::{
@@ -44,7 +44,7 @@ fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Valu
 fn execution_with(context: &str, task: Option<&str>) -> ExecutionContext {
     ExecutionContext {
         trace_id: TraceId::generate(),
-        context_id: ContextId::new_unchecked(context),
+        context_id: ContextId::try_new(context).expect("valid ContextId"),
         task_id: task.map(TaskId::new),
         ai_tool_call_id: None,
         mcp_execution_id: None,
@@ -62,7 +62,7 @@ fn forwards_roles_and_attributes_from_claims() {
     let act_chain: Vec<Actor> = vec![Actor::user(UserId::new("user_42"))];
 
     let req = build_mcp_authz_request(
-        "server-x",
+        &McpServerId::try_new("server-x").expect("valid"),
         &claims,
         act_chain.clone(),
         &execution_with("22222222-2222-4222-8222-222222222222", Some("task-7")),
@@ -76,9 +76,7 @@ fn forwards_roles_and_attributes_from_claims() {
     assert!(matches!(req.entity, EntityRef::McpServer(_)));
     assert_eq!(
         req.context_id,
-        Some(ContextId::new_unchecked(
-            "22222222-2222-4222-8222-222222222222"
-        ))
+        Some(ContextId::try_new("22222222-2222-4222-8222-222222222222").expect("valid ContextId"))
     );
     assert_eq!(req.task_id, Some(TaskId::new("task-7")));
 }
@@ -87,7 +85,7 @@ fn forwards_roles_and_attributes_from_claims() {
 fn tool_call_without_task_forwards_context_only() {
     let claims = claims_with(vec![], BTreeMap::new());
     let req = build_mcp_authz_request(
-        "server-x",
+        &McpServerId::try_new("server-x").expect("valid"),
         &claims,
         Vec::new(),
         &execution_with("22222222-2222-4222-8222-222222222222", None),
@@ -95,9 +93,7 @@ fn tool_call_without_task_forwards_context_only() {
     );
     assert_eq!(
         req.context_id,
-        Some(ContextId::new_unchecked(
-            "22222222-2222-4222-8222-222222222222"
-        ))
+        Some(ContextId::try_new("22222222-2222-4222-8222-222222222222").expect("valid ContextId"))
     );
     assert!(req.task_id.is_none());
 }
@@ -106,7 +102,7 @@ fn tool_call_without_task_forwards_context_only() {
 fn empty_attributes_round_trip() {
     let claims = claims_with(vec![], BTreeMap::new());
     let req = build_mcp_authz_request(
-        "server-x",
+        &McpServerId::try_new("server-x").expect("valid"),
         &claims,
         Vec::new(),
         &execution_with("22222222-2222-4222-8222-222222222222", None),
@@ -119,7 +115,7 @@ fn empty_attributes_round_trip() {
 fn no_floor_yields_plain_none_context() {
     let claims = claims_with(vec![], BTreeMap::new());
     let req = build_mcp_authz_request(
-        "server-x",
+        &McpServerId::try_new("server-x").expect("valid"),
         &claims,
         Vec::new(),
         &execution_with("22222222-2222-4222-8222-222222222222", None),
@@ -139,7 +135,7 @@ fn carries_marketplace_floor_when_present() {
     );
 
     let req = build_mcp_authz_request(
-        "server-x",
+        &McpServerId::try_new("server-x").expect("valid"),
         &claims,
         Vec::new(),
         &execution_with("22222222-2222-4222-8222-222222222222", None),
@@ -154,7 +150,13 @@ fn carries_marketplace_floor_when_present() {
 fn records_the_mcp_surface_and_joins_to_the_request() {
     let claims = claims_with(vec![], BTreeMap::new());
     let execution = execution_with("22222222-2222-4222-8222-222222222222", None);
-    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), &execution, None);
+    let req = build_mcp_authz_request(
+        &McpServerId::try_new("server-x").expect("valid"),
+        &claims,
+        Vec::new(),
+        &execution,
+        None,
+    );
 
     let actor = req.actor();
     assert_eq!(actor.user_id.as_str(), "user_42");

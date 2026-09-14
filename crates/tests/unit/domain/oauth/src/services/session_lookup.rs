@@ -19,8 +19,7 @@ use systemprompt_oauth::{
 use systemprompt_test_fixtures::{ensure_test_bootstrap, install_test_signing_key};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
-    ExtractSignals, FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher,
-    UserProvider,
+    ExtractSignals, FingerprintProvider, SessionAnalytics, UserProvider,
 };
 
 struct StubAnalyticsProvider {
@@ -97,7 +96,7 @@ impl AnalyticsProvider for StubAnalyticsProvider {
 
 struct StubFingerprintProvider {
     active_sessions: i64,
-    reusable_session: Option<String>,
+    reusable_session: Option<SessionId>,
 }
 
 #[async_trait]
@@ -106,7 +105,10 @@ impl FingerprintProvider for StubFingerprintProvider {
         Ok(self.active_sessions)
     }
 
-    async fn find_reusable_session(&self, _fingerprint: &str) -> AnalyticsResult<Option<String>> {
+    async fn find_reusable_session(
+        &self,
+        _fingerprint: &str,
+    ) -> AnalyticsResult<Option<SessionId>> {
         Ok(self.reusable_session.clone())
     }
 
@@ -180,16 +182,6 @@ impl UserProvider for StubUserProvider {
     }
 }
 
-struct RecordingPublisher {
-    events: std::sync::Mutex<Vec<String>>,
-}
-
-impl UserEventPublisher for RecordingPublisher {
-    fn publish_user_event(&self, event: UserEvent) {
-        self.events.lock().unwrap().push(format!("{event:?}"));
-    }
-}
-
 fn recent_session(session_id: &str, user_id: Option<&str>) -> AnalyticsSession {
     AnalyticsSession {
         session_id: SessionId::new(session_id),
@@ -229,7 +221,7 @@ async fn session_at_fingerprint_limit_is_reused() {
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 5,
-        reusable_session: Some("sess_reusable".to_owned()),
+        reusable_session: Some(SessionId::new("sess_reusable")),
     }));
 
     let request_analytics = SessionAnalytics::default();
@@ -290,14 +282,10 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
         "sess_recent",
         None,
     ))));
-    let publisher = Arc::new(RecordingPublisher {
-        events: std::sync::Mutex::new(Vec::new()),
-    });
     let service = SessionCreationService::new(
         Arc::clone(&analytics) as Arc<dyn AnalyticsProvider>,
         Arc::new(StubUserProvider { known_user: None }),
-    )
-    .with_event_publisher(Arc::clone(&publisher) as Arc<dyn UserEventPublisher>);
+    );
 
     let request_analytics = SessionAnalytics::default();
     let client = client_id();
@@ -315,7 +303,6 @@ async fn recent_session_without_user_falls_through_to_fresh_creation() {
         "jwt is header.payload.signature"
     );
     assert_eq!(analytics.created_sessions.load(Ordering::SeqCst), 1);
-    assert!(!publisher.events.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -483,7 +470,10 @@ impl FingerprintProvider for FailingFingerprintProvider {
             "count exploded".to_owned(),
         ))
     }
-    async fn find_reusable_session(&self, _fingerprint: &str) -> AnalyticsResult<Option<String>> {
+    async fn find_reusable_session(
+        &self,
+        _fingerprint: &str,
+    ) -> AnalyticsResult<Option<SessionId>> {
         Err(systemprompt_traits::AnalyticsProviderError::Internal(
             "reusable exploded".to_owned(),
         ))
@@ -506,7 +496,10 @@ impl FingerprintProvider for ReusableLookupFailsProvider {
     async fn count_active_sessions(&self, _fingerprint: &str) -> AnalyticsResult<i64> {
         Ok(9)
     }
-    async fn find_reusable_session(&self, _fingerprint: &str) -> AnalyticsResult<Option<String>> {
+    async fn find_reusable_session(
+        &self,
+        _fingerprint: &str,
+    ) -> AnalyticsResult<Option<SessionId>> {
         Err(systemprompt_traits::AnalyticsProviderError::Internal(
             "reusable exploded".to_owned(),
         ))
@@ -558,7 +551,7 @@ async fn at_limit_failing_recent_lookup_falls_through_to_fresh_session() {
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
-        reusable_session: Some("sess_reusable".to_owned()),
+        reusable_session: Some(SessionId::new("sess_reusable")),
     }));
 
     let request_analytics = SessionAnalytics::default();
@@ -636,7 +629,7 @@ async fn at_limit_with_recent_session_lacking_user_creates_fresh_session() {
     )
     .with_fingerprint_provider(Arc::new(StubFingerprintProvider {
         active_sessions: 9,
-        reusable_session: Some("sess_reusable".to_owned()),
+        reusable_session: Some(SessionId::new("sess_reusable")),
     }));
 
     let request_analytics = SessionAnalytics::default();

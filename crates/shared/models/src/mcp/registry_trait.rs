@@ -1,8 +1,10 @@
 //! MCP registry and provider traits.
 //!
-//! These traits are consumed as trait objects (`DynMcpRegistry` and
-//! friends), so they use `#[async_trait]` — native `async fn` in traits
-//! is not yet `dyn`-compatible.
+//! [`McpRegistry`], [`McpToolProvider`] and [`McpDeploymentProvider`] are
+//! held as the `Dyn*` aliases (`Arc<dyn _>`) by the OAuth and agent domains,
+//! so they use `#[async_trait]`; native `async fn` in traits is not
+//! `dyn`-compatible. Every method returns
+//! [`McpRegistryResult`](crate::errors::McpRegistryResult).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,38 +13,50 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::errors::ProviderResult as Result;
+use crate::errors::McpRegistryResult as Result;
 
 use crate::ai::tools::McpTool;
 use crate::execution::context::RequestContext;
+use systemprompt_identifiers::McpServerId;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum McpServerStatus {
+    Unknown,
+    Running,
+    Stopped,
+}
 
 #[derive(Debug, Clone)]
 pub struct McpServerState {
-    pub name: String,
+    pub name: McpServerId,
     pub host: String,
     pub port: u16,
-    pub status: String,
+    pub status: McpServerStatus,
 }
 
 #[async_trait]
 pub trait McpRegistry: Send + Sync {
-    async fn list_servers(&self) -> Result<Vec<String>>;
+    async fn list_servers(&self) -> Result<Vec<McpServerId>>;
 
-    async fn find_server(&self, name: &str) -> Result<Option<McpServerState>>;
+    async fn find_server(&self, name: &McpServerId) -> Result<Option<McpServerState>>;
 
-    async fn server_exists(&self, name: &str) -> Result<bool>;
+    async fn server_exists(&self, name: &McpServerId) -> Result<bool>;
 }
 
 #[async_trait]
 pub trait McpToolProvider: Send + Sync {
-    async fn list_tools(&self, server_name: &str, context: &RequestContext)
-    -> Result<Vec<McpTool>>;
+    async fn list_tools(
+        &self,
+        server_name: &McpServerId,
+        context: &RequestContext,
+    ) -> Result<Vec<McpTool>>;
 
     async fn load_tools_for_servers(
         &self,
-        server_names: &[String],
+        server_names: &[McpServerId],
         context: &RequestContext,
-    ) -> Result<HashMap<String, Vec<McpTool>>>;
+    ) -> Result<HashMap<McpServerId, Vec<McpTool>>>;
 }
 
 #[async_trait]
@@ -51,9 +65,6 @@ pub trait McpDeploymentProvider: Send + Sync {
 
     fn protocol_version(&self) -> &str;
 }
-
-#[async_trait]
-pub trait McpProvider: McpRegistry + McpToolProvider + McpDeploymentProvider {}
 
 pub type DynMcpRegistry = Arc<dyn McpRegistry>;
 

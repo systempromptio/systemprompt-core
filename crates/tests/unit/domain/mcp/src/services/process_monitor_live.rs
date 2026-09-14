@@ -27,7 +27,7 @@ fn exited_but_unreaped_child() -> Option<Child> {
 
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        if systemprompt_models::subprocess::is_zombie(child.id()) {
+        if systemprompt_loader::subprocess::is_zombie(child.id()) {
             return Some(child);
         }
         std::thread::sleep(Duration::from_millis(20));

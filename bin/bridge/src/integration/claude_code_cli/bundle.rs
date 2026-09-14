@@ -148,8 +148,8 @@ fn write_mcp_json(
     servers: &[String],
 ) -> Result<(), ApplyError> {
     let bearer = loopback
-        .bearer()
-        .map_err(|e| io_err("read loopback secret for claude-code .mcp.json", e))?;
+        .host_bearer(&crate::ids::HostId::new("claude-code"))
+        .map_err(|e| io_err("derive claude-code host token for .mcp.json", e))?;
     let mut map = serde_json::Map::new();
     for name in servers {
         let slug = crate::mcp_registry::normalize_key(name);
@@ -162,22 +162,14 @@ fn write_mcp_json(
             }),
         );
     }
-    super::json_io::write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
+    crate::integration::json_io::write_json(&root.join(".mcp.json"), &json!({ "mcpServers": map }))
 }
 
 pub(super) fn remove_stale_children(dir: &Path, expected: &[&str]) -> Result<(), ApplyError> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::claude-code-cli",
-                dir = %dir.display(),
-                error = %e,
-                "marketplace directory unreadable; stale plugins left in place"
-            );
-            return Ok(());
-        },
+        Err(e) => return Err(io_err(format!("enumerate {}", dir.display()), e)),
     };
     for entry in entries.flatten() {
         let name = entry.file_name();

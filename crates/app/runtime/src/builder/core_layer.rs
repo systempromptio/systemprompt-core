@@ -20,13 +20,14 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{
     Database, MigrationConfig, PoolConfig, install_extension_schemas_full,
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{AppPaths, Config};
+use systemprompt_models::Config;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_traits::FileStorage;
 
@@ -97,10 +98,10 @@ pub(super) async fn init_core(
     )
     .await?;
 
-    let authz_audit_pool = database.write_pool_arc().ok();
+    let authz_audit_pool = database.write_pool_arc()?;
     let authz_hook = systemprompt_security::authz::build_authz_hook(
         profile.governance.as_ref(),
-        authz_audit_pool,
+        Some(authz_audit_pool),
         authz_hook_override,
         chain_sources()?,
     )

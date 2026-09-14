@@ -20,6 +20,7 @@ pub struct Message {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_id: Option<TaskId>,
     pub context_id: ContextId,
+    // JSON: A2A `Message.metadata` is spec-defined as a free-form object.
     pub metadata: Option<serde_json::Value>,
     pub extensions: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,6 +50,7 @@ pub struct TextPart {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DataPart {
+    // JSON: A2A `DataPart.data` is spec-defined as a free-form object.
     pub data: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -76,6 +78,7 @@ impl Part {
         }
     }
 
+    // JSON: A2A `DataPart.data` is spec-defined as a free-form object.
     pub fn as_data(&self) -> Option<serde_json::Value> {
         match self {
             Self::Data(data_part) => Some(serde_json::Value::Object(data_part.data.clone())),
@@ -83,6 +86,7 @@ impl Part {
         }
     }
 
+    // JSON: A2A `FilePart` wire object.
     pub fn as_file(&self) -> Option<serde_json::Value> {
         match self {
             Self::File(file_part) => serde_json::to_value(&file_part.file).ok(),

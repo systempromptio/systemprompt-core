@@ -108,18 +108,16 @@ impl Job for VertexDiscoveryJob {
             warn!(
                 count = report.discovered_priced.len(),
                 models = %report.discovered_priced.join(", "),
-                "{} newly published Vertex models are priced and will be served after the next \
-                 restart",
-                report.discovered_priced.len()
+                "Newly published Vertex models are priced and will be served after the next \
+                 restart"
             );
         }
         if !report.retiring.is_empty() {
             warn!(
                 count = report.retiring.len(),
                 models = %report.retiring.join(", "),
-                "Vertex still lists {} models whose documentation has withdrawn or is retiring \
-                 them; discovery withholds them",
-                report.retiring.len()
+                "Vertex still lists models whose documentation has withdrawn or is retiring \
+                 them; discovery withholds them"
             );
         }
         if let Ok(card) = VertexRateCard::embedded() {
@@ -128,8 +126,9 @@ impl Job for VertexDiscoveryJob {
             {
                 warn!(
                     model = %model,
+                    lifecycle = %what,
                     date = %date,
-                    "served Vertex model {model} {what} on {date}; plan its replacement"
+                    "Served Vertex model reaches a lifecycle deadline; plan its replacement"
                 );
             }
         }

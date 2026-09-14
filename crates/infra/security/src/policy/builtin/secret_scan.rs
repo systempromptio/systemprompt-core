@@ -1,5 +1,5 @@
-//! `secret_scan`: evaluate governed input with the installation's configured
-//! credential catalog.
+//! Evaluate governed input against the installation's configured credential
+//! catalog; registered as the `secret_scan` policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,7 +7,7 @@
 use std::borrow::Cow;
 
 use serde_yaml::Value as YamlValue;
-use systemprompt_identifiers::{PolicyId, SecretPatternId};
+use systemprompt_identifiers::PolicyId;
 
 use super::super::governed::GovernedInput;
 use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
@@ -54,7 +54,7 @@ impl GovernancePolicy for SecretScan {
         if let Some(hit) = hit.as_ref().filter(|hit| !hit.observation) {
             return Decision::Deny {
                 reason: DenyReason::SecretLeak {
-                    pattern_id: SecretPatternId::new(hit.pattern.id.clone()),
+                    pattern_id: hit.pattern.id.clone(),
                     pattern_name: Cow::Owned(hit.pattern.name.clone()),
                     location: SecretLocation::new(kind, hit.path.clone(), hit.redacted.clone()),
                 },

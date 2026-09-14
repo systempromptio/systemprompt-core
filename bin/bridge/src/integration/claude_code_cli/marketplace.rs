@@ -14,12 +14,47 @@ use serde_json::{Value, json};
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::bridge::plugin_bundle::PluginManifest;
 
-use super::json_io::{object_entry, read_json_object, read_optional_object, write_json};
-use super::{HostMarketplace, Mirrored, cache_install_dir, io_err, marketplace_dir, plugin_key};
+use super::io_err;
+use super::layout::{cache_install_dir, marketplace_dir, plugin_key};
 use crate::config::paths;
 use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::ApplyError;
 use crate::ids::PluginId;
+use crate::integration::json_io::{
+    object_entry, read_json_object, read_optional_object, write_json,
+};
+
+/// A Claude Code marketplace this emitter mirrors: the gateway marketplace's
+/// id and name, and the manifest plugins it carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostMarketplace {
+    pub id: MarketplaceId,
+    pub name: String,
+    pub plugin_ids: Vec<PluginId>,
+}
+
+/// The plugins mirrored under one marketplace, as written to `settings.json`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mirrored {
+    pub id: MarketplaceId,
+    pub plugin_ids: Vec<PluginId>,
+}
+
+#[must_use]
+pub fn host_marketplaces(manifest: &SignedManifest) -> Vec<HostMarketplace> {
+    if manifest.plugins.is_empty() {
+        return Vec::new();
+    }
+    manifest
+        .marketplaces
+        .iter()
+        .map(|m| HostMarketplace {
+            id: m.id.clone(),
+            name: m.name.clone(),
+            plugin_ids: m.plugin_ids.clone(),
+        })
+        .collect()
+}
 
 #[derive(Debug)]
 pub struct MarketplaceEntry {
@@ -136,9 +171,7 @@ pub(super) fn upsert_installed_plugins(
     let path = plugins.join("installed_plugins.json");
     let mut root = read_json_object(&path)?;
     root.entry("version").or_insert(json!(2));
-    let Some(map) = object_entry(&mut root, "plugins") else {
-        return Ok(());
-    };
+    let map = object_entry(&mut root, &path, "plugins")?;
     strip_marketplace_keys(map, marketplace, ids);
     for id in ids {
         map.insert(
@@ -188,33 +221,33 @@ pub(super) fn set_enabled(current: &[Mirrored], stale: &[MarketplaceId]) -> Resu
     };
     let mut root = read_json_object(&path)?;
 
-    if let Some(enabled_map) = object_entry(&mut root, "enabledPlugins") {
-        for marketplace in stale {
-            strip_marketplace_keys(enabled_map, marketplace, &[]);
-        }
-        for mirrored in current {
-            let ids: Vec<&PluginId> = mirrored.plugin_ids.iter().collect();
-            strip_marketplace_keys(enabled_map, &mirrored.id, &ids);
-            for id in ids {
-                enabled_map.insert(plugin_key(id, &mirrored.id), Value::Bool(true));
-            }
+    let enabled_map = object_entry(&mut root, &path, "enabledPlugins")?;
+    for marketplace in stale {
+        strip_marketplace_keys(enabled_map, marketplace, &[]);
+    }
+    for mirrored in current {
+        let ids: Vec<&PluginId> = mirrored.plugin_ids.iter().collect();
+        strip_marketplace_keys(enabled_map, &mirrored.id, &ids);
+        for id in ids {
+            enabled_map.insert(plugin_key(id, &mirrored.id), Value::Bool(true));
         }
     }
 
-    if let Some(mkts) = object_entry(&mut root, "extraKnownMarketplaces") {
+    {
+        let mkts = object_entry(&mut root, &path, "extraKnownMarketplaces")?;
         for marketplace in stale {
             mkts.remove(marketplace.as_str());
         }
-        let plugins = paths::claude_cli_plugins_dir();
+        let plugins = paths::claude_cli_plugins_dir().ok_or_else(|| {
+            io_err(
+                "resolve the Claude Code plugins directory for extraKnownMarketplaces",
+                std::io::Error::new(std::io::ErrorKind::NotFound, "no home directory"),
+            )
+        })?;
         for mirrored in current {
-            let loc = plugins
-                .as_deref()
-                .map(|p| {
-                    marketplace_dir(p, &mirrored.id)
-                        .to_string_lossy()
-                        .into_owned()
-                })
-                .unwrap_or_default();
+            let loc = marketplace_dir(&plugins, &mirrored.id)
+                .to_string_lossy()
+                .into_owned();
             mkts.insert(
                 mirrored.id.as_str().to_owned(),
                 json!({ "source": { "source": "directory", "path": loc } }),

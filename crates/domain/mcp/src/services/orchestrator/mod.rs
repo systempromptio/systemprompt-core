@@ -8,8 +8,8 @@
 
 use crate::error::McpDomainResult;
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, ServiceRepository};
-use systemprompt_models::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 mod daemon;

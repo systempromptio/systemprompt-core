@@ -60,7 +60,7 @@ fn hook_files() -> Option<Vec<PathBuf>> {
     use crate::integration::claude_code_cli::{marketplace_dir, sidecar};
     let plugins = crate::config::paths::claude_cli_plugins_dir()?;
     let mut files = Vec::new();
-    let owned = sidecar::owned_marketplaces(&plugins, sidecar::Legacy::WhenUnrecorded)
+    let owned = sidecar::owned_marketplaces(&plugins)
         .inspect_err(|e| {
             tracing::warn!(
                 target: "bridge::doctor",

@@ -56,6 +56,9 @@ pub enum VaultError {
         detail: String,
     },
 
+    #[error("vault response body could not be read: {message}")]
+    Body { message: String },
+
     #[error("vault response was not the expected KV v2 shape: {message}")]
     Malformed { message: String },
 

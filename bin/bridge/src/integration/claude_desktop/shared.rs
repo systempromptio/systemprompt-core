@@ -12,6 +12,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::integration::host_app::HostConfigSchema;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(super) const HOST_ID: &str = "claude-desktop";
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -40,16 +43,20 @@ pub(super) struct DomainRead {
     pub source_path: Option<String>,
     pub keys: BTreeMap<String, String>,
     pub api_key_fp: Option<String>,
+    pub probe_error: Option<String>,
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn secret_freshness(
     installed_api_key_fp: Option<&str>,
     env: &crate::integration::host_app::ProbeEnv,
-) -> Option<bool> {
-    let installed = installed_api_key_fp?;
-    let live = env.loopback_secret_fingerprint.as_deref()?;
-    Some(installed == live)
+) -> crate::integration::host_app::Freshness {
+    let live = env.host_token_fingerprint(&crate::ids::HostId::new(HOST_ID));
+    crate::integration::host_app::Freshness::compare(
+        installed_api_key_fp,
+        live.as_deref(),
+        "loopback secret",
+    )
 }
 
 pub use crate::integration::host_app::ProfileGenInputs;
@@ -67,18 +74,6 @@ pub(super) fn now_unix() -> u64 {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) fn unique_stem() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    format!(
-        "{}-{}-{}",
-        now_unix(),
-        std::process::id(),
-        SEQ.fetch_add(1, Ordering::Relaxed)
-    )
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {
     if key == API_KEY_KEY {
         return format!(
@@ -87,20 +82,4 @@ pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {
         );
     }
     raw
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) fn make_uuids() -> (String, String) {
-    let n = now_unix();
-    let payload_uuid = format!(
-        "ce0a{:08x}-cwk0-4cwk-cwk0-{:012x}",
-        n & 0xFFFF_FFFF,
-        n ^ 0xDEAD_BEEF_CAFE_BABEu64
-    );
-    let profile_uuid = format!(
-        "ce0b{:08x}-cwk0-4cwk-cwk0-{:012x}",
-        (n ^ 0x1234_5678) & 0xFFFF_FFFF,
-        n ^ 0xFEED_FACE_DEAD_C0DEu64
-    );
-    (payload_uuid, profile_uuid)
 }

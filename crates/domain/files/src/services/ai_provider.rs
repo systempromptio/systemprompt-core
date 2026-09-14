@@ -14,15 +14,21 @@ use crate::config::FilesConfig;
 use crate::models::{File, FileMetadata};
 use crate::repository::{FileRepository, InsertFileRequest};
 
-fn to_ai_generated(f: File) -> AiGeneratedFile {
-    AiGeneratedFile {
-        id: f.id,
+fn to_ai_generated(f: File) -> AiProviderResult<AiGeneratedFile> {
+    let metadata = serde_json::to_value(&f.metadata.0).map_err(|e| {
+        AiProviderError::Internal(format!(
+            "File metadata for {} is not serialisable: {e}",
+            f.id
+        ))
+    })?;
+    Ok(AiGeneratedFile {
+        id: FileId::new(f.id.to_string()),
         path: f.path,
         public_url: f.public_url,
         mime_type: f.mime_type,
         size_bytes: f.size_bytes,
         ai_content: f.ai_content,
-        metadata: serde_json::to_value(&f.metadata.0).unwrap_or_default(),
+        metadata,
         user_id: f.user_id,
         session_id: f.session_id,
         trace_id: f.trace_id,
@@ -30,7 +36,7 @@ fn to_ai_generated(f: File) -> AiGeneratedFile {
         created_at: f.created_at,
         updated_at: f.updated_at,
         deleted_at: f.deleted_at,
-    }
+    })
 }
 
 #[derive(Debug)]
@@ -89,7 +95,7 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
             .await
             .map_err(|e| AiProviderError::Internal(e.to_string()))?;
 
-        Ok(file.map(to_ai_generated))
+        file.map(to_ai_generated).transpose()
     }
 
     async fn list_by_user(
@@ -104,7 +110,7 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
             .await
             .map_err(|e| AiProviderError::Internal(e.to_string()))?;
 
-        Ok(files.into_iter().map(to_ai_generated).collect())
+        files.into_iter().map(to_ai_generated).collect()
     }
 
     async fn delete(&self, id: &FileId) -> AiProviderResult<()> {

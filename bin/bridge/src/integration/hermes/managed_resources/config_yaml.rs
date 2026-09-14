@@ -41,13 +41,20 @@ pub(super) fn write_config_blocks(
     let mut value = read_or_empty(&path)?;
     let original = value.clone();
 
-    strip_bridge_mcp_servers(loopback, &mut value);
+    let sidecar = crate::integration::mcp_sidecar::beside(&path);
+    strip_bridge_mcp_servers(
+        &crate::integration::mcp_sidecar::read(&sidecar)?,
+        &mut value,
+    );
     remove_external_dir(&mut value);
 
-    if enabled {
+    let written = if enabled {
         add_external_dir(&mut value);
-        write_mcp_servers(loopback, &mut value, mcp_servers)?;
-    }
+        write_mcp_servers(loopback, &mut value, mcp_servers)?
+    } else {
+        Vec::new()
+    };
+    crate::integration::mcp_sidecar::write(&sidecar, &written)?;
 
     if value == original {
         return Ok(());
@@ -62,33 +69,37 @@ fn write_mcp_servers(
     loopback: &LoopbackEndpoint,
     value: &mut Value,
     servers: &[ManagedMcpServer],
-) -> Result<(), ApplyError> {
+) -> Result<Vec<String>, ApplyError> {
     if servers.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
-    let bearer = loopback.bearer().map_err(|e| ApplyError::Io {
-        context: "read loopback secret for hermes mcp_servers".into(),
-        source: e,
-    })?;
+    let mut written = Vec::with_capacity(servers.len());
+    let bearer = loopback
+        .host_bearer(&crate::ids::HostId::new("hermes"))
+        .map_err(|e| ApplyError::Io {
+            context: "derive hermes host token for mcp_servers".into(),
+            source: e,
+        })?;
     for s in servers {
         let slug = crate::mcp_registry::normalize_key(s.name.as_str());
         write_dotted(
             value,
             &format!("{MCP_TABLE}.{slug}.url"),
             Value::String(loopback.mcp_url(&slug)),
-        );
+        )?;
         write_dotted(
             value,
             &format!("{MCP_TABLE}.{slug}.headers.Authorization"),
             Value::String(bearer.clone()),
-        );
+        )?;
         write_dotted(
             value,
             &format!("{MCP_TABLE}.{slug}.transport"),
             Value::String(TRANSPORT_STREAMABLE.to_owned()),
-        );
+        )?;
+        written.push(slug);
     }
-    Ok(())
+    Ok(written)
 }
 
 fn read_or_empty(path: &Path) -> Result<Value, ApplyError> {
@@ -104,30 +115,25 @@ fn read_or_empty(path: &Path) -> Result<Value, ApplyError> {
     if matches!(value, Value::Mapping(_)) {
         Ok(value)
     } else {
-        Ok(Value::Mapping(serde_yaml::Mapping::new()))
+        Err(crate::host_sync::ForeignShape {
+            path: path.display().to_string(),
+            key: "<root>".to_owned(),
+            found: "not a mapping",
+            expected: "a mapping",
+        }
+        .into())
     }
 }
 
-fn strip_bridge_mcp_servers(loopback: &LoopbackEndpoint, root: &mut Value) {
+fn strip_bridge_mcp_servers(recorded: &[String], root: &mut Value) {
     let Value::Mapping(top) = root else {
         return;
     };
     let Some(Value::Mapping(servers)) = top.get_mut(key(MCP_TABLE)) else {
         return;
     };
-    let prefix = format!("{}/mcp/", loopback.origin());
-    let ours: Vec<Value> = servers
-        .iter()
-        .filter_map(|(name, entry)| {
-            let is_ours = entry
-                .get("url")
-                .and_then(Value::as_str)
-                .is_some_and(|u| u.starts_with(&prefix));
-            is_ours.then(|| name.clone())
-        })
-        .collect();
-    for name in ours {
-        servers.remove(name);
+    for name in recorded {
+        servers.remove(key(name));
     }
     if servers.is_empty() {
         top.remove(key(MCP_TABLE));

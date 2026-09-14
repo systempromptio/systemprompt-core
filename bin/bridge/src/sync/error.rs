@@ -25,14 +25,41 @@ pub enum SyncError {
     NoCredential { bin: &'static str },
     #[error("authentication: {0}")]
     Authentication(crate::auth::ChainError),
-    #[error("{0}")]
-    Provision(std::io::Error),
-    #[error("{0}")]
-    Elevation(String),
+    #[error(transparent)]
+    Provision(#[from] super::provision::ProvisionError),
+    #[error("{source}; the current user cannot replace a plugin directory under {path}{remedy}")]
+    OrgPluginsDenied {
+        path: std::path::PathBuf,
+        remedy: String,
+        #[source]
+        source: Box<crate::host_sync::ApplyError>,
+    },
+    #[error("could not create org-plugins directory at {path}: {source}")]
+    OrgPluginsCreate {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
     #[error(transparent)]
     GatewayUnauthorized(Box<CredentialRejection>),
-    #[error("{0}")]
-    Network(String),
+    #[error("gateway: {0}")]
+    Gateway(#[source] crate::gateway::GatewayError),
+    #[error("claude code {what}: {source}")]
+    ClaudeCodeSettings {
+        what: &'static str,
+        #[source]
+        source: crate::install::MdmError,
+    },
+    #[error(
+        "--allow-unsigned refused: a manifest signing pubkey is pinned for {gateway} (from the \
+         {pin_source}); remove the pin to sync unsigned manifests"
+    )]
+    UnsignedRefusedPinned {
+        gateway: String,
+        pin_source: &'static str,
+    },
+    #[error("sync cancelled after {applied} plugin(s) were applied; nothing was published")]
+    Cancelled { applied: usize },
     #[error(
         "manifest signature verification failed: {detail}. The manifest served by {gateway} \
          does not match the pubkey pinned from the {pin_source} — either the gateway rotated \
@@ -74,7 +101,10 @@ pub enum SyncError {
          {current}; explicitly pin the intended gateway key with `install \
          --apply --pubkey <base64>`"
     )]
-    PubkeyStale { pinned_for: String, current: String },
+    PubkeyStale {
+        pinned_for: crate::config::trust::GatewayIdentity,
+        current: crate::config::trust::GatewayIdentity,
+    },
     #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
     #[error(
@@ -83,7 +113,7 @@ pub enum SyncError {
     )]
     PathMissing { bin: &'static str, path: String },
     #[error("sync apply failed: {0}")]
-    ApplyFailed(crate::host_sync::ApplyError),
+    ApplyFailed(Box<crate::host_sync::ApplyError>),
     #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
     ReplayedManifest { last: String, incoming: String },
     #[error("manifest clock skew rejected: not_before {not_before} outside +/- 5m of now {now}")]
@@ -134,12 +164,14 @@ impl SyncError {
             | Self::Config(_)
             | Self::Trust(_)
             | Self::Provision(_)
-            | Self::Elevation(_) => ExitCode::FAILURE,
+            | Self::OrgPluginsDenied { .. }
+            | Self::OrgPluginsCreate { .. }
+            | Self::ClaudeCodeSettings { .. } => ExitCode::FAILURE,
             Self::NoCredential { .. } => ExitCode::from(5),
             Self::Authentication(e) => e.exit_report().0,
             Self::GatewayUnauthorized(_) => ExitCode::from(10),
-            Self::Network(_) => ExitCode::from(3),
-            Self::SignatureFailed { .. } => ExitCode::from(4),
+            Self::Gateway(_) => ExitCode::from(3),
+            Self::SignatureFailed { .. } | Self::UnsignedRefusedPinned { .. } => ExitCode::from(4),
             Self::PathUnresolvable | Self::PathMissing { .. } | Self::ApplyFailed(_) => {
                 ExitCode::from(1)
             },
@@ -152,6 +184,7 @@ impl SyncError {
             },
             Self::OrgPluginsNeedElevation { .. } => ExitCode::from(12),
             Self::Superseded { .. } => ExitCode::from(13),
+            Self::Cancelled { .. } => ExitCode::from(14),
         }
     }
 }

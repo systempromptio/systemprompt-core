@@ -13,7 +13,7 @@ pub mod utils;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use systemprompt_models::AppPaths;
+use systemprompt_config::paths::AppPaths;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProcessService;

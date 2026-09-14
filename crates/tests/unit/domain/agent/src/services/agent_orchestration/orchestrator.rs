@@ -12,7 +12,7 @@ use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::orchestrator::AgentOrchestrator;
-use systemprompt_models::AppPaths;
+use systemprompt_config::paths::AppPaths;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::make_agent_state;

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum ChangeKind {
+pub enum ChangeKind {
     Installed,
     Updated,
     Removed,
@@ -16,18 +16,33 @@ pub(crate) enum ChangeKind {
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub(crate) enum MarketplaceExtra {
+pub enum MarketplaceExtra {
     Plugin(PluginManifest),
     Frontmatter(FrontmatterExtra),
     Mcp(McpServerEntry),
     None,
 }
 
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ItemSource {
+    Tenant,
+}
+
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ChildKind {
+    Skills,
+    Agents,
+    Hooks,
+    Mcp,
+}
+
 #[derive(Debug, Serialize)]
 pub struct MarketplaceItem {
     pub(crate) id: String,
     pub(crate) name: String,
-    pub(crate) source: &'static str,
+    pub(crate) source: ItemSource,
     pub(crate) path: String,
     pub(crate) summary: Option<String>,
     pub(crate) readme: Option<String>,
@@ -50,55 +65,112 @@ pub struct MarketplaceItem {
 
 impl MarketplaceItem {
     #[must_use]
-    pub fn new(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        summary: Option<String>,
-        path: impl Into<String>,
-        source: &'static str,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            name: name.into(),
-            source,
-            path: path.into(),
-            summary,
-            readme: None,
-            version: None,
-            author: None,
-            homepage: None,
-            change: None,
-            children: Vec::new(),
-            plugins: Vec::new(),
-            extra: MarketplaceExtra::None,
-            error: None,
+    pub fn builder(id: impl Into<String>, path: impl Into<String>) -> MarketplaceItemBuilder {
+        let id = id.into();
+        MarketplaceItemBuilder {
+            item: Self {
+                name: id.clone(),
+                id,
+                source: ItemSource::Tenant,
+                path: path.into(),
+                summary: None,
+                readme: None,
+                version: None,
+                author: None,
+                homepage: None,
+                change: None,
+                children: Vec::new(),
+                plugins: Vec::new(),
+                extra: MarketplaceExtra::None,
+                error: None,
+            },
         }
     }
 
     #[must_use]
     pub(crate) fn failed(id: &str, path: &std::path::Path, error: &std::io::Error) -> Self {
-        let mut item = Self::new(id, id, None, path.display().to_string(), "tenant");
-        item.error = Some(error.to_string());
-        item
+        Self::builder(id, path.display().to_string())
+            .error(error.to_string())
+            .build()
+    }
+}
+
+#[derive(Debug)]
+pub struct MarketplaceItemBuilder {
+    item: MarketplaceItem,
+}
+
+impl MarketplaceItemBuilder {
+    #[must_use]
+    pub fn name(mut self, name: impl Into<String>) -> Self {
+        self.item.name = name.into();
+        self
     }
 
     #[must_use]
-    pub fn with_provenance(
+    pub fn summary(mut self, summary: Option<String>) -> Self {
+        self.item.summary = summary;
+        self
+    }
+
+    #[must_use]
+    pub fn readme(mut self, readme: Option<String>) -> Self {
+        self.item.readme = readme;
+        self
+    }
+
+    #[must_use]
+    pub fn provenance(
         mut self,
         version: Option<String>,
         author: Option<String>,
         homepage: Option<String>,
     ) -> Self {
-        self.version = version;
-        self.author = author;
-        self.homepage = homepage;
+        self.item.version = version;
+        self.item.author = author;
+        self.item.homepage = homepage;
         self
+    }
+
+    #[must_use]
+    pub const fn change(mut self, change: ChangeKind) -> Self {
+        self.item.change = Some(change);
+        self
+    }
+
+    #[must_use]
+    pub fn children(mut self, children: Vec<PluginChild>) -> Self {
+        self.item.children = children;
+        self
+    }
+
+    #[must_use]
+    pub fn plugins(mut self, plugins: Vec<String>) -> Self {
+        self.item.plugins = plugins;
+        self
+    }
+
+    #[must_use]
+    pub fn extra(mut self, extra: MarketplaceExtra) -> Self {
+        self.item.extra = extra;
+        self
+    }
+
+    #[must_use]
+    pub fn error(mut self, error: impl Into<String>) -> Self {
+        self.item.error = Some(error.into());
+        self
+    }
+
+    #[must_use]
+    pub fn build(self) -> MarketplaceItem {
+        self.item
     }
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct PluginChild {
-    pub kind: &'static str,
+    pub kind: ChildKind,
     pub id: String,
     pub name: String,
     pub shared: bool,
@@ -129,7 +201,7 @@ pub struct MarketplaceListing {
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
-pub(crate) struct PluginManifest {
+pub struct PluginManifest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -172,7 +244,7 @@ where
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct FrontmatterExtra {
+pub struct FrontmatterExtra {
     pub(crate) id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) name: Option<String>,
@@ -181,7 +253,7 @@ pub(crate) struct FrontmatterExtra {
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
-pub(crate) struct McpServerEntry {
+pub struct McpServerEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) proxy_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

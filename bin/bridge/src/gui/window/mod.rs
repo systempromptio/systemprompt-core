@@ -11,9 +11,12 @@ pub use crate::window_state as geometry;
 #[cfg(target_os = "windows")]
 mod dwm;
 use std::path::Path;
+#[cfg(not(target_os = "windows"))]
 use std::process::Command;
 
 pub use native::SettingsWindow;
+
+use crate::wire::external_url::ExternalUrl;
 
 #[cfg(target_os = "windows")]
 pub use dwm::set_immersive_dark;
@@ -27,7 +30,9 @@ pub fn prefers_dark(window: &dyn winit::window::Window) -> bool {
 }
 
 pub fn open_path(path: &Path) {
-    open_target(&path.to_string_lossy());
+    if let Err(e) = opener::open(path) {
+        tracing::error!(path = %path.display(), error = %e, "failed to open path");
+    }
 }
 
 pub fn reveal_path(path: &Path) {
@@ -36,8 +41,11 @@ pub fn reveal_path(path: &Path) {
     }
 }
 
-pub fn open_external_url(url: &str) {
-    open_target(url);
+pub fn open_external_url(url: &ExternalUrl) {
+    tracing::info!(url = %url, "opening external url");
+    if let Err(e) = opener::open(url.as_str()) {
+        tracing::error!(url = %url, error = %e, "failed to open external url");
+    }
 }
 
 pub fn notify_user(title: &str, message: &str) {
@@ -71,26 +79,5 @@ pub fn notify_user(title: &str, message: &str) {
         if let Err(e) = spawned {
             tracing::error!(error = %e, "failed to notify user");
         }
-    }
-}
-
-fn open_target(target: &str) {
-    let program = std::cfg_select! {
-        target_os = "macos"   => "/usr/bin/open",
-        target_os = "windows" => "cmd",
-        _                     => "xdg-open",
-    };
-    let prefix: &[&str] = std::cfg_select! {
-        target_os = "windows" => &["/C", "start", ""],
-        _                     => &[],
-    };
-    tracing::info!(target = %target, program, "opening external target");
-    let mut cmd = Command::new(program);
-    cmd.args(prefix).arg(target);
-    #[cfg(target_os = "windows")]
-    crate::winproc::no_window(&mut cmd);
-    match cmd.spawn() {
-        Ok(_) => {},
-        Err(e) => tracing::error!(target = %target, program, error = %e, "failed to spawn opener"),
     }
 }

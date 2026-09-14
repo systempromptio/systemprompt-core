@@ -8,14 +8,14 @@ use std::sync::Arc;
 
 use serde_json::Value as JsonValue;
 use systemprompt_provider_contracts::{
-    ComponentRenderer, ContentDataProvider, FrontmatterProcessor, Job, LlmProvider,
-    PageDataProvider, PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender,
-    TemplateProvider, ToolProvider,
+    ComponentRenderer, ContentDataProvider, FrontmatterProcessor, Job, PageDataProvider,
+    PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender, TemplateProvider,
+    ToolProvider,
 };
 
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::context::ExtensionContext;
-use crate::error::ConfigError;
+use crate::error::ExtensionConfigError;
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
 use crate::router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
@@ -48,16 +48,14 @@ pub trait Extension: Send + Sync + 'static {
         None
     }
 
+    // JSON: Extension config block from the profile YAML; the extension owns it.
     fn config_schema(&self) -> Option<JsonValue> {
         None
     }
 
-    fn validate_config(&self, _config: &JsonValue) -> Result<(), ConfigError> {
+    // JSON: Extension config block from the profile YAML; the extension owns it.
+    fn validate_config(&self, _config: &JsonValue) -> Result<(), ExtensionConfigError> {
         Ok(())
-    }
-
-    fn llm_providers(&self) -> Vec<Arc<dyn LlmProvider>> {
-        vec![]
     }
 
     fn tool_providers(&self) -> Vec<Arc<dyn ToolProvider>> {
@@ -154,10 +152,6 @@ pub trait Extension: Send + Sync + 'static {
 
     fn has_config(&self) -> bool {
         self.config_prefix().is_some()
-    }
-
-    fn has_llm_providers(&self) -> bool {
-        !self.llm_providers().is_empty()
     }
 
     fn has_tool_providers(&self) -> bool {

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `DecisionAudit::context_id` is `Option<ContextId>` and `ApprovalRequest::session_id` is `Option<SessionId>`. Migrate by passing the typed ids.
+
+### Changed
+
+- `ManifestSigningError::KeyMissing` and `TokenAuthorityError::PathMissing` are no longer returned by `signing_key()` / the authority accessors after a successful load; the first loaded key wins.
+- A credential token response whose body cannot be read is a retryable transport failure.
+
+### Removed
+
+- `ClaimedAgent` and `PrincipalSnapshot::claimed`; nothing produced the claim and it never entered a decision.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

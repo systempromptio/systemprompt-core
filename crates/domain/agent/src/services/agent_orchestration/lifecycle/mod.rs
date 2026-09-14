@@ -13,7 +13,7 @@ mod operations;
 mod verification;
 
 use std::sync::Arc;
-use systemprompt_models::AppPaths;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 use crate::repository::agent_service::AgentServiceRepository;

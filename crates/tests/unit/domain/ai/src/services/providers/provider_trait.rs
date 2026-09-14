@@ -80,7 +80,7 @@ mod tool_generation_params_tests {
             description: Some("Performs math".to_string()),
             input_schema: Some(json!({"type": "object"})),
             output_schema: None,
-            service_id: McpServerId::new("math-service"),
+            service_id: McpServerId::try_new("math-service").expect("valid McpServerId"),
             terminal_on_success: false,
             model_config: None,
         }]

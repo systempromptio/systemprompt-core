@@ -21,13 +21,16 @@ use systemprompt_models::{
 
 fn session_ctx() -> CliSessionContext {
     let session = CliSession::builder(
-        SessionBinding::new(ProfileName::new("test"), "http://localhost:8080".to_owned()),
+        SessionBinding::new(
+            ProfileName::try_new("test").expect("valid ProfileName"),
+            "http://localhost:8080".to_owned(),
+        ),
         SessionToken::new("tok"),
         SessionId::generate(),
         ContextId::generate(),
         SessionIdentity::new(
             UserId::new("user-mcp-call"),
-            Email::new("a@b.test"),
+            Email::try_new("a@b.test").expect("valid Email"),
             UserType::Admin,
         ),
     )

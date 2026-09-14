@@ -42,7 +42,7 @@ pub async fn list_tools_unauthenticated(
     let url = format!("http://127.0.0.1:{}/mcp", port);
     let config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
     let transport = StreamableHttpClientTransport::with_client(
-        HttpClientWithContext::new(probe_context(server_name)),
+        HttpClientWithContext::new(probe_context(server_name))?,
         config,
     );
 
@@ -86,7 +86,7 @@ pub async fn list_tools_authenticated(
         .auth_header(token.as_str().to_owned());
     let context = probe_context(server_name).with_auth_token(token.as_str());
     let transport =
-        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context), config);
+        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context)?, config);
 
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),
@@ -117,14 +117,23 @@ pub async fn list_tools_authenticated(
 }
 
 fn convert_tool_info(tool: rmcp::model::Tool) -> ToolInfo {
-    let input_schema = serde_json::to_value(&tool.input_schema)
-        .inspect_err(|e| debug!("Failed to serialize input schema: {}", e))
-        .ok();
-    let output_schema = tool.output_schema.and_then(|s| {
-        serde_json::to_value(s.as_ref())
-            .inspect_err(|e| debug!("Failed to serialize output schema: {}", e))
-            .ok()
-    });
+    let input_schema = match serde_json::to_value(&tool.input_schema) {
+        Ok(schema) => Some(schema),
+        Err(e) => {
+            debug!(tool = %tool.name, error = %e, "Failed to serialize input schema");
+            None
+        },
+    };
+    let output_schema =
+        tool.output_schema
+            .as_ref()
+            .and_then(|s| match serde_json::to_value(s.as_ref()) {
+                Ok(schema) => Some(schema),
+                Err(e) => {
+                    debug!(tool = %tool.name, error = %e, "Failed to serialize output schema");
+                    None
+                },
+            });
     let parameters_count = input_schema
         .as_ref()
         .and_then(|s| s.get("properties"))

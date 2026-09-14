@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod edit;
+mod set_value;
 
 use std::fs;
 use std::path::PathBuf;

@@ -3,7 +3,7 @@ use systemprompt_traits::jwt::{AgentJwtClaims, GenerateTokenParams, JwtProviderE
 
 fn claims() -> AgentJwtClaims {
     AgentJwtClaims {
-        subject: "user-1".to_owned(),
+        subject: UserId::new("user-1"),
         username: "alice".to_owned(),
         user_type: "user".to_owned(),
         audiences: vec!["api".to_owned(), "mcp".to_owned()],

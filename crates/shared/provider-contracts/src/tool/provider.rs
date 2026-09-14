@@ -1,12 +1,16 @@
 //! [`ToolProvider`] trait — discovery + invocation contract.
 //!
+//! [`ToolProvider`] is held as `Arc<dyn ToolProvider>` by the AI domain's
+//! tool discovery and executor, so it uses `#[async_trait]`; native
+//! `async fn` in traits is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{AgentName, McpServerId};
 
 use super::call::{ToolCallRequest, ToolCallResult};
 use super::context::ToolContext;
@@ -17,7 +21,7 @@ use super::error::ToolProviderResult;
 pub trait ToolProvider: Send + Sync {
     async fn list_tools(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         context: &ToolContext,
     ) -> ToolProviderResult<Vec<ToolDefinition>>;
 
@@ -28,13 +32,13 @@ pub trait ToolProvider: Send + Sync {
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult>;
 
-    async fn refresh_connections(&self, agent_name: &str) -> ToolProviderResult<()>;
+    async fn refresh_connections(&self, agent_name: &AgentName) -> ToolProviderResult<()>;
 
     async fn health_check(&self) -> ToolProviderResult<HashMap<String, bool>>;
 
     async fn find_tool(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         tool_name: &str,
         context: &ToolContext,
     ) -> ToolProviderResult<Option<ToolDefinition>> {

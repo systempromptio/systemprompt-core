@@ -91,11 +91,22 @@ fn uninstall_removes_the_metadata_tree_staging_and_installed_plugins() {
         &sandbox.metadata().join("version.json"),
         "{\"version\":\"1\"}",
     );
+    seed_file(
+        &sandbox.metadata().join("last-sync.json"),
+        r#"{"present_plugins":["acme-plugin"]}"#,
+    );
     seed_file(&sandbox.staging().join("half-written.json"), "{}");
     seed_file(
         &sandbox
             .org_plugins()
             .join("acme-plugin")
+            .join("plugin.json"),
+        "{}",
+    );
+    seed_file(
+        &sandbox
+            .org_plugins()
+            .join("someone-elses")
             .join("plugin.json"),
         "{}",
     );
@@ -114,7 +125,16 @@ fn uninstall_removes_the_metadata_tree_staging_and_installed_plugins() {
     assert!(!sandbox.staging().exists(), "staging tree is gone");
     assert!(
         !sandbox.org_plugins().join("acme-plugin").exists(),
-        "the installed plugin dir is purged"
+        "the plugin dir the last sync recorded is purged"
+    );
+    assert!(
+        sandbox.org_plugins().join("someone-elses").is_dir(),
+        "a plugin dir no sync recorded is not the bridge's to remove"
+    );
+    assert_eq!(
+        summary.foreign_plugins,
+        vec!["someone-elses".to_owned()],
+        "the foreign dir is reported"
     );
     assert!(
         matches!(summary.credentials, CredentialsOutcome::Kept),
@@ -143,6 +163,10 @@ fn uninstall_reports_an_absent_metadata_dir_as_already_clean() {
 #[test]
 fn uninstall_leaves_dotfiles_and_loose_files_in_the_plugin_root() {
     let sandbox = Sandbox::new();
+    seed_file(
+        &sandbox.metadata().join("last-sync.json"),
+        r#"{"present_plugins":["acme"]}"#,
+    );
     seed_file(&sandbox.org_plugins().join(".cache").join("index"), "x");
     seed_file(&sandbox.org_plugins().join("README"), "operator note");
     seed_file(

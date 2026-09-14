@@ -151,7 +151,7 @@ impl ManagedRepository {
             resolution,
             resolved_digest,
         } = *decision;
-        super::assets::validate_path(path)?;
+        systemprompt_models::managed::validate_path(path)?;
         match (resolution, resolved_digest) {
             (ConflictResolution::Manual, Some(digest))
                 if digest.len() == 64

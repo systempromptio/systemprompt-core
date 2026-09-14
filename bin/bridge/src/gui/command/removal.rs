@@ -22,7 +22,6 @@ pub(super) fn guidance() -> CommandOutcome {
     }
 }
 
-#[doc(hidden)]
 pub fn method(path: &std::path::Path, platform: &str) -> &'static str {
     let normalized = path
         .to_string_lossy()

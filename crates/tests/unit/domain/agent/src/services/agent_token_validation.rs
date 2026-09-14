@@ -10,6 +10,7 @@ use systemprompt_agent::services::a2a_server::auth::{
     AgentOAuthConfig, AgentOAuthState, validate_agent_token,
 };
 use systemprompt_agent::services::shared::auth::AgentSessionUser;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
@@ -35,7 +36,7 @@ impl JwtValidationProvider for StubJwtProvider {
 
 fn claims(audiences: Vec<&str>) -> AgentJwtClaims {
     AgentJwtClaims {
-        subject: "user-aaa".to_string(),
+        subject: UserId::new("user-aaa"),
         username: "alice".to_string(),
         user_type: "user".to_string(),
         audiences: audiences.into_iter().map(str::to_owned).collect(),
@@ -118,7 +119,7 @@ async fn validate_agent_token_no_provider_errors() {
 #[test]
 fn agent_session_user_from_jwt_claims_maps_fields() {
     let user = AgentSessionUser::from_jwt_claims(AgentJwtClaims {
-        subject: "sub-1".to_string(),
+        subject: UserId::new("sub-1"),
         username: "bob".to_string(),
         user_type: "admin".to_string(),
         audiences: vec!["a2a".to_string()],

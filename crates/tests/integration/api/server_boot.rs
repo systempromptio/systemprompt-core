@@ -12,11 +12,12 @@ use std::sync::{Arc, OnceLock};
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_api::services::server::setup_api_server;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_models::{AppPaths, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };

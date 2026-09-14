@@ -147,7 +147,7 @@ impl BridgeContext {
     }
 
     #[must_use]
-    pub fn handle(&self) -> &Handle {
+    pub const fn handle(&self) -> &Handle {
         self.runtime.handle()
     }
 
@@ -163,7 +163,10 @@ impl BridgeContext {
 
 // Why: Tokio runtime drop panics inside an async task; the final owner may be
 // dropped there.
-struct OwnedRuntime(Option<Runtime>);
+struct OwnedRuntime {
+    runtime: Option<Runtime>,
+    handle: Handle,
+}
 
 impl OwnedRuntime {
     fn build() -> std::io::Result<Self> {
@@ -172,20 +175,21 @@ impl OwnedRuntime {
             .thread_name("bridge-rt")
             .enable_all()
             .build()?;
-        Ok(Self(Some(rt)))
+        let handle = rt.handle().clone();
+        Ok(Self {
+            runtime: Some(rt),
+            handle,
+        })
     }
 
-    fn handle(&self) -> &Handle {
-        self.0.as_ref().map_or_else(
-            || unreachable!("runtime is only taken in Drop"),
-            Runtime::handle,
-        )
+    const fn handle(&self) -> &Handle {
+        &self.handle
     }
 }
 
 impl Drop for OwnedRuntime {
     fn drop(&mut self) {
-        if let Some(rt) = self.0.take() {
+        if let Some(rt) = self.runtime.take() {
             rt.shutdown_background();
         }
     }

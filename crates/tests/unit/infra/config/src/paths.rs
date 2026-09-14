@@ -1,0 +1,237 @@
+use systemprompt_config::paths::{PathError, StoragePaths};
+use systemprompt_models::profile::PathsConfig;
+
+fn paths_config_with_storage(storage: &str) -> PathsConfig {
+    PathsConfig {
+        system: "/tmp/system".to_owned(),
+        services: "/tmp/services".to_owned(),
+        bin: "/tmp/bin".to_owned(),
+        web_path: None,
+        storage: Some(storage.to_owned()),
+        geoip_database: None,
+    }
+}
+
+#[test]
+fn storage_paths_from_profile_ok_when_storage_set() {
+    let cfg = paths_config_with_storage("/tmp/storage");
+    let sp = StoragePaths::from_profile(&cfg).unwrap();
+    assert_eq!(sp.root(), std::path::Path::new("/tmp/storage"));
+    assert_eq!(sp.files(), std::path::Path::new("/tmp/storage/files"));
+    assert_eq!(sp.exports(), std::path::Path::new("/tmp/storage/exports"));
+    assert_eq!(sp.css(), std::path::Path::new("/tmp/storage/files/css"));
+    assert_eq!(sp.js(), std::path::Path::new("/tmp/storage/files/js"));
+    assert_eq!(sp.fonts(), std::path::Path::new("/tmp/storage/files/fonts"));
+    assert_eq!(
+        sp.images(),
+        std::path::Path::new("/tmp/storage/files/images")
+    );
+    assert_eq!(
+        sp.generated_images(),
+        std::path::Path::new("/tmp/storage/files/images/generated")
+    );
+    assert_eq!(
+        sp.logos(),
+        std::path::Path::new("/tmp/storage/files/images/logos")
+    );
+    assert_eq!(sp.audio(), std::path::Path::new("/tmp/storage/files/audio"));
+    assert_eq!(sp.video(), std::path::Path::new("/tmp/storage/files/video"));
+    assert_eq!(
+        sp.documents(),
+        std::path::Path::new("/tmp/storage/files/documents")
+    );
+    assert_eq!(
+        sp.uploads(),
+        std::path::Path::new("/tmp/storage/files/uploads")
+    );
+}
+
+#[test]
+fn storage_paths_from_profile_errors_when_storage_not_set() {
+    let cfg = PathsConfig {
+        system: "/tmp/system".to_owned(),
+        services: "/tmp/services".to_owned(),
+        bin: "/tmp/bin".to_owned(),
+        web_path: None,
+        storage: None,
+        geoip_database: None,
+    };
+    let err = StoragePaths::from_profile(&cfg).unwrap_err();
+    assert!(matches!(err, PathError::NotConfigured { field: "storage" }));
+}
+
+#[test]
+fn path_error_not_configured_display() {
+    let e = PathError::NotConfigured { field: "web" };
+    assert!(e.to_string().contains("web"));
+    assert!(e.to_string().contains("Required path not configured"));
+}
+
+#[test]
+fn path_error_not_found_display() {
+    let e = PathError::NotFound {
+        path: std::path::PathBuf::from("/nonexistent/path"),
+        field: "system",
+    };
+    assert!(e.to_string().contains("nonexistent"));
+}
+
+#[test]
+fn path_error_binary_not_found_display() {
+    let e = PathError::BinaryNotFound {
+        name: "mybinary".to_owned(),
+        searched: vec![std::path::PathBuf::from("/usr/bin")],
+    };
+    assert!(e.to_string().contains("mybinary"));
+}
+
+#[test]
+fn paths_config_helpers_build_correct_paths() {
+    let cfg = paths_config_with_storage("/tmp/storage");
+    assert_eq!(cfg.skills(), "/tmp/services/skills");
+    assert_eq!(cfg.agents(), "/tmp/services/agents");
+    assert_eq!(cfg.hooks(), "/tmp/services/hooks");
+    assert_eq!(cfg.plugins(), "/tmp/services/plugins");
+    assert_eq!(cfg.marketplaces(), "/tmp/services/marketplaces");
+    assert_eq!(cfg.logs(), "/tmp/system/logs");
+}
+
+#[test]
+fn paths_config_web_path_resolved_uses_web_path_when_set() {
+    let mut cfg = paths_config_with_storage("/tmp/storage");
+    cfg.web_path = Some("/tmp/custom_web".to_owned());
+    assert_eq!(cfg.web_path_resolved(), "/tmp/custom_web");
+}
+
+#[test]
+fn paths_config_web_path_resolved_defaults_to_system_web() {
+    let cfg = paths_config_with_storage("/tmp/storage");
+    assert_eq!(cfg.web_path_resolved(), "/tmp/system/web");
+}
+
+#[test]
+fn paths_config_storage_resolved_some_when_set() {
+    let cfg = paths_config_with_storage("/data");
+    assert_eq!(cfg.storage_resolved(), Some("/data"));
+}
+
+#[test]
+fn paths_config_storage_resolved_none_when_unset() {
+    let cfg = PathsConfig {
+        system: "/s".to_owned(),
+        services: "/sv".to_owned(),
+        bin: "/b".to_owned(),
+        web_path: None,
+        storage: None,
+        geoip_database: None,
+    };
+    assert!(cfg.storage_resolved().is_none());
+}
+
+mod path_resolution {
+    use systemprompt_config::paths::{AppPaths, PathError};
+    use systemprompt_models::paths::PathResolution;
+    use systemprompt_models::profile::PathsConfig;
+
+    const CONTAINER_ROOT: &str = "/nonexistent/container/app";
+
+    fn paths_config(system: &str) -> PathsConfig {
+        PathsConfig {
+            system: system.to_owned(),
+            services: "/srv/services".to_owned(),
+            bin: "/srv/bin".to_owned(),
+            web_path: None,
+            storage: Some("/srv/storage".to_owned()),
+            geoip_database: None,
+        }
+    }
+
+    #[test]
+    fn a_services_root_override_moves_every_derived_path() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let composed = std::path::Path::new("/srv/services-cache/current");
+        let paths = AppPaths::from_profile(&cfg, PathResolution::Lexical, Some(composed))
+            .expect("lexical resolve");
+
+        assert_eq!(paths.system().services(), composed);
+        assert_eq!(
+            paths.system().skills(),
+            std::path::Path::new("/srv/services-cache/current/skills"),
+            "a composed bundle root must own the derived subtrees, not the baked tree"
+        );
+        assert_eq!(
+            paths.system().settings(),
+            std::path::Path::new("/srv/services-cache/current/config/config.yaml")
+        );
+        assert_eq!(
+            paths.system().content_config(),
+            std::path::Path::new("/srv/services-cache/current/content/config.yaml")
+        );
+        assert_eq!(
+            paths.web().config(),
+            std::path::Path::new("/srv/services-cache/current/web/config.yaml")
+        );
+        assert_eq!(
+            paths.system().root(),
+            std::path::Path::new(CONTAINER_ROOT),
+            "the system root is not part of the services bundle"
+        );
+    }
+
+    #[test]
+    fn no_override_keeps_the_profile_services_tree() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let paths =
+            AppPaths::from_profile(&cfg, PathResolution::Lexical, None).expect("lexical resolve");
+        assert_eq!(
+            paths.system().services(),
+            std::path::Path::new("/srv/services")
+        );
+    }
+
+    #[test]
+    fn lexical_accepts_absolute_path_that_does_not_exist() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let paths =
+            AppPaths::from_profile(&cfg, PathResolution::Lexical, None).expect("lexical resolve");
+        assert_eq!(
+            paths.system().root(),
+            std::path::Path::new(CONTAINER_ROOT),
+            "a lexical root must be taken verbatim, not canonicalized"
+        );
+    }
+
+    #[test]
+    fn canonicalize_rejects_a_path_that_does_not_exist() {
+        let cfg = paths_config(CONTAINER_ROOT);
+        let err = AppPaths::from_profile(&cfg, PathResolution::Canonicalize, None)
+            .expect_err("canonicalize must fail on a missing path");
+        assert!(
+            matches!(
+                err,
+                PathError::CanonicalizeFailed {
+                    field: "system",
+                    ..
+                }
+            ),
+            "unexpected error: {err:?}"
+        );
+    }
+
+    #[test]
+    fn lexical_rejects_a_relative_path() {
+        let cfg = paths_config("relative/container/app");
+        let err = AppPaths::from_profile(&cfg, PathResolution::Lexical, None)
+            .expect_err("lexical must reject a relative path");
+        assert!(
+            matches!(
+                err,
+                PathError::NotAbsolute {
+                    field: "system",
+                    ..
+                }
+            ),
+            "unexpected error: {err:?}"
+        );
+    }
+}

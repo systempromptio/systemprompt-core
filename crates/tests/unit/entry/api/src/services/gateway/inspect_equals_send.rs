@@ -21,7 +21,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 };
 use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
-use systemprompt_identifiers::{ProviderId, RouteId};
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::inspect::{SurfaceBudget, string_leaves};
@@ -44,13 +44,13 @@ fn route() -> GatewayRoute {
 /// A canonical request whose modelled content is entirely innocuous.
 fn clean_request() -> CanonicalRequest {
     CanonicalRequest {
-        model: "m".into(),
+        model: ModelId::new("m"),
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![CanonicalContent::Text("summarise this".into())],
         }],
         max_tokens: 64,
-        ..CanonicalRequest::default()
+        ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)
     }
 }
 

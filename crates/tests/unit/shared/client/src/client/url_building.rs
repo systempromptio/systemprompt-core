@@ -7,9 +7,25 @@
 //! wiremock request paths and query strings.
 
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::{ContextId, JwtToken, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, JwtToken, MessageId, TaskId};
+use systemprompt_models::a2a::{Message, MessageRole, Part, TextPart};
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+fn user_message(context_id: &ContextId, text: &str) -> Message {
+    Message {
+        role: MessageRole::User,
+        parts: vec![Part::Text(TextPart {
+            text: text.to_owned(),
+        })],
+        message_id: MessageId::generate(),
+        task_id: None,
+        context_id: context_id.clone(),
+        metadata: None,
+        extensions: None,
+        reference_task_ids: None,
+    }
+}
 
 fn response_meta() -> serde_json::Value {
     serde_json::json!({
@@ -166,9 +182,9 @@ async fn test_get_context_builds_correct_url() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let context = client
-        .get_context(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-000000000abc",
-        ))
+        .get_context(
+            &ContextId::try_new("00000000-0000-4000-8000-000000000abc").expect("valid ContextId"),
+        )
         .await
         .expect("get_context should succeed");
 
@@ -189,9 +205,9 @@ async fn test_list_tasks_builds_correct_url() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let tasks = client
-        .list_tasks(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-000000000001",
-        ))
+        .list_tasks(
+            &ContextId::try_new("00000000-0000-4000-8000-000000000001").expect("valid ContextId"),
+        )
         .await
         .expect("list_tasks should succeed");
 
@@ -212,9 +228,9 @@ async fn test_list_artifacts_builds_correct_url() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let artifacts = client
-        .list_artifacts(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-000000000002",
-        ))
+        .list_artifacts(
+            &ContextId::try_new("00000000-0000-4000-8000-000000000002").expect("valid ContextId"),
+        )
         .await
         .expect("list_artifacts should succeed");
 
@@ -285,13 +301,15 @@ async fn test_send_message_builds_correct_url_and_envelope() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let message = serde_json::json!({"role": "user", "parts": [{"text": "hello"}]});
+    let context_id =
+        ContextId::try_new("00000000-0000-4000-8000-000000000001").expect("valid ContextId");
+    let message = user_message(&context_id, "hello");
 
     let result = client
         .send_message(
-            "my-agent",
-            &ContextId::new_unchecked("00000000-0000-4000-8000-000000000001"),
-            message,
+            &AgentName::try_new("my-agent").expect("valid agent name"),
+            &context_id,
+            &message,
         )
         .await
         .expect("send_message should succeed");
@@ -322,11 +340,13 @@ async fn test_send_message_requires_auth_header_when_token_set() {
         .unwrap()
         .with_token(token);
 
+    let context_id =
+        ContextId::try_new("00000000-0000-4000-8000-0000000000c1").expect("valid ContextId");
     client
         .send_message(
-            "agent-x",
-            &ContextId::new_unchecked("00000000-0000-4000-8000-0000000000c1"),
-            serde_json::json!({}),
+            &AgentName::try_new("agent-x").expect("valid agent name"),
+            &context_id,
+            &user_message(&context_id, "hello"),
         )
         .await
         .expect("send_message with token should succeed");
@@ -347,7 +367,7 @@ async fn test_update_context_name_builds_correct_url() {
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     client
         .update_context_name(
-            &ContextId::new_unchecked("00000000-0000-4000-8000-000000000999"),
+            &ContextId::try_new("00000000-0000-4000-8000-000000000999").expect("valid ContextId"),
             "Renamed",
         )
         .await

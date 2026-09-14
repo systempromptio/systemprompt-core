@@ -134,6 +134,7 @@ struct SummaryPart {
 }
 
 pub fn parse_response_object(
+    // JSON: OpenAI Responses API response body; upstream JSON is the contract.
     value: &Value,
     fallback_model: &str,
 ) -> Result<CanonicalResponse, WireParseError> {
@@ -150,7 +151,7 @@ pub fn parse_response_object(
     let mut content: Vec<CanonicalContent> = Vec::new();
     let mut sources: Vec<GroundedSource> = Vec::new();
     for item in resp.output {
-        collect_output_item(item, &mut content, &mut sources);
+        collect_output_item(item, &mut content, &mut sources)?;
     }
     let grounding = (!sources.is_empty()).then(|| Grounding {
         sources,
@@ -187,7 +188,7 @@ fn collect_output_item(
     item: OutputItem,
     content: &mut Vec<CanonicalContent>,
     sources: &mut Vec<GroundedSource>,
-) {
+) -> Result<(), WireParseError> {
     match item {
         OutputItem::Message { content: parts } => {
             for part in parts {
@@ -208,7 +209,11 @@ fn collect_output_item(
             }
         },
         OutputItem::FunctionCall(call) => {
-            let id = call.call_id.or(call.id).unwrap_or_default();
+            let id = call.call_id.or(call.id).ok_or_else(|| {
+                WireParseError::OpenAiResponsesMissingToolCallId {
+                    name: call.name.clone(),
+                }
+            })?;
             let args = if call.arguments.is_empty() {
                 "{}"
             } else {
@@ -246,9 +251,11 @@ fn collect_output_item(
         },
         OutputItem::Unknown => {},
     }
+    Ok(())
 }
 
 #[must_use]
+// JSON: OpenAI Responses API response body; upstream JSON is the contract.
 pub fn buffered_defect(value: &Value) -> Option<BodyDefect> {
     buffered_body_defect(value, "output", "usage")
 }

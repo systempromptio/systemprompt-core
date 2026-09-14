@@ -15,6 +15,7 @@ systemprompt-bridge = { workspace = true }
 tokio = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
+http = { workspace = true }
 http-body-util = "0.1"
 hyper = "1"
 tempfile = { workspace = true }

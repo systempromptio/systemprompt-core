@@ -1,12 +1,12 @@
 //! Negotiated MCP client identity used to shape tool results per client.
 //!
-//! [`ClientProfile`] captures what a connected client declared during
-//! `initialize`: its protocol version, implementation name, and negotiated
-//! extension keys. The response builder consults it to decide which wire
-//! pieces a client can accept — embedded UI resources, `structuredContent`,
-//! and custom `_meta`. An absent or unparseable declaration yields
-//! [`ClientProfile::unknown`], which downgrades the result to the
-//! plain-text shape every conforming client accepts.
+//! [`ClientProfile`] captures the protocol version, implementation name and
+//! negotiated extension keys a client declared when it initialised. The
+//! response builder consults it to decide which wire pieces the client can
+//! accept (embedded UI resources, `structuredContent`, custom `_meta`); an
+//! absent or unparseable declaration yields [`ClientProfile::unknown`], which
+//! downgrades the result to the plain-text shape every conforming client
+//! accepts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

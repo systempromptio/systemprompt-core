@@ -31,7 +31,7 @@ async fn is_port_responsive(port: u16) -> McpDomainResult<bool> {
 }
 
 pub fn is_process_running(pid: u32) -> bool {
-    utils::process_exists(pid) && !systemprompt_models::subprocess::is_zombie(pid)
+    utils::process_exists(pid) && !systemprompt_loader::subprocess::is_zombie(pid)
 }
 
 pub fn get_process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {

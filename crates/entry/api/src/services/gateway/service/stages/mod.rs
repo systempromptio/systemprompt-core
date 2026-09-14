@@ -71,7 +71,10 @@ impl PreparedDispatch {
     ) -> Result<Self, DispatchError> {
         let upstream_model = upstream
             .provider
-            .upstream_model_for(upstream.route.upstream_model.as_deref(), &request.model)
+            .upstream_model_for(
+                upstream.route.upstream_model.as_deref(),
+                request.model.as_str(),
+            )
             .to_owned();
         let override_descriptor = apply_system_prompt_override(
             config,
@@ -85,7 +88,7 @@ impl PreparedDispatch {
         }
         let model_limits = upstream
             .provider
-            .find_model(&request.model)
+            .find_model(request.model.as_str())
             .map(|m| m.limits);
         let raw_body = match &override_descriptor {
             Some(_) => None,
@@ -265,7 +268,7 @@ impl ScannedDispatch {
     }
 
     pub(super) fn request_model(&self) -> &str {
-        &self.0.request.model
+        self.0.request.model.as_str()
     }
 
     pub(super) async fn send(
@@ -289,7 +292,7 @@ impl ScannedDispatch {
             upstream,
             ctx,
             &prepared.body,
-            &prepared.request.model,
+            prepared.request.model.as_str(),
             audit,
         )
         .await

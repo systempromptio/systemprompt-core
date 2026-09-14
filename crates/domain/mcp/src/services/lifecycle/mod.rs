@@ -18,7 +18,7 @@ use crate::services::monitoring::MonitoringService;
 use crate::services::network::NetworkService;
 use crate::services::process::ProcessService;
 use std::sync::Arc;
-use systemprompt_models::AppPaths;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 #[derive(Debug, Clone)]

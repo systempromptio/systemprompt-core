@@ -39,7 +39,7 @@ fn weather_tool() -> McpTool {
             "required": ["city"]
         })),
         output_schema: None,
-        service_id: McpServerId::new("weather-service"),
+        service_id: McpServerId::try_new("weather-service").expect("valid McpServerId"),
         terminal_on_success: false,
         model_config: None,
     }

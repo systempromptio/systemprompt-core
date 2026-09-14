@@ -65,12 +65,9 @@ pub(super) fn enforce_managed_policy(
 ) -> Result<String, MdmError> {
     ensure_workspace_dir()?;
     let values = policy_values(inputs, &inputs.loopback.origin())?;
-    // Why: no `manifestTrust` is written here. HKLM policy is the administrator
-    // channel: it outranks the operator's `gateway_url` and survives every
-    // user-level reset, so a pin the bridge learned for itself became
-    // unclearable and blocked pointing at a second gateway. Self-learned trust
-    // is persisted per gateway in the config file; `install --apply --pubkey`
-    // is the administrator pinning a key out of band and still writes it.
+    // Why: HKLM policy is the administrator channel and outranks the config
+    // file, so self-learned trust is never written here — only
+    // `install --apply --pubkey` pins a key out of band.
     let elevated = crate::winproc::is_elevated();
     let replaced = if elevated {
         foreign_secret_in_policy(inputs)
@@ -140,13 +137,17 @@ fn ensure_workspace_dir() -> Result<Option<String>, MdmError> {
     Ok(Some(format!("ensured workspace dir {}", ws.display())))
 }
 
-pub(super) fn remove_policy() -> Result<bool, MdmError> {
-    let store = crate::config::store::managed_policy_store();
-    let hkcu = store
-        .delete_policy_key(PolicyHive::User)
-        .map_err(windows_policy::policy_err)?;
+// Why: only the values the bridge wrote are removed; the policy key itself
+// and any value another administrator placed there stay.
+pub(super) fn remove_policy(store: &crate::config::store::PolicyStore) -> Result<bool, MdmError> {
+    let hkcu = crate::config::store::verified::remove_values(
+        store.backend(),
+        PolicyHive::User,
+        crate::config::store::PolicyTarget::Claude,
+        super::policy::WRITTEN_POLICY_KEYS,
+    )? > 0;
     let hklm = crate::config::store::verified::remove_values(
-        store.as_ref(),
+        store.backend(),
         PolicyHive::Machine,
         crate::config::store::PolicyTarget::Claude,
         &["managedMcpServers"],
@@ -158,35 +159,44 @@ fn policy_values(
     inputs: &super::MdmPayloadInputs<'_>,
     base_url: &str,
 ) -> Result<Vec<(&'static str, &'static str, String)>, MdmError> {
-    let secret = inputs.loopback.secret().map_err(|e| {
-        MdmError::Windows(format!(
-            "loopback secret unavailable ({e}); the gateway policy block was not written. Start \
-             the Bridge proxy, then sync again."
-        ))
-    })?;
-    let servers = super::policy::mcp_entries(inputs.loopback, inputs.registry).map_err(|e| {
-        MdmError::Windows(format!("the MCP connector list could not be built: {e}"))
-    })?;
+    let secret = inputs
+        .loopback
+        .secret_or_mint()
+        .map_err(|source| MdmError::Io {
+            action: "read loopback secret",
+            path: crate::proxy::secret::secret_path().unwrap_or_default(),
+            source,
+        })?;
+    let host_token = super::policy::desktop_host_token(&secret);
+    let servers =
+        super::policy::mcp_entries(inputs.loopback, inputs.registry).map_err(|source| {
+            MdmError::Io {
+                action: "resolve managed MCP servers",
+                path: std::path::PathBuf::new(),
+                source,
+            }
+        })?;
     let existing_models = inputs
         .policy_store
         .backend()
         .read_managed_policy("inferenceModels")?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url,
-        api_key: secret.as_str(),
+        host_token: &host_token,
         models: existing_models,
         headers: &std::collections::BTreeMap::new(),
         egress_allowed_hosts: inputs.egress_allowed_hosts,
         org_uuid: crate::config::load()?
             .deployment_organization_uuid
-            .as_deref(),
-        mcp_servers: &servers,
-    });
+            .as_ref()
+            .map(crate::ids::DeploymentOrganizationUuid::as_str),
+        mcp_servers: servers.as_deref(),
+    })?;
     Ok(super::policy::reg_values(&policy))
 }
 
 fn validate_gateway(gateway: &str) -> Result<(), MdmError> {
-    let url = url::Url::parse(gateway).map_err(|e| MdmError::InvalidConfig(e.to_string()))?;
+    let url = url::Url::parse(gateway)?;
     let loopback = match url.host() {
         Some(url::Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
         Some(url::Host::Ipv4(ip)) => ip.is_loopback(),

@@ -152,10 +152,6 @@ fn capability_listings_execute_with_and_without_filters() {
         &capabilities::schemas::SchemasArgs { extension: None },
         &cfg(),
     );
-    capabilities::llm_providers::execute(
-        &capabilities::llm_providers::LlmProvidersArgs { extension: None },
-        &cfg(),
-    );
     capabilities::tools::execute(
         &capabilities::tools::ToolsArgs {
             extension: Some(id),

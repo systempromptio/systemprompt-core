@@ -70,7 +70,10 @@ pub async fn list_publisher_models(
             .await
             .map_err(|e| format!("listing request failed: {e}"))?;
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response
+            .text()
+            .await
+            .map_err(|e| format!("listing returned an unreadable body: {e}"))?;
         if !status.is_success() {
             return Err(format!("listing returned {status}: {}", body.trim()));
         }

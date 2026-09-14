@@ -1,5 +1,9 @@
 //! [`SitemapProvider`] contract for emitting sitemap URL entries.
 //!
+//! Providers are returned as `Arc<dyn SitemapProvider>` from
+//! `Extension::sitemap_providers`, so the trait uses `#[async_trait]`; native
+//! `async fn` in traits is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -64,6 +68,7 @@ pub trait SitemapProvider: Send + Sync {
     async fn resolve_placeholders(
         &self,
         ctx: &SitemapContext<'_>,
+        // JSON: Tera template context item; the page data model is dynamic.
         content: &serde_json::Value,
         placeholders: &[PlaceholderMapping],
     ) -> ProviderResult<HashMap<String, String>>;

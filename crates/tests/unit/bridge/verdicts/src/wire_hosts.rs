@@ -16,7 +16,7 @@ use systemprompt_bridge::integration::profile_state::{ProfileState, StaleReason}
 use systemprompt_bridge::integration::{GeneratedProfile, HostAppSnapshot};
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
 use systemprompt_bridge::verdict::Tone;
-use systemprompt_bridge::wire::first_run::FirstRunPayload;
+use systemprompt_bridge::wire::first_run::{FirstRunPayload, FirstRunPhase, StepStatus};
 use systemprompt_bridge::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
@@ -32,7 +32,8 @@ fn snapshot(profile_state: ProfileState, keys: BTreeMap<String, String>) -> Host
         profile_state,
         profile_source: Some("/etc/managed.json".to_owned()),
         profile_keys: keys,
-        host_running: true,
+        probe_error: None,
+        host_running: Some(true),
         host_processes: vec!["claude".to_owned()],
         app_installed: AppInstallState::Installed,
         probed_at_unix: 1_700_000_042,
@@ -265,8 +266,8 @@ fn hosts_payload_fails_closed_before_the_first_manifest_sync() {
         first_run: FirstRunPayload {
             active: true,
             done: false,
-            phase: "hosts",
-            sync: "pending",
+            phase: FirstRunPhase::Probing,
+            sync: StepStatus::Pending,
             error: None,
             hosts: Vec::new(),
         },
@@ -278,7 +279,7 @@ fn hosts_payload_fails_closed_before_the_first_manifest_sync() {
     assert_eq!(v["agents_onboarded"], json!(false));
     assert_eq!(v["local_proxy"]["state"], json!("unknown"));
     assert_eq!(v["first_run"]["active"], json!(true));
-    assert_eq!(v["first_run"]["phase"], json!("hosts"));
+    assert_eq!(v["first_run"]["phase"], json!("probing"));
     assert_eq!(v["first_run"]["sync"], json!("pending"));
     assert_eq!(v["agent_fleet"]["all"]["total"], json!(0));
 }

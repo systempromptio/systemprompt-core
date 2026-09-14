@@ -31,7 +31,7 @@ use systemprompt_api::services::gateway::protocol::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
-use systemprompt_identifiers::{AiRequestId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AiRequestId, ModelId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
@@ -76,7 +76,7 @@ fn inbound() -> Arc<dyn InboundAdapter> {
 
 fn canonical(messages: Vec<CanonicalMessage>) -> CanonicalRequest {
     CanonicalRequest {
-        model: "claude-test".to_owned(),
+        model: ModelId::new("claude-test"),
         system: None,
         messages,
         max_tokens: 128,

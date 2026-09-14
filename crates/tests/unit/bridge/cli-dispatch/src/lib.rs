@@ -17,3 +17,6 @@ mod status_cmd;
 
 #[cfg(test)]
 mod doctor_startup;
+
+#[cfg(test)]
+mod launch;

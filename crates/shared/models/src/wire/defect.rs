@@ -51,6 +51,7 @@ impl std::fmt::Display for BodyDefect {
 
 #[must_use]
 pub fn buffered_body_defect(
+    // JSON: Upstream provider error body; every vendor uses a different shape.
     value: &Value,
     content_field: &str,
     usage_field: &str,
@@ -72,6 +73,7 @@ pub fn buffered_body_defect(
 
 // Why: Providers return `error` as either an object with `message` or a bare
 // string.
+// JSON: Upstream provider error body; every vendor uses a different shape.
 fn error_message(error: &Value) -> String {
     error
         .get("message")

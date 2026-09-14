@@ -6,8 +6,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
-use systemprompt_models::AppPaths;
 use systemprompt_traits::JobResult;
 
 use crate::error::{GeneratorResult as Result, PublishError};

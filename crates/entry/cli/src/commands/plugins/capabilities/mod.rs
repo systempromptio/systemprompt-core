@@ -8,7 +8,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod jobs;
-pub mod llm_providers;
 pub mod roles;
 pub mod schemas;
 pub mod templates;
@@ -43,9 +42,6 @@ pub enum CapabilitiesCommands {
 
     #[command(about = "List all roles across extensions")]
     Roles(roles::RolesArgs),
-
-    #[command(about = "List all LLM providers across extensions")]
-    LlmProviders(llm_providers::LlmProvidersArgs),
 }
 
 pub(super) fn execute(args: CapabilitiesArgs, config: &CliConfig) {
@@ -68,9 +64,6 @@ pub(super) fn execute(args: CapabilitiesArgs, config: &CliConfig) {
         Some(CapabilitiesCommands::Roles(args)) => {
             render_result(&roles::execute(&args, config), config);
         },
-        Some(CapabilitiesCommands::LlmProviders(args)) => {
-            render_result(&llm_providers::execute(&args, config), config);
-        },
     }
 }
 
@@ -82,7 +75,6 @@ fn execute_summary(_config: &CliConfig) -> CommandOutput {
     let mut schemas = 0;
     let mut tools = 0;
     let mut roles = 0;
-    let mut llm_providers = 0;
     let mut extension_count = 0;
 
     for ext in registry.extensions() {
@@ -90,7 +82,6 @@ fn execute_summary(_config: &CliConfig) -> CommandOutput {
         jobs += ext.jobs().len();
         schemas += ext.schemas().len();
         roles += ext.roles().len();
-        llm_providers += ext.llm_providers().len();
         tools += ext.tool_providers().len();
 
         for provider in ext.template_providers() {
@@ -104,7 +95,6 @@ fn execute_summary(_config: &CliConfig) -> CommandOutput {
         schemas,
         tools,
         roles,
-        llm_providers,
         extension_count,
     };
 

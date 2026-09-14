@@ -44,7 +44,7 @@ fn request_context_for(user: &UserId) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("evt-agent"),
+        AgentName::try_new("evt-agent").expect("valid AgentName"),
     )
     .with_actor(Actor::user(user.clone()))
 }

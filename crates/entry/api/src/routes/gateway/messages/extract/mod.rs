@@ -16,10 +16,12 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use bytes::Bytes;
+use std::borrow::Cow;
 use std::sync::Arc;
 use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
+use systemprompt_models::services::gateway::{GatewayConfig, GatewayRoute};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
@@ -104,16 +106,7 @@ pub(super) async fn extract_request_context(
         &gateway_request,
         partial,
     )?;
-    let route = gateway_config
-        .resolve_route(&rc.services.providers, &gateway_request)
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                format!("No gateway route matches model '{}'", gateway_request.model),
-            )
-        })?;
-    partial.provider = Some(route.provider.as_str().to_owned());
-
+    let route = resolve_route(rc, gateway_config, &gateway_request, partial)?;
     let wire = rc
         .services
         .providers
@@ -130,12 +123,16 @@ pub(super) async fn extract_request_context(
         )
         .await;
 
-    let upstream_model = upstream_model_for(&rc.services.providers, &route, &gateway_request.model);
+    let upstream_model = upstream_model_for(
+        &rc.services.providers,
+        &route,
+        gateway_request.model.as_str(),
+    );
 
     enforce_authz_pre_dispatch(
         &principal,
         route.as_ref(),
-        &gateway_request.model,
+        gateway_request.model.as_str(),
         rc.ctx.authz_hook(),
     )
     .await?;
@@ -152,6 +149,24 @@ pub(super) async fn extract_request_context(
         gateway_conversation_id,
         client_session_id,
     })
+}
+
+fn resolve_route<'a>(
+    rc: &RequestContext<'_>,
+    gateway_config: &'a GatewayConfig,
+    gateway_request: &CanonicalRequest,
+    partial: &mut RejectionPartial,
+) -> Result<Cow<'a, GatewayRoute>, (StatusCode, String)> {
+    let route = gateway_config
+        .resolve_route(&rc.services.providers, gateway_request)
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                format!("No gateway route matches model '{}'", gateway_request.model),
+            )
+        })?;
+    partial.provider = Some(route.provider.as_str().to_owned());
+    Ok(route)
 }
 
 // Why: the gateway conversation id stays the per-thread prefix hash (it keys
@@ -193,7 +208,7 @@ pub fn derive_conversation(
 
 fn upstream_model_for(
     providers: &systemprompt_models::services::ProviderRegistry,
-    route: &systemprompt_models::services::GatewayRoute,
+    route: &GatewayRoute,
     requested: &str,
 ) -> String {
     providers

@@ -88,7 +88,8 @@ fn help_prints_command_reference() {
     assert!(out.status.success());
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("systemprompt-bridge <command>"));
-    assert!(text.contains("login <sp-live-...>"));
+    assert!(text.contains("login [<sp-live-...>]"));
+    assert!(text.contains("--stdin"));
 }
 
 #[test]

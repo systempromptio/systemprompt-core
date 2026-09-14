@@ -2,7 +2,7 @@
 //! RepositoryError.
 
 use chrono::Utc;
-use systemprompt_identifiers::{ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 use systemprompt_traits::content::{ContentFilter, ContentItem, ContentSummary};
 use systemprompt_traits::context_provider::ContextProviderError;
 use systemprompt_traits::repository::RepositoryError;
@@ -25,14 +25,14 @@ fn content_filter_with_fields_set() {
     let src = SourceId::new("blog");
     let f = ContentFilter {
         source_id: Some(src.clone()),
-        category_id: Some("tech".into()),
+        category_id: Some(CategoryId::new("tech")),
         kind: Some("guide".into()),
         query: Some("rust".into()),
         limit: Some(10),
         offset: Some(5),
     };
     assert_eq!(f.source_id.as_ref().unwrap(), &src);
-    assert_eq!(f.category_id.as_deref(), Some("tech"));
+    assert_eq!(f.category_id.as_ref().map(CategoryId::as_str), Some("tech"));
     assert_eq!(f.kind.as_deref(), Some("guide"));
     assert_eq!(f.query.as_deref(), Some("rust"));
     assert_eq!(f.limit, Some(10));
@@ -117,12 +117,15 @@ fn content_item_fields_accessible() {
         kind: "guide".into(),
         image: Some("cover.png".into()),
         source_id: SourceId::new("docs"),
-        category_id: Some("tutorials".into()),
+        category_id: Some(CategoryId::new("tutorials")),
     };
     assert_eq!(item.author, "Alice");
     assert_eq!(item.body, "Body text here");
     assert_eq!(item.image.as_deref(), Some("cover.png"));
-    assert_eq!(item.category_id.as_deref(), Some("tutorials"));
+    assert_eq!(
+        item.category_id.as_ref().map(CategoryId::as_str),
+        Some("tutorials")
+    );
 }
 
 #[test]

@@ -137,8 +137,8 @@ impl OutputSink for StdioSink {
 
 pub async fn execute_remote(
     hostname: &str,
-    token: &str,
-    context: &str,
+    token: &SessionToken,
+    context: &ContextId,
     args: &[String],
     timeout_secs: u64,
 ) -> Result<i32> {
@@ -150,7 +150,7 @@ pub async fn execute_remote(
     };
     let request = RemoteCliRequest {
         token,
-        context,
+        context: Some(context),
         args,
     };
     Ok(executor.execute(request, &mut sink).await?)

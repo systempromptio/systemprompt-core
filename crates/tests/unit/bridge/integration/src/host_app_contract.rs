@@ -35,7 +35,8 @@ impl HostApp for BareHost {
             profile_state: ProfileState::Absent,
             profile_source: None,
             profile_keys: BTreeMap::new(),
-            host_running: false,
+            probe_error: None,
+            host_running: Some(false),
             host_processes: Vec::new(),
             app_installed: AppInstallState::Unknown,
             probed_at_unix: u64::from(env.proxy_port),
@@ -126,7 +127,7 @@ fn probe_env_carries_the_port_and_secret_fingerprint_of_the_endpoint_it_was_buil
     let env = ProbeEnv::new(&endpoint, std::sync::Arc::default());
     assert_eq!(env.proxy_port, 51999);
     assert_eq!(
-        env.loopback_secret_fingerprint,
+        env.loopback_secret_fingerprint(),
         endpoint.secret_fingerprint(),
         "the probe env fingerprint is the endpoint's, not a fresh read"
     );

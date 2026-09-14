@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use systemprompt_bridge::gui::server_marketplace::{mark_shared_mcp, plugin_children};
+use systemprompt_bridge::gui::server_marketplace::{ChildKind, mark_shared_mcp, plugin_children};
 
 fn write_plugin(root: &Path, name: &str, mcp_servers: &[&str]) -> std::path::PathBuf {
     let dir = root.join(name);
@@ -36,13 +36,19 @@ fn plugin_children_scans_skills_agents_and_mcp() {
 
     let children = plugin_children(&dir).expect("read plugin children");
 
-    let skill = children.iter().find(|c| c.kind == "skills").unwrap();
+    let skill = children
+        .iter()
+        .find(|c| c.kind == ChildKind::Skills)
+        .unwrap();
     assert_eq!(skill.id, "draft_email");
     assert_eq!(skill.name, "Draft Email");
-    let agent = children.iter().find(|c| c.kind == "agents").unwrap();
+    let agent = children
+        .iter()
+        .find(|c| c.kind == ChildKind::Agents)
+        .unwrap();
     assert_eq!(agent.id, "helper");
     assert_eq!(agent.name, "Helper Agent");
-    let mcp = children.iter().find(|c| c.kind == "mcp").unwrap();
+    let mcp = children.iter().find(|c| c.kind == ChildKind::Mcp).unwrap();
     assert_eq!(mcp.id, "salesforce");
     assert!(!mcp.shared);
 }
@@ -74,7 +80,7 @@ fn mark_shared_mcp_flags_servers_used_by_multiple_plugins() {
     let shared: Vec<(&str, bool)> = sets
         .iter()
         .flatten()
-        .filter(|c| c.kind == "mcp")
+        .filter(|c| c.kind == ChildKind::Mcp)
         .map(|c| (c.id.as_str(), c.shared))
         .collect();
     assert!(shared.contains(&("salesforce", true)));

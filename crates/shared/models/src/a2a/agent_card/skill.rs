@@ -45,6 +45,7 @@ pub struct AgentCardSignature {
     pub protected: String,
     pub signature: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: A2A `AgentSkill` extension header; spec-defined as free-form.
     pub header: Option<serde_json::Value>,
 }
 

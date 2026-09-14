@@ -43,7 +43,7 @@ fn provider_chain_is_priority_ordered() {
         .collect();
     assert_eq!(
         builtins,
-        vec!["mtls", "session", "pat"],
-        "built-in providers must stay ordered mtls > session > pat"
+        vec!["session", "pat"],
+        "built-in providers must stay ordered session > pat"
     );
 }

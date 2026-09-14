@@ -8,30 +8,36 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::install::mdm::policy::{
-    McpServerEntry, PolicyInputs, PolicyValue, claude_desktop_policy, plist_body,
+    McpServerEntry, PolicyEntry, PolicyInputs, PolicyValue, claude_desktop_policy, plist_body,
 };
 
 fn entry(name: &str) -> McpServerEntry {
     McpServerEntry {
         name: name.to_owned(),
         url: format!("http://127.0.0.1:48217/mcp/{name}"),
-        bearer: "Bearer loopback-secret".to_owned(),
         tool_policy: Default::default(),
     }
 }
 
-fn policy_with(servers: &[McpServerEntry]) -> Vec<(&'static str, PolicyValue)> {
+fn host_token() -> HostToken {
+    HostToken::new("desktop-host-token")
+}
+
+fn policy_with(servers: &[McpServerEntry]) -> Vec<PolicyEntry> {
     let headers = BTreeMap::new();
+    let token = host_token();
     claude_desktop_policy(&PolicyInputs {
         base_url: "http://127.0.0.1:48217",
-        api_key: "loopback-secret",
+        host_token: &token,
         models: None,
         headers: &headers,
         egress_allowed_hosts: None,
         org_uuid: None,
-        mcp_servers: servers,
+        mcp_servers: Some(servers),
     })
+    .expect("policy renders")
 }
 
 fn value_of<'a>(policy: &'a [(&'static str, PolicyValue)], key: &str) -> Option<&'a PolicyValue> {
@@ -53,7 +59,10 @@ fn managed_mcp_servers_point_at_the_loopback_proxy_and_carry_the_bearer() {
     let first = &value.as_array().expect("an array")[0];
 
     assert_eq!(first["url"], "http://127.0.0.1:48217/mcp/knowledge-bank");
-    assert_eq!(first["headers"]["Authorization"], "Bearer loopback-secret");
+    assert_eq!(
+        first["headers"]["Authorization"],
+        "Bearer desktop-host-token"
+    );
     assert_eq!(first["transport"], "http");
     assert!(
         first.get("oauth").is_none(),
@@ -121,7 +130,7 @@ fn the_plist_renders_arrays_and_dicts_as_native_elements() {
 
     assert!(body.contains("<key>managedMcpServers</key>"));
     assert!(body.contains("<key>Authorization</key>"));
-    assert!(body.contains("<string>Bearer loopback-secret</string>"));
+    assert!(body.contains("<string>Bearer desktop-host-token</string>"));
     assert!(body.contains("<key>inferenceProvider</key>\n  <string>gateway</string>"));
 }
 
@@ -142,7 +151,6 @@ fn xml_special_characters_in_a_server_name_are_escaped() {
     let servers = vec![McpServerEntry {
         name: "a&b<c".to_owned(),
         url: "http://127.0.0.1:48217/mcp/a".to_owned(),
-        bearer: "Bearer x".to_owned(),
         tool_policy: Default::default(),
     }];
     let body = plist_body(&policy_with(&servers), "  ");
@@ -166,7 +174,7 @@ fn the_gateway_block_is_written_as_one_complete_unit() {
     );
     assert_eq!(
         value_of(&policy, "inferenceGatewayApiKey"),
-        Some(&PolicyValue::Str("loopback-secret".to_owned()))
+        Some(&PolicyValue::Str("desktop-host-token".to_owned()))
     );
     assert_eq!(
         value_of(&policy, "inferenceGatewayAuthScheme"),
@@ -187,15 +195,17 @@ fn the_gateway_block_is_written_as_one_complete_unit() {
 #[test]
 fn an_installed_model_list_wins_over_the_default() {
     let headers = BTreeMap::new();
+    let token = host_token();
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: "http://127.0.0.1:48217",
-        api_key: "s",
+        host_token: &token,
         models: Some(r#"["claude-opus-5"]"#.to_owned()),
         headers: &headers,
         egress_allowed_hosts: None,
         org_uuid: None,
-        mcp_servers: &[],
-    });
+        mcp_servers: Some(&[]),
+    })
+    .expect("policy renders");
     let PolicyValue::Json(models) = value_of(&policy, "inferenceModels").expect("models present")
     else {
         panic!("inferenceModels must be a JSON value");
@@ -226,30 +236,44 @@ fn nonessential_services_stay_enabled_and_are_written_explicitly() {
 }
 
 #[test]
-fn a_valid_org_uuid_is_carried_and_a_malformed_one_is_dropped() {
+fn a_valid_org_uuid_is_carried_and_a_malformed_one_is_rejected() {
     let headers = BTreeMap::new();
+    let token = host_token();
     let with = |uuid: Option<&str>| {
         claude_desktop_policy(&PolicyInputs {
             base_url: "http://127.0.0.1:48217",
-            api_key: "s",
+            host_token: &token,
             models: None,
             headers: &headers,
             egress_allowed_hosts: None,
             org_uuid: uuid,
-            mcp_servers: &[],
+            mcp_servers: Some(&[]),
         })
     };
     assert_eq!(
         value_of(
-            &with(Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963")),
+            &with(Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963")).expect("valid uuid renders"),
             "deploymentOrganizationUuid"
         ),
         Some(&PolicyValue::Str(
             "f8e4d915-f8ad-5304-ab0d-c1bf895df963".to_owned()
         ))
     );
-    assert!(value_of(&with(Some("garbage")), "deploymentOrganizationUuid").is_none());
-    assert!(value_of(&with(None), "deploymentOrganizationUuid").is_none());
+    assert!(
+        matches!(
+            with(Some("garbage")),
+            Err(systemprompt_bridge::install::mdm::MdmError::InvalidConfig { key, .. })
+                if key == "deploymentOrganizationUuid"
+        ),
+        "a malformed org uuid is a config rejection, not a silent drop"
+    );
+    assert!(
+        value_of(
+            &with(None).expect("no uuid renders"),
+            "deploymentOrganizationUuid"
+        )
+        .is_none()
+    );
 }
 
 // Why: Claude Desktop breaks on non-Anthropic model families. The gateway
@@ -257,17 +281,19 @@ fn a_valid_org_uuid_is_carried_and_a_malformed_one_is_dropped() {
 #[test]
 fn desktop_inference_models_never_carry_non_anthropic_ids() {
     let headers = BTreeMap::new();
+    let token = host_token();
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: "http://127.0.0.1:48217",
-        api_key: "s",
+        host_token: &token,
         models: Some(
             r#"["gemini-2.5-flash", "claude-sonnet-5", "vertex-gemini-2.5-pro"]"#.to_owned(),
         ),
         headers: &headers,
         egress_allowed_hosts: None,
         org_uuid: None,
-        mcp_servers: &[],
-    });
+        mcp_servers: Some(&[]),
+    })
+    .expect("policy renders");
     let PolicyValue::Json(models) = value_of(&policy, "inferenceModels").expect("models present")
     else {
         panic!("inferenceModels must be a JSON value");
@@ -278,15 +304,17 @@ fn desktop_inference_models_never_carry_non_anthropic_ids() {
 #[test]
 fn an_all_gemini_list_falls_back_to_the_default_claude_models() {
     let headers = BTreeMap::new();
+    let token = host_token();
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: "http://127.0.0.1:48217",
-        api_key: "s",
+        host_token: &token,
         models: Some(r#"["gemini-2.5-flash"]"#.to_owned()),
         headers: &headers,
         egress_allowed_hosts: None,
         org_uuid: None,
-        mcp_servers: &[],
-    });
+        mcp_servers: Some(&[]),
+    })
+    .expect("policy renders");
     let PolicyValue::Json(models) = value_of(&policy, "inferenceModels").expect("models present")
     else {
         panic!("inferenceModels must be a JSON value");

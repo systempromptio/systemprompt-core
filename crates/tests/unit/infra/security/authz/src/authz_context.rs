@@ -53,7 +53,7 @@ fn gateway_invocation_model_wrong_kind_returns_none() {
 
 #[test]
 fn mcp_tool_call_context() {
-    let tool = McpToolName::new("bash");
+    let tool = McpToolName::try_new("bash").expect("valid McpToolName");
     let ctx = AuthzContext::mcp_tool_call(&tool);
     assert_eq!(ctx.kind.as_ref(), "mcp.tool_call");
     let extracted = ctx.mcp_tool_call_tool().expect("tool");

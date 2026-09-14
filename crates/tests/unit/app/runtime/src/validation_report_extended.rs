@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use systemprompt_traits::validation_report::{
-    StartupValidationError, StartupValidationReport, ValidationError, ValidationReport,
+    StartupValidationError, StartupValidationReport, ValidationIssue, ValidationReport,
     ValidationWarning,
 };
 use systemprompt_traits::{DomainConfig, DomainConfigError, DomainConfigRegistry};
 
 #[test]
 fn test_validation_error_display_basic() {
-    let error = ValidationError::new("database_url", "Connection refused");
+    let error = ValidationIssue::new("database_url", "Connection refused");
     let display = format!("{}", error);
     assert!(display.contains("database_url"));
     assert!(display.contains("Connection refused"));
@@ -15,7 +15,7 @@ fn test_validation_error_display_basic() {
 
 #[test]
 fn test_validation_error_display_with_path() {
-    let error = ValidationError::new("config", "File not found")
+    let error = ValidationIssue::new("config", "File not found")
         .with_path(PathBuf::from("/etc/app/config.yaml"));
     let display = format!("{}", error);
     assert!(display.contains("Path:"));
@@ -24,7 +24,7 @@ fn test_validation_error_display_with_path() {
 
 #[test]
 fn test_validation_error_display_with_suggestion() {
-    let error = ValidationError::new("field", "message").with_suggestion("Run setup first");
+    let error = ValidationIssue::new("field", "message").with_suggestion("Run setup first");
     let display = format!("{}", error);
     assert!(display.contains("To fix:"));
     assert!(display.contains("Run setup first"));
@@ -32,7 +32,7 @@ fn test_validation_error_display_with_suggestion() {
 
 #[test]
 fn test_validation_error_display_full_chain() {
-    let error = ValidationError::new("database_url", "Connection refused")
+    let error = ValidationIssue::new("database_url", "Connection refused")
         .with_path("/config/db.yaml")
         .with_suggestion("Check credentials");
     let display = format!("{}", error);
@@ -51,7 +51,7 @@ fn test_validation_report_is_clean_empty() {
 #[test]
 fn test_validation_report_is_clean_with_error() {
     let mut report = ValidationReport::new("test");
-    report.add_error(ValidationError::new("f", "m"));
+    report.add_error(ValidationIssue::new("f", "m"));
     assert!(!report.is_clean());
 }
 
@@ -65,10 +65,10 @@ fn test_validation_report_is_clean_with_warning() {
 #[test]
 fn test_validation_report_merge_errors() {
     let mut report_a = ValidationReport::new("domain_a");
-    report_a.add_error(ValidationError::new("field_a", "error_a"));
+    report_a.add_error(ValidationIssue::new("field_a", "error_a"));
 
     let mut report_b = ValidationReport::new("domain_b");
-    report_b.add_error(ValidationError::new("field_b", "error_b"));
+    report_b.add_error(ValidationIssue::new("field_b", "error_b"));
 
     report_a.merge(report_b);
     assert_eq!(report_a.errors.len(), 2);
@@ -108,8 +108,8 @@ fn test_startup_report_display_zero_counts() {
 fn test_startup_report_display_with_errors() {
     let mut report = StartupValidationReport::new();
     let mut domain = ValidationReport::new("test");
-    domain.add_error(ValidationError::new("f1", "m1"));
-    domain.add_error(ValidationError::new("f2", "m2"));
+    domain.add_error(ValidationIssue::new("f1", "m1"));
+    domain.add_error(ValidationIssue::new("f2", "m2"));
     report.add_domain(domain);
     let display = format!("{}", report);
     assert!(display.contains("2 error(s)"));
@@ -129,12 +129,12 @@ fn test_startup_report_error_count_includes_extensions() {
     let mut report = StartupValidationReport::new();
 
     let mut domain = ValidationReport::new("web");
-    domain.add_error(ValidationError::new("f1", "m1"));
+    domain.add_error(ValidationIssue::new("f1", "m1"));
     report.add_domain(domain);
 
     let mut ext = ValidationReport::new("ext:plugin");
-    ext.add_error(ValidationError::new("f2", "m2"));
-    ext.add_error(ValidationError::new("f3", "m3"));
+    ext.add_error(ValidationIssue::new("f2", "m2"));
+    ext.add_error(ValidationIssue::new("f3", "m3"));
     report.add_extension(ext);
 
     assert_eq!(report.error_count(), 3);
@@ -159,7 +159,7 @@ fn test_startup_report_warning_count_includes_extensions() {
 fn test_startup_report_has_errors_from_extensions() {
     let mut report = StartupValidationReport::new();
     let mut ext = ValidationReport::new("ext:broken");
-    ext.add_error(ValidationError::new("config", "missing"));
+    ext.add_error(ValidationIssue::new("config", "missing"));
     report.add_extension(ext);
     assert!(report.has_errors());
 }
@@ -177,7 +177,7 @@ fn test_startup_report_has_warnings_from_domain() {
 fn test_startup_validation_error_from_report() {
     let mut report = StartupValidationReport::new();
     let mut domain = ValidationReport::new("test");
-    domain.add_error(ValidationError::new("field", "msg"));
+    domain.add_error(ValidationIssue::new("field", "msg"));
     report.add_domain(domain);
 
     let error: StartupValidationError = report.into();

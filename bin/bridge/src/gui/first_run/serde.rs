@@ -10,8 +10,8 @@ pub(crate) fn build(state: &FirstRunState) -> FirstRunPayload<'_> {
     FirstRunPayload {
         active: state.active,
         done: state.done,
-        phase: state.phase.as_str(),
-        sync: state.sync.as_str(),
+        phase: state.phase,
+        sync: state.sync,
         error: state.error.as_deref(),
         hosts: state
             .hosts
@@ -19,7 +19,7 @@ pub(crate) fn build(state: &FirstRunState) -> FirstRunPayload<'_> {
             .map(|h| FirstRunHostPayload {
                 host_id: &h.host_id,
                 display_name: &h.display_name,
-                status: h.status.as_str(),
+                status: h.status,
                 error: h.error.as_deref(),
             })
             .collect(),

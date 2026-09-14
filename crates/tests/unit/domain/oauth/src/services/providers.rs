@@ -159,7 +159,7 @@ mod config_backed {
             .expect("generate");
 
         let claims = provider.validate_token(&token).expect("validate own token");
-        assert_eq!(claims.subject, user_uuid.to_string());
+        assert_eq!(claims.subject.as_str(), user_uuid.to_string());
         assert_eq!(claims.username, "prov-gen");
         assert!(claims.permissions.iter().any(|p| p == "user"));
         assert!(claims.audiences.iter().any(|a| a == "api"));

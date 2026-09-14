@@ -146,7 +146,7 @@ lint-test-seams:
 
 # Reject tests that return early on a missing prerequisite without saying so
 lint-silent-skips:
-    ./scripts/lint-silent-skips.sh crates/tests
+    ./scripts/lint-silent-skips.sh
 
 # Reject inline `#[cfg(test)] mod tests` — tests belong in crates/tests/.
 # Covers bin/bridge, which no root `--workspace` invocation reaches.
@@ -177,8 +177,18 @@ check-version-strings:
 check-lockfile-registry:
     ./scripts/check-lockfile-registry.sh
 
-# Check without building
-check: check-version-strings check-lockfile-registry lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+# Every source gate, in one list. quality.yml's `source-gates` job runs each
+# recipe listed here as its own step (so one red gate cannot hide the rest)
+# and asserts that its step list equals this line — a gate added here without
+# a CI step fails the job, and a CI step for a gate not listed here fails it
+# too. `check-release-tag`, `check-crate-changelogs`, `machete` and
+# `bridge-bindings-check` are release-shaped (full history, cargo-machete, a
+# bridge build) and stay CI-only by design.
+check-gates: check-version-strings check-lockfile-registry lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-tracing-messages lint-async-trait lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+    cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
+
+# Every source gate, then a workspace check
+check: check-gates
     cargo check --workspace --keep-going
 
 # Check offline (uses cached .sqlx metadata, no database required)
@@ -426,7 +436,10 @@ machete:
 hack:
     cargo hack --workspace --feature-powerset --depth 2 check
 
-# Reject source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads).
+# Reject production source files exceeding 300 lines, `//!` head included
+# (excludes target/ and crates/tests/; covers the crates, the facade and the
+# bridge). A module head is part of the file a reviewer reads; a 120-line
+# head over a 290-line body is a 410-line file.
 #
 # This used to print and exit 0 — awk returns 0 whether or not it matched — so
 # the CI job named after it was green while 49 files were over the limit. It is
@@ -434,8 +447,8 @@ hack:
 file-size:
     #!/usr/bin/env bash
     set -euo pipefail
-    over=$(find crates bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' \
-        | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}' \
+    over=$(find crates systemprompt/src bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' \
+        | xargs -r awk '{n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}' \
         | sort -rn)
     if [ -n "$over" ]; then
         echo "$over"
@@ -1825,6 +1838,22 @@ promote SHA="":
 
 lint-discarded-results:
     ./scripts/check-discarded-results.sh
+
+# A tracing message is a constant; values are structured fields.
+lint-tracing-messages:
+    ./scripts/lint-tracing-messages.sh
+
+# #[async_trait] only for dyn-compatibility, and the trait says so.
+lint-async-trait:
+    ./scripts/lint-async-trait.sh
+
+# serde_json::Value in a signature is a protocol boundary with a `// JSON:` line.
+lint-json-value:
+    ./scripts/lint-json-value.sh
+
+# A crate queries only the tables its own schema/*.sql declares (infra may read infra).
+lint-table-ownership:
+    ./scripts/lint-table-ownership.sh
 
 # Profiles are the source of truth; an env read outside the sanctioned boot
 # readers (scripts/env-var-allowlist.txt) is an undocumented kill switch.

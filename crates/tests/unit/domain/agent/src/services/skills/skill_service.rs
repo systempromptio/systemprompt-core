@@ -13,7 +13,7 @@ fn make_ctx() -> RequestContext {
         SessionId::new("skill-svc-session"),
         TraceId::new("skill-svc-trace"),
         ContextId::generate(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(UserId::new("skill-test-user"));
     ctx
@@ -313,7 +313,7 @@ fn ctx_with_task(context_id: &ContextId, task_id: &TaskId) -> RequestContext {
         SessionId::new("skill-track-session"),
         TraceId::new("skill-track-trace"),
         context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(UserId::new("skill-track-user"));
     ctx.with_task_id(task_id.clone())

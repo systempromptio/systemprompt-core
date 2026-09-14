@@ -94,6 +94,7 @@ pub struct PresentationCardResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CardSection {
     pub heading: String,
+    // JSON: Card field content is any JSON scalar or object the tool emitted.
     pub content: JsonValue,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
@@ -109,6 +110,7 @@ impl CardSection {
     }
 
     #[must_use]
+    // JSON: Card field content is any JSON scalar or object the tool emitted.
     pub fn value(heading: impl Into<String>, content: JsonValue) -> Self {
         Self {
             heading: heading.into(),
@@ -131,6 +133,7 @@ impl CardSection {
         }
     }
 
+    // JSON: Card field content is any JSON scalar or object the tool emitted.
     fn scalar_text(value: &JsonValue) -> String {
         match value {
             JsonValue::String(s) => s.clone(),

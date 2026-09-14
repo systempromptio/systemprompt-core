@@ -16,10 +16,8 @@ use std::process::Command;
 
 pub fn alert_user(title: &str, message: &str) {
     tracing::warn!(title = %title, message = %message, "alerting user");
-    // Why: the callers are installer paths with no window and no return
-    // channel, so the dialog must never hold them; a modal that nobody
-    // dismisses (a CI runner, an unattended install) otherwise blocks the
-    // process forever.
+    // Why: an unattended install has nobody to dismiss a modal; the dialog
+    // must never hold the caller.
     #[cfg(target_os = "windows")]
     {
         let title = title.to_owned();

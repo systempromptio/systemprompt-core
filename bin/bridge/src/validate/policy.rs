@@ -36,6 +36,15 @@ const HARDENING: [(&str, &str); 6] = [
 
 const BASH_GATES: [&str; 2] = ["disabledBuiltinTools", "builtinToolPolicy"];
 
+#[derive(Debug, serde::Deserialize)]
+struct WorkspaceFolder {
+    path: String,
+}
+
+fn parse_workspace_folders(raw: &str) -> Result<Vec<WorkspaceFolder>, serde_json::Error> {
+    serde_json::from_str(raw)
+}
+
 pub(super) fn check_managed_policy(report: &mut Report) {
     let store = crate::config::store::managed_policy_store();
     for (key, remedy) in REQUIRED {
@@ -75,20 +84,6 @@ pub(super) fn check_managed_policy(report: &mut Report) {
             Ok(None) => report.ok(&format!("policy {key}"), "absent"),
             Err(e) => report.fail(&format!("policy {key}"), &format!("unreadable: {e}")),
         }
-    }
-    match store.read_managed_policy(crate::config::store::LEGACY_MANIFEST_PUBKEY_KEY) {
-        Ok(Some(_)) => report.warn(
-            "policy inferenceManifestPubkey",
-            "stale copy in Claude's hive — Claude Desktop warns on every launch; sync moves it",
-        ),
-        Ok(None) => report.ok(
-            "policy inferenceManifestPubkey",
-            "absent from Claude's hive",
-        ),
-        Err(e) => report.fail(
-            "policy inferenceManifestPubkey",
-            &format!("unreadable: {e}"),
-        ),
     }
     check_workspace_dir(report);
     check_claude_code_policy_dir(report);
@@ -180,13 +175,17 @@ fn check_workspace_folders(report: &mut Report, store: &dyn crate::config::store
             return;
         },
     };
-    let paths: Vec<String> = serde_json::from_str::<serde_json::Value>(&raw)
-        .ok()
-        .and_then(|v| v.as_array().cloned())
-        .unwrap_or_default()
-        .iter()
-        .filter_map(|f| f["path"].as_str().map(str::to_owned))
-        .collect();
+    let folders = match parse_workspace_folders(&raw) {
+        Ok(folders) => folders,
+        Err(e) => {
+            report.fail(
+                "policy workspace roots",
+                &format!("allowedWorkspaceFolders is not a folder list: {e}"),
+            );
+            return;
+        },
+    };
+    let paths: Vec<String> = folders.into_iter().map(|f| f.path).collect();
     if paths.iter().any(|p| p == "~") {
         report.info("policy workspace roots", &paths.join(", "));
     } else {

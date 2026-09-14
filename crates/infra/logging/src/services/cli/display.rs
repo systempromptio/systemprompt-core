@@ -7,17 +7,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::io::Write;
-
+use crate::services::cli::sink::stderr_writeln;
 use crate::services::cli::theme::{EmphasisType, MessageLevel, Theme};
 
 pub trait Display {
     fn display(&self);
-}
-
-fn stderr_writeln(args: std::fmt::Arguments<'_>) {
-    let mut stderr = std::io::stderr();
-    writeln!(stderr, "{args}").ok();
 }
 
 const fn message_level_str(level: MessageLevel) -> &'static str {

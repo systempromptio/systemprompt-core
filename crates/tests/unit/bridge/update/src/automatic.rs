@@ -1,5 +1,7 @@
-use systemprompt_bridge::gateway::manifest::AutoUpdatePolicy;
-use systemprompt_bridge::update::{auto_update_policy, automatic_enabled, run_automatic};
+use systemprompt_bridge::ids::BearerToken;
+use systemprompt_bridge::update::{
+    AutoUpdateDecision, auto_update_policy, automatic_enabled, run_automatic,
+};
 use systemprompt_identifiers::ValidatedUrl;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
@@ -76,7 +78,7 @@ fn a_disabled_policy_stops_the_update_before_the_gateway_is_contacted() {
             !automatic_enabled(),
             "a delivered `disabled` policy turns updates off"
         );
-        block_on(run_automatic(&gateway, "bearer", &http));
+        block_on(run_automatic(&gateway, &BearerToken::new("bearer"), &http));
     });
 
     assert!(
@@ -98,7 +100,7 @@ fn a_gateway_with_no_newer_release_fetches_once_and_installs_nothing() {
             automatic_enabled(),
             "a delivered `staged` policy leaves updates on"
         );
-        block_on(run_automatic(&gateway, "bearer", &http));
+        block_on(run_automatic(&gateway, &BearerToken::new("bearer"), &http));
     });
 
     let seen = requests(&server);
@@ -131,7 +133,7 @@ fn a_gateway_that_cannot_answer_leaves_the_installed_binary_alone() {
     let http = reqwest::Client::new();
 
     in_sandbox(&state, || {
-        block_on(run_automatic(&gateway, "bearer", &http));
+        block_on(run_automatic(&gateway, &BearerToken::new("bearer"), &http));
     });
 
     assert_eq!(
@@ -142,11 +144,16 @@ fn a_gateway_that_cannot_answer_leaves_the_installed_binary_alone() {
 }
 
 #[test]
-fn an_unsynced_bridge_stages_updates_by_default() {
+fn an_unsynced_bridge_withholds_automatic_updates() {
     let state = TempDir::new().expect("state");
-    assert_eq!(
-        in_sandbox(&state, auto_update_policy),
-        AutoUpdatePolicy::Staged,
-        "with no delivered policy the default stages rather than refusing"
+    let decision = in_sandbox(&state, auto_update_policy);
+    assert!(
+        matches!(decision, AutoUpdateDecision::NeverSynced),
+        "with no manifest synced the policy is withheld: {}",
+        decision.describe()
+    );
+    assert!(
+        !decision.stages(),
+        "an unsynced bridge never stages a download on its own"
     );
 }

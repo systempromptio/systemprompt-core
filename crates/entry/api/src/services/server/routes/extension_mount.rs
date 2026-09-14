@@ -17,7 +17,9 @@ pub(super) fn mount_extension_routes(
     user_middleware: &UserOnlyContextMiddleware,
     events: Option<&StartupEventSender>,
 ) -> Result<Router, LoaderError> {
-    let api_extensions = ctx.extension_registry().api_routers(ctx);
+    let registry = ctx.extension_registry();
+    registry.validate_api_paths(ctx)?;
+    let api_extensions = registry.api_routers(ctx);
 
     if api_extensions.is_empty() {
         return Ok(router);
@@ -79,7 +81,7 @@ pub(super) fn mount_extension_routes(
             tracing::debug!("Startup event receiver dropped");
         }
 
-        if base_path == "/" {
+        if base_path == systemprompt_extension::registry::WEB_ROOT_BASE_PATH {
             router = router.merge(ext_router);
         } else {
             router = router.nest(base_path, ext_router);

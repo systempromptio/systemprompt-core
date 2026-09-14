@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use systemprompt_bridge::auth::setup::{CleanReport, PathLayout};
-use systemprompt_bridge::install::{ManagedProfileOutcome, UninstallSummary};
+use systemprompt_bridge::install::{
+    CredentialsOutcome, ManagedProfileOutcome, ScheduleRemoval, UninstallSummary,
+};
 use systemprompt_bridge::integration::uninstall::{PurgeReport, remove_proxy_state};
 use systemprompt_bridge::proxy::{DEFAULT_PROXY_PORT, identity, portfile, secret};
 use tempfile::TempDir;
@@ -15,11 +17,19 @@ fn seed(path: &std::path::Path) {
     std::fs::write(path, b"stale").expect("seed");
 }
 
-fn report(
-    warnings: Vec<String>,
-    summary: UninstallSummary,
-    foreign: Option<String>,
-) -> PurgeReport {
+fn summary(host_warnings: Vec<String>, managed_profile: ManagedProfileOutcome) -> UninstallSummary {
+    UninstallSummary {
+        foreign_plugins: Vec::new(),
+        metadata_removed: None,
+        metadata_already_clean: None,
+        managed_profile,
+        credentials: CredentialsOutcome::Kept,
+        schedule: ScheduleRemoval::NotInstalled(String::new()),
+        host_warnings,
+    }
+}
+
+fn report(summary: UninstallSummary, foreign: Option<String>) -> PurgeReport {
     PurgeReport {
         uninstall: summary,
         clean: CleanReport {
@@ -32,7 +42,6 @@ fn report(
             config_removed: true,
             oauth_creds_removed: true,
         },
-        warnings,
         foreign_proxy: foreign,
         proxy_state_removed: Vec::new(),
     }
@@ -79,18 +88,12 @@ fn purging_a_device_with_no_proxy_state_removes_nothing_and_succeeds() {
 
 #[test]
 fn leftovers_name_a_managed_policy_that_could_not_be_removed() {
-    let summary = UninstallSummary::builder()
-        .managed_profile(ManagedProfileOutcome::RemoveFailed(
-            "access is denied".to_owned(),
-        ))
-        .build();
-
-    let leftovers = report(
+    let summary = summary(
         vec!["Cowork enable-key cleanup failed: eacces".to_owned()],
-        summary,
-        None,
-    )
-    .leftovers();
+        ManagedProfileOutcome::RemoveFailed("access is denied".to_owned()),
+    );
+
+    let leftovers = report(summary, None).leftovers();
 
     assert_eq!(leftovers.len(), 2, "{leftovers:?}");
     assert!(
@@ -105,14 +108,10 @@ fn leftovers_name_a_managed_policy_that_could_not_be_removed() {
 
 #[test]
 fn leftovers_explain_that_another_accounts_bridge_still_holds_the_port() {
-    let summary = UninstallSummary::builder().build();
+    let summary = summary(Vec::new(), ManagedProfileOutcome::NotApplicable);
 
-    let leftovers = report(
-        Vec::new(),
-        summary,
-        Some("/home/other/.config/systemprompt".to_owned()),
-    )
-    .leftovers();
+    let leftovers =
+        report(summary, Some("/home/other/.config/systemprompt".to_owned())).leftovers();
 
     assert_eq!(leftovers.len(), 1, "{leftovers:?}");
     assert!(
@@ -127,9 +126,7 @@ fn leftovers_explain_that_another_accounts_bridge_still_holds_the_port() {
 
 #[test]
 fn a_clean_purge_has_no_leftovers() {
-    let summary = UninstallSummary::builder()
-        .managed_profile(ManagedProfileOutcome::NotInstalled("linux"))
-        .build();
+    let summary = summary(Vec::new(), ManagedProfileOutcome::NotInstalled("linux"));
 
-    assert!(report(Vec::new(), summary, None).leftovers().is_empty());
+    assert!(report(summary, None).leftovers().is_empty());
 }

@@ -105,7 +105,7 @@ fn a_provisioned_install_reports_its_metadata_sync_and_plugin_counts() {
     std::fs::create_dir_all(sandbox.metadata()).expect("metadata dir");
     std::fs::write(
         sandbox.metadata().join("last-sync.json"),
-        "{\"synced_at\":\"2026-09-11T08:00:00Z\",\"manifest_version\":\"7\",\
+        "{\"synced_at\":\"2026-09-11T08:00:00Z\",\"manifest_version\":\"2026-09-11T08:00:00Z-00000007\",\
          \"mcp_server_count\":3}",
     )
     .expect("seed last-sync");
@@ -125,7 +125,7 @@ fn a_provisioned_install_reports_its_metadata_sync_and_plugin_counts() {
     assert_eq!(sync.level, CheckLevel::Ok, "{}", sync.value);
     assert_eq!(
         sync.value,
-        "2026-09-11T08:00:00Z (manifest 7, 3 MCP server(s))"
+        "2026-09-11T08:00:00Z (manifest 2026-09-11T08:00:00Z-00000007, 3 MCP server(s))"
     );
 
     let plugins = line(&report, "plugins on disk");

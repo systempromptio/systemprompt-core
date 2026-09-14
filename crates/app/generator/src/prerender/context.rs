@@ -7,10 +7,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{AppPaths, ContentConfigRaw, WebConfig};
+use systemprompt_models::{ContentConfigRaw, WebConfig};
 use systemprompt_provider_contracts::ContentDataProvider;
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
 use systemprompt_templates::{

@@ -11,6 +11,8 @@ mod cancel_scopes;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod host_model_view;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
+mod host_probe_sequence;
+#[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod ipc;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod jwt;
@@ -20,6 +22,8 @@ mod marketplace_children;
 mod marketplace_hooks;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod marketplace_listing;
+#[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
+mod mcp_auth_state;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod profile;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]

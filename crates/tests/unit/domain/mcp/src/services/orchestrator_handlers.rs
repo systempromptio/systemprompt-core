@@ -1,6 +1,7 @@
 //! Constructor tests for orchestrator handlers and the event bus.
 
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
 use systemprompt_mcp::services::monitoring::MonitoringService;
@@ -10,7 +11,6 @@ use systemprompt_mcp::services::orchestrator::{
 };
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
 

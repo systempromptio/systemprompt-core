@@ -138,7 +138,8 @@ pub async fn check_replica_lag<S: BuildHasher + Sync>(
     let Some(read_url) = read else {
         return CheckResult::fail("replica-lag", "database_url is not set");
     };
-    if write.is_none_or(|w| w == read_url) {
+    let replica_reads_configured = write.is_some_and(|w| w != read_url);
+    if !replica_reads_configured {
         return CheckResult::pass(
             "replica-lag",
             "database_url is the primary; no replica reads configured",
@@ -186,7 +187,10 @@ pub async fn check_readyz(profile: &Profile) -> CheckResult {
         },
         Ok(response) => {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
             CheckResult::warn("readyz", format!("{url} answered {status}: {body}"))
         },
         Err(err) => CheckResult::warn(

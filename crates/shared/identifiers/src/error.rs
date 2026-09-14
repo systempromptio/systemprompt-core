@@ -16,7 +16,7 @@
 
 use thiserror::Error;
 
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum IdValidationError {
     #[error("{id_type} cannot be empty")]
     Empty { id_type: &'static str },

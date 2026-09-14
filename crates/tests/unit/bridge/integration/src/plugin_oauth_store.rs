@@ -1,7 +1,7 @@
 //! Tests for plugin OAuth credential storage and minting: on-disk non-secret
-//! metadata under `XDG_CACHE_HOME`, the secret in the OS keyring, legacy
-//! plaintext-secret migration, and the wiremock-driven provision/mint flows
-//! including the 401 rotate-and-retry path.
+//! metadata under `XDG_CACHE_HOME`, the secret in the OS keyring, and the
+//! wiremock-driven provision/mint flows including the 401 rotate-and-retry
+//! path.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -105,37 +105,6 @@ fn load_creds_none_when_file_missing() {
 }
 
 #[test]
-fn legacy_plaintext_secret_is_migrated_into_keyring() {
-    let id = unique("client-legacy");
-    let ((), _temp) = with_cache_home(|| {
-        let path = plugin_oauth::creds_path().unwrap();
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(
-            &path,
-            serde_json::to_vec(&serde_json::json!({
-                "client_id": id,
-                "client_secret": "legacy-secret",
-                "token_endpoint": "http://127.0.0.1:1/oauth/token",
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-
-        let loaded = plugin_oauth::load_creds().unwrap().unwrap();
-        assert_eq!(loaded.client_secret, "legacy-secret");
-
-        let rewritten: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        assert!(
-            rewritten.get("client_secret").is_none(),
-            "migration must strip the plaintext secret"
-        );
-
-        plugin_oauth::delete_creds().unwrap();
-    });
-}
-
-#[test]
 fn metadata_without_keyring_entry_is_unprovisioned() {
     let id = unique("client-nokeyring");
     let ((), _temp) = with_cache_home(|| {
@@ -196,8 +165,10 @@ fn ensure_creds_provisions_once_then_reuses_local_state() {
                 .mount(&server)
                 .await;
 
-            let client =
-                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
+                reqwest::Client::new(),
+            );
             let first = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -234,8 +205,10 @@ fn refresh_creds_always_reprovisions() {
                 .mount(&server)
                 .await;
 
-            let client =
-                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
+                reqwest::Client::new(),
+            );
             let out = plugin_oauth::refresh_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -286,8 +259,10 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
                 .mount(&server)
                 .await;
 
-            let client =
-                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
+                reqwest::Client::new(),
+            );
             let token = mint_or_refresh_plugin_token(
                 &TOKENS,
                 &client,
@@ -342,8 +317,10 @@ fn mint_or_refresh_success_path_caches_token() {
                 .mount(&server)
                 .await;
 
-            let client =
-                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
+                reqwest::Client::new(),
+            );
             let first = mint_or_refresh_plugin_token(
                 &TOKENS,
                 &client,
@@ -404,15 +381,19 @@ fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
                 .mount(&gateway_b)
                 .await;
 
-            let client_a =
-                GatewayClient::new(ValidatedUrl::new(gateway_a.uri()), reqwest::Client::new());
+            let client_a = GatewayClient::new(
+                ValidatedUrl::try_new(gateway_a.uri()).expect("valid ValidatedUrl"),
+                reqwest::Client::new(),
+            );
             let a = plugin_oauth::ensure_creds(&client_a, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
             assert_eq!(a.gateway.as_deref(), Some(gateway_a.uri().as_str()));
 
-            let client_b =
-                GatewayClient::new(ValidatedUrl::new(gateway_b.uri()), reqwest::Client::new());
+            let client_b = GatewayClient::new(
+                ValidatedUrl::try_new(gateway_b.uri()).expect("valid ValidatedUrl"),
+                reqwest::Client::new(),
+            );
             let b = plugin_oauth::ensure_creds(&client_b, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
@@ -457,8 +438,10 @@ fn a_stored_client_with_no_recorded_gateway_is_reprovisioned() {
             stale.gateway = None;
             plugin_oauth::store_creds(&stale).unwrap();
 
-            let client =
-                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
+                reqwest::Client::new(),
+            );
             let out = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();

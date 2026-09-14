@@ -26,6 +26,8 @@ pub enum OptimizationError {
     #[error(transparent)]
     Managed(#[from] systemprompt_marketplace::managed::ManagedError),
     #[error(transparent)]
+    Bundle(#[from] systemprompt_models::managed::RevisionBundleError),
+    #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error("Source verification failed: {0}")]
     Source(String),

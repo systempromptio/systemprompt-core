@@ -24,7 +24,7 @@ pub fn request_context(user: &str) -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     )
     .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
 }

@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AiToolCallId, McpServerId};
+use systemprompt_identifiers::AiToolCallId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_traits::{
@@ -24,20 +24,9 @@ pub fn mcp_tool_to_definition(tool: &McpTool) -> ToolDefinition {
         description: tool.description.clone(),
         input_schema: tool.input_schema.clone(),
         output_schema: tool.output_schema.clone(),
-        service_id: tool.service_id.to_string(),
+        service_id: tool.service_id.clone(),
         terminal_on_success: tool.terminal_on_success,
-        model_config: tool.model_config.as_ref().and_then(|c| {
-            serde_json::to_value(c)
-                .map_err(|e| {
-                    tracing::warn!(
-                        error = %e,
-                        tool_name = %tool.name,
-                        "Failed to serialize model_config to JSON"
-                    );
-                    e
-                })
-                .ok()
-        }),
+        model_config: tool.model_config.clone(),
     }
 }
 
@@ -47,20 +36,9 @@ pub fn definition_to_mcp_tool(def: &ToolDefinition) -> McpTool {
         description: def.description.clone(),
         input_schema: def.input_schema.clone(),
         output_schema: def.output_schema.clone(),
-        service_id: McpServerId::new(def.service_id.clone()),
+        service_id: def.service_id.clone(),
         terminal_on_success: def.terminal_on_success,
-        model_config: def.model_config.as_ref().and_then(|c| {
-            serde_json::from_value(c.clone())
-                .map_err(|e| {
-                    tracing::warn!(
-                        error = %e,
-                        tool_name = %def.name,
-                        "Failed to deserialize model_config from JSON"
-                    );
-                    e
-                })
-                .ok()
-        }),
+        model_config: def.model_config.clone(),
     }
 }
 

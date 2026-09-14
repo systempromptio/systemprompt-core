@@ -11,17 +11,8 @@
 use std::io::Write;
 use std::time::Duration;
 
+use crate::services::cli::sink::{report_write_failure, stdout_write, stdout_writeln};
 use crate::services::cli::theme::{BrandColors, ServiceStatus};
-
-fn stdout_write(args: std::fmt::Arguments<'_>) {
-    let mut out = std::io::stdout();
-    write!(out, "{args}").ok();
-}
-
-fn stdout_writeln(args: std::fmt::Arguments<'_>) {
-    let mut out = std::io::stdout();
-    writeln!(out, "{args}").ok();
-}
 
 #[derive(Debug, Clone)]
 pub struct ServiceTableEntry {
@@ -164,7 +155,9 @@ impl ServiceColumns {
 }
 
 pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
-    render_service_table_into(&mut std::io::stdout(), title, services).ok();
+    if let Err(error) = render_service_table_into(&mut std::io::stdout(), title, services) {
+        report_write_failure("stdout", &error);
+    }
 }
 
 pub fn render_service_table_into(

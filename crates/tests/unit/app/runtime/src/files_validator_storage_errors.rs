@@ -3,8 +3,8 @@
 //! `ensure_storage_structure` cannot create it and every failure is folded
 //! into the report with the permissions suggestion.
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
-use systemprompt_models::AppPaths;
 use systemprompt_runtime::FilesConfigValidator;
 use systemprompt_traits::DomainConfig;
 

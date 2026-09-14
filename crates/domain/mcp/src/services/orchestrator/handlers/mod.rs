@@ -12,6 +12,8 @@ use async_trait::async_trait;
 
 use super::events::McpEvent;
 
+/// Registered on the event bus as `Arc<dyn EventHandler>`; `#[async_trait]`
+/// keeps it object-safe.
 #[async_trait]
 pub trait EventHandler: Send + Sync {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()>;

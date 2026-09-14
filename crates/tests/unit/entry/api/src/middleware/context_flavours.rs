@@ -33,7 +33,7 @@ fn anon_session_context() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("session"),
+        AgentName::try_new("session").expect("valid AgentName"),
     )
 }
 
@@ -42,7 +42,7 @@ fn real_user_context() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("real"),
+        AgentName::try_new("real").expect("valid AgentName"),
     )
     .with_user_type(UserType::User)
     .with_actor(Actor::user(UserId::new("u-1")))

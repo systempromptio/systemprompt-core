@@ -19,6 +19,7 @@ pub use crate::last_sync::{
 };
 pub use apply::{HostFailure, HostWarning, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
+pub use provision::ProvisionError;
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use summary::SyncSummary;
 use summary::build_summary;
@@ -49,13 +50,26 @@ pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: b
     }
 }
 
-#[tracing::instrument(level = "info")]
+#[derive(Debug, Clone, Default)]
+pub struct SyncOptions {
+    pub allow_unsigned: bool,
+    pub force_replay: bool,
+    pub allow_tofu: bool,
+    pub cancel: tokio_util::sync::CancellationToken,
+}
+
+#[tracing::instrument(level = "info", skip(bridge))]
 pub async fn run_once(
     bridge: &crate::context::BridgeContext,
-    allow_unsigned: bool,
-    force_replay: bool,
-    allow_tofu: bool,
+    options: &SyncOptions,
 ) -> Result<SyncSummary, SyncError> {
+    let SyncOptions {
+        allow_unsigned,
+        force_replay,
+        allow_tofu,
+        cancel,
+    } = options;
+    let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
     let operation =
         std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
     bridge
@@ -99,11 +113,11 @@ pub async fn run_once(
     if !location.path.is_dir() {
         match location.scope {
             paths::Scope::User => {
-                fs::create_dir_all(&location.path).map_err(|e| {
-                    SyncError::Network(format!(
-                        "could not create org-plugins directory at {}: {e}",
-                        location.path.display()
-                    ))
+                fs::create_dir_all(&location.path).map_err(|source| {
+                    SyncError::OrgPluginsCreate {
+                        path: location.path.clone(),
+                        source,
+                    }
                 })?;
                 tracing::info!(path = %location.path.display(), "provisioned per-user org-plugins directory");
             },
@@ -146,36 +160,39 @@ pub async fn run_once(
     }
     ensure_not_superseded(&run_gateway)?;
 
-    let report = match apply::apply_manifest(
-        &fetch.client,
-        fetch.bearer.expose(),
+    let request = apply::ApplyRequest {
+        client: &fetch.client,
+        bearer: &fetch.bearer,
         bridge,
-        &synced,
-        &location,
-    )
-    .await
-    {
-        Ok(report) => report,
+        manifest: &synced,
+        location: &location,
+        cancel,
+    };
+    let outcome = match apply::apply_manifest(&request).await {
+        Ok(outcome) => outcome,
         Err(e) if denied_inside_system_root(&e, &location) => {
             let healed = heal_org_plugins_scope(bridge, std::sync::Arc::clone(&operation))
                 .await?
-                .ok_or_else(|| org_plugins_denied(&e, &location))?;
+                .ok_or_else(|| org_plugins_denied(e, &location))?;
             tracing::warn!(
                 path = %healed.path.display(),
-                error = %e,
                 "org-plugins re-granted after a denied plugin replacement; applying again"
             );
-            apply::apply_manifest(
-                &fetch.client,
-                fetch.bearer.expose(),
-                bridge,
-                &synced,
-                &healed,
-            )
-            .await
-            .map_err(|e| org_plugins_denied(&e, &healed))?
+            let healed_request = apply::ApplyRequest {
+                location: &healed,
+                ..request
+            };
+            apply::apply_manifest(&healed_request)
+                .await
+                .map_err(|e| org_plugins_denied(e, &healed))?
         },
         Err(e) => return Err(apply_error_to_sync(e)),
+    };
+    let report = match outcome {
+        apply::ApplyOutcome::Applied(report) => report,
+        apply::ApplyOutcome::Cancelled { applied } => {
+            return Err(SyncError::Cancelled { applied });
+        },
     };
 
     if !report.host_failures.is_empty() || !report.malformed.is_empty() {
@@ -211,7 +228,7 @@ fn apply_error_to_sync(e: apply::ApplyError) -> SyncError {
             started_for,
             current,
         },
-        other => SyncError::ApplyFailed(other),
+        other => SyncError::ApplyFailed(Box::new(other)),
     }
 }
 
@@ -226,7 +243,7 @@ async fn seed_default_model_from_profile(
             status: reqwest::StatusCode::NOT_FOUND,
             ..
         }) => return Ok(()),
-        Err(e) => return Err(SyncError::Network(e.to_string())),
+        Err(e) => return Err(SyncError::Gateway(e)),
     };
     let rows =
         crate::install::mdm::claude_code_settings::model_picker::picker_rows(&profile.providers);
@@ -236,7 +253,12 @@ async fn seed_default_model_from_profile(
                 tracing::info!(target: "bridge::install", detail = %line, "claude code model picker");
             }
         },
-        Err(e) => return Err(SyncError::Network(format!("claude code model picker: {e}"))),
+        Err(source) => {
+            return Err(SyncError::ClaudeCodeSettings {
+                what: "model picker",
+                source,
+            });
+        },
     }
     let Some(model) = profile.default_model.as_deref() else {
         return Ok(());
@@ -244,7 +266,12 @@ async fn seed_default_model_from_profile(
     match crate::install::mdm::claude_code_settings::seed_default_model(model) {
         Ok(true) => tracing::info!(model, "seeded the default model from the bridge profile"),
         Ok(false) => tracing::debug!("settings already name a model; leaving the user's choice"),
-        Err(e) => return Err(SyncError::Network(format!("seed default model: {e}"))),
+        Err(source) => {
+            return Err(SyncError::ClaudeCodeSettings {
+                what: "default model seed",
+                source,
+            });
+        },
     }
     Ok(())
 }

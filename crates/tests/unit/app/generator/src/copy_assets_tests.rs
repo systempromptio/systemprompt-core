@@ -3,9 +3,9 @@
 //! for whether any assets exist; here we verify the happy path when no
 //! required assets are declared (returns a success JobResult).
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::AssetDefinition;
 use systemprompt_generator::{copy_asset, execute_copy_extension_assets};
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use tempfile::TempDir;
 

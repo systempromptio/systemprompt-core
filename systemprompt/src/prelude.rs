@@ -16,16 +16,16 @@ pub use systemprompt_extension::{
 };
 
 #[cfg(feature = "core")]
-pub use systemprompt_extension::error::{ConfigError, LoaderError};
+pub use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
 
 #[cfg(feature = "core")]
-pub use systemprompt_traits::{ApiError, ExtensionError, McpErrorData};
+pub use systemprompt_traits::{ExtensionApiError, ExtensionError, McpErrorData};
 
 #[cfg(feature = "core")]
 pub use systemprompt_traits::{Job, JobContext, JobResult};
 
 #[cfg(feature = "core")]
-pub use systemprompt_traits::{LlmProvider, LlmProviderResult, ToolProvider, ToolProviderResult};
+pub use systemprompt_traits::{ToolProvider, ToolProviderResult};
 
 #[cfg(feature = "database")]
 pub use systemprompt_database::{DatabaseProvider, DbPool};

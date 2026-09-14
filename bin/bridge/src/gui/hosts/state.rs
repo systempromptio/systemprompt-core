@@ -7,11 +7,36 @@ use std::collections::HashMap;
 
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
+/// Monotonic per-host probe ticket: a result is applied only when its ticket
+/// is the newest issued for that host, so overlapping probes cannot land out
+/// of order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct ProbeSeq(u64);
+
+impl ProbeSeq {
+    const fn next(self) -> Self {
+        Self(self.0.wrapping_add(1))
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct HostState {
     pub snapshot: Option<HostAppSnapshot>,
     pub probe_in_flight: bool,
+    pub probe_seq: ProbeSeq,
     pub last_generated_profile: Option<GeneratedProfile>,
+}
+
+impl HostState {
+    pub const fn issue_probe(&mut self) -> ProbeSeq {
+        self.probe_seq = self.probe_seq.next();
+        self.probe_in_flight = true;
+        self.probe_seq
+    }
+
+    pub fn is_newest(&self, seq: ProbeSeq) -> bool {
+        self.probe_seq == seq
+    }
 }
 
 #[derive(Debug, Clone, Default)]

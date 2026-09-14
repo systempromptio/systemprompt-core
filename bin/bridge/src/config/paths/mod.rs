@@ -142,59 +142,6 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
 }
 
 #[must_use]
-#[cfg_attr(
-    target_os = "macos",
-    expect(
-        clippy::needless_return,
-        reason = "the macOS branch is the whole body; the return keeps the cfg arms symmetric"
-    )
-)]
-pub fn org_plugins_install_target() -> Option<OrgPluginsLocation> {
-    #[cfg(target_os = "macos")]
-    {
-        return org_plugins_system().map(|path| OrgPluginsLocation {
-            path,
-            scope: Scope::System,
-            reason: FallbackReason::Preferred,
-        });
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let system = org_plugins_system();
-        if let Some(path) = system.clone()
-            && probe_writable(&path)
-        {
-            return Some(OrgPluginsLocation {
-                path,
-                scope: Scope::System,
-                reason: FallbackReason::Preferred,
-            });
-        }
-        org_plugins_user().map(|path| OrgPluginsLocation {
-            path,
-            scope: Scope::User,
-            reason: system.map_or(FallbackReason::Preferred, |system_path| {
-                FallbackReason::SystemUnwritable { system_path }
-            }),
-        })
-    }
-}
-
-#[cfg(target_os = "windows")]
-#[must_use]
-pub fn legacy_org_plugins_roots() -> Vec<PathBuf> {
-    std::env::var_os("ProgramData")
-        .map(|p| vec![PathBuf::from(p).join("Claude").join("org-plugins")])
-        .unwrap_or_default()
-}
-
-#[cfg(not(target_os = "windows"))]
-#[must_use]
-pub const fn legacy_org_plugins_roots() -> Vec<PathBuf> {
-    Vec::new()
-}
-
-#[must_use]
 pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
     if let Some(p) = org_plugins_system() {
@@ -203,11 +150,8 @@ pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
     if let Some(p) = org_plugins_user() {
         roots.push(p);
     }
-    roots.extend(legacy_org_plugins_roots());
     roots
 }
-
-pub const LEGACY_ORG_PLUGINS_METADATA: &[&str] = &[".systemprompt-bridge", ".systemprompt-cowork"];
 
 #[cfg(not(target_os = "macos"))]
 fn probe_writable(path: &std::path::Path) -> bool {

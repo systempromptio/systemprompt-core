@@ -25,7 +25,7 @@ fn unique_slug() -> String {
 fn sample_params(source_id: SourceId, slug: String) -> CreateContentParams {
     CreateContentParams {
         slug,
-        locale: LocaleCode::new("en"),
+        locale: LocaleCode::english(),
         title: "Sample title".to_owned(),
         description: "Sample description".to_owned(),
         body: "Sample body".to_owned(),
@@ -89,7 +89,7 @@ async fn get_by_slug_and_locale_finds_existing_row() {
     let params = sample_params(source.clone(), slug.clone());
     let created = repo.create(&params).await.expect("create");
 
-    let locale = LocaleCode::new("en");
+    let locale = LocaleCode::english();
     let fetched = repo
         .get_by_slug(&slug, &locale)
         .await
@@ -137,7 +137,7 @@ async fn list_by_source_returns_inserted_rows() {
         .await
         .expect("create b");
 
-    let locale = LocaleCode::new("en");
+    let locale = LocaleCode::english();
     let rows = repo
         .list_by_source(&source, &locale)
         .await
@@ -241,7 +241,7 @@ async fn delete_by_source_removes_all_rows_for_source() {
     assert!(deleted >= 3, "expected >=3 rows deleted, got {deleted}");
 
     let leftover = repo
-        .list_by_source(&source, &LocaleCode::new("en"))
+        .list_by_source(&source, &LocaleCode::english())
         .await
         .expect("post-delete list");
     assert!(leftover.is_empty());
@@ -261,7 +261,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
         .await
         .expect("a");
     let row_b = sample_params(source_b.clone(), slug.clone());
-    let b_locale = LocaleCode::new("fr");
+    let b_locale = LocaleCode::try_new("fr").expect("valid LocaleCode");
     let mut row_b = row_b;
     row_b.locale = b_locale.clone();
     let created_b = repo.create(&row_b).await.expect("b in fr locale");
@@ -271,7 +271,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
     );
 
     let sources_en = repo
-        .find_sources_by_slug(&slug, &LocaleCode::new("en"))
+        .find_sources_by_slug(&slug, &LocaleCode::english())
         .await
         .expect("find by slug en");
     assert!(sources_en.iter().any(|s| s == &source_a));

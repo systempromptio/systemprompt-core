@@ -98,10 +98,10 @@ pub(crate) fn is_elevated() -> bool {
         .is_some_and(|t| unsafe { token_is_elevated(t) })
 }
 
-pub(crate) fn attach_parent_console_if_present() {
+pub(crate) fn attach_parent_console_if_present() -> bool {
     // SAFETY: `AttachConsole` is sound to call with `ATTACH_PARENT_PROCESS`; a
     // missing parent console is reported as failure, not undefined behaviour.
-    unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
+    unsafe { AttachConsole(ATTACH_PARENT_PROCESS) != 0 }
 }
 
 pub(crate) fn detach_console() {
@@ -208,4 +208,18 @@ pub(crate) fn run_elevated(exe: &Path, args: &[&str]) -> ElevationOutcome {
         return ElevationOutcome::Failed("GetExitCodeProcess failed".into());
     }
     ElevationOutcome::Completed { exit_code }
+}
+
+// Why: an elevated child must not resolve a system binary through a PATH the
+// unelevated user controls; `%SystemRoot%` is set by the OS for every process.
+pub(crate) fn system32(binary: &str) -> std::path::PathBuf {
+    let root = std::env::var_os("SystemRoot").map_or_else(
+        || std::path::PathBuf::from(r"C:\Windows"),
+        std::path::PathBuf::from,
+    );
+    root.join("System32").join(binary)
+}
+
+pub(crate) fn powershell_exe() -> std::path::PathBuf {
+    system32(r"WindowsPowerShell\v1.0\powershell.exe")
 }

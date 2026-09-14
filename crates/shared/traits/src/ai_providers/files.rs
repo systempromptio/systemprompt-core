@@ -17,7 +17,7 @@ use super::AiProviderResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiGeneratedFile {
-    pub id: uuid::Uuid,
+    pub id: FileId,
     pub path: String,
     pub public_url: String,
     pub mime_type: String,
@@ -34,15 +34,9 @@ pub struct AiGeneratedFile {
     pub deleted_at: Option<DateTime<Utc>>,
 }
 
-impl AiGeneratedFile {
-    pub fn id(&self) -> FileId {
-        FileId::new(self.id.to_string())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct InsertAiFileParams {
-    pub id: uuid::Uuid,
+    pub id: FileId,
     pub path: String,
     pub public_url: String,
     pub mime_type: String,
@@ -53,6 +47,66 @@ pub struct InsertAiFileParams {
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
     pub context_id: Option<ContextId>,
+}
+
+impl InsertAiFileParams {
+    #[must_use]
+    pub fn new(
+        id: FileId,
+        path: impl Into<String>,
+        public_url: impl Into<String>,
+        mime_type: impl Into<String>,
+    ) -> Self {
+        Self {
+            id,
+            path: path.into(),
+            public_url: public_url.into(),
+            mime_type: mime_type.into(),
+            size_bytes: None,
+            metadata: serde_json::Value::Null,
+            user_id: None,
+            session_id: None,
+            trace_id: None,
+            context_id: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn with_size_bytes(mut self, size_bytes: Option<i64>) -> Self {
+        self.size_bytes = size_bytes;
+        self
+    }
+
+    #[must_use]
+    // JSON: Provider file metadata persisted to `ai_files.metadata` (JSONB).
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
+    #[must_use]
+    pub fn with_user_id(mut self, user_id: Option<UserId>) -> Self {
+        self.user_id = user_id;
+        self
+    }
+
+    #[must_use]
+    pub fn with_session_id(mut self, session_id: Option<SessionId>) -> Self {
+        self.session_id = session_id;
+        self
+    }
+
+    #[must_use]
+    pub fn with_trace_id(mut self, trace_id: Option<TraceId>) -> Self {
+        self.trace_id = trace_id;
+        self
+    }
+
+    #[must_use]
+    pub fn with_context_id(mut self, context_id: Option<ContextId>) -> Self {
+        self.context_id = context_id;
+        self
+    }
 }
 
 #[derive(Debug, Clone)]

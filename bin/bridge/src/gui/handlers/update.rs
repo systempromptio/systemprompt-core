@@ -4,12 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
-use serde_json::{Value, json};
+use std::time::{Duration, Instant};
+use winit::event_loop::ActiveEventLoop;
+
 
 use crate::gui::error::GuiError;
-use crate::gui::events::{ReplyId, UiEvent};
+use crate::gui::events::{InstalledUpdate, ReplyId, UiEvent};
 use crate::gui::{GuiApp, emit};
 use crate::update::{self, UpdateUiState};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
@@ -55,15 +56,11 @@ pub(crate) fn on_update_check_requested(app: &GuiApp, reply_to: ReplyId) {
 
 pub(crate) fn on_update_check_finished(
     app: &mut GuiApp,
-    result: Result<Value, Arc<GuiError>>,
+    result: Result<UpdateUiState, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
     match &result {
-        Ok(value) => {
-            let state = serde_json::from_value::<UpdateUiState>(value.clone())
-                .unwrap_or(UpdateUiState::Unknown);
-            app.state.set_update_state(state);
-        },
+        Ok(state) => app.state.set_update_state(state.clone()),
         Err(e) => {
             tracing::debug!(error = %e, "update check failed");
         },
@@ -134,16 +131,12 @@ pub(crate) fn on_update_progress(app: &mut GuiApp, version: &str, percent: u8) {
 
 pub(crate) fn on_update_install_finished(
     app: &mut GuiApp,
-    result: Result<Value, Arc<GuiError>>,
+    result: Result<InstalledUpdate, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
     match &result {
-        Ok(value) => {
-            let version = value
-                .get("version")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-                .to_owned();
+        Ok(installed) => {
+            let version = installed.version.clone();
             crate::gui::window::notify_user(
                 &format!(
                     "{} {version} is ready to install",
@@ -165,7 +158,7 @@ pub(crate) fn on_update_install_finished(
     reply(app, reply_to, result, "update install");
 }
 
-pub(crate) fn on_update_restart_requested(app: &GuiApp) {
+pub(crate) fn on_update_restart_requested(app: &GuiApp, event_loop: &dyn ActiveEventLoop) {
     let installed = match update::installed_path() {
         Ok(p) => p,
         Err(e) => {
@@ -192,20 +185,20 @@ pub(crate) fn on_update_restart_requested(app: &GuiApp) {
         ));
         return;
     }
-    crate::gui::handlers::quit::on_quit();
+    crate::gui::handlers::quit::on_quit(event_loop);
 }
 
-async fn check(http: reqwest::Client) -> Result<Value, GuiError> {
+async fn check(http: reqwest::Client) -> Result<UpdateUiState, GuiError> {
     let (client, bearer) = client_and_bearer(http).await?;
     let (status, _) = update::check(&client, &bearer).await?;
-    Ok(serde_json::to_value(UpdateUiState::from(&status)).unwrap_or(Value::Null))
+    Ok(UpdateUiState::from(&status))
 }
 
 async fn install(
     version: &str,
     http: reqwest::Client,
     on_progress: &(dyn Fn(update::DownloadProgress) + Send + Sync),
-) -> Result<Value, GuiError> {
+) -> Result<InstalledUpdate, GuiError> {
     let (client, bearer) = client_and_bearer(http).await?;
     let (_, manifest) = update::check(&client, &bearer).await?;
     if manifest.version != version {
@@ -216,17 +209,20 @@ async fn install(
         .into());
     }
     let path = update::apply(&client, &bearer, &manifest, on_progress).await?;
-    Ok(json!({ "version": manifest.version, "path": path.display().to_string() }))
+    Ok(InstalledUpdate {
+        version: manifest.version,
+        path,
+    })
 }
 
 async fn client_and_bearer(
     http: reqwest::Client,
-) -> Result<(crate::gateway::GatewayClient, String), GuiError> {
+) -> Result<(crate::gateway::GatewayClient, crate::ids::BearerToken), GuiError> {
     let cfg = crate::config::load()?;
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
     let bearer = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
         .await
-        .map(|out| out.token.expose().to_owned())
+        .map(|out| out.token)
         .map_err(|e| GuiError::Profile {
             context: "update authentication".into(),
             source: std::io::Error::other(e),
@@ -237,21 +233,19 @@ async fn client_and_bearer(
     ))
 }
 
-fn reply(app: &GuiApp, reply_to: ReplyId, result: Result<Value, Arc<GuiError>>, what: &str) {
-    let Some(id) = reply_to else {
+fn reply<T: serde::Serialize>(
+    app: &GuiApp,
+    reply_to: ReplyId,
+    result: Result<T, Arc<GuiError>>,
+    what: &str,
+) {
+    if reply_to.is_none() {
         return;
-    };
-    let payload = match result {
-        Ok(v) => IpcReplyPayload::ok(v),
-        Err(err) => {
-            let raw = format!("{err:#}");
-            tracing::warn!(error = %raw, "{what} failed");
-            IpcReplyPayload::err(BridgeError::new(
-                ErrorScope::Internal,
-                ErrorCode::Internal,
-                raw,
-            ))
-        },
-    };
-    emit::send_reply_payload(app, id, &payload);
+    }
+    let result = result.map_err(|err| {
+        let raw = format!("{err:#}");
+        tracing::warn!(error = %raw, operation = what, "update operation failed");
+        BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, raw)
+    });
+    emit::finish(app, reply_to, result);
 }

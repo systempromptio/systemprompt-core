@@ -271,7 +271,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
 
         std::fs::create_dir_all(&ai_dir)
             .with_context(|| format!("Failed to create directory {}", ai_dir.display()))?;
-        std::fs::write(&ai_config_path, ai_config(provider))
+        std::fs::write(&ai_config_path, ai_config(provider)?)
             .with_context(|| format!("Failed to write {}", ai_config_path.display()))?;
         CliService::success(&format!("Created: {}", ai_config_path.display()));
         return Ok(());

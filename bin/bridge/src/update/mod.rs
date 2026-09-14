@@ -12,17 +12,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod automatic;
 mod download;
 mod error;
 mod install;
 
-pub use download::{DownloadProgress, download_verified, hex_lower};
+pub use automatic::{AutoUpdateDecision, auto_update_policy, automatic_enabled, run_automatic};
+pub use download::{DownloadProgress, download_verified};
 pub use error::UpdateError;
 
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::AutoUpdatePolicy;
 use crate::gateway::types::ReleaseManifest;
-use systemprompt_identifiers::ValidatedUrl;
+use crate::ids::BearerToken;
 
 #[must_use]
 pub fn platform_slug() -> Option<&'static str> {
@@ -139,7 +140,7 @@ impl From<&UpdateStatus> for UpdateUiState {
 
 pub async fn check(
     client: &GatewayClient,
-    bearer: &str,
+    bearer: &BearerToken,
 ) -> Result<(UpdateStatus, ReleaseManifest), UpdateError> {
     let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
     let manifest = client.fetch_latest_release(bearer, platform).await?;
@@ -147,7 +148,6 @@ pub async fn check(
     Ok((status, manifest))
 }
 
-#[doc(hidden)]
 pub fn compare(local: &str, manifest: &ReleaseManifest) -> Result<UpdateStatus, UpdateError> {
     let remote_version = semver::Version::parse(&manifest.version).map_err(|source| {
         UpdateError::BadRemoteVersion {
@@ -174,7 +174,7 @@ pub fn compare(local: &str, manifest: &ReleaseManifest) -> Result<UpdateStatus, 
 
 pub async fn apply(
     client: &GatewayClient,
-    bearer: &str,
+    bearer: &BearerToken,
     manifest: &ReleaseManifest,
     on_progress: &(dyn Fn(DownloadProgress) + Send + Sync),
 ) -> Result<std::path::PathBuf, UpdateError> {
@@ -240,56 +240,4 @@ fn spawn_relaunch(installed: &std::path::Path, await_predecessor: bool) -> Resul
             tracing::info!(pid = child.id(), path = %installed.display(), "update: relaunched");
         })
         .map_err(UpdateError::Relaunch)
-}
-
-
-pub async fn run_automatic(gateway: &ValidatedUrl, bearer: &str, http: &reqwest::Client) {
-    if !automatic_enabled() {
-        tracing::warn!(
-            "a newer bridge is required but automatic updates are disabled by policy; \
-             update manually",
-        );
-        return;
-    }
-    let client = GatewayClient::new(gateway.clone(), http.clone());
-    let (status, manifest) = match check(&client, bearer).await {
-        Ok(pair) => pair,
-        Err(e) => {
-            tracing::error!(error = %e, "automatic update: could not read the release manifest");
-            return;
-        },
-    };
-    if matches!(status, UpdateStatus::Current { .. }) {
-        tracing::warn!(
-            local = %crate::brand::brand().version,
-            "the gateway reports this bridge as unsupported but offers no newer release",
-        );
-        return;
-    }
-    tracing::info!(version = %manifest.version, "automatic update: installing");
-    let installed = match apply(&client, bearer, &manifest, &|_| {}).await {
-        Ok(path) => path,
-        Err(e) => {
-            tracing::error!(error = %e, "automatic update: install failed");
-            return;
-        },
-    };
-    if let Err(e) = spawn_installed(&installed) {
-        tracing::error!(error = %e, "automatic update: relaunch failed; update is staged on disk");
-        return;
-    }
-    tracing::info!(version = %manifest.version, "automatic update: relaunched");
-}
-
-// Why: org policy is the only source; there is no local preference to
-// contradict it. A bridge that has never synced has no delivered policy and
-// takes the default, which stages.
-#[must_use]
-pub fn auto_update_policy() -> AutoUpdatePolicy {
-    crate::last_sync::last_synced_auto_update_policy().unwrap_or_default()
-}
-
-#[must_use]
-pub fn automatic_enabled() -> bool {
-    auto_update_policy().stages()
 }

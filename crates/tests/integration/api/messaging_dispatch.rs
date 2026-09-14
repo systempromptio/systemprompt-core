@@ -33,7 +33,7 @@ fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
         channel_id: "C_TEST".to_owned(),
         external_user_id: external_user_id.to_owned(),
         text: text.to_owned(),
-        agent_name: AgentName::new(test_messaging_agent()),
+        agent_name: AgentName::try_new(test_messaging_agent()).expect("valid AgentName"),
         entity: EntityRef::SlackWorkspace(SlackWorkspaceId::new(TEST_SLACK_WORKSPACE_ID)),
         reply: ReplyTarget::Channel {
             id: "C_TEST".to_owned(),

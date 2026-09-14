@@ -67,7 +67,7 @@ fn verified_bundle_installs_exact_root_and_skill_bytes_without_overwriting() {
             ("scripts/check.sh", b"#!/bin/sh\nexit 0\n", true),
         ],
     );
-    let wire = serde_json::to_value(&bundle).unwrap();
+    let wire = bundle;
     materialize_root(&wire, &root.path().join("work")).unwrap();
     materialize_skills(&wire, &root.path().join("skills")).unwrap();
     assert_eq!(
@@ -118,7 +118,7 @@ fn corrupted_or_incomplete_bundle_is_rejected_before_any_files_are_written() {
         .insert(AssetDigest::of(b"extra"), b"extra".to_vec());
     for invalid in [bad_bytes, missing, undeclared] {
         let destination = root.path().join("output");
-        assert!(materialize_root(&serde_json::to_value(invalid).unwrap(), &destination).is_err());
+        assert!(materialize_root(&invalid, &destination).is_err());
         assert!(!destination.exists());
     }
 }
@@ -127,13 +127,7 @@ fn corrupted_or_incomplete_bundle_is_rejected_before_any_files_are_written() {
 fn skill_revision_identity_cannot_escape_the_installation_directory() {
     let root = tempfile::tempdir().unwrap();
     let invalid = bundle("../escape", &[("SKILL.md", b"payload", false)]);
-    assert!(
-        materialize_skills(
-            &serde_json::to_value(invalid).unwrap(),
-            &root.path().join("skills")
-        )
-        .is_err()
-    );
+    assert!(materialize_skills(&invalid, &root.path().join("skills")).is_err());
     assert!(!root.path().join("escape").exists());
 }
 
@@ -183,7 +177,9 @@ fn owned_workspace_is_removed_on_failure_without_adopting_existing_directories()
             path.join("credential").exists(),
             "failed acquisition cannot delete another workspace"
         );
-        assert!(materialize_root(&serde_json::json!({}), guard.path()).is_err());
+        let mut invalid = bundle("invalid", &[("SKILL.md", b"invalid", false)]);
+        invalid.schema_version = 0;
+        assert!(materialize_root(&invalid, guard.path()).is_err());
     }
     assert!(
         !path.exists(),
@@ -279,8 +275,7 @@ fn fallback_skill_bundle_rejects_linked_installation_parent() {
     let outside = tempfile::tempdir().unwrap();
     let destination = root.path().join("skills");
     symlink(outside.path(), &destination).unwrap();
-    let value =
-        serde_json::to_value(bundle("revision", &[("SKILL.md", b"private", false)])).unwrap();
+    let value = bundle("revision", &[("SKILL.md", b"private", false)]);
     assert!(materialize_skills(&value, &destination).is_err());
     assert!(
         !outside.path().join("revision").exists(),

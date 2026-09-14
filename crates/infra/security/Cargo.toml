@@ -60,6 +60,7 @@ tokio = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-models = { workspace = true }
+systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }

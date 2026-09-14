@@ -11,6 +11,8 @@ use systemprompt_identifiers::UserId;
 use crate::candidate::MarketplaceCandidate;
 use crate::error::MarketplaceFilterError;
 
+/// Held by the runtime as `Arc<dyn MarketplaceFilter>` chosen from the
+/// registry at startup; `#[async_trait]` keeps it object-safe.
 #[async_trait]
 pub trait MarketplaceFilter: Send + Sync + std::fmt::Debug {
     async fn filter(

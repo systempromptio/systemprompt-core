@@ -22,8 +22,8 @@ pub mod runtime;
 pub mod web;
 
 pub use a2a::{
-    AgentAuthentication, AgentCapabilities, AgentCard, AgentSkill, Artifact, DataPart, Message,
-    Part, Task, TaskState, TaskStatus, TextPart, TransportProtocol,
+    AgentCapabilities, AgentCard, AgentSkill, Artifact, DataPart, Message, Part, Task, TaskState,
+    TaskStatus, TextPart, TransportProtocol,
 };
 
 pub use agent_info::AgentInfo;

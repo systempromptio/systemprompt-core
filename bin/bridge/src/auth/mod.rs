@@ -1,21 +1,19 @@
-//! Authentication: keystore, PAT setup, OAuth, and credential types.
+//! Authentication: PAT setup, session sign-in, OAuth, and credential types.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod cache;
 pub mod jwt;
-pub mod keystore;
 pub mod loopback;
 pub mod plugin_oauth;
 pub mod providers;
 pub mod secret;
 pub mod setup;
 
-use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider, AuthProviderRegistration};
+use crate::auth::providers::{AuthError, AuthProvider, AuthProviderRegistration};
 use crate::config;
 use crate::gateway::types::HelperOutput;
-use crate::stdio::diag;
 use systemprompt_identifiers::{SessionId, headers as sp_headers};
 use thiserror::Error;
 
@@ -30,12 +28,6 @@ pub enum ChainError {
     Cache(#[from] std::io::Error),
     #[error("no credential source succeeded")]
     NoneSucceeded,
-    #[error("{provider}: transient failure on preferred provider: {source}")]
-    PreferredTransient {
-        provider: &'static str,
-        #[source]
-        source: AuthFailedSource,
-    },
 }
 
 impl ChainError {
@@ -44,7 +36,6 @@ impl ChainError {
         match self {
             Self::Providers { terminal, .. } => *terminal,
             Self::Cache(_) | Self::NoneSucceeded => true,
-            Self::PreferredTransient { .. } => false,
         }
     }
 
@@ -52,13 +43,15 @@ impl ChainError {
     pub fn exit_report(&self) -> (std::process::ExitCode, String) {
         let bin = crate::brand::brand().binary_name;
         match self {
+            Self::Providers {
+                terminal: false, ..
+            } => (
+                std::process::ExitCode::from(10),
+                format!("transient auth failure: {self}"),
+            ),
             Self::Providers { .. } | Self::Cache(_) => {
                 (std::process::ExitCode::FAILURE, self.to_string())
             },
-            Self::PreferredTransient { provider, source } => (
-                std::process::ExitCode::from(10),
-                format!("transient auth failure on preferred provider {provider}: {source}"),
-            ),
             Self::NoneSucceeded => (
                 std::process::ExitCode::from(5),
                 format!("no credential available; run `{bin} login <sp-live-...>` first"),
@@ -140,21 +133,7 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
     {
         return true;
     }
-    if let Some(mtls) = cfg.mtls.as_ref()
-        && mtls.cert_keystore_ref.is_some()
-    {
-        return true;
-    }
-    device_cert_env_configured()
-}
-
-fn device_cert_env_configured() -> bool {
-    ["DEVICE_CERT", "DEVICE_CERT_LABEL", "DEVICE_CERT_SHA256"]
-        .iter()
-        .any(|suffix| {
-            std::env::var(crate::brand::brand().env(suffix))
-                .is_ok_and(|value| !value.trim().is_empty())
-        })
+    false
 }
 
 pub(crate) fn expand_home(path: &str) -> String {
@@ -182,17 +161,6 @@ pub async fn mint_fresh(
     run_chain(cfg, true, session_id, http).await
 }
 
-fn preferred_provider(cfg: &config::Config) -> Option<&'static str> {
-    if cfg
-        .mtls
-        .as_ref()
-        .is_some_and(|m| m.cert_keystore_ref.is_some())
-    {
-        return Some("mtls");
-    }
-    None
-}
-
 async fn run_chain(
     cfg: &config::Config,
     write_cache: bool,
@@ -204,9 +172,8 @@ async fn run_chain(
     }
     let binding = cache::CredentialBinding::capture(cfg)?;
     let chain = provider_chain(cfg);
-    let preferred = preferred_provider(cfg);
     let providers: Vec<&dyn AuthProvider> = chain.iter().map(AsRef::as_ref).collect();
-    let output = evaluate_chain(&providers, preferred, session_id, http).await?;
+    let output = evaluate_chain(&providers, session_id, http).await?;
     if write_cache {
         cache::write_bound(cfg, &config::gateway_url_or_default(cfg), &output, &binding)?;
     }
@@ -215,7 +182,6 @@ async fn run_chain(
 
 pub async fn evaluate_chain(
     chain: &[&dyn AuthProvider],
-    preferred: Option<&'static str>,
     session_id: &SessionId,
     http: &reqwest::Client,
 ) -> Result<HelperOutput, ChainError> {
@@ -229,13 +195,6 @@ pub async fn evaluate_chain(
             Ok(out) => return Ok(out),
             Err(AuthError::NotConfigured) => {},
             Err(AuthError::Failed { provider, source }) => {
-                let is_preferred = preferred == Some(provider);
-                if is_preferred && !source.is_terminal() {
-                    diag(&format!(
-                        "{provider}: transient failure on preferred provider: {source}"
-                    ));
-                    return Err(ChainError::PreferredTransient { provider, source });
-                }
                 terminal &= source.is_terminal();
                 failures.push(format!("{provider}: {source}"));
             },

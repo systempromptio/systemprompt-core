@@ -77,7 +77,10 @@ impl CloudApiClient {
             return Err(CloudError::Unauthorized);
         }
         if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
             return Err(CloudError::HttpStatus {
                 status: status.as_u16(),
                 body: body.chars().take(500).collect(),

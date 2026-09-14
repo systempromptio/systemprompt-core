@@ -67,7 +67,7 @@ pub async fn check_whoami(
         ));
         return;
     };
-    match client.fetch_whoami(out.token.expose()).await {
+    match client.fetch_whoami(&out.token).await {
         Ok(_) => checks.push(Check::ok(
             "authenticated whoami",
             "GET /v1/bridge/whoami returned identity",

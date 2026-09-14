@@ -85,7 +85,7 @@ async fn seed(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str) {
         "# body".to_owned(),
         source_id.clone(),
     )
-    .with_locale(LocaleCode::new(locale))
+    .with_locale(LocaleCode::try_new(locale).expect("valid LocaleCode"))
     .with_public(true);
     repo.create(&params).await.expect("create content row");
 }

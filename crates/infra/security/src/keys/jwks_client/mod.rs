@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use lru::LruCache;
 use reqwest::Client;
-use systemprompt_models::net::{GuardedClientConfig, guarded_client};
+use systemprompt_client::{GuardedClientConfig, guarded_client};
 
 use self::cache::CachedJwks;
 

@@ -12,14 +12,15 @@ use axum::http::Request;
 use axum::routing::get;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_api::services::server::setup_api_server;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::{
     Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
     FrameOptions,
 };
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_models::{AppPaths, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };
@@ -44,7 +45,7 @@ impl Extension for NestedPublicExt {
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         let mut ext = ExtensionRouter::public(
             Router::new().route("/ping", get(|| async { "ext-ok" })),
-            "/covmount",
+            "/api/covmount",
         );
         ext.frame_options = Some(FrameOptions::AllowAll);
         Some(ext)
@@ -84,7 +85,7 @@ impl Extension for AuthedExt {
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         Some(ExtensionRouter::new(
             Router::new().route("/secret", get(|| async { "authed" })),
-            "/covauth",
+            "/api/covauth",
         ))
     }
 }
@@ -131,7 +132,13 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         None,
     )?);
 
-    let registry = ExtensionRegistry::discover_and_merge(injected)
+    let mut registry =
+        ExtensionRegistry::discover().map_err(|e| anyhow::anyhow!("registry: {e}"))?;
+    registry
+        .merge(injected)
+        .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
+    registry
+        .validate()
         .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
 
     let ctx = Arc::new(AppContext::from_parts(
@@ -242,7 +249,7 @@ async fn extension_routes_mount_across_nested_root_and_authed_paths() -> anyhow:
     ])
     .await?;
 
-    let nested = app.clone().oneshot(get_req("/covmount/ping")).await?;
+    let nested = app.clone().oneshot(get_req("/api/covmount/ping")).await?;
     assert_eq!(nested.status().as_u16(), 200, "{}", nested.status());
     assert!(
         nested.headers().get("x-frame-options").is_none(),
@@ -257,7 +264,7 @@ async fn extension_routes_mount_across_nested_root_and_authed_paths() -> anyhow:
     let root = app.clone().oneshot(get_req("/covroot-ping")).await?;
     assert_eq!(root.status().as_u16(), 200, "{}", root.status());
 
-    let authed = app.oneshot(get_req("/covauth/secret")).await?;
+    let authed = app.oneshot(get_req("/api/covauth/secret")).await?;
     assert_eq!(
         authed.status().as_u16(),
         401,

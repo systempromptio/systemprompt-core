@@ -69,7 +69,7 @@ async fn maybe_db_or_skip() -> Option<DbPool> {
 async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() {
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
-    let paths = systemprompt_models::AppPaths::from_profile(
+    let paths = systemprompt_config::paths::AppPaths::from_profile(
         &systemprompt_models::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
@@ -106,7 +106,7 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
 async fn copy_extension_assets_fails_when_required_asset_missing() {
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
-    let paths = systemprompt_models::AppPaths::from_profile(
+    let paths = systemprompt_config::paths::AppPaths::from_profile(
         &systemprompt_models::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
@@ -151,7 +151,9 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
                 "# Body".to_owned(),
                 source_id.clone(),
             )
-            .with_locale(systemprompt_identifiers::LocaleCode::new(locale))
+            .with_locale(
+                systemprompt_identifiers::LocaleCode::try_new(locale).expect("valid LocaleCode"),
+            )
             .with_public(true),
         )
         .await

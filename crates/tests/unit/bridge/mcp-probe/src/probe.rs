@@ -273,7 +273,7 @@ fn seed_registry(state: &std::path::Path, names: &[&str]) {
     .expect("write fragment");
     systemprompt_bridge::mcp_registry::rehydrate_from_disk(
         &REGISTRY,
-        &systemprompt_identifiers::ValidatedUrl::new(gateway),
+        &systemprompt_identifiers::ValidatedUrl::try_new(gateway).expect("valid ValidatedUrl"),
     )
     .expect("rehydrate reads the seeded fragment");
 }

@@ -14,9 +14,8 @@
 
 use std::net::IpAddr;
 
-use systemprompt_models::net::{
-    GuardedClientConfig, is_blocked_ip, validate_outbound_url_with_trust,
-};
+use systemprompt_client::GuardedClientConfig;
+use systemprompt_models::net::{is_blocked_ip, validate_outbound_url_with_trust};
 
 use super::ImageFetchPolicy;
 
@@ -48,7 +47,7 @@ pub(super) fn client(policy: &ImageFetchPolicy) -> Result<reqwest::Client, Strin
         .with_max_redirects(usize::from(policy.max_redirects))
         .with_timeout(policy.timeout)
         .deny_loopback();
-    systemprompt_models::net::guarded_client(&config)
+    systemprompt_client::guarded_client(&config)
         .map_err(|e| format!("cannot build guarded image client: {e}"))
 }
 
