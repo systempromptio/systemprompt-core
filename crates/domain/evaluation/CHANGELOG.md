@@ -10,6 +10,9 @@
 
 - A versioned, fail-closed evaluator capability registry covering Claude Code, OpenCode, Codex, Hermes and Claude Desktop.
 
+### Changed
+
+- `execution_accounting` returns `InvalidSpec` when a token or tool-call count is negative instead of reporting zero.
 ### Fixed
 
 - Execution claims order by `variant_index` and `repetition` within a creation instant, so a worker takes an experiment's baseline before its candidates instead of an arbitrary row.

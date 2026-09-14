@@ -180,7 +180,18 @@ impl McpToolExecutor {
             Ok((output, summary)) => {
                 let title = output.artifact_title();
                 let artifact_type = output.artifact_type_name();
-                let output_value = serde_json::to_value(&output).ok();
+                let output_value = match serde_json::to_value(&output) {
+                    Ok(value) => Some(value),
+                    Err(e) => {
+                        tracing::warn!(
+                            tool = handler.tool_name(),
+                            execution_id = %exec_id,
+                            error = %e,
+                            "Tool output could not be serialised for the execution record"
+                        );
+                        None
+                    },
+                };
                 let identity = ToolIdentity::new(&self.server_name, handler.tool_name());
                 let response = McpResponseBuilder::new(output, identity, ctx, &exec_id, client)
                     .build(summary, &self.artifact_repo, &artifact_type, title)

@@ -44,7 +44,7 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
     let agent_name = AgentName::try_new(format!("cli-{server_name}"))
         .context("MCP server name does not form a valid agent name")?;
     let request_context = session_ctx.to_request_context(agent_name);
-    let http_client = HttpClientWithContext::new(request_context);
+    let http_client = HttpClientWithContext::new(request_context)?;
     let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
         .auth_header(session_ctx.session_token().as_str().to_owned());
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
@@ -89,7 +89,7 @@ pub async fn list_available_tools(
     let agent_name = AgentName::try_new(format!("cli-{server_name}"))
         .context("MCP server name does not form a valid agent name")?;
     let request_context = session_ctx.to_request_context(agent_name);
-    let http_client = HttpClientWithContext::new(request_context);
+    let http_client = HttpClientWithContext::new(request_context)?;
     let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
         .auth_header(session_ctx.session_token().as_str().to_owned());
     let transport = StreamableHttpClientTransport::with_client(http_client, config);

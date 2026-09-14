@@ -42,7 +42,7 @@ pub async fn list_tools_unauthenticated(
     let url = format!("http://127.0.0.1:{}/mcp", port);
     let config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
     let transport = StreamableHttpClientTransport::with_client(
-        HttpClientWithContext::new(probe_context(server_name)),
+        HttpClientWithContext::new(probe_context(server_name))?,
         config,
     );
 
@@ -86,7 +86,7 @@ pub async fn list_tools_authenticated(
         .auth_header(token.as_str().to_owned());
     let context = probe_context(server_name).with_auth_token(token.as_str());
     let transport =
-        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context), config);
+        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context)?, config);
 
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),

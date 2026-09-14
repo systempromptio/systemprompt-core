@@ -177,10 +177,6 @@ impl UpdateAgentRequest {
         Ok(())
     }
 
-    pub fn is_active(&self) -> bool {
-        self.is_active.unwrap_or(true)
-    }
-
     pub fn extract_port(&self) -> u16 {
         self.card
             .url()

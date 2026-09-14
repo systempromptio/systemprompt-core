@@ -25,7 +25,7 @@ pub struct CreateAgentRequestRaw {
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateAgentRequest {
     pub card: AgentCard,
-    pub is_active: Option<bool>,
+    pub is_active: bool,
     pub system_prompt: Option<String>,
     pub mcp_servers: Option<Vec<String>>,
 }
@@ -77,7 +77,7 @@ impl<'de> Deserialize<'de> for CreateAgentRequest {
 
         Ok(Self {
             card,
-            is_active: raw.is_active,
+            is_active: raw.is_active.unwrap_or(true),
             system_prompt: raw.system_prompt,
             mcp_servers: raw.mcp_servers,
         })
@@ -126,7 +126,7 @@ impl CreateAgentRequest {
 
         Self {
             card,
-            is_active: raw.is_active,
+            is_active: raw.is_active.unwrap_or(true),
             system_prompt: raw.system_prompt,
             mcp_servers: raw.mcp_servers,
         }
@@ -176,10 +176,6 @@ impl CreateAgentRequest {
 
     pub fn get_version(&self) -> String {
         self.card.version.clone()
-    }
-
-    pub fn is_active(&self) -> bool {
-        self.is_active.unwrap_or(true)
     }
 
     pub fn extract_port(&self) -> u16 {

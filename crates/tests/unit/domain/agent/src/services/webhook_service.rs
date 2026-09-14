@@ -42,7 +42,7 @@ fn make_request(
 
 #[tokio::test]
 async fn register_and_get_endpoint() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let endpoint = make_endpoint("ep-1", None, vec!["push"], true);
     let id = service.register_endpoint(endpoint.clone()).await.unwrap();
     assert_eq!(id.as_str(), "ep-1");
@@ -54,7 +54,7 @@ async fn register_and_get_endpoint() {
 
 #[tokio::test]
 async fn register_endpoint_generates_id_when_empty() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let endpoint = make_endpoint("", None, vec![], true);
     let id = service.register_endpoint(endpoint).await.unwrap();
     assert!(!id.as_str().is_empty());
@@ -62,14 +62,14 @@ async fn register_endpoint_generates_id_when_empty() {
 
 #[tokio::test]
 async fn get_endpoint_missing_returns_none() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let id = WebhookEndpointId::new("does-not-exist");
     assert!(service.get_endpoint(&id).await.unwrap().is_none());
 }
 
 #[tokio::test]
 async fn list_endpoints_after_register() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("a", None, vec![], true))
         .await
@@ -85,7 +85,7 @@ async fn list_endpoints_after_register() {
 
 #[tokio::test]
 async fn update_endpoint_replaces() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let mut endpoint = make_endpoint("up-1", None, vec![], true);
     service.register_endpoint(endpoint.clone()).await.unwrap();
 
@@ -102,7 +102,7 @@ async fn update_endpoint_replaces() {
 
 #[tokio::test]
 async fn remove_endpoint_returns_true_when_present() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let endpoint = make_endpoint("rm-1", None, vec![], true);
     service.register_endpoint(endpoint).await.unwrap();
 
@@ -121,7 +121,7 @@ async fn remove_endpoint_returns_true_when_present() {
 
 #[tokio::test]
 async fn handle_webhook_endpoint_not_found_returns_err() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let req = make_request(&[], serde_json::json!({}), None);
     let result = service
         .handle_webhook(&WebhookEndpointId::new("missing"), req)
@@ -131,7 +131,7 @@ async fn handle_webhook_endpoint_not_found_returns_err() {
 
 #[tokio::test]
 async fn handle_webhook_inactive_endpoint_returns_404() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("inactive", None, vec![], false))
         .await
@@ -147,7 +147,7 @@ async fn handle_webhook_inactive_endpoint_returns_404() {
 
 #[tokio::test]
 async fn handle_webhook_event_not_subscribed_returns_200() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("ep", None, vec!["push"], true))
         .await
@@ -169,7 +169,7 @@ async fn handle_webhook_event_not_subscribed_returns_200() {
 
 #[tokio::test]
 async fn handle_webhook_wildcard_event_subscription() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("ep", None, vec!["*"], true))
         .await
@@ -188,7 +188,7 @@ async fn handle_webhook_wildcard_event_subscription() {
 
 #[tokio::test]
 async fn handle_webhook_event_type_default_unknown() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("ep", None, vec![], true))
         .await
@@ -205,7 +205,7 @@ async fn handle_webhook_event_type_default_unknown() {
 
 #[tokio::test]
 async fn handle_webhook_github_event_header() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("ep", None, vec![], true))
         .await
@@ -225,7 +225,7 @@ async fn handle_webhook_github_event_header() {
 
 #[tokio::test]
 async fn verify_signature_endpoint_missing() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let body = serde_json::json!({"hi": 1});
     let result = service
         .verify_signature(&WebhookEndpointId::new("nope"), &body, "sha256=abc")
@@ -235,7 +235,7 @@ async fn verify_signature_endpoint_missing() {
 
 #[tokio::test]
 async fn verify_signature_no_secret_configured() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("nosec", None, vec![], true))
         .await
@@ -250,7 +250,7 @@ async fn verify_signature_no_secret_configured() {
 
 #[tokio::test]
 async fn handle_webhook_signature_mismatch_returns_401() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("sec", Some("supersecret"), vec![], true))
         .await
@@ -269,15 +269,15 @@ async fn handle_webhook_signature_mismatch_returns_401() {
 }
 
 #[tokio::test]
-async fn webhook_service_default_creates_empty() {
-    let service = WebhookService::default();
+async fn webhook_service_new_creates_empty() {
+    let service = WebhookService::new().expect("guarded client");
     let all = service.list_endpoints().await.unwrap();
     assert!(all.is_empty());
 }
 
 #[tokio::test]
 async fn get_endpoint_stats_unknown_returns_err() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let result = service
         .get_endpoint_stats(&WebhookEndpointId::new("nope"))
         .await;
@@ -286,7 +286,7 @@ async fn get_endpoint_stats_unknown_returns_err() {
 
 #[tokio::test]
 async fn get_endpoint_stats_returns_zeroed_for_known() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     service
         .register_endpoint(make_endpoint("stat", None, vec![], true))
         .await
@@ -305,7 +305,7 @@ async fn get_endpoint_stats_returns_zeroed_for_known() {
 
 #[tokio::test]
 async fn send_webhook_rejects_invalid_url() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let result = service
         .send_webhook("not-a-url", serde_json::json!({}), None)
         .await;
@@ -314,7 +314,7 @@ async fn send_webhook_rejects_invalid_url() {
 
 #[tokio::test]
 async fn test_endpoint_unknown_returns_err() {
-    let service = WebhookService::new();
+    let service = WebhookService::new().expect("guarded client");
     let result = service
         .test_endpoint(&WebhookEndpointId::new("ghost"))
         .await;

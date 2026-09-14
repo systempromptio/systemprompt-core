@@ -70,6 +70,16 @@ impl std::fmt::Debug for AssetFile {
 pub struct RevisionFiles(pub BTreeMap<String, AssetFile>);
 
 impl RevisionFiles {
+    #[must_use]
+    pub fn same_content(&self, other: &Self) -> bool {
+        self.0.len() == other.0.len()
+            && self.0.iter().all(|(path, file)| {
+                other.0.get(path).is_some_and(|expected| {
+                    expected.bytes == file.bytes && expected.executable == file.executable
+                })
+            })
+    }
+
     pub fn validate(&self) -> Result<()> {
         if self.0.is_empty() || self.0.len() > 256 {
             return Err(invalid("Expected 1–256 revision files"));

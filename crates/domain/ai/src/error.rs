@@ -209,7 +209,10 @@ impl AiError {
     pub async fn from_error_response(provider: &str, response: reqwest::Response) -> Self {
         let status = response.status().as_u16();
         let retry_after = parse_retry_after(response.headers());
-        let body = response.text().await.unwrap_or_default();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
         Self::HttpStatus {
             provider: provider.to_owned(),
             status,

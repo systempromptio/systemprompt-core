@@ -52,13 +52,7 @@ impl ManagedRepository {
         .await
         .map_err(|error| ManagedError::Io(std::io::Error::other(error)))??;
         let retained = bundle.revision_files(&bundle.root)?;
-        if files.0.len() != retained.0.len()
-            || files.0.iter().any(|(path, file)| {
-                retained.0.get(path).is_none_or(|expected| {
-                    expected.bytes != file.bytes || expected.executable != file.executable
-                })
-            })
-        {
+        if !files.same_content(&retained) {
             return Err(ManagedError::Conflict("Git commit content differs from the retained revision; import and reevaluate the changed content".to_owned()));
         }
         let digest = bundle.digest()?;

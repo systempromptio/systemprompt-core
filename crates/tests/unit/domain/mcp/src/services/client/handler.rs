@@ -15,7 +15,7 @@ fn sample_request_context() -> RequestContext {
 
 #[test]
 fn http_client_with_context_new_returns_clonable_value() {
-    let client = HttpClientWithContext::new(sample_request_context());
+    let client = HttpClientWithContext::new(sample_request_context()).expect("guarded client");
     let cloned = client.clone();
     let _ = format!("{cloned:?}");
 }

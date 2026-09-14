@@ -14,6 +14,8 @@
 
 ### Added
 
+- `RevisionFiles::same_content` compares two file sets by path, bytes and executable bit.
+
 - `managed` module: `RevisionBundle`, `RevisionManifest`, `FileEntry`, `DependencyRef`, `AssetDigest`, `AssetFile`, `RevisionFiles`, `RevisionBundleError` and the `validate_path` / `validate_key` validators — the verified managed-resource revision closure shared by the marketplace, evaluation and scheduler domains (previously `systemprompt_marketplace::managed`).
 - `bridge::manifest` is a directory module (`entries`, `managed_mcp`); `wire::canonical::request` likewise (`content`, `options`). Re-exports are unchanged.
 - `Config` implements `Debug` by hand, redacting `database_url`, `database_write_url` and `github_token`.

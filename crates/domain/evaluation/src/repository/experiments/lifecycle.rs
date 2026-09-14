@@ -196,12 +196,13 @@ impl EvaluationLifecycleRepository {
         } else {
             "partial"
         };
-        let input = row.input_tokens;
-        let output = row.output_tokens;
+        let input = counted("input_tokens", row.input_tokens)?;
+        let output = counted("output_tokens", row.output_tokens)?;
+        let tool_calls = counted("tool_calls", row.tool_calls)?;
         Ok(ExecutionAccounting {
-            input_tokens: (requests > 0).then(|| u64::try_from(input).unwrap_or_default()),
-            output_tokens: (requests > 0).then(|| u64::try_from(output).unwrap_or_default()),
-            tool_calls: u64::try_from(row.tool_calls).unwrap_or_default(),
+            input_tokens: (requests > 0).then_some(input),
+            output_tokens: (requests > 0).then_some(output),
+            tool_calls,
             attempted_cost_microdollars: row.cost,
             status: status.to_owned(),
         })
@@ -286,4 +287,9 @@ impl EvaluationLifecycleRepository {
             variants: row.variants,
         })
     }
+}
+
+fn counted(column: &str, value: i64) -> Result<u64> {
+    u64::try_from(value)
+        .map_err(|_e| invalid(&format!("Execution accounting column {column} is negative")))
 }

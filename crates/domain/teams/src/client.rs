@@ -96,7 +96,10 @@ impl TeamsClient {
             return Ok(());
         }
         let status = resp.status();
-        let detail = resp.text().await.unwrap_or_default();
+        let detail = resp
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
         Err(TeamsError::Outbound(format!("{status}: {detail}")))
     }
 }

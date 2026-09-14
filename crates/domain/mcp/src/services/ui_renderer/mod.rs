@@ -127,6 +127,8 @@ impl UiMetadata {
     }
 }
 
+/// Renderers are stored in the registry as `Arc<dyn UiRenderer>`;
+/// `#[async_trait]` keeps the trait object-safe.
 #[async_trait]
 pub trait UiRenderer: Send + Sync {
     fn artifact_type(&self) -> ArtifactType;
