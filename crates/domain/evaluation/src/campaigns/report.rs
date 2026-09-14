@@ -45,7 +45,7 @@ struct MeasurementRow {
 struct RetainedMeasurement {
     hard_failures: Vec<String>,
     quality_milli: Option<u32>,
-    latency_ms: u64,
+    latency_ms: Option<u64>,
     input_tokens: Option<u64>,
     output_tokens: Option<u64>,
     attempted_cost_microdollars: i64,
@@ -162,7 +162,7 @@ fn outcome(measurement: &RetainedMeasurement) -> Option<Outcome> {
             .input_tokens?
             .checked_add(measurement.output_tokens?)?,
         cost_microdollars: u64::try_from(measurement.attempted_cost_microdollars).ok()?,
-        latency_ms: measurement.latency_ms,
+        latency_ms: measurement.latency_ms?,
         verified_success: measurement.verified_success,
         hard_failures: u32::try_from(measurement.hard_failures.len()).ok()?,
         accounting_complete: measurement.accounting_status == "complete",

@@ -8029,6 +8029,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
+ "pg_query",
  "serde_json",
  "sqlx",
  "systemprompt-database",
