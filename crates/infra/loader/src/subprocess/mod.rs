@@ -89,8 +89,7 @@ fn spawner() -> std::io::Result<Sender<SpawnRequest>> {
         return Ok(sender.clone());
     }
     let sender = start_spawner_thread()?;
-    *slot = Some(sender.clone());
-    Ok(sender)
+    Ok(slot.insert(sender).clone())
 }
 
 fn start_spawner_thread() -> std::io::Result<Sender<SpawnRequest>> {

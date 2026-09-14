@@ -58,10 +58,10 @@ impl LoggingRepository {
     pub async fn log(&self, entry: LogEntry) -> Result<(), LoggingError> {
         entry.validate()?;
 
-        if self.terminal_output {
-            if let Err(error) = writeln!(std::io::stdout(), "{entry}") {
-                tracing::warn!(error = %error, "Terminal log sink write failed");
-            }
+        if self.terminal_output
+            && let Err(error) = writeln!(std::io::stdout(), "{entry}")
+        {
+            tracing::warn!(error = %error, "Terminal log sink write failed");
         }
 
         if self.db_output {

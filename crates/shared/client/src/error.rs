@@ -42,7 +42,7 @@ pub enum ClientError {
 }
 
 impl ClientError {
-    pub fn from_response(status: u16, body: String) -> Self {
+    pub const fn from_response(status: u16, body: String) -> Self {
         Self::ApiError {
             status,
             message: body,

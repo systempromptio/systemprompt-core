@@ -47,9 +47,9 @@ pub fn enqueue_background(entry: LogEntry) {
         return;
     }
     if is_error {
-        // Why: the entry is already queued and the periodic flush delivers it.
-        // Why: discard-ok: tracing here would re-enter this layer.
-        let _ = sender.try_send(LogCommand::FlushNow);
+        // Why: a full queue already forces the flush this would request, and
+        // tracing here would re-enter this layer.
+        let _flush_requested = sender.try_send(LogCommand::FlushNow).is_ok();
     }
 }
 
@@ -142,12 +142,13 @@ impl DatabaseLayer {
         if let Err(e) = Self::batch_insert(db_pool, buffer).await {
             let lost = u64::try_from(buffer.len()).unwrap_or(u64::MAX);
             *failed_total = failed_total.saturating_add(lost);
-            // Why: stderr is the last-resort sink once the database layer has failed.
-            // Why: discard-ok: tracing here would feed back into the failing layer.
-            let _ = writeln!(
+            // Why: stderr is the last-resort sink once the database layer has
+            // failed; tracing here would feed back into the failing layer.
+            let _stderr_written = writeln!(
                 std::io::stderr(),
                 "DATABASE LOG FLUSH FAILED ({lost} entries lost this flush, {failed_total} total lost since start): {e}"
-            );
+            )
+            .is_ok();
         }
         buffer.clear();
     }

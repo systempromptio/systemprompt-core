@@ -137,21 +137,20 @@ pub enum AiError {
 
 impl From<AiError> for systemprompt_models::errors::AiInferenceError {
     fn from(err: AiError) -> Self {
-        use systemprompt_models::errors::AiInferenceError as Seam;
         match err {
             AiError::ModelNotSpecified { ref provider }
-            | AiError::EmptyProviderResponse { ref provider } => Seam::Provider {
+            | AiError::EmptyProviderResponse { ref provider } => Self::Provider {
                 provider: provider.clone(),
                 message: err.to_string(),
             },
-            AiError::ProviderError { provider, message } => Seam::Provider { provider, message },
-            AiError::NoProviderForModel { model } => Seam::NoProviderForModel { model },
-            AiError::RateLimit { provider, details } => Seam::RateLimited { provider, details },
-            AiError::AuthenticationFailed { provider } => Seam::AuthenticationFailed { provider },
+            AiError::ProviderError { provider, message } => Self::Provider { provider, message },
+            AiError::NoProviderForModel { model } => Self::NoProviderForModel { model },
+            AiError::RateLimit { provider, details } => Self::RateLimited { provider, details },
+            AiError::AuthenticationFailed { provider } => Self::AuthenticationFailed { provider },
             AiError::HttpStatus { ref provider, .. }
             | AiError::Timeout { ref provider, .. }
             | AiError::CircuitOpen { ref provider }
-            | AiError::DependencyUnavailable { ref provider } => Seam::Unavailable {
+            | AiError::DependencyUnavailable { ref provider } => Self::Unavailable {
                 provider: provider.clone(),
                 message: err.to_string(),
             },
@@ -163,23 +162,23 @@ impl From<AiError> for systemprompt_models::errors::AiInferenceError {
             | AiError::MissingToolField { .. }
             | AiError::EmptyToolDescription { .. }
             | AiError::InvalidInput(_)
-            | AiError::WireParse(_) => Seam::InvalidRequest(err.to_string()),
+            | AiError::WireParse(_) => Self::InvalidRequest(err.to_string()),
             AiError::NoToolCalls
             | AiError::McpServiceNotFound { .. }
             | AiError::McpAuthenticationMissing { .. }
             | AiError::ServiceAuthCheckFailed { .. }
-            | AiError::ToolProvider(_) => Seam::Tool(err.to_string()),
+            | AiError::ToolProvider(_) => Self::Tool(err.to_string()),
             AiError::AuthenticationRequired { .. }
             | AiError::ConfigurationError { .. }
-            | AiError::Secrets(_) => Seam::Configuration(err.to_string()),
+            | AiError::Secrets(_) => Self::Configuration(err.to_string()),
             AiError::DatabaseError { .. } | AiError::StorageError { .. } => {
-                Seam::Storage(err.to_string())
+                Self::Storage(err.to_string())
             },
             AiError::SerializationError(_)
             | AiError::Http(_)
             | AiError::Io(_)
             | AiError::Regex(_)
-            | AiError::Internal(_) => Seam::Internal(err.to_string()),
+            | AiError::Internal(_) => Self::Internal(err.to_string()),
         }
     }
 }

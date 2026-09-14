@@ -11,6 +11,7 @@
 - **Breaking:** typed identifiers replace raw strings on `AgentJwtClaims.subject` (`UserId`), `AiGeneratedFile.id` (`FileId`), `McpServerState { name: McpServerId, status: McpServerStatus }`, `McpRegistry::{list_servers, find_server, server_exists}` (`McpServerId`), `SignedManifest.revocations` (`Vec<ApiKeyId>`), and `services::AgentCardConfig::{security_schemes: Option<HashMap<String, SecurityScheme>>, security: Option<Vec<HashMap<String, Vec<String>>>>}` — a card whose security block is malformed now fails to load instead of being dropped with a warning.
 - **Breaking:** `wire::WireParseError::OpenAiResponsesMissingToolCallId` is returned when a Responses API `function_call` carries neither `call_id` nor `id`; an unparseable Responses or Gemini SSE frame yields an `Err` stream item instead of being skipped.
 - **Breaking:** `ai::ToolModelConfig` is now defined in `systemprompt_provider_contracts` and re-exported here unchanged. `SearchGroundedResponse.safety_ratings` is `Option<Vec<ai::SafetyRating>>`. Migrate by using the typed struct.
+- **Breaking:** `RowParseError` gains `InvalidId { field, source: IdValidationError }` and is no longer `Copy`; a malformed `service_id` on a tool-call row reports the identifier error instead of `Missing`. Migrate by cloning where a copy was relied on.
 
 ### Added
 

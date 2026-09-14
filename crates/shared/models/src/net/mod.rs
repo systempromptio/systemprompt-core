@@ -177,7 +177,7 @@ fn is_cgnat_shared_v4(ip: std::net::Ipv4Addr) -> bool {
 // Why: `0.0.0.0/8` routes to the local host on Linux, `192.0.0.0/24` (RFC
 // 6890) and `198.18.0.0/15` (RFC 2544) are IETF-reserved, and `224.0.0.0/4` /
 // `240.0.0.0/4` are multicast and reserved — none is a public host.
-fn is_reserved_v4(ip: std::net::Ipv4Addr) -> bool {
+const fn is_reserved_v4(ip: std::net::Ipv4Addr) -> bool {
     let [a, b, c, _] = ip.octets();
     a == 0 || (a == 192 && b == 0 && c == 0) || (a == 198 && (b == 18 || b == 19)) || a >= 224
 }

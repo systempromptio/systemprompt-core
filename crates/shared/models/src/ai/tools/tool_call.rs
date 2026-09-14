@@ -88,7 +88,10 @@ impl ToolExecution {
             .and_then(|v| v.as_str())
             .ok_or(RowParseError::Missing("service_id"))
             .and_then(|s| {
-                McpServerId::try_new(s).map_err(|_| RowParseError::Missing("service_id"))
+                McpServerId::try_new(s).map_err(|source| RowParseError::InvalidId {
+                    field: "service_id",
+                    source,
+                })
             })?;
 
         let input = parse_json_column(row, "input").unwrap_or(JsonValue::Null);

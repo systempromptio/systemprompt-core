@@ -16,10 +16,12 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use bytes::Bytes;
+use std::borrow::Cow;
 use std::sync::Arc;
 use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
+use systemprompt_models::services::gateway::{GatewayConfig, GatewayRoute};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
@@ -104,16 +106,7 @@ pub(super) async fn extract_request_context(
         &gateway_request,
         partial,
     )?;
-    let route = gateway_config
-        .resolve_route(&rc.services.providers, &gateway_request)
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                format!("No gateway route matches model '{}'", gateway_request.model),
-            )
-        })?;
-    partial.provider = Some(route.provider.as_str().to_owned());
-
+    let route = resolve_route(rc, gateway_config, &gateway_request, partial)?;
     let wire = rc
         .services
         .providers
@@ -158,6 +151,24 @@ pub(super) async fn extract_request_context(
     })
 }
 
+fn resolve_route<'a>(
+    rc: &RequestContext<'_>,
+    gateway_config: &'a GatewayConfig,
+    gateway_request: &CanonicalRequest,
+    partial: &mut RejectionPartial,
+) -> Result<Cow<'a, GatewayRoute>, (StatusCode, String)> {
+    let route = gateway_config
+        .resolve_route(&rc.services.providers, gateway_request)
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                format!("No gateway route matches model '{}'", gateway_request.model),
+            )
+        })?;
+    partial.provider = Some(route.provider.as_str().to_owned());
+    Ok(route)
+}
+
 // Why: the gateway conversation id stays the per-thread prefix hash (it keys
 // thought-signature hydration, and subagents inside one run have different
 // prefixes), but the *context* a request lands in follows the caller's own
@@ -197,7 +208,7 @@ pub fn derive_conversation(
 
 fn upstream_model_for(
     providers: &systemprompt_models::services::ProviderRegistry,
-    route: &systemprompt_models::services::GatewayRoute,
+    route: &GatewayRoute,
     requested: &str,
 ) -> String {
     providers
