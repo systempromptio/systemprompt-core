@@ -178,3 +178,35 @@ fn option_receivers_and_annotated_defaults_pass() {
         assert!(inspect(source, "discarded").unwrap().is_empty(), "{source}");
     }
 }
+
+#[test]
+fn tracing_messages_are_constant() {
+    for source in [
+        "fn run() { tracing::warn!(\"failed to run `lsof -ti :{port}`\"); }",
+        "fn run() { info!(\"Discovered {} jobs via inventory, {} configured\", a, b); }",
+        "fn run() { error!(error = %e, \"catalog discovery skipped: {e}\"); }",
+        "fn run() { tracing::debug!(target: \"boot\", \"{what} failed\"); }",
+        "fn run() { info!(\"{count} items\", count = 3); }",
+    ] {
+        let findings = inspect(source, "tracing-messages").unwrap();
+        assert_eq!(findings.len(), 1, "{source}");
+        assert_eq!(
+            findings[0].rule, "tracing-message-interpolation",
+            "{source}"
+        );
+    }
+    for source in [
+        "fn run() { tracing::warn!(port = port, \"failed to run lsof\"); }",
+        "fn run() { info!(\"{}\", prepared); }",
+        "fn run() { info!(\"{message}\"); }",
+        "fn run() { warn!(\"literal braces {{}} are fine\"); }",
+        "fn run() { error!(message = \"{e}\", \"constant\"); }",
+        "fn run() { println!(\"{value} is not tracing\"); }",
+        "fn run() { anyhow::bail!(\"{value} is not tracing\"); }",
+        "fn run() { tracing::info!(name: \"span {x}\", \"constant\"); }",
+        "fn run() { info!(path = %format!(\"{a}/{b}\"), \"constant\"); }",
+    ] {
+        let findings = inspect(source, "tracing-messages").unwrap();
+        assert!(findings.is_empty(), "{source}: {findings:?}");
+    }
+}

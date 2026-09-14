@@ -42,8 +42,11 @@ fn main() -> Result<std::process::ExitCode, Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let mode = args
         .next()
-        .ok_or("expected discarded or fail-open and source roots")?;
-    if !matches!(mode.as_str(), "discarded" | "fail-open") {
+        .ok_or("expected discarded, fail-open or tracing-messages and source roots")?;
+    if !matches!(
+        mode.as_str(),
+        "discarded" | "fail-open" | "tracing-messages"
+    ) {
         return Err("unknown scan mode".into());
     }
     let mut count = 0;

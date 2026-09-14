@@ -16,9 +16,15 @@
 //! `Option`/`Result` so an empty or stale inventory withholds the subject.
 //! The heuristic is a tripwire, not the gate; the review remains the gate.
 //!
+//! `tracing-messages` reports a `trace!`/`debug!`/`info!`/`warn!`/`error!`
+//! whose message literal interpolates (`"failed to run {cmd}"`): values are
+//! structured fields, the message is a constant. A bare `"{}"` or `"{name}"`
+//! message — a prepared freeform string — is the one exempt form.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use proc_macro2::{Delimiter, TokenTree};
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{Expr, Pat, Stmt};
@@ -233,6 +239,80 @@ fn fallible_receiver(receiver: &Expr) -> bool {
     }
 }
 
+const TRACING_LEVELS: &[&str] = &["trace", "debug", "info", "warn", "error"];
+
+fn tracing_macro(path: &syn::Path) -> bool {
+    let level = path
+        .segments
+        .last()
+        .is_some_and(|segment| TRACING_LEVELS.contains(&segment.ident.to_string().as_str()));
+    let qualifier = path.segments.len() == 1
+        || path
+            .segments
+            .first()
+            .is_some_and(|segment| segment.ident == "tracing" || segment.ident == "log");
+    level && qualifier
+}
+
+fn message_literal(tokens: proc_macro2::TokenStream) -> Option<proc_macro2::Literal> {
+    let mut previous: Option<char> = None;
+    let mut inside_call = false;
+    for tree in tokens {
+        match tree {
+            TokenTree::Literal(literal) => {
+                let text = literal.to_string();
+                if !text.starts_with('"') {
+                    previous = None;
+                    continue;
+                }
+                let field_value = matches!(previous, Some('=' | '%' | '?' | ':'));
+                if field_value || inside_call {
+                    previous = None;
+                    continue;
+                }
+                return Some(literal);
+            },
+            TokenTree::Punct(punct) => {
+                previous = Some(punct.as_char());
+                if punct.as_char() == ',' {
+                    inside_call = false;
+                }
+            },
+            TokenTree::Group(group) => {
+                inside_call = group.delimiter() == Delimiter::Parenthesis;
+                previous = None;
+            },
+            TokenTree::Ident(_) => previous = None,
+        }
+    }
+    None
+}
+
+fn interpolates(literal: &str) -> bool {
+    let Some(inner) = literal
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+    else {
+        return false;
+    };
+    if inner == "{}" {
+        return false;
+    }
+    let bare_name = inner
+        .strip_prefix('{')
+        .and_then(|rest| rest.strip_suffix('}'))
+        .is_some_and(|name| {
+            !name.is_empty()
+                && name
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || character == '_')
+        });
+    if bare_name {
+        return false;
+    }
+    inner.replace("{{", "").replace("}}", "").contains('{')
+}
+
 fn true_literal(expr: &Expr) -> bool {
     matches!(expr, Expr::Lit(literal) if matches!(&literal.lit, syn::Lit::Bool(value) if value.value))
 }
@@ -327,6 +407,17 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             self.report(node.span(), "partial-projection");
         }
         visit::visit_expr_for_loop(self, node);
+    }
+
+    fn visit_macro(&mut self, node: &'ast syn::Macro) {
+        if self.mode == "tracing-messages" && tracing_macro(&node.path) {
+            if let Some(literal) = message_literal(node.tokens.clone()) {
+                if interpolates(&literal.to_string()) {
+                    self.report(literal.span(), "tracing-message-interpolation");
+                }
+            }
+        }
+        visit::visit_macro(self, node);
     }
 
     fn visit_arm(&mut self, node: &'ast syn::Arm) {
