@@ -4,6 +4,7 @@
 mod claude_code_cli;
 #[cfg(test)]
 mod codex_foreign_shape;
+#[cfg(test)]
 mod codex_host;
 #[cfg(test)]
 mod codex_install;
@@ -23,6 +24,7 @@ mod enrol_selection;
 mod gateway_hook_token;
 #[cfg(test)]
 mod generated_profile_privacy;
+#[cfg(test)]
 mod hermes_host;
 #[cfg(test)]
 mod hermes_merge;
@@ -42,6 +44,7 @@ mod opencode_merge;
 mod plugin_oauth;
 #[cfg(test)]
 mod plugin_oauth_gateway_identity;
+#[cfg(test)]
 mod plugin_oauth_store;
 #[cfg(test)]
 mod profile_state;
