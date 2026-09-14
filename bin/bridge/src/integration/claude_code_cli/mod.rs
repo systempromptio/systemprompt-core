@@ -316,7 +316,7 @@ pub(crate) fn feedback_skill_roots(
     if !claude_cli_installed() {
         return Vec::new();
     }
-    let Some(plugins) = crate::config::paths::claude_cli_plugins_dir() else {
+    let Some(plugins) = paths::claude_cli_plugins_dir() else {
         return Vec::new();
     };
     host_marketplaces(manifest)

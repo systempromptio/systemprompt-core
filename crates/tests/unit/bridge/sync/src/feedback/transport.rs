@@ -164,3 +164,31 @@ async fn delivery_refuses_different_enrollment_before_any_network_request() {
         Err(FeedbackError::Scope)
     ));
 }
+
+#[test]
+fn unchanged_manifest_recovers_pending_plan_but_disabled_or_withdrawn_does_not() {
+    let (dir, _) = prepared(EvaluatorClient::Codex);
+    temp_env::with_var("XDG_STATE_HOME", Some(dir.path()), || {
+        tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(async {
+            let expected = plan(EvaluatorClient::Codex);
+            let (gateway, server) = mock_server(vec![(200, String::new(), serde_json::to_string(&expected).unwrap())]);
+            let enrollment = Enrollment::new(gateway, DeviceId::new("device"), UserId::new("consumer"), systemprompt_bridge::ids::BearerToken::new("sp_device_private")).unwrap();
+            let outbox = Outbox::new(enrollment.outbox_path(dir.path()), OutboxScope::from_enrollment(&enrollment));
+            outbox.reserve_installation(systemprompt_bridge::feedback::outbox::PendingInstallation::new(publication(), EvaluatorClient::Codex, vec![dir.path().to_path_buf()])).unwrap();
+            let mut manifest: systemprompt_bridge::gateway::manifest::SignedManifest = serde_json::from_value(serde_json::json!({
+                "min_schema_version": 1, "manifest_version": "2026-04-30T12:00:00Z-deadbeef", "issued_at":"2026-04-30T12:00:00Z", "not_before":"2026-04-30T12:00:00Z", "user_id":"consumer", "plugins":[], "skills":[], "managed_mcp_servers":[], "revocations":[], "enabled_hosts":["codex-cli"]
+            })).unwrap();
+            systemprompt_bridge::feedback::recover_manifest_installations(&enrollment, &outbox, &manifest).await.unwrap();
+            assert!(outbox.entries().unwrap().is_empty());
+            manifest.skills = vec![serde_json::from_value(serde_json::json!({"id":"skill", "name":"Skill", "description":"", "tags":[], "file_path":"skill/SKILL.md", "sha256":"0".repeat(64), "instructions":"", "publication":publication()})).unwrap()];
+            manifest.enabled_hosts.clear();
+            systemprompt_bridge::feedback::recover_manifest_installations(&enrollment, &outbox, &manifest).await.unwrap();
+            assert!(outbox.entries().unwrap().is_empty());
+            manifest.enabled_hosts.push("codex-cli".to_owned());
+            systemprompt_bridge::feedback::recover_manifest_installations(&enrollment, &outbox, &manifest).await.unwrap();
+            assert_eq!(outbox.entries().unwrap().len(),1);
+            assert!(outbox.pending_installations().unwrap().is_empty());
+            assert_eq!(server.join().unwrap().len(),1);
+        });
+    });
+}

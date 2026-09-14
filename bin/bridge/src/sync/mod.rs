@@ -72,8 +72,8 @@ pub async fn run_once(
         .report(&crate::progress::SyncProgress::new(
             "manifest", "manifest", 1, 1,
         ));
-    if let Ok(config) = crate::config::load() {
-        let gateway = crate::config::gateway_url_or_default(&config);
+    if let Ok(config) = config::load() {
+        let gateway = config::gateway_url_or_default(&config);
         if let Err(error) = crate::feedback::retry_pending(gateway.as_str()).await {
             tracing::debug!(%error,"Installation receipts remain unacknowledged before sync");
         }
@@ -132,8 +132,17 @@ pub async fn run_once(
                 return Err(SyncError::from(e));
             },
         };
-        check_replay(&last_state, &synced.manifest_version)?;
         check_skew(&synced.not_before, now)?;
+        if last_state.last_applied_manifest_version.as_ref() == Some(&synced.manifest_version) {
+            ensure_not_superseded(&run_gateway)?;
+            if let Err(error) =
+                crate::feedback::recover_current_manifest(fetch.client.base_url_str(), &synced)
+                    .await
+            {
+                tracing::debug!(%error, "Pending installation recovery remains unacknowledged");
+            }
+        }
+        check_replay(&last_state, &synced.manifest_version)?;
     }
     ensure_not_superseded(&run_gateway)?;
 

@@ -50,7 +50,7 @@ pub async fn capture_host(host: &str, ctx: &HostSyncCtx<'_>) -> Result<()> {
     }
     tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        recover_pending(&enrollment, &outbox, kind),
+        recover_pending(&enrollment, &outbox, kind, ctx.manifest),
     )
     .await
     .map_err(|_| FeedbackError::Transport)??;
@@ -172,6 +172,7 @@ async fn recover_pending(
     enrollment: &Enrollment,
     outbox: &Outbox,
     host: systemprompt_models::feedback::EvaluatorClient,
+    manifest: &crate::gateway::manifest::SignedManifest,
 ) -> Result<()> {
     let mut failure = None;
     for (key, pending) in outbox
@@ -179,6 +180,7 @@ async fn recover_pending(
         .into_iter()
         .filter(|(_, pending)| {
             !pending.superseded
+                && current_installation(manifest, pending)
                 && pending.host == host
                 && pending.next_attempt <= chrono::Utc::now()
         })
@@ -197,4 +199,63 @@ async fn recover_pending(
     } else {
         Ok(())
     }
+}
+
+fn current_installation(
+    manifest: &crate::gateway::manifest::SignedManifest,
+    pending: &super::outbox::PendingInstallation,
+) -> bool {
+    manifest
+        .enabled_hosts
+        .iter()
+        .any(|host| super::client_kind(host) == Some(pending.host))
+        && manifest.skills.iter().any(|skill| {
+            (skill.hosts.is_empty()
+                || skill
+                    .hosts
+                    .iter()
+                    .any(|host| super::client_kind(host) == Some(pending.host)))
+                && skill.publication.as_ref().is_some_and(|publication| {
+                    publication.publication_id == pending.publication.publication_id
+                        && publication.resource_id == pending.publication.resource_id
+                        && publication.revision_id == pending.publication.revision_id
+                        && publication.generation == pending.publication.generation
+                        && publication.bundle_digest == pending.publication.bundle_digest
+                })
+        })
+}
+
+pub async fn recover_current_manifest(
+    gateway: &str,
+    manifest: &crate::gateway::manifest::SignedManifest,
+) -> Result<()> {
+    let root = super::metadata_root()?;
+    let enrollment = Enrollment::load(&root, gateway)?;
+    let outbox = Outbox::new(
+        enrollment.outbox_path(&root),
+        super::outbox::OutboxScope::from_enrollment(&enrollment),
+    );
+    recover_manifest_installations(&enrollment, &outbox, manifest).await
+}
+
+pub async fn recover_manifest_installations(
+    enrollment: &Enrollment,
+    outbox: &Outbox,
+    manifest: &crate::gateway::manifest::SignedManifest,
+) -> Result<()> {
+    outbox.require_enrollment(enrollment)?;
+    if enrollment.consumer_id != manifest.user_id {
+        return Err(FeedbackError::Scope);
+    }
+    let _lock = super::installation_lock().await?;
+    tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        for host in &manifest.enabled_hosts {
+            if let Some(kind) = super::client_kind(host) {
+                recover_pending(enrollment, outbox, kind, manifest).await?;
+            }
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|_| FeedbackError::Transport)?
 }
