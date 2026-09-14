@@ -8199,6 +8199,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-runtime",
  "tempfile",
  "tokio",
 ]

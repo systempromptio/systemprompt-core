@@ -16,6 +16,7 @@ systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
+systemprompt-runtime = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 
