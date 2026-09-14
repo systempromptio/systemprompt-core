@@ -8,6 +8,7 @@
 
 mod assets;
 mod bundle;
+pub mod consumer;
 pub use bundle::{ASSEMBLER_VERSION, RevisionBundle};
 mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};

@@ -1,4 +1,5 @@
-//! Skill feedback contracts shared across ingestion, marketplace, evaluators and clients.
+//! Skill feedback contracts shared across ingestion, marketplace, evaluators
+//! and clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -41,7 +42,9 @@ impl TryFrom<String> for ContentDigest {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.len() != 64
-            || !value.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            || !value
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
         {
             return Err(FeedbackContractError::InvalidDigest);
         }
@@ -55,7 +58,7 @@ impl From<ContentDigest> for String {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum FeedbackContractError {
     #[error("Expected a lowercase SHA-256 digest")]
     InvalidDigest,
@@ -70,7 +73,9 @@ pub enum FeedbackContractError {
 }
 
 pub fn validate_relative_path(path: &str) -> Result<(), FeedbackContractError> {
-    if path.is_empty() || path.len() > 4096 || path.contains(['\\', ':', '\0'])
+    if path.is_empty()
+        || path.len() > 4096
+        || path.contains(['\\', ':', '\0'])
         || path.split('/').any(|part| matches!(part, "" | "." | ".."))
     {
         return Err(FeedbackContractError::InvalidPath);

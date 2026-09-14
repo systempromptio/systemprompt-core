@@ -1,4 +1,5 @@
-//! Skill feedback contracts shared across ingestion, marketplace, evaluators and clients.
+//! Skill feedback contracts shared across ingestion, marketplace, evaluators
+//! and clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,7 +38,10 @@ impl DependencyVerificationRequest {
         for revision in &self.revisions {
             validate_relative_path(&revision.relative_root)?;
             if !matches!(revision.exact_commit.len(), 40 | 64)
-                || !revision.exact_commit.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                || !revision
+                    .exact_commit
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
                 || revision.dependencies.len() > 256
                 || graph.insert(&revision.revision_id, revision).is_some()
             {
@@ -66,7 +70,9 @@ fn visit<'a>(
     if visited.contains(id) {
         return Ok(());
     }
-    let node = graph.get(id).ok_or(FeedbackContractError::IncompleteManifest)?;
+    let node = graph
+        .get(id)
+        .ok_or(FeedbackContractError::IncompleteManifest)?;
     active.insert(id);
     let mut unique = BTreeSet::new();
     for dependency in &node.dependencies {
@@ -101,14 +107,21 @@ pub struct DependencyVerificationManifest {
 
 impl DependencyVerificationManifest {
     pub fn validate_complete(&self) -> Result<(), FeedbackContractError> {
-        if self.version != 1 || self.revisions.iter().any(|revision| {
-            !revision.bytes_verified || !revision.modes_verified || revision.file_count == 0
-        }) {
+        if self.version != 1
+            || self.revisions.iter().any(|revision| {
+                !revision.bytes_verified || !revision.modes_verified || revision.file_count == 0
+            })
+        {
             return Err(FeedbackContractError::IncompleteManifest);
         }
         DependencyVerificationRequest {
             root_revision_id: self.root_revision_id.clone(),
-            revisions: self.revisions.iter().map(|revision| revision.provenance.clone()).collect(),
-        }.validate()
+            revisions: self
+                .revisions
+                .iter()
+                .map(|revision| revision.provenance.clone())
+                .collect(),
+        }
+        .validate()
     }
 }
