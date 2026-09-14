@@ -20,7 +20,7 @@ pub use systemprompt_models::bridge::manifest::{
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::services::{AutoUpdatePolicy, PluginComponentRef};
 
-pub use systemprompt_identifiers::{AgentId, AgentName, TenantId, UserId, ValidatedUrl};
+pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -127,7 +127,7 @@ pub struct SignedManifestBuilder {
     agents: Vec<AgentEntry>,
     hooks: Vec<HookEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
-    revocations: Vec<String>,
+    revocations: Vec<ApiKeyId>,
     enabled_hosts: Vec<String>,
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
@@ -243,7 +243,7 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
-    pub fn with_revocations(mut self, revocations: Vec<String>) -> Self {
+    pub fn with_revocations(mut self, revocations: Vec<ApiKeyId>) -> Self {
         self.revocations = revocations;
         self
     }
