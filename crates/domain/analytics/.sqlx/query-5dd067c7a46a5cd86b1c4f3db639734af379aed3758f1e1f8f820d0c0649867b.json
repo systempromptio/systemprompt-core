@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analytics_snapshot_daily(owner_id,scope,day,metrics,spend,histogram,cohort,generation)\n   WITH contributions AS MATERIALIZED(SELECT * FROM analytics_snapshot_contributions WHERE owner_id=$1 AND day=ANY($2)),\n   currencies AS(SELECT scope,day,currency,SUM(amount)::text AS amount FROM contributions WHERE fact_kind='request' AND currency IS NOT NULL GROUP BY scope,day,currency),\n   spend AS(SELECT scope,day,jsonb_object_agg(currency,amount) AS value FROM currencies GROUP BY scope,day),\n   buckets AS(SELECT scope,day,CASE WHEN latency=0 THEN 0 ELSE 65-position('1' in (latency::bit(64))::text) END AS bucket,COUNT(*) AS count FROM contributions WHERE fact_kind='request' AND latency IS NOT NULL GROUP BY scope,day,bucket),\n   histograms AS(SELECT scope,day,jsonb_object_agg(bucket::text,count) AS value FROM buckets GROUP BY scope,day)\n   SELECT $1,c.scope,c.day,jsonb_build_object(\n    'invocations',COUNT(*) FILTER(WHERE fact_kind='invocation'),\n    'verified_invocations',COUNT(*) FILTER(WHERE fact_kind='invocation' AND resource_id IS NOT NULL),\n    'requests',COUNT(*) FILTER(WHERE fact_kind='request'),'failed_requests',COUNT(*) FILTER(WHERE fact_kind='request' AND NOT succeeded),\n    'priced_requests',COUNT(*) FILTER(WHERE fact_kind='request' AND amount IS NOT NULL),\n    'latency_measured_requests',COUNT(*) FILTER(WHERE fact_kind='request' AND latency IS NOT NULL),\n    'token_measured_requests',COUNT(*) FILTER(WHERE fact_kind='request' AND input_tokens IS NOT NULL AND output_tokens IS NOT NULL),\n    'input_tokens',COALESCE(SUM(input_tokens) FILTER(WHERE fact_kind='request'),0)::bigint,\n    'output_tokens',COALESCE(SUM(output_tokens) FILTER(WHERE fact_kind='request'),0)::bigint,\n    'assessed_conversations',COUNT(*) FILTER(WHERE fact_kind='assessment' AND assessment_status='scored'),\n    'assessment_conversations',COUNT(*) FILTER(WHERE fact_kind='assessment'),\n    'failed_assessments',COUNT(*) FILTER(WHERE fact_kind='assessment' AND assessment_status='failed')),\n    COALESCE(s.value,'{}'::jsonb),COALESCE(h.value,'{}'::jsonb),COUNT(DISTINCT consumer_id),$3\n   FROM contributions c LEFT JOIN spend s ON s.scope=c.scope AND s.day=c.day LEFT JOIN histograms h ON h.scope=c.scope AND h.day=c.day\n   GROUP BY c.scope,c.day,s.value,h.value ON CONFLICT(owner_id,scope,day) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "DateArray",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5dd067c7a46a5cd86b1c4f3db639734af379aed3758f1e1f8f820d0c0649867b"
+}

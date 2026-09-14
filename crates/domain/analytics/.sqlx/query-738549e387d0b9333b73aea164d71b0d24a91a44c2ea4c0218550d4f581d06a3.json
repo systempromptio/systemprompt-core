@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM analytics_fact_deltas WHERE owner_id=$1 AND (occurred_at<$2 OR (before_fact->'value'->>'occurred_at')::timestamptz<$2 OR (after_fact->'value'->>'occurred_at')::timestamptz<$2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "738549e387d0b9333b73aea164d71b0d24a91a44c2ea4c0218550d4f581d06a3"
+}

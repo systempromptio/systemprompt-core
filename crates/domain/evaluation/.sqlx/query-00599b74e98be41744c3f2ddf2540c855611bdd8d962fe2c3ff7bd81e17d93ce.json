@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS(SELECT 1 FROM eval_resource_revisions r JOIN eval_executions x ON x.case_revision_id=r.id JOIN eval_experiments e ON e.id=x.experiment_id WHERE r.owner_id=$1 AND e.id<>$3 AND md5(((r.content->'content')-'partition')::text)=$2) OR EXISTS(SELECT 1 FROM eval_resource_revisions r WHERE r.owner_id=$1 AND r.id=ANY($4) AND r.content->'content'->>'partition'='development' AND md5(((r.content->'content')-'partition')::text)=$2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "?column?",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "00599b74e98be41744c3f2ddf2540c855611bdd8d962fe2c3ff7bd81e17d93ce"
+}

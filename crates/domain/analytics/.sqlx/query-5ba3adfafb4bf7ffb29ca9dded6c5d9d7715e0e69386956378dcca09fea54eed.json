@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(DISTINCT identity) FILTER(WHERE kind='user') AS \"users!\",COUNT(DISTINCT identity) FILTER(WHERE kind='session') AS \"sessions!\" FROM analytics_snapshot_identities WHERE owner_id=$1 AND scope=$2 AND day>=$3 AND day<$4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "users!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "5ba3adfafb4bf7ffb29ca9dded6c5d9d7715e0e69386956378dcca09fea54eed"
+}

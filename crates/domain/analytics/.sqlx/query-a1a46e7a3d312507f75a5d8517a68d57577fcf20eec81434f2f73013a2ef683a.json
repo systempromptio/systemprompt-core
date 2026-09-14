@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM analytics_fact_changes WHERE owner_id=$1 AND occurred_at<$2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a1a46e7a3d312507f75a5d8517a68d57577fcf20eec81434f2f73013a2ef683a"
+}

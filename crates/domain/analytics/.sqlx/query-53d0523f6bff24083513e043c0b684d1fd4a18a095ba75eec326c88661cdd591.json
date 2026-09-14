@@ -1,0 +1,79 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT metrics,spend,histogram,histogram_version,suppressed FROM analytics_snapshot_daily WHERE owner_id=$1 AND scope=$2 AND day>=$3 AND day<$4 ORDER BY day LIMIT 365",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "metrics",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_daily",
+            "name": "metrics"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "spend",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_daily",
+            "name": "spend"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "histogram",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_daily",
+            "name": "histogram"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "histogram_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_daily",
+            "name": "histogram_version"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "suppressed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_daily",
+            "name": "suppressed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "53d0523f6bff24083513e043c0b684d1fd4a18a095ba75eec326c88661cdd591"
+}

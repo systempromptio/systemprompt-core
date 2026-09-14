@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM analytics_fact_backfills WHERE owner_id=$1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7b27c88630a31c2c25fed5b6cd991c0169cd148f433aae845bed50fcd4fd1379"
+}

@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval_holdout_content_consumption(owner_id,content_digest,experiment_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING content_digest",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content_digest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval_holdout_content_consumption",
+            "name": "content_digest"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b6bfe4420fbfaf8566de143e1d8dd9fada6019775fea80be4a869885dcaa6f6d"
+}

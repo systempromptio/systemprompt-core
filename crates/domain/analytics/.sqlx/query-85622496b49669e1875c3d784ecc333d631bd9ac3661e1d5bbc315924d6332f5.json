@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT day AS \"day!\" FROM analytics_snapshot_dimensions d WHERE owner_id=$1 AND (\n   (fact_kind=$2 AND source=$3 AND fact_id=$4) OR\n   ($2='invocation' AND fact_kind='assessment' AND invocation_source=$3 AND invocation_id=$4) OR\n   ($2='resource_association' AND fact_kind='request' AND source=$5::jsonb->'value'->'request_key'->>'source' AND fact_id=$5::jsonb->'value'->'request_key'->>'id') OR\n   ($2='assessment' AND fact_kind='assessment' AND conversation_source=$5::jsonb->'value'->'conversation_key'->>'source' AND conversation_id=$5::jsonb->'value'->'conversation_key'->>'id'))",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "day!",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "analytics_snapshot_dimensions",
+            "name": "day"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "85622496b49669e1875c3d784ecc333d631bd9ac3661e1d5bbc315924d6332f5"
+}

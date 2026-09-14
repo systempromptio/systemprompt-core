@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analytics_snapshot_state(owner_id,last_error) VALUES($1,'Snapshot batch failed; leased work remains retryable') ON CONFLICT(owner_id) DO UPDATE SET last_error=EXCLUDED.last_error",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b326d4b859af0faba0763698d7be27e6a65db40feee8f4717dccecae6290e424"
+}

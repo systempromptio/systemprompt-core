@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analytics_snapshot_identities(owner_id,scope,day,kind,identity) SELECT DISTINCT owner_id,scope,day,'user',consumer_id FROM analytics_snapshot_contributions WHERE owner_id=$1 AND day=ANY($2) AND consumer_id IS NOT NULL UNION SELECT DISTINCT owner_id,scope,day,'session',session_identity FROM analytics_snapshot_contributions WHERE owner_id=$1 AND day=ANY($2) AND session_identity IS NOT NULL ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "DateArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "72e40de5936be75c25dc7f8309b0392d573a9f1c20807522c5abb5d1d5f3d531"
+}
