@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use anyhow::Context;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_models::services::{DiscoveryReport, VertexRateCard};
 
@@ -27,11 +28,9 @@ fn latest_discovery() -> Option<DiscoveryReport> {
 }
 
 #[must_use]
-pub fn discovery_rows(report: &DiscoveryReport) -> Vec<DiscoveryRow> {
-    let card = VertexRateCard::embedded().ok();
+pub fn discovery_rows(report: &DiscoveryReport, card: &VertexRateCard) -> Vec<DiscoveryRow> {
     let retires_on = |id: &str| -> String {
-        card.as_ref()
-            .and_then(|card| card.lookup_id(id))
+        card.lookup_id(id)
             .and_then(|entry| entry.retires_on)
             .map(|date| date.to_string())
             .unwrap_or_default()
@@ -74,7 +73,8 @@ fn discovery_notes(report: &DiscoveryReport) -> Vec<NoticeLine> {
     notes
 }
 
-pub fn show_discovery(config: &CliConfig) {
+pub fn show_discovery(config: &CliConfig) -> anyhow::Result<()> {
+    let card = VertexRateCard::embedded().context("embedded Vertex rate card is unreadable")?;
     let Some(report) = latest_discovery() else {
         render_result(
             &CommandOutput::message(vec![NoticeLine::new(
@@ -86,15 +86,16 @@ pub fn show_discovery(config: &CliConfig) {
             .with_title("Vertex Model Discovery"),
             config,
         );
-        return;
+        return Ok(());
     };
     render_result(
         &CommandOutput::table_of(
             vec!["upstream_or_id", "state", "retires_on"],
-            &discovery_rows(&report),
+            &discovery_rows(&report, &card),
         )
         .with_title("Vertex Model Discovery"),
         config,
     );
     render_result(&CommandOutput::message(discovery_notes(&report)), config);
+    Ok(())
 }

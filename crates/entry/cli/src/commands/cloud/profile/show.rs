@@ -32,13 +32,24 @@ pub(super) async fn execute(
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
-    let config = match Config::get().ok() {
-        Some(config) => Some(config),
-        None if initialize_config_from_profile(&profile_path).await.is_ok() => Config::get().ok(),
-        None => None,
+    let config = match Config::get() {
+        Ok(config) => Some(config),
+        Err(_uninitialised) => match initialize_config_from_profile(&profile_path).await {
+            Ok(()) => Some(Config::get()?),
+            Err(e) => {
+                CliService::warning(&format!("Config unavailable: {e}"));
+                None
+            },
+        },
     };
 
-    let services_config = ConfigLoader::load().ok();
+    let services_config = match ConfigLoader::load() {
+        Ok(services) => Some(services),
+        Err(e) => {
+            CliService::warning(&format!("Services config unavailable: {e}"));
+            None
+        },
+    };
 
     let paths = current_app_paths();
     let full_config =

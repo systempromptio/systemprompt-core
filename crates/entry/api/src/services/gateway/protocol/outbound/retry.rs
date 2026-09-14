@@ -153,7 +153,10 @@ pub async fn observing_retries<F: Future>(fut: F) -> (F::Output, u32) {
 
 #[must_use]
 pub fn current_policy() -> RetryPolicy {
-    POLICY.try_with(|p| *p).unwrap_or_default()
+    match POLICY.try_with(|p| *p) {
+        Ok(policy) => policy,
+        Err(_not_in_scope) => RetryPolicy::default(),
+    }
 }
 
 fn record_retry() {

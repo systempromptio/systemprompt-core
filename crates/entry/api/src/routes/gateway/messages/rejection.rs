@@ -103,11 +103,9 @@ async fn write_rejection_payload(
 ) {
     let bytes_len = body.len().min(i32::MAX as usize) as i32;
     let sha256 = crate::services::gateway::audit::payload::digest_hex(body);
-    let body_json = serde_json::from_slice::<serde_json::Value>(body).ok();
-    let excerpt = if body_json.is_none() {
-        Some(String::from_utf8_lossy(body).to_string())
-    } else {
-        None
+    let (body_json, excerpt) = match serde_json::from_slice::<serde_json::Value>(body) {
+        Ok(json) => (Some(json), None),
+        Err(_not_json) => (None, Some(String::from_utf8_lossy(body).to_string())),
     };
     if let Err(e) = payloads
         .upsert_request(

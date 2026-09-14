@@ -56,7 +56,10 @@ where
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
         anyhow::bail!("Agent request failed with status {}: {}", status, body);
     }
 

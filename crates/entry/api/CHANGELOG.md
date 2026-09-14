@@ -6,6 +6,8 @@
 
 ### Changed
 
+- `GET /bridge/profile` answers 503 and `POST /admin/services/refresh` answers 500 when the secrets store is not initialised, instead of treating every secret as absent.
+- An upstream error body that cannot be read is recorded as `<unreadable body: …>` in the gateway error.
 - A gateway deployment that registers request guards but has no database pool denies the request with `503` (`GatewayDenyKind::Unavailable`) instead of skipping the guards.
 - Extension routers that declare a reserved `/api/` prefix are refused at mount time.
 

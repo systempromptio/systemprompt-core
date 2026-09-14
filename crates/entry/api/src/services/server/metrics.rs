@@ -41,8 +41,7 @@ pub fn install_recorder(instance_id: &str) -> anyhow::Result<PrometheusHandle> {
         .add_global_label("instance", instance_id)
         .install_recorder()
         .map_err(|e| anyhow::anyhow!("failed to install Prometheus recorder: {e}"))?;
-    drop(RECORDER.set(handle.clone()));
-    Ok(handle)
+    Ok(RECORDER.get_or_init(|| handle).clone())
 }
 
 pub fn metrics_router(handle: PrometheusHandle) -> axum::Router {

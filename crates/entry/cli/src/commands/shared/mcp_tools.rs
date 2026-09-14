@@ -117,14 +117,23 @@ pub async fn list_tools_authenticated(
 }
 
 fn convert_tool_info(tool: rmcp::model::Tool) -> ToolInfo {
-    let input_schema = serde_json::to_value(&tool.input_schema)
-        .inspect_err(|e| debug!("Failed to serialize input schema: {}", e))
-        .ok();
-    let output_schema = tool.output_schema.and_then(|s| {
-        serde_json::to_value(s.as_ref())
-            .inspect_err(|e| debug!("Failed to serialize output schema: {}", e))
-            .ok()
-    });
+    let input_schema = match serde_json::to_value(&tool.input_schema) {
+        Ok(schema) => Some(schema),
+        Err(e) => {
+            debug!(tool = %tool.name, error = %e, "Failed to serialize input schema");
+            None
+        },
+    };
+    let output_schema =
+        tool.output_schema
+            .as_ref()
+            .and_then(|s| match serde_json::to_value(s.as_ref()) {
+                Ok(schema) => Some(schema),
+                Err(e) => {
+                    debug!(tool = %tool.name, error = %e, "Failed to serialize output schema");
+                    None
+                },
+            });
     let parameters_count = input_schema
         .as_ref()
         .and_then(|s| s.get("properties"))
