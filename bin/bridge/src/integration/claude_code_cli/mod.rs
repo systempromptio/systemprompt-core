@@ -26,7 +26,7 @@ mod permissions;
 pub mod sidecar;
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use systemprompt_identifiers::MarketplaceId;
@@ -42,6 +42,7 @@ use marketplace::{
 };
 
 use crate::config::paths;
+use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use crate::ids::PluginId;
 
