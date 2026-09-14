@@ -25,7 +25,7 @@ systemprompt-provider-contracts = { workspace = true }
 
 async-trait = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["fs", "sync"], optional = true }
+tokio = { version = "1.53", default-features = false, features = ["fs", "sync"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
