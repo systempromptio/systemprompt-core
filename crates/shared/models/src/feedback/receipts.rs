@@ -1,4 +1,5 @@
-//! Skill feedback contracts shared across ingestion, marketplace, evaluators and clients.
+//! Skill feedback contracts shared across ingestion, marketplace, evaluators
+//! and clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,8 +7,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ConsumerInstallationId, DeviceId, InstallationReceiptId, ManagedResourceId,
-    NativeSessionId, PublicationId, ResourceRevisionId, UserId,
+    ConsumerInstallationId, DeviceId, InstallationReceiptId, ManagedResourceId, NativeSessionId,
+    PublicationId, ResourceRevisionId, UserId,
 };
 
 use super::{ContentDigest, EvaluatorClient, FeedbackContractError, validate_relative_path};
@@ -68,10 +69,11 @@ impl ConsumerReceiptRequest {
     }
 
     pub fn fully_verified(&self) -> bool {
-        self.validate().is_ok() && self.files.iter().all(|file| {
-            file.content_check == ReadbackStatus::Verified
-                && file.mode_check == ReadbackStatus::Verified
-        })
+        self.validate().is_ok()
+            && self.files.iter().all(|file| {
+                file.content_check == ReadbackStatus::Verified
+                    && file.mode_check == ReadbackStatus::Verified
+            })
     }
 }
 

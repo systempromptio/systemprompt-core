@@ -1,4 +1,5 @@
-//! Skill feedback contracts shared across ingestion, marketplace, evaluators and clients.
+//! Skill feedback contracts shared across ingestion, marketplace, evaluators
+//! and clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -121,9 +121,9 @@ pub use locale::LocaleCode;
 pub use managed::{
     AnalyticsChangeId, AnalyticsFactId, ConsumerInstallationId, DependencyVerificationId,
     DistributionId, InstallationReceiptId, InstallationSessionBindingId, InventoryEntryId,
-    InvocationAttributionId, ManagedReconciliationId, NativeSessionId,
-    ManagedResourceId, ManagedSourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
-    SourceSnapshotId, WithdrawalProposalId,
+    InvocationAttributionId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId,
+    NativeSessionId, PublicationId, PublicationReviewId, ResourceRevisionId, SourceSnapshotId,
+    WithdrawalProposalId,
 };
 pub use marketplace::MarketplaceId;
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
