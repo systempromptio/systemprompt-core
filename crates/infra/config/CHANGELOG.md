@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Added
+
+- `paths` module: `AppPaths` and the build / system / storage / web path resolvers (previously `systemprompt_models::paths`).
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

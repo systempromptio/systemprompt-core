@@ -47,6 +47,7 @@ pub mod module_loader;
 pub mod profile_loader;
 pub mod services_bootstrap;
 pub mod services_root;
+pub mod subprocess;
 pub mod vertex_discovery;
 
 pub use bundle::{BundleError, BundleResult, ServicesSourceBootstrap};

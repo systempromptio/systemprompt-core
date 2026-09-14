@@ -40,6 +40,7 @@ rand = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-identifiers = { workspace = true }
+systemprompt-extension = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }

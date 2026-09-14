@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
-use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
+use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 #[derive(Debug, Default)]
@@ -53,7 +53,7 @@ impl DomainConfig for SkillConfigValidator {
         let skills_dir = Path::new(skills_path);
         if !skills_dir.exists() {
             report.add_error(
-                ValidationError::new("skills_path", "Skills directory does not exist")
+                ValidationIssue::new("skills_path", "Skills directory does not exist")
                     .with_path(skills_dir)
                     .with_suggestion("Create the skills directory or update skills_path in config"),
             );
@@ -85,7 +85,7 @@ fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport
 
     if !config_path.exists() {
         report.add_error(
-            ValidationError::new(
+            ValidationIssue::new(
                 format!("skills.{dir_name}"),
                 format!("Missing {SKILL_CONFIG_FILENAME}"),
             )
@@ -99,7 +99,7 @@ fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport
         Ok(text) => text,
         Err(e) => {
             report.add_error(
-                ValidationError::new(
+                ValidationIssue::new(
                     format!("skills.{dir_name}"),
                     format!("Cannot read {SKILL_CONFIG_FILENAME}: {e}"),
                 )
@@ -113,7 +113,7 @@ fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport
         Ok(cfg) => cfg,
         Err(e) => {
             report.add_error(
-                ValidationError::new(
+                ValidationIssue::new(
                     format!("skills.{dir_name}"),
                     format!("Invalid {SKILL_CONFIG_FILENAME}: {e}"),
                 )
@@ -128,7 +128,7 @@ fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport
     let content_path = entry.path().join(content_file);
     if !content_path.exists() {
         report.add_error(
-            ValidationError::new(
+            ValidationIssue::new(
                 format!("skills.{dir_name}.file"),
                 format!("Content file '{content_file}' not found"),
             )

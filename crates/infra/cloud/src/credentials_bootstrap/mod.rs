@@ -113,7 +113,13 @@ impl CredentialsBootstrap {
 
     fn load_from_env() -> Option<CloudCredentials> {
         let api_token = CloudAuthToken::new(read_env_optional("SYSTEMPROMPT_API_TOKEN")?);
-        let user_email = Email::new(read_env_optional("SYSTEMPROMPT_USER_EMAIL")?);
+        let user_email = match Email::try_new(read_env_optional("SYSTEMPROMPT_USER_EMAIL")?) {
+            Ok(email) => email,
+            Err(error) => {
+                tracing::warn!(error = %error, "SYSTEMPROMPT_USER_EMAIL is not a valid address");
+                return None;
+            },
+        };
 
         tracing::debug!("Loading cloud credentials from environment variables");
 

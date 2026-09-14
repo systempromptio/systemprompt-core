@@ -74,6 +74,6 @@ impl RepositoryError {
 
 impl From<RepositoryError> for systemprompt_traits::RepositoryError {
     fn from(err: RepositoryError) -> Self {
-        Self::Database(Box::new(err))
+        Self::database(err)
     }
 }

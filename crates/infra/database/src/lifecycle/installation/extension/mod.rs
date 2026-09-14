@@ -61,7 +61,7 @@ pub async fn install_extension_schemas_full(
     disabled_extensions: &[String],
     migration_config: MigrationConfig,
 ) -> Result<(), LoaderError> {
-    let schema_extensions = registry.enabled_schema_extensions(disabled_extensions);
+    let schema_extensions = registry.enabled_schema_extensions(disabled_extensions)?;
 
     if schema_extensions.is_empty() {
         info!("No extension schemas to install");

@@ -16,13 +16,11 @@ mod signatures;
 
 
 use regex::Captures;
+use systemprompt_identifiers::SecretPatternId;
 
 use super::governed::{GovernedInput, GovernedString};
 pub use entropy::{DEFAULT_MIN_LEN, DEFAULT_THRESHOLD, EntropyConfig, find_high_entropy_token};
-use patterns::{
-    CompiledSecretPattern, HIGH_ENTROPY_PATTERN_ID, HIGH_ENTROPY_PATTERN_NAME, compile_patterns,
-    field_matches,
-};
+use patterns::{CompiledSecretPattern, HIGH_ENTROPY_PATTERN_NAME, compile_patterns, field_matches};
 pub use patterns::{SecretPattern, SecretPatternError};
 pub use recovery::{
     MAX_RECOVERY_FINDINGS, REDACTION_MARKER, SecretFinding, SecretSource, redact_spans,
@@ -69,7 +67,7 @@ impl SecretScanner {
                         .next()
                         .map(|(span, _)| SecretHit {
                             pattern: MatchedSecretPattern {
-                                id: HIGH_ENTROPY_PATTERN_ID.to_owned(),
+                                id: SecretPatternId::high_entropy(),
                                 name: HIGH_ENTROPY_PATTERN_NAME.to_owned(),
                             },
                             path: found.path.clone(),
@@ -93,7 +91,7 @@ impl SecretScanner {
             pattern.regex.captures(found.value).and_then(|captures| {
                 selected_match(pattern, &captures).map(|matched| SecretHit {
                     pattern: MatchedSecretPattern {
-                        id: pattern.definition.id.as_str().to_owned(),
+                        id: pattern.definition.id.clone(),
                         name: pattern.definition.name.clone(),
                     },
                     path: found.path.clone(),
@@ -125,7 +123,7 @@ fn redacted_snippet(value: &str, start: usize, end: usize) -> String {
 
 #[derive(Debug)]
 pub struct MatchedSecretPattern {
-    pub id: String,
+    pub id: SecretPatternId,
     pub name: String,
 }
 

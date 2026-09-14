@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Added
+
+- `subprocess` module: the supervised child-process spawner (previously `systemprompt_models::subprocess`). A failure to start the spawner thread is reported on that call and retried on the next, instead of being cached for the life of the process.
+
 ## [0.51.0] - 2026-09-11
 
 ### Added

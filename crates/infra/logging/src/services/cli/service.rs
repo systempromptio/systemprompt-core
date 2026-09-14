@@ -13,10 +13,9 @@ use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
-use systemprompt_traits::LogEventLevel;
 
 use super::display::DisplayUtils;
-use super::output::{mark_structured_emitted, publish_log};
+use super::output::mark_structured_emitted;
 use super::theme::{EmphasisType, ItemStatus, MessageLevel, Theme};
 
 #[derive(Copy, Clone, Debug)]
@@ -24,33 +23,27 @@ pub struct CliService;
 
 impl CliService {
     pub fn success(message: &str) {
-        publish_log(LogEventLevel::Info, "cli", message);
         DisplayUtils::message(MessageLevel::Success, message);
     }
 
     pub fn warning(message: &str) {
-        publish_log(LogEventLevel::Warn, "cli", message);
         DisplayUtils::message(MessageLevel::Warning, message);
     }
 
     pub fn error(message: &str) {
-        publish_log(LogEventLevel::Error, "cli", message);
         DisplayUtils::message(MessageLevel::Error, message);
     }
 
     pub fn info(message: &str) {
-        publish_log(LogEventLevel::Info, "cli", message);
         DisplayUtils::message(MessageLevel::Info, message);
     }
 
     pub fn debug(message: &str) {
         let debug_msg = format!("DEBUG: {message}");
-        publish_log(LogEventLevel::Debug, "cli", &debug_msg);
         DisplayUtils::message(MessageLevel::Info, &debug_msg);
     }
 
     pub fn verbose(message: &str) {
-        publish_log(LogEventLevel::Debug, "cli", message);
         DisplayUtils::message(MessageLevel::Info, message);
     }
 

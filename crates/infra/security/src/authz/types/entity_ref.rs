@@ -6,6 +6,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{
     AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId, SlackChannelId,
     SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
@@ -32,11 +33,10 @@ pub enum EntityRef {
 }
 
 impl EntityRef {
-    #[must_use]
-    pub fn from_kind_and_id(kind: EntityKind, id: &str) -> Self {
-        match kind {
+    pub fn from_kind_and_id(kind: EntityKind, id: &str) -> Result<Self, IdValidationError> {
+        Ok(match kind {
             EntityKind::GatewayRoute => Self::GatewayRoute(RouteId::new(id)),
-            EntityKind::McpServer => Self::McpServer(McpServerId::new(id)),
+            EntityKind::McpServer => Self::McpServer(McpServerId::try_new(id)?),
             EntityKind::Plugin => Self::Plugin(PluginId::new(id)),
             EntityKind::Agent => Self::Agent(AgentId::new(id)),
             EntityKind::Marketplace => Self::Marketplace(MarketplaceId::new(id)),
@@ -46,7 +46,7 @@ impl EntityRef {
             EntityKind::SlackChannel => Self::SlackChannel(SlackChannelId::new(id)),
             EntityKind::TeamsTenant => Self::TeamsTenant(TeamsTenantId::new(id)),
             EntityKind::TeamsConversation => Self::TeamsConversation(TeamsConversationId::new(id)),
-        }
+        })
     }
 
     #[must_use]
