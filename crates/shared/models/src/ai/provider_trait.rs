@@ -1,7 +1,8 @@
 //! `AiProvider` trait: the dyn-dispatched inference provider contract.
 //!
-//! Every method returns [`AiInferenceResult`]; the implementing provider maps
-//! its own error hierarchy onto
+//! Every method returns
+//! [`AiInferenceResult`](crate::errors::AiInferenceResult); the implementing
+//! provider maps its own error hierarchy onto
 //! [`AiInferenceError`](crate::errors::AiInferenceError) before crossing the
 //! seam.
 //!

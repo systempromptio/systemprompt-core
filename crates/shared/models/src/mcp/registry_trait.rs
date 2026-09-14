@@ -3,7 +3,8 @@
 //! [`McpRegistry`], [`McpToolProvider`] and [`McpDeploymentProvider`] are
 //! held as the `Dyn*` aliases (`Arc<dyn _>`) by the OAuth and agent domains,
 //! so they use `#[async_trait]`; native `async fn` in traits is not
-//! `dyn`-compatible. Every method returns [`McpRegistryResult`].
+//! `dyn`-compatible. Every method returns
+//! [`McpRegistryResult`](crate::errors::McpRegistryResult).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

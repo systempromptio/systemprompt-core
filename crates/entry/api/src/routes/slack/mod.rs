@@ -5,9 +5,11 @@
 //! interactions, a JSON `payload` form field). Each handler verifies the
 //! request signature over the **raw** body, normalizes the payload, resolves
 //! the agent from `services/slack/*.yaml`, acks Slack within its 3-second
-//! timeout, and spawns the blocking [`dispatch_messaging`] pipeline — whose
-//! reply is rendered to Block Kit and posted back via `chat.postMessage`
-//! (events) or the captured `response_url` (commands/interactivity).
+//! timeout, and spawns the blocking
+//! [`dispatch_messaging`](crate::routes::messaging::dispatch_messaging)
+//! pipeline — whose reply is rendered to Block Kit and posted back via
+//! `chat.postMessage` (events) or the captured `response_url`
+//! (commands/interactivity).
 //!
 //! Config and secrets resolve on demand (the MCP-registry pattern): the app is
 //! looked up by workspace id, and the signing secret / bot token are read from

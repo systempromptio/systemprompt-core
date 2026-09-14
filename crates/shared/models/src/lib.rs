@@ -21,7 +21,7 @@
 //!   telemetry).
 //! - [`config`] — global [`config::Config`] singleton and validation helpers.
 //! - [`content`], [`content_config`] — published content metadata.
-//! - [`env`] — `${VAR}` interpolation over environment variables.
+//! - [`env`](mod@env) — `${VAR}` interpolation over environment variables.
 //! - [`errors`] — `thiserror`-derived public error enums.
 //! - [`events`] — analytics, A2A and system event envelopes.
 //! - [`execution`] — request context and execution-step bookkeeping.

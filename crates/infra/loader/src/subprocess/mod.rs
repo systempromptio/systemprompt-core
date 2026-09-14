@@ -26,7 +26,8 @@
 //! - **Identity and reap checks** ([`live_pid_is_subprocess`], [`is_zombie`])
 //!   work on Linux, via `/proc`, and on macOS, via `sysctl(KERN_PROCARGS2)` and
 //!   `proc_pidinfo`. Report the platform's coverage with
-//!   [`identity_verification_supported`]; where it is absent the checks are
+//!   [`identity_verification_supported`](systemprompt_models::subprocess::identity_verification_supported);
+//!   where it is absent the checks are
 //!   fail-closed stubs that never confirm an identity, so no process is ever
 //!   signalled on a guess.
 //! - **Parent-death prevention** is `prctl(PR_SET_PDEATHSIG)` and therefore

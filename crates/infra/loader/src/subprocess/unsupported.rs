@@ -3,7 +3,8 @@
 //!
 //! Nothing here ever confirms an identity, so no process is signalled on a
 //! guess; orphaned children must be stopped by hand.
-//! `identity_verification_supported` reports `false` on these platforms so
+//! [`identity_verification_supported`](systemprompt_models::subprocess::identity_verification_supported)
+//! reports `false` on these platforms so
 //! callers can say so rather than blaming a foreign owner.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

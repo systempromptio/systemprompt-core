@@ -1,10 +1,10 @@
 //! Connect-time SSRF enforcement for outbound HTTP clients.
 //!
-//! [`validate_outbound_url`] can only see what a URL string says. A hostname is
-//! not an address, so parse-time validation cannot decide whether
-//! `metadata.example.com` is a public host or an `A` record pointing at
-//! `169.254.169.254`. This module moves the decision to the point where the
-//! address is actually known.
+//! [`validate_outbound_url`](systemprompt_models::net::validate_outbound_url)
+//! can only see what a URL string says. A hostname is not an address, so
+//! parse-time validation cannot decide whether `metadata.example.com` is a
+//! public host or an `A` record pointing at `169.254.169.254`. This module
+//! moves the decision to the point where the address is actually known.
 //!
 //! [`GuardedResolver`] is installed as the client's DNS resolver, so every
 //! name reqwest resolves — for the initial request and for every redirect hop,
