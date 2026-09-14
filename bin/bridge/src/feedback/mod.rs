@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod credentials;
+pub mod hooks;
 mod hosts;
 pub mod outbox;
 pub mod readback;
@@ -11,7 +12,9 @@ pub mod sessions;
 mod sync;
 pub mod transport;
 
-pub use sync::{capture_host, deliver, retry_pending};
+pub use sync::{
+    capture_host, deliver, recover_current_manifest, recover_manifest_installations, retry_pending,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FeedbackError {
