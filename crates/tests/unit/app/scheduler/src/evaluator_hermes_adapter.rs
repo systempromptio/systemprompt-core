@@ -123,6 +123,13 @@ fn hermes_configuration_disables_ambient_extensions_and_scopes_credentials() {
     assert_eq!(cfg["skills"]["project_discovery"], false);
     assert_eq!(cfg["memory"]["memory_enabled"], false);
     assert_eq!(cfg["hooks_auto_accept"], false);
+    assert_eq!(cfg["model"]["provider"], "custom");
+    assert_eq!(cfg["model"]["base_url"], "http://127.0.0.1:8091/v1");
+    assert_eq!(cfg["model"]["api_mode"], "chat_completions");
+    assert!(
+        cfg["model"].get("api_key").is_none(),
+        "per-run loopback credentials are injected only into temporary native configuration"
+    );
     assert!(cfg["fallback_providers"].as_array().unwrap().is_empty());
     assert_eq!(ADAPTER.skill_directory(), ".hermes/skills");
     let env = std::str::from_utf8(&archive.files["client.env"].bytes).unwrap();

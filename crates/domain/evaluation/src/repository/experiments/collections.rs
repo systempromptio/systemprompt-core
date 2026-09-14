@@ -5,7 +5,7 @@
 use super::ExperimentRepository;
 use crate::Result;
 use crate::experiments::invalid;
-use crate::experiments::records::ExperimentRecord;
+use crate::experiments::records::{ExecutionRecord, ExperimentRecord};
 use systemprompt_identifiers::UserId;
 impl ExperimentRepository {
     pub async fn list_page(
@@ -35,11 +35,11 @@ impl ExperimentRepository {
         id: &systemprompt_identifiers::EvalExperimentId,
         after: Option<&str>,
         limit: u32,
-    ) -> Result<Vec<crate::experiments::records::ExecutionRecord>> {
+    ) -> Result<Vec<ExecutionRecord>> {
         if !(1..=100).contains(&limit) || after.is_some_and(|id| id.is_empty() || id.len() > 512) {
             return Err(invalid("Execution cursor limit must be 1–100"));
         }
         self.record(owner, id).await?;
-        Ok(sqlx::query_scalar!(r#"SELECT to_jsonb(x) AS "record!: sqlx::types::Json<crate::experiments::records::ExecutionRecord>" FROM eval_executions x WHERE experiment_id=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT $3"#,id.as_str(),after,i64::from(limit)).fetch_all(&self.pool).await?.into_iter().map(|record|record.0).collect())
+        Ok(sqlx::query_scalar!(r#"SELECT to_jsonb(x) AS "record!: sqlx::types::Json<ExecutionRecord>" FROM eval_executions x WHERE experiment_id=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT $3"#,id.as_str(),after,i64::from(limit)).fetch_all(&self.pool).await?.into_iter().map(|record|record.0).collect())
     }
 }
