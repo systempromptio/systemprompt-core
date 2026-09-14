@@ -13,6 +13,17 @@ use systemprompt_ai::repository::ai_requests::{
 use super::{Receipt, Settlement};
 
 pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result<()> {
+    if let Some(error) = &receipt.accounting_failure {
+        anyhow::ensure!(
+            receipt.completion.is_none() && receipt.failure.is_none(),
+            "Accounting failure cannot replace a provider receipt"
+        );
+        settlement
+            .requests
+            .mark_accounting_failed(&receipt.request_id, &receipt.user_id, error)
+            .await?;
+        return Ok(());
+    }
     let tools: Vec<SettledToolCall>;
     let outcome = if let Some(completion) = &receipt.completion {
         tools = completion

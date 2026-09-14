@@ -152,7 +152,7 @@ fn prepare(
                 .map_err(|_| "Invalid native UTF-8 argument")
         })
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    let meta = serde_json::json!({"fixture_only":true,"automated_target_enabled":false,"gateway_metering_verified":false,"client":adapter.client(),"client_version":version,"adapter_version":adapter.adapter_version(),"executable":adapter.executable(),"argv":argv,"version_arguments":adapter.version_arguments().into_iter().map(|arg|arg.into_string().expect("version arguments are UTF-8")).collect::<Vec<_>>(),"skill_path":format!("/home/tester/{}/fixture/SKILL.md",adapter.skill_directory()),"scenario":scenario,"model":model,"configuration_digest":archive.digest()?,"frozen":frozen});
+    let meta = serde_json::json!({"fixture_only":true,"automated_target_enabled":false,"gateway_metering_verified":false,"client":adapter.client(),"client_version":version,"adapter_version":adapter.adapter_version(),"executable":adapter.executable(),"argv":argv,"version_arguments":adapter.version_arguments().into_iter().map(|arg|arg.into_string().expect("version arguments are UTF-8")).collect::<Vec<_>>(),"skill_path":format!("/home/tester/{}/fixture/SKILL.md",adapter.skill_directory()),"scenario":scenario,"model":model,"limits":limits,"configuration_digest":archive.digest()?,"frozen":frozen});
     std::fs::write(root.join("plan.json"), serde_json::to_vec_pretty(&meta)?)?;
     Ok(())
 }

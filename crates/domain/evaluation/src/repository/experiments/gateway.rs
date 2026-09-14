@@ -191,13 +191,13 @@ impl GatewayEvaluationRepository {
 
     pub async fn settle_recorded(&self, owner: &UserId, request: &AiRequestId) -> Result<bool> {
         let reservation = sqlx::query!(
-            "SELECT m.reservation_id,r.cost_microdollars,r.status,r.completed_at,r.tokens_used FROM eval_request_reservations m JOIN eval_executions x ON x.id=m.execution_id JOIN eval_experiments e ON e.id=x.experiment_id JOIN ai_requests r ON r.id=m.request_id WHERE m.request_id=$1 AND e.owner_id=$2 AND r.user_id=$2",
+            "SELECT m.reservation_id,r.cost_microdollars,r.status,r.accounting_failed_at,r.completed_at,r.tokens_used FROM eval_request_reservations m JOIN eval_executions x ON x.id=m.execution_id JOIN eval_experiments e ON e.id=x.experiment_id JOIN ai_requests r ON r.id=m.request_id WHERE m.request_id=$1 AND e.owner_id=$2 AND r.user_id=$2",
             request.as_str(), owner.as_str()
         ).fetch_optional(&self.pool).await?;
         let Some(record) = reservation else {
             return Ok(false);
         };
-        if record.status != "completed"
+        if (record.status != "completed" && record.accounting_failed_at.is_none())
             || record.completed_at.is_none()
             || record.tokens_used.unwrap_or(0) <= 0
         {

@@ -42,6 +42,7 @@ fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRep
 fn dead_pool() -> DbPool {
     let dead = sqlx::postgres::PgPoolOptions::new()
         .max_connections(1)
+        .acquire_timeout(std::time::Duration::from_millis(250))
         .connect_lazy("postgres://nobody:nobody@127.0.0.1:1/does-not-exist")
         .expect("lazy pool");
     std::sync::Arc::new(systemprompt_database::Database::from_pools(
@@ -157,4 +158,128 @@ async fn a_successful_accounting_write_is_counted() {
     )
     .await;
     assert!(matches!(outcome, AccountingOutcome::Counted));
+}
+
+#[tokio::test]
+async fn accounting_failure_recovers_durably_before_and_after_provider_completion() {
+    use systemprompt_api::services::gateway::protocol::CanonicalContent;
+    use systemprompt_api::services::gateway::protocol::canonical_response::{
+        CanonicalResponse, CanonicalUsage,
+    };
+    for before_completion in [false, true] {
+        let db = setup_db().await;
+        let owner = seed_user(&db).await;
+        let id = AiRequestId::generate();
+        let repos = gateway_repos(&db);
+        let context = request_ctx(owner.clone(), id.clone());
+        let audit = GatewayAudit::new(&repos, context.clone());
+        audit
+            .open(
+                &minimal_request(None, "native fixture"),
+                &Bytes::from_static(b"{}"),
+            )
+            .await
+            .expect("open");
+        audit
+            .pin_pricing(systemprompt_models::services::ModelPricing {
+                input_per_million: 1.0,
+                output_per_million: 2.0,
+                ..Default::default()
+            })
+            .expect("pin pricing");
+        let usage = CanonicalUsage {
+            input_tokens: 11,
+            output_tokens: 7,
+            ..Default::default()
+        };
+        let response = CanonicalResponse {
+            model: "claude-test".to_owned(),
+            content: vec![CanonicalContent::Text("native fixture response".to_owned())],
+            usage,
+            ..Default::default()
+        };
+        if !before_completion {
+            audit
+                .complete(
+                    usage,
+                    vec![],
+                    &response,
+                    &Bytes::from_static(b"{\"text\":\"native fixture response\"}"),
+                )
+                .await
+                .expect("complete");
+        }
+        let dead = dead_pool();
+        let mut unavailable = repos.clone();
+        unavailable.requests = std::sync::Arc::new(
+            systemprompt_ai::repository::AiRequestRepository::new(&dead)
+                .expect("unavailable repository"),
+        );
+        let faulted = GatewayAudit::new(&unavailable, context);
+        assert!(
+            faulted
+                .accounting_failed("native quota write failed")
+                .await
+                .is_err(),
+            "database failure must leave encrypted fault receipt pending"
+        );
+        assert_eq!(
+            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+                .await
+                .expect("recovery"),
+            1
+        );
+        if before_completion {
+            audit
+                .complete(
+                    usage,
+                    vec![],
+                    &response,
+                    &Bytes::from_static(b"{\"text\":\"native fixture response\"}"),
+                )
+                .await
+                .expect("complete after failure marker");
+        }
+        assert!(
+            faulted
+                .accounting_failed("native quota write failed")
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+                .await
+                .expect("identical recovery"),
+            1
+        );
+        assert_eq!(
+            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+                .await
+                .expect("empty recovery"),
+            0
+        );
+        let pg = db.pool_arc().expect("pool");
+        let row:(String,Option<i32>,Option<i32>,i64,Option<String>)=sqlx::query_as("SELECT status,input_tokens,output_tokens,cost_microdollars,accounting_error FROM ai_requests WHERE id=$1").bind(id.as_str()).fetch_one(pg.as_ref()).await.expect("persisted fault");
+        assert_eq!(
+            row,
+            (
+                "failed".to_owned(),
+                Some(11),
+                Some(7),
+                25,
+                Some("native quota write failed".to_owned())
+            )
+        );
+        let turns: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM ai_request_messages WHERE request_id=$1 AND role='assistant'",
+        )
+        .bind(id.as_str())
+        .fetch_one(pg.as_ref())
+        .await
+        .expect("turn count");
+        assert_eq!(
+            turns, 1,
+            "failure receipt recovery cannot duplicate the paid turn"
+        );
+    }
 }

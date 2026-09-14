@@ -152,6 +152,13 @@ impl GatewayAudit {
         }
     }
 
+    pub async fn accounting_failed(&self, error: &str) -> Result<()> {
+        let mut receipt =
+            journal::Receipt::pending(self.ctx.ai_request_id.clone(), self.ctx.user_id.clone());
+        receipt.accounting_failure = Some(error.to_owned());
+        journal::record_accounting_failure(&self.settlement, receipt).await
+    }
+
     pub async fn fail(&self, error: &str) -> Result<()> {
         let latency_ms = self.elapsed_ms();
         let mut receipt =

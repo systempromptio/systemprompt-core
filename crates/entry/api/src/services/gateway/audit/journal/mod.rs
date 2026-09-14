@@ -113,6 +113,24 @@ pub(super) async fn record(settlement: &Settlement, receipt: Receipt) -> Result<
     Ok(())
 }
 
+pub(super) async fn record_accounting_failure(
+    settlement: &Settlement,
+    receipt: Receipt,
+) -> Result<()> {
+    let journal = Arc::clone(&settlement.journal);
+    let bytes = serde_json::to_vec(&receipt)?;
+    tokio::task::spawn_blocking(move || {
+        let receipt: Receipt = serde_json::from_slice(&bytes)?;
+        files::append_accounting_failure(&journal, &receipt)
+    })
+    .await??;
+    settle::settle(settlement, &receipt).await?;
+    let id = receipt.storage_id();
+    let journal = Arc::clone(&settlement.journal);
+    tokio::task::spawn_blocking(move || files::remove(&journal, &id)).await??;
+    Ok(())
+}
+
 pub(super) async fn settle_unadmitted_failure(
     settlement: &Settlement,
     receipt: &Receipt,
@@ -144,10 +162,13 @@ pub async fn recover(settlement: &Settlement) -> Result<usize> {
                 continue;
             },
         };
-        if receipt.completion.is_none() && receipt.failure.is_none() {
+        if receipt.completion.is_none()
+            && receipt.failure.is_none()
+            && receipt.accounting_failure.is_none()
+        {
             continue;
         }
-        let id = receipt.request_id.clone();
+        let id = receipt.storage_id();
         if let Err(error) = settle::settle(settlement, &receipt).await {
             tracing::warn!(ai_request_id = %id, %error, "Gateway accounting recovery pending; receipt retained");
             continue;

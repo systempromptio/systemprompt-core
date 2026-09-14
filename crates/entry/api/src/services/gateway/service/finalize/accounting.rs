@@ -36,7 +36,7 @@ pub async fn record_accounting_outcome(
         fault_mode = fault_mode.as_str(),
         "Gateway quota accounting failed; recording the request as failed"
     );
-    if let Err(e) = audit.fail(&message).await {
+    if let Err(e) = audit.accounting_failed(&message).await {
         tracing::warn!(error = %e, "quota accounting audit fail failed");
     }
 }

@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     is_streaming BOOLEAN NOT NULL DEFAULT FALSE,
     status VARCHAR(255) NOT NULL DEFAULT 'pending',
     error_message TEXT,
+    accounting_failed_at TIMESTAMPTZ,
+    accounting_error TEXT,
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'job', 'mcp')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     synthetic BOOLEAN NOT NULL DEFAULT FALSE,

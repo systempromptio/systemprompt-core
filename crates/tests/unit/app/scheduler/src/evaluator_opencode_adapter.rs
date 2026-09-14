@@ -96,6 +96,9 @@ fn native_invocation_enforces_limits_and_purpose_permissions() {
             ["--", "--dangerously-skip-permissions"]
         );
         let cfg = config(&args);
+        for auxiliary in ["title", "summary", "compaction"] {
+            assert_eq!(cfg["agent"][auxiliary]["disable"], true);
+        }
         assert_eq!(cfg["permission"]["*"], "deny");
         assert_eq!(cfg["permission"]["read"]["../*"], "deny");
         assert_eq!(cfg["permission"]["edit"]["../*"], "deny");

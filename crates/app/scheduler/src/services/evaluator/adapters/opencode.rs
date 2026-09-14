@@ -69,7 +69,7 @@ impl NativeAdapter for OpenCodeAdapter {
             "evaluation_fixture_evaluation_fixture": if execution {"allow"} else {"deny"}
         });
         let config = serde_json::json!({
-            "agent":{"evaluation":{"mode":"primary","steps":turns,"permission":permission,
+            "agent":{"title":{"disable":true},"summary":{"disable":true},"compaction":{"disable":true},"evaluation":{"mode":"primary","steps":turns,"permission":permission,
                 "prompt": if execution {"Read applicable SKILL.md files from /home/tester/.config/opencode/skills before executing the case. Use only declared tools and the evaluation fixture."} else {"Read retained evidence and respond directly. Do not execute skills or modify files."}}},
             "permission":permission,
             "provider":{"systemprompt":{"models":{(input.model.as_str()):{

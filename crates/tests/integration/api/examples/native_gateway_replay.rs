@@ -390,6 +390,12 @@ async fn replay() -> Result<()> {
                 },
                 Err(error) => Some(format!("{error:?}")),
             };
+            std::fs::write(
+                &args[1],
+                serde_json::to_vec_pretty(
+                    &json!({"status":"settling_completion","paid_inference":false,"automated_target_enabled":false,"request_id":id.as_str(),"dispatch_error":dispatch_error,"artifact":directory}),
+                )?,
+            )?;
             let row = settled(&db, &id, None).await?;
             let mut failed_accounting_row = None;
             if status == 200 {
@@ -411,6 +417,12 @@ async fn replay() -> Result<()> {
                     },
                 )
                 .await;
+                std::fs::write(
+                    &args[1],
+                    serde_json::to_vec_pretty(
+                        &json!({"status":"settling_accounting_failure","paid_inference":false,"automated_target_enabled":false,"request_id":id.as_str(),"dispatch_error":dispatch_error,"persisted_completion":row,"artifact":directory}),
+                    )?,
+                )?;
                 let failed = settled(&db, &id, Some("failed")).await?;
                 ensure!(
                     failed["status"] == "failed"
