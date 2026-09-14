@@ -17,7 +17,7 @@ async fn issued_credential_enrolls_once_retry_omits_token_and_deliberate_rotatio
     let bootstrap = ensure_test_bootstrap();
     let db = fixture_db_pool(&bootstrap.database_url).await.unwrap();
     let ctx = fixture_app_context(&db, &bootstrap.database_url).unwrap();
-    let consumer = UserId::generate();
+    let consumer = UserId::new(uuid::Uuid::new_v4().to_string());
     let cert = DeviceCertId::generate();
     seed_user_row(
         &db,
