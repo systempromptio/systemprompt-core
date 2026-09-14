@@ -5,10 +5,9 @@
 
 use super::{
     AssetDigest, EventOutboxId, ManagedError, ManagedRepository, ManagedResolution,
-    ManagedResourceId, PublicationAction, PublicationDecision,
-    PublicationId, PublicationRequest, PublicationReviewId, PublicationRow, ResourceKind,
-    ResourceRevisionId, Result, RevisionBundle, SelectionRow, UserId, decision_from_row,
-    request_digest, resolution_from_row, validate_request,
+    ManagedResourceId, PublicationAction, PublicationDecision, PublicationId, PublicationRequest,
+    PublicationReviewId, PublicationRow, ResourceKind, ResourceRevisionId, Result, RevisionBundle,
+    SelectionRow, UserId, decision_from_row, request_digest, resolution_from_row, validate_request,
 };
 
 impl ManagedRepository {

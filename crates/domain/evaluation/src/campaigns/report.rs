@@ -16,9 +16,7 @@ use crate::Result;
 use crate::experiments::conflict;
 use crate::experiments::records::ExperimentStatus;
 use crate::experiments::resources::{Partition, ResourceContent};
-use crate::repository::experiments::{
-    DeterministicMeasurement, EvaluationRepositories, RevisionRepository,
-};
+use crate::repository::experiments::{EvaluationRepositories, RevisionRepository};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CampaignReport {
@@ -40,7 +38,19 @@ struct MeasurementRow {
     case_revision_id: EvalRevisionId,
     repetition: i32,
     status: String,
-    measurement: Option<DeterministicMeasurement>,
+    measurement: Option<RetainedMeasurement>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RetainedMeasurement {
+    hard_failures: Vec<String>,
+    quality_milli: Option<u32>,
+    latency_ms: u64,
+    input_tokens: Option<u64>,
+    output_tokens: Option<u64>,
+    attempted_cost_microdollars: i64,
+    accounting_status: String,
+    verified_success: bool,
 }
 
 pub async fn build(
@@ -145,7 +155,7 @@ pub async fn build(
     })
 }
 
-fn outcome(measurement: &DeterministicMeasurement) -> Option<Outcome> {
+fn outcome(measurement: &RetainedMeasurement) -> Option<Outcome> {
     Some(Outcome {
         quality_milli: measurement.quality_milli?,
         tokens: measurement
