@@ -6,8 +6,7 @@
 use super::{GatewayJournal, Receipt};
 use anyhow::{Result, ensure};
 use chacha20poly1305::Nonce;
-use chacha20poly1305::aead::rand_core::RngCore;
-use chacha20poly1305::aead::{Aead, OsRng};
+use chacha20poly1305::aead::Aead;
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -85,8 +84,7 @@ fn write(journal: &GatewayJournal, id: &AiRequestId, bytes: &[u8]) -> Result<()>
         "Gateway completion exceeds journal capacity"
     );
     let root = journal.root();
-    let mut nonce = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce);
+    let nonce: [u8; 12] = rand::random();
     let encrypted = journal
         .cipher()
         .encrypt(&Nonce::from(nonce), bytes)
