@@ -44,7 +44,7 @@ impl IntoResponse for OptimizationHttpError {
     }
 }
 
-fn evaluation_status(error: &EvaluationError) -> StatusCode {
+const fn evaluation_status(error: &EvaluationError) -> StatusCode {
     match error {
         EvaluationError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
         EvaluationError::InvalidSpec(_) => StatusCode::BAD_REQUEST,
@@ -55,7 +55,7 @@ fn evaluation_status(error: &EvaluationError) -> StatusCode {
     }
 }
 
-fn managed_status(error: &ManagedError) -> StatusCode {
+const fn managed_status(error: &ManagedError) -> StatusCode {
     match error {
         ManagedError::Unavailable => StatusCode::NOT_FOUND,
         ManagedError::Invalid(_) => StatusCode::BAD_REQUEST,

@@ -16,7 +16,7 @@ pub(crate) async fn protect(
     next: Next,
 ) -> Response {
     if !request.method().is_safe() && request.headers().contains_key(header::COOKIE) {
-        let expected = url::Url::parse(&ctx.config().api_external_url.to_string())
+        let expected = url::Url::parse(&ctx.config().api_external_url)
             .ok()
             .map(|url| url.origin().ascii_serialization());
         let actual = request
