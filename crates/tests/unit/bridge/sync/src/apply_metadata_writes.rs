@@ -142,10 +142,11 @@ fn a_signed_out_sync_writes_a_null_user_fragment_rather_than_leaving_the_old_one
 }
 
 #[test]
-fn writing_the_user_fragment_into_a_directory_that_is_not_there_reports_the_path() {
+fn writing_the_user_fragment_where_a_file_blocks_the_directory_reports_the_path() {
     sandbox(|home| {
-        let absent = home.join("no-such-metadata-dir");
-        let err = write_user(&absent, Some(&user())).expect_err("the directory does not exist");
+        let blocked = home.join("not-a-dir");
+        std::fs::write(&blocked, "a file where the metadata dir should be").expect("seed");
+        let err = write_user(&blocked, Some(&user())).expect_err("the directory cannot be made");
         assert!(
             err.to_string().contains("user.json"),
             "the error must name the fragment it failed to write, got {err}"
@@ -176,11 +177,12 @@ fn an_empty_managed_server_list_writes_an_empty_json_array() {
 }
 
 #[test]
-fn writing_the_server_fragment_into_a_directory_that_is_not_there_reports_the_path() {
+fn writing_the_server_fragment_where_a_file_blocks_the_directory_reports_the_path() {
     sandbox(|home| {
-        let absent = home.join("no-such-metadata-dir");
+        let blocked = home.join("not-a-dir");
+        std::fs::write(&blocked, "a file where the metadata dir should be").expect("seed");
         let err =
-            write_mcp_servers(&absent, &gateway(), &[]).expect_err("the directory does not exist");
+            write_mcp_servers(&blocked, &gateway(), &[]).expect_err("the directory cannot be made");
         assert!(
             err.to_string().contains("mcp-servers.json"),
             "the error must name the fragment it failed to write, got {err}"

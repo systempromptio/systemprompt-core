@@ -1187,7 +1187,7 @@ fn an_already_managed_plugin_json_is_left_byte_identical() {
 }
 
 #[test]
-fn a_plugin_json_that_is_not_an_object_is_left_alone() {
+fn a_plugin_json_that_is_not_an_object_is_left_alone_and_reported_as_malformed() {
     const ARRAY: &[u8] = br#"["not","an","object"]"#;
     const BROKEN: &[u8] = b"{not json at all";
     let m = manifest_of(
@@ -1205,7 +1205,14 @@ fn a_plugin_json_that_is_not_an_object_is_left_alone() {
         ],
         "pat-shape",
     );
-    run_sync(&b.dirs).expect("sync applies");
+    let err = run_sync(&b.dirs).expect_err("an unreadable bundle manifest makes the sync partial");
+    assert!(
+        err.contains("PARTIAL")
+            && err.contains("malformed")
+            && err.contains("acme-plugin")
+            && err.contains("acme-commons"),
+        "both bundles are named as malformed rather than failing the whole apply: {err}"
+    );
     for (id, expected) in [("acme-plugin", ARRAY), ("acme-commons", BROKEN)] {
         let on_disk = fs::read(
             b.dirs

@@ -51,7 +51,7 @@ fn malformed_plugins_make_the_summary_partial() {
     );
     assert!(
         line.contains(
-            "WARNING: 2 malformed plugin(s) missing claude-plugin/plugin.json: ghost, husk"
+            "WARNING: 2 malformed plugin(s) with no readable claude-plugin/plugin.json: ghost, husk"
         ),
         "{line}"
     );

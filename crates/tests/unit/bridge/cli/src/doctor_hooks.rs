@@ -94,6 +94,12 @@ fn flags_hook_urls_that_name_a_port_the_proxy_does_not_hold() {
         .path()
         .join(".claude/plugins/marketplaces/org-provisioned/plugins/demo/hooks");
     std::fs::create_dir_all(&plugin).unwrap();
+    std::fs::write(
+        home.path()
+            .join(".claude/plugins/.systemprompt-marketplaces.json"),
+        r#"{"marketplaces":["org-provisioned"]}"#,
+    )
+    .unwrap();
     let drifted = DEFAULT_PROXY_PORT + 7;
     std::fs::write(plugin.join("hooks.json"), hooks_json(drifted)).unwrap();
 

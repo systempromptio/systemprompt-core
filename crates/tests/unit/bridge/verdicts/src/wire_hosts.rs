@@ -279,7 +279,7 @@ fn hosts_payload_fails_closed_before_the_first_manifest_sync() {
     assert_eq!(v["agents_onboarded"], json!(false));
     assert_eq!(v["local_proxy"]["state"], json!("unknown"));
     assert_eq!(v["first_run"]["active"], json!(true));
-    assert_eq!(v["first_run"]["phase"], json!("hosts"));
+    assert_eq!(v["first_run"]["phase"], json!("probing"));
     assert_eq!(v["first_run"]["sync"], json!("pending"));
     assert_eq!(v["agent_fleet"]["all"]["total"], json!(0));
 }

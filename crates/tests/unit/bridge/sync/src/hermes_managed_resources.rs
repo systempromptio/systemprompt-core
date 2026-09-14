@@ -130,7 +130,12 @@ static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::Mc
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
 static LOOPBACK: std::sync::LazyLock<LoopbackEndpoint> = std::sync::LazyLock::new(|| {
-    LoopbackEndpoint::new(systemprompt_bridge::proxy::DEFAULT_PROXY_PORT, None)
+    LoopbackEndpoint::new(
+        systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+        Some(systemprompt_bridge::ids::LoopbackSecret::new(
+            "loopback-secret-value",
+        )),
+    )
 });
 
 fn clear(home: &Path) {

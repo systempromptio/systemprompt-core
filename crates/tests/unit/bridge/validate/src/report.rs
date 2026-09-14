@@ -88,13 +88,13 @@ fn check_line_literal_construction_has_public_fields() {
 fn summarise_last_sync_full_record() {
     let raw = r#"{
         "synced_at": "2026-06-03T12:00:00Z",
-        "manifest_version": "1.2.3",
+        "manifest_version": "2026-06-03T12:00:00Z-cafecafe",
         "mcp_server_count": 4
     }"#;
 
     assert_eq!(
         summarise_last_sync(raw),
-        "2026-06-03T12:00:00Z (manifest 1.2.3, 4 MCP server(s))"
+        "2026-06-03T12:00:00Z (manifest 2026-06-03T12:00:00Z-cafecafe, 4 MCP server(s))"
     );
 }
 
@@ -110,11 +110,11 @@ fn summarise_last_sync_missing_fields_uses_defaults() {
 
 #[test]
 fn summarise_last_sync_partial_record() {
-    let raw = r#"{ "manifest_version": "9.9.9" }"#;
+    let raw = r#"{ "manifest_version": "2026-06-03T12:00:00Z-deadbeef" }"#;
 
     assert_eq!(
         summarise_last_sync(raw),
-        "unknown (manifest 9.9.9, 0 MCP server(s))"
+        "unknown (manifest 2026-06-03T12:00:00Z-deadbeef, 0 MCP server(s))"
     );
 }
 
@@ -150,4 +150,14 @@ fn count_installed_plugins_missing_path_is_none() {
     let missing = dir.path().join("does-not-exist");
 
     assert_eq!(count_installed_plugins(&missing), None);
+}
+
+// A sentinel whose manifest version is not a real manifest version is a
+// corrupt record, and the summary says so instead of inventing a value.
+#[test]
+fn summarise_last_sync_rejects_a_malformed_manifest_version() {
+    assert_eq!(
+        summarise_last_sync(r#"{ "manifest_version": "1.2.3" }"#),
+        "unparseable"
+    );
 }

@@ -24,6 +24,7 @@ fn with_home<R>(prepare: impl FnOnce(&Path), f: impl FnOnce() -> R) -> R {
 }
 
 fn write_manifest(home: &Path, body: &str) {
+    write_sidecar(home, &["org-provisioned"]);
     write_manifest_for(home, "org-provisioned", body);
 }
 
@@ -69,8 +70,8 @@ fn with_the_cli_present_but_no_manifest_yet_the_check_warns_and_points_at_sync()
     );
     assert_eq!(check.status, Status::Warn, "{}", check.detail);
     assert!(
-        check.detail.contains("marketplace.json"),
-        "{}",
+        check.detail.contains("no marketplace recorded"),
+        "with no sidecar nothing was ever synced: {}",
         check.detail
     );
     assert!(check.detail.contains("sync"), "{}", check.detail);

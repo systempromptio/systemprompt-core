@@ -58,6 +58,7 @@ fn with_credentials<F: std::future::Future>(fut: F) -> F::Output {
     temp_env::with_vars(
         [
             ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            ("XDG_STATE_HOME", Some(temp.path().as_os_str().to_owned())),
             ("SP_BRIDGE_PAT", Some("sp-live-a.b".into())),
         ],
         || {
@@ -246,8 +247,9 @@ fn unknown_mcp_server_yields_404() {
             .await
             .expect("request to proxy");
 
-        assert_eq!(resp.status().as_u16(), 404);
+        let status = resp.status().as_u16();
         let body = resp.text().await.expect("read body");
+        assert_eq!(status, 404, "{body}");
         assert!(
             body.contains("unknown managed MCP server"),
             "expected unknown-mcp body, got: {body}"

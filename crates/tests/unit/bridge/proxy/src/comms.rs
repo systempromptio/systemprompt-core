@@ -234,7 +234,7 @@ fn a_sessionless_announcement_is_never_written_anywhere() {
         1,
         "only the session-addressed announcement is delivered"
     );
-    let inbox = sb.temp.path().join("inbox");
+    let inbox = sb.temp.path().join("systemprompt").join("inbox");
     let files: Vec<String> = std::fs::read_dir(&inbox)
         .expect("inbox exists")
         .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
@@ -301,7 +301,7 @@ fn a_session_id_carrying_path_characters_is_flattened_to_one_safe_filename() {
     );
 
     assert!(requests >= 1, "the stream was subscribed to");
-    let inbox = sb.temp.path().join("inbox");
+    let inbox = sb.temp.path().join("systemprompt").join("inbox");
     let mut files: Vec<String> = std::fs::read_dir(&inbox)
         .expect("inbox exists")
         .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())

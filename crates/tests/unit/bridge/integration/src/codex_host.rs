@@ -133,15 +133,16 @@ fn a_partial_codex_config_lists_the_missing_required_keys() {
 }
 
 #[test]
-fn a_malformed_codex_config_falls_back_to_an_empty_read() {
+fn a_malformed_codex_config_is_unverifiable_not_absent() {
     let snapshot = codex_sandbox(Some("this is [not toml"), || {
         CODEX_CLI_HOST.probe(&probe_env())
     });
     assert!(
-        matches!(snapshot.profile_state, ProfileState::Absent),
-        "a TOML parse failure degrades to Absent, not a panic"
+        matches!(snapshot.profile_state, ProfileState::Unverifiable { .. }),
+        "a TOML parse failure is reported, never read as an absent profile: {:?}",
+        snapshot.profile_state
     );
-    assert!(snapshot.profile_source.is_none());
+    assert!(snapshot.probe_error.is_some());
 }
 
 #[test]

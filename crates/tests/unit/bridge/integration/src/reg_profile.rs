@@ -1,4 +1,5 @@
 use systemprompt_bridge::ids::LoopbackSecret;
+use systemprompt_bridge::install::mdm::policy::desktop_host_token;
 use systemprompt_bridge::install::reg_values::{parse_reg_entries, render_reg_values};
 use systemprompt_bridge::integration::claude_desktop::reg_profile::{profile_entries, render_reg};
 use systemprompt_bridge::integration::host_app::ProfileGenInputs;
@@ -36,7 +37,12 @@ fn profile_entries_carry_required_policy_keys() {
         value_of(&owned, "inferenceGatewayBaseUrl"),
         "https://gateway.example.com"
     );
-    assert_eq!(value_of(&owned, "inferenceGatewayApiKey"), "sp-secret-key");
+    assert_eq!(
+        value_of(&owned, "inferenceGatewayApiKey"),
+        desktop_host_token(&LoopbackSecret::new("sp-secret-key")).as_str(),
+        "the registry profile carries the desktop host token, never the raw secret"
+    );
+    assert_ne!(value_of(&owned, "inferenceGatewayApiKey"), "sp-secret-key");
     assert_eq!(value_of(&owned, "inferenceModels"), "[\"claude-opus-4-7\"]");
 }
 
@@ -122,11 +128,16 @@ fn rendered_profile_round_trips_through_parser() {
 
 #[test]
 fn round_trip_preserves_backslashes_and_quotes() {
-    let mut probe = inputs();
-    probe.api_key = LoopbackSecret::new(r#"key-with-"quote"-and-\back\slash"#);
-    let parsed = parse_reg_entries(&render_reg(false, &probe)).expect("rendered profile parses");
+    let body = render_reg_values(
+        false,
+        &[(
+            "customValue",
+            r#"key-with-"quote"-and-\back\slash"#.to_string(),
+        )],
+    );
+    let parsed = parse_reg_entries(&body).expect("rendered values parse");
     assert_eq!(
-        value_of(&parsed, "inferenceGatewayApiKey"),
+        value_of(&parsed, "customValue"),
         r#"key-with-"quote"-and-\back\slash"#
     );
 }

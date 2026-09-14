@@ -97,17 +97,23 @@ fn the_pinned_pubkey_check_warns_until_a_key_is_pinned() {
         unpinned.detail
     );
 
-    let legacy = with_config(
+    let bare_key = with_config(
         Some(
             "gateway_url = 'http://localhost:8080'\n[sync]\npinned_pubkey = '11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo='\n",
         ),
         check_pinned_pubkey,
     );
-    assert_eq!(legacy.status, Status::Ok, "{}", legacy.detail);
-    assert!(legacy.detail.contains("config file"), "{}", legacy.detail);
+    assert_eq!(
+        bare_key.status,
+        Status::Warn,
+        "a key not bound to a gateway is never trust: {}",
+        bare_key.detail
+    );
 
     let unusable = with_config(
-        Some("gateway_url = 'http://localhost:8080'\n[sync]\npinned_pubkey = 'dGVzdC1wdWJrZXk'\n"),
+        Some(
+            "gateway_url = 'http://localhost:8080'\n[sync.trust]\ngateway = 'http://localhost:8080'\nkey = 'dGVzdC1wdWJrZXk'\nsource = 'operator'\n",
+        ),
         check_pinned_pubkey,
     );
     assert_eq!(unusable.status, Status::Fail, "{}", unusable.detail);

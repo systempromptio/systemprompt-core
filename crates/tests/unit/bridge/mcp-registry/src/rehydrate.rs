@@ -108,8 +108,10 @@ fn a_fragment_written_for_another_gateway_is_not_rehydrated() {
     });
 }
 
+// A fragment that is not the stamped shape is a corrupt cache, reported as
+// such and never read as "no servers".
 #[test]
-fn a_pre_stamp_array_fragment_is_ignored_until_the_next_sync() {
+fn an_unstamped_array_fragment_is_a_corrupt_cache_not_an_empty_one() {
     let state = tempfile::tempdir().unwrap();
     let meta = metadata_dir(state.path());
     fs::create_dir_all(&meta).unwrap();
@@ -121,11 +123,13 @@ fn a_pre_stamp_array_fragment_is_ignored_until_the_next_sync() {
 
     let slot: Arc<McpRegistrySlot> = empty_slot();
     temp_env::with_var("XDG_STATE_HOME", Some(state.path()), || {
-        rehydrate_from_disk(&slot, &gateway()).expect("an unstamped fragment is not an error");
+        let err = rehydrate_from_disk(&slot, &gateway())
+            .expect_err("a fragment of the wrong shape cannot prove which gateway wrote it");
         assert!(
-            sorted_keys(&slot).is_empty(),
-            "an unstamped fragment cannot prove which gateway it came from"
+            err.to_string().contains("mcp-servers.json"),
+            "the error names the cache file: {err}"
         );
+        assert!(sorted_keys(&slot).is_empty());
     });
 }
 

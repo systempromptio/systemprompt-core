@@ -174,11 +174,7 @@ fn read_last_sync_corrupt_file_propagates() {
 fn read_last_sync_invalid_version_format_propagates() {
     let dir = tempdir();
     let path = dir.join("bad-version.json");
-    fs::write(
-        &path,
-        r#"{"last_applied_manifest_version":"not-a-valid-version"}"#,
-    )
-    .unwrap();
+    fs::write(&path, r#"{"manifest_version":"not-a-valid-version"}"#).unwrap();
     let err = read_last_sync(&path).expect_err("invalid version must fail");
     assert!(matches!(err, ReplayStateError::Parse { .. }));
 }

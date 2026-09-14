@@ -173,7 +173,22 @@ fn version(suffix: &str) -> ManifestVersion {
     ManifestVersion::try_new(format!("2026-07-01T12:00:00Z-{suffix}")).unwrap()
 }
 
+// Why: a gateway names the marketplace each plugin is mirrored into; a
+// manifest with plugins but no marketplaces mirrors nothing into Claude Code.
+fn org_provisioned_marketplace() -> ManifestMarketplace {
+    ManifestMarketplace {
+        id: systemprompt_identifiers::MarketplaceId::new("org-provisioned"),
+        name: "Org provisioned".into(),
+        plugin_ids: vec![PluginId::try_new(PLUGIN_ID).unwrap()],
+    }
+}
+
 fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> SignedManifest {
+    let marketplaces = if populated {
+        vec![org_provisioned_marketplace()]
+    } else {
+        Vec::new()
+    };
     let (plugins, artifacts) = if populated {
         (
             vec![plugin_entry()],
@@ -225,7 +240,7 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         allow_claude_ai_connectors: false,
         auto_update: Default::default(),
         diagnostics: Vec::new(),
-        marketplaces: Vec::new(),
+        marketplaces,
     }
 }
 

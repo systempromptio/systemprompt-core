@@ -200,7 +200,7 @@ fn a_manifest_version_not_newer_than_the_last_applied_one_is_rejected() {
         &sandbox,
         &serde_json::json!({
             "gateway": sandbox.gateway_uri,
-            "last_applied_manifest_version": m.manifest_version.to_string(),
+            "manifest_version": m.manifest_version.to_string(),
         })
         .to_string(),
     );
@@ -252,12 +252,9 @@ fn a_successful_non_forced_apply_persists_the_replay_sentinel() {
     assert_eq!(summary.manifest_version, m.manifest_version.to_string());
 
     let sentinel = sentinel_json(&sandbox.metadata.join("last-sync.json"));
-    assert_eq!(
-        sentinel["last_applied_manifest_version"],
-        m.manifest_version.to_string()
-    );
+    assert_eq!(sentinel["manifest_version"], m.manifest_version.to_string());
     assert!(
-        sentinel["last_applied_at"].as_str().is_some(),
+        sentinel["synced_at"].as_str().is_some(),
         "sentinel records when the manifest was applied: {sentinel}"
     );
 

@@ -130,7 +130,7 @@ fn the_plist_renders_arrays_and_dicts_as_native_elements() {
 
     assert!(body.contains("<key>managedMcpServers</key>"));
     assert!(body.contains("<key>Authorization</key>"));
-    assert!(body.contains("<string>Bearer loopback-secret</string>"));
+    assert!(body.contains("<string>Bearer desktop-host-token</string>"));
     assert!(body.contains("<key>inferenceProvider</key>\n  <string>gateway</string>"));
 }
 

@@ -220,11 +220,8 @@ fn forced_login_settings_fail_the_apply_and_name_both_keys() {
             .expect_err("forced login blocks the gateway credential, so the apply must refuse")
     });
 
-    let MdmError::InvalidConfig {
-        detail: message, ..
-    } = innermost_mdm_error(&err)
-    else {
-        panic!("a forced-login conflict is an invalid configuration, got {err:?}");
+    let MdmError::ForcedLoginConflict(message) = innermost_mdm_error(&err) else {
+        panic!("a forced-login conflict is reported by name, got {err:?}");
     };
     for key in ["forceLoginMethod", "forceLoginOrgUUID"] {
         assert!(
@@ -339,10 +336,9 @@ fn uninstall_refuses_a_settings_file_it_cannot_parse_and_leaves_it_in_place() {
     let err = dirs.run(|| {
         uninstall(false, &bridge()).expect_err("unreadable settings must fail the uninstall")
     });
-    let InstallError::Bootstrap(source) = &err else {
-        panic!("a managed-profile removal failure is reported as a bootstrap error, got {err:?}");
+    let InstallError::ManagedProfileRemove(message) = &err else {
+        panic!("an unparseable settings file fails the managed-profile removal, got {err:?}");
     };
-    let message = source.to_string();
     assert!(
         message.contains("settings.json") && message.contains("not valid JSON"),
         "the failure names the file and why it was refused: {message}"

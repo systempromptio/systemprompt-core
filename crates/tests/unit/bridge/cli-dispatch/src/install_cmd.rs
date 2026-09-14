@@ -123,6 +123,11 @@ fn uninstall_clears_metadata_and_plugin_dirs_but_keeps_credentials() {
         ]));
         let _ = run_with_args(&argv(&["install"]));
         std::fs::create_dir_all(sb.org_plugins().join("acme-plugin")).expect("seed a plugin dir");
+        std::fs::write(
+            sb.metadata().join("last-sync.json"),
+            r#"{"present_plugins":["acme-plugin"]}"#,
+        )
+        .expect("record the plugin as the bridge's");
         let _ = run_with_args(&argv(&["uninstall"]));
     });
 
@@ -132,7 +137,7 @@ fn uninstall_clears_metadata_and_plugin_dirs_but_keeps_credentials() {
     );
     assert!(
         !sb.org_plugins().join("acme-plugin").exists(),
-        "uninstall removes provisioned plugin dirs"
+        "uninstall removes the plugin dirs the last sync recorded"
     );
     assert!(
         sb.config
@@ -194,6 +199,11 @@ fn purge_device_returns_the_machine_to_a_never_installed_state() {
         ]));
         let _ = run_with_args(&argv(&["install"]));
         std::fs::create_dir_all(sb.org_plugins().join("acme-plugin")).expect("seed a plugin dir");
+        std::fs::write(
+            sb.metadata().join("last-sync.json"),
+            r#"{"present_plugins":["acme-plugin"]}"#,
+        )
+        .expect("record the plugin as the bridge's");
         std::fs::write(sb.metadata().join("onboarded.json"), "{}").expect("seed onboarding");
         assert!(
             config_dir.join("systemprompt-bridge.pat").exists(),
