@@ -2,11 +2,6 @@
 //! any database I/O. The resulting [`PreparedSchema`] is executed by the
 //! installer in the correct global phase.
 //!
-//! `foreign_keys`: Foreign keys split out of the structural `CREATE TABLE`s;
-//! applied after every extension's dependent phase.
-//!
-//! `CreateTable`: A `CREATE TABLE`, with its foreign keys deferred.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

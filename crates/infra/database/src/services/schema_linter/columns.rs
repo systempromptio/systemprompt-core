@@ -1,13 +1,6 @@
 //! In-input table graph and `(table, column)` resolution for `CREATE INDEX`
 //! and `CREATE VIEW` statements.
 //!
-//! `unique_key_sets`: Every table-level or column-level `PRIMARY KEY` /
-//! `UNIQUE` column set.
-//!
-//! `has_unique_key`: True when a `PRIMARY KEY` or `UNIQUE` constraint covers
-//! exactly `columns`, in any order — the same test Postgres applies when it
-//! looks for the index a foreign key needs.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

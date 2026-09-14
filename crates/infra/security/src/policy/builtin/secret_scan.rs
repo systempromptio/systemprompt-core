@@ -1,5 +1,5 @@
-//! `secret_scan`: evaluate governed input with the installation's configured
-//! credential catalog.
+//! Evaluate governed input against the installation's configured credential
+//! catalog; registered as the `secret_scan` policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

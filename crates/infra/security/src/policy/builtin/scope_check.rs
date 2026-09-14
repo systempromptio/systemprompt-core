@@ -1,4 +1,5 @@
-//! `scope_check`: gate admin-only tools by [`AccessScope`].
+//! Gate admin-only tools by [`AccessScope`]; registered as the `scope_check`
+//! policy.
 //!
 //! Reads the typed `ctx.access_scope` the enforcement point resolved (agent
 //! YAML `oauth.scopes`, JWT permissions, DB roles). Configurable via:

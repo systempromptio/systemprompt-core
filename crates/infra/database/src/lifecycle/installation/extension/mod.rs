@@ -69,8 +69,8 @@ pub async fn install_extension_schemas_full(
     }
 
     info!(
-        "Installing schemas for {} extensions",
-        schema_extensions.len()
+        extensions = schema_extensions.len(),
+        "Installing extension schemas"
     );
 
     let guard = BootstrapLockGuard::acquire(db).await?;

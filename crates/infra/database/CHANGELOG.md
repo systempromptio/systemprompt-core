@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- A failed write to the CLI display sink is reported through `tracing::warn!`.
+
 ## [0.52.0] - 2026-09-14
 
 ### Removed

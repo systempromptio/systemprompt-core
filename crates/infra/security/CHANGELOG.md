@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- `ManifestSigningError::KeyMissing` and `TokenAuthorityError::PathMissing` are no longer returned by `signing_key()` / the authority accessors after a successful load; the first loaded key wins.
+- A credential token response whose body cannot be read is a retryable transport failure.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

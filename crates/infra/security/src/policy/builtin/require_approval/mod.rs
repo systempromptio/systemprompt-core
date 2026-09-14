@@ -1,4 +1,5 @@
-//! `require_approval`: hold a matching tool call for a named human.
+//! Hold a matching tool call for a named human; registered as the
+//! `require_approval` policy.
 //!
 //! The only policy that returns [`Decision::Pending`]. It does not park or
 //! resume anything itself — [`GovernancePolicy::evaluate`] is pure and sync —

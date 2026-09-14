@@ -29,6 +29,12 @@ pub struct BundleCache {
     root: PathBuf,
 }
 
+pub fn discard_staging(path: &Path) {
+    if let Err(error) = fs::remove_dir_all(path) {
+        tracing::warn!(path = %path.display(), error = %error, "Failed to remove staging directory");
+    }
+}
+
 impl BundleCache {
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {

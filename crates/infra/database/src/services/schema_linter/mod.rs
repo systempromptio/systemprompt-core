@@ -61,9 +61,6 @@
 //! anything it cannot statically prove, avoiding false positives on
 //! late-bound names.
 //!
-//! `lint_declarative_schemas`: Lint every `(source, sql)` of one extension as a
-//! single schema graph.
-//!
 //! The per-statement rules and column references are checked per input with
 //! that input's own line numbers; table definitions accumulate across inputs
 //! so a foreign key in one file resolves the table another file declares.

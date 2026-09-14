@@ -6,12 +6,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::io::Write;
 use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
 
 use super::service::CliService;
+use super::sink::stderr_writeln;
 use super::startup::{
     render_phase_header, render_phase_info, render_phase_success, render_phase_warning,
     render_startup_banner,
@@ -89,8 +89,7 @@ impl CliService {
             profile, truncated_session, tenant_info, url_info
         );
 
-        let mut stderr = std::io::stderr();
-        writeln!(stderr, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
+        stderr_writeln(format_args!("{}", Theme::color(&banner, EmphasisType::Dim)));
     }
 
     pub fn profile_banner(profile_name: &str, is_cloud: bool, tenant: Option<&str>) {
@@ -100,7 +99,6 @@ impl CliService {
             "[profile: {} ({}){}]",
             profile_name, target_label, tenant_info
         );
-        let mut stderr = std::io::stderr();
-        writeln!(stderr, "{}", Theme::color(&banner, EmphasisType::Dim)).ok();
+        stderr_writeln(format_args!("{}", Theme::color(&banner, EmphasisType::Dim)));
     }
 }

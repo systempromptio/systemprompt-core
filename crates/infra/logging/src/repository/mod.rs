@@ -59,8 +59,9 @@ impl LoggingRepository {
         entry.validate()?;
 
         if self.terminal_output {
-            let mut stdout = std::io::stdout();
-            writeln!(stdout, "{entry}").ok();
+            if let Err(error) = writeln!(std::io::stdout(), "{entry}") {
+                tracing::warn!(error = %error, "Terminal log sink write failed");
+            }
         }
 
         if self.db_output {

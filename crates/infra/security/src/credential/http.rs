@@ -90,7 +90,10 @@ async fn attempt_post(
         .map_err(|e| Retryable::Transport(e.to_string()))?;
 
     let status = response.status();
-    let body = response.text().await.unwrap_or_default();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| Retryable::Transport(e.to_string()))?;
     if status.is_success() {
         return Ok(body);
     }
