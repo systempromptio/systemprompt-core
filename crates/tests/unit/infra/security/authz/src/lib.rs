@@ -11,8 +11,6 @@ mod actor_kind_schema;
 #[cfg(test)]
 mod authz_context;
 #[cfg(test)]
-mod bootstrap;
-#[cfg(test)]
 mod config_validate;
 #[cfg(test)]
 mod db_sink_actor;

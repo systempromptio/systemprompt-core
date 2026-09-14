@@ -100,7 +100,7 @@ pub(super) async fn init_core(
     let authz_audit_pool = database.write_pool_arc()?;
     let authz_hook = systemprompt_security::authz::build_authz_hook(
         profile.governance.as_ref(),
-        Some(authz_audit_pool),
+        authz_audit_pool,
         authz_hook_override,
         chain_sources()?,
     )

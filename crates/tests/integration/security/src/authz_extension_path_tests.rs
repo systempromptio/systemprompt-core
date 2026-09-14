@@ -107,7 +107,7 @@ async fn extension_hook_evaluated_and_audited() {
     let governance = extension_governance();
     let built = build_authz_hook(
         Some(&governance),
-        Some(write_pool.clone()),
+        write_pool.clone(),
         Some(hook),
         ChainSources::default(),
     )
