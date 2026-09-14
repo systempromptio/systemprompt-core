@@ -97,3 +97,71 @@ async fn production_claim_rejects_a_retained_unverified_fixture_without_advancin
         |execution| execution.status == ExecutionStatus::Queued && execution.fencing_token == 0
     ));
 }
+
+#[derive(Debug)]
+struct WrongPlatformAdmission(systemprompt_evaluation::capabilities::VerifiedNativeTarget);
+
+impl systemprompt_evaluation::capabilities::ExecutionAdmission for WrongPlatformAdmission {
+    fn admit(&self, spec: &ExperimentSpec) -> systemprompt_evaluation::Result<()> {
+        for variant in &spec.variants {
+            if !self
+                .0
+                .matches(variant, std::env::consts::OS, std::env::consts::ARCH)
+            {
+                return Err(EvaluationError::InvalidSpec(
+                    "Native target platform mismatch".to_owned(),
+                ));
+            }
+        }
+        Err(EvaluationError::InvalidSpec(
+            "Fixture cannot enable native execution".to_owned(),
+        ))
+    }
+}
+
+#[tokio::test]
+async fn wrong_platform_target_rejection_precedes_any_budget_reservation() {
+    let pool = runs_pool().await.expect("fixture database");
+    let f = fixture(&pool).await;
+    let spec = f.spec(vec![f.case.clone()], f.rubric.clone(), 1);
+    let variant = &spec.variants[0];
+    let target = systemprompt_evaluation::capabilities::VerifiedNativeTarget {
+        client: variant.client,
+        platform: "unsupported-fixture-platform".to_owned(),
+        architecture: std::env::consts::ARCH.to_owned(),
+        client_version: variant.client_version.clone(),
+        adapter_version: "fixture-platform-denial".to_owned(),
+        image_digest: variant.worker_image_digest.clone(),
+        executable_digest: "a".repeat(64),
+        native_isolation_evidence_digest: "b".repeat(64),
+        native_metering_evidence_digest: "c".repeat(64),
+    };
+    assert!(target.matches(
+        variant,
+        "unsupported-fixture-platform",
+        std::env::consts::ARCH
+    ));
+    let repository = ExperimentRepository::with_admission(
+        pool.clone(),
+        std::sync::Arc::new(WrongPlatformAdmission(target)),
+    );
+    let budgets = BudgetRepository::new(pool.clone());
+    let before = budgets.get(&f.owner, &f.budget).await.unwrap();
+    let error = repository
+        .create_with_budget(&f.owner, "wrong-platform", &f.budget, &spec)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("platform mismatch"));
+    let after = budgets.get(&f.owner, &f.budget).await.unwrap();
+    assert_eq!(
+        (before.reserved, before.settled, before.frozen),
+        (after.reserved, after.settled, after.frozen)
+    );
+    let count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM eval_budget_reservations WHERE account_id=$1")
+            .bind(f.budget.as_str())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(count, 0);
+}

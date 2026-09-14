@@ -6,7 +6,9 @@
 use crate::experiments::{ClientKind, ExperimentSpec, VariantSpec, invalid};
 use serde::{Deserialize, Serialize};
 
-pub const CAPABILITY_REGISTRY_VERSION: u16 = 2;
+pub const CAPABILITY_REGISTRY_VERSION: u16 = 3;
+#[path = "native_proofs.rs"]
+pub mod proofs;
 pub use systemprompt_models::feedback::EvaluatorClient;
 
 impl From<ClientKind> for EvaluatorClient {
@@ -91,18 +93,21 @@ impl VerifiedNativeTarget {
         Ok(())
     }
 
+    pub fn supports_platform(&self, platform: &str, architecture: &str) -> bool {
+        self.platform == platform && self.architecture == architecture
+    }
+
     pub fn matches(&self, variant: &VariantSpec, platform: &str, architecture: &str) -> bool {
         self.validate().is_ok()
             && self.client == variant.client
             && self.client_version == variant.client_version
             && self.image_digest == variant.worker_image_digest
-            && self.platform == platform
-            && self.architecture == architecture
+            && self.supports_platform(platform, architecture)
     }
 }
 
 pub fn verified_native_targets() -> &'static [VerifiedNativeTarget] {
-    &[]
+    proofs::reviewed_targets()
 }
 
 pub fn evaluator_capabilities() -> Vec<EvaluatorCapability> {
@@ -117,7 +122,10 @@ pub fn evaluator_capabilities() -> Vec<EvaluatorCapability> {
     .map(|client| {
         let verified_targets: Vec<_> = verified_native_targets()
             .iter()
-            .filter(|target| EvaluatorClient::from(target.client) == client)
+            .filter(|target| {
+                EvaluatorClient::from(target.client) == client
+                    && target.supports_platform(std::env::consts::OS, std::env::consts::ARCH)
+            })
             .cloned()
             .collect();
         let available = !verified_targets.is_empty();

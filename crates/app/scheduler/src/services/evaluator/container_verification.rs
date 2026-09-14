@@ -30,6 +30,13 @@ impl ClientVerifier for PinnedClientVerifier {
 impl ContainerLaunch {
     fn verify_client(&self, client: &NativeClient) -> SchedulerResult<()> {
         let target = client.admitted_target(&self.image).map_err(failure)?;
+        let expected_config =
+            systemprompt_evaluation::capabilities::proofs::image_config_for_target(
+                target,
+                &self.image,
+            )
+            .map_err(failure)?;
+        self.verify_image_config(expected_config)?;
         let adapter = client.adapter().map_err(failure)?;
         if adapter.adapter_version() != target.adapter_version
             || !std::path::Path::new(adapter.executable()).is_absolute()
@@ -63,6 +70,33 @@ impl ContainerLaunch {
             .directory
             .join(format!("{}-native-verification.json", self.output_stem));
         private_log(&path)?.write_all(&serde_json::to_vec(target).map_err(failure)?)?;
+        Ok(())
+    }
+
+    fn verify_image_config(&self, expected: &str) -> SchedulerResult<()> {
+        let output = self
+            .directory
+            .join(format!("{}-image-identity.stdout", self.output_stem));
+        let (mut command, _configuration) = docker_command(&self.docker)?;
+        command
+            .args(["image", "inspect", "--format", "{{.Id}}", &self.image])
+            .stdin(Stdio::null())
+            .stdout(Stdio::from(private_log(&output)?))
+            .stderr(Stdio::null());
+        place_in_own_process_group(&mut command);
+        let mut child = spawn_owned_supervised(command)?;
+        let status = wait_bounded(&mut child)?;
+        if !status.success() || std::fs::metadata(&output)?.len() > 256 {
+            return Err(failure(
+                "Pinned image configuration could not be established",
+            ));
+        }
+        let observed = std::fs::read_to_string(&output)?;
+        if observed.trim() != format!("sha256:{expected}") {
+            return Err(failure(
+                "Image manifest resolved to a different retained config identity",
+            ));
+        }
         Ok(())
     }
 

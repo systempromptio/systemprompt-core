@@ -263,10 +263,9 @@ impl ContainerLaunchBuilder {
             SchedulerError::ConfigError { message: "Evaluator requires an absolute Docker path, workspace, pinned image, private network and execution name".to_owned() }
         };
         let image = self.image.ok_or_else(invalid)?;
-        let digest = image
-            .rsplit_once("sha256:")
-            .map(|(_, digest)| digest)
-            .ok_or_else(invalid)?;
+        let digest = systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(&image)
+            .map_err(|_| invalid())?
+            .digest();
         let network = self.network.ok_or_else(invalid)?;
         let name = self.name.ok_or_else(invalid)?;
         #[cfg(unix)]

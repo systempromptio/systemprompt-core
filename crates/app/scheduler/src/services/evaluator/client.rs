@@ -70,7 +70,8 @@ impl NativeClient {
                 "Unpinned native execution is unsupported".to_owned(),
             ));
         };
-        let image_digest = image.rsplit_once("@sha256:").map(|(_, digest)| digest);
+        let image_digest =
+            systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(image)?.digest();
         systemprompt_evaluation::capabilities::verified_native_targets()
             .iter()
             .find(|target| {
@@ -78,9 +79,12 @@ impl NativeClient {
                     && target.client == self.kind
                     && &target.client_version == version
                     && &target.image_digest == digest
-                    && image_digest == Some(digest.as_str())
-                    && target.platform == std::env::consts::OS
-                    && target.architecture == std::env::consts::ARCH
+                    && image_digest == digest.as_str()
+                    && systemprompt_evaluation::capabilities::proofs::image_config_for_target(
+                        target, image,
+                    )
+                    .is_ok()
+                    && target.supports_platform(std::env::consts::OS, std::env::consts::ARCH)
             })
             .ok_or_else(|| {
                 systemprompt_evaluation::EvaluationError::InvalidSpec(

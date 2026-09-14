@@ -78,7 +78,7 @@ impl ExecutionNetwork {
         if !safe_name(control_network)
             || matches!(control_network, "host" | "bridge" | "default" | "none")
             || !safe_name(&name)
-            || !image.contains("@sha256:")
+            || systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(image).is_err()
         {
             return Err(SchedulerError::config_error(
                 "Relay requires pinned image and dedicated control network",

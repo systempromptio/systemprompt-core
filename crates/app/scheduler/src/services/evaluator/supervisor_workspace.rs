@@ -225,8 +225,12 @@ pub(super) fn validate_config(config: &EvaluatorSupervisorConfig) -> SchedulerRe
     if !config.docker.is_absolute()
         || !config.workspace_root.is_absolute()
         || config.environment.trim().is_empty()
-        || !config.client_image.contains("@sha256:")
-        || !config.relay_image.contains("@sha256:")
+        || systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(
+            &config.client_image,
+        )
+        .is_err()
+        || systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(&config.relay_image)
+            .is_err()
         || matches!(
             config.relay_control_network.as_str(),
             "host" | "bridge" | "default" | "none"
@@ -250,10 +254,9 @@ pub(super) fn safe_suffix(execution: &EvalExecutionId) -> String {
         .collect()
 }
 pub(super) fn image_digest(image: &str) -> SchedulerResult<String> {
-    image
-        .rsplit_once("@sha256:")
-        .map(|(_, digest)| digest.to_owned())
-        .ok_or_else(|| SchedulerError::config_error("Pinned image digest missing"))
+    systemprompt_evaluation::capabilities::proofs::ImmutableImage::parse(image)
+        .map(|image| image.digest().to_owned())
+        .map_err(|error| SchedulerError::config_error(error.to_string()))
 }
 pub(super) fn internal(error: impl std::fmt::Display) -> SchedulerError {
     SchedulerError::Internal(error.to_string())
