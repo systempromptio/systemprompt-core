@@ -25,7 +25,7 @@ fn version(s: &str) -> ManifestVersion {
 
 fn last(v: &str) -> LastSyncState {
     LastSyncState {
-        last_applied_manifest_version: Some(version(v)),
+        manifest_version: Some(version(v)),
         ..LastSyncState::default()
     }
 }
@@ -141,12 +141,12 @@ fn read_last_sync_reads_new_field() {
     let path = dir.join("last-sync.json");
     fs::write(
         &path,
-        r#"{"last_applied_manifest_version":"2026-04-22T10:00:00Z-abcdef01"}"#,
+        r#"{"manifest_version":"2026-04-22T10:00:00Z-abcdef01"}"#,
     )
     .unwrap();
     let s = read_last_sync(&path).expect("valid file").expect("found");
     assert_eq!(
-        s.last_applied_manifest_version
+        s.manifest_version
             .as_ref()
             .map(ToString::to_string)
             .as_deref(),

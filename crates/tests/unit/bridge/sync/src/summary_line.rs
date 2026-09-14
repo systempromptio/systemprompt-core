@@ -1,3 +1,4 @@
+use systemprompt_bridge::ids::HostId;
 use systemprompt_bridge::sync::{HostFailure, SyncSummary, warn_unsafe_flags};
 
 fn summary() -> SyncSummary {
@@ -60,7 +61,8 @@ fn malformed_plugins_make_the_summary_partial() {
 fn a_failing_host_downgrades_the_line_to_partial_and_keeps_one_error_line() {
     let mut s = summary();
     s.host_failures = vec![HostFailure {
-        host_id: "claude-desktop".into(),
+        host_id: HostId::new("claude-desktop"),
+        emitter: "claude-desktop".to_owned(),
         error: "first line of the error\nsecond line that must not appear".into(),
     }];
     let line = s.one_line();
@@ -81,11 +83,13 @@ fn several_failing_hosts_are_joined() {
     let mut s = summary();
     s.host_failures = vec![
         HostFailure {
-            host_id: "claude-desktop".into(),
+            host_id: HostId::new("claude-desktop"),
+            emitter: "claude-desktop".to_owned(),
             error: "no session".into(),
         },
         HostFailure {
-            host_id: "codex-cli".into(),
+            host_id: HostId::new("codex-cli"),
+            emitter: "codex-cli".to_owned(),
             error: "permission denied".into(),
         },
     ];
@@ -136,7 +140,7 @@ fn gateway_diagnostics_are_appended_to_the_summary_line() {
 fn a_host_warning_keeps_the_line_ok_but_names_the_host_and_its_first_line() {
     let mut s = summary();
     s.host_warnings = vec![systemprompt_bridge::sync::HostWarning {
-        host_id: "claude-desktop".into(),
+        host_id: HostId::new("claude-desktop"),
         message: "open Cowork once, then Re-sync\nsecond line".into(),
     }];
     let line = s.one_line();

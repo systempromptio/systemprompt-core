@@ -28,7 +28,7 @@ use systemprompt_bridge::gateway::manifest::{
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::mcp_registry::normalize_key;
-use systemprompt_bridge::sync::run_once;
+use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_identifiers::HookId;
 use systemprompt_models::services::PluginHooksRef;
 use systemprompt_models::services::hooks::{HookCategory, HookEvent};
@@ -277,7 +277,15 @@ fn run_sync(dirs: &SandboxDirs) -> Result<systemprompt_bridge::sync::SyncSummary
             .enable_all()
             .build()
             .unwrap()
-            .block_on(run_once(&bridge(), true, true, true))
+            .block_on(run_once(
+                &bridge(),
+                &SyncOptions {
+                    allow_unsigned: true,
+                    force_replay: true,
+                    allow_tofu: true,
+                    ..SyncOptions::default()
+                },
+            ))
             .map_err(|e| e.to_string())
     })
 }
@@ -679,30 +687,6 @@ fn a_loopback_mcp_url_is_rewritten_to_the_gateway_host() {
         remote["url"].as_str(),
         Some("https://remote.invalid/mcp"),
         "a non-loopback URL is left alone"
-    );
-    let _ = (&server, &pat_dir);
-}
-
-#[test]
-fn applying_a_manifest_prunes_legacy_bridge_state() {
-    let m = manifest_with(vec![], vec![]);
-    let (server, dirs, pat_dir) = serve(&m, "pat-prune");
-
-    let legacy_plugin = dirs.org_plugins.join("systemprompt-managed");
-    let legacy_meta = dirs.org_plugins.join(".systemprompt-bridge");
-    fs::create_dir_all(&legacy_plugin).unwrap();
-    fs::create_dir_all(&legacy_meta).unwrap();
-    fs::write(legacy_plugin.join("stale.json"), "{}").unwrap();
-
-    run_sync(&dirs).expect("sync applies");
-
-    assert!(
-        !legacy_plugin.exists(),
-        "the legacy aggregate plugin dir is pruned"
-    );
-    assert!(
-        !legacy_meta.exists(),
-        "the legacy bridge metadata marker dir is pruned"
     );
     let _ = (&server, &pat_dir);
 }

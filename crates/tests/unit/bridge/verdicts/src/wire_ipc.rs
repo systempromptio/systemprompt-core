@@ -6,7 +6,8 @@
 
 use serde_json::{Value, json};
 use systemprompt_bridge::wire::ipc::{
-    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest, emit_script, reply_script,
+    BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest, ReplyTarget, emit_script,
+    reply_script,
 };
 
 fn json_of<T: serde::Serialize>(v: &T) -> Value {
@@ -109,10 +110,15 @@ fn an_ipc_request_missing_its_id_is_rejected() {
 
 #[test]
 fn reply_script_guards_the_bridge_handle_and_embeds_the_id_and_body() {
-    let script = reply_script(9, &IpcReplyPayload::ok(json!({ "a": 1 })));
+    let script = reply_script(
+        ReplyTarget { mount: 4, id: 9 },
+        &IpcReplyPayload::ok(json!({ "a": 1 })),
+    );
 
     assert!(
-        script.starts_with("window.__bridge && window.__bridge.reply && window.__bridge.reply(9, "),
+        script.starts_with(
+            "window.__bridge && window.__bridge.reply && window.__bridge.reply(4, 9, "
+        ),
         "unexpected script: {script}"
     );
     assert!(

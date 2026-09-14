@@ -1,7 +1,5 @@
-use std::collections::BTreeMap;
 use systemprompt_bridge::auth::{has_credential_source, provider_chain};
 use systemprompt_bridge::config::Config;
-use systemprompt_bridge::integration::host_app::ProfileState;
 use tempfile::TempDir;
 
 fn config(toml: &str) -> Config {
@@ -74,57 +72,14 @@ fn an_enabled_session_section_is_a_credential_source_but_a_disabled_one_is_not()
 }
 
 #[test]
-fn an_mtls_keystore_reference_is_a_credential_source() {
-    assert!(without_env(|| has_credential_source(&config(
-        "[mtls]\ncert_keystore_ref = \"device-cert\"\n"
-    ))));
-}
-
-#[test]
-fn the_provider_chain_runs_mtls_then_session_then_pat() {
+fn the_provider_chain_runs_session_then_pat() {
     let names: Vec<&str> = provider_chain(&config(""))
         .iter()
         .map(|p| p.name())
         .collect();
     assert_eq!(
         names,
-        vec!["mtls", "session", "pat"],
+        vec!["session", "pat"],
         "providers are ordered by descending registration priority"
-    );
-}
-
-#[test]
-fn profile_state_classifies_absent_partial_installed_and_stale() {
-    let required = ["a", "b"];
-    let empty = BTreeMap::new();
-    assert!(matches!(
-        ProfileState::classify(&required, &empty, None, None),
-        ProfileState::Absent
-    ));
-
-    let mut partial = BTreeMap::new();
-    partial.insert("a".to_owned(), "1".to_owned());
-    match ProfileState::classify(&required, &partial, None, None) {
-        ProfileState::Partial { missing_required } => {
-            assert_eq!(missing_required, vec!["b".to_owned()]);
-        },
-        other => panic!("expected Partial, got {other:?}"),
-    }
-
-    let mut complete = partial.clone();
-    complete.insert("b".to_owned(), "2".to_owned());
-    let installed = ProfileState::classify(&required, &complete, Some(true), None);
-    assert!(installed.is_installed(), "{installed:?}");
-
-    assert!(
-        matches!(
-            ProfileState::classify(&required, &complete, Some(false), None),
-            ProfileState::Stale { .. }
-        ),
-        "a definite secret mismatch downgrades a complete profile to Stale"
-    );
-    assert!(
-        ProfileState::classify(&required, &complete, None, None).is_installed(),
-        "an unknown secret never downgrades"
     );
 }

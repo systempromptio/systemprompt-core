@@ -1,7 +1,7 @@
 //! Tests for plugin OAuth credential storage and minting: on-disk non-secret
-//! metadata under `XDG_CACHE_HOME`, the secret in the OS keyring, legacy
-//! plaintext-secret migration, and the wiremock-driven provision/mint flows
-//! including the 401 rotate-and-retry path.
+//! metadata under `XDG_CACHE_HOME`, the secret in the OS keyring, and the
+//! wiremock-driven provision/mint flows including the 401 rotate-and-retry
+//! path.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -101,37 +101,6 @@ fn store_then_load_round_trips_via_keyring() {
 fn load_creds_none_when_file_missing() {
     let ((), _temp) = with_cache_home(|| {
         assert!(plugin_oauth::load_creds().unwrap().is_none());
-    });
-}
-
-#[test]
-fn legacy_plaintext_secret_is_migrated_into_keyring() {
-    let id = unique("client-legacy");
-    let ((), _temp) = with_cache_home(|| {
-        let path = plugin_oauth::creds_path().unwrap();
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(
-            &path,
-            serde_json::to_vec(&serde_json::json!({
-                "client_id": id,
-                "client_secret": "legacy-secret",
-                "token_endpoint": "http://127.0.0.1:1/oauth/token",
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-
-        let loaded = plugin_oauth::load_creds().unwrap().unwrap();
-        assert_eq!(loaded.client_secret, "legacy-secret");
-
-        let rewritten: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        assert!(
-            rewritten.get("client_secret").is_none(),
-            "migration must strip the plaintext secret"
-        );
-
-        plugin_oauth::delete_creds().unwrap();
     });
 }
 

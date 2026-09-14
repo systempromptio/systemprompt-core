@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::sync::run_once;
+use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -153,7 +153,15 @@ fn run_gated(sandbox: &Sandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(&bridge(), true, false, true))
+                .block_on(run_once(
+                    &bridge(),
+                    &SyncOptions {
+                        allow_unsigned: true,
+                        force_replay: false,
+                        allow_tofu: true,
+                        ..SyncOptions::default()
+                    },
+                ))
                 .map_err(|e| e.to_string())
         },
     )

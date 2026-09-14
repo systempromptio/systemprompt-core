@@ -175,7 +175,8 @@ fn a_desktop_wildcard_deny_withholds_the_server_rather_than_prompting_for_unknow
     let map = desktop_tool_policy_map(
         &allowed,
         &["read_issue".to_owned(), "delete_issue".to_owned()],
-    );
+    )
+    .expect("a named catalog projects the wildcard");
     assert_eq!(map.get("read_issue").map(String::as_str), Some("allow"));
     assert_eq!(
         map.get("delete_issue").map(String::as_str),

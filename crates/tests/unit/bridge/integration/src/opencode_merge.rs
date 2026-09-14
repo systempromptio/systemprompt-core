@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::ids::LoopbackSecret;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs, ProfileRemoval};
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
 use tempfile::TempDir;
@@ -41,12 +42,12 @@ fn inputs(models: &[&str]) -> ProfileGenInputs {
     headers.insert("x-inference-protocol".to_owned(), "openai".to_owned());
     ProfileGenInputs {
         gateway_base_url: "http://127.0.0.1:48217".to_owned(),
-        api_key: "loopback-secret-value".to_owned(),
+        api_key: LoopbackSecret::new("loopback-secret-value"),
         models: models.iter().map(|m| (*m).to_owned()).collect(),
         default_model: None,
         organization_uuid: Some("org-abc".to_owned()),
         headers,
-        mcp_servers: Vec::new(),
+        mcp_servers: Some(Vec::new()),
     }
 }
 

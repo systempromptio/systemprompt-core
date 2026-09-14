@@ -104,6 +104,10 @@ static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::Pol
         )
     });
 
+static EMPTY_BEARER: std::sync::LazyLock<systemprompt_bridge::ids::BearerToken> =
+    std::sync::LazyLock::new(systemprompt_bridge::ids::BearerToken::default);
+static START_MENU: std::sync::LazyLock<systemprompt_bridge::probe_cache::StartMenuCache> =
+    std::sync::LazyLock::new(systemprompt_bridge::probe_cache::StartMenuCache::default);
 static EMPTY_REGISTRY: std::sync::LazyLock<systemprompt_bridge::mcp_registry::McpRegistry> =
     std::sync::LazyLock::new(std::collections::HashMap::new);
 
@@ -125,9 +129,10 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     OpenCodeSync.clear(&ctx)
 }
@@ -145,9 +150,10 @@ fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
         client: &client,
-        bearer: "",
+        bearer: &EMPTY_BEARER,
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
+        start_menu: &START_MENU,
     };
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

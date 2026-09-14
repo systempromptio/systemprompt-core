@@ -1,8 +1,5 @@
 use systemprompt_bridge::ids::PinnedPubKey;
-use systemprompt_bridge::install::{
-    CredentialsOutcome, InstallOptions, InstallOptionsBuilder, ManagedProfileOutcome,
-    ScheduleRemoval, UninstallSummaryBuilder,
-};
+use systemprompt_bridge::install::{InstallOptions, InstallOptionsBuilder};
 use systemprompt_bridge::schedule::Os;
 use systemprompt_identifiers::ValidatedUrl;
 
@@ -107,43 +104,4 @@ fn all_setters_chain_together() {
 fn apply_schedule_setter_sets_field() {
     let opts = InstallOptions::builder().apply_schedule(true).build();
     assert!(opts.apply_schedule);
-}
-
-#[test]
-fn uninstall_summary_builder_defaults() {
-    let summary = UninstallSummaryBuilder::new().build();
-    assert!(summary.metadata_removed.is_none());
-    assert!(summary.metadata_already_clean.is_none());
-    assert!(matches!(
-        summary.managed_profile,
-        ManagedProfileOutcome::NotApplicable
-    ));
-    assert!(matches!(summary.credentials, CredentialsOutcome::Kept));
-}
-
-#[test]
-fn uninstall_summary_builder_chains_setters() {
-    let summary = UninstallSummaryBuilder::new()
-        .metadata_removed(std::path::PathBuf::from("/x"))
-        .metadata_already_clean(std::path::PathBuf::from("/y"))
-        .managed_profile(ManagedProfileOutcome::Removed("profile-id"))
-        .credentials(CredentialsOutcome::Purged(std::path::PathBuf::from(
-            "/creds",
-        )))
-        .schedule(ScheduleRemoval::Removed("job".into()))
-        .build();
-    assert_eq!(
-        summary.metadata_removed,
-        Some(std::path::PathBuf::from("/x"))
-    );
-    assert_eq!(
-        summary.metadata_already_clean,
-        Some(std::path::PathBuf::from("/y"))
-    );
-    assert!(matches!(
-        summary.managed_profile,
-        ManagedProfileOutcome::Removed("profile-id")
-    ));
-    assert!(matches!(summary.credentials, CredentialsOutcome::Purged(_)));
-    assert!(matches!(summary.schedule, ScheduleRemoval::Removed(_)));
 }

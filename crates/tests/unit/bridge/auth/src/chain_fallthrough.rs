@@ -64,9 +64,9 @@ async fn make_reqwest_error() -> reqwest::Error {
         .expect_err("connection refused yields a reqwest error")
 }
 
-async fn transient_mtls_failure() -> AuthError {
+async fn transient_session_failure() -> AuthError {
     AuthError::Failed {
-        provider: "mtls",
+        provider: "session",
         source: AuthFailedSource::Gateway(GatewayError::HealthCheck(Box::new(
             make_reqwest_error().await,
         ))),
@@ -74,94 +74,86 @@ async fn transient_mtls_failure() -> AuthError {
 }
 
 #[tokio::test]
-async fn transient_failure_on_preferred_mtls_does_not_fall_through_to_pat() {
-    let mtls = StubProvider::new("mtls", Err(transient_mtls_failure().await));
-    let pat = StubProvider::new("pat", Ok(ok_token()));
+async fn a_transient_failure_falls_through_and_keeps_the_outcome_retryable() {
+    let session = StubProvider::new("session", Err(transient_session_failure().await));
+    let pat = StubProvider::new(
+        "pat",
+        Err(AuthError::Failed {
+            provider: "pat",
+            source: AuthFailedSource::Gateway(GatewayError::PubkeyMissing),
+        }),
+    );
 
-    let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let err = evaluate_chain(
-        &chain,
-        Some("mtls"),
-        &SessionId::generate(),
-        &reqwest::Client::new(),
-    )
-    .await
-    .expect_err("must short-circuit");
+    let chain: Vec<&dyn AuthProvider> = vec![&session, &pat];
+    let err = evaluate_chain(&chain, &SessionId::generate(), &reqwest::Client::new())
+        .await
+        .expect_err("both providers failed");
 
     assert!(
-        matches!(
-            err,
-            ChainError::PreferredTransient {
-                provider: "mtls",
-                ..
-            }
-        ),
-        "expected PreferredTransient mtls, got: {err:?}",
+        matches!(&err, ChainError::Providers { terminal: false, failures } if failures.len() == 2),
+        "one retryable provider keeps the whole outcome retryable: {err:?}",
     );
-    assert_eq!(mtls.call_count(), 1);
-    assert_eq!(
-        pat.call_count(),
-        0,
-        "PAT must not be tried after preferred mtls hits a transient failure",
-    );
+    assert!(!err.is_terminal());
+    assert_eq!(session.call_count(), 1);
+    assert_eq!(pat.call_count(), 1, "every provider is tried");
 }
 
 #[tokio::test]
-async fn terminal_failure_on_preferred_falls_through() {
-    let mtls = StubProvider::new(
-        "mtls",
+async fn a_terminal_failure_falls_through_to_the_next_provider() {
+    let session = StubProvider::new(
+        "session",
         Err(AuthError::Failed {
-            provider: "mtls",
+            provider: "session",
             source: AuthFailedSource::Gateway(GatewayError::PubkeyMissing),
         }),
     );
     let pat = StubProvider::new("pat", Ok(ok_token()));
 
-    let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let token = evaluate_chain(
-        &chain,
-        Some("mtls"),
-        &SessionId::generate(),
-        &reqwest::Client::new(),
-    )
-    .await
-    .expect("must fall through to PAT");
+    let chain: Vec<&dyn AuthProvider> = vec![&session, &pat];
+    let token = evaluate_chain(&chain, &SessionId::generate(), &reqwest::Client::new())
+        .await
+        .expect("must fall through to PAT");
     assert_eq!(token.token.expose(), "stub");
     assert_eq!(pat.call_count(), 1);
 }
 
 #[tokio::test]
-async fn transient_failure_on_non_preferred_falls_through() {
-    let mtls = StubProvider::new("mtls", Err(transient_mtls_failure().await));
-    let pat = StubProvider::new("pat", Ok(ok_token()));
+async fn only_terminal_failures_latch_the_chain_terminal() {
+    let session = StubProvider::new(
+        "session",
+        Err(AuthError::Failed {
+            provider: "session",
+            source: AuthFailedSource::SignInRequired,
+        }),
+    );
+    let pat = StubProvider::new(
+        "pat",
+        Err(AuthError::Failed {
+            provider: "pat",
+            source: AuthFailedSource::Gateway(GatewayError::PubkeyMissing),
+        }),
+    );
 
-    let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let token = evaluate_chain(
-        &chain,
-        None,
-        &SessionId::generate(),
-        &reqwest::Client::new(),
-    )
-    .await
-    .expect("transient on non-preferred must fall through");
-    assert_eq!(token.token.expose(), "stub");
-    assert_eq!(pat.call_count(), 1);
+    let chain: Vec<&dyn AuthProvider> = vec![&session, &pat];
+    let err = evaluate_chain(&chain, &SessionId::generate(), &reqwest::Client::new())
+        .await
+        .expect_err("both providers failed terminally");
+    assert!(
+        matches!(err, ChainError::Providers { terminal: true, .. }),
+        "{err:?}"
+    );
+    assert!(err.is_terminal());
 }
 
 #[tokio::test]
 async fn no_provider_succeeds_yields_none_succeeded() {
-    let mtls = StubProvider::new("mtls", Err(AuthError::NotConfigured));
+    let session = StubProvider::new("session", Err(AuthError::NotConfigured));
     let pat = StubProvider::new("pat", Err(AuthError::NotConfigured));
 
-    let chain: Vec<&dyn AuthProvider> = vec![&mtls, &pat];
-    let err = evaluate_chain(
-        &chain,
-        None,
-        &SessionId::generate(),
-        &reqwest::Client::new(),
-    )
-    .await
-    .expect_err("nothing configured");
+    let chain: Vec<&dyn AuthProvider> = vec![&session, &pat];
+    let err = evaluate_chain(&chain, &SessionId::generate(), &reqwest::Client::new())
+        .await
+        .expect_err("nothing configured");
     assert!(matches!(err, ChainError::NoneSucceeded));
 }
 

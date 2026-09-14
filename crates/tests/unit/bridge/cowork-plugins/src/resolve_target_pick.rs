@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 use systemprompt_bridge::cowork_compat::PERSONAL_SESSION_UUID;
-use systemprompt_bridge::integration::cowork_plugins::pick_target;
+use systemprompt_bridge::integration::cowork_plugins::{ResolveTargetError, pick_target};
 
 const PERSONAL: &str = PERSONAL_SESSION_UUID;
 const REAL_ORG: &str = "f8e4d915-1111-2222-3333-444444444444";
@@ -50,7 +50,7 @@ fn personal_session_wins_over_another_usable_org() {
 
     let candidates = vec![(t(1_000), personal.clone()), (t(9_000), real)];
 
-    let picked = pick_target(&candidates);
+    let picked = pick_target(&candidates).expect("a personal session resolves");
     assert_eq!(picked.as_deref(), Some(personal.as_path()));
 }
 
@@ -62,12 +62,12 @@ fn single_usable_org_is_selected() {
 
     let candidates = vec![(t(1_000), usable.clone()), (t(9_000), half_init)];
 
-    let picked = pick_target(&candidates);
+    let picked = pick_target(&candidates).expect("one usable session resolves");
     assert_eq!(picked.as_deref(), Some(usable.as_path()));
 }
 
 #[test]
-fn several_usable_orgs_without_personal_are_refused() {
+fn several_usable_orgs_without_personal_are_ambiguous() {
     let s = Sessions::new();
     let older = s.add("acct", REAL_ORG, true);
     let newer = s.add("acct", OTHER_ORG, true);
@@ -76,7 +76,10 @@ fn several_usable_orgs_without_personal_are_refused() {
 
     // The newer candidate is not a tie-break: mtime does not disambiguate, so
     // the operator must name the session via `cowork.session_org_dir`.
-    assert!(pick_target(&candidates).is_none());
+    assert!(matches!(
+        pick_target(&candidates),
+        Err(ResolveTargetError::Ambiguous)
+    ));
 }
 
 #[test]
@@ -86,12 +89,16 @@ fn no_usable_org_returns_none() {
 
     let candidates = vec![(t(1_000), half_init)];
 
-    assert!(pick_target(&candidates).is_none());
+    assert!(
+        pick_target(&candidates)
+            .expect("no usable dir is not an error")
+            .is_none()
+    );
 }
 
 #[test]
 fn empty_candidates_returns_none() {
-    let picked = pick_target(&[]);
+    let picked = pick_target(&[]).expect("no candidates is not an error");
     assert!(picked.is_none());
 }
 
@@ -103,6 +110,6 @@ fn half_initialised_personal_dir_is_skipped_for_personal_match() {
 
     let candidates = vec![(t(1_000), half_init), (t(9_000), real.clone())];
 
-    let picked = pick_target(&candidates);
+    let picked = pick_target(&candidates).expect("the real org resolves");
     assert_eq!(picked.as_deref(), Some(real.as_path()));
 }

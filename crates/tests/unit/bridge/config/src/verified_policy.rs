@@ -84,9 +84,6 @@ impl ConfigStore for Fake {
         }
         Ok(names.len())
     }
-    fn delete_policy_key(&self, _: PolicyHive) -> Result<bool, ConfigStoreError> {
-        unreachable!()
-    }
 }
 fn values(value: &str) -> Vec<(String, PolicyDocumentValue)> {
     vec![(

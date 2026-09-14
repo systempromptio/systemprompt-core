@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+uuid = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-identifiers = { workspace = true }

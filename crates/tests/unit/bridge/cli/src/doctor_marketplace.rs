@@ -141,7 +141,7 @@ fn a_plugins_key_that_is_not_an_array_is_treated_as_no_plugins_rather_than_crash
 }
 
 #[test]
-fn with_a_sidecar_every_owned_marketplace_is_checked_and_the_legacy_one_is_not() {
+fn with_a_sidecar_every_owned_marketplace_is_checked_and_an_unrecorded_one_is_not() {
     let check = with_home(
         |home| {
             write_sidecar(home, &["core", "commerce"]);

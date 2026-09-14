@@ -7039,6 +7039,7 @@ dependencies = [
  "dirs 7.0.0",
  "ed25519-dalek 3.0.0",
  "futures-util",
+ "hmac 0.13.0",
  "hostname",
  "http",
  "http-body-util",
@@ -7285,6 +7286,7 @@ dependencies = [
  "temp-env",
  "tempfile",
  "tokio",
+ "uuid",
  "wiremock",
 ]
 
@@ -7398,6 +7400,7 @@ version = "0.0.11"
 dependencies = [
  "bytes",
  "futures-util",
+ "http",
  "http-body-util",
  "hyper",
  "reqwest",

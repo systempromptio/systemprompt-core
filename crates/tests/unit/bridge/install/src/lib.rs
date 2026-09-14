@@ -29,6 +29,8 @@ mod pubkey;
 #[cfg(test)]
 mod schedule;
 #[cfg(test)]
+mod settings_path_probe;
+#[cfg(test)]
 mod summary;
 #[cfg(test)]
 mod tool_catalog;

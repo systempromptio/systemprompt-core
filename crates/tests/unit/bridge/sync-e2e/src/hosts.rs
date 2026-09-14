@@ -16,7 +16,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{LibraryArtifactId, PluginId, Sha256Digest};
-use systemprompt_bridge::sync::run_once;
+use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -155,7 +155,15 @@ fn run_sync(dirs: &HostSandbox) -> Result<systemprompt_bridge::sync::SyncSummary
                 .enable_all()
                 .build()
                 .unwrap()
-                .block_on(run_once(&bridge(), true, true, true))
+                .block_on(run_once(
+                    &bridge(),
+                    &SyncOptions {
+                        allow_unsigned: true,
+                        force_replay: true,
+                        allow_tofu: true,
+                        ..SyncOptions::default()
+                    },
+                ))
                 .map_err(|e| e.to_string())
         },
     )
@@ -525,9 +533,9 @@ fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
 }
 
-// Seeds the layout a pre-marketplace bridge wrote — the legacy marketplace
-// under every registry key — beside a marketplace the user registered by hand.
-fn seed_legacy_and_foreign_marketplaces(claude_home: &Path) {
+// Seeds a marketplace nothing in the sidecar owns beside one the user
+// registered by hand; neither is the bridge's to touch.
+fn seed_unowned_and_foreign_marketplaces(claude_home: &Path) {
     let plugins = claude_home.join("plugins");
     for marketplace in ["org-provisioned", "someones-mp"] {
         let plugin = plugins
@@ -577,7 +585,7 @@ fn seed_legacy_and_foreign_marketplaces(claude_home: &Path) {
 }
 
 #[test]
-fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_foreign_ones() {
+fn a_manifest_naming_marketplaces_mirrors_each_and_spares_every_marketplace_it_did_not_write() {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -601,7 +609,7 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
         (server, dirs)
     });
     let _ = &server;
-    seed_legacy_and_foreign_marketplaces(&dirs.claude_home);
+    seed_unowned_and_foreign_marketplaces(&dirs.claude_home);
 
     let summary = run_sync(&dirs).expect("run_once should succeed");
     assert!(
@@ -636,36 +644,34 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
         serde_json::json!(["core", "commerce"])
     );
 
-    assert!(
-        !plugins
-            .join("marketplaces")
-            .join("org-provisioned")
-            .exists()
-            && !plugins.join("cache").join("org-provisioned").exists(),
-        "the legacy single marketplace is purged on the first marketplace-aware sync"
-    );
-    assert!(
-        plugins
-            .join("marketplaces")
-            .join("someones-mp")
-            .join("plugins")
-            .join("old-plugin")
-            .is_dir(),
-        "a marketplace the user registered is never touched"
-    );
+    for marketplace in ["org-provisioned", "someones-mp"] {
+        assert!(
+            plugins
+                .join("marketplaces")
+                .join(marketplace)
+                .join("plugins")
+                .join("old-plugin")
+                .is_dir()
+                && plugins
+                    .join("cache")
+                    .join(marketplace)
+                    .join("old-plugin")
+                    .is_dir(),
+            "a marketplace the sidecar does not record was not written by this bridge and is \
+             never removed: {marketplace}"
+        );
+    }
 
     let known: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("known_marketplaces.json")).unwrap())
             .unwrap();
-    assert!(known.get("org-provisioned").is_none(), "{known}");
+    assert_eq!(known["org-provisioned"]["source"]["path"], "x", "{known}");
     assert_eq!(known["someones-mp"]["source"]["repo"], "a/b", "{known}");
 
     let installed: serde_json::Value =
         serde_json::from_slice(&fs::read(plugins.join("installed_plugins.json")).unwrap()).unwrap();
     assert!(
-        installed["plugins"]
-            .get("old-plugin@org-provisioned")
-            .is_none(),
+        installed["plugins"]["old-plugin@org-provisioned"].is_array(),
         "{installed}"
     );
     assert!(
@@ -675,18 +681,12 @@ fn a_manifest_naming_marketplaces_mirrors_each_purges_the_legacy_one_and_spares_
 
     let settings: serde_json::Value =
         serde_json::from_slice(&fs::read(dirs.claude_home.join("settings.json")).unwrap()).unwrap();
-    assert!(
-        settings["enabledPlugins"]
-            .get("old-plugin@org-provisioned")
-            .is_none(),
-        "{settings}"
+    assert_eq!(
+        settings["enabledPlugins"]["old-plugin@org-provisioned"],
+        true
     );
     assert_eq!(settings["enabledPlugins"]["old-plugin@someones-mp"], true);
-    assert!(
-        settings["extraKnownMarketplaces"]
-            .get("org-provisioned")
-            .is_none()
-    );
+    assert!(settings["extraKnownMarketplaces"]["org-provisioned"].is_object());
     assert!(settings["extraKnownMarketplaces"]["someones-mp"].is_object());
 }
 
