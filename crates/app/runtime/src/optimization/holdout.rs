@@ -13,7 +13,7 @@ use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, EvalRevisionId,
 
 /// Select a completed development run and a separately authored holdout
 /// dataset.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PrepareHoldout {
     pub development_experiment_id: EvalExperimentId,
@@ -21,7 +21,7 @@ pub struct PrepareHoldout {
     pub idempotency_key: String,
 }
 /// Explicit confirmation binds human approval to the retained matrix digest.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConfirmHoldout {
     pub spec_digest: String,
@@ -29,7 +29,7 @@ pub struct ConfirmHoldout {
 }
 /// Reviewable proposal and current actual execution admission, without reserved
 /// spend.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct HoldoutReview {
     pub proposal: HoldoutProposal,
     pub execution_availability: CampaignAvailability,

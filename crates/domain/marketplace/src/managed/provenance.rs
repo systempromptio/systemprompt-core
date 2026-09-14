@@ -9,7 +9,7 @@ use super::assets::validate_path;
 use super::error::invalid;
 use super::{AssetDigest, Result};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SourceSpec {
     Git {
@@ -76,7 +76,7 @@ impl SourceSpec {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SnapshotProvenance {
     pub source_kind: String,

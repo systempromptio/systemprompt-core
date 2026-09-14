@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 pub(super) struct Generation {
     pub(super) snapshots: i64,
     pub(super) inventory: i64,

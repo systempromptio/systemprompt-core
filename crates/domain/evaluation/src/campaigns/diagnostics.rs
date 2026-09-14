@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{EvalCampaignId, UserId};
 
 /// Campaign step that requires an operator action before it can proceed.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DiagnosticStage {
     Setup,
@@ -22,7 +22,7 @@ pub enum DiagnosticStage {
 
 /// Safe actionable failure categories; source credentials and raw errors are
 /// not retained.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DiagnosticCode {
     UnsupportedCapability,
@@ -78,7 +78,7 @@ impl DiagnosticCode {
 }
 
 /// Durable diagnostic with repeat count and resolution history.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CampaignDiagnostic {
     pub id: String,
     pub campaign_id: Option<EvalCampaignId>,

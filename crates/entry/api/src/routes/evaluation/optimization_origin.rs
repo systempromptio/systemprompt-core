@@ -10,11 +10,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use systemprompt_runtime::AppContext;
 
-pub(crate) async fn protect(
-    State(ctx): State<AppContext>,
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn protect(State(ctx): State<AppContext>, request: Request, next: Next) -> Response {
     if !request.method().is_safe() && request.headers().contains_key(header::COOKIE) {
         let expected = url::Url::parse(&ctx.config().api_external_url)
             .ok()

@@ -16,7 +16,9 @@ fn run_proxy_command_with_timeout(budget: Duration) -> Option<String> {
         let _ = tx.send(format!("{code:?}"));
     });
     let result = rx.recv_timeout(budget).ok()?;
-    worker.join().expect("CLI worker completed without panicking");
+    worker
+        .join()
+        .expect("CLI worker completed without panicking");
     Some(result)
 }
 

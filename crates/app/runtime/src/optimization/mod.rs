@@ -38,7 +38,7 @@ pub struct SkillOptimizationOrchestrator {
     revisions: RevisionRepository,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SourceAcceptance {
     pub campaign_id: EvalCampaignId,

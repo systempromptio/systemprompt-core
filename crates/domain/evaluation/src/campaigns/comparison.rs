@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::{CampaignPolicy, OptimizationObjective};
 use crate::{EvaluationError, Result};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Outcome {
     pub quality_milli: u32,
@@ -21,14 +21,14 @@ pub struct Outcome {
     pub accounting_complete: bool,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PairedOutcome {
     pub baseline: Outcome,
     pub candidate: Outcome,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ComparisonDecision {
     pub eligible: bool,
     pub pairs: usize,

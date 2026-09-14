@@ -16,6 +16,21 @@ impl SkillOptimizationOrchestrator {
         configured_root: &std::path::Path,
         skills: Vec<String>,
     ) -> Result<ImportedSkills, OptimizationError> {
+        let captured = self
+            .capture_authoring_input(owner, source, configured_root, skills)
+            .await?;
+        Ok(self
+            .managed
+            .import_skills(owner, source, &captured, None)
+            .await?)
+    }
+    pub async fn capture_authoring_input(
+        &self,
+        owner: &UserId,
+        source: &ManagedSourceId,
+        configured_root: &std::path::Path,
+        skills: Vec<String>,
+    ) -> Result<systemprompt_marketplace::managed::CapturedSkills, OptimizationError> {
         let SourceSpec::LocalTree { root } = self.managed.get_source(owner, source).await? else {
             return Err(OptimizationError::Source("Authoring capture requires a local-tree source; synchronize Git sources separately".to_owned()));
         };
@@ -31,9 +46,6 @@ impl SkillOptimizationOrchestrator {
             .map_err(|error| {
                 OptimizationError::Source(format!("Authoring capture task failed: {error}"))
             })??;
-        Ok(self
-            .managed
-            .import_skills(owner, source, &captured, None)
-            .await?)
+        Ok(captured)
     }
 }

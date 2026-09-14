@@ -241,7 +241,7 @@ bytes = "1.12"
 hex = "0.4"
 ipnet = "2.12"
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
-schemars = { version = "1.2", features = ["derive"] }
+schemars = { version = "1.2", features = ["derive", "chrono04"] }
 url = "2.5"
 urlencoding = "2.1"
 async-stream = "0.3"

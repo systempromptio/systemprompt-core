@@ -44,3 +44,7 @@ mod gateway_auth_mtls_enrolled;
 mod wellknown_agent_cards;
 
 mod feedback_stream;
+
+mod feedback_contracts;
+
+mod feedback_boundaries;

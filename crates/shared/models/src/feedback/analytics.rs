@@ -13,7 +13,7 @@ use systemprompt_identifiers::{
 
 use super::EvaluatorClient;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AnalyticsFactKind {
     Invocation,
@@ -22,7 +22,7 @@ pub enum AnalyticsFactKind {
     ResourceAssociation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AnalyticsFactKey {
     pub kind: AnalyticsFactKind,
@@ -30,7 +30,7 @@ pub struct AnalyticsFactKey {
     pub id: AnalyticsFactId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum InvocationConsumerIdentity {
     HistoricalUnknown,
@@ -42,7 +42,7 @@ pub enum InvocationConsumerIdentity {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum InvocationResourceAttribution {
     Unknown,
@@ -52,7 +52,7 @@ pub enum InvocationResourceAttribution {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedInvocationFact {
     pub invocation_id: ResourceInvocationId,
@@ -63,7 +63,7 @@ pub struct NormalizedInvocationFact {
     pub latency_micros: Option<u64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum RecordedSpend {
     Known {
@@ -73,7 +73,7 @@ pub enum RecordedSpend {
     UnknownPricing,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedRequestFact {
     pub request_key: AnalyticsFactKey,
@@ -86,7 +86,7 @@ pub struct NormalizedRequestFact {
     pub latency_micros: Option<u64>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum AssessmentOutcome {
     Scored { score_millionths: i64 },
@@ -94,14 +94,14 @@ pub enum AssessmentOutcome {
     Unavailable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AssessmentConversationKey {
     pub source: String,
     pub id: AnalyticsFactId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedAssessmentFact {
     pub conversation_key: AssessmentConversationKey,
@@ -111,7 +111,7 @@ pub struct NormalizedAssessmentFact {
     pub outcome: AssessmentOutcome,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedResourceAssociationFact {
     pub association_key: AnalyticsFactKey,
@@ -121,7 +121,7 @@ pub struct NormalizedResourceAssociationFact {
     pub attribution: InvocationResourceAttribution,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum NormalizedAnalyticsFact {
     Invocation(NormalizedInvocationFact),
@@ -141,14 +141,14 @@ impl NormalizedAnalyticsFact {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "operation", rename_all = "snake_case")]
 pub enum AnalyticsChangeOperation {
     Replace { fact: NormalizedAnalyticsFact },
     Tombstone,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AnalyticsChange {
     pub change_id: AnalyticsChangeId,

@@ -14,7 +14,8 @@ use systemprompt_evaluation::{EvaluationError, Result};
 
 #[path = "hermes_output.rs"]
 mod output;
-/// Pinned Hermes execution with namespace isolation and normalized native evidence.
+/// Pinned Hermes execution with namespace isolation and normalized native
+/// evidence.
 #[derive(Debug, Clone, Copy)]
 pub struct HermesAdapter;
 pub static ADAPTER: HermesAdapter = HermesAdapter;

@@ -183,3 +183,6 @@ mod consumer_plan;
 
 #[cfg(test)]
 mod installation_coverage;
+
+#[cfg(test)]
+mod api_operations;

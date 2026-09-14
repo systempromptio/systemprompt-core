@@ -4,7 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod admin;
+pub(crate) mod admin;
+pub use systemprompt_marketplace::managed::operations::CredentialIssueStatus;
 mod authorization;
 mod error;
 
@@ -20,7 +21,7 @@ use systemprompt_runtime::AppContext;
 
 use error::ConsumerHttpError;
 
-pub(crate) fn router() -> Router<AppContext> {
+pub fn router() -> Router<AppContext> {
     Router::new()
         .route(
             "/consumer/resources/{resource}/publications/{publication}/bundle",
@@ -30,7 +31,9 @@ pub(crate) fn router() -> Router<AppContext> {
         .route("/consumer/receipts", post(receipt))
         .route("/consumer/receipts/{id}", get(receipt_status))
         .route("/consumer/session-bindings", post(bind_session))
+        .route("/consumer/session-bindings/{id}", get(session_status))
         .route("/consumer/invocations", post(invocation))
+        .route("/consumer/invocations/{id}", get(invocation_status))
         .layer(DefaultBodyLimit::max(1024 * 1024))
 }
 
@@ -100,8 +103,8 @@ async fn invocation(
     ))
 }
 
-#[derive(serde::Serialize)]
-struct Enrollment {
+#[derive(serde::Serialize, schemars::JsonSchema)]
+pub(crate) struct Enrollment {
     device_id: systemprompt_identifiers::DeviceId,
     consumer_id: systemprompt_identifiers::UserId,
 }
@@ -122,8 +125,8 @@ async fn enroll(
     }))
 }
 
-#[derive(serde::Deserialize)]
-struct BundleQuery {
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub(crate) struct BundleQuery {
     host: systemprompt_models::feedback::EvaluatorClient,
 }
 
@@ -141,6 +144,34 @@ async fn bundle(
     Ok(Json(
         ctx.managed_repository()
             .consumer_installation_plan(credential, &resource, &publication, query.host)
+            .await?,
+    ))
+}
+
+async fn session_status(
+    State(ctx): State<AppContext>,
+    headers: HeaderMap,
+    Path(id): Path<systemprompt_identifiers::InstallationSessionBindingId>,
+) -> Result<
+    Json<systemprompt_marketplace::managed::consumer::ConsumerSessionBinding>,
+    ConsumerHttpError,
+> {
+    Ok(Json(
+        ctx.managed_repository()
+            .consumer_session_status(authorization::credential(&headers)?, &id)
+            .await?,
+    ))
+}
+async fn invocation_status(
+    State(ctx): State<AppContext>,
+    headers: HeaderMap,
+    Path(id): Path<systemprompt_identifiers::ResourceInvocationId>,
+    axum::extract::Query(query): axum::extract::Query<BundleQuery>,
+) -> Result<Json<systemprompt_marketplace::managed::consumer::ConsumerAttribution>, ConsumerHttpError>
+{
+    Ok(Json(
+        ctx.managed_repository()
+            .consumer_invocation_status(authorization::credential(&headers)?, &id, query.host)
             .await?,
     ))
 }

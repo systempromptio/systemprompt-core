@@ -26,7 +26,7 @@ pub(super) fn router() -> Router<AppContext> {
         )
 }
 /// Bounded cursor collection optionally scoped to one organizational campaign.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DiagnosticQuery {
     pub campaign_id: Option<EvalCampaignId>,
@@ -35,7 +35,7 @@ pub struct DiagnosticQuery {
 }
 /// Durable blocked operations, including setup failures before a campaign
 /// exists.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, schemars::JsonSchema)]
 pub struct DiagnosticPage {
     pub items: Vec<CampaignDiagnostic>,
     pub next_cursor: Option<String>,

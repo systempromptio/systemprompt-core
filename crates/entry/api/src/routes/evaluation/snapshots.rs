@@ -26,20 +26,21 @@ pub(super) fn router() -> Router<AppContext> {
         .route("/analytics/jobs", post(create_job))
         .route("/analytics/jobs/{operation}", get(job))
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Window {
+pub(crate) struct Window {
     days: Option<u32>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Cursor {
+pub(crate) struct Cursor {
     days: Option<u32>,
     after: Option<ManagedResourceId>,
+    #[schemars(range(min = 1, max = 100))]
     limit: Option<u32>,
 }
-#[derive(Debug, Serialize)]
-struct Page {
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+pub(crate) struct Page {
     items: Vec<FeedbackSnapshot>,
     next_cursor: Option<ManagedResourceId>,
 }
@@ -114,10 +115,13 @@ async fn create_job(
 async fn job(
     State(ctx): State<AppContext>,
     Path(operation): Path<TaskId>,
-) -> Result<Json<Option<SnapshotRangeJob>>, OptimizationHttpError> {
+) -> Result<Json<SnapshotRangeJob>, OptimizationHttpError> {
     Ok(Json(
         ctx.feedback_snapshots_repository()
             .range_job(ctx.system_admin().id(), &operation)
-            .await?,
+            .await?
+            .ok_or_else(|| {
+                OptimizationHttpError::NotFound("Analytics job unavailable".to_owned())
+            })?,
     ))
 }

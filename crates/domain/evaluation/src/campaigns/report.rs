@@ -18,7 +18,7 @@ use crate::experiments::records::ExperimentStatus;
 use crate::experiments::resources::{Partition, ResourceContent};
 use crate::repository::experiments::{EvaluationRepositories, RevisionRepository};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct CampaignReport {
     pub execution_availability: crate::repository::experiments::CampaignAvailability,
     pub diagnostics: Vec<super::diagnostics::CampaignDiagnostic>,
@@ -33,7 +33,7 @@ pub struct CampaignReport {
     pub limitations: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct MeasurementRow {
     execution_id: EvalExecutionId,
     variant: usize,
@@ -43,7 +43,7 @@ struct MeasurementRow {
     measurement: Option<RetainedMeasurement>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RetainedMeasurement {
     hard_failures: Vec<String>,
     quality_milli: Option<u32>,

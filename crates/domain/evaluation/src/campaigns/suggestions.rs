@@ -8,7 +8,7 @@ use crate::repository::experiments::EvaluationLifecycleRepository;
 use serde::Serialize;
 use systemprompt_identifiers::{EvalExperimentId, EvalSuggestionId, UserId};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct RetainedSuggestion {
     pub id: EvalSuggestionId,
     pub hypothesis: String,

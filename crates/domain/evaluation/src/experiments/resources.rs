@@ -11,14 +11,14 @@ use systemprompt_identifiers::EvalRevisionId;
 use super::invalid;
 use crate::Result;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Partition {
     Development,
     Holdout,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CaseContent {
     pub prompt: String,
@@ -29,7 +29,7 @@ pub struct CaseContent {
     pub assertions: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WeightedDimension {
     pub name: String,
@@ -37,7 +37,7 @@ pub struct WeightedDimension {
     pub weight: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RubricContent {
     pub dimensions: Vec<WeightedDimension>,
@@ -45,7 +45,7 @@ pub struct RubricContent {
     pub hard_gates: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(
     tag = "kind",
     content = "content",

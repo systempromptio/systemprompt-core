@@ -56,7 +56,25 @@ impl GitVerificationService {
         manifest
             .validate_complete()
             .map_err(|_error| ManagedError::Integrity)?;
-        self.managed.retain_git_verification(owner, &manifest).await
+        let retained = self
+            .managed
+            .retain_git_verification(owner, &manifest)
+            .await?;
+        let retained_inputs: BTreeMap<_, _> = retained
+            .revisions
+            .iter()
+            .map(|item| (&item.provenance.revision_id, &item.provenance))
+            .collect();
+        if input.revisions.iter().any(|item| {
+            retained_inputs
+                .get(&item.revision_id)
+                .is_none_or(|retained| *retained != item)
+        }) {
+            return Err(ManagedError::Conflict(
+                "Retained verification uses different dependency provenance".to_owned(),
+            ));
+        }
+        Ok(retained)
     }
 
     async fn verify_revision(

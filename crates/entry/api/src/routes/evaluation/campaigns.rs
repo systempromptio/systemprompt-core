@@ -19,8 +19,11 @@ use super::optimization_error::OptimizationHttpError;
 
 pub fn router() -> Router<AppContext> {
     Router::new()
+        .route("/openapi.json", get(super::contract::openapi::serve))
         .merge(super::optimization_resources::router())
         .merge(super::inventory::router())
+        .merge(super::operations::router())
+        .merge(super::publications::router())
         .merge(super::campaign_completion::router())
         .merge(super::snapshots::router())
         .merge(super::consumer::admin_router())
@@ -36,21 +39,21 @@ pub fn router() -> Router<AppContext> {
         .route("/campaign-runs", post(launch))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Create {
+pub(crate) struct Create {
     idempotency_key: String,
     policy: CampaignPolicy,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Cursor {
+pub(crate) struct Cursor {
     after: Option<EvalCampaignId>,
 }
 
-#[derive(Debug, Serialize)]
-struct Page {
+#[derive(Debug, Serialize, schemars::JsonSchema)]
+pub(crate) struct Page {
     items: Vec<CampaignRecord>,
     next_cursor: Option<EvalCampaignId>,
 }
@@ -140,9 +143,9 @@ async fn show(
     ))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Transition {
+pub(crate) struct Transition {
     expected_generation: i64,
     action: CampaignAction,
 }
@@ -165,9 +168,9 @@ async fn transition(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct Attach {
+pub(crate) struct Attach {
     experiment_id: EvalExperimentId,
 }
 
@@ -191,13 +194,28 @@ async fn attach(
 async fn experiments(
     State(ctx): State<AppContext>,
     Path(id): Path<EvalCampaignId>,
-) -> Result<Json<Vec<EvalExperimentId>>, OptimizationHttpError> {
-    Ok(Json(
-        ctx.evaluation_repositories()
-            .campaigns
-            .list_experiments(ctx.system_admin().id(), &id)
-            .await?,
-    ))
+    Query(query): Query<super::collections::Cursor>,
+) -> Result<Json<super::collections::Page<EvalExperimentId>>, OptimizationHttpError> {
+    let limit = query.limit()?;
+    let mut items = ctx
+        .evaluation_repositories()
+        .campaigns
+        .list_experiments(ctx.system_admin().id(), &id)
+        .await?;
+    items.sort();
+    items.retain(|id| {
+        query
+            .after
+            .as_ref()
+            .is_none_or(|after| id.as_str() > after.as_str())
+    });
+    items.truncate(limit as usize);
+    let next_cursor = if items.len() == limit as usize {
+        items.last().map(ToString::to_string)
+    } else {
+        None
+    };
+    Ok(Json(super::collections::Page { items, next_cursor }))
 }
 
 pub(super) fn orchestrator(

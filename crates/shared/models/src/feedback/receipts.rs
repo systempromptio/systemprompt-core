@@ -19,7 +19,7 @@ pub struct AuthenticatedConsumerDevice {
     pub device_id: DeviceId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReadbackStatus {
     Verified,
@@ -27,7 +27,7 @@ pub enum ReadbackStatus {
     Unavailable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FileReadback {
     pub revision_id: ResourceRevisionId,
@@ -39,7 +39,7 @@ pub struct FileReadback {
     pub mode_check: ReadbackStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RuntimeFileReadback {
     pub path: String,
@@ -50,14 +50,14 @@ pub struct RuntimeFileReadback {
     pub mode_check: ReadbackStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct InstallationPlanFile {
     pub path: String,
     pub bytes: Vec<u8>,
     pub executable: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ConsumerInstallationPlan {
     pub publication_id: PublicationId,
     pub resource_id: ManagedResourceId,
@@ -69,7 +69,7 @@ pub struct ConsumerInstallationPlan {
     pub runtime_files: Vec<InstallationPlanFile>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ConsumerReceiptRequest {
     pub installation_id: ConsumerInstallationId,
@@ -124,7 +124,7 @@ impl ConsumerReceiptRequest {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SessionBindingRequest {
     pub receipt_id: InstallationReceiptId,
@@ -132,14 +132,14 @@ pub struct SessionBindingRequest {
     pub session_id: NativeSessionId,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReceiptAcknowledgement {
     Accepted,
     IdenticalRetry,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ConsumerReceiptResponse {
     pub receipt_id: InstallationReceiptId,
     pub acknowledgement: ReceiptAcknowledgement,

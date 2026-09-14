@@ -25,7 +25,7 @@ pub const ASSEMBLER_VERSION: &str = "managed-bundle-v1";
 /// bytes and executable modes without filesystem reads or timestamps. Only
 /// declared dependencies enter the closure; parent revision history remains
 /// provenance.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RevisionBundle {
     pub schema_version: u32,

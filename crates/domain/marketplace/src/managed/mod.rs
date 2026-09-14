@@ -62,3 +62,5 @@ pub use tree::{CapturedSkills, capture_skills};
 
 pub(crate) use assets::validate_path as validate_inventory_path;
 pub(crate) use tree::capture_inventory_files;
+
+pub mod operations;
