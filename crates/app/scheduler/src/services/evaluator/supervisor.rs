@@ -42,7 +42,7 @@ mod prompts;
 #[path = "supervisor_suggestion.rs"]
 mod suggestion;
 #[path = "supervisor_workspace.rs"]
-mod workspace;
+pub mod workspace;
 
 use execution::{ExecutionOutcome, capture_outputs};
 use prepare::PreparedExecution;

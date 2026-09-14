@@ -189,8 +189,7 @@ impl EvaluatorSupervisor {
         client: &NativeClient,
     ) -> SchedulerResult<ProvisionedWorkspace> {
         let directory = self.config.workspace_root.join(suffix);
-        std::fs::create_dir(&directory)?;
-        let guard = WorkspaceDirectory(directory.clone());
+        let guard = WorkspaceDirectory::create(directory.clone())?;
         let home = directory.join("home");
         std::fs::create_dir(&home)?;
         let adapter = client.adapter().map_err(internal)?;

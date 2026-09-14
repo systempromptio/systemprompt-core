@@ -91,3 +91,6 @@ mod evaluator_opencode_adapter;
 
 #[cfg(test)]
 mod evaluator_supervisor_recovery;
+
+#[cfg(test)]
+mod evaluator_workspace;

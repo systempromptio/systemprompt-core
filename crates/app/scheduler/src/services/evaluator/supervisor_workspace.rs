@@ -9,9 +9,24 @@ use super::{
 };
 use sha2::{Digest, Sha256};
 
-pub(super) fn install_case_fixtures(case: &CaseContent, root: &Path) -> SchedulerResult<()> {
+#[path = "supervisor_workspace_walk.rs"]
+mod walk;
+use walk::visit_workspace;
+
+pub fn install_case_fixtures(case: &CaseContent, root: &Path) -> SchedulerResult<()> {
+    if case.fixtures.len() > 256
+        || case.fixtures.values().map(String::len).sum::<usize>() > 8 * 1024 * 1024
+    {
+        return Err(SchedulerError::config_error(
+            "Case fixtures exceed workspace limits",
+        ));
+    }
+    super::ResourceContent::Case(case.clone())
+        .validate()
+        .map_err(internal)?;
     for (relative, content) in &case.fixtures {
         let path = root.join(relative);
+        ensure_no_directory_links(&path, root)?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -20,7 +35,7 @@ pub(super) fn install_case_fixtures(case: &CaseContent, root: &Path) -> Schedule
     Ok(())
 }
 
-pub(super) fn workspace_state(root: &Path) -> SchedulerResult<BTreeMap<String, String>> {
+pub fn workspace_state(root: &Path) -> SchedulerResult<BTreeMap<String, String>> {
     let mut files = BTreeMap::new();
     visit_workspace(root, root, &mut |relative, bytes, executable| {
         files.insert(relative, file_state_digest(bytes, executable));
@@ -36,7 +51,7 @@ fn file_state_digest(bytes: &[u8], executable: bool) -> String {
     hex::encode(digest.finalize())
 }
 
-pub(super) fn changed_workspace(
+pub fn changed_workspace(
     root: &Path,
     baseline: &BTreeMap<String, String>,
 ) -> SchedulerResult<BTreeMap<String, ArtifactFile>> {
@@ -66,46 +81,6 @@ pub(super) fn changed_workspace(
     Ok(files)
 }
 
-fn visit_workspace(
-    root: &Path,
-    directory: &Path,
-    visitor: &mut impl FnMut(String, &[u8], bool) -> SchedulerResult<()>,
-) -> SchedulerResult<()> {
-    let mut entries = std::fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
-    entries.sort_by_key(std::fs::DirEntry::file_name);
-    for entry in entries {
-        let path = entry.path();
-        let metadata = std::fs::symlink_metadata(&path)?;
-        if metadata.file_type().is_symlink() {
-            return Err(SchedulerError::config_error(
-                "Evaluation workspace contains a link",
-            ));
-        }
-        if metadata.is_dir() {
-            visit_workspace(root, &path, visitor)?;
-        } else if metadata.is_file() {
-            let relative = path
-                .strip_prefix(root)
-                .map_err(internal)?
-                .to_string_lossy()
-                .replace('\\', "/");
-            #[cfg(unix)]
-            let executable = {
-                use std::os::unix::fs::PermissionsExt;
-                metadata.permissions().mode() & 0o111 != 0
-            };
-            #[cfg(not(unix))]
-            let executable = false;
-            visitor(relative, &std::fs::read(path)?, executable)?;
-        } else {
-            return Err(SchedulerError::config_error(
-                "Evaluation workspace contains a non-regular file",
-            ));
-        }
-    }
-    Ok(())
-}
-
 pub(super) fn evidence_references(evidence: &ExecutionEvidence) -> BTreeSet<String> {
     let mut references = BTreeSet::new();
     for artifact in &evidence.artifacts {
@@ -125,10 +100,7 @@ fn decoded_bundle(value: &serde_json::Value) -> SchedulerResult<RevisionBundle> 
     Ok(bundle)
 }
 
-pub(super) fn materialize_root(
-    value: &serde_json::Value,
-    destination: &Path,
-) -> SchedulerResult<()> {
+pub fn materialize_root(value: &serde_json::Value, destination: &Path) -> SchedulerResult<()> {
     let bundle = decoded_bundle(value)?;
     install_files(
         &bundle.revision_files(&bundle.root).map_err(internal)?.0,
@@ -136,10 +108,7 @@ pub(super) fn materialize_root(
     )
 }
 
-pub(super) fn materialize_skills(
-    value: &serde_json::Value,
-    destination: &Path,
-) -> SchedulerResult<()> {
+pub fn materialize_skills(value: &serde_json::Value, destination: &Path) -> SchedulerResult<()> {
     let bundle = decoded_bundle(value)?;
     for revision in bundle.revisions.keys() {
         let files = bundle.revision_files(revision).map_err(internal)?;
@@ -152,7 +121,9 @@ pub(super) fn materialize_skills(
             } else {
                 config.id.as_str()
             };
+            validate_directory_component(id)?;
             let directory = destination.join(id.replace('_', "-"));
+            ensure_no_directory_links(&directory, destination)?;
             std::fs::create_dir_all(&directory)?;
             let content = files
                 .0
@@ -170,11 +141,23 @@ pub(super) fn materialize_skills(
             for (path, file) in files.0.iter().filter(|(path, _)| {
                 path.as_str() != "config.yaml" && path.as_str() != config.content_file()
             }) {
-                install_file(&directory.join(path), file)?;
+                install_file(&directory.join(path), file, &directory)?;
             }
         } else {
-            install_files(&files.0, &destination.join(revision.as_str()))?;
+            validate_directory_component(revision.as_str())?;
+            let directory = destination.join(revision.as_str());
+            ensure_no_directory_links(&directory, destination)?;
+            install_files(&files.0, &directory)?;
         }
+    }
+    Ok(())
+}
+
+fn validate_directory_component(value: &str) -> SchedulerResult<()> {
+    if value.is_empty() || matches!(value, "." | "..") || value.contains(['/', '\\', ':']) {
+        return Err(SchedulerError::config_error(
+            "Skill directory must be one relative component",
+        ));
     }
     Ok(())
 }
@@ -184,7 +167,7 @@ fn install_files(
     destination: &Path,
 ) -> SchedulerResult<()> {
     for (path, file) in files {
-        install_file(&destination.join(path), file)?;
+        install_file(&destination.join(path), file, destination)?;
     }
     Ok(())
 }
@@ -192,7 +175,9 @@ fn install_files(
 fn install_file(
     path: &Path,
     file: &systemprompt_marketplace::managed::AssetFile,
+    destination: &Path,
 ) -> SchedulerResult<()> {
+    ensure_no_directory_links(path, destination)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -208,8 +193,23 @@ fn install_file(
     Ok(())
 }
 
+fn ensure_no_directory_links(path: &Path, root: &Path) -> SchedulerResult<()> {
+    for ancestor in path
+        .ancestors()
+        .take_while(|ancestor| ancestor.starts_with(root))
+    {
+        if std::fs::symlink_metadata(ancestor).is_ok_and(|meta| meta.file_type().is_symlink()) {
+            return Err(SchedulerError::config_error(
+                "Workspace write cannot traverse a directory link",
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn write_private(path: &Path, bytes: &[u8]) -> SchedulerResult<()> {
     use std::io::Write;
+    ensure_no_directory_links(path, path.parent().unwrap_or(path))?;
     let mut options = std::fs::OpenOptions::new();
     options.create_new(true).write(true);
     #[cfg(unix)]
@@ -259,8 +259,20 @@ pub(super) fn internal(error: impl std::fmt::Display) -> SchedulerError {
     SchedulerError::Internal(error.to_string())
 }
 
+/// An exclusively created workspace removed when its owning execution ends.
 #[derive(Debug)]
-pub(super) struct WorkspaceDirectory(pub(super) PathBuf);
+pub struct WorkspaceDirectory(PathBuf);
+
+impl WorkspaceDirectory {
+    pub fn create(path: PathBuf) -> SchedulerResult<Self> {
+        std::fs::create_dir(&path)?;
+        Ok(Self(path))
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.0
+    }
+}
 
 impl Drop for WorkspaceDirectory {
     fn drop(&mut self) {
