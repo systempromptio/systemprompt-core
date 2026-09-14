@@ -27,12 +27,12 @@ impl CliSessionContext {
         &self.profile.server.api_external_url
     }
 
-    pub fn to_request_context(&self, agent_name: &str) -> RequestContext {
+    pub fn to_request_context(&self, agent_name: AgentName) -> RequestContext {
         RequestContext::new(
             self.session.session_id.clone(),
             TraceId::generate(),
             self.session.context_id.clone(),
-            AgentName::new(agent_name.to_owned()),
+            agent_name,
         )
         .with_actor(systemprompt_identifiers::Actor::user(
             self.session.user_id.clone(),

@@ -9,7 +9,7 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_scheduler::services::{SchedulerHandle, SchedulerService};
-use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
+use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use crate::services::server::scheduler_health;
 

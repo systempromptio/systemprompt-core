@@ -49,7 +49,8 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
-            let event_stream = codec::sse_to_canonical_events(stream, ctx.request.model.clone());
+            let event_stream =
+                codec::sse_to_canonical_events(stream, ctx.request.model.to_string());
             return Ok(OutboundOutcome::Streaming(event_stream));
         }
 
@@ -67,14 +68,15 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
                 &bytes,
             ));
         }
-        let canon = codec::parse_response_object(&value, &ctx.request.model).map_err(|e| {
-            super::reject_unparsable_body(
-                ctx.route.provider.as_str(),
-                "openai-responses",
-                &e,
-                &bytes,
-            )
-        })?;
+        let canon =
+            codec::parse_response_object(&value, ctx.request.model.as_str()).map_err(|e| {
+                super::reject_unparsable_body(
+                    ctx.route.provider.as_str(),
+                    "openai-responses",
+                    &e,
+                    &bytes,
+                )
+            })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

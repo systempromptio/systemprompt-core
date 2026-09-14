@@ -5,6 +5,7 @@
 
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Map, Value};
+use systemprompt_identifiers::ModelId;
 use systemprompt_models::wire::inspect::ForwardedSurface;
 
 use super::super::super::canonical::{
@@ -84,7 +85,7 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let thinking = value.get("reasoning").map(parse_reasoning);
     let metadata = value.get("metadata").cloned();
     Ok(CanonicalRequest {
-        model,
+        model: ModelId::new(model),
         system,
         messages,
         max_tokens,

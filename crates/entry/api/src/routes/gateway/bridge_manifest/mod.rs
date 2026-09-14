@@ -13,7 +13,7 @@ use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{JwtToken, UserId};
+use systemprompt_identifiers::{ApiKeyId, JwtToken, UserId};
 use systemprompt_marketplace::{CatalogContent, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
@@ -146,7 +146,7 @@ async fn assemble_candidate(
 
 struct PerUserContext {
     user: Option<UserInfo>,
-    revocations: Vec<String>,
+    revocations: Vec<ApiKeyId>,
     enabled_hosts: Vec<String>,
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
 }

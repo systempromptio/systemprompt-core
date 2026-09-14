@@ -51,7 +51,7 @@ pub(super) async fn enforce(
         })?
         .evaluate(&PolicyContext {
             target: GovernedTarget::Tool {
-                tool: McpToolName::new(&target),
+                tool: McpToolName::try_new(&target).map_err(|_| denied())?,
             },
             agent_scope: AgentScope::User {
                 user_id: request.user_id().clone(),

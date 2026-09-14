@@ -2,6 +2,13 @@
 
 - Expose the evaluator capability registry at `GET /api/v1/evaluator-capabilities`.
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- A gateway deployment that registers request guards but has no database pool denies the request with `503` (`GatewayDenyKind::Unavailable`) instead of skipping the guards.
+- Extension routers that declare a reserved `/api/` prefix are refused at mount time.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

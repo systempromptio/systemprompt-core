@@ -52,7 +52,8 @@ impl OutboundAdapter for GeminiOutbound {
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
-            let event_stream = gemini::sse_to_canonical_events(stream, ctx.request.model.clone());
+            let event_stream =
+                gemini::sse_to_canonical_events(stream, ctx.request.model.to_string());
             return Ok(OutboundOutcome::Streaming(event_stream));
         }
 

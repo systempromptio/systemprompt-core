@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `plugins capabilities llm-providers` and the LLM-provider counters in `plugins list|show` are removed with the unimplemented `LlmProvider` seam.
+
+### Changed
+
+- `core files upload --context` and `core artifacts list --context` validate the id and report an error instead of aborting the process on a malformed value.
+
 ## [0.52.0] - 2026-09-14
 
 ### Changed

@@ -9,9 +9,10 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
 use systemprompt_logging::CliService;
-use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig};
+use systemprompt_models::{AiConfig, Config, ContentConfigRaw, SkillsConfig};
 
 use super::ShowFilter;
 use super::show_display::print_formatted_config;

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_models::services::ServicesConfig;
@@ -23,10 +23,10 @@ pub async fn load_user(ctx: &AppContext, user_id: &UserId) -> anyhow::Result<Opt
     }))
 }
 
-pub async fn load_revocations(ctx: &AppContext, user_id: &UserId) -> anyhow::Result<Vec<String>> {
+pub async fn load_revocations(ctx: &AppContext, user_id: &UserId) -> anyhow::Result<Vec<ApiKeyId>> {
     let repo = ctx.user_repository();
     let ids = repo.list_revoked_api_key_ids_for_user(user_id).await?;
-    Ok(ids)
+    Ok(ids.into_iter().map(ApiKeyId::new).collect())
 }
 
 pub async fn load_enabled_hosts(ctx: &AppContext, user_id: &UserId) -> anyhow::Result<Vec<String>> {

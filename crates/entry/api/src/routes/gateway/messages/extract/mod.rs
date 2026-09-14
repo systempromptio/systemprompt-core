@@ -130,12 +130,16 @@ pub(super) async fn extract_request_context(
         )
         .await;
 
-    let upstream_model = upstream_model_for(&rc.services.providers, &route, &gateway_request.model);
+    let upstream_model = upstream_model_for(
+        &rc.services.providers,
+        &route,
+        gateway_request.model.as_str(),
+    );
 
     enforce_authz_pre_dispatch(
         &principal,
         route.as_ref(),
-        &gateway_request.model,
+        gateway_request.model.as_str(),
         rc.ctx.authz_hook(),
     )
     .await?;

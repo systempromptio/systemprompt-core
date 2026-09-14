@@ -17,7 +17,7 @@ pub struct ListArgs {
     #[arg(long, help = "Filter by extension ID (substring match)")]
     pub filter: Option<String>,
 
-    #[arg(long, value_parser = ["jobs", "templates", "schemas", "routes", "tools", "roles", "llm", "storage"])]
+    #[arg(long, value_parser = ["jobs", "templates", "schemas", "routes", "tools", "roles", "storage"])]
     pub capability: Option<String>,
 
     #[arg(long, value_parser = ["compiled", "manifest", "cli", "mcp", "all"], default_value = "all", help = "Filter by extension type")]
@@ -81,7 +81,6 @@ fn matches_compiled_filters(ext: &dyn Extension, args: &ListArgs) -> bool {
             "routes" => return false,
             "tools" => return ext.has_tool_providers(),
             "roles" => return ext.has_roles(),
-            "llm" => return ext.has_llm_providers(),
             "storage" => return ext.has_storage_paths(),
             _ => {},
         }
@@ -98,7 +97,6 @@ fn compiled_summary(ext: &dyn Extension) -> ExtensionSummary {
         routes: 0,
         tools: ext.tool_providers().len(),
         roles: ext.roles().len(),
-        llm_providers: ext.llm_providers().len(),
         storage_paths: ext.required_storage_paths().len(),
     };
 

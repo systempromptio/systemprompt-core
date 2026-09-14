@@ -160,7 +160,7 @@ pub struct SettingsOutput {
 
 pub fn build_env_config(
     config: &systemprompt_models::Config,
-    paths: Option<&systemprompt_models::AppPaths>,
+    paths: Option<&systemprompt_config::paths::AppPaths>,
 ) -> EnvironmentConfig {
     EnvironmentConfig {
         core: CoreEnvVars {

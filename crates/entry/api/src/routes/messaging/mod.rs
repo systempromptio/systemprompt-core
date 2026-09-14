@@ -34,11 +34,9 @@ use identity::resolve_or_link_user;
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 static GUARDED_CLIENT: LazyLock<Option<reqwest::Client>> = LazyLock::new(|| {
-    systemprompt_models::net::guarded_client(
-        &systemprompt_models::net::GuardedClientConfig::default(),
-    )
-    .inspect_err(|e| tracing::error!(error = %e, "Guarded outbound http client unavailable"))
-    .ok()
+    systemprompt_client::guarded_client(&systemprompt_client::GuardedClientConfig::default())
+        .inspect_err(|e| tracing::error!(error = %e, "Guarded outbound http client unavailable"))
+        .ok()
 });
 
 #[must_use]

@@ -42,7 +42,7 @@ pub async fn execute_with_pool(
     let items = match &args.source {
         Some(source_id) => {
             let source = SourceId::new(source_id.clone());
-            repo.list_by_source(&source, &LocaleCode::new("en")).await?
+            repo.list_by_source(&source, &LocaleCode::english()).await?
         },
         None => repo.list(args.limit, args.offset).await?,
     };
