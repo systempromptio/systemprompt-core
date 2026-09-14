@@ -55,7 +55,7 @@ fn scope(device: &str) -> OutboxScope {
     OutboxScope {
         gateway: "https://example.invalid".to_owned(),
         consumer_id: UserId::new("consumer"),
-        device_id: DeviceId::new(device),
+        device_id: DeviceId::try_new(device).expect("nonempty fixture device"),
     }
 }
 

@@ -47,7 +47,7 @@ impl ManagedRepository {
         );
         let digest = AssetDigest::of(credential.as_bytes());
         sqlx::query!("INSERT INTO managed_consumer_credentials(device_id,credential_digest,issuance_operation) VALUES($1,$2,$3) ON CONFLICT(device_id) DO UPDATE SET credential_digest=EXCLUDED.credential_digest,issuance_operation=EXCLUDED.issuance_operation,revoked_at=NULL,created_at=clock_timestamp()",cert.as_str(),digest.as_str(),operation.id.as_str()).execute(&mut *tx).await?;
-        let status=CredentialIssueStatus{device_id:DeviceId::new(cert.as_str()),consumer_id:UserId::new(consumer),token_retrievable:false,retry_action:"Token is delivered once. If its response was lost, deliberately rotate with a new operation key.".to_owned()};
+        let status=CredentialIssueStatus{device_id:DeviceId::try_new(cert.as_str()).map_err(|_| ManagedError::Integrity)?,consumer_id:UserId::new(consumer),token_retrievable:false,retry_action:"Token is delivered once. If its response was lost, deliberately rotate with a new operation key.".to_owned()};
         sqlx::query!("UPDATE managed_api_operations SET state='completed',result=$3,updated_at=clock_timestamp() WHERE owner_id=$1 AND id=$2",owner.as_str(),operation.id.as_str(),sqlx::types::Json(&status) as _).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok((status, Some(credential)))

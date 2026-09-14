@@ -92,7 +92,8 @@ async fn late_resource_correction_preserves_authenticated_identity() {
     let mut change = invocation("late-receipt", 1);
     let identity = InvocationConsumerIdentity::Authenticated {
         consumer_id: UserId::new("consumer-facts"),
-        device_id: systemprompt_identifiers::DeviceId::new("device-facts"),
+        device_id: systemprompt_identifiers::DeviceId::try_new("device-facts")
+            .expect("nonempty fixture device"),
         host: systemprompt_models::feedback::EvaluatorClient::Codex,
         session_id: systemprompt_identifiers::NativeSessionId::new("session-facts"),
     };

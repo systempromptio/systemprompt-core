@@ -159,7 +159,7 @@ fn unknown_resource_attribution_preserves_authenticated_identity() {
         occurred_at: Utc::now(),
         consumer: InvocationConsumerIdentity::Authenticated {
             consumer_id: UserId::new("consumer"),
-            device_id: DeviceId::new("device"),
+            device_id: DeviceId::try_new("device").expect("nonempty fixture device"),
             host: EvaluatorClient::Codex,
             session_id: NativeSessionId::new("native-session"),
         },

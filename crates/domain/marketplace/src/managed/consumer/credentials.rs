@@ -51,7 +51,7 @@ impl ManagedRepository {
             .execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(IssuedConsumerCredential {
-            device_id: DeviceId::new(cert.as_str()),
+            device_id: DeviceId::try_new(cert.as_str()).map_err(|_| ManagedError::Integrity)?,
             consumer_id: UserId::new(record.user_id),
             credential,
         })
@@ -99,7 +99,7 @@ pub(super) async fn authenticate(
         .fetch_optional(&mut **tx).await?.ok_or(ManagedError::Unavailable)?;
     Ok(AuthenticatedConsumerDevice {
         consumer_id: UserId::new(row.user_id),
-        device_id: DeviceId::new(row.device_id),
+        device_id: DeviceId::try_new(row.device_id).map_err(|_| ManagedError::Integrity)?,
     })
 }
 

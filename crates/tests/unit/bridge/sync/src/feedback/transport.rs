@@ -64,7 +64,7 @@ async fn actual_transport_recovers_persisted_retry_and_uses_only_device_credenti
     ]);
     let enrollment = Enrollment::new(
         gateway,
-        DeviceId::new("device"),
+        DeviceId::try_new("device").expect("nonempty fixture device"),
         UserId::new("consumer"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
     )
@@ -130,7 +130,7 @@ async fn plan_for_different_host_is_rejected_even_when_publication_and_digest_ma
     )]);
     let enrollment = Enrollment::new(
         gateway,
-        DeviceId::new("device"),
+        DeviceId::try_new("device").expect("nonempty fixture device"),
         UserId::new("consumer"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
     )
@@ -154,7 +154,7 @@ async fn delivery_refuses_different_enrollment_before_any_network_request() {
     outbox.enqueue(receipt).unwrap();
     let other = Enrollment::new(
         "https://example.invalid".to_owned(),
-        DeviceId::new("other"),
+        DeviceId::try_new("other").expect("nonempty fixture device"),
         UserId::new("consumer"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_other"),
     )
@@ -172,7 +172,7 @@ fn unchanged_manifest_recovers_pending_plan_but_disabled_or_withdrawn_does_not()
         tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(async {
             let expected = plan(EvaluatorClient::Codex);
             let (gateway, server) = mock_server(vec![(200, String::new(), serde_json::to_string(&expected).unwrap())]);
-            let enrollment = Enrollment::new(gateway, DeviceId::new("device"), UserId::new("consumer"), systemprompt_bridge::ids::BearerToken::new("sp_device_private")).unwrap();
+            let enrollment = Enrollment::new(gateway, DeviceId::try_new("device").expect("nonempty fixture device"), UserId::new("consumer"), systemprompt_bridge::ids::BearerToken::new("sp_device_private")).unwrap();
             let outbox = Outbox::new(enrollment.outbox_path(dir.path()), OutboxScope::from_enrollment(&enrollment));
             outbox.reserve_installation(systemprompt_bridge::feedback::outbox::PendingInstallation::new(publication(), EvaluatorClient::Codex, vec![dir.path().to_path_buf()])).unwrap();
             let mut manifest: systemprompt_bridge::gateway::manifest::SignedManifest = serde_json::from_value(serde_json::json!({
