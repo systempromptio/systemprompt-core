@@ -8,23 +8,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod execution;
 mod messages;
 
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
 
+use self::execution::{build_artifacts_or_report, run_strategy};
 use self::messages::{BuildAiMessagesParams, build_ai_messages};
 use super::StreamProcessor;
-use super::helpers::{
-    SynthesizeFinalResponseParams, build_artifacts_from_results, synthesize_final_response,
-};
+use super::helpers::{SynthesizeFinalResponseParams, synthesize_final_response};
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Artifact;
 use crate::services::a2a_server::processing::message::{ProcessMessageStreamParams, StreamEvent};
-use crate::services::a2a_server::processing::strategies::{
-    ExecutionContext, ExecutionResult, ExecutionStrategySelector,
-};
+use crate::services::a2a_server::processing::strategies::ExecutionContext;
 use crate::services::shared::Result;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::{AiMessage, RequestContext};
@@ -199,73 +197,6 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
     .await;
 
     send_complete_event(&tx, final_text, artifacts);
-}
-
-async fn run_strategy(
-    execution_context: ExecutionContext,
-    ai_messages: Vec<AiMessage>,
-) -> Option<ExecutionResult> {
-    let has_tools = !execution_context
-        .agent_runtime
-        .mcp_servers
-        .include
-        .is_empty();
-    tracing::info!(
-        mcp_server_count = execution_context.agent_runtime.mcp_servers.include.len(),
-        has_tools = has_tools,
-        "Agent MCP server status"
-    );
-
-    let strategy = ExecutionStrategySelector::select_strategy(has_tools);
-    let task_id = execution_context.task_id.clone();
-    let tx = execution_context.tx.clone();
-    let execution_step_repo = Arc::clone(&execution_context.execution_step_repo);
-
-    match strategy.execute(execution_context, ai_messages).await {
-        Ok(result) => {
-            tracing::info!(
-                text_len = result.accumulated_text.len(),
-                tool_call_count = result.tool_calls.len(),
-                tool_result_count = result.tool_results.len(),
-                "Processing complete"
-            );
-            Some(result)
-        },
-        Err(e) => {
-            tracing::error!(error = %e, "Execution failed");
-            let tracking = crate::services::ExecutionTrackingService::new(execution_step_repo);
-            if let Err(fail_err) = tracking
-                .fail_in_progress_steps(&task_id, &e.to_string())
-                .await
-            {
-                tracing::error!(error = %fail_err, "Failed to mark steps as failed");
-            }
-            report_stream_error(&tx, format!("Execution failed: {e}"));
-            None
-        },
-    }
-}
-
-fn build_artifacts_or_report(
-    execution_result: &ExecutionResult,
-    context_id: &systemprompt_identifiers::ContextId,
-    task_id: &systemprompt_identifiers::TaskId,
-    tx: &mpsc::Sender<StreamEvent>,
-) -> Option<Vec<Artifact>> {
-    match build_artifacts_from_results(
-        &execution_result.tool_results,
-        &execution_result.tool_calls,
-        &execution_result.tools,
-        context_id,
-        task_id,
-    ) {
-        Ok(artifacts) => Some(artifacts),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to build artifacts from tool results");
-            report_stream_error(tx, format!("Artifact building failed: {e}"));
-            None
-        },
-    }
 }
 
 fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, message: String) {
