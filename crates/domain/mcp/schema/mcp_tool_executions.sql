@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS mcp_tool_executions (
     actor_kind TEXT,
     actor_id TEXT,
     ai_tool_call_id VARCHAR(255),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, mcp_execution_id)
 );
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_tool_name ON mcp_tool_executions(tool_name);
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_server_name ON mcp_tool_executions(server_name);
