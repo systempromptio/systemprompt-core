@@ -24,9 +24,12 @@
 //! let task = TaskId::generate();
 //! ```
 //!
-//! Validated identifiers (`McpServerId`, `Email`, `ProfileName`,
-//! `ValidatedUrl`, `ValidatedFilePath`, `AgentName`) additionally expose a
-//! fallible `try_new` constructor returning [`error::IdValidationError`].
+//! Validated identifiers (`McpServerId`, `ContextId`, `Email`, `ProfileName`,
+//! `ValidatedUrl`, `ValidatedFilePath`, `AgentName`, ...) expose **only** the
+//! fallible `try_new` constructor returning [`error::IdValidationError`];
+//! there is no infallible `new` that could panic on runtime input. Values
+//! minted by the platform itself (`ContextId::generate`, `AgentName::system`)
+//! come from dedicated constructors.
 //!
 //! # Feature flags
 //!

@@ -39,16 +39,6 @@ impl ProfileName {
     }
 
     #[must_use]
-    #[expect(
-        clippy::expect_used,
-        reason = "infallible constructor reserved for already-validated inputs; untrusted input \
-                  must go through try_new"
-    )]
-    pub fn new(value: impl Into<String>) -> Self {
-        Self::try_new(value).expect("ProfileName validation failed")
-    }
-
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

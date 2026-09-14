@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** validated identifiers (`ContextId`, `AgentName`, `Email`, `ProfileName`, `ValidatedFilePath`, `ValidatedUrl`, `LocaleCode`, `McpServerId`, every `define_id!(…, non_empty | validated)` type) no longer expose `new` or `new_unchecked`; both could panic on runtime input. Migrate by calling `try_new(...)?` (or `?`-propagating `IdValidationError`), and use the dedicated constructors for platform-minted values: `ContextId::generate` / `ContextId::from_uuid`, `AgentName::{system, bridge, unset}`, `Email::local_admin`, `LocaleCode::english`, `SecretPatternId::high_entropy`.
+- **Breaking:** `EntityRef::from_kind_and_id` returns `Result<EntityRef, IdValidationError>`; an empty id is refused instead of producing an unusable reference.
+
+### Fixed
+
+- `define_token!` types (`JwtToken`, `ApiKeySecret`, `CloudAuthToken`, `SessionToken`, …) redact their `Debug` output the same way as `Display`; a `{:?}` of a struct holding a credential no longer prints it. `redacted()` slices on character boundaries, so a multibyte token cannot panic.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

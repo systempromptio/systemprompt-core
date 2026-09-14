@@ -1,5 +1,4 @@
-//! `DbValue`: the database-agnostic value enum bridged by the conversion
-//! traits.
+//! The database-agnostic value enum bridged by the conversion traits.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,9 +6,11 @@
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
+// JSON: Dynamic query result row keyed by column name.
 pub type JsonRow = HashMap<String, serde_json::Value>;
 
 #[must_use]
+// JSON: Dynamic query result row keyed by column name.
 pub fn parse_database_datetime(value: &serde_json::Value) -> Option<DateTime<Utc>> {
     if let Some(s) = value.as_str() {
         if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
