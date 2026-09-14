@@ -15,7 +15,7 @@ async fn conversation_service_load_empty_context_returns_empty() -> Result<()> {
     )?);
 
     // Use a fresh context id not in DB
-    let unknown = ContextId::new_unchecked(Uuid::new_v4().to_string());
+    let unknown = ContextId::try_new(Uuid::new_v4().to_string()).expect("valid ContextId");
     let history = svc.load_conversation_history(&unknown).await?;
     assert!(history.is_empty());
 

@@ -45,7 +45,7 @@ fn counting_refresh(mints: &Arc<AtomicUsize>) -> RefreshFn {
 
 fn shared_runtime_config(gateway_uri: &str) -> SharedRuntimeConfig {
     let cfg = Config {
-        gateway_url: Some(ValidatedUrl::new(gateway_uri)),
+        gateway_url: Some(ValidatedUrl::try_new(gateway_uri).expect("valid ValidatedUrl")),
         ..Default::default()
     };
     Arc::new(ArcSwap::from_pointee(RuntimeConfig::from_config(&cfg)))
@@ -814,7 +814,7 @@ fn a_registered_mcp_server_is_routed_to_with_its_own_headers() {
             .expect("mcp fragment");
             systemprompt_bridge::mcp_registry::rehydrate_from_disk(
                 &REGISTRY,
-                &ValidatedUrl::new(SEED_GATEWAY),
+                &ValidatedUrl::try_new(SEED_GATEWAY).expect("valid ValidatedUrl"),
             )
             .expect("the seeded fragment rehydrates");
 
@@ -978,7 +978,7 @@ fn seed_mcp_fragment(state: &tempfile::TempDir, name: &str, url: &str) {
     .expect("mcp fragment");
     systemprompt_bridge::mcp_registry::rehydrate_from_disk(
         &REGISTRY,
-        &ValidatedUrl::new(SEED_GATEWAY),
+        &ValidatedUrl::try_new(SEED_GATEWAY).expect("valid ValidatedUrl"),
     )
     .expect("the seeded fragment rehydrates");
 }

@@ -6,10 +6,10 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,

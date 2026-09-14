@@ -9,7 +9,7 @@ fn sample_request_context() -> RequestContext {
         SessionId::generate(),
         TraceId::generate(),
         ContextId::generate(),
-        AgentName::new("test"),
+        AgentName::try_new("test").expect("valid AgentName"),
     )
 }
 

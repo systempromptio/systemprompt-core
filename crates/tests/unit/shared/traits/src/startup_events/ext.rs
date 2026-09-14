@@ -3,8 +3,8 @@
 use futures::stream::StreamExt;
 use std::time::Duration;
 use systemprompt_traits::{
-    ModuleInfo, OptionalStartupEventExt, Phase, ServiceInfo, ServiceState, ServiceType,
-    StartupEvent, StartupEventExt, startup_channel,
+    ModuleInfo, Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent, StartupEventExt,
+    startup_channel,
 };
 
 mod startup_event_ext_tests {

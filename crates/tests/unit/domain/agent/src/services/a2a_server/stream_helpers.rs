@@ -21,7 +21,10 @@ fn call(name: &str) -> ToolCall {
 }
 
 fn tool(name: &str) -> McpTool {
-    McpTool::new(name, McpServerId::new("svc"))
+    McpTool::new(
+        name,
+        McpServerId::try_new("svc").expect("valid McpServerId"),
+    )
 }
 
 fn text_only_result() -> CallToolResult {

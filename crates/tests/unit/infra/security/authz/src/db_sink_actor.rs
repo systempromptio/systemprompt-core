@@ -10,7 +10,7 @@ use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 fn mcp_request(user: &str, server: &str, chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {
-        entity: EntityRef::McpServer(McpServerId::new(server)),
+        entity: EntityRef::McpServer(McpServerId::try_new(server).expect("valid McpServerId")),
         user_id: UserId::new(user),
         actor: None,
         client_id: Some(ClientId::bridge()),

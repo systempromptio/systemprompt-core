@@ -46,7 +46,7 @@ fn emit_schedule_template_setter_sets_field() {
 
 #[test]
 fn gateway_url_setter_sets_field() {
-    let url = ValidatedUrl::new("https://gw.example.com");
+    let url = ValidatedUrl::try_new("https://gw.example.com").expect("valid ValidatedUrl");
     let opts = InstallOptions::builder().gateway_url(url).build();
     assert_eq!(
         opts.gateway_url.as_ref().map(ValidatedUrl::as_str),
@@ -82,7 +82,7 @@ fn all_setters_chain_together() {
     let opts = InstallOptions::builder()
         .print_mdm(Os::Windows)
         .emit_schedule_template(Os::Mac)
-        .gateway_url(ValidatedUrl::new("https://gw.example.com"))
+        .gateway_url(ValidatedUrl::try_new("https://gw.example.com").expect("valid ValidatedUrl"))
         .pubkey(PinnedPubKey::new("base64data"))
         .apply(true)
         .apply_mobileconfig(true)

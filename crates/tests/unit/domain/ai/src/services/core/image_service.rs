@@ -51,7 +51,7 @@ impl AiFilePersistenceProvider for InMemoryFileProvider {
     async fn insert_file(&self, params: InsertAiFileParams) -> AiProviderResult<()> {
         let now = chrono::Utc::now();
         let file = AiGeneratedFile {
-            id: params.id,
+            id: params.id.clone(),
             path: params.path,
             public_url: params.public_url,
             mime_type: params.mime_type,

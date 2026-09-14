@@ -13,7 +13,8 @@ use systemprompt_agent::services::agent_orchestration::AgentStatus;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::orchestrator::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::{AppPaths, ServicesConfig};
+use systemprompt_config::paths::AppPaths;
+use systemprompt_models::ServicesConfig;
 use systemprompt_traits::{Phase, StartupEvent, startup_channel};
 use uuid::Uuid;
 

@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use systemprompt_models::paths::{BuildPaths, PathError};
+use systemprompt_config::paths::{BuildPaths, PathError};
 use systemprompt_models::profile::PathsConfig;
 use tempfile::TempDir;
 

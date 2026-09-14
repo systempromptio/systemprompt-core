@@ -22,7 +22,7 @@ use systemprompt_api::services::gateway::service::finalize::{
 use systemprompt_api::services::gateway::service::{
     DispatchError, PolicyDenied, QuotaExceeded, REQUEST_ID_HEADER, SafetyBlocked,
 };
-use systemprompt_identifiers::{AiRequestId, ProviderId};
+use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_models::services::{GatewayConfig, OverrideRuleAction, SystemPromptRule};
 
 #[test]
@@ -132,7 +132,7 @@ fn attach_request_id_stamps_header() {
 
 fn canonical() -> CanonicalRequest {
     CanonicalRequest {
-        model: "claude-test".to_owned(),
+        model: ModelId::new("claude-test"),
         system: Some("keep it short".to_owned()),
         messages: vec![CanonicalMessage {
             role: Role::User,

@@ -303,12 +303,6 @@ fn test_extension_default_validate_config() {
 }
 
 #[test]
-fn test_extension_default_llm_providers() {
-    let ext = TestExtension { id: "test" };
-    assert!(ext.llm_providers().is_empty());
-}
-
-#[test]
 fn test_extension_default_tool_providers() {
     let ext = TestExtension { id: "test" };
     assert!(ext.tool_providers().is_empty());
@@ -348,6 +342,5 @@ fn test_extension_has_methods() {
     assert!(ext.router(&ctx).is_none());
     assert!(!ext.has_jobs());
     assert!(!ext.has_config());
-    assert!(!ext.has_llm_providers());
     assert!(!ext.has_tool_providers());
 }

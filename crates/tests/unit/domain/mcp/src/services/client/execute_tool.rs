@@ -17,7 +17,7 @@ fn ctx() -> RequestContext {
         SessionId::new("s-exec"),
         TraceId::new("t-exec"),
         ContextId::generate(),
-        AgentName::new("agent-exec"),
+        AgentName::try_new("agent-exec").expect("valid AgentName"),
     )
     .with_actor(Actor::user(UserId::new("user-exec")))
 }

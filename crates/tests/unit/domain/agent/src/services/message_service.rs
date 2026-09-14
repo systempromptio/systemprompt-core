@@ -33,7 +33,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
         session.clone(),
         TraceId::generate(),
         ctx.clone(),
-        AgentName::new("msg-agent"),
+        AgentName::try_new("msg-agent").expect("valid AgentName"),
     );
     rc.auth.actor = Actor::user(user.clone());
     rc

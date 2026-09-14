@@ -187,8 +187,10 @@ fn read_last_sync_invalid_version_format_propagates() {
 // not make the new gateway's first manifest look like a replay.
 #[test]
 fn a_sentinel_from_another_gateway_does_not_belong_to_this_one() {
-    let this = systemprompt_identifiers::ValidatedUrl::new("https://gw.example.com");
-    let other = systemprompt_identifiers::ValidatedUrl::new("http://localhost:8080");
+    let this = systemprompt_identifiers::ValidatedUrl::try_new("https://gw.example.com")
+        .expect("valid ValidatedUrl");
+    let other = systemprompt_identifiers::ValidatedUrl::try_new("http://localhost:8080")
+        .expect("valid ValidatedUrl");
     let stamped = LastSyncState {
         gateway: Some(other),
         ..last("2026-04-22T10:00:00Z-abcdef01")

@@ -105,7 +105,10 @@ platforms: ["macos", "windows"]
 docs_url: https://example.org/docs
 "#;
     let cfg: ExternalAgentConfig = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(cfg.id, ExternalAgentId::new("claude_desktop"));
+    assert_eq!(
+        cfg.id,
+        ExternalAgentId::try_new("claude_desktop").expect("valid ExternalAgentId")
+    );
     assert_eq!(cfg.kind, ExternalAgentKind::DesktopApp);
     assert!(cfg.enabled);
     assert_eq!(cfg.platforms.len(), 2);

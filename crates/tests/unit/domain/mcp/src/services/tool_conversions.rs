@@ -13,7 +13,7 @@ fn to_tool_definition_maps_all_fields() {
         description: Some("creates a task".to_owned()),
         input_schema: Some(serde_json::json!({"type": "object"})),
         output_schema: Some(serde_json::json!({"type": "string"})),
-        service_id: McpServerId::new("tasks"),
+        service_id: McpServerId::try_new("tasks").expect("valid McpServerId"),
         terminal_on_success: true,
         model_config: None,
     };

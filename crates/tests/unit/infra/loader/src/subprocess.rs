@@ -1,6 +1,6 @@
+use systemprompt_loader::subprocess::live_pid_is_subprocess;
 use systemprompt_models::subprocess::{
     AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, environ_from_procargs2, environ_identifies_child,
-    live_pid_is_subprocess,
 };
 
 fn environ(vars: &[&str]) -> Vec<u8> {
@@ -185,7 +185,7 @@ mod supervised_spawn {
     use super::{MCP_SERVICE_ID_ENV, live_pid_is_subprocess};
     use std::process::Command;
     use std::time::{Duration, Instant};
-    use systemprompt_models::subprocess::spawn_supervised;
+    use systemprompt_loader::subprocess::spawn_supervised;
 
     fn sleeper() -> Command {
         let mut cmd = Command::new("sleep");

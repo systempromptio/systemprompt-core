@@ -18,7 +18,7 @@ fn sys_ctx() -> SysRequestContext {
         SessionId::new("s-live"),
         TraceId::new("t-live"),
         ContextId::generate(),
-        AgentName::new("agent-live"),
+        AgentName::try_new("agent-live").expect("valid AgentName"),
     )
     .with_actor(Actor::user(UserId::new("user-live")))
 }

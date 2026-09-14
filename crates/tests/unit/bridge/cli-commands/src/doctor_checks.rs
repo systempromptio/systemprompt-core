@@ -61,7 +61,10 @@ fn bearer() -> HelperOutput {
 }
 
 fn client_for(uri: &str) -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::new(uri.to_owned()), reqwest::Client::new())
+    GatewayClient::new(
+        ValidatedUrl::try_new(uri.to_owned()).expect("valid ValidatedUrl"),
+        reqwest::Client::new(),
+    )
 }
 
 fn find<'a>(checks: &'a [Check], name: &str) -> &'a Check {

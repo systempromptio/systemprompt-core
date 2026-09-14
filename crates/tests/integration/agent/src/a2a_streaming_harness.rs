@@ -145,7 +145,7 @@ fn fixture_request_context() -> RequestContext {
         SessionId::generate(),
         TraceId::new("trace-harness"),
         ContextId::generate(),
-        AgentName::new("test_agent"),
+        AgentName::try_new("test_agent").expect("valid AgentName"),
     )
 }
 

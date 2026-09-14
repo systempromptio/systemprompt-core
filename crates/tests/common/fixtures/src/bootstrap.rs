@@ -8,11 +8,12 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{init_config_from_profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
-use systemprompt_models::{AppPaths, Config};
+use systemprompt_models::Config;
 use tempfile::TempDir;
 
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";

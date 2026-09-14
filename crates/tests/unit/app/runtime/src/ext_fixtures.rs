@@ -11,7 +11,8 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    AssetDefinition, AssetPaths, ConfigError, Extension, ExtensionMetadata, register_extension,
+    AssetDefinition, AssetPaths, Extension, ExtensionConfigError, ExtensionMetadata,
+    register_extension,
 };
 use systemprompt_marketplace::{
     MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError, register_marketplace_filter,
@@ -50,8 +51,8 @@ impl Extension for CovExtBad {
         Some("covextbad")
     }
 
-    fn validate_config(&self, _config: &serde_json::Value) -> Result<(), ConfigError> {
-        Err(ConfigError::InvalidValue {
+    fn validate_config(&self, _config: &serde_json::Value) -> Result<(), ExtensionConfigError> {
+        Err(ExtensionConfigError::InvalidValue {
             key: "covextbad.mode".to_owned(),
             message: "fixture always rejects".to_owned(),
         })

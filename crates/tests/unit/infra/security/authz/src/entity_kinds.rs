@@ -79,7 +79,7 @@ fn entity_ref_kind_and_id_str_all_variants() {
             "r1",
         ),
         (
-            EntityRef::McpServer(McpServerId::new("ms1")),
+            EntityRef::McpServer(McpServerId::try_new("ms1").expect("valid McpServerId")),
             EntityKind::McpServer,
             "ms1",
         ),
@@ -144,7 +144,7 @@ fn entity_ref_display_format() {
 fn entity_ref_serde_roundtrip() {
     let refs = vec![
         EntityRef::GatewayRoute(RouteId::new("r1")),
-        EntityRef::McpServer(McpServerId::new("ms1")),
+        EntityRef::McpServer(McpServerId::try_new("ms1").expect("valid McpServerId")),
         EntityRef::Plugin(PluginId::new("p1")),
         EntityRef::Agent(AgentId::new("a1")),
         EntityRef::Marketplace(MarketplaceId::new("m1")),

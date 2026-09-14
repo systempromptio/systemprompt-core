@@ -77,7 +77,7 @@ fn test_context_message_debug() {
 fn test_context_detail_serialize() {
     let detail = ContextDetail {
         context: UserContext {
-            context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+            context_id: ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             name: "Test Context".to_string(),
             kind: ContextKind::User,
             created_at: Utc::now(),
@@ -96,7 +96,7 @@ fn test_context_detail_serialize() {
 fn test_context_detail_with_messages() {
     let detail = ContextDetail {
         context: UserContext {
-            context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_B),
+            context_id: ContextId::try_new(TEST_CONTEXT_ID_B).expect("valid ContextId"),
             name: "Conversation".to_string(),
             kind: ContextKind::User,
             created_at: Utc::now(),
@@ -133,7 +133,7 @@ fn test_context_detail_with_messages() {
 #[test]
 fn test_context_state_event_tool_execution_completed_context_id() {
     let event = ContextStateEvent::ToolExecutionCompleted {
-        context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_C),
+        context_id: ContextId::try_new(TEST_CONTEXT_ID_C).expect("valid ContextId"),
         execution_id: McpExecutionId::new("exec-123"),
         tool_name: "search".to_string(),
         server_name: "brave".to_string(),
@@ -150,7 +150,7 @@ fn test_context_state_event_tool_execution_completed_context_id() {
 fn test_context_state_event_task_status_changed_context_id() {
     let event = ContextStateEvent::TaskStatusChanged {
         task: systemprompt_agent::Task::default(),
-        context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_D),
+        context_id: ContextId::try_new(TEST_CONTEXT_ID_D).expect("valid ContextId"),
         timestamp: Utc::now(),
     };
 
@@ -160,9 +160,9 @@ fn test_context_state_event_task_status_changed_context_id() {
 #[test]
 fn test_context_state_event_context_created() {
     let event = ContextStateEvent::ContextCreated {
-        context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_E),
+        context_id: ContextId::try_new(TEST_CONTEXT_ID_E).expect("valid ContextId"),
         context: UserContext {
-            context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_E),
+            context_id: ContextId::try_new(TEST_CONTEXT_ID_E).expect("valid ContextId"),
             name: "New Context".to_string(),
             kind: ContextKind::User,
             created_at: Utc::now(),
@@ -178,7 +178,7 @@ fn test_context_state_event_context_created() {
 #[test]
 fn test_context_state_event_context_updated() {
     let event = ContextStateEvent::ContextUpdated {
-        context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_F),
+        context_id: ContextId::try_new(TEST_CONTEXT_ID_F).expect("valid ContextId"),
         name: "Updated Name".to_string(),
         timestamp: Utc::now(),
     };
@@ -189,7 +189,7 @@ fn test_context_state_event_context_updated() {
 #[test]
 fn test_context_state_event_context_deleted() {
     let event = ContextStateEvent::ContextDeleted {
-        context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_G),
+        context_id: ContextId::try_new(TEST_CONTEXT_ID_G).expect("valid ContextId"),
         timestamp: Utc::now(),
     };
 
@@ -208,7 +208,7 @@ fn test_context_state_event_heartbeat_no_context_id() {
 #[test]
 fn test_context_state_event_current_agent() {
     let event = ContextStateEvent::CurrentAgent {
-        context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        context_id: ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         agent_name: Some("test-agent".to_string()),
         timestamp: Utc::now(),
     };
@@ -228,7 +228,7 @@ fn test_context_state_event_timestamp() {
 #[test]
 fn test_context_state_event_serialize() {
     let event = ContextStateEvent::ContextUpdated {
-        context_id: ContextId::new_unchecked(TEST_CONTEXT_ID_B),
+        context_id: ContextId::try_new(TEST_CONTEXT_ID_B).expect("valid ContextId"),
         name: "Serialized".to_string(),
         timestamp: Utc::now(),
     };

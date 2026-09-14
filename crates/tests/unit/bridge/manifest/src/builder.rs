@@ -90,9 +90,9 @@ fn sample_hook() -> HookEntry {
 
 fn sample_mcp_server() -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new("github"),
+        id: systemprompt_identifiers::McpServerId::try_new("github").expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new("github").unwrap(),
-        url: ValidatedUrl::new("https://mcp.example.com/github"),
+        url: ValidatedUrl::try_new("https://mcp.example.com/github").expect("valid ValidatedUrl"),
         transport: None,
         headers: None,
         oauth: None,

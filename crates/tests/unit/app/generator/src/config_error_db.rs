@@ -6,12 +6,12 @@
 use std::fs;
 use std::sync::Mutex;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_generator::{
     DefaultSitemapProvider, PublishError, generate_sitemap, get_templates_path, load_web_config,
     prerender_content,
 };
-use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     TestBootstrap, closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,

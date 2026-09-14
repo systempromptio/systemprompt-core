@@ -30,7 +30,7 @@ fn with_locale_overrides() {
     let cc: &(dyn std::any::Any + Send + Sync) = &();
     let pool: &(dyn std::any::Any + Send + Sync) = &();
     let dist = Path::new("/tmp/dist");
-    let locale = LocaleCode::new("fr");
+    let locale = LocaleCode::try_new("fr").expect("valid LocaleCode");
     let ctx = PagePrepareContext::new(&wc, cc, pool, dist).with_locale(&locale);
     assert_eq!(ctx.locale.as_str(), "fr");
 }

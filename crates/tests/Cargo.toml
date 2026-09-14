@@ -168,6 +168,7 @@ uuid = { version = "1.26", features = ["v4", "serde"] }
 pg_query = "6.2"
 validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
 indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API

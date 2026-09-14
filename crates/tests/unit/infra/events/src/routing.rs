@@ -18,7 +18,7 @@ fn test_user_id() -> UserId {
 
 fn test_agui_event() -> AgUiEvent {
     AgUiEventBuilder::run_started(
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         TaskId::new("test-task"),
         None,
     )
@@ -27,7 +27,7 @@ fn test_agui_event() -> AgUiEvent {
 fn test_a2a_event() -> A2AEvent {
     A2AEventBuilder::task_status_update(
         TaskId::new("test-task"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         TaskState::Working,
         Some("test message".to_string()),
     )

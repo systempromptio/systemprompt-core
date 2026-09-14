@@ -13,7 +13,7 @@ fn ctx() -> RequestContext {
         SessionId::new("s-proxy"),
         TraceId::new("t-proxy"),
         ContextId::generate(),
-        AgentName::new("agent-proxy"),
+        AgentName::try_new("agent-proxy").expect("valid AgentName"),
     )
 }
 

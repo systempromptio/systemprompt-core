@@ -30,7 +30,7 @@ fn request_context(fx: &Fixture) -> RequestContext {
         fx.session_id.clone(),
         fx.trace_id.clone(),
         fx.context_id.clone(),
-        AgentName::new("test-agent"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
     ctx

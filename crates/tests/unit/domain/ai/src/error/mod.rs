@@ -59,7 +59,7 @@ mod ai_error_tests {
     #[test]
     fn authentication_required_error() {
         let err = AiError::AuthenticationRequired {
-            service_id: McpServerId::new("github-mcp"),
+            service_id: McpServerId::try_new("github-mcp").expect("valid McpServerId"),
         };
         let msg = err.to_string();
         assert!(msg.contains("github-mcp"));
@@ -175,7 +175,7 @@ mod ai_error_tests {
     #[test]
     fn mcp_service_not_found_error() {
         let err = AiError::McpServiceNotFound {
-            service_id: McpServerId::new("custom-service"),
+            service_id: McpServerId::try_new("custom-service").expect("valid McpServerId"),
         };
         let msg = err.to_string();
         assert!(msg.contains("custom-service"));
@@ -185,7 +185,7 @@ mod ai_error_tests {
     #[test]
     fn mcp_authentication_missing_error() {
         let err = AiError::McpAuthenticationMissing {
-            service_id: McpServerId::new("oauth-service"),
+            service_id: McpServerId::try_new("oauth-service").expect("valid McpServerId"),
         };
         let msg = err.to_string();
         assert!(msg.contains("oauth-service"));

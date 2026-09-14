@@ -11,7 +11,7 @@ use systemprompt_identifiers::ValidatedUrl;
 const GATEWAY: &str = "https://gw.example.com";
 
 fn gateway() -> ValidatedUrl {
-    ValidatedUrl::new(GATEWAY)
+    ValidatedUrl::try_new(GATEWAY).expect("valid ValidatedUrl")
 }
 
 fn metadata_dir(state_home: &std::path::Path) -> PathBuf {
@@ -132,15 +132,15 @@ fn a_pre_stamp_array_fragment_is_ignored_until_the_next_sync() {
 #[test]
 fn same_origin_ignores_trailing_slash_and_host_case() {
     assert!(same_origin(
-        &ValidatedUrl::new("https://GW.example.com/"),
-        &ValidatedUrl::new("https://gw.example.com")
+        &ValidatedUrl::try_new("https://GW.example.com/").expect("valid ValidatedUrl"),
+        &ValidatedUrl::try_new("https://gw.example.com").expect("valid ValidatedUrl")
     ));
     assert!(!same_origin(
-        &ValidatedUrl::new("http://localhost:8080"),
-        &ValidatedUrl::new("https://gw.example.com")
+        &ValidatedUrl::try_new("http://localhost:8080").expect("valid ValidatedUrl"),
+        &ValidatedUrl::try_new("https://gw.example.com").expect("valid ValidatedUrl")
     ));
     assert!(!same_origin(
-        &ValidatedUrl::new("https://gw.example.com:8443"),
-        &ValidatedUrl::new("https://gw.example.com")
+        &ValidatedUrl::try_new("https://gw.example.com:8443").expect("valid ValidatedUrl"),
+        &ValidatedUrl::try_new("https://gw.example.com").expect("valid ValidatedUrl")
     ));
 }

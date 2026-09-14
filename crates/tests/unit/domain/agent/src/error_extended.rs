@@ -160,7 +160,7 @@ fn agent_error_into_repository_error_sqlx() {
     let repo_err: systemprompt_traits::RepositoryError = agent_err.into();
     assert!(matches!(
         repo_err,
-        systemprompt_traits::RepositoryError::Database(_)
+        systemprompt_traits::RepositoryError::Database { .. }
     ));
 }
 

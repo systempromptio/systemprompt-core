@@ -20,7 +20,7 @@ fn ctx() -> RequestContext {
         SessionId::new("s-http"),
         TraceId::new("t-http"),
         ContextId::generate(),
-        AgentName::new("agent-http"),
+        AgentName::try_new("agent-http").expect("valid AgentName"),
     )
     .with_actor(Actor::user(UserId::new("user-http")))
     .with_auth_token("jwt-token")

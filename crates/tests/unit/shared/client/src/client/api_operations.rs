@@ -61,9 +61,9 @@ async fn test_delete_context_success() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .delete_context(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-000000000123",
-        ))
+        .delete_context(
+            &ContextId::try_new("00000000-0000-4000-8000-000000000123").expect("valid ContextId"),
+        )
         .await;
 
     result.expect("delete_context should succeed");
@@ -83,9 +83,9 @@ async fn test_delete_context_not_found() {
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
     let result = client
-        .delete_context(&ContextId::new_unchecked(
-            "00000000-0000-4000-8000-0000000000ff",
-        ))
+        .delete_context(
+            &ContextId::try_new("00000000-0000-4000-8000-0000000000ff").expect("valid ContextId"),
+        )
         .await;
 
     result.unwrap_err();

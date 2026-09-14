@@ -17,8 +17,8 @@ fn request_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("sess-air"),
         TraceId::new("trace-air"),
-        ContextId::new_unchecked("00000000-0000-4000-8000-0000000000aa"),
-        AgentName::new("air-agent"),
+        ContextId::try_new("00000000-0000-4000-8000-0000000000aa").expect("valid ContextId"),
+        AgentName::try_new("air-agent").expect("valid AgentName"),
     )
 }
 
@@ -87,7 +87,10 @@ fn request_builder_defaults_optional_fields_to_none() {
 
 #[test]
 fn request_builder_carries_sampling_tools_and_structured_output() {
-    let tool = McpTool::new("lookup", McpServerId::new("svc-1"));
+    let tool = McpTool::new(
+        "lookup",
+        McpServerId::try_new("svc-1").expect("valid McpServerId"),
+    );
     let request = AiRequest::builder(
         vec![AiMessage::user("hi")],
         "openai",
@@ -157,12 +160,15 @@ fn response_default_omits_optional_fields_on_the_wire() {
 
 #[test]
 fn mcp_tool_builders_set_all_fields() {
-    let tool = McpTool::new("lookup", McpServerId::new("svc-9"))
-        .with_description("finds things")
-        .with_input_schema(json!({"type": "object"}))
-        .with_output_schema(json!({"type": "string"}))
-        .with_terminal_on_success(true)
-        .with_model_config(ToolModelConfig::default());
+    let tool = McpTool::new(
+        "lookup",
+        McpServerId::try_new("svc-9").expect("valid McpServerId"),
+    )
+    .with_description("finds things")
+    .with_input_schema(json!({"type": "object"}))
+    .with_output_schema(json!({"type": "string"}))
+    .with_terminal_on_success(true)
+    .with_model_config(ToolModelConfig::default());
 
     assert_eq!(tool.name, "lookup");
     assert_eq!(tool.description.as_deref(), Some("finds things"));
@@ -171,7 +177,10 @@ fn mcp_tool_builders_set_all_fields() {
     assert!(tool.terminal_on_success);
     assert!(tool.model_config.is_some());
 
-    let bare = McpTool::new("bare", McpServerId::new("svc-9"));
+    let bare = McpTool::new(
+        "bare",
+        McpServerId::try_new("svc-9").expect("valid McpServerId"),
+    );
     assert!(!bare.terminal_on_success);
     assert!(bare.description.is_none());
 }

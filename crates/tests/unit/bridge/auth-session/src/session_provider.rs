@@ -61,9 +61,12 @@ async fn capture_returns_the_code_the_browser_delivers() {
     let server = LoopbackServer::bind_on(0).await.expect("ephemeral bind");
     let port = port_of(&server);
     let client = tokio::spawn(async move { deliver_callback(port, "code=device-code-1").await });
-    let code = capture_on(server, &ValidatedUrl::new("http://gw.invalid:7000"))
-        .await
-        .expect("the callback carries a code");
+    let code = capture_on(
+        server,
+        &ValidatedUrl::try_new("http://gw.invalid:7000").expect("valid ValidatedUrl"),
+    )
+    .await
+    .expect("the callback carries a code");
     let response = client.await.expect("callback task");
 
     assert_eq!(code, "device-code-1");
@@ -78,9 +81,12 @@ async fn capture_reports_the_dashboard_error_instead_of_a_code() {
     let server = LoopbackServer::bind_on(0).await.expect("ephemeral bind");
     let port = port_of(&server);
     let client = tokio::spawn(async move { deliver_callback(port, "error=user_declined").await });
-    let err = capture_on(server, &ValidatedUrl::new("http://gw.invalid:7000"))
-        .await
-        .expect_err("a dashboard error is not a code");
+    let err = capture_on(
+        server,
+        &ValidatedUrl::try_new("http://gw.invalid:7000").expect("valid ValidatedUrl"),
+    )
+    .await
+    .expect_err("a dashboard error is not a code");
     client.await.expect("callback task");
 
     match err {

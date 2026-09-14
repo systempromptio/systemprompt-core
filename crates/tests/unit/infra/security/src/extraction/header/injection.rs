@@ -74,7 +74,7 @@ fn test_inject_trace_id_success() {
 #[test]
 fn test_inject_context_id_success() {
     let mut headers = HeaderMap::new();
-    let context_id = ContextId::new_unchecked(TEST_CONTEXT_ID_A.to_string());
+    let context_id = ContextId::try_new(TEST_CONTEXT_ID_A.to_string()).expect("valid ContextId");
 
     HeaderInjector::inject_context_id(&mut headers, &context_id).expect("Should inject context id");
     assert_eq!(
@@ -135,8 +135,8 @@ fn test_inject_from_request_context_success() {
     let ctx = RequestContext::new(
         SessionId::new("ctx_session".to_string()),
         TraceId::new("ctx_trace".to_string()),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
-        AgentName::new("ctx_agent".to_string()),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        AgentName::try_new("ctx_agent".to_string()).expect("valid AgentName"),
     )
     .with_actor(fixture_actor())
     .with_user_type(UserType::User);

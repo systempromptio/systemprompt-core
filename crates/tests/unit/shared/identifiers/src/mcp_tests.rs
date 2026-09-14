@@ -16,7 +16,7 @@ fn mcp_server_id_rejects_empty() {
 #[test]
 #[should_panic(expected = "McpServerId cannot be empty")]
 fn mcp_server_id_new_panics_on_empty() {
-    let _ = McpServerId::new("");
+    let _ = McpServerId::try_new("").expect("valid McpServerId");
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn mcp_server_id_from_str_parse() {
 
 #[test]
 fn mcp_server_id_serde_roundtrip() {
-    let id = McpServerId::new("serde-server");
+    let id = McpServerId::try_new("serde-server").expect("valid McpServerId");
     let json = serde_json::to_string(&id).unwrap();
     assert_eq!(json, "\"serde-server\"");
     let deserialized: McpServerId = serde_json::from_str(&json).unwrap();
@@ -54,14 +54,14 @@ fn mcp_server_id_serde_rejects_empty_on_deserialize() {
 
 #[test]
 fn mcp_server_id_to_db_value() {
-    let id = McpServerId::new("db-server");
+    let id = McpServerId::try_new("db-server").expect("valid McpServerId");
     let db_val = id.to_db_value();
     assert!(matches!(db_val, DbValue::String(ref s) if s == "db-server"));
 }
 
 #[test]
 fn mcp_server_id_equality_across_construction() {
-    let from_new = McpServerId::new("test");
+    let from_new = McpServerId::try_new("test").expect("valid McpServerId");
     let from_try: McpServerId = "test".try_into().unwrap();
     assert_eq!(from_new, from_try);
 }

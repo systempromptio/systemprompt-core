@@ -15,7 +15,7 @@ use systemprompt_api::services::gateway::protocol::canonical::{
 };
 use systemprompt_api::services::gateway::protocol::outbound::OutboundCtx;
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::raw::normalize_raw_body;
-use systemprompt_identifiers::{ProviderId, RouteId};
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
 use systemprompt_models::services::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
 
@@ -34,14 +34,14 @@ fn route() -> GatewayRoute {
 
 fn canonical() -> CanonicalRequest {
     CanonicalRequest {
-        model: "caller-model".into(),
+        model: ModelId::new("caller-model"),
         system: None,
         messages: vec![CanonicalMessage {
             role: Role::User,
             content: vec![CanonicalContent::Text("hi".into())],
         }],
         max_tokens: 64,
-        ..Default::default()
+        ..CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024)
     }
 }
 

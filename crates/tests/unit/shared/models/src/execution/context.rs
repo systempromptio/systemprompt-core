@@ -14,8 +14,8 @@ fn test_context() -> RequestContext {
     RequestContext::new(
         SessionId::new("sess-1"),
         TraceId::new("trace-1"),
-        ContextId::new_unchecked(TEST_CONTEXT_ID_A),
-        AgentName::new("test-agent"),
+        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        AgentName::try_new("test-agent").expect("valid AgentName"),
     )
 }
 
@@ -99,13 +99,15 @@ fn request_context_with_user_id() {
 
 #[test]
 fn request_context_with_agent_name() {
-    let ctx = test_context().with_agent_name(AgentName::new("other-agent"));
+    let ctx =
+        test_context().with_agent_name(AgentName::try_new("other-agent").expect("valid AgentName"));
     assert_eq!(ctx.agent_name().as_str(), "other-agent");
 }
 
 #[test]
 fn request_context_with_context_id() {
-    let ctx = test_context().with_context_id(ContextId::new_unchecked(TEST_CONTEXT_ID_B));
+    let ctx = test_context()
+        .with_context_id(ContextId::try_new(TEST_CONTEXT_ID_B).expect("valid ContextId"));
     assert_eq!(ctx.context_id().as_str(), TEST_CONTEXT_ID_B);
 }
 

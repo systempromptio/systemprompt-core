@@ -4,11 +4,11 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::UserId;
 use systemprompt_mcp::orchestration::McpToolLoader;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::AppPaths;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
 };

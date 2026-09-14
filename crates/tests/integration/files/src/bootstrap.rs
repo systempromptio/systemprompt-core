@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
-use systemprompt_models::AppPaths;
 use tempfile::TempDir;
 
 pub struct TestEnv {

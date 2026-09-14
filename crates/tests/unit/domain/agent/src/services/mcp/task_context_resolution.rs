@@ -22,7 +22,7 @@ fn context_for(user: &UserId, session: &SessionId, context_id: ContextId) -> Req
         session.clone(),
         TraceId::generate(),
         context_id,
-        AgentName::new("mcp-caller"),
+        AgentName::try_new("mcp-caller").expect("valid AgentName"),
     );
     rc.auth.actor = Actor::user(user.clone());
     rc

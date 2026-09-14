@@ -84,7 +84,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 
 fn mcp(name: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
         transport: Some("http".into()),

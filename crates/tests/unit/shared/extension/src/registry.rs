@@ -224,19 +224,50 @@ fn registry_enabled_extensions_filters_disabled() {
     registry
         .register(arc_ext("remove", "Remove"))
         .expect("register remove");
-    let enabled = registry.enabled_extensions(&["remove".to_string()]);
+    let enabled = registry
+        .enabled_extensions(&["remove".to_string()])
+        .expect("disabling a leaf is allowed");
     assert_eq!(enabled.len(), 1);
     assert_eq!(enabled[0].id(), "keep");
 }
 
 #[test]
-fn registry_enabled_extensions_cannot_disable_required() {
+fn registry_enabled_extensions_refuses_to_disable_required() {
     let mut registry = ExtensionRegistry::new();
     let required_ext = Arc::new(FakeExt::new("core", "Core").required());
     registry.register(required_ext).expect("register core");
-    let enabled = registry.enabled_extensions(&["core".to_string()]);
-    assert_eq!(enabled.len(), 1);
-    assert_eq!(enabled[0].id(), "core");
+    let err = registry
+        .enabled_extensions(&["core".to_string()])
+        .err()
+        .expect("a required extension cannot be disabled");
+    assert!(matches!(err, LoaderError::RequiredExtensionDisabled(id) if id == "core"));
+}
+
+#[test]
+fn registry_enabled_extensions_refuses_to_disable_a_dependency_of_an_enabled_extension() {
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(arc_ext("mcp", "Mcp"))
+        .expect("register mcp");
+    registry
+        .register(Arc::new(
+            FakeExt::new("agent", "Agent").with_deps(vec!["mcp"]),
+        ))
+        .expect("register agent");
+    let err = registry
+        .enabled_extensions(&["mcp".to_string()])
+        .err()
+        .expect("agent depends on mcp");
+    assert!(matches!(
+        err,
+        LoaderError::DisabledDependency { ref extension, ref dependency }
+            if extension == "agent" && dependency == "mcp"
+    ));
+
+    let enabled = registry
+        .enabled_extensions(&["mcp".to_string(), "agent".to_string()])
+        .expect("disabling the dependant alongside its dependency is allowed");
+    assert!(enabled.is_empty());
 }
 
 
@@ -321,16 +352,18 @@ fn registry_topo_sort_priority_breaks_ties() {
 }
 
 #[test]
-fn registry_topo_sort_missing_dependency_warns_but_orders() {
+fn registry_register_refuses_a_missing_dependency() {
     let mut registry = ExtensionRegistry::new();
-    registry
+    let err = registry
         .register(Arc::new(
             FakeExt::new("only", "Only").with_deps(vec!["nope"]),
         ))
-        .expect("register only");
-
-    let ids: Vec<_> = registry.extensions().iter().map(|e| e.id()).collect();
-    assert_eq!(ids, vec!["only"]);
+        .expect_err("a dependency that is not loaded is an error, not a warning");
+    assert!(matches!(
+        err,
+        LoaderError::MissingDependency { ref extension, ref dependency }
+            if extension == "only" && dependency == "nope"
+    ));
 }
 
 #[test]

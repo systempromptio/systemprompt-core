@@ -12,7 +12,7 @@ fn make_ctx() -> RequestContext {
         SessionId::new("inj-session"),
         TraceId::new("inj-trace"),
         ContextId::generate(),
-        AgentName::new("inj-agent"),
+        AgentName::try_new("inj-agent").expect("valid AgentName"),
     );
     ctx.auth.actor = Actor::user(UserId::new("inj-user"));
     ctx

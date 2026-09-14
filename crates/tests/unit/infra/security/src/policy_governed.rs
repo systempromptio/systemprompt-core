@@ -15,7 +15,7 @@ fn paths(input: &GovernedInput) -> Vec<(String, String)> {
 #[test]
 fn tool_target_reports_its_tool_name() {
     let target = GovernedTarget::Tool {
-        tool: McpToolName::new("mcp__systemprompt__list_agents"),
+        tool: McpToolName::try_new("mcp__systemprompt__list_agents").expect("valid McpToolName"),
     };
     assert_eq!(target.as_str(), "mcp__systemprompt__list_agents");
     assert_eq!(
@@ -153,7 +153,7 @@ fn governed_target_serde_roundtrip() {
     for target in [
         GovernedTarget::Prompt,
         GovernedTarget::Tool {
-            tool: McpToolName::new("bash"),
+            tool: McpToolName::try_new("bash").expect("valid McpToolName"),
         },
     ] {
         let s = serde_json::to_string(&target).unwrap();

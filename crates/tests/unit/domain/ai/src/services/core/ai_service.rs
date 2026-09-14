@@ -155,7 +155,10 @@ async fn generate_plan_tool_calls_when_present() {
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (_user, ctx) = seeded_context(&pool).await;
     let request = user_request(ANTHROPIC_MODEL, ctx);
-    let tools = vec![McpTool::new("search", McpServerId::new("svc"))];
+    let tools = vec![McpTool::new(
+        "search",
+        McpServerId::try_new("svc").expect("valid McpServerId"),
+    )];
 
     let plan = svc.generate_plan(&request, &tools).await.expect("plan ok");
     match plan {

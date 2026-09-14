@@ -6,11 +6,12 @@
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_analytics::AnalyticsService;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_models::{AppPaths, ContentConfigRaw, RouteClassifier};
+use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };

@@ -8,7 +8,8 @@ use systemprompt_bridge::sync::apply::{prepare_dirs, write_mcp_servers, write_us
 use systemprompt_identifiers::UserId;
 
 fn gateway() -> systemprompt_identifiers::ValidatedUrl {
-    systemprompt_identifiers::ValidatedUrl::new("https://gw.example.com")
+    systemprompt_identifiers::ValidatedUrl::try_new("https://gw.example.com")
+        .expect("valid ValidatedUrl")
 }
 
 fn sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {

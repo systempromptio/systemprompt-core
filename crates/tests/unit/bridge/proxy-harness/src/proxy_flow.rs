@@ -42,7 +42,7 @@ fn stub_refresh() -> RefreshFn {
 
 fn shared_runtime_config(gateway_uri: &str) -> SharedRuntimeConfig {
     let cfg = Config {
-        gateway_url: Some(ValidatedUrl::new(gateway_uri)),
+        gateway_url: Some(ValidatedUrl::try_new(gateway_uri).expect("valid ValidatedUrl")),
         ..Default::default()
     };
     Arc::new(ArcSwap::from_pointee(RuntimeConfig::from_config(&cfg)))

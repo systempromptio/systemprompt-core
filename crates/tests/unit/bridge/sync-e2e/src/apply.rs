@@ -65,7 +65,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
 fn agent(name: &str) -> AgentEntry {
     AgentEntry {
         id: AgentId::new(format!("a-{name}")),
-        name: AgentName::new(name),
+        name: AgentName::try_new(name).expect("valid AgentName"),
         display_name: format!("Display {name}"),
         description: format!("agent {name}"),
         version: "1.0.0".into(),
@@ -100,7 +100,7 @@ fn hook() -> HookEntry {
 
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),

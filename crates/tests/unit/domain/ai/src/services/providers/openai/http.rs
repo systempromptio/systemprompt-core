@@ -68,8 +68,11 @@ async fn generate_with_tools_extracts_tool_calls() {
     let p = provider(server.uri());
     let messages = msgs();
     let tools = vec![
-        McpTool::new("do_thing", McpServerId::new("svc"))
-            .with_input_schema(json!({"type": "object"})),
+        McpTool::new(
+            "do_thing",
+            McpServerId::try_new("svc").expect("valid McpServerId"),
+        )
+        .with_input_schema(json!({"type": "object"})),
     ];
     let params =
         ToolGenerationParams::new(GenerationParams::new(&messages, "gpt-4o-mini", 64), tools);

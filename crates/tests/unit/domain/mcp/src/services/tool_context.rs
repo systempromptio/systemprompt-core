@@ -7,7 +7,9 @@
 //! `ToolProviderError::ConfigurationError` back to the caller — giving us
 //! coverage of the header-validation branches without a live MCP server.
 
-use systemprompt_identifiers::{Actor, AiToolCallId, ContextId, McpServerId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, AiToolCallId, ContextId, McpServerId, SessionId, TraceId,
+};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
@@ -42,7 +44,12 @@ async fn list_tools_missing_context_id_returns_config_error() {
         return;
     };
     let ctx = base_ctx().with_header("x-agent-name", "my-agent");
-    let result = p.list_tools("some-agent", &ctx).await;
+    let result = p
+        .list_tools(
+            &AgentName::try_new("some-agent").expect("valid AgentName"),
+            &ctx,
+        )
+        .await;
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
@@ -58,7 +65,12 @@ async fn list_tools_missing_agent_name_header_returns_config_error() {
     };
     let ctx_id = ContextId::generate();
     let ctx = base_ctx().with_header("x-context-id", ctx_id.as_str());
-    let result = p.list_tools("some-agent", &ctx).await;
+    let result = p
+        .list_tools(
+            &AgentName::try_new("some-agent").expect("valid AgentName"),
+            &ctx,
+        )
+        .await;
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
@@ -75,7 +87,12 @@ async fn list_tools_invalid_context_id_returns_error() {
     let ctx = base_ctx()
         .with_header("x-context-id", "not-a-uuid")
         .with_header("x-agent-name", "my-agent");
-    let result = p.list_tools("some-agent", &ctx).await;
+    let result = p
+        .list_tools(
+            &AgentName::try_new("some-agent").expect("valid AgentName"),
+            &ctx,
+        )
+        .await;
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
@@ -92,7 +109,12 @@ async fn list_tools_empty_context_id_returns_error() {
     let ctx = base_ctx()
         .with_header("x-context-id", "")
         .with_header("x-agent-name", "my-agent");
-    let result = p.list_tools("some-agent", &ctx).await;
+    let result = p
+        .list_tools(
+            &AgentName::try_new("some-agent").expect("valid AgentName"),
+            &ctx,
+        )
+        .await;
     assert!(result.is_err());
 }
 
@@ -108,7 +130,11 @@ async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
         arguments: serde_json::json!({}),
     };
     let result = p
-        .call_tool(&request, &McpServerId::new("nonexistent-server"), &ctx)
+        .call_tool(
+            &request,
+            &McpServerId::try_new("nonexistent-server").expect("valid McpServerId"),
+            &ctx,
+        )
         .await;
     assert!(result.is_err());
 }
@@ -124,7 +150,12 @@ async fn tool_context_with_session_and_trace_ids_propagated() {
         .with_trace_id(TraceId::new("my-trace"))
         .with_header("x-context-id", ctx_id.as_str())
         .with_header("x-agent-name", "agent-with-ids");
-    let result = p.list_tools("agent-with-ids", &ctx).await;
+    let result = p
+        .list_tools(
+            &AgentName::try_new("agent-with-ids").expect("valid AgentName"),
+            &ctx,
+        )
+        .await;
     let _ = result;
 }
 
@@ -141,6 +172,11 @@ async fn tool_context_with_ai_tool_call_id_and_task_id() {
         .with_header("x-agent-name", "agent-task")
         .with_header("x-task-id", "task-123")
         .with_header("x-user-id", "user-xyz");
-    let result = p.list_tools("agent-task", &ctx).await;
+    let result = p
+        .list_tools(
+            &AgentName::try_new("agent-task").expect("valid AgentName"),
+            &ctx,
+        )
+        .await;
     let _ = result;
 }

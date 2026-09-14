@@ -1,5 +1,5 @@
-// RequestStorage seams: session-usage propagation through AiSessionProvider
-// and analytics-event publication, driven against the migrated test DB.
+// RequestStorage seams: session-usage propagation through AiSessionProvider,
+// driven against the migrated test DB.
 
 use std::sync::{Arc, Mutex};
 
@@ -9,10 +9,7 @@ use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepositor
 use systemprompt_ai::services::core::request_storage::{RequestStorage, StoreParams};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_traits::{
-    AiProviderResult, AiSessionProvider, AnalyticsEvent, AnalyticsEventPublisher,
-    CreateAiSessionParams,
-};
+use systemprompt_traits::{AiProviderResult, AiSessionProvider, CreateAiSessionParams};
 use uuid::Uuid;
 
 use super::{pool_or_skip, seeded_context};
@@ -45,19 +42,6 @@ impl AiSessionProvider for RecordingSessionProvider {
             cost_microdollars,
         ));
         Ok(())
-    }
-}
-
-#[derive(Default)]
-struct RecordingPublisher {
-    tokens: Mutex<Vec<i64>>,
-}
-
-impl AnalyticsEventPublisher for RecordingPublisher {
-    fn publish_analytics_event(&self, event: AnalyticsEvent) {
-        if let AnalyticsEvent::AiRequestCompleted { tokens_used } = event {
-            self.tokens.lock().expect("lock").push(tokens_used);
-        }
     }
 }
 
@@ -152,23 +136,6 @@ async fn system_user_skips_usage_accounting_but_touches_session() {
 
     assert_eq!(*provider.created.lock().expect("lock"), vec![session_id]);
     assert!(provider.increments.lock().expect("lock").is_empty());
-}
-
-#[tokio::test]
-async fn analytics_publisher_receives_token_count() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
-    let (_user, ctx) = seeded_context(&pool).await;
-    let publisher = Arc::new(RecordingPublisher::default());
-    let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()))
-        .with_event_publisher(publisher.clone());
-
-    let request = request(ctx);
-    let response = response(Uuid::new_v4(), "answer");
-    store(&storage, &request, &response, 0).await;
-
-    assert_eq!(*publisher.tokens.lock().expect("lock"), vec![42]);
 }
 
 #[tokio::test]

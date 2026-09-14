@@ -5,9 +5,10 @@
 
 use std::path::PathBuf;
 
+use systemprompt_config::paths::AppPaths;
+use systemprompt_models::Config;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
-use systemprompt_models::{AppPaths, Config};
 use systemprompt_runtime::AppContext;
 
 fn fixture_config(geoip: Option<String>) -> Config {

@@ -216,7 +216,7 @@ async fn trace_header_present_when_context_attached() {
         SessionId::generate(),
         trace.clone(),
         ContextId::generate(),
-        AgentName::new("agent"),
+        AgentName::try_new("agent").expect("valid AgentName"),
     );
     let app = Router::new()
         .route("/", get(|| async { "ok" }))

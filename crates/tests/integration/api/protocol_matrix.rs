@@ -9,6 +9,7 @@ use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalRequest, CanonicalStopReason, ContentBlockKind,
     Role, anthropic_messages, openai_responses as openai_responses_in, outbound_anthropic,
 };
+use systemprompt_identifiers::ModelId;
 
 // -----------------------------------------------------------------------------
 // Inbound parsers
@@ -70,7 +71,7 @@ fn openai_responses_parses_minimal_request() {
 
 fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
     CanonicalRequest {
-        model: model.to_owned(),
+        model: ModelId::new(model),
         system: Some("be brief".to_owned()),
         messages: vec![
             systemprompt_api::services::gateway::protocol::CanonicalMessage {

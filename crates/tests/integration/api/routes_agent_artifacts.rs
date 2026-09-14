@@ -91,7 +91,7 @@ mod owned {
             SessionId::generate(),
             TraceId::generate(),
             ContextId::generate(),
-            AgentName::new("artifact-test"),
+            AgentName::try_new("artifact-test").expect("valid AgentName"),
         )
         .with_actor(Actor::user(user.clone()))
     }

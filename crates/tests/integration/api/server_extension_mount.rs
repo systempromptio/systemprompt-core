@@ -12,14 +12,15 @@ use axum::http::Request;
 use axum::routing::get;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_api::services::server::setup_api_server;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::{
     Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
     FrameOptions,
 };
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_models::RouteClassifier;
 use systemprompt_models::profile::PathsConfig;
-use systemprompt_models::{AppPaths, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };
@@ -131,7 +132,13 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         None,
     )?);
 
-    let registry = ExtensionRegistry::discover_and_merge(injected)
+    let mut registry =
+        ExtensionRegistry::discover().map_err(|e| anyhow::anyhow!("registry: {e}"))?;
+    registry
+        .merge(injected)
+        .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
+    registry
+        .validate()
         .map_err(|e| anyhow::anyhow!("registry: {e}"))?;
 
     let ctx = Arc::new(AppContext::from_parts(

@@ -91,15 +91,15 @@ pub fn build_session_for(
 ) -> CliSession {
     CliSessionBuilder::new(
         SessionBinding::new(
-            ProfileName::new(profile),
+            ProfileName::try_new(profile).expect("valid ProfileName"),
             "http://localhost:8080".to_owned(),
         ),
         SessionToken::new(token),
         SessionId::new(format!("sid-{profile}")),
-        ContextId::new_unchecked(context),
+        ContextId::try_new(context).expect("valid ContextId"),
         SessionIdentity::new(
             fixture_user_id(),
-            Email::new(format!("{profile}@example.com")),
+            Email::try_new(format!("{profile}@example.com")).expect("valid Email"),
             UserType::User,
         ),
     )
@@ -127,7 +127,7 @@ pub fn save_credentials(path: &std::path::Path, token: &str, email: &str) {
     let creds = CloudCredentials::new(
         CloudAuthToken::new(token.to_string()),
         "https://api.systemprompt.test".to_string(),
-        Email::new(email.to_string()),
+        Email::try_new(email.to_string()).expect("valid Email"),
     );
     creds.save_to_path(path).expect("save credentials");
 }

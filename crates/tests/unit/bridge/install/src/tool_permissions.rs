@@ -15,9 +15,10 @@ use systemprompt_bridge::install::mdm::claude_code_settings::permissions::{
 
 fn server(name: &str, policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> ManagedMcpServer {
     ManagedMcpServer {
-        id: systemprompt_identifiers::McpServerId::new(name),
+        id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
         name: ManagedMcpServerName::try_new(name).unwrap(),
-        url: ValidatedUrl::new(format!("https://gw.example.com/api/v1/mcp/{name}/mcp")),
+        url: ValidatedUrl::try_new(format!("https://gw.example.com/api/v1/mcp/{name}/mcp"))
+            .expect("valid ValidatedUrl"),
         transport: Some("http".into()),
         headers: None,
         oauth: None,
@@ -150,7 +151,8 @@ fn upstream(
     policy: BTreeMap<String, ToolPolicy>,
 ) -> systemprompt_bridge::mcp_registry::McpUpstream {
     systemprompt_bridge::mcp_registry::McpUpstream {
-        url: ValidatedUrl::new("https://gw.example.com/api/v1/mcp/atlassian/mcp"),
+        url: ValidatedUrl::try_new("https://gw.example.com/api/v1/mcp/atlassian/mcp")
+            .expect("valid ValidatedUrl"),
         headers: BTreeMap::new(),
         display_name: "Atlassian".to_owned(),
         transport: None,
