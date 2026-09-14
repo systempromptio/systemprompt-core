@@ -35,6 +35,7 @@ pub(super) struct PreparedExecution {
     pub client_name: String,
     pub variant: VariantSpec,
     pub client: NativeClient,
+    pub skill_directory: PathBuf,
     pub launch: ContainerLaunch,
     pub case: CaseContent,
     pub rubric: RubricContent,
@@ -63,8 +64,15 @@ impl EvaluatorSupervisor {
             return Ok(None);
         };
         let (assignment, access) = self.assignment_and_access(owner, &worker, &lease).await?;
+        systemprompt_evaluation::capabilities::admit_experiment(&assignment.spec)
+            .map_err(internal)?;
+        let (variant, client) = variant_client(&assignment, record.variant_index)?;
+        client
+            .admitted_target(&self.config.client_image)
+            .map_err(internal)?;
         let suffix = safe_suffix(&record.id);
-        let workspace = self.provision_workspace(&assignment, &access, &record.id, &suffix)?;
+        let workspace =
+            self.provision_workspace(&assignment, &access, &record.id, &suffix, &client)?;
         self.heartbeat(owner, &lease).await?;
         self.append_event(
             &worker,
@@ -81,7 +89,6 @@ impl EvaluatorSupervisor {
         let client_name = format!("eval-client-{suffix}");
         let network = self.provision_network(owner, &record.id, &network_name, &relay_name)?;
         self.heartbeat(owner, &lease).await?;
-        let (variant, client) = variant_client(&assignment, record.variant_index)?;
         let launch =
             ContainerLaunch::builder(self.config.docker.clone(), workspace.directory.clone())
                 .image(self.config.client_image.clone())
@@ -97,6 +104,9 @@ impl EvaluatorSupervisor {
             .set_traffic_class(owner, &lease, traffic_class(&assignment))
             .await
             .map_err(internal)?;
+        let skill_directory = workspace
+            .home
+            .join(client.adapter().map_err(internal)?.skill_directory());
         Ok(Some(PreparedExecution {
             worker,
             record,
@@ -111,6 +121,7 @@ impl EvaluatorSupervisor {
             relay_name,
             client_name,
             variant,
+            skill_directory,
             client,
             launch,
             case,
@@ -175,24 +186,82 @@ impl EvaluatorSupervisor {
         access: &ExecutionAccess,
         execution_id: &EvalExecutionId,
         suffix: &str,
+        client: &NativeClient,
     ) -> SchedulerResult<ProvisionedWorkspace> {
         let directory = self.config.workspace_root.join(suffix);
         std::fs::create_dir(&directory)?;
         let guard = WorkspaceDirectory(directory.clone());
         let home = directory.join("home");
         std::fs::create_dir(&home)?;
-        materialize_skills(
-            &assignment.skill_bundle.manifest,
-            &home.join(".claude/skills"),
-        )?;
-        let installed_skill_state = workspace_state(&home.join(".claude/skills"))?;
+        let adapter = client.adapter().map_err(internal)?;
+        let skill_relative = adapter.skill_directory();
+        if skill_relative.is_empty()
+            || skill_relative.starts_with('/')
+            || skill_relative.contains(['\\', ':'])
+            || skill_relative
+                .split('/')
+                .any(|part| matches!(part, "" | "." | ".."))
+        {
+            return Err(SchedulerError::config_error(
+                "Adapter skill path must be relative to its isolated home",
+            ));
+        }
+        let skill_directory = home.join(skill_relative);
+        materialize_skills(&assignment.skill_bundle.manifest, &skill_directory)?;
+        let installed_skill_state = workspace_state(&skill_directory)?;
         materialize_root(&assignment.configuration.manifest, &home.join("work"))?;
-        let mcp = serde_json::json!({"mcpServers":{"evaluation_fixture":{"type":"http","url":format!("http://eval-relay-{suffix}:8090/mcp/evaluation_fixture"),"headers":{"Authorization":format!("Bearer {}", access.expose_token()),"x-session-id":access.session_id.as_str()}}}});
+        let relay_url = format!("http://eval-relay-{suffix}:8090");
+        let context = super::super::adapters::AdapterContext {
+            relay_url: &relay_url,
+            execution_token: access.expose_token(),
+            session_id: &access.session_id,
+            execution_id,
+            target: client
+                .admitted_target(&self.config.client_image)
+                .map_err(internal)?,
+            frozen: assignment.spec.frozen.as_ref().ok_or_else(|| {
+                SchedulerError::config_error("Frozen execution environment is missing")
+            })?,
+        };
+        let environment = serde_json::json!({
+            "native_target": context.target,
+            "frozen": context.frozen,
+            "configuration_digest": assignment.configuration.digest,
+        });
         write_private(
-            &home.join(".mcp.json"),
-            &serde_json::to_vec(&mcp).map_err(internal)?,
+            &directory.join("native-environment.json"),
+            &serde_json::to_vec(&environment).map_err(internal)?,
         )?;
-        write_private(&directory.join("client.env"), format!("ANTHROPIC_BASE_URL=http://eval-relay-{suffix}:8090\nANTHROPIC_AUTH_TOKEN={}\nANTHROPIC_CUSTOM_HEADERS=x-session-id: {}\nSYSTEMPROMPT_EXECUTION_ID={}\n", access.expose_token(), access.session_id, execution_id).as_bytes())?;
+        let configuration = adapter.configuration(&context).map_err(internal)?;
+        configuration.validate().map_err(internal)?;
+        for (relative, file) in &configuration.files {
+            if file.executable
+                || (relative != "client.env" && !relative.starts_with("home/"))
+                || relative == "home/work"
+                || relative.starts_with("home/work/")
+                || relative == &format!("home/{}", adapter.skill_directory())
+                || relative.starts_with(&format!("home/{}/", adapter.skill_directory()))
+            {
+                return Err(SchedulerError::config_error(
+                    "Adapter configuration must not overwrite work or skills",
+                ));
+            }
+            let path = directory.join(relative);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            write_private(&path, &file.bytes)?;
+            if std::fs::read(&path)? != file.bytes {
+                return Err(SchedulerError::config_error(
+                    "Adapter configuration readback failed",
+                ));
+            }
+        }
+        if !configuration.files.contains_key("client.env") {
+            return Err(SchedulerError::config_error(
+                "Adapter must provide an isolated environment",
+            ));
+        }
         Ok(ProvisionedWorkspace {
             directory,
             guard,
@@ -235,6 +304,10 @@ fn variant_client(
         .cloned()
         .ok_or_else(|| SchedulerError::config_error("Assignment variant is unavailable"))?;
     let client = NativeClient::builder(variant.client, variant.model.clone())
+        .pinned(
+            variant.client_version.clone(),
+            variant.worker_image_digest.clone(),
+        )
         .limits(ExecutionLimits::default())
         .build()
         .map_err(internal)?;

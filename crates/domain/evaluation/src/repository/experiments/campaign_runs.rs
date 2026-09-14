@@ -26,6 +26,7 @@ impl ExperimentRepository {
         actor: &UserId,
         input: &CampaignExperiment,
     ) -> Result<EvalExperimentId> {
+        self.admission.admit(&input.spec)?;
         if input.idempotency_key.trim().is_empty() || input.idempotency_key.len() > 100 {
             return Err(crate::experiments::invalid(
                 "An operation key of at most 100 bytes is required",

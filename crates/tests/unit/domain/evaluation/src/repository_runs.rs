@@ -160,7 +160,10 @@ async fn fixture(pool: &PgPool) -> Fixture {
         .await
         .expect("budget");
     Fixture {
-        experiments: ExperimentRepository::new(pool.clone()),
+        experiments: ExperimentRepository::with_admission(
+            pool.clone(),
+            crate::fixture_admission::fixture_admission(),
+        ),
         owner,
         case,
         dataset,
@@ -647,3 +650,6 @@ async fn claim_completes_an_experiment_once_its_executions_are_terminal() {
         "an exhausted queue completes the running experiment"
     );
 }
+
+#[path = "repository_admission.rs"]
+mod admission;

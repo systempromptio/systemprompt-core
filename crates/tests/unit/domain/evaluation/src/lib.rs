@@ -56,3 +56,9 @@ mod experiments_execution;
 
 #[cfg(test)]
 mod experiments_builders;
+
+#[cfg(test)]
+mod fixture_admission;
+
+#[cfg(test)]
+mod native_capabilities;

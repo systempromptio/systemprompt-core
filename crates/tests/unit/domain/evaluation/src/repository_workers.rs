@@ -212,10 +212,13 @@ impl Harness {
             .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000)
             .await
             .expect("shared budget");
-        let experiment = ExperimentRepository::new(pg.clone())
-            .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
-            .await
-            .expect("create experiment");
+        let experiment = ExperimentRepository::with_admission(
+            pg.clone(),
+            crate::fixture_admission::fixture_admission(),
+        )
+        .create_with_budget(&owner, &format!("key-{}", Uuid::new_v4()), &budget, &spec)
+        .await
+        .expect("create experiment");
 
         let environment = format!("env-{}", Uuid::new_v4());
         let workers = WorkerRepository::new(pg.clone());
@@ -245,7 +248,10 @@ impl Harness {
     }
 
     pub fn experiments(&self) -> ExperimentRepository {
-        ExperimentRepository::new(self.pg.clone())
+        ExperimentRepository::with_admission(
+            self.pg.clone(),
+            crate::fixture_admission::fixture_admission(),
+        )
     }
 
     pub fn workers(&self) -> WorkerRepository {

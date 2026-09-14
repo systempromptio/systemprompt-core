@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod adapters;
 pub mod client;
 pub mod container;
+mod docker;
 pub mod supervisor;

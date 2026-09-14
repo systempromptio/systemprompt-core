@@ -25,6 +25,7 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
+tempfile = { workspace = true }
 # Core dependencies
 tokio = { workspace = true }
 tracing = { workspace = true }
@@ -77,5 +78,4 @@ nix = { workspace = true }
 [dev-dependencies]
 wiremock = { workspace = true }
 tokio-test = { workspace = true }
-tempfile = { workspace = true }
 serde_json = { workspace = true }

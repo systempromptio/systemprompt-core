@@ -91,6 +91,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
                 mcp_session_repository: Arc::new(
                     systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
                 ),
+                feedback_facts_repository: Arc::new(systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone())),
                 managed_repository: Arc::new(
                     systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
                 ),

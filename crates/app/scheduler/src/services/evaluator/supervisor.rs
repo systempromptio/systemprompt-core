@@ -132,9 +132,8 @@ impl EvaluatorSupervisor {
             } else {
                 vec!["network", "ls", "-q", "--filter", owner_filter.as_str()]
             };
-            let output = std::process::Command::new(&self.config.docker)
-                .args(&list_args)
-                .output()?;
+            let (mut command, _docker_configuration) = super::docker::command(&self.config.docker)?;
+            let output = command.args(&list_args).output()?;
             if !output.status.success() {
                 return Err(SchedulerError::config_error(
                     "Unable to enumerate owned evaluator Docker objects",
@@ -155,9 +154,9 @@ impl EvaluatorSupervisor {
                 } else {
                     vec!["network", "inspect", "--format", format, id]
                 };
-                let inspected = std::process::Command::new(&self.config.docker)
-                    .args(inspect_args)
-                    .output()?;
+                let (mut command, _docker_configuration) =
+                    super::docker::command(&self.config.docker)?;
+                let inspected = command.args(inspect_args).output()?;
                 if !inspected.status.success() {
                     return Err(SchedulerError::config_error(
                         "Unable to inspect owned evaluator Docker object",
@@ -180,9 +179,9 @@ impl EvaluatorSupervisor {
                     } else {
                         vec!["network", "rm", id]
                     };
-                    let removed = std::process::Command::new(&self.config.docker)
-                        .args(remove_args)
-                        .output()?;
+                    let (mut command, _docker_configuration) =
+                        super::docker::command(&self.config.docker)?;
+                    let removed = command.args(remove_args).output()?;
                     if !removed.status.success() {
                         return Err(SchedulerError::config_error(
                             "Owned evaluator Docker cleanup was not acknowledged",

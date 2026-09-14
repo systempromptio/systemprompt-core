@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO analytics_fact_backfill_pages(owner_id,job_id,page_generation,digest) VALUES($1,$2,$3,$4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ef1b96decf4b9ad7c64b412c6c0209a24420889be805fddc9085ea72bbe1a2b"
+}

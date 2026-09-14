@@ -68,7 +68,7 @@ impl Fixture {
             .await
             .expect("test database");
         let pool = db.write_pool_arc().expect("write pool");
-        let owner = UserId::generate();
+        let owner = UserId::new(uuid::Uuid::new_v4().to_string());
         seed_user_row(&db, &owner, &format!("{}@git.invalid", owner.as_str()))
             .await
             .expect("owner");

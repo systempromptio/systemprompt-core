@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE analytics_fact_checkpoints SET generation=$2,applied_changes=applied_changes+$3,superseded_changes=superseded_changes+$4,last_applied_at=clock_timestamp(),last_recorded_at=GREATEST(last_recorded_at,$5) WHERE owner_id=$1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e377654d2ed06b0e4ef485fe3f343ae07eaa4e4334031d0dc2d817aaa545dbeb"
+}

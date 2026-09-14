@@ -14,7 +14,10 @@ async fn expired_and_foreign_approval_decisions_fail_closed() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let lifecycle = EvaluationLifecycleRepository::new(harness.pg.clone());
+    let lifecycle = EvaluationLifecycleRepository::with_admission(
+        harness.pg.clone(),
+        crate::fixture_admission::fixture_admission(),
+    );
     let digest = "a".repeat(64);
     let approval = lifecycle
         .request_approval(
@@ -80,7 +83,10 @@ async fn restart_marks_expired_work_uncertain_and_never_requeues_it() {
     };
     let (execution, lease) = harness.claimed_lease().await;
     harness.set_lease_expiry(&execution.id, -1.0).await;
-    let lifecycle = EvaluationLifecycleRepository::new(harness.pg.clone());
+    let lifecycle = EvaluationLifecycleRepository::with_admission(
+        harness.pg.clone(),
+        crate::fixture_admission::fixture_admission(),
+    );
     assert_eq!(
         lifecycle
             .reconcile_restart(&harness.owner)
@@ -134,7 +140,10 @@ async fn failed_cleanup_is_durable_and_owner_fenced() {
         return;
     };
     let (_, lease) = harness.claimed_lease().await;
-    let lifecycle = EvaluationLifecycleRepository::new(harness.pg.clone());
+    let lifecycle = EvaluationLifecycleRepository::with_admission(
+        harness.pg.clone(),
+        crate::fixture_admission::fixture_admission(),
+    );
     lifecycle
         .record_cleanup(
             &harness.owner,

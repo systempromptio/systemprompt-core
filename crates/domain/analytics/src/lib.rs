@@ -18,6 +18,7 @@
 
 pub mod error;
 pub mod extension;
+pub mod feedback;
 pub mod models;
 pub mod repository;
 pub mod resource_metrics;

@@ -13,7 +13,10 @@ use super::invalid;
 #[serde(rename_all = "kebab-case")]
 pub enum ClientKind {
     ClaudeCode,
+    #[serde(alias = "open-code")]
     Opencode,
+    Codex,
+    Hermes,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -58,6 +58,7 @@ pub struct DataPlane {
     pub service_repository: Arc<ServiceRepository>,
     pub ai_repositories: Arc<AiRepositories>,
     pub analytics_repositories: Arc<AnalyticsRepositories>,
+    pub feedback_facts_repository: Arc<systemprompt_analytics::feedback::FeedbackFactsRepository>,
     pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
     pub managed_repository: Arc<ManagedRepository>,
@@ -223,6 +224,12 @@ impl AppContext {
 
     pub const fn ai_repositories(&self) -> &Arc<AiRepositories> {
         &self.data.ai_repositories
+    }
+
+    pub const fn feedback_facts_repository(
+        &self,
+    ) -> &Arc<systemprompt_analytics::feedback::FeedbackFactsRepository> {
+        &self.data.feedback_facts_repository
     }
 
     pub const fn analytics_repositories(&self) -> &Arc<AnalyticsRepositories> {
