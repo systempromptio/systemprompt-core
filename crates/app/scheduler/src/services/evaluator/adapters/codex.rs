@@ -136,7 +136,7 @@ impl NativeAdapter for CodexAdapter {
         config(
             &mut arguments,
             &format!(
-                r#"permissions.evaluation.filesystem={{":minimal"="read","/proc"="deny","/home/tester/.codex"="deny","/home/tester/work/.codex"="deny","/home/tester/work"="{workspace_access}","/home/tester/.agents/skills"="{skill_access}"}}"#
+                r#"permissions.evaluation.filesystem={{":minimal"="read","/proc"="deny","/opt/systemprompt/codex"="read","/home/tester/.codex"="deny","/home/tester/work/.codex"="deny","/home/tester/work"="{workspace_access}","/home/tester/.agents/skills"="{skill_access}"}}"#
             ),
         );
         config(
