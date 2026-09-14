@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::adapters::{NativeCompletion, normalize_evidence};
+use super::terminal::{CleanupResources, ExecutionTerminal};
 use super::{
     ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, ContainerLaunch, Duration,
     EvaluationTrafficClass, EvaluatorSupervisor, EvidenceJudgment, ExecutionStage, ExitStatus,
@@ -11,7 +12,6 @@ use super::{
     execution_prompt, internal, judgment_prompt, parse_judgment, safe_suffix, workspace_state,
     write_private,
 };
-use systemprompt_evaluation::repository::experiments::CleanupReport;
 
 pub(super) struct ExecutionOutcome {
     pub status: ExitStatus,
@@ -220,24 +220,27 @@ impl EvaluatorSupervisor {
         execution: &mut ContainerExecution,
         failure: &str,
     ) -> SchedulerResult<()> {
-        let cancel = execution.cancel();
-        let isolated = run.network.cleanup();
-        let cleaned = std::fs::remove_dir_all(&run.directory);
-        let confirmed = cancel.is_ok() && isolated.is_ok() && cleaned.is_ok();
-        self.repositories
-            .lifecycle
-            .record_cleanup(
+        ExecutionTerminal::new(&self.repositories)
+            .cleanup(
                 &run.worker.owner_id,
                 &run.lease,
-                &CleanupReport {
+                CleanupResources {
                     container_id: Some(&run.client_name),
                     network_id: Some(&run.network_name),
-                    succeeded: confirmed,
-                    error: (!confirmed).then_some(failure),
+                },
+                || {
+                    let cancel = execution.cancel();
+                    let isolated = run.network.cleanup();
+                    let cleaned = std::fs::remove_dir_all(&run.directory);
+                    if cancel.is_ok() && isolated.is_ok() && cleaned.is_ok() {
+                        Ok(())
+                    } else {
+                        Err(SchedulerError::config_error(failure))
+                    }
                 },
             )
             .await
-            .map_err(internal)
+            .map(|_| ())
     }
 }
 

@@ -21,8 +21,8 @@ use systemprompt_evaluation::experiments::scoring::{self, EvidenceJudgment};
 use systemprompt_evaluation::experiments::verification::{self, VerificationInput};
 use systemprompt_evaluation::repository::experiments::{
     DeterministicMeasurement, EvaluationRepositories, EvaluationTrafficClass, ExecutionAssignment,
-    ExecutionCompletion, ExecutionEvent, ExecutionLease, ExecutionStage, GeneratedSuggestion,
-    TerminalOutcome, WorkerRecord,
+    ExecutionEvent, ExecutionLease, ExecutionStage, GeneratedSuggestion, TerminalOutcome,
+    WorkerRecord,
 };
 use systemprompt_identifiers::{EvalExecutionId, EvalWorkerId, UserId};
 use systemprompt_marketplace::managed::RevisionBundle;
@@ -41,6 +41,8 @@ mod prepare;
 mod prompts;
 #[path = "supervisor_suggestion.rs"]
 mod suggestion;
+#[path = "supervisor_terminal.rs"]
+pub mod terminal;
 #[path = "supervisor_workspace.rs"]
 pub mod workspace;
 

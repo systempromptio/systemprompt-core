@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::terminal::{CleanupOutcome, CleanupResources, ExecutionTerminal};
 use super::{
     ArtifactEvidence, ClientCapabilities, DeterministicMeasurement, EvaluatorSupervisor,
-    EvidenceArchive, EvidenceJudgment, ExecutionCompletion, ExecutionEvidence, ExecutionOutcome,
-    Instant, PreparedExecution, SchedulerResult, TerminalOutcome, VerificationInput,
-    evidence_references, image_digest, internal, scoring, verification,
+    EvidenceArchive, EvidenceJudgment, ExecutionEvidence, ExecutionOutcome, Instant,
+    PreparedExecution, SchedulerResult, TerminalOutcome, VerificationInput, evidence_references,
+    image_digest, internal, scoring, verification,
 };
 use sha2::{Digest, Sha256};
-use systemprompt_evaluation::repository::experiments::CleanupReport;
 impl EvaluatorSupervisor {
     pub(super) async fn finalize_execution(
         &self,
@@ -26,7 +26,8 @@ impl EvaluatorSupervisor {
                 bytes: file.bytes.len() as u64,
             })
             .collect();
-        let cleanup_confirmed = self.tear_down(&mut run).await?;
+        let cleanup = self.tear_down(&mut run).await?;
+        let cleanup_confirmed = cleanup.verified();
         let requests = self
             .repositories
             .evidence
@@ -58,38 +59,18 @@ impl EvaluatorSupervisor {
             .cleanup_confirmed(cleanup_confirmed)
             .build()
             .map_err(internal)?;
-        self.repositories
-            .evidence
-            .submit(
+        let terminal = ExecutionTerminal::new(&self.repositories)
+            .persist(
                 &run.worker.owner_id,
                 &run.lease,
                 &evidence,
                 &EvidenceArchive {
                     files: outcome.artifacts,
                 },
+                outcome.native_completion,
+                &cleanup,
             )
-            .await
-            .map_err(internal)?;
-        let terminal = if outcome.status.success()
-            && cleanup_confirmed
-            && outcome.native_completion == super::super::adapters::NativeCompletion::Completed
-        {
-            TerminalOutcome::Completed
-        } else {
-            TerminalOutcome::Error
-        };
-        self.repositories
-            .experiments
-            .complete(
-                &run.worker.owner_id,
-                &run.lease,
-                &ExecutionCompletion {
-                    outcome: terminal,
-                    summary: terminal_summary(terminal).to_owned(),
-                },
-            )
-            .await
-            .map_err(internal)?;
+            .await?;
         if terminal == TerminalOutcome::Completed {
             self.record_measurement(&run, &evidence, outcome.judgment, outcome.started)
                 .await?;
@@ -97,29 +78,23 @@ impl EvaluatorSupervisor {
         Ok(())
     }
 
-    async fn tear_down(&self, run: &mut PreparedExecution) -> SchedulerResult<bool> {
-        let network_cleanup = run.network.cleanup();
-        let workspace_cleanup = std::fs::remove_dir_all(&run.directory);
-        let cleanup_confirmed = workspace_cleanup.is_ok() && network_cleanup.is_ok();
-        let cleanup_error = workspace_cleanup
-            .err()
-            .map(|error| error.to_string())
-            .or_else(|| network_cleanup.err().map(|error| error.to_string()));
-        self.repositories
-            .lifecycle
-            .record_cleanup(
+    async fn tear_down(&self, run: &mut PreparedExecution) -> SchedulerResult<CleanupOutcome> {
+        ExecutionTerminal::new(&self.repositories)
+            .cleanup(
                 &run.worker.owner_id,
                 &run.lease,
-                &CleanupReport {
+                CleanupResources {
                     container_id: Some(&run.client_name),
                     network_id: Some(&run.network_name),
-                    succeeded: cleanup_confirmed,
-                    error: cleanup_error.as_deref(),
+                },
+                || {
+                    let network = run.network.cleanup();
+                    let workspace = std::fs::remove_dir_all(&run.directory)
+                        .map_err(super::SchedulerError::from);
+                    workspace.and(network)
                 },
             )
             .await
-            .map_err(internal)?;
-        Ok(cleanup_confirmed)
     }
 
     async fn record_measurement(
@@ -172,13 +147,5 @@ impl EvaluatorSupervisor {
             .record_measurement(&run.worker.owner_id, &run.lease, &measurement)
             .await
             .map_err(internal)
-    }
-}
-
-fn terminal_summary(outcome: TerminalOutcome) -> &'static str {
-    if outcome == TerminalOutcome::Completed {
-        "Execution, evidence export and cleanup verified"
-    } else {
-        "Execution failed or cleanup remains pending"
     }
 }

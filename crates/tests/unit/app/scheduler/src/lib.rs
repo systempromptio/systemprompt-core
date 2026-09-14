@@ -94,3 +94,6 @@ mod evaluator_supervisor_recovery;
 
 #[cfg(test)]
 mod evaluator_workspace;
+
+#[cfg(test)]
+mod evaluator_terminal;
