@@ -245,7 +245,7 @@ async fn verify_source(
     Json(input): Json<DependencyVerificationRequest>,
 ) -> Result<Json<DependencyVerificationManifest>, OptimizationHttpError> {
     Ok(Json(
-        GitSourceOrchestrator::new(ctx.managed_repository().clone())
+        GitSourceOrchestrator::new(ctx.managed_repository().as_ref().clone())
             .verify(ctx.system_admin().id(), &input)
             .await?,
     ))
