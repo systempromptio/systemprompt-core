@@ -57,6 +57,7 @@ pub enum AgentReason {
     AppMissing,
     Stale { cause: StaleReason },
     Partial { missing: String },
+    Unverifiable { detail: String },
     Absent,
     NoKey { providers: String },
     NoModels,
@@ -201,7 +202,7 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
 
     let is_set_up = !matches!(snap.profile_state, ProfileState::Absent);
     let is_installed = matches!(snap.profile_state, ProfileState::Installed);
-    let is_running = snap.host_running;
+    let is_running = snap.host_running.unwrap_or(false);
     let finish = |state: AgentState, reason, action| AgentVerdict {
         state,
         tone: state.tone(),
@@ -235,6 +236,15 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
                     missing: missing_required.join(", "),
                 },
                 Some(AgentAction::Repair),
+            );
+        },
+        ProfileState::Unverifiable { reason } => {
+            return finish(
+                AgentState::Attention,
+                AgentReason::Unverifiable {
+                    detail: reason.clone(),
+                },
+                Some(AgentAction::Verify),
             );
         },
         ProfileState::Absent => {

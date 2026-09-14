@@ -96,7 +96,7 @@ impl SkillTarget {
     pub(crate) fn apply(&self, manifest: &SignedManifest) -> Result<(), ApplyError> {
         let selected = self.selected(manifest)?;
         let version = self.bundle_version(manifest)?;
-        let previous = read_state(&self.root);
+        let previous = read_state(&self.root)?;
 
         let mut new_ids: Vec<String> = Vec::with_capacity(selected.len());
         for s in &selected {
@@ -126,7 +126,7 @@ impl SkillTarget {
     }
 
     pub(crate) fn clear(&self) -> Result<(), ApplyError> {
-        let previous = read_state(&self.root);
+        let previous = read_state(&self.root)?;
         for id in &previous.ids {
             let dir = self.root.join(id);
             if dir.exists() {
@@ -172,11 +172,20 @@ pub(crate) fn kebab_dir(id: &str) -> String {
     out
 }
 
-fn read_state(root: &Path) -> ManagedState {
-    let Ok(bytes) = fs::read(root.join(SIDECAR)) else {
-        return ManagedState::default();
+fn read_state(root: &Path) -> Result<ManagedState, ApplyError> {
+    let path = root.join(SIDECAR);
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(ManagedState::default()),
+        Err(e) => return Err(io_err("read skills sidecar", &path, e)),
     };
-    serde_json::from_slice(&bytes).unwrap_or_default()
+    serde_json::from_slice(&bytes).map_err(|e| ApplyError::Serialize {
+        what: format!(
+            "{} is corrupt; refusing to treat a corrupt sidecar as empty",
+            path.display()
+        ),
+        source: e,
+    })
 }
 
 fn write_state(root: &Path, state: &ManagedState) -> Result<(), ApplyError> {

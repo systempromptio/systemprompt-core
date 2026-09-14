@@ -1,6 +1,7 @@
-//! Foreign-key-preserving JSON reads and atomic writes for the Claude CLI's
-//! registry files. Every write goes through `write_json` so a malformed or
-//! foreign file is never silently clobbered.
+//! Foreign-key-preserving JSON reads and atomic writes for the open-schema
+//! host files (the Claude CLI registry, `opencode.json`). A malformed file, a
+//! non-object root, or a bridge-owned key holding a foreign shape is an error;
+//! the file is never rewritten to fit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,9 +11,16 @@ use std::path::Path;
 
 use serde_json::{Map, Value};
 
-use super::io_err;
 use crate::fsutil;
 use crate::host_sync::ApplyError;
+use crate::integration::config_read::ForeignShape;
+
+fn io_err(context: impl Into<String>, source: std::io::Error) -> ApplyError {
+    ApplyError::Io {
+        context: context.into(),
+        source,
+    }
+}
 
 pub fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, ApplyError> {
     let Some(text) =
@@ -44,15 +52,34 @@ pub(crate) fn read_json_object(path: &Path) -> Result<Map<String, Value>, ApplyE
     Ok(read_optional_object(path)?.unwrap_or_default())
 }
 
+// JSON: open-schema host file; the bridge owns `key` but every other key is
+// the user's and is carried through untouched.
 pub fn object_entry<'a>(
     root: &'a mut Map<String, Value>,
+    path: &Path,
     key: &'static str,
-) -> Option<&'a mut Map<String, Value>> {
+) -> Result<&'a mut Map<String, Value>, ForeignShape> {
     let slot = root.entry(key).or_insert_with(|| Value::Object(Map::new()));
-    if !slot.is_object() {
-        *slot = Value::Object(Map::new());
+    match slot {
+        Value::Object(map) => Ok(map),
+        other => Err(ForeignShape {
+            path: path.display().to_string(),
+            key: key.to_owned(),
+            found: json_kind(other),
+            expected: "an object",
+        }),
     }
-    slot.as_object_mut()
+}
+
+const fn json_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Array(_) => "an array",
+        Value::Object(_) => "an object",
+    }
 }
 
 pub(crate) fn write_json(path: &Path, value: &Value) -> Result<(), ApplyError> {

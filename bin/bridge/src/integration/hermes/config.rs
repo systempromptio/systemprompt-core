@@ -87,18 +87,3 @@ pub(super) fn now_unix() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
 }
-
-pub(super) fn make_uuids() -> (String, String) {
-    let n = now_unix();
-    let payload_uuid = format!(
-        "ce0c{:08x}-h3rm-4h3r-h3r0-{:012x}",
-        n & 0xFFFF_FFFF,
-        n ^ 0xC0DE_C0DE_C0DE_C0DEu64
-    );
-    let profile_uuid = format!(
-        "ce0d{:08x}-h3rm-4h3r-h3r0-{:012x}",
-        (n ^ 0x9876_5432) & 0xFFFF_FFFF,
-        n ^ 0xBEEF_FACE_BEEF_FACEu64
-    );
-    (payload_uuid, profile_uuid)
-}

@@ -41,8 +41,8 @@ pub(crate) fn policy_summary() -> Vec<String> {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind, ProbeEnv,
-    ProfileInstalled, ProfileRemoval, ProfileState,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
+    HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval, ProfileState,
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -55,7 +55,7 @@ pub static CLAUDE_DESKTOP_HOST: ClaudeDesktopHost = ClaudeDesktopHost;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 impl HostApp for ClaudeDesktopHost {
     fn id(&self) -> &'static str {
-        "claude-desktop"
+        shared::HOST_ID
     }
 
     fn display_name(&self) -> &'static str {
@@ -68,26 +68,28 @@ impl HostApp for ClaudeDesktopHost {
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = os::read_domain(shared::DESKTOP_DOMAIN);
-        let secret_fresh = shared::secret_freshness(read.api_key_fp.as_deref(), env);
-        let endpoint_fresh = ProfileState::endpoint_freshness(
+        let endpoint = ProfileState::endpoint_freshness(
             read.keys.get("inferenceGatewayBaseUrl").map(String::as_str),
             env.proxy_port,
         );
-        let profile_state = ProfileState::classify(
-            shared::REQUIRED_KEYS,
-            &read.keys,
-            secret_fresh,
-            endpoint_fresh,
-        );
-        let processes = os::list_claude_processes();
+        let secret = shared::secret_freshness(read.api_key_fp.as_deref(), env);
+        let profile_state = ProfileState::classify(&ProfileProbe {
+            required: shared::REQUIRED_KEYS,
+            present: &read.keys,
+            read_error: read.probe_error.as_deref(),
+            secret,
+            endpoint,
+        });
+        let found = HostProcesses::from_enumeration(os::list_claude_processes());
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
             profile_state,
             profile_source: read.source_path,
             profile_keys: read.keys,
-            host_running: !processes.is_empty(),
-            host_processes: processes,
+            probe_error: read.probe_error.or(found.error),
+            host_running: found.running,
+            host_processes: found.processes,
             app_installed: crate::integration::app_launch::is_installed(
                 &locator(&claude_app_candidates()),
                 &env.start_menu,
@@ -192,29 +194,21 @@ fn claude_app_candidates() -> Vec<std::path::PathBuf> {
 }
 
 #[must_use]
-#[cfg_attr(
-    not(any(target_os = "macos", target_os = "windows")),
-    expect(
-        clippy::missing_const_for_fn,
-        reason = "the desktop probe is a runtime lookup on macOS and Windows"
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub fn is_app_installed(start_menu: &crate::probe_cache::StartMenuCache) -> bool {
+    matches!(
+        crate::integration::app_launch::is_installed(
+            &locator(&claude_app_candidates()),
+            start_menu
+        ),
+        crate::integration::host_app::AppInstallState::Installed
     )
-)]
-pub fn is_app_installed() -> bool {
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    {
-        let cache = std::sync::Arc::new(crate::probe_cache::StartMenuCache::default());
-        matches!(
-            crate::integration::app_launch::is_installed(
-                &locator(&claude_app_candidates()),
-                &cache
-            ),
-            crate::integration::host_app::AppInstallState::Installed
-        )
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        false
-    }
+}
+
+#[must_use]
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub const fn is_app_installed(_start_menu: &crate::probe_cache::StartMenuCache) -> bool {
+    false
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
