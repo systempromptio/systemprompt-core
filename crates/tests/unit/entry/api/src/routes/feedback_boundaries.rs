@@ -175,7 +175,7 @@ async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejecte
     systemprompt_test_fixtures::seed_user_row(
         &db,
         ctx.system_admin().id(),
-        "api-operation-owner@fixtures.invalid",
+        &format!("{}@api-operation-owner.invalid", ctx.system_admin().id()),
     )
     .await
     .unwrap();

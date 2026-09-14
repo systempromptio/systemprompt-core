@@ -8,9 +8,17 @@ use systemprompt_test_fixtures::{
 };
 use tower::ServiceExt;
 async fn json(router: &Router, request: Request<Body>, status: StatusCode) -> serde_json::Value {
+    let uri = request.uri().to_string();
     let response = router.clone().oneshot(request).await.unwrap();
-    assert_eq!(response.status(), status);
-    serde_json::from_slice(&to_bytes(response.into_body(), 16384).await.unwrap()).unwrap()
+    let actual = response.status();
+    let body = to_bytes(response.into_body(), 16384).await.unwrap();
+    if actual != status {
+        panic!(
+            "{uri}: expected {status}, received {actual}: {}",
+            String::from_utf8_lossy(&body)
+        );
+    }
+    serde_json::from_slice(&body).unwrap()
 }
 #[tokio::test]
 async fn issued_credential_enrolls_once_retry_omits_token_and_deliberate_rotation_revokes_it() {
@@ -22,7 +30,7 @@ async fn issued_credential_enrolls_once_retry_omits_token_and_deliberate_rotatio
     seed_user_row(
         &db,
         ctx.system_admin().id(),
-        "api-operation-owner@fixtures.invalid",
+        &format!("{}@api-operation-owner.invalid", ctx.system_admin().id()),
     )
     .await
     .unwrap();
