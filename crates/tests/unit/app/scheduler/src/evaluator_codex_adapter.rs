@@ -99,6 +99,8 @@ fn invocation_pins_native_runner_and_enforces_purpose_specific_permissions() {
         "features.apps=false",
         "features.plugins=false",
         "features.multi_agent=false",
+        "features.view_image=false",
+        "features.image_generation=false",
         "web_search=\"disabled\"",
     ] {
         assert!(
@@ -257,4 +259,32 @@ fn incomplete_failed_and_conflicting_codex_evidence_never_yields_success() {
     let evidence = normalize_evidence(&ADAPTER, b"not JSON");
     assert!(evidence.diagnostic.is_some());
     assert_eq!(evidence.output.completion, NativeCompletion::Incomplete);
+}
+
+#[test]
+fn pinned_codex_uses_registered_feature_keys_for_image_tool_isolation() {
+    // Codex0.154.0 `features list` exposes view_image/image_generation; its
+    // strict config rejects the legacy tools.view_image key before startup.
+    for purpose in [
+        ClientPurpose::Execution,
+        ClientPurpose::Judge,
+        ClientPurpose::Suggestion,
+    ] {
+        let argv = args(purpose, "inspect retained evidence");
+        assert!(argv.iter().any(|arg| arg == "--strict-config"));
+        assert!(argv.iter().any(|arg| arg == "features.view_image=false"));
+        assert!(
+            argv.iter()
+                .any(|arg| arg == "features.image_generation=false")
+        );
+        assert!(!argv.iter().any(|arg| arg.starts_with("tools.view_image=")));
+        assert!(
+            argv.iter()
+                .any(|arg| arg == "permissions.evaluation.network.enabled=false")
+        );
+        assert!(
+            argv.iter()
+                .any(|arg| arg == "shell_environment_policy.inherit=\"none\"")
+        );
+    }
 }
