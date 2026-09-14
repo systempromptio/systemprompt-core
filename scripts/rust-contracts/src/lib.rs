@@ -1,5 +1,13 @@
 //! Rust source contracts for explicit result handling and closed guards.
 //!
+//! `discarded` reports a fallible value thrown away: `let _ =`, `_ =`, a
+//! trailing `.ok();`, `drop(<call>)` on a call that is not an ownership
+//! transfer (`into_inner`, `take`, `replace`, `new`, …), and
+//! `unwrap_or_default()` on a receiver that is a `Result` — an awaited
+//! expression, a call into `serde_json`/`std::fs`/`std::env`, or one of the
+//! named fallible operations (`text`, `parse`, `try_from`, `lock`, …). A
+//! `// Why: discard-ok: <reason>` line above the statement carves it out.
+//!
 //! `fail-open` also carries a best-effort heuristic for partial policy
 //! projection: a guard fn that walks an inventory parameter (`known_*`,
 //! `*_catalog`, `inventory`) and returns a plain value is emitting a map a
@@ -113,6 +121,118 @@ fn path_ident(expr: &Expr) -> Option<String> {
     }
 }
 
+const OWNERSHIP_TRANSFERS: &[&str] = &[
+    "into_inner",
+    "take",
+    "replace",
+    "swap",
+    "clone",
+    "new",
+    "from",
+    "into",
+    "default",
+];
+
+fn transfers_ownership(expr: &Expr) -> bool {
+    match expr {
+        Expr::MethodCall(call) => OWNERSHIP_TRANSFERS.contains(&call.method.to_string().as_str()),
+        Expr::Call(call) => match call.func.as_ref() {
+            Expr::Path(path) => path.path.segments.last().is_some_and(|segment| {
+                OWNERSHIP_TRANSFERS.contains(&segment.ident.to_string().as_str())
+            }),
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+fn dropped_call(call: &syn::ExprCall) -> bool {
+    let Expr::Path(path) = call.func.as_ref() else {
+        return false;
+    };
+    if !path.path.is_ident("drop") || call.args.len() != 1 {
+        return false;
+    }
+    match call.args.first() {
+        Some(argument @ (Expr::Call(_) | Expr::MethodCall(_))) => !transfers_ownership(argument),
+        Some(Expr::Await(_) | Expr::Try(_)) => true,
+        _ => false,
+    }
+}
+
+const FALLIBLE_OPERATIONS: &[&str] = &[
+    "write",
+    "write_all",
+    "status",
+    "output",
+    "send",
+    "persist",
+    "save",
+    "remove_file",
+    "remove_dir_all",
+    "create_dir_all",
+    "set_permissions",
+    "text",
+    "bytes",
+    "json",
+    "read_to_string",
+    "read_dir",
+    "to_value",
+    "from_value",
+    "from_str",
+    "from_slice",
+    "to_string_pretty",
+    "to_vec",
+    "parse",
+    "try_from",
+    "try_into",
+    "current_exe",
+    "current_dir",
+    "canonicalize",
+    "metadata",
+    "var",
+    "try_with",
+    "lock",
+    "join",
+    "recv",
+];
+
+const FALLIBLE_PATH_PREFIXES: &[&[&str]] = &[
+    &["serde_json"],
+    &["std", "fs"],
+    &["std", "env"],
+    &["fs"],
+    &["env"],
+];
+
+fn fallible_path(path: &syn::Path) -> bool {
+    let segments: Vec<String> = path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect();
+    let named = segments
+        .last()
+        .is_some_and(|name| FALLIBLE_OPERATIONS.contains(&name.as_str()));
+    let prefixed = FALLIBLE_PATH_PREFIXES.iter().any(|prefix| {
+        segments.len() > prefix.len() && prefix.iter().zip(&segments).all(|(want, got)| want == got)
+    });
+    named || prefixed
+}
+
+fn fallible_receiver(receiver: &Expr) -> bool {
+    match receiver {
+        Expr::Await(_) => true,
+        Expr::MethodCall(call) => FALLIBLE_OPERATIONS.contains(&call.method.to_string().as_str()),
+        Expr::Call(call) => match call.func.as_ref() {
+            Expr::Path(path) => fallible_path(&path.path),
+            _ => false,
+        },
+        Expr::Paren(paren) => fallible_receiver(&paren.expr),
+        _ => false,
+    }
+}
+
 fn true_literal(expr: &Expr) -> bool {
     matches!(expr, Expr::Lit(literal) if matches!(&literal.lit, syn::Lit::Bool(value) if value.value))
 }
@@ -164,6 +284,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
                 Stmt::Expr(Expr::MethodCall(call), Some(_)) => {
                     call.method == "ok" && call.args.is_empty()
                 },
+                Stmt::Expr(Expr::Call(call), Some(_)) => dropped_call(call),
                 _ => false,
             };
             if discarded {
@@ -189,37 +310,11 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         {
             self.report(node.span(), "partial-projection");
         }
-        if self.mode == "discarded" && node.method == "unwrap_or_default" {
-            let operation = match node.receiver.as_ref() {
-                Expr::MethodCall(call) => Some(call.method.to_string()),
-                Expr::Call(call) => match call.func.as_ref() {
-                    Expr::Path(path) => path
-                        .path
-                        .segments
-                        .last()
-                        .map(|segment| segment.ident.to_string()),
-                    _ => None,
-                },
-                _ => None,
-            };
-            if operation.as_deref().is_some_and(|name| {
-                [
-                    "write",
-                    "write_all",
-                    "status",
-                    "output",
-                    "send",
-                    "persist",
-                    "save",
-                    "remove_file",
-                    "remove_dir_all",
-                    "create_dir_all",
-                    "set_permissions",
-                ]
-                .contains(&name)
-            }) {
-                self.report(node.span(), "fallible-default");
-            }
+        if self.mode == "discarded"
+            && node.method == "unwrap_or_default"
+            && fallible_receiver(&node.receiver)
+        {
+            self.report(node.span(), "fallible-default");
         }
         visit::visit_expr_method_call(self, node);
     }
