@@ -17,8 +17,12 @@ use systemprompt_evaluation::experiments::resources::ResourceContent;
 use systemprompt_identifiers::{
     EvalBudgetId, EvalExperimentId, EvalRevisionId, ManagedSourceId, ResourceRevisionId,
 };
-use systemprompt_marketplace::managed::{GitContentVerification, RevisionBundle, SourceSpec};
+use systemprompt_marketplace::managed::{RevisionBundle, SourceSpec};
+use systemprompt_models::feedback::verification::{
+    DependencyVerificationManifest, DependencyVerificationRequest,
+};
 use systemprompt_runtime::AppContext;
+use systemprompt_runtime::optimization::git_sources::GitSourceOrchestrator;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
@@ -31,10 +35,15 @@ pub(super) fn router() -> Router<AppContext> {
         .route("/evaluation-revisions/{id}", get(evaluation_revision))
         .route("/sources", post(create_source))
         .route("/sources/{id}", get(source))
+        .route(
+            "/sources/{id}/verification-bindings",
+            post(bind_verification_source),
+        )
         .route("/sources/{id}/captures", post(capture_source))
         .route("/revisions/{id}/bundle", get(bundle))
         .route("/revisions/{id}/workspace", post(workspace))
         .route("/source-verifications", post(verify_source))
+        .route("/source-verifications/{id}", get(source_verification))
         .route(
             "/evaluator-capabilities",
             get(evaluator_capability_registry),
@@ -233,11 +242,47 @@ async fn workspace(
 
 async fn verify_source(
     State(ctx): State<AppContext>,
-    Json(input): Json<GitContentVerification>,
-) -> Result<Json<systemprompt_marketplace::managed::AssetDigest>, OptimizationHttpError> {
+    Json(input): Json<DependencyVerificationRequest>,
+) -> Result<Json<DependencyVerificationManifest>, OptimizationHttpError> {
     Ok(Json(
-        ctx.managed_repository()
-            .verify_git_content(ctx.system_admin().id(), &input)
+        GitSourceOrchestrator::new(ctx.managed_repository().clone())
+            .verify(ctx.system_admin().id(), &input)
             .await?,
     ))
+}
+
+async fn source_verification(
+    State(ctx): State<AppContext>,
+    Path(id): Path<systemprompt_identifiers::DependencyVerificationId>,
+) -> Result<Json<DependencyVerificationManifest>, OptimizationHttpError> {
+    Ok(Json(
+        ctx.managed_repository()
+            .git_verification(ctx.system_admin().id(), &id)
+            .await?,
+    ))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VerificationSourceBinding {
+    resource_id: systemprompt_identifiers::ManagedResourceId,
+    relative_root: String,
+}
+
+async fn bind_verification_source(
+    State(ctx): State<AppContext>,
+    axum::Extension(actor): axum::Extension<systemprompt_models::RequestContext>,
+    Path(id): Path<ManagedSourceId>,
+    Json(input): Json<VerificationSourceBinding>,
+) -> Result<StatusCode, OptimizationHttpError> {
+    ctx.managed_repository()
+        .bind_git_verification_source(
+            ctx.system_admin().id(),
+            actor.user_id(),
+            &input.resource_id,
+            &id,
+            &input.relative_root,
+        )
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }

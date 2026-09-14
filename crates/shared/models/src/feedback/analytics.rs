@@ -1,4 +1,5 @@
-//! Skill feedback contracts shared across ingestion, marketplace, evaluators and clients.
+//! Skill feedback contracts shared across ingestion, marketplace, evaluators
+//! and clients.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -65,7 +66,10 @@ pub struct NormalizedInvocationFact {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum RecordedSpend {
-    Known { currency: String, amount_micros: u64 },
+    Known {
+        currency: String,
+        amount_micros: u64,
+    },
     UnknownPricing,
 }
 

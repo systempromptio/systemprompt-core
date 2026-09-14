@@ -160,3 +160,12 @@ async fn errors_propagate() {
     let result = Failing.filter(&fixture_user_id(), sample_candidate()).await;
     assert!(matches!(result, Err(MarketplaceFilterError::Backend(_))));
 }
+
+#[cfg(test)]
+mod git_execution;
+
+#[cfg(test)]
+mod git_https;
+
+#[cfg(test)]
+mod git_verification;
