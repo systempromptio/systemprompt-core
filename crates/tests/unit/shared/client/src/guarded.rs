@@ -112,9 +112,6 @@ mod guarded_client_tests {
         format!("http://{addr}/start")
     }
 
-    /// A listener that answers `hits` requests. Every request but the last is
-    /// a 302 to `next` (or, when `next` is `None`, back to itself); the last
-    /// is a 200 with the body `landed`.
     struct HopServer {
         url: String,
         received: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -302,9 +299,8 @@ mod guarded_client_tests {
     }
 }
 
-/// Real-DNS cases for the cloud-metadata names an attacker would actually use.
-/// They need outbound DNS, so they are gated on `SP_SSRF_NET_TESTS=1` and
-/// otherwise pass after printing that they were skipped.
+// Why: these cases need outbound DNS, so they are gated on `SP_SSRF_NET_TESTS=1`
+// and otherwise pass after printing that they were skipped.
 mod ssrf_live_dns_tests {
     use reqwest::dns::Resolve;
     use systemprompt_client::{GuardedConnectError, GuardedResolver};
