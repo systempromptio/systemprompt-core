@@ -83,7 +83,7 @@ pub(super) async fn lock_session(
         "SELECT pg_advisory_xact_lock(hashtextextended($1, 771239)) IS NULL AS locked",
         key
     )
-    .execute(&mut **tx)
+    .fetch_one(&mut **tx)
     .await?;
     Ok(())
 }
