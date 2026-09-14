@@ -104,6 +104,7 @@ impl NativeAdapter for CodexAdapter {
             "mcp_servers.evaluation_fixture.url=\"http://127.0.0.1:8091/mcp/evaluation_fixture\"",
             "mcp_servers.evaluation_fixture.bearer_token_env_var=\"CODEX_LOCAL_PROXY_TOKEN\"",
             "mcp_servers.evaluation_fixture.enabled_tools=[\"evaluation_fixture\"]",
+            "mcp_servers.evaluation_fixture.tools.evaluation_fixture.approval_mode=\"approve\"",
             "mcp_servers.evaluation_fixture.startup_timeout_sec=5",
             "mcp_servers.evaluation_fixture.tool_timeout_sec=10",
             "features.apps=false",

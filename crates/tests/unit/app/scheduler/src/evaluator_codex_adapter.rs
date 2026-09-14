@@ -93,6 +93,7 @@ fn invocation_pins_native_runner_and_enforces_purpose_specific_permissions() {
     );
     for setting in [
         "approval_policy=\"never\"",
+        "mcp_servers.evaluation_fixture.tools.evaluation_fixture.approval_mode=\"approve\"",
         "permissions.evaluation.network.enabled=false",
         "shell_environment_policy.inherit=\"none\"",
         "features.hooks=false",
