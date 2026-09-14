@@ -33,7 +33,7 @@ impl ExperimentRepository {
             tx.commit().await?;
             return Ok(None);
         }
-        let row = sqlx::query!("SELECT x.id,x.experiment_id FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND e.status IN ('queued','running') AND x.status='queued' AND x.active_runtime_ms<1800000 ORDER BY x.created_at FOR UPDATE OF x SKIP LOCKED LIMIT 1", owner.as_str())
+        let row = sqlx::query!("SELECT x.id,x.experiment_id FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND e.status IN ('queued','running') AND x.status='queued' AND x.active_runtime_ms<1800000 ORDER BY x.created_at,x.variant_index,x.repetition FOR UPDATE OF x SKIP LOCKED LIMIT 1", owner.as_str())
             .fetch_optional(&mut *tx).await?;
         let Some(row) = row else {
             sqlx::query!(

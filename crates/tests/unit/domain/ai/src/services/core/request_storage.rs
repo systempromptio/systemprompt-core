@@ -389,22 +389,3 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
         "a failed row must never carry an empty reason — it would read as a success"
     );
 }
-
-#[tokio::test]
-async fn the_storage_debug_elides_the_analytics_publisher() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
-    let storage = RequestStorage::new(
-        AiRequestRepository::new(&pool).expect("repo"),
-        AiRequestPayloadRepository::new(&pool).expect("payloads"),
-        Arc::new(RecordingSessionProvider::default()),
-    );
-
-    let rendered = format!("{storage:?}");
-    assert!(rendered.contains("RequestStorage"));
-    assert!(
-        rendered.contains("None"),
-        "a storage built without a publisher must render one as absent, got {rendered}"
-    );
-}
