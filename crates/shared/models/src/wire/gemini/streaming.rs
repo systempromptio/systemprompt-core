@@ -73,10 +73,10 @@ fn drain_buffer(state: &mut StreamState, bytes: &[u8]) -> Vec<Result<CanonicalEv
             let Some(data) = line.strip_prefix("data:") else {
                 continue;
             };
-            let Ok(value) = serde_json::from_str::<Value>(data.trim()) else {
-                continue;
-            };
-            handle_chunk(state, &value, &mut events);
+            match serde_json::from_str::<Value>(data.trim()) {
+                Ok(value) => handle_chunk(state, &value, &mut events),
+                Err(e) => events.push(Err(format!("malformed Gemini SSE frame: {e}"))),
+            }
         }
     }
     events
@@ -84,6 +84,7 @@ fn drain_buffer(state: &mut StreamState, bytes: &[u8]) -> Vec<Result<CanonicalEv
 
 fn handle_chunk(
     state: &mut StreamState,
+    // JSON: Gemini streaming frame; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -268,6 +269,7 @@ fn emit_thought(
 fn emit_tool_use(
     state: &mut StreamState,
     name: &str,
+    // JSON: Gemini `functionCall.args` is the tool's own JSON argument object.
     args: &Value,
     signature: Option<String>,
     events: &mut Vec<Result<CanonicalEvent, String>>,

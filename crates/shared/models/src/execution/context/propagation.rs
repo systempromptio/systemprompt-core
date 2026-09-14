@@ -109,16 +109,25 @@ fn required_header<'h>(
     header_str(hdrs, name).ok_or_else(|| ContextPropagationError::MissingHeader(name.to_owned()))
 }
 
-fn apply_optional_execution_fields(mut ctx: RequestContext, hdrs: &HeaderMap) -> RequestContext {
+fn invalid_header(name: &'static str, message: impl std::fmt::Display) -> ContextPropagationError {
+    ContextPropagationError::InvalidHeader {
+        name: name.to_owned(),
+        message: message.to_string(),
+    }
+}
+
+fn apply_optional_execution_fields(
+    mut ctx: RequestContext,
+    hdrs: &HeaderMap,
+) -> ContextPropagationResult<RequestContext> {
     if let Some(s) = header_str(hdrs, headers::TASK_ID) {
         ctx = ctx.with_task_id(TaskId::new(s.to_owned()));
     }
     if let Some(s) = header_str(hdrs, headers::AI_TOOL_CALL_ID) {
         ctx = ctx.with_ai_tool_call_id(AiToolCallId::new(s.to_owned()));
     }
-    let call_source =
-        header_str(hdrs, headers::CALL_SOURCE).and_then(|s| CallSource::from_str(s).ok());
-    if let Some(cs) = call_source {
+    if let Some(s) = header_str(hdrs, headers::CALL_SOURCE) {
+        let cs = CallSource::from_str(s).map_err(|e| invalid_header(headers::CALL_SOURCE, e))?;
         ctx = ctx.with_call_source(cs);
     }
     if let Some(s) = header_str(hdrs, headers::CLIENT_ID) {
@@ -129,7 +138,7 @@ fn apply_optional_execution_fields(mut ctx: RequestContext, hdrs: &HeaderMap) ->
     if let Some(token) = auth_token {
         ctx = ctx.with_auth_token(token.to_owned());
     }
-    ctx
+    Ok(ctx)
 }
 
 fn apply_proxy_verified_user(
@@ -142,19 +151,18 @@ fn apply_proxy_verified_user(
         return Ok(ctx);
     }
 
-    let Some(permissions) = header_str(hdrs, headers::USER_PERMISSIONS)
-        .and_then(|s| crate::auth::parse_permissions(s).ok())
-    else {
+    // Why: a verified mesh request without a permissions header is a request
+    // the proxy did not decorate (absence); a header that fails to parse is a
+    // corrupted trust claim and must reject rather than downgrade to anonymous.
+    let Some(raw_permissions) = header_str(hdrs, headers::USER_PERMISSIONS) else {
         return Ok(ctx);
     };
+    let permissions = crate::auth::parse_permissions(raw_permissions)
+        .map_err(|e| invalid_header(headers::USER_PERMISSIONS, e))?;
 
-    let user_id_uuid =
-        user_id
-            .parse::<uuid::Uuid>()
-            .map_err(|e| ContextPropagationError::InvalidHeader {
-                name: headers::USER_ID.to_owned(),
-                message: format!("invalid UUID: {e}"),
-            })?;
+    let user_id_uuid = user_id
+        .parse::<uuid::Uuid>()
+        .map_err(|e| invalid_header(headers::USER_ID, format!("invalid UUID: {e}")))?;
     let user = crate::auth::AuthenticatedUser::new(
         user_id_uuid,
         String::new(),
@@ -173,17 +181,13 @@ impl ContextPropagation for RequestContext {
         let agent_name = required_header(hdrs, headers::AGENT_NAME)?;
 
         let session_id = SessionId::new(session_id.to_owned());
-        let context_id = header_str(hdrs, headers::CONTEXT_ID)
-            .filter(|s| !s.is_empty())
-            .and_then(|s| ContextId::try_new(s).ok())
-            .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
+        let context_id = match header_str(hdrs, headers::CONTEXT_ID).filter(|s| !s.is_empty()) {
+            Some(s) => ContextId::try_new(s).map_err(|e| invalid_header(headers::CONTEXT_ID, e))?,
+            None => ContextId::derived_from_session(&session_id),
+        };
 
-        let agent_name = AgentName::try_new(agent_name.to_owned()).map_err(|e| {
-            ContextPropagationError::InvalidHeader {
-                name: headers::AGENT_NAME.to_owned(),
-                message: e.to_string(),
-            }
-        })?;
+        let agent_name = AgentName::try_new(agent_name.to_owned())
+            .map_err(|e| invalid_header(headers::AGENT_NAME, e))?;
 
         let ctx = Self::new(
             session_id,
@@ -193,7 +197,7 @@ impl ContextPropagation for RequestContext {
         )
         .with_actor(Actor::user(UserId::new(user_id.to_owned())));
 
-        let ctx = apply_optional_execution_fields(ctx, hdrs);
+        let ctx = apply_optional_execution_fields(ctx, hdrs)?;
         apply_proxy_verified_user(ctx, hdrs, user_id)
     }
 

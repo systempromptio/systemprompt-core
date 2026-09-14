@@ -53,6 +53,7 @@ impl Artifact for MessageArtifact {
         ArtifactType::Message
     }
 
+    // JSON: JSON Schema document describing the artifact for the model.
     fn to_schema(&self) -> JsonValue {
         json!({
             "type": "object",

@@ -89,5 +89,3 @@ pub struct OAuth2Flow {
     pub refresh_url: Option<String>,
     pub scopes: HashMap<String, String>,
 }
-
-pub type AgentAuthentication = serde_json::Value;

@@ -55,6 +55,7 @@ pub struct AgentExtension {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: A2A `AgentExtension.params` is spec-defined as a free-form object.
     pub params: Option<serde_json::Value>,
 }
 

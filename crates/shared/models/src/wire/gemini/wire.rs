@@ -94,12 +94,14 @@ pub(crate) struct GeminiInlineData {
 pub(crate) struct GeminiFunctionCall {
     pub(crate) name: String,
     #[serde(default)]
+    // JSON: Gemini `functionCall.args` / `functionResponse.response` are the tool's own JSON.
     pub(crate) args: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct GeminiFunctionResponse {
     pub(crate) name: String,
+    // JSON: Gemini `functionCall.args` / `functionResponse.response` are the tool's own JSON.
     pub(crate) response: Value,
 }
 
@@ -137,6 +139,7 @@ pub(crate) struct GeminiGenerationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) response_mime_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: Gemini `responseSchema` is a JSON Schema document.
     pub(crate) response_schema: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) thinking_config: Option<GeminiThinkingConfig>,
@@ -185,6 +188,7 @@ pub(crate) struct GeminiFunctionDeclaration {
     pub(crate) name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) description: Option<String>,
+    // JSON: Gemini `functionDeclaration.parameters` is a JSON Schema document.
     pub(crate) parameters: Value,
 }
 

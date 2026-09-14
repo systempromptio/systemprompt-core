@@ -55,6 +55,7 @@ impl TableHints {
 }
 
 impl ArtifactSchema for TableHints {
+    // JSON: JSON Schema document describing the hints object for the model.
     fn generate_schema(&self) -> JsonValue {
         let mut hints = json!({
             "columns": self.columns.iter().map(Column::name).collect::<Vec<_>>(),

@@ -118,6 +118,7 @@ fn flush_into(
 
 fn handle_chunk(
     state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -156,6 +157,7 @@ fn handle_chunk(
 
 fn emit_message_start(
     state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
@@ -200,6 +202,7 @@ fn emit_message_stop(
     }));
 }
 
+// JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
 fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
     let field = |name: &str| usage.get(name).and_then(Value::as_u64).map(|v| v as u32);
     let cached = usage

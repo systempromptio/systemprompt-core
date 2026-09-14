@@ -6,7 +6,7 @@
 use super::ValidationConfigProvider;
 use crate::ServicesConfig;
 use systemprompt_traits::validation_report::{
-    ValidationError, ValidationReport, ValidationWarning,
+    ValidationIssue, ValidationReport, ValidationWarning,
 };
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
@@ -74,7 +74,7 @@ impl DomainConfig for AiConfigValidator {
 impl AiConfigValidator {
     fn validate_default_provider(report: &mut ValidationReport, ai_config: &crate::AiConfig) {
         if ai_config.default_provider.is_empty() {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 "ai.default_provider",
                 "Default AI provider not configured",
             ));
@@ -83,7 +83,7 @@ impl AiConfigValidator {
             .contains_key(&ai_config.default_provider)
         {
             report.add_error(
-                ValidationError::new(
+                ValidationIssue::new(
                     "ai.default_provider",
                     format!(
                         "Default provider '{}' not found in providers",
@@ -104,7 +104,7 @@ impl AiConfigValidator {
 
         if enabled.is_empty() {
             report.add_error(
-                ValidationError::new("ai.providers", "No AI providers are enabled")
+                ValidationIssue::new("ai.providers", "No AI providers are enabled")
                     .with_suggestion("Enable at least one provider in ai.providers"),
             );
         }
@@ -125,13 +125,13 @@ impl AiConfigValidator {
 
     fn validate_mcp_config(report: &mut ValidationReport, ai_config: &crate::AiConfig) {
         if ai_config.mcp.resilience.connect_timeout_ms == 0 {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 "ai.mcp.resilience.connect_timeout_ms",
                 "MCP connect timeout must be greater than 0",
             ));
         }
         if ai_config.mcp.resilience.request_timeout_ms == 0 {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 "ai.mcp.resilience.request_timeout_ms",
                 "MCP execution timeout must be greater than 0",
             ));

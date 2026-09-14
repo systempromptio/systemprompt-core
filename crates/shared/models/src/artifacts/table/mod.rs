@@ -29,12 +29,14 @@ pub struct TableResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub columns: Vec<Column>,
+    // JSON: Table rows are the tool's own row objects.
     pub items: Vec<JsonValue>,
     pub count: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(with = "Option<JsonValue>")]
+    // JSON: Free-form `_meta.hints` object the tool emitted; see `hints.rs`.
     pub hints: Option<JsonValue>,
 }
 
@@ -46,9 +48,11 @@ pub struct TableArtifact {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub columns: Vec<Column>,
+    // JSON: Table rows are the tool's own row objects.
     pub items: Vec<JsonValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(with = "Option<JsonValue>")]
+    // JSON: Free-form `_meta.hints` object the tool emitted; see `hints.rs`.
     pub hints: Option<JsonValue>,
     #[serde(skip)]
     #[schemars(skip)]
@@ -88,6 +92,7 @@ impl TableArtifact {
         self
     }
 
+    // JSON: Table rows are the tool's own row objects.
     pub fn with_rows(mut self, items: Vec<JsonValue>) -> Self {
         self.items = items;
         self
@@ -120,6 +125,7 @@ impl TableArtifact {
         self
     }
 
+    // JSON: A2A `DataPart.data` payload.
     pub fn to_response(&self) -> JsonValue {
         use crate::artifacts::traits::ArtifactSchema;
 
@@ -147,6 +153,7 @@ impl Artifact for TableArtifact {
         ArtifactType::Table
     }
 
+    // JSON: JSON Schema document describing the artifact for the model.
     fn to_schema(&self) -> JsonValue {
         use crate::artifacts::traits::ArtifactSchema;
 

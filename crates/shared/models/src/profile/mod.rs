@@ -180,7 +180,10 @@ fn reject_moved_sections(content: &str, profile_path: &Path) -> ProfileResult<()
 impl Profile {
     #[must_use]
     pub fn is_local_trial(&self) -> bool {
-        self.cloud.as_ref().is_none_or(CloudConfig::is_local_trial)
+        match &self.cloud {
+            Some(cloud) => cloud.is_local_trial(),
+            None => self.target.is_local(),
+        }
     }
 
     #[must_use]

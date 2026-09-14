@@ -6,166 +6,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod content;
+mod options;
+
+pub use content::{CanonicalContent, CanonicalMessage, ImageDetail, ImageSource, Role};
+pub use options::{
+    CanonicalTool, CanonicalToolChoice, ReasoningEffort, ResponseFormat, SearchConfig,
+    ThinkingConfig,
+};
+
 use crate::gateway_hash::conversation_prefix_hash;
 use crate::wire::inspect::ForwardedSurface;
 use serde_json::Value;
 use systemprompt_identifiers::error::IdValidationError;
-use systemprompt_identifiers::{ClientSessionId, GatewayConversationId};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Role {
-    System,
-    User,
-    Assistant,
-    Tool,
-}
-
-impl Role {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::System => "system",
-            Self::User => "user",
-            Self::Assistant => "assistant",
-            Self::Tool => "tool",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ImageDetail {
-    Auto,
-    Low,
-    High,
-}
-
-impl ImageDetail {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Auto => "auto",
-            Self::Low => "low",
-            Self::High => "high",
-        }
-    }
-}
+use systemprompt_identifiers::{ClientSessionId, GatewayConversationId, ModelId};
 
 #[derive(Debug, Clone)]
-pub enum ImageSource {
-    Base64 {
-        media_type: String,
-        data: String,
-        detail: Option<ImageDetail>,
-    },
-    Url {
-        url: String,
-        detail: Option<ImageDetail>,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub enum CanonicalContent {
-    Text(String),
-    Image(ImageSource),
-    ToolUse {
-        id: String,
-        name: String,
-        input: Value,
-        // Why: Gemini requires function-call `thoughtSignature` values replayed verbatim.
-        signature: Option<String>,
-    },
-    ToolResult {
-        tool_use_id: String,
-        content: Vec<Self>,
-        is_error: bool,
-        structured_content: Option<Value>,
-        meta: Option<Value>,
-    },
-    Thinking {
-        text: String,
-        signature: Option<String>,
-        // Why: OpenAI Responses requires the reasoning item ID and encrypted content
-        // replayed verbatim for stateless reasoning continuity.
-        id: Option<String>,
-        encrypted_content: Option<String>,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub struct CanonicalMessage {
-    pub role: Role,
-    pub content: Vec<CanonicalContent>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CanonicalTool {
-    pub name: String,
-    pub description: Option<String>,
-    pub input_schema: Value,
-}
-
-#[derive(Debug, Clone)]
-pub enum CanonicalToolChoice {
-    Auto,
-    Any,
-    None,
-    Required,
-    Tool(String),
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ThinkingConfig {
-    pub enabled: bool,
-    pub budget_tokens: Option<u32>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ResponseFormat {
-    JsonObject,
-    JsonSchema {
-        name: String,
-        schema: Value,
-        strict: bool,
-    },
-}
-
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum ReasoningEffort {
-    Low,
-    Medium,
-    High,
-}
-
-impl ReasoningEffort {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Low => "low",
-            Self::Medium => "medium",
-            Self::High => "high",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct SearchConfig {
-    pub max_uses: Option<u32>,
-    pub context_size: Option<String>,
-    pub urls: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default)]
 pub struct CanonicalRequest {
-    pub model: String,
+    pub model: ModelId,
     pub system: Option<String>,
     pub messages: Vec<CanonicalMessage>,
     pub max_tokens: u32,
@@ -177,6 +35,7 @@ pub struct CanonicalRequest {
     pub tool_choice: Option<CanonicalToolChoice>,
     pub stream: bool,
     pub thinking: Option<ThinkingConfig>,
+    // JSON: Free-form request metadata mirrored to `ai_requests.metadata` (JSONB).
     pub metadata: Option<Value>,
     pub response_format: Option<ResponseFormat>,
     pub reasoning_effort: Option<ReasoningEffort>,
@@ -188,6 +47,32 @@ pub struct CanonicalRequest {
 }
 
 impl CanonicalRequest {
+    #[must_use]
+    pub fn new(model: ModelId, messages: Vec<CanonicalMessage>, max_tokens: u32) -> Self {
+        Self {
+            model,
+            system: None,
+            messages,
+            max_tokens,
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            stop_sequences: Vec::new(),
+            tools: Vec::new(),
+            tool_choice: None,
+            stream: false,
+            thinking: None,
+            metadata: None,
+            response_format: None,
+            reasoning_effort: None,
+            search: None,
+            code_execution: false,
+            presence_penalty: None,
+            frequency_penalty: None,
+            forwarded_surface: ForwardedSurface::default(),
+        }
+    }
+
     pub fn flatten_parts(&self) -> Vec<(String, String)> {
         let mut parts = Vec::with_capacity(self.messages.len() + self.forwarded_surface.len() + 1);
         if let Some(sys) = &self.system

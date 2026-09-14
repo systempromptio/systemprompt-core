@@ -124,6 +124,7 @@ impl Artifact for VideoArtifact {
         ArtifactType::Video
     }
 
+    // JSON: JSON Schema document describing the artifact for the model.
     fn to_schema(&self) -> JsonValue {
         json!({
             "type": "object",

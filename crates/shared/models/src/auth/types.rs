@@ -26,6 +26,7 @@ pub struct AuthenticatedUser {
     #[serde(default)]
     pub roles: Vec<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    // JSON: ABAC attribute values are declared per deployment in the authz policy YAML.
     pub attributes: BTreeMap<String, serde_json::Value>,
 }
 
@@ -64,12 +65,14 @@ impl AuthenticatedUser {
     }
 
     #[must_use]
+    // JSON: ABAC attribute values declared per deployment in authz policy YAML.
     pub fn with_attributes(mut self, attributes: BTreeMap<String, serde_json::Value>) -> Self {
         self.attributes = attributes;
         self
     }
 
     #[must_use]
+    // JSON: ABAC attribute values declared per deployment in authz policy YAML.
     pub const fn attributes(&self) -> &BTreeMap<String, serde_json::Value> {
         &self.attributes
     }
