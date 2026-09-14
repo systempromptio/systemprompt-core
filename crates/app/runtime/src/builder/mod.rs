@@ -156,13 +156,12 @@ impl AppContextBuilder {
         )?;
 
         let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
-        let mut repositories = build_repositories(&database, analytics_repositories, instance_id)?;
+        let repositories = build_repositories(&database, analytics_repositories, instance_id)?;
 
         let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
 
         let system_admin =
             assembly::resolve_and_install_system_admin(&config, &user_service).await?;
-        repositories.bind_organizational_owner(system_admin.id());
         let mcp_registry = RegistryService::new(system_admin.id().clone());
 
         ensure_legacy_context(&repositories, &system_admin).await?;

@@ -113,12 +113,16 @@ pub fn collapse_repetitions(pairs: &[PairedOutcome]) -> Result<PairedOutcome> {
         ));
     }
     Ok(PairedOutcome {
-        baseline: collapse(pairs.iter().map(|pair| &pair.baseline), false),
-        candidate: collapse(pairs.iter().map(|pair| &pair.candidate), true),
+        baseline: collapse(pairs, |pair| &pair.baseline, false),
+        candidate: collapse(pairs, |pair| &pair.candidate, true),
     })
 }
 
-fn collapse(outcomes: impl Iterator<Item = &Outcome>, candidate: bool) -> Outcome {
+fn collapse(
+    pairs: &[PairedOutcome],
+    project: impl Fn(&PairedOutcome) -> &Outcome,
+    candidate: bool,
+) -> Outcome {
     let mut result = Outcome {
         quality_milli: if candidate { 5000 } else { 0 },
         tokens: 0,
@@ -130,7 +134,7 @@ fn collapse(outcomes: impl Iterator<Item = &Outcome>, candidate: bool) -> Outcom
     };
     let mut sums = [0u128; 3];
     let mut count = 0u128;
-    for value in outcomes {
+    for value in pairs.iter().map(project) {
         count += 1;
         result.quality_milli = if candidate {
             result.quality_milli.min(value.quality_milli)
