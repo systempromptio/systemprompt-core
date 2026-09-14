@@ -48,7 +48,7 @@ pub struct ResourceMetrics {
     pub last_used_at: Option<DateTime<Utc>>,
 }
 
-pub fn aggregate<'a>(facts: impl IntoIterator<Item = &'a ResourceFact>) -> ResourceMetrics {
+pub fn aggregate<'a>(facts: impl IntoIterator<Item = &'a ResourceFact> + 'a) -> ResourceMetrics {
     let mut invocations = BTreeSet::new();
     let mut verified = BTreeSet::new();
     let mut users = BTreeSet::new();

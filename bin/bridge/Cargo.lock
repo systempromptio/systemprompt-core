@@ -4656,6 +4656,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
