@@ -62,6 +62,7 @@ pub(super) struct GitCheckout<'a> {
     pub subdirectory: Option<&'a str>,
     pub root: &'a str,
     pub credential: Option<&'a str>,
+    pub certificate_authority: Option<&'a [u8]>,
     pub deadline: std::time::Instant,
 }
 
@@ -73,9 +74,17 @@ pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
         subdirectory,
         root,
         credential,
+        certificate_authority,
         deadline,
     } = *checkout;
-    fetch_commit(temp, repository, commit, credential, deadline)?;
+    fetch_commit(
+        temp,
+        repository,
+        commit,
+        credential,
+        certificate_authority,
+        deadline,
+    )?;
     let prefix = [subdirectory, Some(root)]
         .into_iter()
         .flatten()
@@ -138,6 +147,7 @@ fn fetch_commit(
     repository: &str,
     commit: &str,
     credential: Option<&str>,
+    certificate_authority: Option<&[u8]>,
     deadline: std::time::Instant,
 ) -> Result<()> {
     git(
@@ -152,16 +162,27 @@ fn fetch_commit(
         None,
         deadline,
     )?;
+    let mut fetch = Command::new("git");
+    fetch
+        .current_dir(temp)
+        .args(["-c", "core.hooksPath=/dev/null"]);
+    if let Some(certificate) = certificate_authority {
+        use std::io::Write;
+        let path = temp.join(".systemprompt-ca.pem");
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        options.open(&path)?.write_all(certificate)?;
+        let path = path.to_str().ok_or(ManagedError::Integrity)?;
+        fetch.args(["-c", &format!("http.sslCAInfo={path}")]);
+    }
+    fetch.args(["fetch", "--no-tags", "--depth=1", repository, commit]);
     git(
-        Command::new("git").current_dir(temp).args([
-            "-c",
-            "core.hooksPath=/dev/null",
-            "fetch",
-            "--no-tags",
-            "--depth=1",
-            repository,
-            commit,
-        ]),
+        &mut fetch,
         credential.map(|token| (repository, token)),
         deadline,
     )?;

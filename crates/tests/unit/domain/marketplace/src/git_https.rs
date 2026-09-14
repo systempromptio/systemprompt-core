@@ -161,3 +161,251 @@ fn separate_https_sources_require_independent_credentials_and_rotate_without_cro
     root.request("repo.git", "first-token")
         .expect("independent root still authenticated");
 }
+
+
+impl Fixture {
+    fn git_object(&self, args: &[&str], input: &str) -> String {
+        use std::io::Write;
+        let mut child = Command::new("git")
+            .current_dir(self.directory.path().join("repo.git"))
+            .args([
+                "-c",
+                "user.name=Feedback fixture",
+                "-c",
+                "user.email=fixture@example.invalid",
+            ])
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("local fixture Git");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "local fixture Git failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap().trim().to_owned()
+    }
+
+    fn commit_tree(&self, extra: Option<(&str, &str)>) -> String {
+        let script = self.git_object(
+            &["hash-object", "-w", "--stdin"],
+            "#!/bin/sh\necho verified\n",
+        );
+        let doc = self.git_object(&["hash-object", "-w", "--stdin"], "# Verified skill\n");
+        let root = self.git_object(
+            &["mktree"],
+            &format!("100755 blob {script}\trun.sh\n100644 blob {doc}\tSKILL.md\n"),
+        );
+        let mut tree = format!("040000 tree {root}\troot\n");
+        if let Some((kind, object)) = extra {
+            tree.push_str(&format!("{kind} {object}\n"));
+        }
+        let tree = self.git_object(&["mktree"], &tree);
+        let commit = self.git_object(&["commit-tree", &tree], "owned local fixture commit\n");
+        self.git_object(&["update-ref", "refs/heads/main", &commit], "");
+        commit
+    }
+
+    fn input(
+        &self,
+        commit: String,
+    ) -> systemprompt_models::feedback::verification::DependencyVerificationInput {
+        systemprompt_models::feedback::verification::DependencyVerificationInput {
+            revision_id: systemprompt_identifiers::ResourceRevisionId::new("fixture-revision"),
+            source_id: systemprompt_identifiers::ManagedSourceId::new("fixture-source"),
+            exact_commit: commit,
+            relative_root: "root".to_owned(),
+            dependencies: Vec::new(),
+        }
+    }
+
+    fn tree_reader(&self) -> impl systemprompt_marketplace::managed::GitTreeReader {
+        systemprompt_marketplace::managed::NativeGitTreeReader::with_certificate_authority(
+            &self.directory.path().join("cert.pem"),
+        )
+        .expect("explicit fixture CA")
+    }
+
+    fn tree_url(&self) -> String {
+        format!("https://127.0.0.1:{}/repo.git", self.port)
+    }
+}
+
+#[test]
+fn native_https_fetch_reads_exact_commit_relative_root_bytes_and_executable_modes() {
+    use systemprompt_marketplace::managed::GitTreeReader;
+    let f = Fixture::start();
+    let input = f.input(f.commit_tree(None));
+    let reader = f.tree_reader();
+    let deadline = || std::time::Instant::now() + std::time::Duration::from_secs(20);
+    let files = reader
+        .read(&input, &f.tree_url(), None, Some("first-token"), deadline())
+        .expect("real authenticated fetch and retained tree read");
+    assert_eq!(files.0.len(), 2);
+    assert_eq!(files.0["run.sh"].bytes, b"#!/bin/sh\necho verified\n");
+    assert!(files.0["run.sh"].executable);
+    assert_eq!(files.0["SKILL.md"].bytes, b"# Verified skill\n");
+    assert!(!files.0["SKILL.md"].executable);
+    assert!(
+        reader
+            .read(&input, &f.tree_url(), None, Some("wrong-token"), deadline())
+            .is_err()
+    );
+    let mut wrong_commit = input.clone();
+    wrong_commit.exact_commit = "b".repeat(40);
+    assert!(
+        reader
+            .read(
+                &wrong_commit,
+                &f.tree_url(),
+                None,
+                Some("first-token"),
+                deadline()
+            )
+            .is_err()
+    );
+    let mut absent_root = input.clone();
+    absent_root.relative_root = "absent".to_owned();
+    assert!(
+        reader
+            .read(
+                &absent_root,
+                &f.tree_url(),
+                None,
+                Some("first-token"),
+                deadline()
+            )
+            .expect("absent root is empty and cannot match retained revision")
+            .0
+            .is_empty()
+    );
+    assert!(
+        reader
+            .read(
+                &input,
+                &f.tree_url(),
+                Some("wrong-prefix"),
+                Some("first-token"),
+                deadline()
+            )
+            .expect("wrong registered subdirectory cannot expose repository root")
+            .0
+            .is_empty()
+    );
+    assert!(
+        reader
+            .read(
+                &input,
+                &f.tree_url(),
+                None,
+                Some("first-token"),
+                std::time::Instant::now()
+            )
+            .is_err()
+    );
+    // Failed fetch and expired deadline clean up before the following valid
+    // operation.
+    reader
+        .read(&input, &f.tree_url(), None, Some("first-token"), deadline())
+        .expect("recovery after rejected fetches");
+}
+
+#[test]
+fn native_fetch_rejects_submodules_gitmodules_and_nested_git_metadata_outside_selected_root() {
+    use systemprompt_marketplace::managed::GitTreeReader;
+    let f = Fixture::start();
+    let valid_commit = f.commit_tree(None);
+    let metadata = f.git_object(
+        &["hash-object", "-w", "--stdin"],
+        "forbidden repository metadata",
+    );
+    let nested = f.git_object(&["mktree"], &format!("100644 blob {metadata}\t.git\n"));
+    for (kind, object) in [
+        ("100644 blob", format!("{metadata}\t.gitmodules")),
+        (
+            "160000 commit",
+            format!("{valid_commit}\tundeclared-dependency"),
+        ),
+        ("040000 tree", format!("{nested}\tnested-repository")),
+    ] {
+        let input = f.input(f.commit_tree(Some((kind, &object))));
+        let error = f
+            .tree_reader()
+            .read(
+                &input,
+                &f.tree_url(),
+                None,
+                Some("first-token"),
+                std::time::Instant::now() + std::time::Duration::from_secs(20),
+            )
+            .expect_err("undeclared repository metadata denied across entire fetched tree");
+        assert!(!error.to_string().contains("first-token"));
+    }
+}
+
+#[test]
+fn explicit_certificate_authority_is_bounded_regular_and_copied_without_ambient_trust_changes() {
+    use std::os::unix::fs::symlink;
+    use systemprompt_marketplace::managed::{GitTreeReader, NativeGitTreeReader};
+    let f = Fixture::start();
+    let input = f.input(f.commit_tree(None));
+    let certificate = f.directory.path().join("cert.pem");
+    let link = f.directory.path().join("linked-ca");
+    symlink(&certificate, &link).unwrap();
+    assert!(NativeGitTreeReader::with_certificate_authority(&link).is_err());
+    assert!(NativeGitTreeReader::with_certificate_authority(f.directory.path()).is_err());
+    let empty = f.directory.path().join("empty-ca");
+    std::fs::File::create(&empty).unwrap();
+    assert!(NativeGitTreeReader::with_certificate_authority(&empty).is_err());
+    let fifo = f.directory.path().join("fifo-ca");
+    assert!(
+        Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .expect("owned FIFO fixture")
+            .success()
+    );
+    let started = std::time::Instant::now();
+    assert!(NativeGitTreeReader::with_certificate_authority(&fifo).is_err());
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(2),
+        "nonregular CA must not block waiting for a writer"
+    );
+    let oversized = f.directory.path().join("oversized-ca");
+    std::fs::File::create(&oversized)
+        .unwrap()
+        .set_len(1024 * 1024 + 1)
+        .unwrap();
+    assert!(NativeGitTreeReader::with_certificate_authority(&oversized).is_err());
+    let reader = NativeGitTreeReader::with_certificate_authority(&certificate).unwrap();
+    std::fs::write(&certificate, "changed after construction").unwrap();
+    reader
+        .read(
+            &input,
+            &f.tree_url(),
+            None,
+            Some("first-token"),
+            std::time::Instant::now() + std::time::Duration::from_secs(20),
+        )
+        .expect("reader retains its own CA bytes");
+    assert!(
+        NativeGitTreeReader
+            .read(
+                &input,
+                &f.tree_url(),
+                None,
+                Some("first-token"),
+                std::time::Instant::now() + std::time::Duration::from_secs(20)
+            )
+            .is_err()
+    );
+}

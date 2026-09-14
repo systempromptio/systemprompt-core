@@ -49,9 +49,12 @@ impl GitTreeReader for NativeGitTreeReader {
         credential: Option<&str>,
         deadline: std::time::Instant,
     ) -> Result<RevisionFiles> {
-        import_source(input, repository, subdirectory, credential, deadline)
+        import_source(input, repository, subdirectory, credential, None, deadline)
     }
 }
+
+#[path = "source_verification_ca.rs"]
+mod certificate_authority;
 
 impl ManagedRepository {
     pub(super) async fn retain_git_verification(
@@ -240,6 +243,7 @@ fn import_source(
     repository: &str,
     subdirectory: Option<&str>,
     credential: Option<&str>,
+    certificate_authority: Option<&[u8]>,
     deadline: std::time::Instant,
 ) -> Result<RevisionFiles> {
     let temp = std::env::temp_dir().join(format!(
@@ -254,6 +258,7 @@ fn import_source(
         subdirectory,
         root: &input.relative_root,
         credential,
+        certificate_authority,
         deadline,
     });
     std::fs::remove_dir_all(&temp)?;

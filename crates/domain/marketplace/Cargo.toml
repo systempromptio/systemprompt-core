@@ -43,3 +43,6 @@ systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }

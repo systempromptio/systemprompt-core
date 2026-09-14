@@ -147,6 +147,7 @@ impl ManagedRepository {
                 subdirectory: subdirectory.as_deref(),
                 root: &root,
                 credential: credential.as_deref(),
+                certificate_authority: None,
                 deadline,
             });
             std::fs::remove_dir_all(&temp)?;
