@@ -177,14 +177,14 @@ async-trait = "0.1"
 
 # Database
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "macros", "postgres", "migrate", "chrono", "rust_decimal", "json"] }
-rust_decimal = "1.42"
+rust_decimal = "1.43"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.24", features = ["v4", "v5", "serde"] }
+uuid = { version = "1.26", features = ["v4", "v5", "serde"] }
 validator = { version = "0.20", features = ["derive"] }
 regex = "1.13"
 indexmap = { version = "2.14", features = ["serde"] }
@@ -192,7 +192,7 @@ indexmap = { version = "2.14", features = ["serde"] }
 # HTTP/API (for API crate)
 axum = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
-http = "1.4"
+http = "1.5"
 tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
@@ -223,7 +223,7 @@ ctrlc = "3.5"
 
 # Utilities
 inventory = "0.3"
-pg_query = "6.1"
+pg_query = "6.2"
 tempfile = "3.27"
 walkdir = "2.5"
 flate2 = "1.1"
@@ -256,7 +256,7 @@ quick-xml = { version = "0.41", features = ["serialize"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 # MCP additional dependencies
-sse-stream = "0.2.4"
+sse-stream = "0.2.6"
 # Lean by default = rmcp's own default features (`base64`, `macros`, `server`),
 # which give the `rmcp::model` types + their `schemars`/JsonSchema impls but pull
 # NO HTTP stack. In rmcp >=1.7 a *second* reqwest (0.13, alongside the workspace's

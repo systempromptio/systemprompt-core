@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Fixed
+
+- Boot no longer fails with `Context … not found for user` after the system admin changes: the legacy context (`ContextId::legacy()`) is re-homed onto the current admin through `ensure_system_context` instead of the user-scoped `ensure_context`.
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

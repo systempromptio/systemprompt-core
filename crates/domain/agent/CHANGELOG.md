@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Added
+
+- `ContextRepository::ensure_system_context(context_id, system_admin, name, kind)` re-homes a system-owned context onto the current system admin; `ensure_context` keeps refusing cross-user adoption.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking
