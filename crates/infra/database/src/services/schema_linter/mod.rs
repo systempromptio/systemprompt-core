@@ -42,6 +42,15 @@
 //! resolved — the parser sees those as forward references the database itself
 //! validates at apply-time.
 //!
+//! A `FOREIGN KEY` whose referenced table is declared in the same input must
+//! find a `PRIMARY KEY` or `UNIQUE` on exactly the referenced columns in that
+//! table's `CREATE TABLE`. The installer applies foreign keys last, after
+//! migrations and indexes, so the key itself installs anywhere — but on a
+//! fresh database only the declarative schema runs, and the uniqueness has to
+//! be declared where the key can see it. For this rule the "input" is every
+//! schema file of one extension together ([`lint_declarative_schemas`]);
+//! positions are still reported per file.
+//!
 //! Column resolution does not descend into:
 //!
 //! - PL/pgSQL function bodies (resolved by Postgres at function call time)
@@ -57,6 +66,7 @@
 
 mod classify;
 mod columns;
+mod foreign_keys;
 mod location;
 
 use std::fmt;
@@ -65,6 +75,7 @@ use pg_query::protobuf::node::Node;
 
 use classify::{imperative_reason, warn_create_table_missing_if_not_exists};
 use columns::{TableDef, check_index_columns, check_view_columns, collect_create_stmt};
+use foreign_keys::check_foreign_keys;
 use location::{LineIndex, StmtLoc, stmt_start_offset};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,28 +129,82 @@ pub fn created_table_names(sql: &str) -> Vec<String> {
 }
 
 pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintError>> {
-    let parsed = match pg_query::parse(sql) {
-        Ok(p) => p,
-        Err(e) => {
-            return Err(vec![LintError {
-                line: 1,
-                column: 1,
-                severity: LintSeverity::Error,
-                message: format!("SQL parse failed: {e}"),
-                source: source.to_owned(),
-            }]);
-        },
-    };
+    lint_declarative_schemas(&[(source, sql)])
+}
 
-    let line_index = LineIndex::new(sql);
-    let stmts = &parsed.protobuf.stmts;
-    let (tables, mut errors) = classify_pass(stmts, sql, &line_index, source);
-    errors.extend(column_ref_pass(stmts, sql, &line_index, &tables, source));
+/// Lint every `(source, sql)` of one extension as a single schema graph.
+///
+/// The per-statement rules and column references are checked per input with
+/// that input's own line numbers; table definitions accumulate across inputs
+/// so a foreign key in one file resolves the table another file declares.
+pub fn lint_declarative_schemas(inputs: &[(&str, &str)]) -> Result<(), Vec<LintError>> {
+    let mut errors: Vec<LintError> = Vec::new();
+    let mut parsed_inputs = Vec::with_capacity(inputs.len());
+    let mut tables: Vec<TableDef> = Vec::new();
+
+    for (source, sql) in inputs {
+        let parsed = match pg_query::parse(sql) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(LintError {
+                    line: 1,
+                    column: 1,
+                    severity: LintSeverity::Error,
+                    message: format!("SQL parse failed: {e}"),
+                    source: (*source).to_owned(),
+                });
+                continue;
+            },
+        };
+        let line_index = LineIndex::new(sql);
+        let (found, mut found_errors) =
+            classify_pass(&parsed.protobuf.stmts, sql, &line_index, source);
+        errors.append(&mut found_errors);
+        errors.extend(column_ref_pass(
+            &parsed.protobuf.stmts,
+            sql,
+            &line_index,
+            &found,
+            source,
+        ));
+        tables.extend(found);
+        parsed_inputs.push((*source, *sql, parsed, line_index));
+    }
+
+    for (source, sql, parsed, line_index) in &parsed_inputs {
+        errors.extend(foreign_key_pass(
+            &parsed.protobuf.stmts,
+            sql,
+            line_index,
+            &tables,
+            source,
+        ));
+    }
 
     if errors.iter().any(|e| e.severity == LintSeverity::Error) {
         return Err(errors);
     }
     Ok(())
+}
+
+fn foreign_key_pass(
+    stmts: &[pg_query::protobuf::RawStmt],
+    sql: &str,
+    line_index: &LineIndex,
+    tables: &[TableDef],
+    source: &str,
+) -> Vec<LintError> {
+    let mut errors: Vec<LintError> = Vec::new();
+    for raw in stmts {
+        let Some(Node::CreateStmt(create)) = raw.stmt.as_ref().and_then(|s| s.node.as_ref()) else {
+            continue;
+        };
+        let location = stmt_start_offset(sql, raw.stmt_location.max(0) as usize);
+        let (line, col) = line_index.position(location);
+        let loc = StmtLoc { line, col, source };
+        check_foreign_keys(create, tables, &loc, &mut errors);
+    }
+    errors
 }
 
 fn classify_pass(

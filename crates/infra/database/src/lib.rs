@@ -78,12 +78,13 @@ pub use systemprompt_models::RequestScope;
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
-    AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,
-    MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService, MigrationStatus,
-    OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus, SlotCollision,
-    TombstonedSlot, install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config, replica_status, validate_column_exists,
-    validate_database_connection, validate_table_exists, validate_write_pool_is_primary,
+    AppliedMigration, BaselineStamp, ChecksumDrift, DeferredForeignKey, ExtensionMigrationStatus,
+    FreshnessCheck, MarkAppliedOutcome, MigrationConfig, MigrationResult, MigrationService,
+    MigrationStatus, OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus,
+    SlotCollision, SplitCreateTable, TombstonedSlot, install_extension_schemas,
+    install_extension_schemas_full, install_extension_schemas_with_config, replica_status,
+    split_create_table_foreign_keys, validate_column_exists, validate_database_connection,
+    validate_table_exists, validate_write_pool_is_primary,
 };
 pub use repository::{
     CleanupRepository, CreateServiceInput, PgDbPool, ServiceConfig, ServiceRepository,

@@ -1,26 +1,30 @@
 //! Schema installation for compile-time-registered
 //! [`systemprompt_extension::Extension`] instances.
 //!
-//! Installation runs globally in three phases — structural DDL, then
-//! migrations, then dependent DDL — so a legacy database reaches its target
-//! shape before any `CREATE INDEX`/`VIEW` references a migration-added column.
+//! Installation runs globally in four phases — structural DDL, then
+//! migrations, then dependent DDL, then the foreign keys deferred out of the
+//! structural `CREATE TABLE`s — so a legacy database reaches its target shape
+//! before any `CREATE INDEX`/`VIEW` references a migration-added column, and
+//! before any foreign key needs a unique index a migration introduces.
 //! A fresh database (no migration history, no owned tables) skips migration
 //! execution entirely: the declarative schema is the baseline, and every
 //! defined migration is stamped as applied without running — in the same
 //! transaction as that extension's structural DDL, so the tables and the
 //! baseline claiming them can never be committed apart.
 //! A session-scoped advisory lock serialises concurrent boots. See
-//! `instructions/information/migrations.md`.
+//! `internal/guides/migrations.md`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod foreign_keys;
 pub(crate) mod lock;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info};
 
+use self::foreign_keys::apply_foreign_keys;
 use self::lock::BootstrapLockGuard;
 use self::validation::{validate_extension_columns, validate_table_ownership};
 use super::prepare::{PreparedSchema, prepare_extension_schema};
@@ -137,6 +141,16 @@ async fn run_install(
         for cols in &p.columns_to_validate {
             validate_extension_columns(db, cols, &p.extension_id).await?;
         }
+    }
+
+    // Why: after every extension's dependent phase, not inside it — a key may
+    // reference a unique index another extension's dependent phase creates.
+    for (ext, p) in schema_extensions.iter().zip(&prepared) {
+        // Why: only an established extension with a migration chain can carry
+        // pre-existing drift; anywhere else a key that cannot be created is a
+        // schema bug and must fail the install.
+        let established = ext.has_migrations() && !fresh_extensions.contains(&p.extension_id);
+        apply_foreign_keys(db, &p.foreign_keys, &p.extension_id, !established).await?;
     }
 
     for ext in schema_extensions {

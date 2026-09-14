@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Database:** the declarative-schema installer splits `FOREIGN KEY` constraints out of every `CREATE TABLE` and applies them in a final phase after every extension's migrations and dependent DDL, as `ALTER TABLE … ADD CONSTRAINT`, so an established database whose referenced `UNIQUE`/`PRIMARY KEY` only arrives through a migration no longer fails at boot with "no unique constraint matching given keys" while fresh installs pass. The phase is idempotent: a key is skipped when `pg_constraint` already holds a foreign key on the same constrained and referenced columns, whatever its name, so migration-authored constraints are honoured rather than duplicated; unnamed keys get Postgres's own `<table>_<col>[_<col>…]_fkey`. A missing key is added `NOT VALID` and validated in a savepoint — a key an established database silently never received (its `CREATE TABLE IF NOT EXISTS` was a no-op) now converges on the next boot, and rows that violate it leave the key `NOT VALID` with a warning instead of an outage. `CREATE TABLE`s without foreign keys are executed verbatim; those with keys are re-emitted through `pg_query`'s deparser (comments and formatting are lost in the executed text, nothing else). The schema linter now rejects a foreign key whose referenced table is declared in the same extension unless that table declares a `PRIMARY KEY` or `UNIQUE` on exactly the referenced columns, and lints all of an extension's schema files as one graph for that rule (`lint_declarative_schemas`); `split_create_table_foreign_keys` is exported as the diagnostic seam.
+
+### Fixed
+
+- **Evaluation:** migration 012 creates `UNIQUE(owner_id,operation_key)` on `eval_budget_accounts` and `UNIQUE(owner_id,id)` on `eval_experiments` wherever no unique index covers those columns: a 0.51.0 fresh install stamped migration 004 without running it (004 is where the first index came from), and the second never had a migration. Both were found by a downstream upgrade gate that diffs a database upgraded from the previous release against a fresh install.
+- **Evaluation:** migration 011 adds the `UNIQUE(owner_id,id)` index on `eval_budget_accounts` that the declarative schema has declared since shared budget accounts landed but no migration ever gave an established database — which is why the owner-paired foreign key on `eval_experiments(owner_id,budget_id)` existed only on fresh installs. The deferred foreign-key phase creates it on the next boot.
+
 ## [0.52.0] - 2026-09-14
 
 Governance becomes installation-owned: the secret scan has no built-in

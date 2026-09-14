@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use pg_query::protobuf::node::Node;
-use pg_query::protobuf::{ColumnDef, CreateStmt, IndexStmt, ViewStmt};
+use pg_query::protobuf::{ColumnDef, ConstrType, Constraint, CreateStmt, IndexStmt, ViewStmt};
 
 use super::location::StmtLoc;
 use super::{LintError, LintSeverity};
@@ -14,11 +14,30 @@ use super::{LintError, LintSeverity};
 pub(super) struct TableDef {
     name: String,
     columns: Vec<String>,
+    /// Every table-level or column-level `PRIMARY KEY` / `UNIQUE` column set.
+    unique_key_sets: Vec<Vec<String>>,
+    primary_key: Option<Vec<String>>,
 }
 
 impl TableDef {
     pub(super) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(super) fn primary_key(&self) -> Option<&[String]> {
+        self.primary_key.as_deref()
+    }
+
+    /// True when a `PRIMARY KEY` or `UNIQUE` constraint covers exactly
+    /// `columns`, in any order — the same test Postgres applies when it
+    /// looks for the index a foreign key needs.
+    pub(super) fn has_unique_key(&self, columns: &[String]) -> bool {
+        self.unique_key_sets.iter().any(|set| {
+            set.len() == columns.len()
+                && columns
+                    .iter()
+                    .all(|c| set.iter().any(|k| k.eq_ignore_ascii_case(c)))
+        })
     }
 }
 
@@ -28,13 +47,50 @@ pub(super) fn collect_create_stmt(create: &CreateStmt) -> Option<TableDef> {
     if name.is_empty() {
         return None;
     }
-    let mut columns = Vec::new();
+    let mut table = TableDef {
+        name,
+        columns: Vec::new(),
+        unique_key_sets: Vec::new(),
+        primary_key: None,
+    };
     for elt in &create.table_elts {
-        if let Some(Node::ColumnDef(cd)) = elt.node.as_ref() {
-            push_column(&mut columns, cd);
+        match elt.node.as_ref() {
+            Some(Node::ColumnDef(cd)) => {
+                push_column(&mut table.columns, cd);
+                for c in &cd.constraints {
+                    if let Some(Node::Constraint(c)) = c.node.as_ref() {
+                        push_unique_key(&mut table, c, vec![cd.colname.clone()]);
+                    }
+                }
+            },
+            Some(Node::Constraint(c)) => {
+                push_unique_key(&mut table, c, string_values(&c.keys));
+            },
+            _ => {},
         }
     }
-    Some(TableDef { name, columns })
+    Some(table)
+}
+
+fn push_unique_key(table: &mut TableDef, c: &Constraint, columns: Vec<String>) {
+    match ConstrType::try_from(c.contype) {
+        Ok(ConstrType::ConstrPrimary) => {
+            table.primary_key = Some(columns.clone());
+            table.unique_key_sets.push(columns);
+        },
+        Ok(ConstrType::ConstrUnique) => table.unique_key_sets.push(columns),
+        _ => {},
+    }
+}
+
+pub(super) fn string_values(nodes: &[pg_query::protobuf::Node]) -> Vec<String> {
+    nodes
+        .iter()
+        .filter_map(|n| match n.node.as_ref()? {
+            Node::String(s) => Some(s.sval.clone()),
+            _ => None,
+        })
+        .collect()
 }
 
 fn push_column(columns: &mut Vec<String>, cd: &ColumnDef) {
@@ -43,7 +99,7 @@ fn push_column(columns: &mut Vec<String>, cd: &ColumnDef) {
     }
 }
 
-fn find_table<'a>(tables: &'a [TableDef], name: &str) -> Option<&'a TableDef> {
+pub(super) fn find_table<'a>(tables: &'a [TableDef], name: &str) -> Option<&'a TableDef> {
     tables.iter().find(|t| t.name.eq_ignore_ascii_case(name))
 }
 
@@ -169,14 +225,7 @@ fn check_view_targets(
             continue;
         };
 
-        let parts: Vec<String> = cref
-            .fields
-            .iter()
-            .filter_map(|f| match f.node.as_ref()? {
-                Node::String(s) => Some(s.sval.clone()),
-                _ => None,
-            })
-            .collect();
+        let parts: Vec<String> = string_values(&cref.fields);
 
         if parts.iter().any(|p| p == "*") {
             continue;

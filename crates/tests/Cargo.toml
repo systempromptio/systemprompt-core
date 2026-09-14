@@ -165,6 +165,7 @@ serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.24", features = ["v4", "serde"] }
+pg_query = "6.1"
 validator = { version = "0.20", features = ["derive"] }
 regex = "1.13"
 indexmap = { version = "2.14", features = ["serde"] }

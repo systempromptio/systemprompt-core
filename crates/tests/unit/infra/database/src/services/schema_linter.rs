@@ -1,4 +1,6 @@
-use systemprompt_database::services::{LintError, lint_declarative_schema};
+use systemprompt_database::services::{
+    LintError, lint_declarative_schema, lint_declarative_schemas,
+};
 
 fn lint_ok(sql: &str) {
     if let Err(errs) = lint_declarative_schema(sql, "test") {
@@ -416,5 +418,131 @@ fn every_reported_error_carries_the_source_name_it_was_given() {
     assert!(
         errs.iter().all(|e| e.to_string().contains("my_schema.sql")),
         "every diagnostic must name the file it came from: {errs:?}"
+    );
+}
+
+// ── Foreign keys and the uniqueness they reference ───────────────────────────
+
+#[test]
+fn foreign_key_to_in_input_table_without_matching_unique_is_rejected() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL);\n\
+         CREATE UNIQUE INDEX IF NOT EXISTS events_owner ON events (user_id, id);\n\
+         CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (owner_id, event_id) REFERENCES events (user_id, id));",
+    );
+    let e = errs
+        .iter()
+        .find(|e| e.message.contains("foreign key on `reviews`"))
+        .expect("the composite key is reported");
+    assert!(
+        e.message.contains("references `events`(user_id, id)"),
+        "{}",
+        e.message
+    );
+    assert!(e.message.contains("CREATE UNIQUE INDEX"), "{}", e.message);
+    assert_eq!(e.line, 3, "{e}");
+}
+
+#[test]
+fn foreign_key_matching_table_level_unique_passes_in_either_column_order() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, \
+         UNIQUE (user_id, id));\n\
+         CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (event_id, owner_id) REFERENCES events (id, user_id));",
+    );
+}
+
+#[test]
+fn foreign_key_matching_column_level_primary_key_passes() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);\n\
+         CREATE TABLE IF NOT EXISTS keys (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users (id));",
+    );
+}
+
+#[test]
+fn foreign_key_matching_column_level_unique_passes() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE);\n\
+         CREATE TABLE IF NOT EXISTS invites (id TEXT PRIMARY KEY, email TEXT REFERENCES users \
+         (email));",
+    );
+}
+
+#[test]
+fn references_without_columns_uses_the_referenced_primary_key() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);\n\
+         CREATE TABLE IF NOT EXISTS keys (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users);",
+    );
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS logs (id TEXT);\n\
+         CREATE TABLE IF NOT EXISTS keys (id TEXT PRIMARY KEY, log_id TEXT REFERENCES logs);",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("declares no PRIMARY KEY")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn a_subset_or_superset_unique_does_not_satisfy_a_composite_key() {
+    let errs = lint_err(
+        "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT, kind TEXT, UNIQUE \
+         (user_id, id, kind));\n\
+         CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (owner_id, event_id) REFERENCES events (user_id, id));",
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.message.contains("exactly those columns")),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn foreign_key_to_external_table_is_skipped() {
+    lint_ok(
+        "CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, owner_id TEXT, event_id TEXT, \
+         FOREIGN KEY (owner_id, event_id) REFERENCES somewhere_else (user_id, id));",
+    );
+}
+
+#[test]
+fn foreign_key_across_files_of_one_extension_is_checked_with_per_file_position() {
+    let a = "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL);";
+    let b = "-- a comment line first\nCREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, \
+             owner_id TEXT, event_id TEXT, FOREIGN KEY (owner_id, event_id) REFERENCES events \
+             (user_id, id));";
+    let errs = lint_declarative_schemas(&[("a.sql", a), ("b.sql", b)]).expect_err("rejected");
+    let e = errs
+        .iter()
+        .find(|e| e.message.contains("foreign key on `reviews`"))
+        .expect("reported");
+    assert_eq!(e.source, "b.sql");
+    assert_eq!(e.line, 2);
+
+    let fixed_a = "CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, \
+                   UNIQUE (user_id, id));";
+    lint_declarative_schemas(&[("a.sql", fixed_a), ("b.sql", b)]).expect("declared unique passes");
+}
+
+#[test]
+fn a_parse_failure_in_one_file_still_lints_the_others() {
+    let errs = lint_declarative_schemas(&[
+        ("broken.sql", "CREATE TABLE %%% ("),
+        ("ok.sql", "INSERT INTO t VALUES (1);"),
+    ])
+    .expect_err("both reported");
+    assert!(
+        errs.iter()
+            .any(|e| e.source == "broken.sql" && e.message.contains("SQL parse failed"))
+    );
+    assert!(
+        errs.iter()
+            .any(|e| e.source == "ok.sql" && e.message.contains("imperative SQL"))
     );
 }

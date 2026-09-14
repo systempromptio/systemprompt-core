@@ -6,19 +6,20 @@ use std::sync::Arc;
 
 use systemprompt_database::{DbPool, PostgresProvider, install_extension_schemas_with_config};
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, SchemaDefinition, Seed,
+    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition, Seed,
 };
 
 use crate::services::db_helper::pool_or_skip;
 
-fn leak(s: String) -> &'static str {
+pub(super) fn leak(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
 }
 
-struct StubExtension {
-    id: &'static str,
-    schemas: Vec<SchemaDefinition>,
-    seeds: Vec<Seed>,
+pub(super) struct StubExtension {
+    pub(super) id: &'static str,
+    pub(super) schemas: Vec<SchemaDefinition>,
+    pub(super) seeds: Vec<Seed>,
+    pub(super) migrations: Vec<Migration>,
 }
 
 impl Extension for StubExtension {
@@ -37,31 +38,35 @@ impl Extension for StubExtension {
     fn seeds(&self) -> Vec<Seed> {
         self.seeds.clone()
     }
+
+    fn migrations(&self) -> Vec<Migration> {
+        self.migrations.clone()
+    }
 }
 
-fn unique_id(prefix: &str) -> &'static str {
+pub(super) fn unique_id(prefix: &str) -> &'static str {
     leak(format!("{prefix}_{}", uuid::Uuid::new_v4().simple()))
 }
 
-fn registry_with(ext: StubExtension) -> ExtensionRegistry {
+pub(super) fn registry_with(ext: StubExtension) -> ExtensionRegistry {
     let mut registry = ExtensionRegistry::new();
     registry.register(Arc::new(ext)).expect("register stub");
     registry
 }
 
-async fn provider_and_db_or_skip() -> Option<(PostgresProvider, DbPool)> {
+pub(super) async fn provider_and_db_or_skip() -> Option<(PostgresProvider, DbPool)> {
     let db = pool_or_skip().await?;
     let pg = db.write_pool_arc().ok()?;
     Some((PostgresProvider::from_pool(pg), db))
 }
 
-async fn drop_table(db: &DbPool, table: &str) {
+pub(super) async fn drop_table(db: &DbPool, table: &str) {
     let pg = db.write_pool_arc().expect("write pool");
     let ddl = format!("DROP TABLE IF EXISTS \"{table}\"");
     let _ = sqlx::query(sqlx::AssertSqlSafe(ddl)).execute(&*pg).await;
 }
 
-async fn table_exists(db: &DbPool, table: &str) -> bool {
+pub(super) async fn table_exists(db: &DbPool, table: &str) -> bool {
     let pg = db.write_pool_arc().expect("write pool");
     sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND \
@@ -95,6 +100,7 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
                 .with_required_columns(vec!["id".to_owned(), "label".to_owned()]),
         ],
         seeds: vec![Seed::new(unique_id("seed"), seed_sql)],
+        migrations: vec![],
     };
 
     for _ in 0..2 {
@@ -129,6 +135,7 @@ async fn install_skips_disabled_extensions() {
             format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);"),
         )],
         seeds: vec![],
+        migrations: vec![],
     };
 
     install_extension_schemas_with_config(&registry_with(ext), &provider, &[ext_id.to_owned()])
@@ -154,6 +161,7 @@ async fn install_rejects_seed_with_delete_statement() {
             unique_id("seed"),
             leak(format!("DELETE FROM \"{table}\";")),
         )],
+        migrations: vec![],
     };
 
     let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
@@ -182,6 +190,7 @@ async fn install_rejects_non_idempotent_insert_seed() {
             unique_id("seed"),
             leak(format!("INSERT INTO \"{table}\" (id) VALUES (1);")),
         )],
+        migrations: vec![],
     };
 
     let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
@@ -208,6 +217,7 @@ async fn install_fails_when_required_column_is_missing() {
             .with_required_columns(vec!["id".to_owned(), "phantom_column".to_owned()]),
         ],
         seeds: vec![],
+        migrations: vec![],
     };
 
     let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
@@ -233,6 +243,7 @@ async fn install_rejects_duplicate_table_ownership() {
                 id: unique_id(prefix),
                 schemas: vec![SchemaDefinition::new(table, sql.clone())],
                 seeds: vec![],
+                migrations: vec![],
             }))
             .expect("register stub");
     }
@@ -259,6 +270,7 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
             ),
         )],
         seeds: vec![],
+        migrations: vec![],
     };
 
     let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
@@ -278,6 +290,7 @@ async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
             format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);"),
         )],
         seeds: vec![Seed::new(unique_id("seed"), seed_sql)],
+        migrations: vec![],
     };
     install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
         .await
@@ -354,6 +367,7 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
                  INTO \"{missing}\" (id) VALUES (1) ON CONFLICT (id) DO NOTHING;"
             )),
         )],
+        migrations: vec![],
     };
 
     let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
@@ -397,6 +411,7 @@ async fn install_applies_update_and_multi_statement_seed() {
                  NOTHING; UPDATE \"{table}\" SET label = 'updated' WHERE id = 1;"
             )),
         )],
+        migrations: vec![],
     };
 
     install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
@@ -437,6 +452,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
         id: ext_id,
         schemas: vec![SchemaDefinition::new(table, schema_sql.to_owned())],
         seeds: vec![],
+        migrations: vec![],
     });
 
     let err = install_extension_schemas_with_config(&registry, &provider, &[])
@@ -472,6 +488,7 @@ async fn an_extension_declaring_no_schema_installs_cleanly() {
         id: unique_id("no_schema_ext"),
         schemas: vec![],
         seeds: vec![],
+        migrations: vec![],
     });
 
     install_extension_schemas_with_config(&registry, &provider, &[])
@@ -489,6 +506,7 @@ async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
         id: unique_id("unparseable_ext"),
         schemas: vec![SchemaDefinition::new(table, "CREATE TABLE (((".to_owned())],
         seeds: vec![],
+        migrations: vec![],
     });
 
     let err = install_extension_schemas_with_config(&registry, &provider, &[])
@@ -686,6 +704,7 @@ mod transaction_failures {
                     "INSERT INTO \"{table}\" (id) VALUES ('a') ON CONFLICT (id) DO NOTHING;"
                 )),
             )],
+            migrations: vec![],
         })
     }
 
@@ -746,6 +765,7 @@ async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance(
         id: unique_id("unclassified_ext"),
         schemas: vec![SchemaDefinition::new(table, sql.to_owned())],
         seeds: vec![],
+        migrations: vec![],
     });
 
     let err = install_extension_schemas_with_config(&registry, &provider, &[])
@@ -788,6 +808,7 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
         id: unique_id("safe_drop_ext"),
         schemas: vec![SchemaDefinition::new(table, sql.to_owned())],
         seeds: vec![],
+        migrations: vec![],
     });
 
     install_extension_schemas_with_config(&registry, &provider, &[])
@@ -831,6 +852,7 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
         id: unique_id("unguarded_drop_ext"),
         schemas: vec![SchemaDefinition::new(table, sql.to_owned())],
         seeds: vec![],
+        migrations: vec![],
     });
 
     let err = install_extension_schemas_with_config(&registry, &provider, &[])

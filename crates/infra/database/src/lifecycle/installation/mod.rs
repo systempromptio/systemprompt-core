@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod extension;
+mod fk_deferral;
 mod prepare;
 mod seeds;
 
@@ -12,5 +13,6 @@ pub use extension::{
     install_extension_schemas, install_extension_schemas_full,
     install_extension_schemas_with_config,
 };
+pub use fk_deferral::{DeferredForeignKey, SplitCreateTable, split_create_table_foreign_keys};
 
 pub(crate) use extension::lock::BootstrapLockGuard;
