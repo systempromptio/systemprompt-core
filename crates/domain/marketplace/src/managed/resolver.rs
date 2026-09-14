@@ -30,7 +30,7 @@ pub enum ResolvedManagedResource {
 pub enum ManagedSkillResolution {
     NotManaged,
     Published(Box<ManagedSkill>),
-    Withheld(WithheldReason),
+    Withheld(Box<WithheldReason>),
 }
 
 #[async_trait::async_trait]
@@ -48,7 +48,7 @@ impl ManagedSkillResolver for ManagedResourceResolver {
         .await
         {
             Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
-            Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(reason)),
+            Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(*reason)),
             Ok(ManagedSkillResolution::Published(skill)) => {
                 Ok(SkillResolution::Published(ResolvedManagedSkill {
                     id: skill.id,
@@ -169,11 +169,11 @@ impl ManagedResourceResolver {
         match self.resolve(owner, ResourceKind::Skill, key).await? {
             ResolvedManagedResource::NotManaged => Ok(ManagedSkillResolution::NotManaged),
             ResolvedManagedResource::NeverAdopted(_) => Ok(ManagedSkillResolution::Withheld(
-                WithheldReason::NeverAdopted,
+                Box::new(WithheldReason::NeverAdopted),
             )),
-            ResolvedManagedResource::Withdrawn(_) => {
-                Ok(ManagedSkillResolution::Withheld(WithheldReason::Withdrawn))
-            },
+            ResolvedManagedResource::Withdrawn(_) => Ok(ManagedSkillResolution::Withheld(
+                Box::new(WithheldReason::Withdrawn),
+            )),
             ResolvedManagedResource::IntegrityFailure(_) => Err(ManagedError::Integrity),
             ResolvedManagedResource::Published { state, bundle } => {
                 let ManagedResolution::Published {

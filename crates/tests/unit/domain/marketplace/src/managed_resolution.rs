@@ -190,7 +190,7 @@ async fn a_never_adopted_managed_skill_is_withheld_and_hides_its_disk_copy() {
         .expect("a never-adopted key is a resolution, not an error");
     assert!(matches!(
         outcome,
-        ManagedSkillResolution::Withheld(WithheldReason::NeverAdopted)
+        ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NeverAdopted
     ));
 
     let (_dir, catalog) = disk_catalog_with(&f.key);
@@ -272,7 +272,7 @@ async fn a_withdrawn_managed_skill_is_withheld_after_publication() {
             .resolve_skill(&f.owner, &f.key)
             .await
             .expect("resolve"),
-        ManagedSkillResolution::Withheld(WithheldReason::Withdrawn)
+        ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::Withdrawn
     ));
     let (_dir, catalog) = disk_catalog_with(&f.key);
     let overlaid = catalog
