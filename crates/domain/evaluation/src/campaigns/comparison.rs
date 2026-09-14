@@ -118,7 +118,7 @@ pub fn collapse_repetitions(pairs: &[PairedOutcome]) -> Result<PairedOutcome> {
     })
 }
 
-fn collapse<'a>(outcomes: impl Iterator<Item = &'a Outcome>, candidate: bool) -> Outcome {
+fn collapse(outcomes: impl Iterator<Item = &Outcome>, candidate: bool) -> Outcome {
     let mut result = Outcome {
         quality_milli: if candidate { 5000 } else { 0 },
         tokens: 0,
