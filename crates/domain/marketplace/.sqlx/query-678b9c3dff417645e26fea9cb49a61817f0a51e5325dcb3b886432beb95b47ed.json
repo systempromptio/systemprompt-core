@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO managed_consumer_attribution_projection(evidence_id,receipt_id) VALUES($1,$2) ON CONFLICT(evidence_id) DO UPDATE SET receipt_id=EXCLUDED.receipt_id,version=managed_consumer_attribution_projection.version+1,updated_at=now() WHERE managed_consumer_attribution_projection.receipt_id IS DISTINCT FROM EXCLUDED.receipt_id RETURNING version",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "managed_consumer_attribution_projection",
+            "name": "version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "678b9c3dff417645e26fea9cb49a61817f0a51e5325dcb3b886432beb95b47ed"
+}
