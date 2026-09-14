@@ -88,3 +88,6 @@ mod evaluator_codex_adapter;
 mod evaluator_hermes_adapter;
 #[cfg(test)]
 mod evaluator_opencode_adapter;
+
+#[cfg(test)]
+mod evaluator_supervisor_recovery;
