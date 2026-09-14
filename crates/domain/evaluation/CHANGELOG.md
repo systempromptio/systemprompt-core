@@ -17,6 +17,7 @@
 ### Fixed
 
 - Execution claims order by `variant_index` and `repetition` within a creation instant, so a worker takes an experiment's baseline before its candidates instead of an arbitrary row.
+- Every table the extension creates is declared by its own `SchemaDefinition` (one schema file per table), so `infra db doctor` no longer reports the evaluation tables as undeclared.
 
 ## [0.52.0] - 2026-09-14
 
