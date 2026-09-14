@@ -14,7 +14,7 @@ use systemprompt_evaluation::{EvaluationError, Result};
 #[path = "claude_code_output.rs"]
 mod output;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ClaudeCodeAdapter;
 pub static ADAPTER: ClaudeCodeAdapter = ClaudeCodeAdapter;
 

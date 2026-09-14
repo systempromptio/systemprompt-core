@@ -82,3 +82,4 @@ mod evaluator_probe_cleanup;
 
 #[cfg(test)]
 mod evaluator_claude_adapter;
+mod evaluator_opencode_adapter;

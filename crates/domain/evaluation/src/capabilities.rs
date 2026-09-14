@@ -185,7 +185,7 @@ pub trait ExecutionAdmission: Send + Sync + std::fmt::Debug {
     fn admit(&self, spec: &ExperimentSpec) -> crate::Result<()>;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct VerifiedExecutionAdmission;
 
 impl ExecutionAdmission for VerifiedExecutionAdmission {
