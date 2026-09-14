@@ -166,3 +166,80 @@ async fn consumer_identity_does_not_confer_administrative_access() {
         "application/problem+json"
     );
 }
+
+#[tokio::test]
+async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejected() {
+    let bootstrap = ensure_test_bootstrap();
+    let db = fixture_db_pool(&bootstrap.database_url).await.unwrap();
+    let ctx = fixture_app_context(&db, &bootstrap.database_url).unwrap();
+    systemprompt_test_fixtures::seed_user_row(
+        &db,
+        ctx.system_admin().id(),
+        "api-operation-owner@fixtures.invalid",
+    )
+    .await
+    .unwrap();
+    let router = systemprompt_api::routes::evaluation::campaigns::router()
+        .with_state(ctx.as_ref().clone())
+        .layer(axum::middleware::from_fn(
+            systemprompt_api::routes::evaluation::contract::normalize,
+        ));
+    let key = systemprompt_identifiers::TaskId::generate();
+    let uri = format!(
+        "/sources/{}/captures",
+        systemprompt_identifiers::ManagedSourceId::generate()
+    );
+    let request = |skill: &str| {
+        Request::builder()
+            .method("POST")
+            .uri(&uri)
+            .header("content-type", "application/json")
+            .header("idempotency-key", key.as_str())
+            .body(Body::from(
+                serde_json::json!({"skill_ids":[skill]}).to_string(),
+            ))
+            .unwrap()
+    };
+    let first = router.clone().oneshot(request("missing")).await.unwrap();
+    assert_eq!(first.status(), StatusCode::NOT_FOUND);
+    let status_uri = format!("/operations/{key}");
+    let status = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(&status_uri)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(status.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(status.into_body(), 16384)
+        .await
+        .unwrap();
+    let retained: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(retained["operation"]["state"], "failed");
+    assert!(
+        retained["operation"]["problem"]
+            .as_str()
+            .unwrap()
+            .contains("new operation key")
+    );
+    assert!(retained["result"].is_null());
+    let retry = router.clone().oneshot(request("missing")).await.unwrap();
+    assert_eq!(retry.status(), StatusCode::OK);
+    assert_eq!(retry.headers()["location"], format!("/api/v1{status_uri}"));
+    let body = axum::body::to_bytes(retry.into_body(), 16384)
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
+        retained
+    );
+    let conflict = router.oneshot(request("different")).await.unwrap();
+    assert_eq!(conflict.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        conflict.headers()["content-type"],
+        "application/problem+json"
+    );
+}
