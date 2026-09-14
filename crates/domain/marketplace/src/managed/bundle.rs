@@ -18,11 +18,13 @@ const MAX_FILES: usize = 256;
 const MAX_BYTES: usize = 8 * 1024 * 1024;
 pub const ASSEMBLER_VERSION: &str = "managed-bundle-v1";
 
-/// The wire form is untrusted until `verify` succeeds. Hashes prove integrity,
-/// not authorization; repository resolution checks ownership independently.
-/// Canonical bytes bind dependency manifests, asset bytes and executable modes
-/// without filesystem reads or timestamps. Only declared dependencies enter
-/// the closure; parent revision history remains provenance.
+/// A revision closure whose wire form is untrusted until `verify` succeeds.
+///
+/// Hashes prove integrity, not authorization; repository resolution checks
+/// ownership independently. Canonical bytes bind dependency manifests, asset
+/// bytes and executable modes without filesystem reads or timestamps. Only
+/// declared dependencies enter the closure; parent revision history remains
+/// provenance.
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RevisionBundle {
@@ -40,7 +42,7 @@ impl std::fmt::Debug for RevisionBundle {
             .field("root", &self.root)
             .field("revisions", &self.revisions.len())
             .field("assets", &self.assets.len())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

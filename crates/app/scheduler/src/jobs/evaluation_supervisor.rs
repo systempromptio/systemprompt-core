@@ -6,7 +6,6 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
@@ -39,16 +38,12 @@ impl Job for EvaluationSupervisorJob {
                 "Evaluator supervisor is idle: the profile has no `evaluator` block",
             ));
         };
-        let pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
-        );
         let app = Arc::clone(
             ctx.app_context::<Arc<AppContext>>()
                 .ok_or_else(|| SchedulerError::missing_context("AppContext"))?,
         );
         let supervisor = EvaluatorSupervisor::new(
-            &pool,
+            app.evaluation_repositories(),
             EvaluatorSupervisorConfig {
                 docker: evaluator.docker.clone(),
                 workspace_root: evaluator.workspace_root.clone(),

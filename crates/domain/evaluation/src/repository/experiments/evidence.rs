@@ -7,14 +7,14 @@ use super::ExecutionLease;
 use crate::Result;
 use crate::experiments::execution::{EvidenceArchive, ExecutionEvidence};
 use crate::experiments::{VariantSpec, conflict, content_digest, invalid, missing};
-use sha2::{Digest, Sha256};
+
 use sqlx::PgPool;
 use sqlx::types::Json;
 use systemprompt_identifiers::{AiRequestId, EvalExecutionId, UserId};
 
 #[path = "evidence_validation.rs"]
 mod validation;
-use validation::{managed_assets, validate_artifacts, validate_variant};
+use validation::{ManagedAsset, managed_assets, validate_artifacts, validate_variant};
 
 #[derive(Debug, Clone)]
 pub struct EvidenceRepository {
@@ -47,8 +47,8 @@ impl EvidenceRepository {
         let assets = managed_assets(manifest)?;
         let expanded_bytes = assets
             .iter()
-            .try_fold(0usize, |total, (_, _, bytes, _)| {
-                total.checked_add(bytes.len())
+            .try_fold(0usize, |total, asset| {
+                total.checked_add(asset.content.len())
             })
             .ok_or_else(|| invalid("Managed workspace asset size overflow"))?;
         if assets.len() != file_count || expanded_bytes != byte_count {
@@ -56,16 +56,16 @@ impl EvidenceRepository {
                 "Managed workspace asset counts differ from the verified projection",
             ));
         }
-        let file_count =
-            i32::try_from(file_count).map_err(|_| invalid("Managed file count overflow"))?;
-        let byte_count =
-            i64::try_from(byte_count).map_err(|_| invalid("Managed byte count overflow"))?;
+        let file_count = i32::try_from(file_count)
+            .map_err(|error| invalid(&format!("Managed file count overflow: {error}")))?;
+        let byte_count = i64::try_from(byte_count)
+            .map_err(|error| invalid(&format!("Managed byte count overflow: {error}")))?;
         let mut tx = self.pool.begin().await?;
         sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,publication_generation,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(owner_id,digest) DO NOTHING",
             owner.as_str(), expected_digest, managed_revision_id, publication_generation, manifest, file_count, byte_count).execute(&mut *tx).await?;
-        for (path, asset_digest, content, executable) in assets {
+        for asset in assets {
             sqlx::query!("INSERT INTO eval_managed_workspace_assets(owner_id,workspace_digest,path,asset_digest,content,executable) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(owner_id,workspace_digest,path) DO NOTHING",
-                owner.as_str(), expected_digest, path, asset_digest, content, executable).execute(&mut *tx).await?;
+                owner.as_str(), expected_digest, asset.path, asset.digest, asset.content, asset.executable).execute(&mut *tx).await?;
         }
         let verified = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_managed_workspace_projections p WHERE p.owner_id=$1 AND p.digest=$2 AND p.managed_revision_id=$3 AND p.publication_generation IS NOT DISTINCT FROM $4 AND p.manifest=$5 AND p.verified_file_count=$6 AND p.verified_byte_count=$7 AND p.verified_file_count=(SELECT count(*) FROM eval_managed_workspace_assets a WHERE a.owner_id=p.owner_id AND a.workspace_digest=p.digest) AND p.verified_byte_count=(SELECT COALESCE(sum(octet_length(a.content)),0) FROM eval_managed_workspace_assets a WHERE a.owner_id=p.owner_id AND a.workspace_digest=p.digest) AND NOT EXISTS(SELECT 1 FROM eval_managed_workspace_assets a WHERE a.owner_id=p.owner_id AND a.workspace_digest=p.digest AND a.asset_digest<>encode(digest(a.content,'sha256'),'hex')))",
             owner.as_str(), expected_digest, managed_revision_id, publication_generation, manifest, file_count, byte_count).fetch_one(&mut *tx).await?.unwrap_or(false);
@@ -99,22 +99,20 @@ impl EvidenceRepository {
         let mut expected = managed_assets(&manifest)?;
         let stored = sqlx::query!("SELECT path,asset_digest,content,executable FROM eval_managed_workspace_assets WHERE owner_id=$1 AND workspace_digest=$2 ORDER BY path",
             owner.as_str(), digest).fetch_all(&self.pool).await?;
-        expected.sort_by(|left, right| left.0.cmp(&right.0));
+        expected.sort_by(|left, right| left.path.cmp(&right.path));
         let actual = stored
             .into_iter()
-            .map(|asset| {
-                (
-                    asset.path,
-                    asset.asset_digest,
-                    asset.content,
-                    asset.executable,
-                )
+            .map(|asset| ManagedAsset {
+                path: asset.path,
+                digest: asset.asset_digest,
+                content: asset.content,
+                executable: asset.executable,
             })
             .collect::<Vec<_>>();
         let expected_bytes = expected
             .iter()
-            .try_fold(0usize, |total, (_, _, content, _)| {
-                total.checked_add(content.len())
+            .try_fold(0usize, |total, asset| {
+                total.checked_add(asset.content.len())
             })
             .ok_or_else(|| invalid("Managed workspace asset size overflow"))?;
         if actual != expected

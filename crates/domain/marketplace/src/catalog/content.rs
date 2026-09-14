@@ -27,6 +27,7 @@ use crate::catalog::{
     validate_artifact_tools,
 };
 use crate::error::MarketplaceError;
+use crate::managed::ManagedSkillResolution;
 
 /// The owned entry lists a [`CatalogContent`] yields, in the order
 /// [`CatalogContent::into_parts`] returns them: skills, rules, agents, managed
@@ -126,33 +127,41 @@ impl CatalogContent {
             let page = repository
                 .list_resources(owner, offset)
                 .await
-                .map_err(|error| MarketplaceError::Catalog(error.to_string()))?;
+                .map_err(MarketplaceError::Managed)?;
             let page_len = page.len();
             for resource in page.into_iter().filter(|item| item.kind == "skill") {
-                let skill = resolver
+                let resolution = resolver
                     .resolve_skill(owner, &resource.resource_key)
                     .await
-                    .map_err(|error| {
-                        MarketplaceError::Catalog(format!(
-                            "managed skill {} unavailable: {error}",
-                            resource.resource_key
-                        ))
-                    })?
-                    .ok_or_else(|| {
-                        MarketplaceError::Catalog(format!(
-                            "managed skill {} lost its resource binding",
-                            resource.resource_key
-                        ))
-                    })?;
+                    .map_err(MarketplaceError::Managed)?;
                 self.skills
                     .retain(|entry| entry.id.as_str() != resource.resource_key);
-                self.skills
-                    .push(crate::catalog::skills::build_managed_skill_entry(skill)?);
+                match resolution {
+                    ManagedSkillResolution::Published(skill) => {
+                        self.skills
+                            .push(crate::catalog::skills::build_managed_skill_entry(skill)?);
+                    },
+                    ManagedSkillResolution::Withheld(reason) => {
+                        tracing::info!(
+                            skill = %resource.resource_key,
+                            reason = reason.as_str(),
+                            "managed skill withheld from the catalogue"
+                        );
+                    },
+                    ManagedSkillResolution::NotManaged => {
+                        return Err(MarketplaceError::Catalog(format!(
+                            "managed skill {} lost its resource binding",
+                            resource.resource_key
+                        )));
+                    },
+                }
             }
-            if page_len < 51 {
+            if i64::try_from(page_len).unwrap_or(i64::MAX)
+                < crate::managed::ManagedRepository::PAGE_SIZE
+            {
                 break;
             }
-            offset += 51;
+            offset += crate::managed::ManagedRepository::PAGE_SIZE;
         }
         self.skills
             .sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));

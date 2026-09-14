@@ -18,6 +18,7 @@ serde_yaml = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-traits = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-database = { workspace = true }

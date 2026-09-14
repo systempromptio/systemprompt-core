@@ -3,11 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
+use super::{EvidenceArchive, ExecutionEvidence, Result, VariantSpec, conflict, invalid};
+use sha2::{Digest, Sha256};
 
-pub(super) fn managed_assets(
-    manifest: &serde_json::Value,
-) -> Result<Vec<(String, String, Vec<u8>, bool)>> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct ManagedAsset {
+    pub path: String,
+    pub digest: String,
+    pub content: Vec<u8>,
+    pub executable: bool,
+}
+
+pub(super) fn managed_assets(manifest: &serde_json::Value) -> Result<Vec<ManagedAsset>> {
     let revisions = manifest
         .get("revisions")
         .and_then(serde_json::Value::as_object)
@@ -52,12 +59,12 @@ pub(super) fn managed_assets(
                     "Managed file bytes differ from their digest or length",
                 ));
             }
-            rows.push((
-                format!("{revision}/{path}"),
-                digest.to_owned(),
-                bytes,
+            rows.push(ManagedAsset {
+                path: format!("{revision}/{path}"),
+                digest: digest.to_owned(),
+                content: bytes,
                 executable,
-            ));
+            });
         }
     }
     Ok(rows)

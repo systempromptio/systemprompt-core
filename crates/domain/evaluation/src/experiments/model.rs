@@ -76,9 +76,8 @@ pub struct FrozenSettings {
     pub cost_envelope: FrozenCostEnvelope,
 }
 
-/// Conservative prices and call counts used to derive the maximum before any
-/// work is dispatched. Values are frozen with the experiment; the price digest
-/// proves which configured provider/tool price snapshot supplied them.
+/// The price digest proves which configured provider/tool price snapshot
+/// supplied the frozen maximum-cost inputs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FrozenCostEnvelope {

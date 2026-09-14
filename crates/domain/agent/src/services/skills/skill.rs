@@ -19,6 +19,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::{
     AgUiEventBuilder, DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter,
 };
+use systemprompt_traits::SkillResolution;
 
 #[path = "disk.rs"]
 mod disk;
@@ -51,7 +52,7 @@ impl std::fmt::Debug for SkillService {
                     .as_ref()
                     .map_or("<None>", |_| "<ExecutionStepRepository>"),
             )
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -65,8 +66,6 @@ impl SkillService {
         })
     }
 
-    /// Enable fail-closed managed resolution for runtime loads. Disk remains
-    /// available only for keys that are not registered as managed resources.
     pub fn with_managed_resolver(
         mut self,
         resolver: systemprompt_traits::DynManagedSkillResolver,
@@ -110,20 +109,26 @@ impl SkillService {
     ) -> Result<LoadedDiskSkill> {
         if let Some(resolver) = &self.managed {
             match resolver.resolve_skill(owner, skill_id.as_str()).await {
-                Ok(Some(skill)) => {
+                Ok(SkillResolution::Published(skill)) => {
                     return Ok(LoadedDiskSkill {
-                        skill_id: SkillId::new(skill.id),
+                        skill_id: skill.id,
                         name: skill.name,
                         description: skill.description,
                         instructions: skill.instructions,
                     });
                 },
-                Ok(None) => {},
+                Ok(SkillResolution::NotManaged) => {},
+                Ok(SkillResolution::Withheld(reason)) => {
+                    return Err(AgentServiceError::SkillWithheld {
+                        skill_id: skill_id.clone(),
+                        reason: reason.as_str(),
+                    });
+                },
                 Err(error) => {
-                    return Err(AgentServiceError::Internal(format!(
-                        "Managed skill {} is unavailable: {error}",
-                        skill_id.as_str()
-                    )));
+                    return Err(AgentServiceError::SkillSource {
+                        skill_id: skill_id.clone(),
+                        source: error,
+                    });
                 },
             }
         }

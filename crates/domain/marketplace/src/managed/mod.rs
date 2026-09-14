@@ -44,7 +44,9 @@ pub use repository::{
     ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,
     RevisionSummary, TextCandidate,
 };
-pub use resolver::{ManagedResourceResolver, ManagedSkill, ResolvedManagedResource};
+pub use resolver::{
+    ManagedResourceResolver, ManagedSkill, ManagedSkillResolution, ResolvedManagedResource,
+};
 pub use source_sync::{GitSyncRequest, GitSyncResult, WithdrawalProposal};
 pub use text::normalize_form_text;
 pub use tree::{CapturedSkills, capture_skills};

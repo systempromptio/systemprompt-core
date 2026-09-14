@@ -3,7 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
+use super::{
+    AssetDigest, EventOutboxId, ManagedError, ManagedRepository, ManagedResolution,
+    ManagedResourceId, PublicationAction, PublicationDecision, PublicationHistoryEntry,
+    PublicationId, PublicationRequest, PublicationReviewId, ResourceKind, ResourceRevisionId,
+    Result, RevisionBundle, UserId, decision_from_fields, request_digest, resolution_from_fields,
+    validate_request,
+};
 
 impl ManagedRepository {
     pub async fn list_publication_history(
@@ -103,7 +109,7 @@ impl ManagedRepository {
         )
         .fetch_optional(&mut *tx)
         .await?;
-        let current_generation = current.map(|row| row.generation).unwrap_or(0);
+        let current_generation = current.map_or(0, |row| row.generation);
         if current_generation != request.expected_generation {
             return Err(ManagedError::Conflict(format!(
                 "Expected publication generation {}, found {current_generation}",

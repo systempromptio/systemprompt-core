@@ -9,7 +9,6 @@ use std::process::ExitStatus;
 use std::time::{Duration, Instant};
 
 use sha2::{Digest, Sha256};
-use systemprompt_database::DbPool;
 use systemprompt_evaluation::experiments::VariantSpec;
 use systemprompt_evaluation::experiments::execution::{
     ArtifactEvidence, ArtifactFile, ClientCapabilities, EvidenceArchive, ExecutionEvidence,
@@ -75,16 +74,14 @@ pub struct EvaluatorSupervisor {
 }
 
 impl EvaluatorSupervisor {
-    pub fn new(pool: &DbPool, config: EvaluatorSupervisorConfig) -> SchedulerResult<Self> {
+    pub fn new(
+        repositories: &EvaluationRepositories,
+        config: EvaluatorSupervisorConfig,
+    ) -> SchedulerResult<Self> {
         validate_config(&config)?;
-        let pool = pool
-            .write_pool()
-            .ok_or_else(|| SchedulerError::missing_context("writable evaluator database"))?
-            .as_ref()
-            .clone();
         Ok(Self {
             config,
-            repositories: EvaluationRepositories::new(&pool),
+            repositories: repositories.clone(),
         })
     }
 

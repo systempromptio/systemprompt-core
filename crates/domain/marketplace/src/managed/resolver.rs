@@ -5,7 +5,10 @@
 
 use systemprompt_identifiers::{SkillId, UserId};
 use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
-use systemprompt_traits::{ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill};
+use systemprompt_traits::{
+    ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill, SkillResolution,
+    WithheldReason,
+};
 
 use super::{
     ManagedError, ManagedRepository, ManagedResolution, ResourceKind, Result, RevisionBundle,
@@ -23,26 +26,36 @@ pub enum ResolvedManagedResource {
     IntegrityFailure(ManagedResolution),
 }
 
+#[derive(Debug, Clone)]
+pub enum ManagedSkillResolution {
+    NotManaged,
+    Published(ManagedSkill),
+    Withheld(WithheldReason),
+}
+
 #[async_trait::async_trait]
 impl ManagedSkillResolver for ManagedResourceResolver {
     async fn resolve_skill(
         &self,
         owner: &UserId,
         key: &str,
-    ) -> std::result::Result<Option<ResolvedManagedSkill>, ManagedSkillResolverError> {
-        ManagedResourceResolver::resolve_skill(self, owner, key)
-            .await
-            .map(|resolved| {
-                resolved.map(|skill| ResolvedManagedSkill {
-                    id: skill.id.as_str().to_owned(),
+    ) -> std::result::Result<SkillResolution, ManagedSkillResolverError> {
+        match Self::resolve_skill(self, owner, key).await {
+            Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
+            Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(reason)),
+            Ok(ManagedSkillResolution::Published(skill)) => {
+                Ok(SkillResolution::Published(ResolvedManagedSkill {
+                    id: skill.id,
                     name: skill.name,
                     description: skill.description,
                     instructions: skill.instructions,
-                })
-            })
-            .map_err(|error| ManagedSkillResolverError {
-                message: error.to_string(),
-            })
+                }))
+            },
+            Err(ManagedError::Integrity) => Err(ManagedSkillResolverError::Integrity {
+                key: key.to_owned(),
+            }),
+            Err(error) => Err(ManagedSkillResolverError::Unavailable(error.to_string())),
+        }
     }
 }
 
@@ -65,6 +78,10 @@ pub struct ManagedSkill {
 impl ManagedResourceResolver {
     pub const fn new(repository: ManagedRepository) -> Self {
         Self { repository }
+    }
+
+    pub const fn repository(&self) -> &ManagedRepository {
+        &self.repository
     }
 
     pub async fn resolve(
@@ -127,9 +144,16 @@ impl ManagedResourceResolver {
         })
     }
 
-    pub async fn resolve_skill(&self, owner: &UserId, key: &str) -> Result<Option<ManagedSkill>> {
+    pub async fn resolve_skill(&self, owner: &UserId, key: &str) -> Result<ManagedSkillResolution> {
         match self.resolve(owner, ResourceKind::Skill, key).await? {
-            ResolvedManagedResource::NotManaged => Ok(None),
+            ResolvedManagedResource::NotManaged => Ok(ManagedSkillResolution::NotManaged),
+            ResolvedManagedResource::NeverAdopted(_) => Ok(ManagedSkillResolution::Withheld(
+                WithheldReason::NeverAdopted,
+            )),
+            ResolvedManagedResource::Withdrawn(_) => {
+                Ok(ManagedSkillResolution::Withheld(WithheldReason::Withdrawn))
+            },
+            ResolvedManagedResource::IntegrityFailure(_) => Err(ManagedError::Integrity),
             ResolvedManagedResource::Published { state, bundle } => {
                 let ManagedResolution::Published {
                     generation,
@@ -142,7 +166,7 @@ impl ManagedResourceResolver {
                 let files = bundle.revision_files(&bundle.root)?;
                 let config_file = files.0.get("config.yaml").ok_or(ManagedError::Integrity)?;
                 let config: DiskSkillConfig = serde_yaml::from_slice(&config_file.bytes)
-                    .map_err(|_| ManagedError::Integrity)?;
+                    .map_err(|_corrupt| ManagedError::Integrity)?;
                 if !config.enabled || (!config.id.as_str().is_empty() && config.id.as_str() != key)
                 {
                     return Err(ManagedError::Integrity);
@@ -151,9 +175,9 @@ impl ManagedResourceResolver {
                     .0
                     .get(config.content_file())
                     .ok_or(ManagedError::Integrity)?;
-                let raw =
-                    std::str::from_utf8(&content.bytes).map_err(|_| ManagedError::Integrity)?;
-                Ok(Some(ManagedSkill {
+                let raw = std::str::from_utf8(&content.bytes)
+                    .map_err(|_corrupt| ManagedError::Integrity)?;
+                Ok(ManagedSkillResolution::Published(ManagedSkill {
                     id: if config.id.as_str().is_empty() {
                         SkillId::new(key.to_owned())
                     } else {
@@ -171,9 +195,6 @@ impl ManagedResourceResolver {
                     bundle_digest,
                 }))
             },
-            ResolvedManagedResource::NeverAdopted(_)
-            | ResolvedManagedResource::Withdrawn(_)
-            | ResolvedManagedResource::IntegrityFailure(_) => Err(ManagedError::Integrity),
         }
     }
 }

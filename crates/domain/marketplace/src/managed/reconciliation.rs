@@ -12,6 +12,10 @@ use super::{ManagedError, ManagedRepository, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the request names four distinct revisions; the `_id` suffix is the typed-identifier convention"
+)]
 pub struct ReconciliationRequest {
     pub resource_id: ManagedResourceId,
     pub upstream_base_revision_id: ResourceRevisionId,

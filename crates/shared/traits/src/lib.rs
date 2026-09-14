@@ -90,6 +90,7 @@ pub use log_service::LogService;
 
 pub use managed_resources::{
     DynManagedSkillResolver, ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill,
+    SkillResolution, WithheldReason,
 };
 
 pub use context_provider::{

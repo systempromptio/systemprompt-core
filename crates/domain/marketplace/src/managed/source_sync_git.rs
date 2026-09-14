@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
+use super::{AssetFile, BTreeMap, Command, ManagedError, Path, PathBuf, Result, RevisionFiles};
 
 pub(super) fn resolve_ref(
     repository: &str,
@@ -26,7 +26,7 @@ pub(super) fn resolve_ref(
         ]),
         credential,
     )?;
-    let entries = std::str::from_utf8(&output).map_err(|_| ManagedError::Integrity)?;
+    let entries = std::str::from_utf8(&output).map_err(|_corrupt| ManagedError::Integrity)?;
     let line = entries
         .lines()
         .find(|line| line.split_whitespace().nth(1) == Some(peeled.as_str()))
@@ -114,7 +114,7 @@ pub(super) fn import_tree(
         let path = path_with_separator
             .get(1..)
             .ok_or(ManagedError::Integrity)?;
-        let metadata = std::str::from_utf8(metadata).map_err(|_| ManagedError::Integrity)?;
+        let metadata = std::str::from_utf8(metadata).map_err(|_corrupt| ManagedError::Integrity)?;
         let mut fields = metadata.split_whitespace();
         let mode = fields.next().ok_or(ManagedError::Integrity)?;
         if fields.next() != Some("blob") || !matches!(mode, "100644" | "100755") {
@@ -122,8 +122,9 @@ pub(super) fn import_tree(
                 "Git source contains links, submodules, or non-regular files",
             ));
         }
-        let path = std::str::from_utf8(path)
-            .map_err(|_| super::super::error::invalid("Git paths must be UTF-8"))?;
+        let path = std::str::from_utf8(path).map_err(|error| {
+            super::super::error::invalid(&format!("Git paths must be UTF-8: {error}"))
+        })?;
         let relative = path
             .strip_prefix(prefix_text)
             .and_then(|value| value.strip_prefix('/'))

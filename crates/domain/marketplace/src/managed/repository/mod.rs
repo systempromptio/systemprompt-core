@@ -26,6 +26,8 @@ pub struct ManagedRepository {
 }
 
 impl ManagedRepository {
+    pub const PAGE_SIZE: i64 = 51;
+
     pub const fn new(pool: PgPool) -> Self {
         Self { pool }
     }

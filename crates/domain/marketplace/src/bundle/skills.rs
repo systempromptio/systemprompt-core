@@ -135,14 +135,26 @@ fn append_aux_files(kebab: &str, skill: &SkillEntry, bundle: &mut PluginBundle) 
 }
 
 fn append_managed_files(kebab: &str, encoded: &str, bundle: &mut PluginBundle) {
-    let Ok(serialized) = hex::decode(encoded) else {
-        return;
+    let serialized = match hex::decode(encoded) {
+        Ok(serialized) => serialized,
+        Err(error) => {
+            tracing::error!(skill = %kebab, %error, "managed skill files are not hex; aux files dropped from the bundle");
+            return;
+        },
     };
-    let Ok(files) = serde_json::from_slice::<crate::managed::RevisionFiles>(&serialized) else {
-        return;
+    let files = match serde_json::from_slice::<crate::managed::RevisionFiles>(&serialized) {
+        Ok(files) => files,
+        Err(error) => {
+            tracing::error!(skill = %kebab, %error, "managed skill files do not decode; aux files dropped from the bundle");
+            return;
+        },
     };
     for (path, file) in files.0 {
-        if path == "config.yaml" || path.ends_with(".md") && !path.contains('/') {
+        let top_level_markdown = !path.contains('/')
+            && Path::new(&path)
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("md"));
+        if path == "config.yaml" || top_level_markdown {
             continue;
         }
         bundle.insert(
