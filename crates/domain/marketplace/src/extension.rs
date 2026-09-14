@@ -21,6 +21,10 @@ impl Extension for ManagedResourcesExtension {
         vec![
             SchemaDefinition::new("managed_resources", include_str!("../schema/managed.sql")),
             SchemaDefinition::new(
+                "managed_consumer_evidence",
+                include_str!("../schema/consumer_evidence.sql"),
+            ),
+            SchemaDefinition::new(
                 "managed_evaluation_attestations",
                 include_str!("../schema/evaluation_attestations.sql"),
             ),
@@ -28,7 +32,7 @@ impl Extension for ManagedResourcesExtension {
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
-        vec!["ai"]
+        vec!["ai", "users"]
     }
 
     fn migrations(&self) -> Vec<Migration> {

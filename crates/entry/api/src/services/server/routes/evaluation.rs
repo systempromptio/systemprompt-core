@@ -22,6 +22,16 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Load
             .with_rate_limit(mount.limits, 10, "admin")?
             .with_auth(mount.user_middleware.clone(), AuthzPolicy::admin()),
     );
+    let router = router.nest(
+        "/api/v1",
+        crate::routes::evaluation::consumer::router()
+            .layer(axum::middleware::from_fn_with_state(
+                mount.ctx.clone(),
+                crate::routes::evaluation::optimization_origin::protect,
+            ))
+            .with_state(mount.ctx.clone())
+            .with_rate_limit(mount.limits, 10, "consumer_evidence")?,
+    );
     mount_worker(router, mount)
 }
 

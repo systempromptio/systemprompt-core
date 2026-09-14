@@ -26,7 +26,9 @@ const IMPORTER_VERSION: &str = "managed-git-v1";
 
 #[path = "source_verification.rs"]
 mod verification;
-pub use verification::GitContentVerification;
+pub use verification::{
+    GitContentVerification, GitTreeReader, GitVerificationService, NativeGitTreeReader,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -107,8 +109,18 @@ impl ManagedRepository {
         credential: Option<&str>,
     ) -> Result<GitSyncResult> {
         super::assets::validate_path(&request.upstream_root)?;
-        let (repository, reference, subdirectory) =
-            git_spec(self.get_source(owner, &request.source_id).await?)?;
+        let source = self.get_source(owner, &request.source_id).await?;
+        if matches!(
+            &source,
+            SourceSpec::Git {
+                credential_reference: Some(_),
+                ..
+            }
+        ) && credential.is_none()
+        {
+            return Err(ManagedError::Unavailable);
+        }
+        let (repository, reference, subdirectory) = git_spec(source)?;
         if credential.is_some_and(str::is_empty) {
             return Err(super::error::invalid("Resolved Git credential is empty"));
         }
@@ -117,23 +129,33 @@ impl ManagedRepository {
                 "Git repository URL is not an allowed outbound target: {error}"
             ))
         })?;
-        let commit = resolve_ref(&repository, &reference, credential)?;
-        let temp = std::env::temp_dir().join(format!(
-            "systemprompt-managed-{}",
-            ManagedSourceId::generate().as_str()
-        ));
-        std::fs::create_dir(&temp)?;
-        let import = import_tree(&GitCheckout {
-            temp: &temp,
-            repository: &repository,
-            commit: &commit,
-            subdirectory: subdirectory.as_deref(),
-            root: &request.upstream_root,
-            credential,
-        });
-        let cleanup = std::fs::remove_dir_all(&temp);
-        let files = import?;
-        cleanup?;
+        let credential = credential.map(str::to_owned);
+        let root = request.upstream_root.clone();
+        let (commit, files) = tokio::task::spawn_blocking(move || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+            let commit = resolve_ref(&repository, &reference, credential.as_deref(), deadline)?;
+            let temp = std::env::temp_dir().join(format!(
+                "systemprompt-managed-{}",
+                ManagedSourceId::generate()
+            ));
+            super::git_execution::create_private_directory(&temp)?;
+            let imported = import_tree(&GitCheckout {
+                temp: &temp,
+                repository: &repository,
+                commit: &commit,
+                subdirectory: subdirectory.as_deref(),
+                root: &root,
+                credential: credential.as_deref(),
+                deadline,
+            });
+            std::fs::remove_dir_all(&temp)?;
+            if temp.exists() {
+                return Err(ManagedError::Integrity);
+            }
+            Ok::<_, ManagedError>((commit, imported?))
+        })
+        .await
+        .map_err(|_error| ManagedError::Integrity)??;
         let tree_digest = AssetDigest::of(&serde_jcs::to_vec(&files)?);
         let snapshot_id = self
             .capture_snapshot(

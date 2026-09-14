@@ -8,12 +8,15 @@
 
 mod assets;
 mod bundle;
+pub mod consumer;
 pub use bundle::{ASSEMBLER_VERSION, RevisionBundle};
 mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
 mod content_identity;
 mod error;
 pub mod evaluation;
+#[path = "source_git_process.rs"]
+pub mod git_execution;
 mod import;
 mod installation;
 mod manifest;
@@ -50,6 +53,9 @@ pub use repository::{
 pub use resolver::{
     ManagedResourceResolver, ManagedSkill, ManagedSkillResolution, ResolvedManagedResource,
 };
-pub use source_sync::{GitContentVerification, GitSyncRequest, GitSyncResult, WithdrawalProposal};
+pub use source_sync::{
+    GitContentVerification, GitSyncRequest, GitSyncResult, GitTreeReader, GitVerificationService,
+    NativeGitTreeReader, WithdrawalProposal,
+};
 pub use text::normalize_form_text;
 pub use tree::{CapturedSkills, capture_skills};

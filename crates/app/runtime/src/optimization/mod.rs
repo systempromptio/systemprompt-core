@@ -13,6 +13,7 @@ use systemprompt_marketplace::managed::evaluation::EvaluationAttestation;
 use systemprompt_marketplace::managed::{AssetDigest, ManagedRepository};
 mod candidate;
 mod capture;
+pub mod git_sources;
 mod iteration;
 
 #[derive(Debug, thiserror::Error)]

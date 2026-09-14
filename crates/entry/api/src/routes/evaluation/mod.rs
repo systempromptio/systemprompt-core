@@ -40,3 +40,5 @@ pub(crate) fn router_from_context(
 mod optimization_error;
 pub(crate) mod optimization_origin;
 mod optimization_resources;
+
+pub(crate) mod consumer;

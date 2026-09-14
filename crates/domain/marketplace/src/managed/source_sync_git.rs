@@ -9,6 +9,7 @@ pub(super) fn resolve_ref(
     repository: &str,
     reference: &str,
     credential: Option<&str>,
+    deadline: std::time::Instant,
 ) -> Result<String> {
     if is_commit(reference) {
         return Ok(reference.to_owned());
@@ -24,7 +25,8 @@ pub(super) fn resolve_ref(
             reference,
             &peeled,
         ]),
-        credential,
+        credential.map(|token| (repository, token)),
+        deadline,
     )?;
     let entries = std::str::from_utf8(&output).map_err(|_corrupt| ManagedError::Integrity)?;
     let line = entries
@@ -36,7 +38,7 @@ pub(super) fn resolve_ref(
         .split_whitespace()
         .next()
         .ok_or(ManagedError::Integrity)?;
-    if commit.len() != 40
+    if !matches!(commit.len(), 40 | 64)
         || !commit
             .bytes()
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
@@ -47,7 +49,7 @@ pub(super) fn resolve_ref(
 }
 
 fn is_commit(value: &str) -> bool {
-    value.len() == 40
+    matches!(value.len(), 40 | 64)
         && value
             .bytes()
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
@@ -60,6 +62,7 @@ pub(super) struct GitCheckout<'a> {
     pub subdirectory: Option<&'a str>,
     pub root: &'a str,
     pub credential: Option<&'a str>,
+    pub deadline: std::time::Instant,
 }
 
 pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
@@ -70,8 +73,9 @@ pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
         subdirectory,
         root,
         credential,
+        deadline,
     } = *checkout;
-    fetch_commit(temp, repository, commit, credential)?;
+    fetch_commit(temp, repository, commit, credential, deadline)?;
     let prefix = [subdirectory, Some(root)]
         .into_iter()
         .flatten()
@@ -80,14 +84,14 @@ pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
         .to_str()
         .ok_or(ManagedError::Integrity)?
         .trim_matches('/');
-    let listing = list_tree(temp, commit, prefix_text)?;
+    let listing = list_tree(temp, commit, prefix_text, deadline)?;
     let mut files = BTreeMap::new();
     for entry in listing
         .split(|byte| *byte == 0)
         .filter(|entry| !entry.is_empty())
     {
         let (relative, mode, path) = parse_tree_entry(entry, prefix_text)?;
-        if files.contains_key(relative) {
+        if files.len() >= 256 || files.contains_key(relative) {
             return Err(super::super::error::invalid(
                 "Git source contains duplicate targets",
             ));
@@ -102,7 +106,17 @@ pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
                 &object,
             ]),
             None,
+            deadline,
         )?;
+        if files
+            .values()
+            .map(|file: &AssetFile| file.bytes.len())
+            .sum::<usize>()
+            + bytes.len()
+            > 8 * 1024 * 1024
+        {
+            return Err(super::super::error::invalid("Git tree exceeds 8 MiB"));
+        }
         files.insert(
             relative.to_owned(),
             AssetFile {
@@ -124,12 +138,19 @@ fn fetch_commit(
     repository: &str,
     commit: &str,
     credential: Option<&str>,
+    deadline: std::time::Instant,
 ) -> Result<()> {
     git(
         Command::new("git")
             .args(["-c", "core.hooksPath=/dev/null", "init", "--bare"])
+            .arg(if commit.len() == 64 {
+                "--object-format=sha256"
+            } else {
+                "--object-format=sha1"
+            })
             .arg(temp),
         None,
+        deadline,
     )?;
     git(
         Command::new("git").current_dir(temp).args([
@@ -141,12 +162,55 @@ fn fetch_commit(
             repository,
             commit,
         ]),
-        credential,
+        credential.map(|token| (repository, token)),
+        deadline,
     )?;
+    let fetched = git(
+        Command::new("git")
+            .current_dir(temp)
+            .args(["rev-parse", "FETCH_HEAD^{commit}"]),
+        None,
+        deadline,
+    )?;
+    if std::str::from_utf8(&fetched)
+        .map_err(|_error| ManagedError::Integrity)?
+        .trim()
+        != commit
+    {
+        return Err(ManagedError::Integrity);
+    }
+    let tree = git(
+        Command::new("git")
+            .current_dir(temp)
+            .args(["ls-tree", "-rz", "-r", "--full-tree", commit]),
+        None,
+        deadline,
+    )?;
+    for entry in tree
+        .split(|byte| *byte == 0)
+        .filter(|entry| !entry.is_empty())
+    {
+        let text = std::str::from_utf8(entry).map_err(|_error| ManagedError::Integrity)?;
+        let path = text.split_once('\t').ok_or(ManagedError::Integrity)?.1;
+        if text.starts_with("160000 ")
+            || path
+                .split('/')
+                .any(|part| matches!(part, ".git" | ".gitmodules"))
+        {
+            return Err(super::super::error::invalid(
+                "Repository contains undeclared submodules or nested Git metadata",
+            ));
+        }
+    }
     Ok(())
 }
 
-fn list_tree(temp: &Path, commit: &str, prefix_text: &str) -> Result<Vec<u8>> {
+fn list_tree(
+    temp: &Path,
+    commit: &str,
+    prefix_text: &str,
+    deadline: std::time::Instant,
+) -> Result<Vec<u8>> {
     git(
         Command::new("git").current_dir(temp).args([
             "-c",
@@ -160,6 +224,7 @@ fn list_tree(temp: &Path, commit: &str, prefix_text: &str) -> Result<Vec<u8>> {
             prefix_text,
         ]),
         None,
+        deadline,
     )
 }
 
@@ -183,6 +248,14 @@ fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, 
     let path = std::str::from_utf8(path).map_err(|error| {
         super::super::error::invalid(&format!("Git paths must be UTF-8: {error}"))
     })?;
+    if path
+        .split('/')
+        .any(|part| matches!(part, ".git" | ".gitmodules"))
+    {
+        return Err(super::super::error::invalid(
+            "Nested Git metadata is not permitted",
+        ));
+    }
     let relative = path
         .strip_prefix(prefix_text)
         .and_then(|value| value.strip_prefix('/'))
@@ -191,24 +264,15 @@ fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, 
     Ok((relative, mode, path))
 }
 
-fn git(command: &mut Command, credential: Option<&str>) -> Result<Vec<u8>> {
-    if let Some(token) = credential {
-        command
-            .env("GIT_CONFIG_COUNT", "1")
-            .env("GIT_CONFIG_KEY_0", "http.extraHeader")
-            .env(
-                "GIT_CONFIG_VALUE_0",
-                format!("Authorization: Bearer {token}"),
-            );
-    }
-    let output = command
-        .env("GIT_CONFIG_NOSYSTEM", "1")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .output()?;
-    if !output.status.success() {
-        return Err(ManagedError::Conflict(
-            "Git synchronization failed without changing publication selection".to_owned(),
-        ));
-    }
-    Ok(output.stdout)
+fn git(
+    command: &mut Command,
+    credential: Option<(&str, &str)>,
+    deadline: std::time::Instant,
+) -> Result<Vec<u8>> {
+    let remaining = deadline
+        .checked_duration_since(std::time::Instant::now())
+        .ok_or(ManagedError::Unavailable)?;
+    let mut limits = super::super::git_execution::GitExecutionLimits::default();
+    limits.deadline = limits.deadline.min(remaining);
+    super::super::git_execution::execute(command, credential, limits)
 }
