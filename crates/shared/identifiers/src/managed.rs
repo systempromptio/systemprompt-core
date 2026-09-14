@@ -15,3 +15,11 @@ crate::define_id!(DistributionId, generate, schema);
 crate::define_id!(InstallationReceiptId, generate, schema);
 crate::define_id!(InvocationAttributionId, generate, schema);
 crate::define_id!(ResourceInvocationId, schema);
+
+crate::define_id!(ConsumerInstallationId, generate, schema);
+crate::define_id!(InstallationSessionBindingId, generate, schema);
+crate::define_id!(NativeSessionId, schema);
+crate::define_id!(InventoryEntryId, generate, schema);
+crate::define_id!(AnalyticsChangeId, generate, schema);
+crate::define_id!(AnalyticsFactId, schema);
+crate::define_id!(DependencyVerificationId, generate, schema);

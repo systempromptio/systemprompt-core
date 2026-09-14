@@ -67,6 +67,7 @@ pub mod content_config;
 pub mod env;
 pub mod errors;
 pub mod events;
+pub mod feedback;
 pub mod execution;
 pub mod extension;
 pub mod gateway_hash;

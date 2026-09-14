@@ -7,14 +7,15 @@ use serde::{Deserialize, Serialize};
 
 pub const CAPABILITY_REGISTRY_VERSION: u16 = 1;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum EvaluatorClient {
-    ClaudeCode,
-    OpenCode,
-    Codex,
-    Hermes,
-    ClaudeDesktop,
+pub use systemprompt_models::feedback::EvaluatorClient;
+
+impl From<crate::experiments::ClientKind> for EvaluatorClient {
+    fn from(value: crate::experiments::ClientKind) -> Self {
+        match value {
+            crate::experiments::ClientKind::ClaudeCode => Self::ClaudeCode,
+            crate::experiments::ClientKind::Opencode => Self::OpenCode,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -321,3 +321,6 @@ mod artifacts_message;
 
 #[cfg(test)]
 mod services_rules;
+
+#[cfg(test)]
+mod feedback_contracts;

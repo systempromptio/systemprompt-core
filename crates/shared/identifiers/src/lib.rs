@@ -119,7 +119,9 @@ pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;
 pub use managed::{
-    DistributionId, InstallationReceiptId, InvocationAttributionId, ManagedReconciliationId,
+    AnalyticsChangeId, AnalyticsFactId, ConsumerInstallationId, DependencyVerificationId,
+    DistributionId, InstallationReceiptId, InstallationSessionBindingId, InventoryEntryId,
+    InvocationAttributionId, ManagedReconciliationId, NativeSessionId,
     ManagedResourceId, ManagedSourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
     SourceSnapshotId, WithdrawalProposalId,
 };
