@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod credentials;
+pub mod hooks;
 mod hosts;
 pub mod outbox;
 pub mod readback;
