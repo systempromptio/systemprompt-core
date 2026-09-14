@@ -21,6 +21,7 @@ pub fn scan_configured_inventory(
     for (directory, kind) in [
         ("skills", "skill"),
         ("plugins", "plugin"),
+        ("marketplaces", "marketplace"),
         ("rules", "rule"),
         ("hooks", "hook"),
         ("artifacts", "artifact"),

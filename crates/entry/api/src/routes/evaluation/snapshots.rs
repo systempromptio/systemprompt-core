@@ -18,6 +18,7 @@ use systemprompt_runtime::AppContext;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
+        .route("/analytics/live", get(super::snapshot_stream::stream))
         .route("/analytics/snapshots", get(list))
         .route("/analytics/snapshots/portfolio", get(portfolio))
         .route("/analytics/snapshots/{resource}", get(resource))

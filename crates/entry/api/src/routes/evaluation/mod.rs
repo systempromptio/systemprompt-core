@@ -45,3 +45,8 @@ mod optimization_resources;
 pub(crate) mod consumer;
 
 mod snapshots;
+
+mod snapshot_stream;
+mod snapshot_wakeup;
+
+mod snapshot_generation;

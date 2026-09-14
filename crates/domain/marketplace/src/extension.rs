@@ -29,6 +29,10 @@ impl Extension for ManagedResourcesExtension {
                 include_str!("../schema/evaluation_attestations.sql"),
             ),
             SchemaDefinition::new("managed_inventory", include_str!("../schema/inventory.sql")),
+            SchemaDefinition::new(
+                "managed_installation_coverage",
+                include_str!("../schema/installation_coverage.sql"),
+            ),
         ]
     }
 
