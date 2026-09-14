@@ -83,7 +83,7 @@ async fn mount_mcp_server(server: &MockServer, tool_response: serde_json::Value)
 }
 
 fn transport(server: &MockServer) -> StreamableHttpClientTransport<HttpClientWithContext> {
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new());
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
     let config = StreamableHttpClientTransportConfig::with_uri(format!("{}/mcp", server.uri()));
     StreamableHttpClientTransport::with_client(client, config)
 }

@@ -78,7 +78,11 @@ fn from_tool_name_mcp_prefix_extracts_server() {
 
 #[test]
 fn from_tool_name_mcp_prefix_takes_priority_over_agent() {
-    let actor = Actor::from_tool_name(user(), Some(&AgentId::new("some_agent")), "mcp__github__create_issue");
+    let actor = Actor::from_tool_name(
+        user(),
+        Some(&AgentId::new("some_agent")),
+        "mcp__github__create_issue",
+    );
     assert_eq!(
         actor.kind,
         ActorKind::Mcp {

@@ -55,7 +55,7 @@ fn test_create_agent_request_deserialize_minimal() {
         request.card.supported_interfaces[0].protocol_binding,
         TransportProtocol::JsonRpc
     );
-    assert!(request.is_active.is_none());
+    assert!(request.is_active);
     assert!(request.system_prompt.is_none());
     assert!(request.mcp_servers.is_none());
 }
@@ -75,7 +75,7 @@ fn test_create_agent_request_deserialize_full() {
         TransportProtocol::Grpc
     );
     assert_eq!(request.card.default_input_modes.len(), 2);
-    assert_eq!(request.is_active, Some(false));
+    assert!(!request.is_active);
     assert_eq!(request.system_prompt.as_deref(), Some("be helpful"));
     assert_eq!(request.mcp_servers, Some(vec![]));
 }

@@ -99,3 +99,54 @@ fn content_digest_ignores_revision_history() {
         rebased.content_digest().expect("content digest")
     );
 }
+
+fn files(entries: &[(&str, &[u8], bool)]) -> RevisionFiles {
+    let mut files = RevisionFiles::default();
+    for (path, bytes, executable) in entries {
+        files.0.insert(
+            (*path).to_owned(),
+            AssetFile {
+                bytes: bytes.to_vec(),
+                media_type: "text/plain".to_owned(),
+                executable: *executable,
+            },
+        );
+    }
+    files
+}
+
+#[test]
+fn same_content_requires_identical_paths_bytes_and_executable_bits() {
+    let retained = files(&[
+        ("SKILL.md", b"# skill", false),
+        ("run.sh", b"#!/bin/sh", true),
+    ]);
+
+    assert!(retained.same_content(&files(&[
+        ("SKILL.md", b"# skill", false),
+        ("run.sh", b"#!/bin/sh", true)
+    ])));
+    assert!(
+        !retained.same_content(&files(&[("SKILL.md", b"# skill", false)])),
+        "a missing path is a difference"
+    );
+    assert!(
+        !retained.same_content(&files(&[
+            ("SKILL.md", b"# skill", false),
+            ("run.sh", b"#!/bin/sh", false)
+        ])),
+        "an executable bit is content"
+    );
+    assert!(
+        !retained.same_content(&files(&[
+            ("SKILL.md", b"# skill", false),
+            ("extra.md", b"", false),
+            ("run.sh", b"#!/bin/sh", true)
+        ])),
+        "an extra path is a difference"
+    );
+    assert!(
+        !RevisionFiles::default().same_content(&retained),
+        "an empty import never matches a retained revision"
+    );
+}

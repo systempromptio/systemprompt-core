@@ -99,7 +99,10 @@ async fn sink_records_a_verified_agent_delegate() {
     let req = mcp_request(
         "sink-user",
         "email",
-        vec![Actor::agent(UserId::new("sink-user"), AgentId::new("planner"))],
+        vec![Actor::agent(
+            UserId::new("sink-user"),
+            AgentId::new("planner"),
+        )],
     );
     let trace = req.trace_id.as_str().to_owned();
     sink.record(

@@ -352,7 +352,7 @@ async fn forwarding_client_sends_context_and_bearer_headers() {
         http::HeaderName::from_static("x-static-extra"),
         http::HeaderValue::from_static("extra"),
     );
-    let client = HttpClientWithContext::forwarding(ctx(), outbound);
+    let client = HttpClientWithContext::forwarding(ctx(), outbound).expect("guarded client");
     client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -387,7 +387,7 @@ async fn external_client_withholds_context_and_internal_bearer() {
         http::HeaderName::from_static("authorization"),
         http::HeaderValue::from_static("Bearer third-party"),
     );
-    let client = HttpClientWithContext::external(ctx(), outbound);
+    let client = HttpClientWithContext::external(ctx(), outbound).expect("guarded client");
     client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
