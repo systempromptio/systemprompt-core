@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE analytics_fact_consumers SET generation=$6,lease_worker=NULL,lease_until=NULL,lease_through=NULL WHERE owner_id=$1 AND consumer=$2 AND lease_worker=$3 AND lease_epoch=$4 AND generation=$5 AND lease_through=$6 AND lease_until>clock_timestamp()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d440ad5bfa257ac535993bc3311651a20f5a455fc9f464e3bcc7b556ca6ac16b"
+}
