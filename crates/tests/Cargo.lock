@@ -8345,6 +8345,7 @@ dependencies = [
  "chrono",
  "hex",
  "inventory",
+ "libc",
  "schemars",
  "serde",
  "serde_jcs",
