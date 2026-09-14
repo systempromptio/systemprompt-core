@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(EvalCaseId, generate, schema);
+crate::define_id!(EvalCampaignId, generate, schema);
 
 crate::define_id!(EvalExperimentId, generate, schema);
 crate::define_id!(EvalExecutionId, generate, schema);

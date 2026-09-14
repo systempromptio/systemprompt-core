@@ -28,6 +28,7 @@ axum = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true, features = ["web"] }
+systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

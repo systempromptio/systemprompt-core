@@ -214,7 +214,7 @@ impl ExperimentRepository {
         Ok(())
     }
 
-    async fn insert_executions(
+    pub(crate) async fn insert_executions(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         id: &EvalExperimentId,
         spec: &ExperimentSpec,

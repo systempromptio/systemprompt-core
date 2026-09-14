@@ -73,6 +73,7 @@ struct MockExtensionContext {
 }
 
 impl ExtensionContext for MockExtensionContext {
+    fn system_owner_id(&self) -> systemprompt_identifiers::UserId { systemprompt_identifiers::UserId::new("extension-test-owner") }
     fn config(&self) -> Arc<dyn ConfigProvider> {
         Arc::clone(&self.config)
     }

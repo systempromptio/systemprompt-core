@@ -20,6 +20,7 @@ pub mod error;
 pub mod extension;
 pub mod models;
 pub mod repository;
+pub mod resource_metrics;
 pub mod services;
 
 pub use extension::AnalyticsExtension;

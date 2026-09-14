@@ -24,6 +24,10 @@ use git_import::{GitCheckout, import_tree, resolve_ref};
 
 const IMPORTER_VERSION: &str = "managed-git-v1";
 
+#[path = "source_verification.rs"]
+mod verification;
+pub use verification::GitContentVerification;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GitSyncRequest {

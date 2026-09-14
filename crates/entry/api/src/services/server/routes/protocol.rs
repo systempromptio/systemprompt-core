@@ -265,6 +265,17 @@ pub(super) fn mount_content_and_misc(
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
 
+    router = router.nest(
+        "/api/v1",
+        crate::routes::evaluation::campaigns::router()
+            .layer(axum::middleware::from_fn_with_state(
+                ctx.clone(),
+                crate::routes::evaluation::optimization_origin::protect,
+            ))
+            .with_state(ctx.clone())
+            .with_rate_limit(limits, 10, "admin")?
+            .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
+    );
     router = mount_evaluation_worker(router, mount)?;
     super::gateway::mount_gateway(router, mount)
 }

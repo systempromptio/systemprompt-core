@@ -86,6 +86,21 @@ pub(super) struct RepositoryBundles {
     evaluation: Arc<systemprompt_evaluation::repository::experiments::EvaluationRepositories>,
 }
 
+impl RepositoryBundles {
+    pub(super) fn bind_organizational_owner(&mut self, owner: &systemprompt_identifiers::UserId) {
+        let resolver = systemprompt_marketplace::managed::ManagedResourceResolver::new(
+            self.managed.as_ref().clone(),
+        )
+        .with_organizational_owner(owner.clone());
+        self.a2a = Arc::new(
+            self.a2a
+                .as_ref()
+                .clone()
+                .with_managed_skill_resolver(Arc::new(resolver)),
+        );
+    }
+}
+
 pub(super) fn build_repositories(
     database: &systemprompt_database::DbPool,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,

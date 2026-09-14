@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod campaigns;
 mod error;
 mod handlers;
 
@@ -36,3 +37,6 @@ pub(crate) fn router_from_context(
         .build()?;
     Ok(router(state))
 }
+mod optimization_error;
+pub(crate) mod optimization_origin;
+mod optimization_resources;

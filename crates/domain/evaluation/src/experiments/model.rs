@@ -27,6 +27,7 @@ pub enum ExecutionMode {
 #[serde(rename_all = "snake_case")]
 pub enum Objective {
     Quality,
+    Tokens,
     Cost,
     Latency,
 }

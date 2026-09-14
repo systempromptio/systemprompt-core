@@ -18,10 +18,13 @@ impl Extension for ManagedResourcesExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::new(
-            "managed_resources",
-            include_str!("../schema/managed.sql"),
-        )]
+        vec![
+            SchemaDefinition::new("managed_resources", include_str!("../schema/managed.sql")),
+            SchemaDefinition::new(
+                "managed_evaluation_attestations",
+                include_str!("../schema/evaluation_attestations.sql"),
+            ),
+        ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

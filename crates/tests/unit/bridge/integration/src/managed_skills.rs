@@ -70,6 +70,7 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
 
 fn skill(id: &str, hosts: &[&str], instructions: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("skill id"),
         name: SkillName::try_new(id).expect("skill name"),
         description: format!("desc for {id}"),

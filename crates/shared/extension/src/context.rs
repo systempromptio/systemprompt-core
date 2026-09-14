@@ -7,6 +7,8 @@ use std::sync::Arc;
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};
 
 pub trait ExtensionContext: Send + Sync {
+    fn system_owner_id(&self) -> systemprompt_identifiers::UserId;
+
     fn config(&self) -> Arc<dyn ConfigProvider>;
 
     fn database(&self) -> Arc<dyn DatabaseHandle>;

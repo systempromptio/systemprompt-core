@@ -27,6 +27,7 @@ mod context;
 mod context_traits;
 mod database_context;
 mod error;
+pub mod optimization;
 mod registry;
 pub mod services_reconcile;
 mod startup_validation;

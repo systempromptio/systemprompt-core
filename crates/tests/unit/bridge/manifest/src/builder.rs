@@ -39,6 +39,7 @@ fn sample_plugin() -> PluginEntry {
 
 fn sample_skill() -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new("s1").unwrap(),
         name: SkillName::try_new("Skill 1").unwrap(),
         description: "desc".into(),

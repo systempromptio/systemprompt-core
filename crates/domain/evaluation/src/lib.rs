@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod campaigns;
 pub mod error;
 pub mod experiments;
 pub mod extension;

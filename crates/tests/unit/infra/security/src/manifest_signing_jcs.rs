@@ -69,6 +69,7 @@ fn sample_manifest() -> SignedManifest {
             hooks: Default::default(),
         }],
         skills: vec![SkillEntry {
+            publication: None,
             id: SkillId::try_new("skill_one").unwrap(),
             name: SkillName::try_new("Skill One").unwrap(),
             description: "first skill".into(),

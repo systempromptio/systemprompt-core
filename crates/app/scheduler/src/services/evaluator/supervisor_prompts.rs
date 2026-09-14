@@ -79,7 +79,7 @@ pub(super) fn suggestion_prompt(
     evidence: &[&String],
 ) -> SchedulerResult<String> {
     Ok(format!(
-        "Using only the retained development-case evidence, propose a candidate skill change. Never use or reveal holdout content. Return only one JSON object matching {{\"proposed_changes\":object,\"hypothesis\":string,\"supporting_failures\":[string],\"originating_evidence\":[exact retained reference]}}.\n\nCASE:\n{}\n\nFAILURES:\n{}\n\nEVIDENCE:\n{}",
+        "Using only the retained development-case evidence, propose a candidate skill change. Never use or reveal holdout content. Return only one JSON object matching {{\"proposed_changes\":{{\"files\":[{{\"path\":\"relative/path\",\"content\":\"complete replacement file content\"}}]}},\"hypothesis\":string,\"supporting_failures\":[string],\"originating_evidence\":[exact retained reference]}}. Propose 1 to 16 bounded text-file replacements. Paths must be relative to the skill root. Do not invent unseen file contents.\n\nCASE:\n{}\n\nFAILURES:\n{}\n\nEVIDENCE:\n{}",
         case.prompt,
         serde_json::to_string(failures).map_err(internal)?,
         serde_json::to_string(evidence).map_err(internal)?,

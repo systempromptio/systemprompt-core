@@ -95,7 +95,7 @@ impl ManagedRepository {
         })
     }
 
-    async fn revision_resource(
+    pub async fn revision_resource(
         &self,
         owner: &UserId,
         revision: &ResourceRevisionId,

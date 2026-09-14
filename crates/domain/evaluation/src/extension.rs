@@ -21,6 +21,7 @@ impl Extension for EvaluationExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
+            SchemaDefinition::new("eval_campaigns", include_str!("../schema/campaigns.sql")),
             SchemaDefinition::new(
                 "eval_experiments",
                 include_str!("../schema/experiments.sql"),

@@ -91,6 +91,7 @@ impl DatabaseHandle for StubDb {
 }
 
 impl ExtensionContext for StubCtx {
+    fn system_owner_id(&self) -> systemprompt_identifiers::UserId { systemprompt_identifiers::UserId::new("extension-test-owner") }
     fn config(&self) -> Arc<dyn ConfigProvider> {
         Arc::new(StubConfig)
     }

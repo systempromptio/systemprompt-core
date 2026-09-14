@@ -49,6 +49,7 @@ fn version() -> ManifestVersion {
 
 fn skill(id: &str, body: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).unwrap(),
         name: SkillName::try_new(id).unwrap(),
         description: format!("desc for {id}"),

@@ -1,0 +1,37 @@
+//! Cookie-authenticated mutations require a matching origin; bearer-only
+//! machine clients use the existing authenticated admin transport.
+
+use axum::extract::{Request, State};
+use axum::http::{StatusCode, header};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
+use systemprompt_runtime::AppContext;
+
+pub(crate) async fn protect(
+    State(ctx): State<AppContext>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if !request.method().is_safe() && request.headers().contains_key(header::COOKIE) {
+        let expected = url::Url::parse(&ctx.config().api_external_url.to_string())
+            .ok()
+            .map(|url| url.origin().ascii_serialization());
+        let actual = request
+            .headers()
+            .get(header::ORIGIN)
+            .and_then(|value| value.to_str().ok());
+        if expected.as_deref().is_none() || actual != expected.as_deref() {
+            return (
+                StatusCode::FORBIDDEN,
+                "Same-origin browser request required",
+            )
+                .into_response();
+        }
+    }
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        http::HeaderValue::from_static("no-store"),
+    );
+    response
+}

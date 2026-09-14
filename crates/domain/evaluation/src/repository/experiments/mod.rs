@@ -4,6 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod assignments;
+mod campaign_runs;
+pub use campaign_runs::CampaignExperiment;
 mod events;
 pub use assignments::{AssignmentRepository, ExecutionAssignment, ManagedWorkspaceReference};
 pub use events::{ExecutionEvent, ExecutionEventBuilder, ExecutionEventRepository, ExecutionStage};
@@ -39,6 +41,9 @@ pub use workers::{WorkerCredential, WorkerRecord, WorkerRecordBuilder, WorkerRep
 
 #[derive(Debug, Clone)]
 pub struct EvaluationRepositories {
+    pub revisions: RevisionRepository,
+    pub budgets: BudgetRepository,
+    pub campaigns: crate::campaigns::repository::CampaignRepository,
     pub assignments: AssignmentRepository,
     pub capabilities: ExecutionCapabilityRepository,
     pub evidence: EvidenceRepository,
@@ -53,6 +58,9 @@ impl EvaluationRepositories {
     #[must_use]
     pub fn new(pool: &sqlx::PgPool) -> Self {
         Self {
+            revisions: RevisionRepository::new(pool.clone()),
+            budgets: BudgetRepository::new(pool.clone()),
+            campaigns: crate::campaigns::repository::CampaignRepository::new(pool.clone()),
             assignments: AssignmentRepository::new(pool.clone()),
             capabilities: ExecutionCapabilityRepository::new(pool.clone()),
             evidence: EvidenceRepository::new(pool.clone()),

@@ -40,7 +40,13 @@ impl ManagedSkillResolver for ManagedResourceResolver {
         owner: &UserId,
         key: &str,
     ) -> std::result::Result<SkillResolution, ManagedSkillResolverError> {
-        match Self::resolve_skill(self, owner, key).await {
+        match Self::resolve_skill(
+            self,
+            self.organizational_owner.as_ref().unwrap_or(owner),
+            key,
+        )
+        .await
+        {
             Ok(ManagedSkillResolution::NotManaged) => Ok(SkillResolution::NotManaged),
             Ok(ManagedSkillResolution::Withheld(reason)) => Ok(SkillResolution::Withheld(reason)),
             Ok(ManagedSkillResolution::Published(skill)) => {
@@ -62,10 +68,16 @@ impl ManagedSkillResolver for ManagedResourceResolver {
 #[derive(Debug, Clone)]
 pub struct ManagedResourceResolver {
     repository: ManagedRepository,
+    organizational_owner: Option<UserId>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ManagedSkill {
+    pub publication_id: systemprompt_identifiers::PublicationId,
+    pub resource_id: systemprompt_identifiers::ManagedResourceId,
+    pub revision_id: systemprompt_identifiers::ResourceRevisionId,
+    pub hosts: Vec<String>,
+    pub tags: Vec<String>,
     pub id: SkillId,
     pub name: String,
     pub description: String,
@@ -77,7 +89,16 @@ pub struct ManagedSkill {
 
 impl ManagedResourceResolver {
     pub const fn new(repository: ManagedRepository) -> Self {
-        Self { repository }
+        Self {
+            repository,
+            organizational_owner: None,
+        }
+    }
+
+    #[must_use]
+    pub fn with_organizational_owner(mut self, owner: UserId) -> Self {
+        self.organizational_owner = Some(owner);
+        self
     }
 
     pub const fn repository(&self) -> &ManagedRepository {
@@ -156,6 +177,9 @@ impl ManagedResourceResolver {
             ResolvedManagedResource::IntegrityFailure(_) => Err(ManagedError::Integrity),
             ResolvedManagedResource::Published { state, bundle } => {
                 let ManagedResolution::Published {
+                    publication_id,
+                    resource_id,
+                    revision_id,
                     generation,
                     bundle_digest,
                     ..
@@ -178,6 +202,11 @@ impl ManagedResourceResolver {
                 let raw = std::str::from_utf8(&content.bytes)
                     .map_err(|_corrupt| ManagedError::Integrity)?;
                 Ok(ManagedSkillResolution::Published(ManagedSkill {
+                    publication_id,
+                    resource_id,
+                    revision_id,
+                    hosts: config.hosts.clone(),
+                    tags: config.tags.clone(),
                     id: if config.id.as_str().is_empty() {
                         SkillId::new(key.to_owned())
                     } else {

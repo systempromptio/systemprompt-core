@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 

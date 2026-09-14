@@ -89,6 +89,7 @@ fn original_marketplace() -> MarketplaceConfig {
 
 fn skill_entry(id: &str, description: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("valid skill id"),
         name: SkillName::try_new(id.replace('_', " ")).expect("valid skill name"),
         description: description.to_owned(),

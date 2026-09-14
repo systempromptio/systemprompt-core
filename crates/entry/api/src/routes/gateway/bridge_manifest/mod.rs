@@ -116,7 +116,10 @@ async fn assemble_candidate(
             })?;
     let catalog = (*disk_catalog)
         .clone()
-        .with_managed_skills(ctx.managed_repository().as_ref().clone(), user_id)
+        .with_managed_skills(
+            ctx.managed_repository().as_ref().clone(),
+            ctx.system_admin().id(),
+        )
         .await
         .map_err(|error| {
             tracing::warn!(%error, "manifest: managed catalogue resolution failed");

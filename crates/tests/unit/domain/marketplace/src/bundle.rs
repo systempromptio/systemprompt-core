@@ -29,6 +29,7 @@ fn zero_digest() -> Sha256Digest {
 
 fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
     SkillEntry {
+        publication: None,
         id: SkillId::try_new(id).expect("skill id"),
         name: SkillName::try_new(id.replace('_', " ")).expect("skill name"),
         description: description.to_owned(),

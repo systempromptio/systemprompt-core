@@ -105,8 +105,8 @@ pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
 pub use evaluation::{
-    EvalApprovalId, EvalBudgetId, EvalCaseId, EvalExecutionId, EvalExperimentId, EvalReservationId,
-    EvalRevisionId, EvalSuggestionId, EvalWorkerId,
+    EvalApprovalId, EvalBudgetId, EvalCampaignId, EvalCaseId, EvalExecutionId, EvalExperimentId,
+    EvalReservationId, EvalRevisionId, EvalSuggestionId, EvalWorkerId,
 };
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
@@ -144,3 +144,4 @@ pub use user::UserId;
 pub use webhook::WebhookEndpointId;
 
 define_id!(RuleId, generate);
+pub use managed::ResourceInvocationId;

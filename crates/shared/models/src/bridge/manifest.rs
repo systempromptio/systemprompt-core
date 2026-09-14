@@ -156,6 +156,8 @@ pub struct ArtifactEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillEntry {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub publication: Option<SkillPublication>,
     pub id: SkillId,
     pub name: SkillName,
     pub description: String,
@@ -168,6 +170,17 @@ pub struct SkillEntry {
     pub hosts: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
+}
+
+/// Exact signed publication identity shared by every host projection. This is
+/// distribution evidence, not proof that a host installed or invoked the skill.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillPublication {
+    pub publication_id: systemprompt_identifiers::PublicationId,
+    pub resource_id: systemprompt_identifiers::ManagedResourceId,
+    pub revision_id: systemprompt_identifiers::ResourceRevisionId,
+    pub generation: i64,
+    pub bundle_digest: Sha256Digest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
