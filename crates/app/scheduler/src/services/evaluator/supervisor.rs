@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::time::{Duration, Instant};
 
-use sha2::{Digest, Sha256};
 use systemprompt_evaluation::experiments::VariantSpec;
 use systemprompt_evaluation::experiments::execution::{
     ArtifactEvidence, ArtifactFile, ClientCapabilities, EvidenceArchive, ExecutionEvidence,
@@ -45,7 +44,7 @@ mod suggestion;
 #[path = "supervisor_workspace.rs"]
 mod workspace;
 
-use execution::ExecutionOutcome;
+use execution::{ExecutionOutcome, capture_outputs};
 use prepare::PreparedExecution;
 use prompts::{
     execution_prompt, judgment_prompt, parse_judgment, parse_suggestion, suggestion_prompt,
@@ -71,6 +70,13 @@ pub struct EvaluatorSupervisorConfig {
 pub struct EvaluatorSupervisor {
     pub(crate) config: EvaluatorSupervisorConfig,
     repositories: EvaluationRepositories,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StageEvent<'a> {
+    sequence: i64,
+    stage: ExecutionStage,
+    summary: &'a str,
 }
 
 impl EvaluatorSupervisor {
@@ -105,12 +111,10 @@ impl EvaluatorSupervisor {
         &self,
         worker: &WorkerRecord,
         lease: &ExecutionLease,
-        sequence: i64,
-        stage: ExecutionStage,
-        summary: &str,
+        event: StageEvent<'_>,
     ) -> SchedulerResult<()> {
-        let event = ExecutionEvent::builder(sequence, stage)
-            .summary(summary.to_owned())
+        let event = ExecutionEvent::builder(event.sequence, event.stage)
+            .summary(event.summary.to_owned())
             .build()
             .map_err(internal)?;
         self.repositories

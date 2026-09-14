@@ -60,7 +60,7 @@ pub async fn execute(args: &RefreshArgs, ctx: &CommandContext) -> Result<()> {
         let (rows, outcome) = check_sources(profile, &before).await?;
         (rows, outcome, Vec::new())
     } else {
-        swap_sources(profile, &cache, &before, ctx).await?
+        Box::pin(swap_sources(profile, &cache, &before, ctx)).await?
     };
 
     let title = if args.check {

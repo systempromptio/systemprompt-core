@@ -8,7 +8,10 @@ use systemprompt_identifiers::{
     ManagedReconciliationId, ManagedResourceId, ResourceRevisionId, UserId,
 };
 
+#[path = "reconciliation_merge.rs"]
+mod merge;
 use super::{ManagedError, ManagedRepository, Result};
+use merge::{RecordedConflict, ThreeWay, verify_merge};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -141,10 +144,13 @@ impl ManagedRepository {
         &self,
         owner: &UserId,
         id: &ManagedReconciliationId,
-        path: &str,
-        resolution: ConflictResolution,
-        resolved_digest: Option<&str>,
+        decision: &ConflictDecision<'_>,
     ) -> Result<()> {
+        let ConflictDecision {
+            path,
+            resolution,
+            resolved_digest,
+        } = *decision;
         super::assets::validate_path(path)?;
         match (resolution, resolved_digest) {
             (ConflictResolution::Manual, Some(digest))
@@ -213,60 +219,23 @@ impl ManagedRepository {
             return Err(ManagedError::Unavailable);
         }
 
-        let mut paths = std::collections::BTreeSet::new();
-        paths.extend(base.0.keys().cloned());
-        paths.extend(candidate.0.keys().cloned());
-        paths.extend(incoming.0.keys().cloned());
-        paths.extend(resolved.0.keys().cloned());
-        for path in paths {
-            let base_file = base.0.get(&path);
-            let candidate_file = candidate.0.get(&path);
-            let incoming_file = incoming.0.get(&path);
-            let expected = if same_file(candidate_file, incoming_file) {
-                candidate_file
-            } else if same_file(candidate_file, base_file) {
-                incoming_file
-            } else if same_file(incoming_file, base_file) {
-                candidate_file
-            } else {
-                let conflict = conflicts
-                    .iter()
-                    .find(|conflict| conflict.path == path)
-                    .ok_or_else(|| {
-                        ManagedError::Conflict("Three-way conflict record is missing".to_owned())
-                    })?;
-                match conflict.resolution.as_deref() {
-                    Some("candidate") => candidate_file,
-                    Some("incoming") => incoming_file,
-                    Some("delete") => None,
-                    Some("manual") => {
-                        let actual = resolved.0.get(&path).ok_or_else(|| {
-                            ManagedError::Conflict(
-                                "Manual resolution content is missing".to_owned(),
-                            )
-                        })?;
-                        let digest = super::AssetDigest::of(&actual.bytes);
-                        if conflict.resolved_digest.as_deref() != Some(digest.as_str()) {
-                            return Err(ManagedError::Conflict(
-                                "Manual resolution digest does not match supplied content"
-                                    .to_owned(),
-                            ));
-                        }
-                        Some(actual)
-                    },
-                    _ => {
-                        return Err(ManagedError::Conflict(
-                            "Invalid reconciliation resolution".to_owned(),
-                        ));
-                    },
-                }
-            };
-            if !same_file(resolved.0.get(&path), expected) {
-                return Err(ManagedError::Conflict(format!(
-                    "Resolved revision differs from the recorded merge at {path}"
-                )));
-            }
-        }
+        let recorded: Vec<RecordedConflict> = conflicts
+            .into_iter()
+            .map(|conflict| RecordedConflict {
+                path: conflict.path,
+                resolution: conflict.resolution,
+                resolved_digest: conflict.resolved_digest,
+            })
+            .collect();
+        verify_merge(
+            &ThreeWay {
+                base: &base,
+                candidate: &candidate,
+                incoming: &incoming,
+            },
+            &resolved,
+            &recorded,
+        )?;
         let changed = sqlx::query!("UPDATE managed_reconciliations r SET status='resolved',resolved_revision_id=$3,resolved_by=$4,resolved_at=NOW() WHERE r.id=$1 AND r.owner_id=$2 AND r.status='open' AND NOT EXISTS(SELECT 1 FROM managed_reconciliation_conflicts c WHERE c.reconciliation_id=r.id AND c.resolution IS NULL)",
             id.as_str(), owner.as_str(), revision.as_str(), actor.as_str()).execute(&self.pool).await?;
         if changed.rows_affected() != 1 {
@@ -278,14 +247,9 @@ impl ManagedRepository {
     }
 }
 
-fn same_file(left: Option<&super::AssetFile>, right: Option<&super::AssetFile>) -> bool {
-    match (left, right) {
-        (None, None) => true,
-        (Some(left), Some(right)) => {
-            left.bytes == right.bytes
-                && left.media_type == right.media_type
-                && left.executable == right.executable
-        },
-        _ => false,
-    }
+#[derive(Debug, Clone, Copy)]
+pub struct ConflictDecision<'a> {
+    pub path: &'a str,
+    pub resolution: ConflictResolution,
+    pub resolved_digest: Option<&'a str>,
 }

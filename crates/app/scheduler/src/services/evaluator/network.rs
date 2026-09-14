@@ -3,8 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
-
+use super::{
+    Child, Command, ContainerExecution, ExitStatus, Instant, Path, PathBuf, SchedulerError,
+    SchedulerResult, Stdio,
+};
 #[derive(Debug)]
 pub struct ExecutionNetwork {
     docker: PathBuf,
@@ -167,11 +169,16 @@ impl ExecutionNetwork {
 
 impl Drop for ExecutionNetwork {
     fn drop(&mut self) {
-        if !self.removed {
-            if let Some(relay) = self.relay.take() {
-                let _ = docker_status(&self.docker, &["rm", "--force", &relay]);
-            }
-            let _ = docker_status(&self.docker, &["network", "rm", &self.name]);
+        if self.removed {
+            return;
+        }
+        if let Some(relay) = self.relay.take()
+            && let Err(error) = docker_status(&self.docker, &["rm", "--force", &relay])
+        {
+            tracing::error!(relay = %relay, %error, "evaluator relay container leaked; reconciliation must remove it");
+        }
+        if let Err(error) = docker_status(&self.docker, &["network", "rm", &self.name]) {
+            tracing::error!(network = %self.name, %error, "evaluator network leaked; reconciliation must remove it");
         }
     }
 }

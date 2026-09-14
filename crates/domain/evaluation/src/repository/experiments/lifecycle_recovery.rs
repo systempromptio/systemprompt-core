@@ -8,6 +8,14 @@ use super::{
     GeneratedSuggestion, Result, UserId, invalid,
 };
 
+#[derive(Debug, Clone, Copy)]
+pub struct CleanupReport<'a> {
+    pub container_id: Option<&'a str>,
+    pub network_id: Option<&'a str>,
+    pub succeeded: bool,
+    pub error: Option<&'a str>,
+}
+
 impl EvaluationLifecycleRepository {
     pub async fn record_generated_suggestion(
         &self,
@@ -54,11 +62,14 @@ impl EvaluationLifecycleRepository {
         &self,
         owner: &UserId,
         lease: &ExecutionLease,
-        container_id: Option<&str>,
-        network_id: Option<&str>,
-        succeeded: bool,
-        error: Option<&str>,
+        report: &CleanupReport<'_>,
     ) -> Result<()> {
+        let CleanupReport {
+            container_id,
+            network_id,
+            succeeded,
+            error,
+        } = *report;
         let eligible = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id WHERE e.owner_id=$1 AND x.id=$2 AND x.lease_owner=$3 AND x.fencing_token=$4)",
             owner.as_str(), lease.execution_id.as_str(), lease.worker_id.as_str(), lease.fencing_token).fetch_one(&self.pool).await?.unwrap_or(false);
         if !eligible {

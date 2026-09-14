@@ -17,7 +17,8 @@ use systemprompt_evaluation::experiments::{
     VariantSpec,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository,
+    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository,
+    ManagedWorkspaceRegistration, RevisionRepository,
 };
 use systemprompt_identifiers::{
     AiRequestId, EvalExecutionId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
@@ -268,24 +269,28 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
     evidence
         .register_managed_workspace(
             &owner,
-            "managed-revision-1",
-            Some(1),
-            &manifest,
-            &digest,
-            1,
-            5,
+            &ManagedWorkspaceRegistration {
+                managed_revision_id: "managed-revision-1",
+                publication_generation: Some(1),
+                manifest: &manifest,
+                expected_digest: &digest,
+                file_count: 1,
+                byte_count: 5,
+            },
         )
         .await
         .expect("register");
     evidence
         .register_managed_workspace(
             &owner,
-            "managed-revision-1",
-            Some(1),
-            &manifest,
-            &digest,
-            1,
-            5,
+            &ManagedWorkspaceRegistration {
+                managed_revision_id: "managed-revision-1",
+                publication_generation: Some(1),
+                manifest: &manifest,
+                expected_digest: &digest,
+                file_count: 1,
+                byte_count: 5,
+            },
         )
         .await
         .expect("idempotent register");

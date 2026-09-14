@@ -2,7 +2,6 @@ use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_ski
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, TextPart,
 };
-use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 
 fn make_artifact(

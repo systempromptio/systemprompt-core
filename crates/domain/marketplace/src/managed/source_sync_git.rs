@@ -53,32 +53,25 @@ fn is_commit(value: &str) -> bool {
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
-pub(super) fn import_tree(
-    temp: &Path,
-    repository: &str,
-    commit: &str,
-    subdirectory: Option<&str>,
-    root: &str,
-    credential: Option<&str>,
-) -> Result<RevisionFiles> {
-    git(
-        Command::new("git")
-            .args(["-c", "core.hooksPath=/dev/null", "init", "--bare"])
-            .arg(temp),
-        None,
-    )?;
-    git(
-        Command::new("git").current_dir(temp).args([
-            "-c",
-            "core.hooksPath=/dev/null",
-            "fetch",
-            "--no-tags",
-            "--depth=1",
-            repository,
-            commit,
-        ]),
+pub(super) struct GitCheckout<'a> {
+    pub temp: &'a Path,
+    pub repository: &'a str,
+    pub commit: &'a str,
+    pub subdirectory: Option<&'a str>,
+    pub root: &'a str,
+    pub credential: Option<&'a str>,
+}
+
+pub(super) fn import_tree(checkout: &GitCheckout<'_>) -> Result<RevisionFiles> {
+    let GitCheckout {
+        temp,
+        repository,
+        commit,
+        subdirectory,
+        root,
         credential,
-    )?;
+    } = *checkout;
+    fetch_commit(temp, repository, commit, credential)?;
     let prefix = [subdirectory, Some(root)]
         .into_iter()
         .flatten()
@@ -87,49 +80,13 @@ pub(super) fn import_tree(
         .to_str()
         .ok_or(ManagedError::Integrity)?
         .trim_matches('/');
-    let listing = git(
-        Command::new("git").current_dir(temp).args([
-            "-c",
-            "core.hooksPath=/dev/null",
-            "ls-tree",
-            "-rz",
-            "-r",
-            "--full-tree",
-            commit,
-            "--",
-            prefix_text,
-        ]),
-        None,
-    )?;
+    let listing = list_tree(temp, commit, prefix_text)?;
     let mut files = BTreeMap::new();
     for entry in listing
         .split(|byte| *byte == 0)
         .filter(|entry| !entry.is_empty())
     {
-        let separator = entry
-            .iter()
-            .position(|byte| *byte == b'\t')
-            .ok_or(ManagedError::Integrity)?;
-        let (metadata, path_with_separator) = entry.split_at(separator);
-        let path = path_with_separator
-            .get(1..)
-            .ok_or(ManagedError::Integrity)?;
-        let metadata = std::str::from_utf8(metadata).map_err(|_corrupt| ManagedError::Integrity)?;
-        let mut fields = metadata.split_whitespace();
-        let mode = fields.next().ok_or(ManagedError::Integrity)?;
-        if fields.next() != Some("blob") || !matches!(mode, "100644" | "100755") {
-            return Err(super::super::error::invalid(
-                "Git source contains links, submodules, or non-regular files",
-            ));
-        }
-        let path = std::str::from_utf8(path).map_err(|error| {
-            super::super::error::invalid(&format!("Git paths must be UTF-8: {error}"))
-        })?;
-        let relative = path
-            .strip_prefix(prefix_text)
-            .and_then(|value| value.strip_prefix('/'))
-            .ok_or(ManagedError::Integrity)?;
-        super::super::assets::validate_path(relative)?;
+        let (relative, mode, path) = parse_tree_entry(entry, prefix_text)?;
         if files.contains_key(relative) {
             return Err(super::super::error::invalid(
                 "Git source contains duplicate targets",
@@ -160,6 +117,78 @@ pub(super) fn import_tree(
         files.validate()?;
     }
     Ok(files)
+}
+
+fn fetch_commit(
+    temp: &Path,
+    repository: &str,
+    commit: &str,
+    credential: Option<&str>,
+) -> Result<()> {
+    git(
+        Command::new("git")
+            .args(["-c", "core.hooksPath=/dev/null", "init", "--bare"])
+            .arg(temp),
+        None,
+    )?;
+    git(
+        Command::new("git").current_dir(temp).args([
+            "-c",
+            "core.hooksPath=/dev/null",
+            "fetch",
+            "--no-tags",
+            "--depth=1",
+            repository,
+            commit,
+        ]),
+        credential,
+    )?;
+    Ok(())
+}
+
+fn list_tree(temp: &Path, commit: &str, prefix_text: &str) -> Result<Vec<u8>> {
+    git(
+        Command::new("git").current_dir(temp).args([
+            "-c",
+            "core.hooksPath=/dev/null",
+            "ls-tree",
+            "-rz",
+            "-r",
+            "--full-tree",
+            commit,
+            "--",
+            prefix_text,
+        ]),
+        None,
+    )
+}
+
+fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, &'a str, &'a str)> {
+    let separator = entry
+        .iter()
+        .position(|byte| *byte == b'\t')
+        .ok_or(ManagedError::Integrity)?;
+    let (metadata, path_with_separator) = entry.split_at(separator);
+    let path = path_with_separator
+        .get(1..)
+        .ok_or(ManagedError::Integrity)?;
+    let metadata = std::str::from_utf8(metadata).map_err(|_corrupt| ManagedError::Integrity)?;
+    let mut fields = metadata.split_whitespace();
+    let mode = fields.next().ok_or(ManagedError::Integrity)?;
+    if fields.next() != Some("blob") || !matches!(mode, "100644" | "100755") {
+        return Err(super::super::error::invalid(
+            "Git source contains links, submodules, or non-regular files",
+        ));
+    }
+    let path = std::str::from_utf8(path).map_err(|error| {
+        super::super::error::invalid(&format!("Git paths must be UTF-8: {error}"))
+    })?;
+    let relative = path
+        .strip_prefix(prefix_text)
+        .and_then(|value| value.strip_prefix('/'))
+        .ok_or(ManagedError::Integrity)?;
+    super::super::assets::validate_path(relative)?;
+    Ok((relative, mode, path))
 }
 
 fn git(command: &mut Command, credential: Option<&str>) -> Result<Vec<u8>> {

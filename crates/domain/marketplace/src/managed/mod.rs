@@ -38,7 +38,8 @@ pub use publication::{
     PublicationRequest,
 };
 pub use reconciliation::{
-    ConflictResolution, ReconciliationConflict, ReconciliationRecord, ReconciliationRequest,
+    ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,
+    ReconciliationRequest,
 };
 pub use repository::{
     ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,

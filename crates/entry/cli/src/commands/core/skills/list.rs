@@ -39,7 +39,7 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
     }
     let mut skills = scan_skills(&skills_path)?;
     let Some((resolver, owner)) = managed_context(ctx).await? else {
-        return render_list(args.enabled, args.disabled, skills);
+        return Ok(render_list(args.enabled, args.disabled, skills));
     };
     let repository = resolver.repository();
     let mut offset = 0;
@@ -79,7 +79,7 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
         offset += systemprompt_marketplace::ManagedRepository::PAGE_SIZE;
     }
     skills.sort_by(|left, right| left.skill_id.cmp(&right.skill_id));
-    render_list(args.enabled, args.disabled, skills)
+    Ok(render_list(args.enabled, args.disabled, skills))
 }
 
 pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOutput> {
@@ -89,10 +89,10 @@ pub fn execute_with_path(args: ListArgs, skills_path: &Path) -> Result<CommandOu
 
     let skills = scan_skills(skills_path)?;
 
-    render_list(args.enabled, args.disabled, skills)
+    Ok(render_list(args.enabled, args.disabled, skills))
 }
 
-fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Result<CommandOutput> {
+fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> CommandOutput {
     let filtered: Vec<SkillSummary> = skills
         .into_iter()
         .filter(|s| {
@@ -108,11 +108,11 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Resu
 
     let output = SkillListOutput { skills: filtered };
 
-    Ok(CommandOutput::table_of(
+    CommandOutput::table_of(
         vec!["skill_id", "name", "enabled", "tags", "file_path"],
         &output.skills,
     )
-    .with_title("Skills"))
+    .with_title("Skills")
 }
 
 async fn managed_context(

@@ -3,7 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
+use super::{
+    ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, ContainerLaunch, Duration,
+    EvaluationTrafficClass, EvaluatorSupervisor, EvidenceJudgment, ExecutionStage, ExitStatus,
+    Instant, PreparedExecution, SchedulerError, SchedulerResult, StageEvent, changed_workspace,
+    execution_prompt, internal, judgment_prompt, parse_judgment, safe_suffix, workspace_state,
+    write_private,
+};
+use systemprompt_evaluation::repository::experiments::CleanupReport;
 
 pub(super) struct ExecutionOutcome {
     pub status: ExitStatus,
@@ -25,63 +32,35 @@ impl EvaluatorSupervisor {
         self.append_event(
             &run.worker,
             &run.lease,
-            1,
-            ExecutionStage::Context,
-            "Started isolated Claude Code execution and authenticated relay",
+            StageEvent {
+                sequence: 1,
+                stage: ExecutionStage::Context,
+                summary: "Started isolated Claude Code execution and authenticated relay",
+            },
         )
         .await?;
         let started = Instant::now();
         let mut last_heartbeat = Instant::now();
-        let status = loop {
-            if let Some(status) = execution.poll()? {
-                break status;
-            }
-            if last_heartbeat.elapsed() >= Duration::from_secs(20) {
-                if let Err(error) = self
-                    .repositories
-                    .experiments
-                    .heartbeat(&run.worker.owner_id, &run.lease)
-                    .await
-                {
-                    self.abort_lost_lease(
-                        run,
-                        &mut execution,
-                        "Cancellation cleanup was not fully acknowledged",
-                    )
-                    .await?;
-                    return Err(internal(error));
-                }
-                last_heartbeat = Instant::now();
-            }
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        };
+        let status = self
+            .await_exit(
+                run,
+                &mut execution,
+                &mut last_heartbeat,
+                "Cancellation cleanup was not fully acknowledged",
+            )
+            .await?;
         self.append_event(
             &run.worker,
             &run.lease,
-            2,
-            ExecutionStage::Verification,
-            "Client exited; collecting deterministic evidence",
+            StageEvent {
+                sequence: 2,
+                stage: ExecutionStage::Verification,
+                summary: "Client exited; collecting deterministic evidence",
+            },
         )
         .await?;
-        let (stdout_path, stderr_path) = execution.output_paths();
-        let stdout = std::fs::read(stdout_path)?;
-        let stderr = std::fs::read(stderr_path)?;
-        let mut artifacts = BTreeMap::from([
-            (
-                "client-events.jsonl".to_owned(),
-                ArtifactFile {
-                    bytes: stdout,
-                    executable: false,
-                },
-            ),
-            (
-                "client-stderr.log".to_owned(),
-                ArtifactFile {
-                    bytes: stderr,
-                    executable: false,
-                },
-            ),
-        ]);
+        let mut artifacts = BTreeMap::new();
+        capture_outputs(&execution, "client", &mut artifacts)?;
         artifacts.extend(changed_workspace(&run.home.join("work"), &run.baseline)?);
         let observed = workspace_state(&run.home.join(".claude/skills"))?;
         artifacts.insert(
@@ -143,57 +122,66 @@ impl EvaluatorSupervisor {
         let prompt = judgment_prompt(&run.case, &run.rubric, &evidence)?;
         let mut judge = launch.start_for(&run.client, ClientPurpose::Judge, &prompt)?;
         run.network.verify(&[judge_name, run.relay_name.clone()])?;
-        let status = loop {
-            if let Some(status) = judge.poll()? {
-                break status;
+        let status = self
+            .await_exit(
+                run,
+                &mut judge,
+                &mut outcome.last_heartbeat,
+                "Judge cancellation cleanup was not fully acknowledged",
+            )
+            .await?;
+        let bytes = capture_outputs(&judge, "judge", &mut outcome.artifacts)?;
+        self.append_event(
+            &run.worker,
+            &run.lease,
+            StageEvent {
+                sequence: 3,
+                stage: ExecutionStage::Verification,
+                summary: "Completed separately metered bounded semantic judgment",
+            },
+        )
+        .await?;
+        if !status.success() {
+            return Ok(None);
+        }
+        match parse_judgment(&bytes) {
+            Ok(judgment) => Ok(Some(judgment)),
+            Err(error) => {
+                tracing::warn!(
+                    execution_id = %run.lease.execution_id,
+                    %error,
+                    "semantic judge output rejected; execution stays unscored"
+                );
+                Ok(None)
+            },
+        }
+    }
+
+    pub(super) async fn await_exit(
+        &self,
+        run: &mut PreparedExecution,
+        execution: &mut ContainerExecution,
+        last_heartbeat: &mut Instant,
+        abort_message: &str,
+    ) -> SchedulerResult<ExitStatus> {
+        loop {
+            if let Some(status) = execution.poll()? {
+                return Ok(status);
             }
-            if outcome.last_heartbeat.elapsed() >= Duration::from_secs(20) {
+            if last_heartbeat.elapsed() >= Duration::from_secs(20) {
                 if let Err(error) = self
                     .repositories
                     .experiments
                     .heartbeat(&run.worker.owner_id, &run.lease)
                     .await
                 {
-                    self.abort_lost_lease(
-                        run,
-                        &mut judge,
-                        "Judge cancellation cleanup was not fully acknowledged",
-                    )
-                    .await?;
+                    self.abort_lost_lease(run, execution, abort_message).await?;
                     return Err(internal(error));
                 }
-                outcome.last_heartbeat = Instant::now();
+                *last_heartbeat = Instant::now();
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
-        };
-        let (stdout_path, stderr_path) = judge.output_paths();
-        let bytes = std::fs::read(stdout_path)?;
-        outcome.artifacts.insert(
-            "judge-events.jsonl".to_owned(),
-            ArtifactFile {
-                bytes: bytes.clone(),
-                executable: false,
-            },
-        );
-        outcome.artifacts.insert(
-            "judge-stderr.log".to_owned(),
-            ArtifactFile {
-                bytes: std::fs::read(stderr_path)?,
-                executable: false,
-            },
-        );
-        self.append_event(
-            &run.worker,
-            &run.lease,
-            3,
-            ExecutionStage::Verification,
-            "Completed separately metered bounded semantic judgment",
-        )
-        .await?;
-        Ok(status
-            .success()
-            .then(|| parse_judgment(&bytes).ok())
-            .flatten())
+        }
     }
 
     pub(super) async fn abort_lost_lease(
@@ -211,12 +199,38 @@ impl EvaluatorSupervisor {
             .record_cleanup(
                 &run.worker.owner_id,
                 &run.lease,
-                Some(&run.client_name),
-                Some(&run.network_name),
-                confirmed,
-                (!confirmed).then_some(failure),
+                &CleanupReport {
+                    container_id: Some(&run.client_name),
+                    network_id: Some(&run.network_name),
+                    succeeded: confirmed,
+                    error: (!confirmed).then_some(failure),
+                },
             )
             .await
             .map_err(internal)
     }
+}
+
+pub(super) fn capture_outputs(
+    execution: &ContainerExecution,
+    stem: &str,
+    artifacts: &mut BTreeMap<String, ArtifactFile>,
+) -> SchedulerResult<Vec<u8>> {
+    let (stdout_path, stderr_path) = execution.output_paths();
+    let stdout = std::fs::read(stdout_path)?;
+    artifacts.insert(
+        format!("{stem}-events.jsonl"),
+        ArtifactFile {
+            bytes: stdout.clone(),
+            executable: false,
+        },
+    );
+    artifacts.insert(
+        format!("{stem}-stderr.log"),
+        ArtifactFile {
+            bytes: std::fs::read(stderr_path)?,
+            executable: false,
+        },
+    );
+    Ok(stdout)
 }

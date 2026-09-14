@@ -20,7 +20,7 @@ use super::{
 
 #[path = "source_sync_git.rs"]
 mod git_import;
-use git_import::{import_tree, resolve_ref};
+use git_import::{GitCheckout, import_tree, resolve_ref};
 
 const IMPORTER_VERSION: &str = "managed-git-v1";
 
@@ -103,33 +103,30 @@ impl ManagedRepository {
         credential: Option<&str>,
     ) -> Result<GitSyncResult> {
         super::assets::validate_path(&request.upstream_root)?;
-        let spec = self.get_source(owner, &request.source_id).await?;
-        let SourceSpec::Git {
-            repository,
-            reference,
-            subdirectory,
-            credential_reference: _,
-        } = spec
-        else {
-            return Err(super::error::invalid("Source is not Git-backed"));
-        };
+        let (repository, reference, subdirectory) =
+            git_spec(self.get_source(owner, &request.source_id).await?)?;
         if credential.is_some_and(str::is_empty) {
             return Err(super::error::invalid("Resolved Git credential is empty"));
         }
+        systemprompt_models::net::validate_outbound_url(&repository).map_err(|error| {
+            super::error::invalid(&format!(
+                "Git repository URL is not an allowed outbound target: {error}"
+            ))
+        })?;
         let commit = resolve_ref(&repository, &reference, credential)?;
         let temp = std::env::temp_dir().join(format!(
             "systemprompt-managed-{}",
             ManagedSourceId::generate().as_str()
         ));
         std::fs::create_dir(&temp)?;
-        let import = import_tree(
-            &temp,
-            &repository,
-            &commit,
-            subdirectory.as_deref(),
-            &request.upstream_root,
+        let import = import_tree(&GitCheckout {
+            temp: &temp,
+            repository: &repository,
+            commit: &commit,
+            subdirectory: subdirectory.as_deref(),
+            root: &request.upstream_root,
             credential,
-        );
+        });
         let cleanup = std::fs::remove_dir_all(&temp);
         let files = import?;
         cleanup?;
@@ -147,14 +144,12 @@ impl ManagedRepository {
             )
             .await?;
         if files.0.is_empty() {
-            let proposal_id = WithdrawalProposalId::generate();
-            sqlx::query!("INSERT INTO managed_withdrawal_proposals(id,owner_id,resource_id,snapshot_id,reason) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,resource_id,snapshot_id) DO NOTHING",
-                proposal_id.as_str(), owner.as_str(), request.resource_id.as_str(), snapshot_id.as_str(), "Upstream Git tree removed the managed resource").execute(&self.pool).await?;
-            let stored = sqlx::query_scalar!("SELECT id FROM managed_withdrawal_proposals WHERE owner_id=$1 AND resource_id=$2 AND snapshot_id=$3",
-                owner.as_str(), request.resource_id.as_str(), snapshot_id.as_str()).fetch_one(&self.pool).await?;
+            let proposal_id = self
+                .propose_withdrawal(owner, &request.resource_id, &snapshot_id)
+                .await?;
             return Ok(GitSyncResult::WithdrawalProposed {
                 snapshot_id,
-                proposal_id: WithdrawalProposalId::new(stored),
+                proposal_id,
                 commit,
             });
         }
@@ -176,5 +171,33 @@ impl ManagedRepository {
             revision_id,
             commit,
         })
+    }
+
+    async fn propose_withdrawal(
+        &self,
+        owner: &UserId,
+        resource_id: &ManagedResourceId,
+        snapshot_id: &SourceSnapshotId,
+    ) -> Result<WithdrawalProposalId> {
+        let proposal_id = WithdrawalProposalId::generate();
+        sqlx::query!("INSERT INTO managed_withdrawal_proposals(id,owner_id,resource_id,snapshot_id,reason) VALUES($1,$2,$3,$4,$5) ON CONFLICT(owner_id,resource_id,snapshot_id) DO NOTHING",
+            proposal_id.as_str(), owner.as_str(), resource_id.as_str(), snapshot_id.as_str(), "Upstream Git tree removed the managed resource").execute(&self.pool).await?;
+        let stored = sqlx::query_scalar!("SELECT id FROM managed_withdrawal_proposals WHERE owner_id=$1 AND resource_id=$2 AND snapshot_id=$3",
+            owner.as_str(), resource_id.as_str(), snapshot_id.as_str()).fetch_one(&self.pool).await?;
+        Ok(WithdrawalProposalId::new(stored))
+    }
+}
+
+fn git_spec(spec: SourceSpec) -> Result<(String, String, Option<String>)> {
+    match spec {
+        SourceSpec::Git {
+            repository,
+            reference,
+            subdirectory,
+            credential_reference: _,
+        } => Ok((repository, reference, subdirectory)),
+        SourceSpec::LocalTree { .. } | SourceSpec::Managed => {
+            Err(super::error::invalid("Source is not Git-backed"))
+        },
     }
 }

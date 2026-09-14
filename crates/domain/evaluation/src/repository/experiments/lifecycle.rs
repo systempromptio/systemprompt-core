@@ -20,6 +20,8 @@ mod approvals;
 mod recovery;
 use crate::Result;
 use crate::experiments::invalid;
+pub use approvals::ApprovalVerdict;
+pub use recovery::CleanupReport;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -9,6 +9,14 @@ use super::{
     SuggestionRequest, UserId, invalid,
 };
 
+#[derive(Debug, Clone, Copy)]
+pub struct ApprovalVerdict<'a> {
+    pub actor: &'a UserId,
+    pub approval: &'a EvalApprovalId,
+    pub decision: ApprovalDecision,
+    pub observed_precondition: &'a str,
+}
+
 impl EvaluationLifecycleRepository {
     pub async fn request_approval(
         &self,
@@ -78,11 +86,14 @@ impl EvaluationLifecycleRepository {
     pub async fn decide_approval(
         &self,
         owner: &UserId,
-        actor: &UserId,
-        approval: &EvalApprovalId,
-        decision: ApprovalDecision,
-        observed_precondition: &str,
+        verdict: &ApprovalVerdict<'_>,
     ) -> Result<()> {
+        let ApprovalVerdict {
+            actor,
+            approval,
+            decision,
+            observed_precondition,
+        } = *verdict;
         let mut tx = self.pool.begin().await?;
         let status = match decision {
             ApprovalDecision::Approve => "approved",

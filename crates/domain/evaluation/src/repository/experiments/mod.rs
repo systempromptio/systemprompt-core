@@ -22,16 +22,16 @@ mod runs;
 mod workers;
 
 pub use budget::{BudgetRepository, ReservationAdmission};
-pub use evidence::EvidenceRepository;
+pub use evidence::{EvidenceRepository, ManagedWorkspaceRegistration};
 pub use gateway::{
     AdmissionRequest, AdmissionRequestBuilder, EvaluationTrafficClass, GatewayEvaluationRepository,
     RequestAdmission,
 };
 pub use leases::{ExecutionCompletion, ExecutionLease, ExecutionLeaseBuilder, TerminalOutcome};
 pub use lifecycle::{
-    ApprovalAuthorization, ApprovalDecision, ComparisonReport, DeterministicMeasurement,
-    EvaluationLifecycleRepository, ExecutionAccounting, ExecutionApproval, GeneratedSuggestion,
-    SuggestionRequest,
+    ApprovalAuthorization, ApprovalDecision, ApprovalVerdict, CleanupReport, ComparisonReport,
+    DeterministicMeasurement, EvaluationLifecycleRepository, ExecutionAccounting,
+    ExecutionApproval, GeneratedSuggestion, SuggestionRequest,
 };
 pub use revisions::RevisionRepository;
 pub use runs::ExperimentRepository;

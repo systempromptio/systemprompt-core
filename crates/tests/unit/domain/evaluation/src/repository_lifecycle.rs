@@ -4,7 +4,7 @@
 use super::repository_workers::Harness;
 use systemprompt_evaluation::EvaluationError;
 use systemprompt_evaluation::repository::experiments::{
-    ApprovalDecision, EvaluationLifecycleRepository,
+    ApprovalDecision, ApprovalVerdict, CleanupReport, EvaluationLifecycleRepository,
 };
 use systemprompt_identifiers::UserId;
 
@@ -38,10 +38,12 @@ async fn expired_and_foreign_approval_decisions_fail_closed() {
         lifecycle
             .decide_approval(
                 &foreign,
-                &foreign,
-                &approval.id,
-                ApprovalDecision::Approve,
-                &digest
+                &ApprovalVerdict {
+                    actor: &foreign,
+                    approval: &approval.id,
+                    decision: ApprovalDecision::Approve,
+                    observed_precondition: &digest,
+                },
             )
             .await,
         Err(EvaluationError::ExperimentConflict(_))
@@ -50,10 +52,12 @@ async fn expired_and_foreign_approval_decisions_fail_closed() {
         lifecycle
             .decide_approval(
                 &harness.owner,
-                &harness.owner,
-                &approval.id,
-                ApprovalDecision::Approve,
-                &digest
+                &ApprovalVerdict {
+                    actor: &harness.owner,
+                    approval: &approval.id,
+                    decision: ApprovalDecision::Approve,
+                    observed_precondition: &digest,
+                },
             )
             .await,
         Err(EvaluationError::ExperimentConflict(_))
@@ -135,10 +139,12 @@ async fn failed_cleanup_is_durable_and_owner_fenced() {
         .record_cleanup(
             &harness.owner,
             &lease,
-            Some("eval-client"),
-            Some("eval-network"),
-            false,
-            Some("injected cleanup refusal"),
+            &CleanupReport {
+                container_id: Some("eval-client"),
+                network_id: Some("eval-network"),
+                succeeded: false,
+                error: Some("injected cleanup refusal"),
+            },
         )
         .await
         .expect("record failed cleanup");
@@ -154,7 +160,16 @@ async fn failed_cleanup_is_durable_and_owner_fenced() {
     let foreign = UserId::new(format!("foreign-{}", uuid::Uuid::new_v4()));
     assert!(matches!(
         lifecycle
-            .record_cleanup(&foreign, &lease, None, None, true, None)
+            .record_cleanup(
+                &foreign,
+                &lease,
+                &CleanupReport {
+                    container_id: None,
+                    network_id: None,
+                    succeeded: true,
+                    error: None,
+                },
+            )
             .await,
         Err(EvaluationError::ExperimentConflict(_))
     ));

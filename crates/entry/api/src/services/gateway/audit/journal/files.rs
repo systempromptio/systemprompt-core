@@ -20,7 +20,7 @@ const MAX_ENTRIES: usize = 4096;
 const MAX_BYTES: usize = 16 * 1024 * 1024;
 
 pub(super) enum Listed {
-    Receipt(Receipt),
+    Receipt(Box<Receipt>),
     Quarantined { path: PathBuf, reason: String },
 }
 
@@ -170,7 +170,7 @@ pub(super) fn list(journal: &GatewayJournal) -> Result<Vec<Listed>> {
                 Err(error) => return Err(error.into()),
             }
         }
-        result.push(Listed::Receipt(receipt));
+        result.push(Listed::Receipt(Box::new(receipt)));
     }
     Ok(result)
 }

@@ -13,6 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod extension_mount;
+mod gateway;
 mod protocol;
 mod static_setup;
 

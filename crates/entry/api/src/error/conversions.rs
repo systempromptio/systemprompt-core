@@ -51,14 +51,13 @@ impl From<AgentError> for ApiHttpError {
 impl From<MarketplaceError> for ApiHttpError {
     fn from(err: MarketplaceError) -> Self {
         let api = match &err {
-            MarketplaceError::NotFound(_) | MarketplaceError::NoDefault => {
+            MarketplaceError::NotFound(_)
+            | MarketplaceError::NoDefault
+            | MarketplaceError::Managed(ManagedError::Unavailable) => {
                 ApiError::not_found(err.to_string())
             },
-            MarketplaceError::Validation(_) => ApiError::bad_request(err.to_string()),
-            MarketplaceError::Managed(ManagedError::Unavailable) => {
-                ApiError::not_found(err.to_string())
-            },
-            MarketplaceError::Managed(ManagedError::Invalid(_)) => {
+            MarketplaceError::Validation(_)
+            | MarketplaceError::Managed(ManagedError::Invalid(_)) => {
                 ApiError::bad_request(err.to_string())
             },
             MarketplaceError::Managed(ManagedError::Conflict(_)) => {

@@ -370,6 +370,10 @@ async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
         .await
         .expect_err("managed-resource authority must be available");
     assert_eq!(error.0, StatusCode::INTERNAL_SERVER_ERROR);
-    assert!(error.1.contains("catalogue load failed"));
+    assert!(
+        error.1.contains("managed resource resolution failed"),
+        "a storage failure must surface as the managed authority being unavailable, got: {}",
+        error.1
+    );
     Ok(())
 }

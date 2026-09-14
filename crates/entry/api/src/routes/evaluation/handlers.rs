@@ -12,7 +12,8 @@ use serde::Deserialize;
 use systemprompt_evaluation::experiments::execution::{EvidenceArchive, ExecutionEvidence};
 use systemprompt_evaluation::experiments::records::ExecutionRecord;
 use systemprompt_evaluation::repository::experiments::{
-    DeterministicMeasurement, ExecutionCompletion, ExecutionLease, TerminalOutcome, WorkerRecord,
+    CleanupReport, DeterministicMeasurement, ExecutionCompletion, ExecutionLease, TerminalOutcome,
+    WorkerRecord,
 };
 
 async fn authenticate(
@@ -250,10 +251,12 @@ pub(super) async fn cleanup(
         .record_cleanup(
             &worker.owner_id,
             &input.lease,
-            input.container_id.as_deref(),
-            input.network_id.as_deref(),
-            input.succeeded,
-            input.error.as_deref(),
+            &CleanupReport {
+                container_id: input.container_id.as_deref(),
+                network_id: input.network_id.as_deref(),
+                succeeded: input.succeeded,
+                error: input.error.as_deref(),
+            },
         )
         .await?;
     Ok(StatusCode::NO_CONTENT)

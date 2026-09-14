@@ -3,8 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
-
+use super::{
+    ArtifactEvidence, ClientCapabilities, DeterministicMeasurement, EvaluatorSupervisor,
+    EvidenceArchive, EvidenceJudgment, ExecutionCompletion, ExecutionEvidence, ExecutionOutcome,
+    Instant, PreparedExecution, SchedulerResult, TerminalOutcome, VerificationInput,
+    evidence_references, image_digest, internal, scoring, verification,
+};
+use sha2::{Digest, Sha256};
+use systemprompt_evaluation::repository::experiments::CleanupReport;
 impl EvaluatorSupervisor {
     pub(super) async fn finalize_execution(
         &self,
@@ -20,25 +26,7 @@ impl EvaluatorSupervisor {
                 bytes: file.bytes.len() as u64,
             })
             .collect();
-        let network_cleanup = run.network.cleanup();
-        let workspace_cleanup = std::fs::remove_dir_all(&run.directory);
-        let cleanup_confirmed = workspace_cleanup.is_ok() && network_cleanup.is_ok();
-        let cleanup_error = workspace_cleanup
-            .err()
-            .map(|error| error.to_string())
-            .or_else(|| network_cleanup.err().map(|error| error.to_string()));
-        self.repositories
-            .lifecycle
-            .record_cleanup(
-                &run.worker.owner_id,
-                &run.lease,
-                Some(&run.client_name),
-                Some(&run.network_name),
-                cleanup_confirmed,
-                cleanup_error.as_deref(),
-            )
-            .await
-            .map_err(internal)?;
+        let cleanup_confirmed = self.tear_down(&mut run).await?;
         let requests = self
             .repositories
             .evidence
@@ -99,6 +87,31 @@ impl EvaluatorSupervisor {
                 .await?;
         }
         Ok(())
+    }
+
+    async fn tear_down(&self, run: &mut PreparedExecution) -> SchedulerResult<bool> {
+        let network_cleanup = run.network.cleanup();
+        let workspace_cleanup = std::fs::remove_dir_all(&run.directory);
+        let cleanup_confirmed = workspace_cleanup.is_ok() && network_cleanup.is_ok();
+        let cleanup_error = workspace_cleanup
+            .err()
+            .map(|error| error.to_string())
+            .or_else(|| network_cleanup.err().map(|error| error.to_string()));
+        self.repositories
+            .lifecycle
+            .record_cleanup(
+                &run.worker.owner_id,
+                &run.lease,
+                &CleanupReport {
+                    container_id: Some(&run.client_name),
+                    network_id: Some(&run.network_name),
+                    succeeded: cleanup_confirmed,
+                    error: cleanup_error.as_deref(),
+                },
+            )
+            .await
+            .map_err(internal)?;
+        Ok(cleanup_confirmed)
     }
 
     async fn record_measurement(

@@ -18,8 +18,8 @@ use systemprompt_evaluation::experiments::{
     content_digest,
 };
 use systemprompt_evaluation::repository::experiments::{
-    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository, RevisionRepository,
-    WorkerRecord, WorkerRepository,
+    BudgetRepository, EvidenceRepository, ExecutionLease, ExperimentRepository,
+    ManagedWorkspaceRegistration, RevisionRepository, WorkerRecord, WorkerRepository,
 };
 use systemprompt_identifiers::{
     EvalExecutionId, EvalExperimentId, EvalRevisionId, EvalWorkerId, ModelId, ProviderId, UserId,
@@ -126,7 +126,17 @@ impl Harness {
             ),
         ] {
             evidence
-                .register_managed_workspace(&owner, revision, Some(1), manifest, digest, 1, bytes)
+                .register_managed_workspace(
+                    &owner,
+                    &ManagedWorkspaceRegistration {
+                        managed_revision_id: revision,
+                        publication_generation: Some(1),
+                        manifest,
+                        expected_digest: digest,
+                        file_count: 1,
+                        byte_count: bytes,
+                    },
+                )
                 .await
                 .expect("managed projection");
         }

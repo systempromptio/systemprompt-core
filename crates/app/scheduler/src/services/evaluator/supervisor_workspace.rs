@@ -3,7 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
+use super::{
+    ArtifactFile, BTreeMap, BTreeSet, CaseContent, EvalExecutionId, EvaluatorSupervisorConfig,
+    ExecutionEvidence, Path, PathBuf, RevisionBundle, SchedulerError, SchedulerResult,
+};
+use sha2::{Digest, Sha256};
 
 pub(super) fn install_case_fixtures(case: &CaseContent, root: &Path) -> SchedulerResult<()> {
     for (relative, content) in &case.fixtures {

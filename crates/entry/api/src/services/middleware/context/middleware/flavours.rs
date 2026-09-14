@@ -15,7 +15,7 @@ use std::sync::Arc;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;

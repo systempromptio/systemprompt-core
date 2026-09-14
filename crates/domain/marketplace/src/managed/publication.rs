@@ -145,37 +145,52 @@ fn request_digest(
     }))?))
 }
 
-fn decision_from_fields(
+pub(super) struct PublicationRow {
+    pub id: String,
+    pub review_id: String,
+    pub generation: i64,
+    pub action: String,
+    pub revision_id: Option<String>,
+    pub bundle_digest: Option<String>,
+}
+
+fn decision_from_row(
     resource_id: &ManagedResourceId,
-    id: String,
-    review_id: String,
-    generation: i64,
-    action: &str,
-    revision_id: Option<String>,
-    bundle_digest: Option<String>,
+    row: PublicationRow,
 ) -> Result<PublicationDecision> {
-    let digest = bundle_digest.map(AssetDigest::try_from).transpose()?;
+    let digest = row.bundle_digest.map(AssetDigest::try_from).transpose()?;
     Ok(PublicationDecision {
-        publication_id: PublicationId::new(id),
-        review_id: PublicationReviewId::new(review_id),
+        publication_id: PublicationId::new(row.id),
+        review_id: PublicationReviewId::new(row.review_id),
         resource_id: resource_id.clone(),
-        generation,
-        action: PublicationAction::parse(action)?,
-        revision_id: revision_id.map(ResourceRevisionId::new),
+        generation: row.generation,
+        action: PublicationAction::parse(&row.action)?,
+        revision_id: row.revision_id.map(ResourceRevisionId::new),
         bundle_digest: digest,
     })
 }
 
-fn resolution_from_fields(
+pub(super) struct SelectionRow {
+    pub generation: i64,
+    pub state: String,
+    pub publication_id: String,
+    pub revision_id: Option<String>,
+    pub bundle_digest: Option<String>,
+}
+
+fn resolution_from_row(
     resource_id: ManagedResourceId,
-    generation: i64,
-    state: &str,
-    publication_id: String,
-    revision_id: Option<String>,
-    bundle_digest: Option<String>,
+    row: SelectionRow,
 ) -> Result<ManagedResolution> {
+    let SelectionRow {
+        generation,
+        state,
+        publication_id,
+        revision_id,
+        bundle_digest,
+    } = row;
     let publication_id = PublicationId::new(publication_id);
-    match state {
+    match state.as_str() {
         "withdrawn" => Ok(ManagedResolution::Withdrawn {
             publication_id,
             resource_id,

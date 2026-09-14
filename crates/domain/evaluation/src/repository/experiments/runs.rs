@@ -15,7 +15,7 @@ use systemprompt_identifiers::{
 };
 
 use super::RevisionRepository;
-use crate::experiments::{ExperimentSpec, content_digest, invalid};
+use crate::experiments::{ExperimentSpec, VariantSpec, content_digest, invalid};
 
 #[path = "run_claims.rs"]
 mod claims;
@@ -144,58 +144,21 @@ impl ExperimentRepository {
                 "Dataset or rubric digest differs from frozen settings",
             ));
         }
-        if spec.variants.len() != 2 {
-            return Err(invalid(
-                "Paired comparison requires baseline and candidate variants",
-            ));
-        }
-        let baseline = &spec.variants[0];
-        let candidate = &spec.variants[1];
-        if baseline.client != candidate.client
-            || baseline.client_version != candidate.client_version
-            || baseline.model != candidate.model
-            || baseline.provider != candidate.provider
-            || baseline.configuration_digest != candidate.configuration_digest
-            || baseline.worker_image_digest != candidate.worker_image_digest
-            || baseline.skill_bundle_digest == candidate.skill_bundle_digest
-        {
-            return Err(invalid(
-                "Only the candidate skill bundle may differ between paired variants",
-            ));
-        }
-        if baseline.client != crate::experiments::ClientKind::ClaudeCode {
-            return Err(invalid("Only pinned Claude Code execution is supported"));
-        }
-        for digest in [
-            &baseline.skill_bundle_digest,
-            &candidate.skill_bundle_digest,
-            &baseline.configuration_digest,
-        ] {
-            let found = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_managed_workspace_projections WHERE owner_id=$1 AND digest=$2)", owner.as_str(), digest).fetch_one(&self.pool).await?.unwrap_or(false);
-            if !found {
-                return Err(crate::experiments::missing(
-                    "Managed workspace projection is unavailable",
-                ));
-            }
-        }
+        let (baseline, candidate) = paired_variants(spec)?;
+        self.require_projections(
+            owner,
+            [
+                &baseline.skill_bundle_digest,
+                &candidate.skill_bundle_digest,
+                &baseline.configuration_digest,
+            ],
+        )
+        .await?;
         let account = super::BudgetRepository::new(self.pool.clone())
             .get(owner, budget)
             .await?;
         if spec.claim_independent_improvement {
-            let holdouts = sqlx::query_scalar!("SELECT id FROM eval_resource_revisions WHERE owner_id=$1 AND id=ANY($2) AND content->'content'->>'partition'='holdout'",
-                owner.as_str(), &spec.cases.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).fetch_all(&self.pool).await?;
-            if holdouts.is_empty() {
-                return Err(invalid(
-                    "Independent improvement claims require a holdout partition",
-                ));
-            }
-            let consumed = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_holdout_consumption WHERE owner_id=$1 AND case_revision_id=ANY($2))",
-                owner.as_str(), &holdouts).fetch_one(&self.pool).await?.unwrap_or(false);
-            if consumed {
-                return Err(crate::experiments::conflict(
-                    "A fresh holdout revision is required for another independent-improvement claim",
-                ));
-            }
+            self.require_fresh_holdout(owner, spec).await?;
         }
         let execution_count = u64::try_from(spec.cases.len())
             .unwrap_or(u64::MAX)
@@ -219,6 +182,36 @@ impl ExperimentRepository {
             affordable: !account.frozen && maximum_cost_microdollars <= available,
             matrix_digest: content_digest(spec)?,
         })
+    }
+
+    async fn require_projections(&self, owner: &UserId, digests: [&String; 3]) -> Result<()> {
+        for digest in digests {
+            let found = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_managed_workspace_projections WHERE owner_id=$1 AND digest=$2)", owner.as_str(), digest).fetch_one(&self.pool).await?.unwrap_or(false);
+            if !found {
+                return Err(crate::experiments::missing(
+                    "Managed workspace projection is unavailable",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    async fn require_fresh_holdout(&self, owner: &UserId, spec: &ExperimentSpec) -> Result<()> {
+        let holdouts = sqlx::query_scalar!("SELECT id FROM eval_resource_revisions WHERE owner_id=$1 AND id=ANY($2) AND content->'content'->>'partition'='holdout'",
+            owner.as_str(), &spec.cases.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).fetch_all(&self.pool).await?;
+        if holdouts.is_empty() {
+            return Err(invalid(
+                "Independent improvement claims require a holdout partition",
+            ));
+        }
+        let consumed = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM eval_holdout_consumption WHERE owner_id=$1 AND case_revision_id=ANY($2))",
+            owner.as_str(), &holdouts).fetch_one(&self.pool).await?.unwrap_or(false);
+        if consumed {
+            return Err(crate::experiments::conflict(
+                "A fresh holdout revision is required for another independent-improvement claim",
+            ));
+        }
+        Ok(())
     }
 
     async fn insert_executions(
@@ -276,4 +269,30 @@ impl ExperimentRepository {
         tx.commit().await?;
         Ok(())
     }
+}
+
+fn paired_variants(spec: &ExperimentSpec) -> Result<(&VariantSpec, &VariantSpec)> {
+    if spec.variants.len() != 2 {
+        return Err(invalid(
+            "Paired comparison requires baseline and candidate variants",
+        ));
+    }
+    let baseline = &spec.variants[0];
+    let candidate = &spec.variants[1];
+    if baseline.client != candidate.client
+        || baseline.client_version != candidate.client_version
+        || baseline.model != candidate.model
+        || baseline.provider != candidate.provider
+        || baseline.configuration_digest != candidate.configuration_digest
+        || baseline.worker_image_digest != candidate.worker_image_digest
+        || baseline.skill_bundle_digest == candidate.skill_bundle_digest
+    {
+        return Err(invalid(
+            "Only the candidate skill bundle may differ between paired variants",
+        ));
+    }
+    if baseline.client != crate::experiments::ClientKind::ClaudeCode {
+        return Err(invalid("Only pinned Claude Code execution is supported"));
+    }
+    Ok((baseline, candidate))
 }

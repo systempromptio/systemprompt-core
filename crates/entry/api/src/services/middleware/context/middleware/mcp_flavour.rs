@@ -3,8 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
-
+use super::{
+    Actor, Arc, ContextExtractor, ContextId, DynExtractor, HeaderExtractor, Next, Request,
+    RequestContext, Response, SessionId, StatusCode, UserType, create_request_span,
+    session_context_required_error,
+};
+use axum::response::IntoResponse;
+use systemprompt_identifiers::TraceId;
+use tracing::Instrument;
 /// MCP flavour: headers-only extraction with session fallback.
 ///
 /// A missing authorization header forwards the session context so the MCP
@@ -45,6 +51,62 @@ impl McpContextMiddleware {
         self
     }
 
+    async fn execution_context(
+        &self,
+        headers: http::HeaderMap,
+        path: String,
+        token: &str,
+        trace_id: TraceId,
+    ) -> Result<RequestContext, Response> {
+        let refuse = |message: &'static str| (StatusCode::UNAUTHORIZED, message).into_response();
+        let Some(capabilities) = &self.execution_capabilities else {
+            return Err(refuse("Execution capabilities are unavailable"));
+        };
+        let Some(environment) = &self.execution_environment else {
+            return Err(refuse("Execution environment is unavailable"));
+        };
+        let principal = match capabilities.authenticate(token, environment).await {
+            Ok(principal) => principal,
+            Err(error) => {
+                tracing::warn!(%error, "execution capability refused");
+                return Err(refuse("Invalid or expired execution capability"));
+            },
+        };
+        let header_session = headers
+            .get("x-session-id")
+            .and_then(|value| value.to_str().ok());
+        if header_session != Some(principal.session_id.as_str()) {
+            return Err(refuse("Execution capability session mismatch"));
+        }
+        if !execution_service_allowed(&path) {
+            tracing::warn!(
+                execution_id = %principal.identity.execution_id,
+                %path,
+                "execution capability presented outside the evaluation fixture server"
+            );
+            return Err((
+                StatusCode::FORBIDDEN,
+                "Execution capabilities reach only the evaluation fixture server",
+            )
+                .into_response());
+        }
+        let context_id = ContextId::derived_from_session(&principal.session_id);
+        let agent = HeaderExtractor::extract_agent_name(&headers);
+        let actor = Actor::job(
+            principal.identity.owner_id,
+            format!("evaluation:{}", principal.identity.execution_id),
+        );
+        Ok(RequestContext::new(
+            SessionId::new(principal.session_id.as_str()),
+            trace_id,
+            context_id,
+            agent,
+        )
+        .with_actor(actor)
+        .with_user_type(UserType::Mcp)
+        .with_auth_token(token))
+    }
+
     pub async fn handle(&self, request: Request, next: Next) -> Response {
         let trace_id = HeaderExtractor::extract_trace_id(request.headers());
         let path = request.uri().path().to_owned();
@@ -61,56 +123,15 @@ impl McpContextMiddleware {
                 )
             });
         if let Some(token) = execution_token {
-            let Some(capabilities) = &self.execution_capabilities else {
-                return (
-                    StatusCode::UNAUTHORIZED,
-                    "Execution capabilities are unavailable",
-                )
-                    .into_response();
+            let headers = request.headers().clone();
+            let token = token.to_owned();
+            let context = match self
+                .execution_context(headers, path.clone(), &token, trace_id)
+                .await
+            {
+                Ok(context) => context,
+                Err(refusal) => return refusal,
             };
-            let Some(environment) = &self.execution_environment else {
-                return (
-                    StatusCode::UNAUTHORIZED,
-                    "Execution environment is unavailable",
-                )
-                    .into_response();
-            };
-            let principal = match capabilities.authenticate(token, environment).await {
-                Ok(principal) => principal,
-                Err(_) => {
-                    return (
-                        StatusCode::UNAUTHORIZED,
-                        "Invalid or expired execution capability",
-                    )
-                        .into_response();
-                },
-            };
-            let header_session = request
-                .headers()
-                .get("x-session-id")
-                .and_then(|value| value.to_str().ok());
-            if header_session != Some(principal.session_id.as_str()) {
-                return (
-                    StatusCode::UNAUTHORIZED,
-                    "Execution capability session mismatch",
-                )
-                    .into_response();
-            }
-            let context_id = ContextId::derived_from_session(&principal.session_id);
-            let agent = HeaderExtractor::extract_agent_name(request.headers());
-            let actor = Actor::job(
-                principal.identity.owner_id,
-                format!("evaluation:{}", principal.identity.execution_id),
-            );
-            let context = RequestContext::new(
-                SessionId::new(principal.session_id.as_str()),
-                trace_id,
-                context_id,
-                agent,
-            )
-            .with_actor(actor)
-            .with_user_type(UserType::Mcp)
-            .with_auth_token(token);
             let span = create_request_span(&context);
             let mut req = request;
             req.extensions_mut().insert(context);
@@ -139,4 +160,19 @@ impl McpContextMiddleware {
             },
         }
     }
+}
+
+// Why: the sandboxed native client is handed an execution capability for the
+// relay only; the token must not open the owner's whole MCP mesh.
+const EXECUTION_FIXTURE_SERVICE: &str = "evaluation_fixture";
+
+fn execution_service_allowed(path: &str) -> bool {
+    let Some(rest) = path
+        .strip_prefix(systemprompt_models::ApiPaths::MCP_BASE)
+        .or_else(|| path.strip_prefix("/mcp"))
+    else {
+        return false;
+    };
+    let service = rest.trim_start_matches('/').split('/').next().unwrap_or("");
+    service == EXECUTION_FIXTURE_SERVICE
 }

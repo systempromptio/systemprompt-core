@@ -6,9 +6,9 @@
 use super::{
     AssetDigest, EventOutboxId, ManagedError, ManagedRepository, ManagedResolution,
     ManagedResourceId, PublicationAction, PublicationDecision, PublicationHistoryEntry,
-    PublicationId, PublicationRequest, PublicationReviewId, ResourceKind, ResourceRevisionId,
-    Result, RevisionBundle, UserId, decision_from_fields, request_digest, resolution_from_fields,
-    validate_request,
+    PublicationId, PublicationRequest, PublicationReviewId, PublicationRow, ResourceKind,
+    ResourceRevisionId, Result, RevisionBundle, SelectionRow, UserId, decision_from_row,
+    request_digest, resolution_from_row, validate_request,
 };
 
 impl ManagedRepository {
@@ -27,14 +27,16 @@ impl ManagedRepository {
         rows.into_iter()
             .map(|row| {
                 Ok(PublicationHistoryEntry {
-                    decision: decision_from_fields(
+                    decision: decision_from_row(
                         resource_id,
-                        row.id,
-                        row.review_id,
-                        row.generation,
-                        &row.action,
-                        row.revision_id,
-                        row.bundle_digest,
+                        PublicationRow {
+                            id: row.id,
+                            review_id: row.review_id,
+                            generation: row.generation,
+                            action: row.action,
+                            revision_id: row.revision_id,
+                            bundle_digest: row.bundle_digest,
+                        },
                     )?,
                     approved: true,
                     distributed: row.distributed,
@@ -61,114 +63,34 @@ impl ManagedRepository {
         };
         let request_digest = request_digest(request, reviewer, bundle_digest.as_ref())?;
         let mut tx = self.pool.begin().await?;
-        let resource = sqlx::query!(
-            "SELECT id FROM managed_resources WHERE id=$1 AND owner_id=$2 FOR UPDATE",
+        sqlx::query_scalar!(
+            "SELECT 1 FROM managed_resources WHERE id=$1 AND owner_id=$2 FOR UPDATE",
             request.resource_id.as_str(),
             owner.as_str()
         )
         .fetch_optional(&mut *tx)
         .await?
         .ok_or(ManagedError::Unavailable)?;
-        let _ = resource.id;
 
-        if let Some(existing) = sqlx::query!(
-            "SELECT id,review_id,generation,action,revision_id,bundle_digest,request_digest FROM managed_publications WHERE owner_id=$1 AND operation_key=$2",
-            owner.as_str(), &request.operation_key
-        )
-        .fetch_optional(&mut *tx)
-        .await?
+        if let Some(decision) =
+            existing_decision(&mut tx, owner, request, request_digest.as_str()).await?
         {
-            let stored_digest = existing.request_digest;
-            if stored_digest != request_digest.as_str() {
-                return Err(ManagedError::Conflict(
-                    "Publication operation key was already used for another decision".to_owned(),
-                ));
-            }
-            let decision = decision_from_fields(&request.resource_id, existing.id, existing.review_id, existing.generation, &existing.action, existing.revision_id, existing.bundle_digest)?;
             tx.commit().await?;
             return Ok(decision);
         }
-
-        if let Some(revision) = &request.revision_id {
-            let found = sqlx::query!(
-                "SELECT id FROM managed_revisions WHERE owner_id=$1 AND resource_id=$2 AND id=$3",
-                owner.as_str(),
-                request.resource_id.as_str(),
-                revision.as_str()
-            )
-            .fetch_optional(&mut *tx)
-            .await?;
-            if found.is_none() {
-                return Err(ManagedError::Unavailable);
-            }
-        }
-
-        let current = sqlx::query!(
-            "SELECT generation FROM managed_publication_selections WHERE owner_id=$1 AND resource_id=$2",
-            owner.as_str(), request.resource_id.as_str()
+        let generation = admit_generation(&mut tx, owner, request, bundle_digest.as_ref()).await?;
+        let decision = record_publication(
+            &mut tx,
+            &Publication {
+                owner,
+                reviewer,
+                request,
+                request_digest: request_digest.as_str(),
+                bundle_digest,
+                generation,
+            },
         )
-        .fetch_optional(&mut *tx)
         .await?;
-        let current_generation = current.map_or(0, |row| row.generation);
-        if current_generation != request.expected_generation {
-            return Err(ManagedError::Conflict(format!(
-                "Expected publication generation {}, found {current_generation}",
-                request.expected_generation
-            )));
-        }
-        if request.action == PublicationAction::Rollback {
-            let revision = request.revision_id.as_ref().map(ResourceRevisionId::as_str);
-            let digest = bundle_digest.as_ref().map(AssetDigest::as_str);
-            let retained = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 AND revision_id=$3 AND bundle_digest=$4 AND generation<=$5)",
-                owner.as_str(), request.resource_id.as_str(), revision, digest, current_generation).fetch_one(&mut *tx).await?.unwrap_or(false);
-            if !retained {
-                return Err(ManagedError::Conflict(
-                    "Rollback must reference content retained by an earlier generation".to_owned(),
-                ));
-            }
-        }
-        let generation = current_generation
-            .checked_add(1)
-            .ok_or(ManagedError::Integrity)?;
-        let review_id = PublicationReviewId::generate();
-        let publication_id = PublicationId::generate();
-        let outbox_id = EventOutboxId::generate();
-        let action = request.action.as_str();
-        let revision = request.revision_id.as_ref().map(ResourceRevisionId::as_str);
-        let digest = bundle_digest.as_ref().map(AssetDigest::as_str);
-
-        sqlx::query!("INSERT INTO managed_publication_reviews(id,owner_id,resource_id,revision_id,action,bundle_digest,comparison_evidence,limitations,reviewer_id,expected_generation,request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
-            review_id.as_str(), owner.as_str(), request.resource_id.as_str(), revision, action, digest,
-            &request.comparison_evidence, &request.limitations, reviewer.as_str(), request.expected_generation, request_digest.as_str())
-            .execute(&mut *tx)
-            .await?;
-        sqlx::query!("INSERT INTO managed_publications(id,owner_id,resource_id,review_id,generation,action,revision_id,bundle_digest,operation_key,request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-            publication_id.as_str(), owner.as_str(), request.resource_id.as_str(), review_id.as_str(), generation, action, revision, digest, &request.operation_key, request_digest.as_str())
-            .execute(&mut *tx)
-            .await?;
-        let state = if request.action == PublicationAction::Withdraw {
-            "withdrawn"
-        } else {
-            "published"
-        };
-        sqlx::query!("INSERT INTO managed_publication_selections(owner_id,resource_id,generation,state,publication_id,revision_id,bundle_digest) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(owner_id,resource_id) DO UPDATE SET generation=EXCLUDED.generation,state=EXCLUDED.state,publication_id=EXCLUDED.publication_id,revision_id=EXCLUDED.revision_id,bundle_digest=EXCLUDED.bundle_digest,updated_at=now()",
-            owner.as_str(), request.resource_id.as_str(), generation, state, publication_id.as_str(), revision, digest)
-            .execute(&mut *tx)
-            .await?;
-        let decision = PublicationDecision {
-            publication_id,
-            review_id,
-            resource_id: request.resource_id.clone(),
-            generation,
-            action: request.action,
-            revision_id: request.revision_id.clone(),
-            bundle_digest,
-        };
-        let payload = serde_json::to_value(&decision)?;
-        sqlx::query!("INSERT INTO managed_distribution_outbox(id,owner_id,publication_id,generation,payload) VALUES($1,$2,$3,$4,$5)",
-            outbox_id.as_str(), owner.as_str(), decision.publication_id.as_str(), generation, payload)
-            .execute(&mut *tx)
-            .await?;
         tx.commit().await?;
         Ok(decision)
     }
@@ -198,13 +120,15 @@ impl ManagedRepository {
         let Some(selection) = selection else {
             return Ok(ManagedResolution::NeverAdopted { resource_id });
         };
-        resolution_from_fields(
+        resolution_from_row(
             resource_id,
-            selection.generation,
-            &selection.state,
-            selection.publication_id,
-            selection.revision_id,
-            selection.bundle_digest,
+            SelectionRow {
+                generation: selection.generation,
+                state: selection.state,
+                publication_id: selection.publication_id,
+                revision_id: selection.revision_id,
+                bundle_digest: selection.bundle_digest,
+            },
         )
     }
 
@@ -231,4 +155,150 @@ impl ManagedRepository {
         }
         Ok(bundle)
     }
+}
+
+struct Publication<'a> {
+    owner: &'a UserId,
+    reviewer: &'a UserId,
+    request: &'a PublicationRequest,
+    request_digest: &'a str,
+    bundle_digest: Option<AssetDigest>,
+    generation: i64,
+}
+
+async fn existing_decision(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner: &UserId,
+    request: &PublicationRequest,
+    request_digest: &str,
+) -> Result<Option<PublicationDecision>> {
+    let Some(existing) = sqlx::query!(
+        "SELECT id,review_id,generation,action,revision_id,bundle_digest,request_digest FROM managed_publications WHERE owner_id=$1 AND operation_key=$2",
+        owner.as_str(), &request.operation_key
+    )
+    .fetch_optional(&mut **tx)
+    .await?
+    else {
+        return Ok(None);
+    };
+    if existing.request_digest != request_digest {
+        return Err(ManagedError::Conflict(
+            "Publication operation key was already used for another decision".to_owned(),
+        ));
+    }
+    decision_from_row(
+        &request.resource_id,
+        PublicationRow {
+            id: existing.id,
+            review_id: existing.review_id,
+            generation: existing.generation,
+            action: existing.action,
+            revision_id: existing.revision_id,
+            bundle_digest: existing.bundle_digest,
+        },
+    )
+    .map(Some)
+}
+
+async fn admit_generation(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner: &UserId,
+    request: &PublicationRequest,
+    bundle_digest: Option<&AssetDigest>,
+) -> Result<i64> {
+    if let Some(revision) = &request.revision_id {
+        let found = sqlx::query!(
+            "SELECT id FROM managed_revisions WHERE owner_id=$1 AND resource_id=$2 AND id=$3",
+            owner.as_str(),
+            request.resource_id.as_str(),
+            revision.as_str()
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
+        if found.is_none() {
+            return Err(ManagedError::Unavailable);
+        }
+    }
+    let current = sqlx::query!(
+        "SELECT generation FROM managed_publication_selections WHERE owner_id=$1 AND resource_id=$2",
+        owner.as_str(), request.resource_id.as_str()
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    let current_generation = current.map_or(0, |row| row.generation);
+    if current_generation != request.expected_generation {
+        return Err(ManagedError::Conflict(format!(
+            "Expected publication generation {}, found {current_generation}",
+            request.expected_generation
+        )));
+    }
+    if request.action == PublicationAction::Rollback {
+        let revision = request.revision_id.as_ref().map(ResourceRevisionId::as_str);
+        let digest = bundle_digest.map(AssetDigest::as_str);
+        let retained = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 AND revision_id=$3 AND bundle_digest=$4 AND generation<=$5)",
+            owner.as_str(), request.resource_id.as_str(), revision, digest, current_generation).fetch_one(&mut **tx).await?.unwrap_or(false);
+        if !retained {
+            return Err(ManagedError::Conflict(
+                "Rollback must reference content retained by an earlier generation".to_owned(),
+            ));
+        }
+    }
+    current_generation
+        .checked_add(1)
+        .ok_or(ManagedError::Integrity)
+}
+
+async fn record_publication(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    publication: &Publication<'_>,
+) -> Result<PublicationDecision> {
+    let Publication {
+        owner,
+        reviewer,
+        request,
+        request_digest,
+        bundle_digest,
+        generation,
+    } = publication;
+    let generation = *generation;
+    let review_id = PublicationReviewId::generate();
+    let publication_id = PublicationId::generate();
+    let outbox_id = EventOutboxId::generate();
+    let action = request.action.as_str();
+    let revision = request.revision_id.as_ref().map(ResourceRevisionId::as_str);
+    let digest = bundle_digest.as_ref().map(AssetDigest::as_str);
+
+    sqlx::query!("INSERT INTO managed_publication_reviews(id,owner_id,resource_id,revision_id,action,bundle_digest,comparison_evidence,limitations,reviewer_id,expected_generation,request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+        review_id.as_str(), owner.as_str(), request.resource_id.as_str(), revision, action, digest,
+        &request.comparison_evidence, &request.limitations, reviewer.as_str(), request.expected_generation, request_digest)
+        .execute(&mut **tx)
+        .await?;
+    sqlx::query!("INSERT INTO managed_publications(id,owner_id,resource_id,review_id,generation,action,revision_id,bundle_digest,operation_key,request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+        publication_id.as_str(), owner.as_str(), request.resource_id.as_str(), review_id.as_str(), generation, action, revision, digest, &request.operation_key, request_digest)
+        .execute(&mut **tx)
+        .await?;
+    let state = if request.action == PublicationAction::Withdraw {
+        "withdrawn"
+    } else {
+        "published"
+    };
+    sqlx::query!("INSERT INTO managed_publication_selections(owner_id,resource_id,generation,state,publication_id,revision_id,bundle_digest) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(owner_id,resource_id) DO UPDATE SET generation=EXCLUDED.generation,state=EXCLUDED.state,publication_id=EXCLUDED.publication_id,revision_id=EXCLUDED.revision_id,bundle_digest=EXCLUDED.bundle_digest,updated_at=now()",
+        owner.as_str(), request.resource_id.as_str(), generation, state, publication_id.as_str(), revision, digest)
+        .execute(&mut **tx)
+        .await?;
+    let decision = PublicationDecision {
+        publication_id,
+        review_id,
+        resource_id: request.resource_id.clone(),
+        generation,
+        action: request.action,
+        revision_id: request.revision_id.clone(),
+        bundle_digest: bundle_digest.clone(),
+    };
+    let payload = serde_json::to_value(&decision)?;
+    sqlx::query!("INSERT INTO managed_distribution_outbox(id,owner_id,publication_id,generation,payload) VALUES($1,$2,$3,$4,$5)",
+        outbox_id.as_str(), owner.as_str(), decision.publication_id.as_str(), generation, payload)
+        .execute(&mut **tx)
+        .await?;
+    Ok(decision)
 }

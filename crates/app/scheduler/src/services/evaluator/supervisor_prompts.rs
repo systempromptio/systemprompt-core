@@ -3,8 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::*;
-
+use super::{
+    CaseContent, EvidenceJudgment, GeneratedSuggestion, RubricContent, SchedulerError,
+    SchedulerResult, internal,
+};
 pub(super) fn execution_prompt(case: &CaseContent) -> SchedulerResult<String> {
     Ok(format!(
         "Execute this immutable evaluation case. Use only the installed skills and configured evaluation fixture MCP service. Do not use a shell or network. Make any requested platform test-record write at most once, read it back, and restore it. Your final response must answer the case and cite the fixture/tool evidence used.\n\nCASE PROMPT:\n{}\n\nEXPECTED BEHAVIOURS (do not merely repeat these):\n{}\n\nNAMED DETERMINISTIC ASSERTIONS:\n{}",
@@ -29,36 +31,7 @@ pub(super) fn judgment_prompt(
 }
 
 pub(super) fn parse_judgment(bytes: &[u8]) -> SchedulerResult<EvidenceJudgment> {
-    let body = std::str::from_utf8(bytes).map_err(internal)?;
-    for line in body.lines().rev() {
-        let Ok(event) = serde_json::from_str::<serde_json::Value>(line) else {
-            continue;
-        };
-        let candidate = event
-            .get("result")
-            .and_then(serde_json::Value::as_str)
-            .or_else(|| {
-                event
-                    .pointer("/message/content/0/text")
-                    .and_then(serde_json::Value::as_str)
-            });
-        let Some(candidate) = candidate else {
-            continue;
-        };
-        if let Ok(judgment) = serde_json::from_str(candidate) {
-            return Ok(judgment);
-        }
-        if let (Some(start), Some(end)) = (candidate.find('{'), candidate.rfind('}')) {
-            if start <= end {
-                if let Ok(judgment) = serde_json::from_str(&candidate[start..=end]) {
-                    return Ok(judgment);
-                }
-            }
-        }
-    }
-    Err(SchedulerError::config_error(
-        "Semantic judge returned no valid evidence judgment",
-    ))
+    parse_client_json(bytes, "evidence judgment")
 }
 
 pub(super) fn parse_suggestion(bytes: &[u8]) -> SchedulerResult<GeneratedSuggestion> {
@@ -88,12 +61,11 @@ fn parse_client_json<T: serde::de::DeserializeOwned>(
         if let Ok(value) = serde_json::from_str(candidate) {
             return Ok(value);
         }
-        if let (Some(start), Some(end)) = (candidate.find('{'), candidate.rfind('}')) {
-            if start <= end {
-                if let Ok(value) = serde_json::from_str(&candidate[start..=end]) {
-                    return Ok(value);
-                }
-            }
+        if let (Some(start), Some(end)) = (candidate.find('{'), candidate.rfind('}'))
+            && start <= end
+            && let Ok(value) = serde_json::from_str(&candidate[start..=end])
+        {
+            return Ok(value);
         }
     }
     Err(SchedulerError::config_error(format!(

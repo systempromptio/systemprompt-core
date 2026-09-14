@@ -16,6 +16,16 @@ use systemprompt_identifiers::{AiRequestId, EvalExecutionId, UserId};
 mod validation;
 use validation::{ManagedAsset, managed_assets, validate_artifacts, validate_variant};
 
+#[derive(Debug, Clone, Copy)]
+pub struct ManagedWorkspaceRegistration<'a> {
+    pub managed_revision_id: &'a str,
+    pub publication_generation: Option<i64>,
+    pub manifest: &'a serde_json::Value,
+    pub expected_digest: &'a str,
+    pub file_count: usize,
+    pub byte_count: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct EvidenceRepository {
     pool: PgPool,
@@ -29,13 +39,16 @@ impl EvidenceRepository {
     pub async fn register_managed_workspace(
         &self,
         owner: &UserId,
-        managed_revision_id: &str,
-        publication_generation: Option<i64>,
-        manifest: &serde_json::Value,
-        expected_digest: &str,
-        file_count: usize,
-        byte_count: usize,
+        registration: &ManagedWorkspaceRegistration<'_>,
     ) -> Result<()> {
+        let ManagedWorkspaceRegistration {
+            managed_revision_id,
+            publication_generation,
+            manifest,
+            expected_digest,
+            file_count,
+            byte_count,
+        } = *registration;
         if content_digest(manifest)? != expected_digest
             || file_count > 256
             || byte_count > 8 * 1024 * 1024

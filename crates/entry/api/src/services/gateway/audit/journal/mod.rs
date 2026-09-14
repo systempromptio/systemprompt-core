@@ -129,7 +129,7 @@ pub async fn recover(settlement: &Settlement) -> Result<usize> {
     let mut settled = 0;
     for entry in listed {
         let receipt = match entry {
-            files::Listed::Receipt(receipt) => receipt,
+            files::Listed::Receipt(receipt) => *receipt,
             files::Listed::Quarantined { path, reason } => {
                 tracing::error!(path = %path.display(), %reason, "Gateway journal receipt unreadable; quarantined");
                 let journal = Arc::clone(&settlement.journal);
