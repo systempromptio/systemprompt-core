@@ -91,8 +91,10 @@ pub trait NativeAdapter: Sync + std::fmt::Debug {
     fn normalize(&self, output: &[u8]) -> systemprompt_evaluation::Result<NormalizedClientOutput>;
 }
 
+static REGISTERED_ADAPTERS: [&'static dyn NativeAdapter; 1] = [&claude_code::ADAPTER];
+
 pub fn registered_adapters() -> &'static [&'static dyn NativeAdapter] {
-    &[&claude_code::ADAPTER]
+    &REGISTERED_ADAPTERS
 }
 
 pub fn adapter(kind: ClientKind) -> systemprompt_evaluation::Result<&'static dyn NativeAdapter> {
