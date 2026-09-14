@@ -61,7 +61,7 @@ fn activate(unit: &str, proxy_unit: &str) -> Result<(), InstallError> {
 }
 
 fn systemctl(args: &[&str]) -> Result<(), InstallError> {
-    let status = std::process::Command::new("systemctl")
+    let status = std::process::Command::new("/usr/bin/systemctl")
         .arg("--user")
         .args(args)
         .status()

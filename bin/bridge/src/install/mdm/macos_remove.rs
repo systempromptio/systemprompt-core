@@ -11,11 +11,13 @@ use super::macos::{MANAGED_PREFS_PATH, PAYLOAD_IDENTIFIER, bridge_prefs_path};
 
 pub(crate) fn remove_profile() -> Result<bool, MdmError> {
     let cli_removed = !super::claude_code_settings::remove_all()?.is_empty();
-    let user = std::env::var("USER").map_err(|e| MdmError::InvalidConfig(format!("USER: {e}")))?;
+    let user = std::env::var("USER").map_err(|e| MdmError::ManagedPrefsUser {
+        detail: e.to_string(),
+    })?;
     if user.is_empty() || user.contains('/') || user == "." || user == ".." {
-        return Err(MdmError::InvalidConfig(
-            "invalid managed-preferences user".into(),
-        ));
+        return Err(MdmError::ManagedPrefsUser {
+            detail: format!("{user:?}"),
+        });
     }
     let paths = [
         std::path::PathBuf::from(MANAGED_PREFS_PATH),
@@ -62,10 +64,10 @@ pub(crate) fn remove_profile() -> Result<bool, MdmError> {
             path: path.clone(),
             source,
         })? {
-            return Err(MdmError::InvalidConfig(format!(
-                "{} remains after policy removal",
-                path.display()
-            )));
+            return Err(MdmError::RemovalIncomplete {
+                what: "managed preferences plist",
+                detail: path.display().to_string(),
+            });
         }
     }
     Ok(true)
@@ -118,9 +120,12 @@ fn profile_inventory() -> Result<bool, MdmError> {
             source,
         })?;
     if contains_profile_identifier(&profiles) {
-        return Err(MdmError::InvalidConfig(format!(
-            "configuration profile {PAYLOAD_IDENTIFIER} remains installed; remove it through System Settings or MDM"
-        )));
+        return Err(MdmError::RemovalIncomplete {
+            what: "configuration profile",
+            detail: format!(
+                "{PAYLOAD_IDENTIFIER} is still installed; remove it through System Settings or MDM"
+            ),
+        });
     }
     Ok(was_installed)
 }

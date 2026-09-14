@@ -10,7 +10,7 @@ use crate::last_sync::LastSyncState;
 pub const SKEW_WINDOW_MINUTES: i64 = 5;
 
 pub fn check_replay(last: &LastSyncState, incoming: &ManifestVersion) -> Result<(), SyncError> {
-    if let Some(prev) = last.last_applied_manifest_version.as_ref()
+    if let Some(prev) = last.manifest_version.as_ref()
         && incoming <= prev
     {
         return Err(SyncError::ReplayedManifest {

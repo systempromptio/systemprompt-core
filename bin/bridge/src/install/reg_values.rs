@@ -23,16 +23,39 @@ pub fn render_reg_values(elevated: bool, entries: &[(&str, String)]) -> String {
     out
 }
 
-#[must_use]
-pub fn parse_reg_entries(body: &str) -> Vec<(String, String)> {
-    body.lines()
-        .filter_map(|line| {
-            let rest = line.trim().strip_prefix('"')?;
-            let (name, rest) = rest.split_once("\"=\"")?;
-            let value = rest.strip_suffix('"')?;
-            Some((name.to_owned(), reg_unescape(value)))
-        })
-        .collect()
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("staged registry profile line {line} is not a \"name\"=\"value\" entry: {text:?}")]
+pub struct RegLineError {
+    pub line: usize,
+    pub text: String,
+}
+
+// Why: a line the parser cannot read is a policy value that would silently
+// go unwritten; the whole profile is refused rather than applied partially.
+pub fn parse_reg_entries(body: &str) -> Result<Vec<(String, String)>, RegLineError> {
+    let mut entries = Vec::new();
+    for (index, line) in body.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.is_empty()
+            || trimmed.starts_with("Windows Registry Editor")
+            || trimmed.starts_with('[')
+            || trimmed.starts_with(';')
+        {
+            continue;
+        }
+        let parsed = trimmed
+            .strip_prefix('"')
+            .and_then(|rest| rest.split_once("\"=\""))
+            .and_then(|(name, rest)| rest.strip_suffix('"').map(|value| (name, value)));
+        let Some((name, value)) = parsed else {
+            return Err(RegLineError {
+                line: index + 1,
+                text: trimmed.to_owned(),
+            });
+        };
+        entries.push((name.to_owned(), reg_unescape(value)));
+    }
+    Ok(entries)
 }
 
 fn reg_escape(s: &str) -> String {

@@ -15,7 +15,9 @@ pub fn windows_helper_command(executable: &Path) -> String {
         "$ErrorActionPreference = 'Stop'; & '{path}' credential-helper --host claude-code; exit $LASTEXITCODE"
     );
     // Why: -EncodedCommand accepts UTF-16LE and avoids expansion by the shell
-    // Claude Code uses to launch helpers, including Git Bash and cmd.exe.
+    // Claude Code uses to launch helpers, including Git Bash and cmd.exe; the
+    // same shells differ in how they expand %SystemRoot%, so the binary is
+    // named bare and resolved by the launching shell.
     let bytes: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
     format!(
         "powershell.exe -NoProfile -NonInteractive -EncodedCommand {}",

@@ -25,8 +25,6 @@ use crate::install::mdm::{MdmApplication, MdmError};
 pub(crate) use self::model_picker::apply_model_picker;
 pub(crate) use self::removal::{remove_all, remove_managed_settings};
 
-// Why: Claude Code reads ~/.claude/settings.json, not
-// ~/.claude/managed-settings.json.
 pub fn managed_settings_path() -> Option<PathBuf> {
     let system = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
     if can_write(&system) {
@@ -39,16 +37,22 @@ pub fn managed_settings_path() -> Option<PathBuf> {
     )
 }
 
+// Why: the probe must not leave an empty policy file behind — Claude Code
+// reads an empty managed-settings.json as `{}` and the operator sees a
+// policy that was never applied. An existing file is opened for write; a
+// missing one is judged by whether the nearest existing ancestor accepts a
+// temporary file, which the real write path creates and removes.
 fn can_write(path: &Path) -> bool {
-    let Some(parent) = path.parent() else {
-        return false;
-    };
-    fs::create_dir_all(parent).is_ok()
-        && fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .is_ok()
+    match fs::metadata(path) {
+        Ok(meta) if meta.is_file() => fs::OpenOptions::new().write(true).open(path).is_ok(),
+        Ok(_) => false,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => path
+            .ancestors()
+            .skip(1)
+            .find(|dir| dir.is_dir())
+            .is_some_and(|dir| tempfile::Builder::new().tempfile_in(dir).is_ok()),
+        Err(_) => false,
+    }
 }
 
 #[cfg(unix)]
@@ -257,10 +261,9 @@ fn set_executable(path: &Path) -> Result<(), MdmError> {
         & 0o777
         != 0o700
     {
-        return Err(MdmError::InvalidConfig(format!(
-            "{}: expected mode 0700",
-            path.display()
-        )));
+        return Err(MdmError::HelperMode {
+            path: path.to_path_buf(),
+        });
     }
     Ok(())
 }
