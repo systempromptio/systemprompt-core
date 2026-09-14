@@ -107,6 +107,16 @@ fn unavailable_modes_and_empty_or_duplicate_readback_cannot_pass() {
         host: EvaluatorClient::ClaudeCode,
         observed_at: Utc::now(),
         files: vec![],
+        runtime_files: vec![
+            systemprompt_models::feedback::receipts::RuntimeFileReadback {
+                path: "SKILL.md".to_owned(),
+                digest: ContentDigest::of(b"content"),
+                bytes: 7,
+                executable: false,
+                content_check: ReadbackStatus::Verified,
+                mode_check: ReadbackStatus::Verified,
+            },
+        ],
     };
     assert!(!receipt.fully_verified());
     receipt.files.push(FileReadback {
@@ -205,4 +215,13 @@ fn normalized_changes_reject_kind_mismatch_and_retain_unknown_failed_spend() {
         change.validate(),
         Err(FeedbackContractError::IncompleteManifest)
     );
+}
+
+#[test]
+fn installation_host_aliases_preserve_existing_codex_and_opencode_names() {
+    assert!(EvaluatorClient::Codex.accepts_host_name("codex-cli"));
+    assert!(EvaluatorClient::Codex.accepts_host_name("codex"));
+    assert!(EvaluatorClient::OpenCode.accepts_host_name("opencode"));
+    assert!(EvaluatorClient::OpenCode.accepts_host_name("open-code"));
+    assert!(!EvaluatorClient::Codex.accepts_host_name("hermes"));
 }

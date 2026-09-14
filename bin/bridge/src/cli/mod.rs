@@ -11,6 +11,7 @@ pub mod credential_helper;
 mod dev_web;
 pub mod diagnostics;
 pub mod doctor;
+mod feedback;
 mod gui;
 mod install;
 mod install_claude_policy;
@@ -81,6 +82,8 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
     match command {
         None | Some("run") => run::cmd_run(&ctx),
         Some("proxy") => proxy::cmd_proxy(&ctx),
+        Some("device-enroll") => feedback::enroll(&ctx, args),
+        Some("feedback-status") => feedback::status(),
         Some("login") => login::cmd_login(&ctx, args),
         Some("logout") => logout::cmd_logout(),
         Some("clean") => clean::cmd_clean(),

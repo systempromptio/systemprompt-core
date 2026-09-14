@@ -41,6 +41,36 @@ pub struct FileReadback {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct RuntimeFileReadback {
+    pub path: String,
+    pub digest: ContentDigest,
+    pub bytes: u64,
+    pub executable: bool,
+    pub content_check: ReadbackStatus,
+    pub mode_check: ReadbackStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstallationPlanFile {
+    pub path: String,
+    pub bytes: Vec<u8>,
+    pub executable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConsumerInstallationPlan {
+    pub publication_id: PublicationId,
+    pub resource_id: ManagedResourceId,
+    pub revision_id: ResourceRevisionId,
+    pub generation: i64,
+    pub bundle_digest: ContentDigest,
+    pub host: EvaluatorClient,
+    pub canonical_files: Vec<FileReadback>,
+    pub runtime_files: Vec<InstallationPlanFile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConsumerReceiptRequest {
     pub installation_id: ConsumerInstallationId,
     pub publication_id: PublicationId,
@@ -51,6 +81,8 @@ pub struct ConsumerReceiptRequest {
     pub host: EvaluatorClient,
     pub observed_at: DateTime<Utc>,
     pub files: Vec<FileReadback>,
+    #[serde(default)]
+    pub runtime_files: Vec<RuntimeFileReadback>,
 }
 
 impl ConsumerReceiptRequest {
@@ -65,11 +97,26 @@ impl ConsumerReceiptRequest {
                 return Err(FeedbackContractError::IncompleteManifest);
             }
         }
+        let mut runtime_paths = std::collections::BTreeSet::new();
+        if self.runtime_files.len() > 8192 {
+            return Err(FeedbackContractError::Bounds);
+        }
+        for file in &self.runtime_files {
+            validate_relative_path(&file.path)?;
+            if !runtime_paths.insert(&file.path) {
+                return Err(FeedbackContractError::IncompleteManifest);
+            }
+        }
         Ok(())
     }
 
     pub fn fully_verified(&self) -> bool {
         self.validate().is_ok()
+            && !self.runtime_files.is_empty()
+            && self.runtime_files.iter().all(|file| {
+                file.content_check == ReadbackStatus::Verified
+                    && file.mode_check == ReadbackStatus::Verified
+            })
             && self.files.iter().all(|file| {
                 file.content_check == ReadbackStatus::Verified
                     && file.mode_check == ReadbackStatus::Verified

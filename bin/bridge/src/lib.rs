@@ -31,6 +31,7 @@ pub mod cowork_compat;
 #[cfg(feature = "dev-preview")]
 pub mod dev_preview;
 pub mod diagnostics_state;
+pub mod feedback;
 pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -160,6 +161,8 @@ Commands (plugin + MCP sync):
                              loopback secret, pinned pubkey) with one line per check
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
+  device-enroll --token-file PATH          Enroll an administrator-issued device credential
+  feedback-status                         Show installation receipt acknowledgment status
   dev-web [--port N]         (dev builds only) Serve the GUI web tree over HTTP
     [--web-root DIR]         so a browser can render it on a machine with no
                              webview. See bin/bridge/README.md.

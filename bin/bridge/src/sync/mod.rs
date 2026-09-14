@@ -72,6 +72,12 @@ pub async fn run_once(
         .report(&crate::progress::SyncProgress::new(
             "manifest", "manifest", 1, 1,
         ));
+    if let Ok(config) = crate::config::load() {
+        let gateway = crate::config::gateway_url_or_default(&config);
+        if let Err(error) = crate::feedback::retry_pending(gateway.as_str()).await {
+            tracing::debug!(%error,"Installation receipts remain unacknowledged before sync");
+        }
+    }
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();

@@ -1,0 +1,73 @@
+//! Persistent device-authenticated installation feedback.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+pub mod credentials;
+mod hosts;
+pub mod outbox;
+pub mod readback;
+pub mod sessions;
+mod sync;
+pub mod transport;
+
+pub use sync::{capture_host, deliver, retry_pending};
+
+#[derive(Debug, thiserror::Error)]
+pub enum FeedbackError {
+    #[error("feedback storage failed: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("feedback data is invalid: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("device enrollment is required")]
+    EnrollmentRequired,
+    #[error("feedback belongs to a different gateway or device")]
+    Scope,
+    #[error("feedback outbox is full; installation remains unacknowledged")]
+    Full,
+    #[error("host installation is unavailable for readback")]
+    HostUnavailable,
+    #[error("installation readback mismatch or unsafe path")]
+    Readback,
+    #[error("feedback transport is unavailable")]
+    Transport,
+    #[error("feedback request rejected with status {0}")]
+    Rejected(u16),
+}
+
+pub type Result<T> = std::result::Result<T, FeedbackError>;
+
+pub fn client_kind(host: &str) -> Option<systemprompt_models::feedback::EvaluatorClient> {
+    use systemprompt_models::feedback::EvaluatorClient;
+    match host {
+        "claude-code" => Some(EvaluatorClient::ClaudeCode),
+        "claude-desktop" => Some(EvaluatorClient::ClaudeDesktop),
+        "codex" | "codex-cli" => Some(EvaluatorClient::Codex),
+        "opencode" | "open-code" => Some(EvaluatorClient::OpenCode),
+        "hermes" => Some(EvaluatorClient::Hermes),
+        _ => None,
+    }
+}
+
+pub fn metadata_root() -> Result<std::path::PathBuf> {
+    crate::config::paths::bridge_metadata_dir()
+        .map(|root| root.join("feedback"))
+        .ok_or(FeedbackError::EnrollmentRequired)
+}
+
+pub async fn installation_lock() -> Result<std::fs::File> {
+    let root = metadata_root()?;
+    tokio::task::spawn_blocking(move || -> Result<std::fs::File> {
+        crate::fsutil::create_dir_all_mode_0700(&root)?;
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(root.join("install.lock"))?;
+        file.lock()?;
+        Ok(file)
+    })
+    .await
+    .map_err(|error| FeedbackError::Io(std::io::Error::other(error)))?
+}
