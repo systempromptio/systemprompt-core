@@ -4,6 +4,8 @@
 
 ### Changed
 
+- A failed evaluator workspace cleanup is logged with the path; job-discovery, Vertex lifecycle and process-cleanup messages carry their values as structured fields.
+
 - The evaluator materialises `ExecutionAssignment` workspaces from the typed `RevisionBundle` carried on the assignment instead of re-decoding a JSON value per run.
 
 ## [0.52.0] - 2026-09-14

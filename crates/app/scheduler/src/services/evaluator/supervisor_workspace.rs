@@ -247,6 +247,12 @@ pub(super) struct WorkspaceDirectory(pub(super) PathBuf);
 
 impl Drop for WorkspaceDirectory {
     fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
+        if let Err(error) = std::fs::remove_dir_all(&self.0) {
+            tracing::warn!(
+                path = %self.0.display(),
+                error = %error,
+                "Failed to remove evaluator workspace directory"
+            );
+        }
     }
 }

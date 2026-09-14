@@ -50,7 +50,7 @@ pub(super) fn kill_process(pid: u32) -> bool {
     {
         Ok(output) => output.status.success(),
         Err(e) => {
-            tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid} /F`");
+            tracing::warn!(pid = pid, error = %e, "Failed to run taskkill /PID /F");
             false
         },
     }
@@ -61,7 +61,7 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
         .args(["/PID", &pid.to_string()])
         .output()
     {
-        tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /PID {pid}`");
+        tracing::warn!(pid = pid, error = %e, "Failed to run taskkill /PID");
         return false;
     }
 
@@ -80,7 +80,7 @@ pub(super) async fn terminate_group_gracefully(pid: u32, grace_period_ms: u64) -
         .args(["/PID", &pid.to_string(), "/T"])
         .output()
     {
-        tracing::warn!(pid = pid, error = %e, "failed to run `taskkill /T /PID {pid}`");
+        tracing::warn!(pid = pid, error = %e, "Failed to run taskkill /T /PID");
         return terminate_gracefully(pid, grace_period_ms).await;
     }
 
@@ -131,7 +131,7 @@ pub(super) fn kill_by_pattern(pattern: &str) -> usize {
             tracing::warn!(
                 pattern = %pattern,
                 error = %e,
-                "failed to run `taskkill /IM *{pattern}* /F`",
+                "Failed to run taskkill /IM /F",
             );
             0
         },

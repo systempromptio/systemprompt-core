@@ -26,7 +26,7 @@ pub(super) fn check_port(port: u16) -> Option<u32> {
             tracing::warn!(
                 port = port,
                 error = %e,
-                "failed to run `lsof -ti :{port}` while checking port; treating as unknown",
+                "Failed to run lsof while checking port; treating as unknown",
             );
             return None;
         },
@@ -142,7 +142,7 @@ pub(super) fn kill_by_pattern(pattern: &str) -> usize {
             tracing::warn!(
                 pattern = %pattern,
                 error = %e,
-                "failed to run `pkill -9 -f {pattern}`",
+                "Failed to run pkill",
             );
             0
         },
@@ -159,7 +159,7 @@ pub(super) fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
             tracing::warn!(
                 port = port,
                 error = %e,
-                "failed to run `lsof -ti :{port}` while inspecting port; treating as unknown",
+                "Failed to run lsof while inspecting port; treating as unknown",
             );
             return None;
         },
@@ -181,7 +181,7 @@ pub(super) fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
             tracing::warn!(
                 pid = pid,
                 error = %e,
-                "failed to run `ps -p {pid} -o comm=` while inspecting process",
+                "Failed to run ps while inspecting process",
             );
             return None;
         },
