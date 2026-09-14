@@ -22,6 +22,10 @@
 //! the boot continues; the fix is a migration that adds the referenced
 //! unique index, and the upgrade gate downstream diffs the two shapes.
 //!
+//! `FOREIGN_KEY_EXISTS_SQL`: A foreign key with the same constrained and referenced columns, by name
+//! rather than attnum so it holds across databases whose column numbering
+//! differs. An empty `$4` stands for the referenced primary key.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -33,9 +37,6 @@ use super::super::fk_deferral::DeferredForeignKey;
 use crate::models::DatabaseTransaction;
 use crate::services::DatabaseProvider;
 
-/// A foreign key with the same constrained and referenced columns, by name
-/// rather than attnum so it holds across databases whose column numbering
-/// differs. An empty `$4` stands for the referenced primary key.
 const FOREIGN_KEY_EXISTS_SQL: &str = "SELECT 1
 FROM pg_constraint c
 WHERE c.contype = 'f'

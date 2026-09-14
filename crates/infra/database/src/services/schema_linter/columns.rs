@@ -1,6 +1,12 @@
 //! In-input table graph and `(table, column)` resolution for `CREATE INDEX`
 //! and `CREATE VIEW` statements.
 //!
+//! `unique_key_sets`: Every table-level or column-level `PRIMARY KEY` / `UNIQUE` column set.
+//!
+//! `has_unique_key`: True when a `PRIMARY KEY` or `UNIQUE` constraint covers exactly
+//! `columns`, in any order — the same test Postgres applies when it
+//! looks for the index a foreign key needs.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,7 +20,6 @@ use super::{LintError, LintSeverity};
 pub(super) struct TableDef {
     name: String,
     columns: Vec<String>,
-    /// Every table-level or column-level `PRIMARY KEY` / `UNIQUE` column set.
     unique_key_sets: Vec<Vec<String>>,
     primary_key: Option<Vec<String>>,
 }
@@ -28,9 +33,6 @@ impl TableDef {
         self.primary_key.as_deref()
     }
 
-    /// True when a `PRIMARY KEY` or `UNIQUE` constraint covers exactly
-    /// `columns`, in any order — the same test Postgres applies when it
-    /// looks for the index a foreign key needs.
     pub(super) fn has_unique_key(&self, columns: &[String]) -> bool {
         self.unique_key_sets.iter().any(|set| {
             set.len() == columns.len()

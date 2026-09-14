@@ -16,6 +16,34 @@
 //! `IF NOT EXISTS`, column defaults, `CHECK`, `GENERATED`, identity, `UNIQUE`
 //! and `PRIMARY KEY` clauses; only comments and formatting are lost.
 //!
+//! `MAX_IDENTIFIER_BYTES`: Postgres truncates identifiers to `NAMEDATALEN - 1` bytes.
+//!
+//! `table`: The constrained table as a `to_regclass` argument (`"schema"."table"`).
+//!
+//! `source_table`: The constrained table as written, for diagnostics.
+//!
+//! `referenced_table`: The referenced table as a `to_regclass` argument.
+//!
+//! `referenced_columns`: Empty when the declaration was `REFERENCES t` — the referenced primary
+//! key.
+//!
+//! `sql`: `ALTER TABLE … ADD CONSTRAINT …` without a validation clause.
+//!
+//! `split_foreign_keys`: Split the foreign keys out of one parsed `CREATE TABLE`.
+//!
+//! `original_sql` is returned untouched when the statement declares none.
+//!
+//! `split_create_table_foreign_keys`: Split the foreign keys out of a single `CREATE TABLE` given as text — the
+//! seam the unit tests and diagnostics use; the installer works on the
+//! already-parsed statement.
+//!
+//! `strip_column_references`: Remove a column-level `REFERENCES` from a column definition, folding the
+//! `DEFERRABLE` / `INITIALLY …` attributes the grammar emits as sibling nodes
+//! into the key itself, and naming the constrained column in `fk_attrs`.
+//!
+//! `default_name`: The name Postgres itself would pick: `<table>_<col>[_<col>…]_fkey`, cut
+//! to the identifier limit on a character boundary.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,23 +54,16 @@ use pg_query::protobuf::{
     DropBehavior, ObjectType, RangeVar,
 };
 
-/// Postgres truncates identifiers to `NAMEDATALEN - 1` bytes.
 const MAX_IDENTIFIER_BYTES: usize = 63;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeferredForeignKey {
-    /// The constrained table as a `to_regclass` argument (`"schema"."table"`).
     pub table: String,
-    /// The constrained table as written, for diagnostics.
     pub source_table: String,
     pub columns: Vec<String>,
-    /// The referenced table as a `to_regclass` argument.
     pub referenced_table: String,
-    /// Empty when the declaration was `REFERENCES t` — the referenced primary
-    /// key.
     pub referenced_columns: Vec<String>,
     pub constraint_name: String,
-    /// `ALTER TABLE … ADD CONSTRAINT …` without a validation clause.
     pub sql: String,
 }
 
@@ -52,9 +73,6 @@ pub struct SplitCreateTable {
     pub foreign_keys: Vec<DeferredForeignKey>,
 }
 
-/// Split the foreign keys out of one parsed `CREATE TABLE`.
-///
-/// `original_sql` is returned untouched when the statement declares none.
 pub(super) fn split_foreign_keys(
     original_sql: &str,
     create: &CreateStmt,
@@ -103,9 +121,6 @@ pub(super) fn split_foreign_keys(
     })
 }
 
-/// Split the foreign keys out of a single `CREATE TABLE` given as text — the
-/// seam the unit tests and diagnostics use; the installer works on the
-/// already-parsed statement.
 pub fn split_create_table_foreign_keys(sql: &str) -> Result<SplitCreateTable, String> {
     let parsed = pg_query::parse(sql).map_err(|e| format!("SQL parse failed: {e}"))?;
     let create = parsed
@@ -131,9 +146,6 @@ fn is_foreign(c: &Constraint) -> bool {
     ConstrType::try_from(c.contype) == Ok(ConstrType::ConstrForeign)
 }
 
-/// Remove a column-level `REFERENCES` from a column definition, folding the
-/// `DEFERRABLE` / `INITIALLY …` attributes the grammar emits as sibling nodes
-/// into the key itself, and naming the constrained column in `fk_attrs`.
 fn strip_column_references(cd: &ColumnDef) -> (ColumnDef, Vec<Constraint>) {
     let mut column = (*cd).clone();
     let mut kept = Vec::with_capacity(cd.constraints.len());
@@ -233,8 +245,6 @@ fn deferred_key(relation: &RangeVar, mut key: Constraint) -> Result<DeferredFore
     })
 }
 
-/// The name Postgres itself would pick: `<table>_<col>[_<col>…]_fkey`, cut
-/// to the identifier limit on a character boundary.
 fn default_name(table: &str, columns: &[String]) -> String {
     let mut name = format!("{table}_{}_fkey", columns.join("_"));
     if name.len() > MAX_IDENTIFIER_BYTES {

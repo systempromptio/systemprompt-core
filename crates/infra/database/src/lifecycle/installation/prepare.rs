@@ -2,6 +2,11 @@
 //! any database I/O. The resulting [`PreparedSchema`] is executed by the
 //! installer in the correct global phase.
 //!
+//! `foreign_keys`: Foreign keys split out of the structural `CREATE TABLE`s; applied
+//! after every extension's dependent phase.
+//!
+//! `CreateTable`: A `CREATE TABLE`, with its foreign keys deferred.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,8 +20,6 @@ pub(super) struct PreparedSchema {
     pub(super) extension_id: String,
     pub(super) structural: Vec<String>,
     pub(super) dependent: Vec<String>,
-    /// Foreign keys split out of the structural `CREATE TABLE`s; applied
-    /// after every extension's dependent phase.
     pub(super) foreign_keys: Vec<DeferredForeignKey>,
     pub(super) columns_to_validate: Vec<ColumnsToValidate>,
     pub(super) owned_tables: Vec<String>,
@@ -67,17 +70,7 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
         }
     }
 
-    if !lint_errors.is_empty() {
-        return Err(LoaderError::SchemaInstallationFailed {
-            extension: extension_id,
-            message: format!(
-                "Imperative SQL detected in declarative schema. Move offending statements to \
-                 schema/migrations/NNN_<name>.sql and declare them via \
-                 Extension::migrations():\n{}",
-                lint_errors.join("\n")
-            ),
-        });
-    }
+    require_declarative_schema(&extension_id, &lint_errors)?;
 
     let combined = all_sql.join("\n");
     let owned_tables = created_table_names(&combined);
@@ -124,10 +117,24 @@ enum StatementPhase {
     Dependent,
 }
 
+fn require_declarative_schema(extension_id: &str, lint_errors: &[String]) -> Result<(), LoaderError> {
+    if lint_errors.is_empty() {
+        return Ok(());
+    }
+    Err(LoaderError::SchemaInstallationFailed {
+        extension: extension_id.to_owned(),
+        message: format!(
+            "Imperative SQL detected in declarative schema. Move offending statements to \
+             schema/migrations/NNN_<name>.sql and declare them via \
+             Extension::migrations():\n{}",
+            lint_errors.join("\n")
+        ),
+    })
+}
+
 enum Classified {
     Structural,
     Dependent,
-    /// A `CREATE TABLE`, with its foreign keys deferred.
     CreateTable(SplitCreateTable),
 }
 

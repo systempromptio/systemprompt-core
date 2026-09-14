@@ -13,6 +13,9 @@
 //! declared in the same extension are skipped, as every other cross-extension
 //! reference is.
 //!
+//! `declared_keys`: Every foreign key on the table with its constrained columns, table-level
+//! and column-level alike.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -40,22 +43,21 @@ pub(super) fn check_foreign_keys(
             continue;
         };
         let referenced_columns = if key.pk_attrs.is_empty() {
-            match referenced.primary_key() {
-                Some(pk) => pk.to_vec(),
-                None => {
-                    errors.push(error(
-                        loc,
-                        format!(
-                            "foreign key on `{}`({}) references `{}` without naming columns, \
-                             and `{}` declares no PRIMARY KEY",
-                            relation.relname,
-                            columns.join(", "),
-                            referenced.name(),
-                            referenced.name(),
-                        ),
-                    ));
-                    continue;
-                },
+            if let Some(pk) = referenced.primary_key() {
+                pk.to_vec()
+            } else {
+                errors.push(error(
+                    loc,
+                    format!(
+                        "foreign key on `{}`({}) references `{}` without naming columns, \
+                         and `{}` declares no PRIMARY KEY",
+                        relation.relname,
+                        columns.join(", "),
+                        referenced.name(),
+                        referenced.name(),
+                    ),
+                ));
+                continue;
             }
         } else {
             string_values(&key.pk_attrs)
@@ -80,8 +82,6 @@ pub(super) fn check_foreign_keys(
     }
 }
 
-/// Every foreign key on the table with its constrained columns, table-level
-/// and column-level alike.
 fn declared_keys(create: &CreateStmt) -> Vec<(Vec<String>, &Constraint)> {
     let mut keys = Vec::new();
     for elt in &create.table_elts {

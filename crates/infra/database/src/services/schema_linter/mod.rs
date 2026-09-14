@@ -61,6 +61,12 @@
 //! anything it cannot statically prove, avoiding false positives on
 //! late-bound names.
 //!
+//! `lint_declarative_schemas`: Lint every `(source, sql)` of one extension as a single schema graph.
+//!
+//! The per-statement rules and column references are checked per input with
+//! that input's own line numbers; table definitions accumulate across inputs
+//! so a foreign key in one file resolves the table another file declares.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -132,11 +138,6 @@ pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintEr
     lint_declarative_schemas(&[(source, sql)])
 }
 
-/// Lint every `(source, sql)` of one extension as a single schema graph.
-///
-/// The per-statement rules and column references are checked per input with
-/// that input's own line numbers; table definitions accumulate across inputs
-/// so a foreign key in one file resolves the table another file declares.
 pub fn lint_declarative_schemas(inputs: &[(&str, &str)]) -> Result<(), Vec<LintError>> {
     let mut errors: Vec<LintError> = Vec::new();
     let mut parsed_inputs = Vec::with_capacity(inputs.len());
