@@ -1,6 +1,10 @@
 //! [`TemplateDataExtender`] contract for grafting extra variables onto
 //! per-page template data immediately before rendering.
 //!
+//! Extenders are returned as `Arc<dyn TemplateDataExtender>` from
+//! `Extension::template_data_extenders`, so the trait uses `#[async_trait]`;
+//! native `async fn` in traits is not `dyn`-compatible.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,6 +19,7 @@ use crate::web_config::WebConfig;
 pub struct ExtenderContext<'a> {
     pub item: &'a Value,
     pub all_items: &'a [Value],
+    // JSON: Extension config block from the profile YAML, owned by the extension.
     pub config: &'a serde_yaml::Value,
     pub web_config: &'a WebConfig,
     pub content_html: &'a str,
@@ -42,6 +47,7 @@ impl std::fmt::Debug for ExtenderContext<'_> {
 pub struct ExtenderContextBuilder<'a> {
     item: &'a Value,
     all_items: &'a [Value],
+    // JSON: Extension config block from the profile YAML, owned by the extension.
     config: &'a serde_yaml::Value,
     web_config: &'a WebConfig,
     db_pool: &'a (dyn Any + Send + Sync),
@@ -71,6 +77,7 @@ impl<'a> ExtenderContextBuilder<'a> {
     pub fn new(
         item: &'a Value,
         all_items: &'a [Value],
+        // JSON: Extension config block from the profile YAML, owned by the extension.
         config: &'a serde_yaml::Value,
         web_config: &'a WebConfig,
         db_pool: &'a (dyn Any + Send + Sync),
@@ -125,6 +132,7 @@ impl<'a> ExtenderContext<'a> {
     pub fn builder(
         item: &'a Value,
         all_items: &'a [Value],
+        // JSON: Extension config block from the profile YAML, owned by the extension.
         config: &'a serde_yaml::Value,
         web_config: &'a WebConfig,
         db_pool: &'a (dyn Any + Send + Sync),
@@ -140,12 +148,14 @@ impl<'a> ExtenderContext<'a> {
 
 #[derive(Debug)]
 pub struct ExtendedData {
+    // JSON: Tera template variables; the page data model is dynamic.
     pub variables: Value,
     pub priority: u32,
 }
 
 impl ExtendedData {
     #[must_use]
+    // JSON: Tera template variables; the page data model is dynamic.
     pub const fn new(variables: Value) -> Self {
         Self {
             variables,
@@ -154,6 +164,7 @@ impl ExtendedData {
     }
 
     #[must_use]
+    // JSON: Tera template variables; the page data model is dynamic.
     pub const fn with_priority(variables: Value, priority: u32) -> Self {
         Self {
             variables,
@@ -170,6 +181,7 @@ pub trait TemplateDataExtender: Send + Sync {
         vec![]
     }
 
+    // JSON: Tera template variables; the page data model is dynamic.
     async fn extend(&self, ctx: &ExtenderContext<'_>, data: &mut Value) -> ProviderResult<()>;
 
     fn priority(&self) -> u32 {

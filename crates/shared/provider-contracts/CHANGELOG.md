@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `ToolDefinition::model_config` is `Option<ToolModelConfig>` (the type moved here from `systemprompt_models::ai`, which re-exports it); `ToolDefinition::new` takes a `McpServerId`; `ToolDefinition::service_id` is a `McpServerId`.
+- **Breaking:** `ToolProvider::refresh_connections` takes `&AgentName`.
+- **Breaking:** `ToolProviderError::Config` is removed; `web_config::WebConfigError::Io { path }` carries a `PathBuf`.
+
+### Removed
+
+- The `llm` module (`LlmProvider`, `ToolExecutor`, `ChatRequest`, `ChatResponse`, `ChatMessage`, `ChatRole`, `SamplingParameters`, `TokenUsage`, `ToolExecutionContext`, `ChatStream`, `LlmProviderError`) — no implementor or consumer existed. Inference goes through `systemprompt_models::ai::AiProvider`.
+
 ## [0.44.0] - 2026-09-02
 
 ### Added
