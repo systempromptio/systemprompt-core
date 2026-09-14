@@ -426,7 +426,10 @@ machete:
 hack:
     cargo hack --workspace --feature-powerset --depth 2 check
 
-# Reject source files exceeding 300 lines (excludes target/, tests/, and `//!` doc heads).
+# Reject production source files exceeding 300 lines, `//!` head included
+# (excludes target/ and crates/tests/; covers the crates, the facade and the
+# bridge). A module head is part of the file a reviewer reads; a 120-line
+# head over a 290-line body is a 410-line file.
 #
 # This used to print and exit 0 — awk returns 0 whether or not it matched — so
 # the CI job named after it was green while 49 files were over the limit. It is
@@ -434,8 +437,8 @@ hack:
 file-size:
     #!/usr/bin/env bash
     set -euo pipefail
-    over=$(find crates bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' \
-        | xargs -r awk '!/^\/\/!/ {n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}' \
+    over=$(find crates systemprompt/src bin/bridge/src -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' \
+        | xargs -r awk '{n[FILENAME]++} END {for (f in n) if (n[f]>300) print n[f], f}' \
         | sort -rn)
     if [ -n "$over" ]; then
         echo "$over"

@@ -7,12 +7,17 @@
 # Every production file that reads the process environment must be listed in
 # scripts/env-var-allowlist.txt with a reason naming the sanctioned variable
 # or platform constraint. Tests (crates/tests/**) are not scanned.
+#
+# A reader is any of: `std::env::var*`, tracing's `EnvFilter::from_env` /
+# `try_from_default_env` (RUST_LOG), and the bridge's `basedirs::env_dir(…)`
+# wrapper — a wrapper is a reader at every call site, not only where it is
+# defined, or the wrapper becomes the unlisted kill switch.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 ALLOWLIST=scripts/env-var-allowlist.txt
-PATTERN='(std::)?env::(var|var_os|vars|vars_os)\('
+PATTERN='(std::)?env::(var|var_os|vars|vars_os)\(|EnvFilter::(try_from_default_env|from_env|from_default_env)\(|(basedirs::)?env_dir\('
 
 declare -A allowed
 while IFS= read -r line; do
