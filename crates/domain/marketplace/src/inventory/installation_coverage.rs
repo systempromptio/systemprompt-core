@@ -39,7 +39,7 @@ impl ManagedRepository {
             .ok_or_else(|| super::catalog::invalid("Installation coverage generation overflow"))?;
         let changed=sqlx::query!(r#"INSERT INTO managed_installation_coverage(owner_id,resource_id,body,generation)
    WITH latest AS(SELECT DISTINCT ON(resource_id,consumer_id,device_id,host,installation_id) * FROM managed_installation_receipts WHERE owner_id=$1 AND consumer_id IS NOT NULL ORDER BY resource_id,consumer_id,device_id,host,installation_id,generation DESC,verified_at DESC),
-   eligible AS(SELECT g.resource_id,d.id AS device_id,g.consumer_id FROM managed_consumer_grants g JOIN user_device_certs d ON d.user_id=g.consumer_id AND d.revoked_at IS NULL WHERE g.owner_id=$1 AND g.revoked_at IS NULL),
+   eligible AS(SELECT g.resource_id,d.device_id,g.consumer_id FROM managed_consumer_grants g CROSS JOIN LATERAL public.active_devices_for_consumer(g.consumer_id) d WHERE g.owner_id=$1 AND g.revoked_at IS NULL),
    current_receipts AS(SELECT l.* FROM latest l JOIN managed_publication_selections p ON p.owner_id=l.owner_id AND p.resource_id=l.resource_id AND p.generation=l.generation AND p.state='published' JOIN eligible e ON e.resource_id=l.resource_id AND e.device_id=l.device_id AND e.consumer_id=l.consumer_id)
    SELECT $1,r.id,jsonb_build_object(
     'eligible_devices',(SELECT COUNT(DISTINCT device_id) FROM eligible e WHERE e.resource_id=r.id),

@@ -34,7 +34,7 @@ impl ManagedRepository {
             ));
         }
         let consumer = sqlx::query_scalar!(
-            "SELECT user_id FROM user_device_certs WHERE id=$1 AND revoked_at IS NULL FOR SHARE",
+            "SELECT consumer_id AS \"consumer_id!\" FROM public.active_device_identity($1)",
             cert.as_str()
         )
         .fetch_optional(&mut *tx)
