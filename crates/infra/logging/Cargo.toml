@@ -49,7 +49,6 @@ systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 
 # Traits
-async-trait = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }
 

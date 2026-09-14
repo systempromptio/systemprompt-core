@@ -4499,7 +4499,6 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
  "tokio",
@@ -4948,7 +4947,6 @@ dependencies = [
 name = "systemprompt-logging"
 version = "0.52.0"
 dependencies = [
- "async-trait",
  "chrono",
  "console",
  "indicatif",
@@ -5113,7 +5111,6 @@ version = "0.52.0"
 dependencies = [
  "async-trait",
  "chrono",
- "futures",
  "inventory",
  "serde",
  "serde_json",
@@ -5184,7 +5181,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
- "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-runtime",
@@ -5324,7 +5320,6 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "tracing",
- "uuid",
  "xxhash-rust",
 ]
 
