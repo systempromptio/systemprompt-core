@@ -35,7 +35,7 @@ impl Job for FeedbackFactsJob {
             .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
         let service = FactsProcessingService::new(app.feedback_facts_repository().as_ref().clone());
         let processed = service
-            .drain(app.system_admin().id(), &TaskId::generate(), 64)
+            .drain(&ctx.actor().user_id, &TaskId::generate(), 64)
             .await
             .map_err(SchedulerError::from)?;
         Ok(JobResult::success().with_stats(
