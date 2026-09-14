@@ -243,3 +243,52 @@ async fn failed_capture_has_durable_status_and_conflicting_http_retry_is_rejecte
         "application/problem+json"
     );
 }
+
+#[tokio::test]
+async fn capability_cursor_visits_each_client_once_and_preserves_serialized_names() {
+    let (_, admin, _) = routers().await;
+    let mut after = None;
+    let mut seen = std::collections::BTreeSet::new();
+    for _ in 0..10 {
+        let uri = after.as_ref().map_or_else(
+            || "/evaluator-capabilities?limit=1".to_owned(),
+            |cursor| format!("/evaluator-capabilities?limit=1&after={cursor}"),
+        );
+        let response = admin
+            .clone()
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 16384)
+            .await
+            .unwrap();
+        let page: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let items = page["items"].as_array().unwrap();
+        assert!(items.len() <= 1);
+        for item in items {
+            assert!(
+                seen.insert(item["client"].as_str().unwrap().to_owned()),
+                "cursor duplicated a client"
+            );
+        }
+        after = page["next_cursor"].as_str().map(str::to_owned);
+        if after.is_none() {
+            break;
+        }
+    }
+    assert!(after.is_none(), "bounded traversal never terminated");
+    assert_eq!(
+        seen,
+        std::collections::BTreeSet::from(
+            [
+                "claude-code",
+                "claude-desktop",
+                "codex",
+                "hermes",
+                "open-code"
+            ]
+            .map(str::to_owned)
+        )
+    );
+}

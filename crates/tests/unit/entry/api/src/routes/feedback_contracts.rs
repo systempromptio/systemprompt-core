@@ -176,3 +176,6 @@ fn openapi_references_resolve_and_consumer_admin_contracts_are_distinct() {
         "access_token"
     );
 }
+
+#[path = "feedback_credential_issuance.rs"]
+mod credential_issuance;
