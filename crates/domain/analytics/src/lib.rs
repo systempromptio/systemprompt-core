@@ -66,3 +66,5 @@ pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;
 
 #[cfg(not(feature = "geolocation"))]
 pub type GeoIpReader = std::sync::Arc<()>;
+
+pub mod snapshots;

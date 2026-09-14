@@ -45,27 +45,32 @@ async fn concurrent_workers_claim_disjoint_rows_and_stale_worker_cannot_complete
 }
 
 #[tokio::test]
-async fn transaction_committing_late_remains_discoverable_after_another_checkpoint() {
+async fn uncommitted_admission_serializes_later_submit_without_losing_rows() {
     let f = Fixture::new().await;
     let late = invocation("late", 1);
     let mut transaction = f.pool.begin().await.expect("transaction");
     FeedbackFactsRepository::submit_in(&mut transaction, &f.owner, &late)
         .await
         .expect("uncommitted change");
-    f.repository
-        .submit(&f.owner, &invocation("visible", 1))
-        .await
-        .expect("committed change");
-    f.drain().await;
-    assert_eq!(
-        f.repository
-            .health(&f.owner)
+    let repository = f.repository.clone();
+    let owner = f.owner.clone();
+    let (started, ready) = tokio::sync::oneshot::channel();
+    let mut pending = tokio::spawn(async move {
+        started.send(()).expect("test waiting");
+        repository.submit(&owner, &invocation("visible", 1)).await
+    });
+    ready.await.expect("second submit started");
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(100), &mut pending)
             .await
-            .expect("health")
-            .generation,
-        1
+            .is_err()
     );
     transaction.commit().await.expect("late commit");
+    tokio::time::timeout(std::time::Duration::from_secs(10), pending)
+        .await
+        .expect("bounded admission after commit")
+        .expect("task")
+        .expect("second admitted");
     f.drain().await;
     assert!(
         f.repository

@@ -44,3 +44,5 @@ pub(crate) mod optimization_origin;
 mod optimization_resources;
 
 pub(crate) mod consumer;
+
+mod snapshots;

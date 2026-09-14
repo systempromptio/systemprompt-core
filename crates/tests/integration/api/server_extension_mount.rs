@@ -172,7 +172,16 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                 mcp_session_repository: Arc::new(
                     systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
                 ),
-                feedback_facts_repository: Arc::new(systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone())),
+                feedback_snapshots_repository: Arc::new(
+                    systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
+                        sqlx_pool.clone(),
+                    ),
+                ),
+                feedback_facts_repository: Arc::new(
+                    systemprompt_analytics::feedback::FeedbackFactsRepository::new(
+                        sqlx_pool.clone(),
+                    ),
+                ),
                 managed_repository: Arc::new(
                     systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
                 ),

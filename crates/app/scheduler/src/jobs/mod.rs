@@ -37,3 +37,6 @@ pub use no_js_cleanup::NoJsCleanupJob;
 pub use service_registry_gc::ServiceRegistryGcJob;
 pub use thought_signature_cleanup::ThoughtSignatureCleanupJob;
 pub use vertex_discovery::VertexDiscoveryJob;
+
+mod feedback_snapshots;
+pub use feedback_snapshots::FeedbackSnapshotsJob;

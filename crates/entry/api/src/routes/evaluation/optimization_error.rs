@@ -13,6 +13,8 @@ use systemprompt_runtime::optimization::OptimizationError;
 #[derive(Debug, thiserror::Error)]
 pub(super) enum OptimizationHttpError {
     #[error(transparent)]
+    Analytics(#[from] systemprompt_analytics::AnalyticsError),
+    #[error(transparent)]
     Evaluation(#[from] EvaluationError),
     #[error(transparent)]
     Managed(#[from] ManagedError),
@@ -23,6 +25,10 @@ pub(super) enum OptimizationHttpError {
 impl IntoResponse for OptimizationHttpError {
     fn into_response(self) -> Response {
         let status = match &self {
+            Self::Analytics(systemprompt_analytics::AnalyticsError::InvalidArgument(_)) => {
+                StatusCode::BAD_REQUEST
+            },
+            Self::Analytics(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Evaluation(error) | Self::Optimization(OptimizationError::Evaluation(error)) => {
                 evaluation_status(error)
             },

@@ -30,6 +30,10 @@ impl Extension for AnalyticsExtension {
                 include_str!("../schema/feedback_facts.sql"),
             ),
             SchemaDefinition::new(
+                "analytics_feedback_snapshots",
+                include_str!("../schema/feedback_snapshots.sql"),
+            ),
+            SchemaDefinition::new(
                 "engagement_events",
                 include_str!("../schema/engagement_events.sql"),
             )

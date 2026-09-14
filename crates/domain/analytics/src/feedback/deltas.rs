@@ -26,6 +26,19 @@ impl FeedbackFactsRepository {
             return Err(validation::invalid());
         }
         let mut tx = self.pool.begin().await?;
+        sqlx::query!(
+            "INSERT INTO analytics_fact_checkpoints(owner_id) VALUES($1) ON CONFLICT DO NOTHING",
+            owner.as_str()
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "SELECT generation FROM analytics_fact_checkpoints WHERE owner_id=$1 FOR UPDATE",
+            owner.as_str()
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
         sqlx::query!("INSERT INTO analytics_fact_consumers(owner_id,consumer) VALUES($1,$2) ON CONFLICT DO NOTHING", owner.as_str(), consumer).execute(&mut *tx).await?;
         let state = sqlx::query!("SELECT generation FROM analytics_fact_consumers WHERE owner_id=$1 AND consumer=$2 AND (lease_until IS NULL OR lease_until<=clock_timestamp()) FOR UPDATE SKIP LOCKED", owner.as_str(), consumer).fetch_optional(&mut *tx).await?;
         let Some(state) = state else {

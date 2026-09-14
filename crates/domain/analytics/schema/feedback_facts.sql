@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS analytics_fact_deltas (
     fact_kind TEXT NOT NULL,
     source TEXT NOT NULL,
     fact_id TEXT NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL,
     before_fact JSONB,
     after_fact JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
