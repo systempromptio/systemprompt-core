@@ -15,11 +15,25 @@ use systemprompt_scheduler::services::evaluator::container::{ContainerExecution,
 
 const DIGEST: &str = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
+#[derive(Debug)]
+struct FixtureVerifier;
+
+impl systemprompt_scheduler::services::evaluator::container::ClientVerifier for FixtureVerifier {
+    fn verify(
+        &self,
+        _launch: &ContainerLaunch,
+        _client: &NativeClient,
+    ) -> systemprompt_scheduler::SchedulerResult<()> {
+        Ok(())
+    }
+}
+
 fn launch(
     docker: PathBuf,
     directory: PathBuf,
 ) -> systemprompt_scheduler::SchedulerResult<ContainerLaunch> {
     ContainerLaunch::builder(docker, directory)
+        .verifier(std::sync::Arc::new(FixtureVerifier))
         .image(DIGEST.to_owned())
         .network("eval-net-1".to_owned())
         .name("eval-run-1".to_owned())

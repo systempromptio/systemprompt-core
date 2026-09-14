@@ -15,7 +15,7 @@ use systemprompt_identifiers::{
 };
 
 use super::RevisionRepository;
-use crate::experiments::{ExperimentSpec, VariantSpec, content_digest, invalid};
+use crate::experiments::{ExperimentSpec, content_digest, invalid};
 
 #[path = "run_claims.rs"]
 mod claims;
@@ -24,11 +24,23 @@ mod claims;
 pub struct ExperimentRepository {
     pub(super) pool: PgPool,
     revisions: RevisionRepository,
+    pub(super) admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
 }
 
 impl ExperimentRepository {
     pub fn new(pool: PgPool) -> Self {
+        Self::with_admission(
+            pool,
+            std::sync::Arc::new(crate::capabilities::VerifiedExecutionAdmission),
+        )
+    }
+
+    pub fn with_admission(
+        pool: PgPool,
+        admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
+    ) -> Self {
         Self {
+            admission,
             revisions: RevisionRepository::new(pool.clone()),
             pool,
         }
@@ -118,7 +130,7 @@ impl ExperimentRepository {
         budget: &EvalBudgetId,
         spec: &ExperimentSpec,
     ) -> Result<ExperimentPreflight> {
-        spec.validate()?;
+        self.admission.admit(spec)?;
         let dataset = spec
             .dataset
             .as_ref()
@@ -144,7 +156,7 @@ impl ExperimentRepository {
                 "Dataset or rubric digest differs from frozen settings",
             ));
         }
-        let (baseline, candidate) = paired_variants(spec)?;
+        let (baseline, candidate) = crate::capabilities::paired_variants(spec)?;
         self.require_projections(
             owner,
             [
@@ -269,30 +281,4 @@ impl ExperimentRepository {
         tx.commit().await?;
         Ok(())
     }
-}
-
-fn paired_variants(spec: &ExperimentSpec) -> Result<(&VariantSpec, &VariantSpec)> {
-    if spec.variants.len() != 2 {
-        return Err(invalid(
-            "Paired comparison requires baseline and candidate variants",
-        ));
-    }
-    let baseline = &spec.variants[0];
-    let candidate = &spec.variants[1];
-    if baseline.client != candidate.client
-        || baseline.client_version != candidate.client_version
-        || baseline.model != candidate.model
-        || baseline.provider != candidate.provider
-        || baseline.configuration_digest != candidate.configuration_digest
-        || baseline.worker_image_digest != candidate.worker_image_digest
-        || baseline.skill_bundle_digest == candidate.skill_bundle_digest
-    {
-        return Err(invalid(
-            "Only the candidate skill bundle may differ between paired variants",
-        ));
-    }
-    if baseline.client != crate::experiments::ClientKind::ClaudeCode {
-        return Err(invalid("Only pinned Claude Code execution is supported"));
-    }
-    Ok((baseline, candidate))
 }

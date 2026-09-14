@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod admission;
 mod assignments;
 mod campaign_runs;
 pub use campaign_runs::CampaignExperiment;
@@ -57,6 +58,16 @@ pub struct EvaluationRepositories {
 impl EvaluationRepositories {
     #[must_use]
     pub fn new(pool: &sqlx::PgPool) -> Self {
+        Self::with_admission(
+            pool,
+            std::sync::Arc::new(crate::capabilities::VerifiedExecutionAdmission),
+        )
+    }
+
+    pub fn with_admission(
+        pool: &sqlx::PgPool,
+        admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
+    ) -> Self {
         Self {
             revisions: RevisionRepository::new(pool.clone()),
             budgets: BudgetRepository::new(pool.clone()),
@@ -65,9 +76,12 @@ impl EvaluationRepositories {
             capabilities: ExecutionCapabilityRepository::new(pool.clone()),
             evidence: EvidenceRepository::new(pool.clone()),
             events: ExecutionEventRepository::new(pool.clone()),
-            experiments: ExperimentRepository::new(pool.clone()),
-            lifecycle: EvaluationLifecycleRepository::new(pool.clone()),
-            gateway: GatewayEvaluationRepository::new(pool.clone()),
+            experiments: ExperimentRepository::with_admission(pool.clone(), admission.clone()),
+            lifecycle: EvaluationLifecycleRepository::with_admission(
+                pool.clone(),
+                admission.clone(),
+            ),
+            gateway: GatewayEvaluationRepository::with_admission(pool.clone(), admission),
             workers: WorkerRepository::new(pool.clone()),
         }
     }

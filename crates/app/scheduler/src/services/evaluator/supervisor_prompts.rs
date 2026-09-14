@@ -43,31 +43,10 @@ fn parse_client_json<T: serde::de::DeserializeOwned>(
     label: &str,
 ) -> SchedulerResult<T> {
     let body = std::str::from_utf8(bytes).map_err(internal)?;
-    for line in body.lines().rev() {
-        let Ok(event) = serde_json::from_str::<serde_json::Value>(line) else {
-            continue;
-        };
-        let candidate = event
-            .get("result")
-            .and_then(serde_json::Value::as_str)
-            .or_else(|| {
-                event
-                    .pointer("/message/content/0/text")
-                    .and_then(serde_json::Value::as_str)
-            });
-        let Some(candidate) = candidate else {
-            continue;
-        };
-        if let Ok(value) = serde_json::from_str(candidate) {
-            return Ok(value);
-        }
-        if let (Some(start), Some(end)) = (candidate.find('{'), candidate.rfind('}'))
-            && start <= end
-            && let Ok(value) = serde_json::from_str(&candidate[start..=end])
-        {
-            return Ok(value);
-        }
+    if let Ok(value) = serde_json::from_str(body) {
+        return Ok(value);
     }
+
     Err(SchedulerError::config_error(format!(
         "Client returned no valid {label} JSON"
     )))

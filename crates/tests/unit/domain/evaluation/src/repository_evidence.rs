@@ -197,7 +197,10 @@ async fn fixture(pool: &PgPool) -> Fixture {
         .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 100)
         .await
         .expect("budget");
-    let experiments = ExperimentRepository::new(pool.clone());
+    let experiments = ExperimentRepository::with_admission(
+        pool.clone(),
+        crate::fixture_admission::fixture_admission(),
+    );
     let rubric_content = ResourceContent::Rubric(RubricContent {
         dimensions: vec![WeightedDimension {
             name: "grounding".to_owned(),

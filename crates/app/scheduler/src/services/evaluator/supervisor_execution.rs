@@ -35,7 +35,7 @@ impl EvaluatorSupervisor {
             StageEvent {
                 sequence: 1,
                 stage: ExecutionStage::Context,
-                summary: "Started isolated Claude Code execution and authenticated relay",
+                summary: "Started isolated native client execution and authenticated relay",
             },
         )
         .await?;
@@ -60,9 +60,30 @@ impl EvaluatorSupervisor {
         )
         .await?;
         let mut artifacts = BTreeMap::new();
-        capture_outputs(&execution, "client", &mut artifacts)?;
+        artifacts.insert(
+            "native-environment.json".to_owned(),
+            ArtifactFile {
+                bytes: std::fs::read(run.directory.join("native-environment.json"))?,
+                executable: false,
+            },
+        );
+        let stdout = capture_outputs(&execution, "client", &mut artifacts)?;
+        let normalized = run
+            .client
+            .adapter()
+            .map_err(internal)?
+            .normalize(&stdout)
+            .map_err(internal)?;
+        normalized.validate().map_err(internal)?;
+        artifacts.insert(
+            "client-normalized.json".to_owned(),
+            ArtifactFile {
+                bytes: serde_json::to_vec(&normalized).map_err(internal)?,
+                executable: false,
+            },
+        );
         artifacts.extend(changed_workspace(&run.home.join("work"), &run.baseline)?);
-        let observed = workspace_state(&run.home.join(".claude/skills"))?;
+        let observed = workspace_state(&run.skill_directory)?;
         artifacts.insert(
             "installation-integrity.json".to_owned(),
             ArtifactFile {
@@ -144,7 +165,14 @@ impl EvaluatorSupervisor {
         if !status.success() {
             return Ok(None);
         }
-        match parse_judgment(&bytes) {
+        let normalized = run
+            .client
+            .adapter()
+            .map_err(internal)?
+            .normalize(&bytes)
+            .map_err(internal)?;
+        normalized.validate().map_err(internal)?;
+        match parse_judgment(normalized.text.as_bytes()) {
             Ok(judgment) => Ok(Some(judgment)),
             Err(error) => {
                 tracing::warn!(
@@ -229,6 +257,14 @@ pub(super) fn capture_outputs(
         format!("{stem}-stderr.log"),
         ArtifactFile {
             bytes: std::fs::read(stderr_path)?,
+            executable: false,
+        },
+    );
+    let verification_path = stdout_path.with_file_name(format!("{stem}-native-verification.json"));
+    artifacts.insert(
+        format!("{stem}-native-verification.json"),
+        ArtifactFile {
+            bytes: std::fs::read(verification_path)?,
             executable: false,
         },
     );

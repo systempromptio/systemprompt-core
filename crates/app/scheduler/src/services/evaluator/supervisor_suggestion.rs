@@ -118,7 +118,14 @@ impl EvaluatorSupervisor {
         retained: &[systemprompt_identifiers::AiRequestId],
         bytes: &[u8],
     ) -> SchedulerResult<()> {
-        let Ok(generated) = parse_suggestion(bytes) else {
+        let normalized = run
+            .client
+            .adapter()
+            .map_err(internal)?
+            .normalize(bytes)
+            .map_err(internal)?;
+        normalized.validate().map_err(internal)?;
+        let Ok(generated) = parse_suggestion(normalized.text.as_bytes()) else {
             return Ok(());
         };
         let after = self
