@@ -38,7 +38,6 @@ systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
-systemprompt-marketplace = { workspace = true }
 rmcp = { workspace = true }
 
 # Async runtime

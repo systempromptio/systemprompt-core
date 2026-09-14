@@ -17,9 +17,11 @@ use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_evaluation::repository::experiments::EvaluationRepositories;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
 use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::SystemAdmin;
@@ -58,6 +60,8 @@ pub struct DataPlane {
     pub analytics_repositories: Arc<AnalyticsRepositories>,
     pub file_repository: Arc<FileRepository>,
     pub mcp_session_repository: Arc<McpSessionRepository>,
+    pub managed_repository: Arc<ManagedRepository>,
+    pub evaluation_repositories: Arc<EvaluationRepositories>,
 }
 
 #[derive(Clone)]
@@ -231,6 +235,14 @@ impl AppContext {
 
     pub const fn mcp_session_repository(&self) -> &Arc<McpSessionRepository> {
         &self.data.mcp_session_repository
+    }
+
+    pub const fn managed_repository(&self) -> &Arc<ManagedRepository> {
+        &self.data.managed_repository
+    }
+
+    pub const fn evaluation_repositories(&self) -> &Arc<EvaluationRepositories> {
+        &self.data.evaluation_repositories
     }
 
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {

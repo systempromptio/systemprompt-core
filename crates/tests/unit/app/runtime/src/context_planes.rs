@@ -44,6 +44,7 @@ async fn plane_debug_impls_flag_optional_members() {
     ));
     let session_usage: systemprompt_traits::DynSessionUsageCounters =
         Arc::new(analytics_service.session_repo().clone());
+    let sqlx_pool = pool.pool_arc().expect("SQLx pool").as_ref().clone();
     let data = DataPlane {
         database: Arc::clone(&pool),
         analytics_service,
@@ -88,6 +89,14 @@ async fn plane_debug_impls_flag_optional_members() {
         mcp_session_repository: Arc::new(
             systemprompt_mcp::repository::McpSessionRepository::new(&pool)
                 .expect("mcp session repository"),
+        ),
+        managed_repository: Arc::new(
+            systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
+        ),
+        evaluation_repositories: Arc::new(
+            systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
+                &sqlx_pool,
+            ),
         ),
     };
     let dbg = format!("{data:?}");

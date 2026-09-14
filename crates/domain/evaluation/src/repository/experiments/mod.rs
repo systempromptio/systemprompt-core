@@ -37,6 +37,34 @@ pub use revisions::RevisionRepository;
 pub use runs::ExperimentRepository;
 pub use workers::{WorkerCredential, WorkerRecord, WorkerRecordBuilder, WorkerRepository};
 
+#[derive(Debug, Clone)]
+pub struct EvaluationRepositories {
+    pub assignments: AssignmentRepository,
+    pub capabilities: ExecutionCapabilityRepository,
+    pub evidence: EvidenceRepository,
+    pub events: ExecutionEventRepository,
+    pub experiments: ExperimentRepository,
+    pub lifecycle: EvaluationLifecycleRepository,
+    pub gateway: GatewayEvaluationRepository,
+    pub workers: WorkerRepository,
+}
+
+impl EvaluationRepositories {
+    #[must_use]
+    pub fn new(pool: &sqlx::PgPool) -> Self {
+        Self {
+            assignments: AssignmentRepository::new(pool.clone()),
+            capabilities: ExecutionCapabilityRepository::new(pool.clone()),
+            evidence: EvidenceRepository::new(pool.clone()),
+            events: ExecutionEventRepository::new(pool.clone()),
+            experiments: ExperimentRepository::new(pool.clone()),
+            lifecycle: EvaluationLifecycleRepository::new(pool.clone()),
+            gateway: GatewayEvaluationRepository::new(pool.clone()),
+            workers: WorkerRepository::new(pool.clone()),
+        }
+    }
+}
+
 pub(super) async fn lock_owner(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     owner: &systemprompt_identifiers::UserId,

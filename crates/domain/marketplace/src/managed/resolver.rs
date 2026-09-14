@@ -5,6 +5,7 @@
 
 use systemprompt_identifiers::{SkillId, UserId};
 use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
+use systemprompt_traits::{ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill};
 
 use super::{
     ManagedError, ManagedRepository, ManagedResolution, ResourceKind, Result, RevisionBundle,
@@ -20,6 +21,29 @@ pub enum ResolvedManagedResource {
     },
     Withdrawn(ManagedResolution),
     IntegrityFailure(ManagedResolution),
+}
+
+#[async_trait::async_trait]
+impl ManagedSkillResolver for ManagedResourceResolver {
+    async fn resolve_skill(
+        &self,
+        owner: &UserId,
+        key: &str,
+    ) -> std::result::Result<Option<ResolvedManagedSkill>, ManagedSkillResolverError> {
+        ManagedResourceResolver::resolve_skill(self, owner, key)
+            .await
+            .map(|resolved| {
+                resolved.map(|skill| ResolvedManagedSkill {
+                    id: skill.id.as_str().to_owned(),
+                    name: skill.name,
+                    description: skill.description,
+                    instructions: skill.instructions,
+                })
+            })
+            .map_err(|error| ManagedSkillResolverError {
+                message: error.to_string(),
+            })
+    }
 }
 
 #[derive(Debug, Clone)]

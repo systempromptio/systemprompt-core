@@ -14,9 +14,7 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, UserId};
-use systemprompt_marketplace::{
-    CatalogContent, ManagedRepository, ManifestService, MarketplaceCandidate, NoopTrace,
-};
+use systemprompt_marketplace::{CatalogContent, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
 };
@@ -116,15 +114,9 @@ async fn assemble_candidate(
                 tracing::warn!(error = %e, "manifest: catalog load failed");
                 (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
             })?;
-    let pool = ctx.db_pool().pool_arc().map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("managed catalogue database: {error}"),
-        )
-    })?;
     let catalog = (*disk_catalog)
         .clone()
-        .with_managed_skills(ManagedRepository::new(pool.as_ref().clone()), user_id)
+        .with_managed_skills(ctx.managed_repository().as_ref().clone(), user_id)
         .await
         .map_err(|error| {
             tracing::warn!(%error, "manifest: managed catalogue resolution failed");

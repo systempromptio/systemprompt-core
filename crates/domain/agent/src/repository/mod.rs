@@ -7,8 +7,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use systemprompt_database::DbPool;
 
 pub mod agent_service;
@@ -24,7 +22,7 @@ use crate::error::AgentError;
 
 #[derive(Debug, Clone)]
 pub struct A2ARepositories {
-    db_pool: DbPool,
+    managed_skill_resolver: Option<systemprompt_traits::DynManagedSkillResolver>,
     pub agent_services: agent_service::AgentServiceRepository,
     pub tasks: task::TaskRepository,
     pub contexts: ContextRepository,
@@ -48,7 +46,7 @@ impl A2ARepositories {
         let execution_steps = execution::ExecutionStepRepository::new(db)?;
 
         Ok(Self {
-            db_pool: Arc::clone(db),
+            managed_skill_resolver: None,
             agent_services,
             tasks,
             contexts,
@@ -59,7 +57,16 @@ impl A2ARepositories {
     }
 
     #[must_use]
-    pub const fn db_pool(&self) -> &DbPool {
-        &self.db_pool
+    pub fn with_managed_skill_resolver(
+        mut self,
+        resolver: systemprompt_traits::DynManagedSkillResolver,
+    ) -> Self {
+        self.managed_skill_resolver = Some(resolver);
+        self
+    }
+
+    #[must_use]
+    pub fn managed_skill_resolver(&self) -> Option<systemprompt_traits::DynManagedSkillResolver> {
+        self.managed_skill_resolver.clone()
     }
 }

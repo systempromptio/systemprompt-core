@@ -142,6 +142,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
             let session_usage: systemprompt_traits::DynSessionUsageCounters =
                 Arc::new(analytics_service.session_repo().clone());
+            let sqlx_pool = pool.pool_arc()?.as_ref().clone();
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
@@ -170,6 +171,14 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                 file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)?),
                 mcp_session_repository: Arc::new(
                     systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
+                ),
+                managed_repository: Arc::new(
+                    systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
+                ),
+                evaluation_repositories: Arc::new(
+                    systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(
+                        &sqlx_pool,
+                    ),
                 ),
             }
         },
