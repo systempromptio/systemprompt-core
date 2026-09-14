@@ -311,7 +311,7 @@ async fn process_events_broadcasts_tool_and_step_events() {
         .expect("send tool call");
     ctx.event_tx
         .send(StreamEvent::ToolResult {
-            call_id: call_id.to_string(),
+            ai_tool_call_id: call_id.clone(),
             result: CallToolResult::success(vec![]),
         })
         .await

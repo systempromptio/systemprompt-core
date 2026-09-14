@@ -62,7 +62,7 @@ async fn open_pending(repo: &ApprovalRepository, call: &CallId, expires_in_secon
 async fn answer(repo: &ApprovalRepository, call: &CallId, status: ApprovalStatus) {
     let approver = UserId::new("approver-test-user");
     repo.resolve(
-        call.as_str(),
+        call,
         &ApprovalVerdict {
             status,
             approver_id: &approver,
@@ -83,7 +83,7 @@ async fn an_approved_call_is_released_and_carries_its_approver() {
     open_pending(&repo, &call, 60).await;
     answer(&repo, &call, ApprovalStatus::Approved).await;
 
-    match wait_for_decision(&repo, call.as_str(), SHORT_HOLD).await {
+    match wait_for_decision(&repo, &call, SHORT_HOLD).await {
         ApprovalOutcome::Approved(request) => {
             assert_eq!(
                 request.approver_username.as_deref(),
@@ -103,7 +103,7 @@ async fn a_denied_call_is_refused_and_carries_its_approver() {
     open_pending(&repo, &call, 60).await;
     answer(&repo, &call, ApprovalStatus::Denied).await;
 
-    match wait_for_decision(&repo, call.as_str(), SHORT_HOLD).await {
+    match wait_for_decision(&repo, &call, SHORT_HOLD).await {
         ApprovalOutcome::Denied(request) => {
             assert_eq!(request.approver_username.as_deref(), Some("approver"));
         },
@@ -120,14 +120,14 @@ async fn a_pending_row_past_its_deadline_is_expired_without_waiting_for_the_swee
     let call = call_id();
     open_pending(&repo, &call, 0).await;
 
-    let found = repo.find(call.as_str()).await.expect("find").expect("row");
+    let found = repo.find(&call).await.expect("find").expect("row");
     assert_eq!(
         found.status,
         ApprovalStatus::Pending,
         "control: the sweep has not run, so the column still says pending"
     );
 
-    match wait_for_decision(&repo, call.as_str(), SHORT_HOLD).await {
+    match wait_for_decision(&repo, &call, SHORT_HOLD).await {
         ApprovalOutcome::Expired(_) => {},
         other => panic!("expected Expired from the row's own deadline, got {other:?}"),
     }
@@ -142,7 +142,7 @@ async fn an_unanswered_call_is_still_pending_when_the_hold_runs_out() {
     let call = call_id();
     open_pending(&repo, &call, 3600).await;
 
-    match wait_for_decision(&repo, call.as_str(), SHORT_HOLD).await {
+    match wait_for_decision(&repo, &call, SHORT_HOLD).await {
         ApprovalOutcome::StillPending(request) => {
             assert_eq!(request.status, ApprovalStatus::Pending);
             assert!(request.approver_id.is_none(), "nobody answered it");
@@ -159,7 +159,7 @@ async fn a_call_id_that_was_never_opened_is_not_released() {
     let repo = repo().await;
     let call = call_id();
 
-    match wait_for_decision(&repo, call.as_str(), SHORT_HOLD).await {
+    match wait_for_decision(&repo, &call, SHORT_HOLD).await {
         ApprovalOutcome::Expired(request) => {
             assert_eq!(
                 request.status,
@@ -181,12 +181,8 @@ async fn expire_due_sweeps_only_rows_past_their_deadline() {
 
     repo.expire_due().await.expect("sweep");
 
-    let overdue_row = repo
-        .find(overdue.as_str())
-        .await
-        .expect("find")
-        .expect("row");
-    let live_row = repo.find(live.as_str()).await.expect("find").expect("row");
+    let overdue_row = repo.find(&overdue).await.expect("find").expect("row");
+    let live_row = repo.find(&live).await.expect("find").expect("row");
     assert_eq!(overdue_row.status, ApprovalStatus::Expired);
     assert_eq!(
         live_row.status,
@@ -204,7 +200,7 @@ async fn pending_holds_are_listed_for_a_human_to_answer() {
     let pending = repo.list_pending(200).await.expect("list_pending");
 
     assert!(
-        pending.iter().any(|r| r.call_id == call.as_str()),
+        pending.iter().any(|r| r.call_id == call),
         "an open hold must appear in the queue, or nobody can approve it"
     );
 }
@@ -216,7 +212,7 @@ async fn resolving_a_call_that_does_not_exist_reports_rather_than_inventing_one(
 
     let resolved = repo
         .resolve(
-            "call-that-was-never-opened",
+            &CallId::new("call-that-was-never-opened"),
             &ApprovalVerdict {
                 status: ApprovalStatus::Approved,
                 approver_id: &approver,
@@ -265,25 +261,28 @@ async fn coverage_recent_decisions_preserve_audit_fields_and_exclude_pending_cal
     let rows = repo.list_decided(100_000).await.expect("recent decisions");
     let row = rows
         .iter()
-        .find(|r| r.call_id == approved.as_str())
+        .find(|r| r.call_id == approved)
         .expect("approved row");
     assert_eq!(row.status, ApprovalStatus::Approved);
     assert_eq!(row.tool_name, "email_send");
     assert_eq!(row.server_name, "test-server");
     assert_eq!(row.arguments, arguments());
     assert_eq!(row.args_digest, args_digest(&arguments()));
-    assert_eq!(row.requested_by, "approval-test-user");
+    assert_eq!(row.requested_by.as_str(), "approval-test-user");
     assert_eq!(
         row.session_id.as_ref().map(SessionId::as_str),
         Some("sess-approval-test")
     );
     assert_eq!(row.trace_id.as_deref(), Some("trace-approval-test"));
     assert_eq!(row.rule, "require_approval");
-    assert_eq!(row.approver_id.as_deref(), Some("approver-test-user"));
+    assert_eq!(
+        row.approver_id.as_ref().map(UserId::as_str),
+        Some("approver-test-user")
+    );
     assert_eq!(row.approver_username.as_deref(), Some("approver"));
     assert_eq!(row.decision_note.as_deref(), Some("test verdict"));
     assert!(row.decided_at.is_some());
-    assert!(!rows.iter().any(|r| r.call_id == pending.as_str()));
+    assert!(!rows.iter().any(|r| r.call_id == pending));
     assert!(repo.list_decided(0).await.unwrap().is_empty());
     answer(&repo, &pending, ApprovalStatus::Denied).await;
 }
@@ -294,9 +293,9 @@ async fn coverage_reopening_a_call_preserves_its_original_arguments_and_decision
     let call = call_id();
     open_pending(&repo, &call, 60).await;
     answer(&repo, &call, ApprovalStatus::Denied).await;
-    let before = repo.find(call.as_str()).await.unwrap().unwrap();
+    let before = repo.find(&call).await.unwrap().unwrap();
     open_pending(&repo, &call, 3600).await;
-    let after = repo.find(call.as_str()).await.unwrap().unwrap();
+    let after = repo.find(&call).await.unwrap().unwrap();
     assert_eq!(after.status, ApprovalStatus::Denied);
     assert_eq!(after.expires_at, before.expires_at);
     assert_eq!(after.created_at, before.created_at);
@@ -316,7 +315,7 @@ async fn coverage_an_expired_or_already_decided_call_cannot_be_approved() {
         let approver = UserId::new("late-approver");
         let changed = repo
             .resolve(
-                call.as_str(),
+                &call,
                 &ApprovalVerdict {
                     status: ApprovalStatus::Approved,
                     approver_id: &approver,
@@ -327,8 +326,11 @@ async fn coverage_an_expired_or_already_decided_call_cannot_be_approved() {
             .await
             .unwrap();
         assert!(changed.is_none());
-        let row = repo.find(call.as_str()).await.unwrap().unwrap();
+        let row = repo.find(&call).await.unwrap().unwrap();
         assert_ne!(row.status, ApprovalStatus::Approved);
-        assert_ne!(row.approver_id.as_deref(), Some("late-approver"));
+        assert_ne!(
+            row.approver_id.as_ref().map(UserId::as_str),
+            Some("late-approver")
+        );
     }
 }

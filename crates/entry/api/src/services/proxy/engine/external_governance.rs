@@ -66,7 +66,7 @@ pub(super) async fn enforce(
     );
     let record = DecisionAudit {
         id: call_id.to_string(),
-        call_id: call_id.to_string(),
+        call_id: call_id.clone(),
         origin: AuditOrigin::Governed,
         decision: evaluation.decision,
         principal: principal(request, scope),

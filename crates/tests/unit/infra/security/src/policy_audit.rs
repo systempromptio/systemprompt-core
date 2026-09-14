@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{AgentId, PluginId, PolicyId, SessionId, SkillId, UserId};
+use systemprompt_identifiers::{AgentId, CallId, PluginId, PolicyId, SessionId, SkillId, UserId};
 use systemprompt_security::authz::types::{Decision, EntityRef, MatchedBy};
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
@@ -9,7 +9,7 @@ use systemprompt_security::policy::{
 fn sample_audit() -> DecisionAudit {
     DecisionAudit {
         id: "dec-1".to_owned(),
-        call_id: "call-1".to_owned(),
+        call_id: CallId::new("call-1"),
         origin: AuditOrigin::Governed,
         decision: Decision::Allow {
             matched_by: MatchedBy::DefaultIncluded,
@@ -119,7 +119,7 @@ fn unique_audit() -> DecisionAudit {
     let mut audit = sample_audit();
     let tag = uuid::Uuid::new_v4().simple().to_string();
     audit.id = format!("dec-{tag}");
-    audit.call_id = format!("call-{tag}");
+    audit.call_id = CallId::new(format!("call-{tag}"));
     audit
 }
 
@@ -179,7 +179,8 @@ async fn allow_decision_records_default_allow_policy_and_empty_reason() {
     assert!(!row.actor_id.is_empty());
 
     assert_eq!(
-        row.evaluated_rules["call_id"], audit.call_id,
+        row.evaluated_rules["call_id"],
+        audit.call_id.as_str(),
         "the whole audit blob is persisted, not just the flat columns"
     );
 }

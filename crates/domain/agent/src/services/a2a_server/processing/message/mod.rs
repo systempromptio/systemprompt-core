@@ -30,7 +30,7 @@ use crate::repository::A2ARepositories;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 use crate::services::{ArtifactPublishingService, ContextService, SkillService};
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{AiToolCallId, TaskId};
 use systemprompt_models::{AiProvider, CallToolResult, RequestContext, ToolCall};
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ pub enum StreamEvent {
     Text(String),
     ToolCallStarted(ToolCall),
     ToolResult {
-        call_id: String,
+        ai_tool_call_id: AiToolCallId,
         result: CallToolResult,
     },
     ExecutionStepUpdate {

@@ -15,7 +15,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use systemprompt_database::RepositoryError;
 use systemprompt_identifiers::{
-    Actor, AgentId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
+    Actor, AgentId, CallId, ClientId, ContextId, PluginId, PolicyId, SessionId, UserId,
 };
 
 use super::types::AccessScope;
@@ -82,7 +82,7 @@ pub enum AuditOrigin {
 #[derive(Debug, Serialize, Clone)]
 pub struct DecisionAudit {
     pub id: String,
-    pub call_id: String,
+    pub call_id: CallId,
     pub origin: AuditOrigin,
     pub decision: Decision,
     pub principal: PrincipalSnapshot,

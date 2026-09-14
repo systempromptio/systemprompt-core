@@ -30,7 +30,7 @@ pub(super) async fn record_governance_decision(
 ) -> anyhow::Result<()> {
     let decision_audit = DecisionAudit {
         id: uuid::Uuid::new_v4().to_string(),
-        call_id: call_id.as_str().to_owned(),
+        call_id,
         origin: AuditOrigin::Governed,
         decision: evaluation.decision,
         principal: PrincipalSnapshot {

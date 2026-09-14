@@ -14,6 +14,7 @@
 use std::time::Duration;
 
 use super::repository::{ApprovalRepository, ApprovalRequest, ApprovalStatus};
+use systemprompt_identifiers::{CallId, UserId};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -28,7 +29,7 @@ pub enum ApprovalOutcome {
 
 pub async fn wait_for_decision(
     repo: &ApprovalRepository,
-    call_id: &str,
+    call_id: &CallId,
     hold: Duration,
 ) -> ApprovalOutcome {
     let deadline = tokio::time::Instant::now() + hold;
@@ -55,7 +56,7 @@ pub async fn wait_for_decision(
             },
             Ok(None) => {
                 tracing::error!(
-                    call_id,
+                    call_id = %call_id,
                     "approval row vanished while a call was waiting on it; \
                      treating the call as denied"
                 );
@@ -66,7 +67,7 @@ pub async fn wait_for_decision(
             },
             Err(err) => {
                 tracing::warn!(
-                    call_id,
+                    call_id = %call_id,
                     error = %err,
                     "could not read the approval row; retrying within the hold budget"
                 );
@@ -84,15 +85,15 @@ pub async fn wait_for_decision(
     }
 }
 
-fn missing_placeholder(call_id: &str) -> ApprovalRequest {
+fn missing_placeholder(call_id: &CallId) -> ApprovalRequest {
     let now = chrono::Utc::now();
     ApprovalRequest {
-        call_id: call_id.to_owned(),
+        call_id: call_id.clone(),
         tool_name: String::new(),
         server_name: String::new(),
         arguments: serde_json::Value::Null,
         args_digest: String::new(),
-        requested_by: String::new(),
+        requested_by: UserId::new(String::new()),
         session_id: None,
         trace_id: None,
         rule: String::new(),

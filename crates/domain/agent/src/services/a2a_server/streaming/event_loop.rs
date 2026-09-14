@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{AgUiEventBuilder, CallToolResult, RequestContext, ToolCall};
 use tokio::sync::mpsc::Sender;
 
@@ -95,15 +95,14 @@ pub async fn process_events(params: ProcessEventsParams) {
 
     while let Some(event) = stream.events.recv().await {
         match event {
-            StreamEvent::Text(text) => {
-                text_state.handle_text(text, &message_id).await;
-            },
+            StreamEvent::Text(text) => text_state.handle_text(text, &message_id).await,
             StreamEvent::ToolCallStarted(tool_call) => {
                 broadcast_tool_call_started(&webhook_context, &tool_call, &message_id).await;
             },
-            StreamEvent::ToolResult { call_id, result } => {
-                broadcast_tool_result(&webhook_context, &call_id, &result).await;
-            },
+            StreamEvent::ToolResult {
+                ai_tool_call_id,
+                result,
+            } => broadcast_tool_result(&webhook_context, &ai_tool_call_id, &result).await,
             StreamEvent::ExecutionStepUpdate { step } => {
                 broadcast_execution_step(&webhook_context, step, &context_id).await;
             },
@@ -176,12 +175,15 @@ async fn broadcast_tool_call_started(
 
 async fn broadcast_tool_result(
     webhook_context: &WebhookContext,
-    call_id: &str,
+    ai_tool_call_id: &AiToolCallId,
     result: &CallToolResult,
 ) {
     let result_value = serde_json::to_value(result).unwrap_or_else(|_| serde_json::Value::Null);
-    let result_event =
-        AgUiEventBuilder::tool_call_result(uuid::Uuid::new_v4().to_string(), call_id, result_value);
+    let result_event = AgUiEventBuilder::tool_call_result(
+        uuid::Uuid::new_v4().to_string(),
+        ai_tool_call_id.as_str(),
+        result_value,
+    );
     if let Err(e) = webhook_context.broadcast_agui(result_event).await {
         tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_RESULT");
     }
