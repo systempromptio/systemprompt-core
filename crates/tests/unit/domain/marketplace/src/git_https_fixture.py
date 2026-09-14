@@ -43,6 +43,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         for header in headers.decode().split('\r\n'):
             key, value = header.split(':', 1)
             self.send_header(key, value.strip())
+        self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 

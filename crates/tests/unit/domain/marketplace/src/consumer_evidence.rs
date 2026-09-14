@@ -326,6 +326,8 @@ async fn historical_receipts_keep_unknown_consumer_and_device_without_session_bi
         AssetDigest, InstallationReceiptRequest, InstalledFile,
     };
     let f = fixture().await;
+    let delivery = f.repo.claim_distribution(&f.owner, "historical-distribution").await.unwrap().unwrap();
+    f.repo.complete_distribution(&f.owner, &delivery, true, None).await.unwrap();
     let historical = InstallationReceiptRequest {
         installation_id: "historical-install".to_owned(),
         publication_id: f.request.publication_id.clone(),
