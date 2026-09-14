@@ -155,3 +155,83 @@ fn conflict_and_authentication_rejection_remain_explicit_after_restart() {
         Delivery::Conflict
     ));
 }
+
+
+#[test]
+fn every_host_upgrade_and_rollback_reverify_active_bytes_and_retain_offline_generation_evidence() {
+    for host in [
+        EvaluatorClient::ClaudeCode,
+        EvaluatorClient::OpenCode,
+        EvaluatorClient::Codex,
+        EvaluatorClient::Hermes,
+        EvaluatorClient::ClaudeDesktop,
+    ] {
+        let (dir, initial) = prepared(host);
+        let path = dir.path().join("outbox.json");
+        let outbox = Outbox::new(path.clone(), scope("device"));
+        let first = outbox.enqueue(initial).unwrap();
+        let mut upgraded = plan(host);
+        upgraded.generation = 2;
+        upgraded.publication_id = PublicationId::new("upgrade-publication");
+        upgraded.revision_id = ResourceRevisionId::new("upgraded-revision");
+        upgraded.bundle_digest = ContentDigest::of(b"upgraded bundle");
+        let bytes = b"echo upgraded".to_vec();
+        upgraded.canonical_files[0].revision_id = upgraded.revision_id.clone();
+        upgraded.canonical_files[0].digest = ContentDigest::of(&bytes);
+        upgraded.canonical_files[0].bytes = bytes.len() as u64;
+        upgraded.runtime_files[0].path =
+            ".systemprompt-source/upgraded-revision/scripts/run.sh".to_owned();
+        upgraded.runtime_files[0].bytes = bytes.clone();
+        upgraded.runtime_files[1].bytes = bytes;
+        assert!(
+            readback::verify(
+                dir.path(),
+                &upgraded,
+                ConsumerInstallationId::new("upgrade")
+            )
+            .is_err()
+        );
+        readback::materialize(dir.path(), &upgraded).unwrap();
+        let upgrade = readback::verify(
+            dir.path(),
+            &upgraded,
+            ConsumerInstallationId::new("upgrade"),
+        )
+        .unwrap();
+        let second = outbox.enqueue(upgrade).unwrap();
+        assert!(
+            readback::verify(
+                dir.path(),
+                &plan(host),
+                ConsumerInstallationId::new("stale")
+            )
+            .is_err()
+        );
+        let mut rollback = plan(host);
+        rollback.generation = 3;
+        rollback.publication_id = PublicationId::new("rollback-publication");
+        readback::materialize(dir.path(), &rollback).unwrap();
+        let rolled_back = readback::verify(
+            dir.path(),
+            &rollback,
+            ConsumerInstallationId::new("rollback"),
+        )
+        .unwrap();
+        let third = outbox.enqueue(rolled_back).unwrap();
+        assert_ne!(first, second);
+        assert_ne!(first, third);
+        assert_ne!(second, third);
+        let recovered = Outbox::new(path, scope("device"));
+        let entries = recovered.entries().unwrap();
+        assert_eq!(entries.len(), 3);
+        assert!(
+            entries
+                .iter()
+                .all(|(_, entry)| matches!(entry.delivery, Delivery::Unacknowledged))
+        );
+        assert_eq!(
+            std::fs::read(dir.path().join("scripts/run.sh")).unwrap(),
+            b"echo safe"
+        );
+    }
+}

@@ -321,3 +321,85 @@ async fn local_authored_root_requires_retained_source_binding_then_verifies_comm
         .await
         .expect("authored root committed bytes verified");
 }
+
+#[tokio::test]
+async fn cyclic_or_undeclared_dependency_graph_cannot_retain_attestation() {
+    let f = Fixture::new().await;
+    let service = f.service(false, false);
+    let mut cyclic = f.request.clone();
+    cyclic.revisions[0]
+        .dependencies
+        .push(cyclic.root_revision_id.clone());
+    assert!(
+        service
+            .verify(&f.owner, &cyclic, &f.credentials)
+            .await
+            .is_err()
+    );
+    let mut undeclared = f.request.clone();
+    // Still a valid connected DAG, but reverses the immutable retained dependency
+    // edge.
+    undeclared.root_revision_id = undeclared.revisions[0].revision_id.clone();
+    let previous_root = undeclared.revisions[1].revision_id.clone();
+    undeclared.revisions[0].dependencies.push(previous_root);
+    undeclared.revisions[1].dependencies.clear();
+    assert!(
+        service
+            .verify(&f.owner, &undeclared, &f.credentials)
+            .await
+            .is_err()
+    );
+    assert!(
+        f.repository
+            .require_verified_git_content(&f.owner, &f.request.root_revision_id, &"a".repeat(40))
+            .await
+            .is_err()
+    );
+    service
+        .verify(&f.owner, &f.request, &f.credentials)
+        .await
+        .expect("invalid graph attempts did not poison later complete verification");
+}
+
+#[tokio::test]
+async fn dependency_credentials_cannot_be_swapped_or_reused_after_independent_rotation() {
+    let mut f = Fixture::new().await;
+    let source = f.request.revisions[0].source_id.clone();
+    let other_source = f.request.revisions[1].source_id.clone();
+    let mut swapped = f.credentials.clone();
+    swapped.insert(source.clone(), f.credentials[&other_source].clone());
+    assert!(
+        f.service(false, false)
+            .verify(&f.owner, &f.request, &swapped)
+            .await
+            .is_err()
+    );
+    assert!(
+        f.repository
+            .require_verified_git_content(&f.owner, &f.request.root_revision_id, &"a".repeat(40))
+            .await
+            .is_err()
+    );
+    let before_rotation = f.credentials.clone();
+    f.credentials
+        .insert(source, "rotated-dependency-only".to_owned());
+    let service = f.service(false, false);
+    assert!(
+        service
+            .verify(&f.owner, &f.request, &before_rotation)
+            .await
+            .is_err()
+    );
+    let manifest = service
+        .verify(&f.owner, &f.request, &f.credentials)
+        .await
+        .expect("independent dependency rotation leaves root credential valid");
+    manifest.validate_complete().expect("complete verification");
+    let evidence = serde_json::to_string(&manifest).expect("serializable evidence");
+    for secret in f.credentials.values().chain(before_rotation.values()) {
+        assert!(
+            !evidence.contains(secret),
+            "retained manifest must not contain credentials"
+        );
+    }
+}

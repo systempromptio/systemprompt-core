@@ -128,3 +128,36 @@ fn authenticated_https_git_rotation_redirects_and_redacted_failures() {
     assert!(fixture.request("redirect.git", "rotated-token").is_err());
     assert!(!fixture.directory.path().join("forwarded").exists());
 }
+
+
+#[test]
+fn separate_https_sources_require_independent_credentials_and_rotate_without_cross_talk() {
+    let root = Fixture::start();
+    let dependency = Fixture::start();
+    std::fs::write(
+        dependency.directory.path().join("token"),
+        "dependency-token",
+    )
+    .unwrap();
+    root.request("repo.git", "first-token")
+        .expect("root authenticated");
+    dependency
+        .request("repo.git", "dependency-token")
+        .expect("dependency authenticated");
+    let wrong_dependency = dependency
+        .request("repo.git", "first-token")
+        .expect_err("root credential cannot access dependency");
+    assert!(!wrong_dependency.to_string().contains("first-token"));
+    assert!(root.request("repo.git", "dependency-token").is_err());
+    std::fs::write(
+        dependency.directory.path().join("token"),
+        "dependency-rotated",
+    )
+    .unwrap();
+    assert!(dependency.request("repo.git", "dependency-token").is_err());
+    dependency
+        .request("repo.git", "dependency-rotated")
+        .expect("only dependency rotated");
+    root.request("repo.git", "first-token")
+        .expect("independent root still authenticated");
+}
