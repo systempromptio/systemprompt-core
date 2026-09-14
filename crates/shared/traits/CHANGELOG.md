@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `LogService` and `ContentProvider` are native `async fn` traits (no `#[async_trait]`, no `dyn`); `LogService::{find_by_id, delete}` take `&LogId`; `ContentProvider` category filters are `Option<CategoryId>`.
+- **Breaking:** `RepositoryError::Database { message }` replaces `Database(Box<dyn Error>)`; `RepositoryError::database(err)` takes any `Display`.
+- **Breaking:** `AgentRegistryProvider::agent_exists` / `McpRegistryProvider::server_exists` return `Result<bool, RegistryError>`; only `NotFound` maps to `false`.
+- **Breaking:** `ValidationError` (validation_report) is `ValidationIssue`; `validation::ValidationError` is `MetadataValidationError`; `extension_error::ApiError` is `ExtensionApiError`.
+- **Breaking:** `AnalyticsProvider::find_reusable_session` returns `Option<SessionId>`; `AgentJwtClaims.subject` is a `UserId`; `AiGeneratedFile.id` is a `FileId` (the separate `id()` accessor is gone); `InsertAiFileParams`, `CreateSessionInput` and `ContextWithStats` are built through `new` / `with_*` (fields are no longer constructed by literal).
+- **Breaking:** `OptionalStartupEventExt` is removed; `StartupEventExt` is implemented for `Option<&StartupEventSender>` and exposes `sender()` / `emit()` defaults, so the same method names work on both.
+
+### Removed
+
+- The unimplemented seams `Module`, `ApiModule`, `ModuleRegistry`, `register_module!`, `Service`, `AsyncService`, `traits::scheduler` (`JobTrigger`, `SchedulerLifecycle`, `JobInfo`, `JobStatus`, `SchedulerError`), the `traits::Result` alias, `LogEventPublisher` / `UserEventPublisher` / `AnalyticsEventPublisher`, `LogEventLevel` / `LogEventData`, and the `web` feature (with its `axum` and `inventory` dependencies).
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

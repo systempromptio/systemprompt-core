@@ -1,26 +1,36 @@
 //! Generic log persistence trait.
 //!
-//! Dispatched as a trait object (`dyn _`), so it uses `#[async_trait]`;
-//! native `async fn` in traits is not yet `dyn`-compatible.
+//! [`LogService`] carries associated types, so it is only ever dispatched
+//! statically and uses native `async fn`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use async_trait::async_trait;
+use std::future::Future;
 
-#[async_trait]
+use systemprompt_identifiers::LogId;
+
 pub trait LogService: Send + Sync {
     type Entry: Send + Sync;
     type Filter: Send + Sync;
     type Error: std::error::Error + Send + Sync;
 
-    async fn log(&self, entry: Self::Entry) -> Result<(), Self::Error>;
+    fn log(&self, entry: Self::Entry) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
-    async fn query(&self, filter: &Self::Filter) -> Result<(Vec<Self::Entry>, i64), Self::Error>;
+    fn query(
+        &self,
+        filter: &Self::Filter,
+    ) -> impl Future<Output = Result<(Vec<Self::Entry>, i64), Self::Error>> + Send;
 
-    async fn list_recent(&self, limit: i64) -> Result<Vec<Self::Entry>, Self::Error>;
+    fn list_recent(
+        &self,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<Self::Entry>, Self::Error>> + Send;
 
-    async fn find_by_id(&self, id: &str) -> Result<Option<Self::Entry>, Self::Error>;
+    fn find_by_id(
+        &self,
+        id: &LogId,
+    ) -> impl Future<Output = Result<Option<Self::Entry>, Self::Error>> + Send;
 
-    async fn delete(&self, id: &str) -> Result<bool, Self::Error>;
+    fn delete(&self, id: &LogId) -> impl Future<Output = Result<bool, Self::Error>> + Send;
 }

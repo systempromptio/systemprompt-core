@@ -53,8 +53,9 @@ pub enum ManagedSkillResolverError {
     Unavailable(String),
 }
 
-/// Object-safe so the agent runtime can hold whichever authority the
-/// composition root wires in without depending on the marketplace domain.
+/// Held as `Arc<dyn ManagedSkillResolver>` so the agent runtime can use
+/// whichever authority the composition root wires in without depending on
+/// the marketplace domain; hence `#[async_trait]`.
 #[async_trait]
 pub trait ManagedSkillResolver: Send + Sync + std::fmt::Debug {
     async fn resolve_skill(

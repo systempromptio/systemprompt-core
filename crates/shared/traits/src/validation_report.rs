@@ -6,14 +6,14 @@
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
-pub struct ValidationError {
+pub struct ValidationIssue {
     pub field: String,
     pub message: String,
     pub path: Option<PathBuf>,
     pub suggestion: Option<String>,
 }
 
-impl ValidationError {
+impl ValidationIssue {
     #[must_use]
     pub fn new(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
@@ -37,7 +37,7 @@ impl ValidationError {
     }
 }
 
-impl std::fmt::Display for ValidationError {
+impl std::fmt::Display for ValidationIssue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}\n  {}", self.field, self.message)?;
         if let Some(ref path) = self.path {
@@ -77,7 +77,7 @@ impl ValidationWarning {
 #[derive(Debug, Clone, Default)]
 pub struct ValidationReport {
     pub domain: String,
-    pub errors: Vec<ValidationError>,
+    pub errors: Vec<ValidationIssue>,
     pub warnings: Vec<ValidationWarning>,
 }
 
@@ -91,7 +91,7 @@ impl ValidationReport {
         }
     }
 
-    pub fn add_error(&mut self, error: ValidationError) {
+    pub fn add_error(&mut self, error: ValidationIssue) {
         self.errors.push(error);
     }
 
