@@ -2,8 +2,6 @@
 //! sending it upstream, and recording what happened — stats and the activity
 //! line.
 //!
-//! Split from `mod.rs`, which keeps request routing and the loopback endpoints.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,6 +12,7 @@ use std::time::Instant;
 use hyper::body::Incoming;
 use hyper::{Method, Request, Response, StatusCode};
 
+use crate::proxy::credential::LoopbackCredential;
 use crate::proxy::forward::{self, ProxyBody};
 use crate::proxy::server::ProxyContext;
 
@@ -23,6 +22,7 @@ pub(super) struct RequestMeta {
     pub req_id: String,
     pub method: Method,
     pub path: String,
+    pub credential: LoopbackCredential,
 }
 
 pub(super) async fn forward_to_gateway(
@@ -36,6 +36,7 @@ pub(super) async fn forward_to_gateway(
         req_id,
         method,
         path,
+        credential,
     } = meta;
     match forward::forward(
         req,
@@ -49,6 +50,7 @@ pub(super) async fn forward_to_gateway(
             mcp_registry: Arc::clone(&ctx.deps.mcp_registry),
             gateway_http: ctx.deps.http.clone(),
             plugin_tokens: Arc::clone(&ctx.deps.plugin_tokens),
+            credential,
         },
     )
     .await

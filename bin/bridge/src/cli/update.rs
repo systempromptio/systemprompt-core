@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::ids::BearerToken;
 use std::io::{IsTerminal as _, Write as _};
 use std::process::ExitCode;
 
@@ -19,7 +20,6 @@ use crate::{auth, config, stdio};
 
 const EXIT_UPDATE_AVAILABLE: u8 = 1;
 
-#[doc(hidden)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Args {
     pub check_only: bool,
@@ -32,7 +32,6 @@ pub enum ArgsError {
     UnknownFlag(String),
 }
 
-#[doc(hidden)]
 pub fn parse(argv: &[String]) -> Result<Args, ArgsError> {
     let mut args = Args::default();
     for arg in argv.iter().skip(2) {
@@ -78,7 +77,7 @@ async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
     };
 
     let client = ctx.gateway_client(gateway.clone());
-    let (status, manifest) = match update::check(&client, bearer.token.expose()).await {
+    let (status, manifest) = match update::check(&client, &bearer.token).await {
         Ok(pair) => pair,
         Err(e) => {
             diag(&format!("update check failed: {e}"));
@@ -107,14 +106,14 @@ async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
                 stdio::print_line("cancelled");
                 return ExitCode::SUCCESS;
             }
-            install(&client, bearer.token.expose(), &manifest, &version).await
+            install(&client, &bearer.token, &manifest, &version).await
         },
     }
 }
 
 async fn install(
     client: &GatewayClient,
-    bearer: &str,
+    bearer: &BearerToken,
     manifest: &crate::gateway::types::ReleaseManifest,
     version: &str,
 ) -> ExitCode {

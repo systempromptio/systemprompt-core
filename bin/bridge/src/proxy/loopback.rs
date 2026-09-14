@@ -63,6 +63,18 @@ impl LoopbackEndpoint {
             .map(|s| format!("Bearer {}", s.as_str()))
     }
 
+    pub fn host_bearer(&self, host: &crate::ids::HostId) -> std::io::Result<String> {
+        self.secret()
+            .map(|s| super::scoped_token::host_token(&s, host))
+            .map(|t| format!("Bearer {}", t.as_str()))
+    }
+
+    pub fn hook_bearer(&self, plugin: &crate::ids::PluginId) -> std::io::Result<String> {
+        self.secret()
+            .map(|s| super::scoped_token::hook_token(&s, plugin))
+            .map(|t| format!("Bearer {}", t.as_str()))
+    }
+
     #[must_use]
     pub fn secret_fingerprint(&self) -> Option<String> {
         self.secret().ok().map(|s| secret::fingerprint(s.as_str()))

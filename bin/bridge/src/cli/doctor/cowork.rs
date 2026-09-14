@@ -45,11 +45,15 @@ pub fn check_cowork_enable() -> Option<Check> {
     if !cowork_possible() {
         return None;
     }
-    let Some(target) = resolve_target() else {
-        return Some(Check::warn(
-            "cowork enable",
-            "no active Cowork session detected — open Claude Cowork at least once before sync",
-        ));
+    let target = match resolve_target() {
+        Ok(Some(target)) => target,
+        Ok(None) => {
+            return Some(Check::warn(
+                "cowork enable",
+                "no active Cowork session detected — open Claude Cowork at least once before sync",
+            ));
+        },
+        Err(e) => return Some(Check::fail("cowork enable", e.to_string())),
     };
     let settings = target.session_org_dir.join(COWORK_SETTINGS_FILE);
     let plugin_ids = synced_plugin_ids();

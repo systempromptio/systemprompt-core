@@ -41,7 +41,7 @@ pub fn check_marketplace() -> Check {
         );
     };
 
-    let owned = match sidecar::owned_marketplaces(&plugins, sidecar::Legacy::WhenUnrecorded) {
+    let owned = match sidecar::owned_marketplaces(&plugins) {
         Ok(owned) => owned,
         Err(e) => return Check::fail(NAME, format!("cannot read the marketplace sidecar: {e}")),
     };

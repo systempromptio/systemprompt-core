@@ -33,7 +33,7 @@ pub fn cmd_whoami(ctx: &BridgeContext) -> ExitCode {
         };
 
         let client = ctx.gateway_client(gateway.clone());
-        match client.fetch_whoami(out.token.expose()).await {
+        match client.fetch_whoami(&out.token).await {
             Ok(value) => {
                 match serde_json::to_string_pretty(&value) {
                     Ok(s) => stdio::print_line(&s),
