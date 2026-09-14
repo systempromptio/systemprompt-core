@@ -223,6 +223,11 @@ CREATE TABLE IF NOT EXISTS managed_distribution_deliveries (
 );
 CREATE TABLE IF NOT EXISTS managed_installation_receipts (
     id TEXT PRIMARY KEY,
+    consumer_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    device_id TEXT REFERENCES user_device_certs(id) ON DELETE CASCADE,
+    host TEXT,
+    consumer_evidence JSONB,
+    fully_verified BOOLEAN,
     owner_id TEXT NOT NULL,
     installation_id TEXT NOT NULL,
     publication_id TEXT NOT NULL,

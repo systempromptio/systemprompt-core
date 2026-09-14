@@ -18,7 +18,7 @@ mod output;
 #[derive(Debug, Clone, Copy)]
 pub struct OpenCodeAdapter;
 pub static ADAPTER: OpenCodeAdapter = OpenCodeAdapter;
-const ADAPTER_VERSION: &str = "opencode-native-v1";
+const ADAPTER_VERSION: &str = "opencode-native-v2";
 const EXECUTABLE: &str = "/usr/local/bin/opencode";
 const PINNED_VERSION: &str = "1.18.29";
 
@@ -77,12 +77,13 @@ impl NativeAdapter for OpenCodeAdapter {
                 "limit":{"context":200_000,"output":input.limits.max_output_tokens}}}}}
         });
         Ok([
-            "/usr/bin/env".to_owned(),
-            format!(
-                "OPENCODE_CONFIG_CONTENT={}",
-                serde_json::to_string(&config)?
-            ),
-            EXECUTABLE.to_owned(),
+            "/usr/local/bin/node".to_owned(),
+            "/opt/systemprompt/opencode-runner.cjs".to_owned(),
+            turns.to_string(),
+            input.limits.max_output_tokens.to_string(),
+            input.model.as_str().to_owned(),
+            if execution { "execution" } else { "review" }.to_owned(),
+            serde_json::to_string(&config)?,
             "--pure".to_owned(),
             "run".to_owned(),
             "--format".to_owned(),

@@ -123,6 +123,7 @@ fn hermes_configuration_disables_ambient_extensions_and_scopes_credentials() {
     assert_eq!(cfg["skills"]["project_discovery"], false);
     assert_eq!(cfg["memory"]["memory_enabled"], false);
     assert_eq!(cfg["hooks_auto_accept"], false);
+    assert_eq!(cfg["auxiliary"]["title_generation"]["enabled"], false);
     assert_eq!(cfg["model"]["provider"], "custom");
     assert_eq!(cfg["model"]["base_url"], "http://127.0.0.1:8091/v1");
     assert_eq!(cfg["model"]["api_mode"], "chat_completions");

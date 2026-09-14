@@ -14,11 +14,6 @@ CREATE TABLE IF NOT EXISTS managed_consumer_grants (
     PRIMARY KEY(owner_id, resource_id, consumer_id),
     FOREIGN KEY(owner_id, resource_id) REFERENCES managed_resources(owner_id, id)
 );
-ALTER TABLE managed_installation_receipts ADD COLUMN IF NOT EXISTS consumer_id TEXT REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE managed_installation_receipts ADD COLUMN IF NOT EXISTS device_id TEXT REFERENCES user_device_certs(id) ON DELETE CASCADE;
-ALTER TABLE managed_installation_receipts ADD COLUMN IF NOT EXISTS host TEXT;
-ALTER TABLE managed_installation_receipts ADD COLUMN IF NOT EXISTS consumer_evidence JSONB;
-ALTER TABLE managed_installation_receipts ADD COLUMN IF NOT EXISTS fully_verified BOOLEAN;
 CREATE UNIQUE INDEX IF NOT EXISTS managed_consumer_receipt_identity ON managed_installation_receipts(consumer_id, device_id, host, installation_id, publication_id) WHERE consumer_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS managed_consumer_session_bindings (
     id TEXT PRIMARY KEY,

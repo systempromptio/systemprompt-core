@@ -88,6 +88,7 @@ impl NativeAdapter for HermesAdapter {
         validate_context(context)?;
         let config = serde_json::json!({
             "_config_version":44,"fallback_providers":[],"hooks":{},"hooks_auto_accept":false,
+            "auxiliary":{"title_generation":{"enabled":false}},
             "plugins":{"enabled":[],"disabled":["*"]},"updates":{"check":false},
             "memory":{"memory_enabled":false,"user_profile_enabled":false},
             "skills":{"project_discovery":false,"external_dirs":[],"inline_shell":false,"template_vars":false},

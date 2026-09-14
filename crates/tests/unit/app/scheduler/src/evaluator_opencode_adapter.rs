@@ -75,7 +75,7 @@ fn frozen() -> FrozenSettings {
 
 
 fn config(args: &[String]) -> serde_json::Value {
-    serde_json::from_str(args[1].strip_prefix("OPENCODE_CONFIG_CONTENT=").unwrap()).unwrap()
+    serde_json::from_str(&args[6]).unwrap()
 }
 #[test]
 fn native_invocation_enforces_limits_and_purpose_permissions() {
@@ -85,8 +85,18 @@ fn native_invocation_enforces_limits_and_purpose_permissions() {
         ClientPurpose::Suggestion,
     ] {
         let args = args(purpose, "--dangerously-skip-permissions");
-        assert_eq!(args[0], "/usr/bin/env");
-        assert_eq!(args[2], ADAPTER.executable());
+        assert_eq!(args[0], "/usr/local/bin/node");
+        assert_eq!(args[1], "/opt/systemprompt/opencode-runner.cjs");
+        assert_eq!(args[3], "4096");
+        assert_eq!(args[4], "claude-opus-5");
+        assert_eq!(
+            args[5],
+            if purpose == ClientPurpose::Execution {
+                "execution"
+            } else {
+                "review"
+            }
+        );
         assert!(args.iter().any(|arg| arg == "--pure"));
         assert_eq!(value(&args, "--format"), "json");
         assert_eq!(value(&args, "--model"), "systemprompt/claude-opus-5");
@@ -127,7 +137,9 @@ fn native_invocation_enforces_limits_and_purpose_permissions() {
         purpose: ClientPurpose::Execution,
         prompt: "case",
     };
-    let cfg = config(&strings(ADAPTER.arguments(&invocation).unwrap()));
+    let bounded = strings(ADAPTER.arguments(&invocation).unwrap());
+    assert_eq!(&bounded[2..4], ["1", "512"]);
+    let cfg = config(&bounded);
     assert_eq!(cfg["agent"]["evaluation"]["steps"], 1);
     assert_eq!(
         cfg["provider"]["systemprompt"]["models"]["gpt-5"]["limit"]["output"],
@@ -337,5 +349,56 @@ fn mixed_sessions_conflicting_parts_and_invalid_usage_are_rejected() {
         ADAPTER
             .normalize(&vec![b'x'; 16 * 1024 * 1024 + 1])
             .is_err()
+    );
+}
+
+
+#[test]
+fn runner_bound_failure_preserves_native_usage_and_cannot_become_success() {
+    let completed = event(
+        "step_finish",
+        "p1",
+        serde_json::json!({"reason":"stop","tokens":{"input":11,"output":7}}),
+    );
+    let result = serde_json::json!({"type":"opencode.runner_result","process_exit_code":0,"signal":null,"provider_attempts":2,"max_requests":1,"output_limit_reached":false});
+    let output = ADAPTER
+        .normalize(&stream(&[completed.clone(), result.clone()]))
+        .unwrap();
+    assert_eq!(output.completion, NativeCompletion::Failed);
+    assert_eq!(output.reported_input_tokens, Some(11));
+    assert_eq!(output.reported_output_tokens, Some(7));
+    assert!(
+        ADAPTER
+            .normalize(&stream(&[result.clone(), completed.clone()]))
+            .is_err()
+    );
+    assert!(
+        ADAPTER
+            .normalize(&stream(&[result.clone(), result.clone()]))
+            .is_err()
+    );
+    let mut malformed = result.clone();
+    malformed["process_exit_code"] = serde_json::json!("zero");
+    assert!(
+        ADAPTER
+            .normalize(&stream(&[completed.clone(), malformed]))
+            .is_err()
+    );
+    let mut clean = result.clone();
+    clean["provider_attempts"] = serde_json::json!(1);
+    assert_eq!(
+        ADAPTER
+            .normalize(&stream(&[completed.clone(), clean.clone()]))
+            .unwrap()
+            .completion,
+        NativeCompletion::Completed
+    );
+    clean["output_limit_reached"] = serde_json::json!(true);
+    assert_eq!(
+        ADAPTER
+            .normalize(&stream(&[completed, clean]))
+            .unwrap()
+            .completion,
+        NativeCompletion::Failed
     );
 }

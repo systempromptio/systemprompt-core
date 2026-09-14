@@ -20,6 +20,7 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
     let mut tools = Vec::new();
     let mut completion = NativeCompletion::Incomplete;
     let mut failed = false;
+    let mut runner_closed = false;
     let mut steps = 0;
     let mut input = Some(0_u64);
     let mut output = Some(0_u64);
@@ -35,6 +36,53 @@ pub(super) fn normalize(bytes: &[u8]) -> Result<NormalizedClientOutput> {
         let event: Value =
             serde_json::from_str(line).map_err(|_| invalid("Malformed OpenCode JSON event"))?;
         let kind = required(&event, "type")?;
+        if runner_closed {
+            return Err(invalid(
+                "OpenCode emitted evidence after runner termination",
+            ));
+        }
+        if kind == "opencode.runner_error" {
+            if required(&event, "diagnostic")?.len() > 4096 {
+                return Err(invalid("OpenCode runner diagnostic exceeds bound"));
+            }
+            failed = true;
+            runner_closed = true;
+            continue;
+        }
+        if kind == "opencode.runner_result" {
+            let attempts = event
+                .get("provider_attempts")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| invalid("Missing OpenCode provider attempt count"))?;
+            let maximum = event
+                .get("max_requests")
+                .and_then(Value::as_u64)
+                .filter(|value| (1..=100).contains(value))
+                .ok_or_else(|| invalid("Missing OpenCode request bound"))?;
+            let limited = event
+                .get("output_limit_reached")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| invalid("Missing OpenCode output bound result"))?;
+            let code = event
+                .get("process_exit_code")
+                .ok_or_else(|| invalid("Missing OpenCode process exit"))?;
+            let signal = event
+                .get("signal")
+                .ok_or_else(|| invalid("Missing OpenCode process signal"))?;
+            if (!code.is_null() && !code.as_u64().is_some_and(|value| value <= 255))
+                || (!signal.is_null()
+                    && !signal
+                        .as_str()
+                        .is_some_and(|value| !value.is_empty() && value.len() <= 32))
+                || (code.is_null() && signal.is_null())
+            {
+                return Err(invalid("Malformed OpenCode runner process result"));
+            }
+            failed |=
+                code.as_u64() != Some(0) || !signal.is_null() || limited || attempts > maximum;
+            runner_closed = true;
+            continue;
+        }
         let event_session = required(&event, "sessionID")?;
         if event_session.len() > 256 || event_session.chars().any(char::is_control) {
             return Err(invalid("Invalid OpenCode session identity"));
