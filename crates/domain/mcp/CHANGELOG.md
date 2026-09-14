@@ -2,13 +2,13 @@
 
 ## [0.53.0] - 2026-09-14
 
-### Changed
-
-- The registry and tool-provider seams return `McpRegistryError`; `McpServerState` carries a `McpServerId` and a `McpServerStatus`.
-
 ### Breaking
 
 - **Breaking:** `HttpClientWithContext::{new, forwarding, external}` return `Result<Self, McpTransportError>`; the guarded client is built once and a failure is reported at construction. `McpTransportError::ClientUnavailable` is removed. Migrate by propagating the constructor error.
+
+### Changed
+
+- The registry and tool-provider seams return `McpRegistryError`; `McpServerState` carries a `McpServerId` and a `McpServerStatus`.
 
 ## [0.52.0] - 2026-09-14
 

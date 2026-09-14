@@ -2,6 +2,12 @@
 
 ## [0.53.0] - 2026-09-14
 
+### Breaking
+
+- **Breaking:** `WebhookService::new` returns `IntegrationResult<Self>` and `WebhookService` no longer implements `Default`; a guarded client that cannot be built is an error at construction rather than a disabled delivery path. Migrate by propagating the error.
+- **Breaking:** `CreateAgentRequest::is_active` is a `bool` (omitted means active) and the `is_active()` accessors on `CreateAgentRequest` / `UpdateAgentRequest` are removed; an update that omits `is_active` leaves it `None`. Migrate by reading the field.
+- **Breaking:** `install_for_test` returns `Result<(), Arc<dyn WebhookBroadcaster>>` when a broadcaster is already installed.
+
 ### Added
 
 - `ContextRepository::ensure_system_context(context_id, system_admin, name, kind)` re-homes a system-owned context onto the current system admin; `ensure_context` keeps refusing cross-user adoption.
@@ -10,12 +16,6 @@
 
 - Agent-card `securitySchemes` / `security` are read from the typed config; `services::registry::security::convert_json_security_to_struct` is removed. A malformed block is a config load error rather than a warning that drops the schemes.
 - Registry, JWT and tool-provider seams use `AgentName`, `UserId` and `McpServerId` where strings were accepted.
-
-### Breaking
-
-- **Breaking:** `WebhookService::new` returns `IntegrationResult<Self>` and `WebhookService` no longer implements `Default`; a guarded client that cannot be built is an error at construction rather than a disabled delivery path. Migrate by propagating the error.
-- **Breaking:** `CreateAgentRequest::is_active` is a `bool` (omitted means active) and the `is_active()` accessors on `CreateAgentRequest` / `UpdateAgentRequest` are removed; an update that omits `is_active` leaves it `None`. Migrate by reading the field.
-- **Breaking:** `install_for_test` returns `Result<(), Arc<dyn WebhookBroadcaster>>` when a broadcaster is already installed.
 
 ## [0.52.0] - 2026-09-14
 
