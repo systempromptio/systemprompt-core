@@ -29,6 +29,7 @@ fn cfg() -> CliConfig {
 fn make_profile(services: &Path) -> Profile {
     Profile {
         storage: Default::default(),
+        evaluator: None,
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,

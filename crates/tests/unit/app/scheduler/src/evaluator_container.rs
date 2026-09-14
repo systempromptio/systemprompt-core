@@ -294,7 +294,9 @@ fn exceeding_the_output_budget_cancels_the_run() {
         .expect_err("output beyond the budget must fail the execution");
 
     assert!(
-        error.to_string().contains("execution time or output limit"),
+        error
+            .to_string()
+            .contains("execution time, output, or writable-storage limit"),
         "the failure must name the breached limit, got: {error}"
     );
 }
@@ -315,7 +317,9 @@ fn exceeding_the_active_timeout_cancels_the_run() {
         .expect_err("an execution past its active timeout must fail");
 
     assert!(
-        error.to_string().contains("execution time or output limit"),
+        error
+            .to_string()
+            .contains("execution time, output, or writable-storage limit"),
         "the failure must name the breached limit, got: {error}"
     );
 }

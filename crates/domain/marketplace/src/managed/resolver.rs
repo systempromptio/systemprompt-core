@@ -127,9 +127,6 @@ impl ManagedResourceResolver {
         })
     }
 
-    /// Resolve a runtime skill. `Ok(None)` is returned only when the key has
-    /// never entered managed-resource ownership; every managed non-published
-    /// or corrupt state fails closed.
     pub async fn resolve_skill(&self, owner: &UserId, key: &str) -> Result<Option<ManagedSkill>> {
         match self.resolve(owner, ResourceKind::Skill, key).await? {
             ResolvedManagedResource::NotManaged => Ok(None),

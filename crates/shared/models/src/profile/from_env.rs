@@ -46,6 +46,7 @@ impl Profile {
             governance: None,
             services: crate::profile::ServicesProfileConfig::default(),
             storage: crate::profile::StorageConfig::default(),
+            evaluator: None,
         })
     }
 }

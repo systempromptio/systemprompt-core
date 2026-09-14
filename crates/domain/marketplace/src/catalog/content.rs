@@ -115,8 +115,6 @@ impl CatalogContent {
         Ok(catalog)
     }
 
-    /// Overlay published managed skills and fail closed for every managed key
-    /// that does not resolve to intact retained content.
     pub async fn with_managed_skills(
         mut self,
         repository: crate::managed::ManagedRepository,

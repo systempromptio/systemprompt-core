@@ -139,7 +139,8 @@ impl EvaluatorSupervisor {
             .output_stem("judge")
             .ownership(run.worker.owner_id.as_str(), run.record.id.as_str())
             .build()?;
-        let prompt = judgment_prompt(&run.case, &run.rubric, outcome.artifacts.keys())?;
+        let evidence = outcome.artifacts.keys().collect::<Vec<_>>();
+        let prompt = judgment_prompt(&run.case, &run.rubric, &evidence)?;
         let mut judge = launch.start_for(&run.client, ClientPurpose::Judge, &prompt)?;
         run.network.verify(&[judge_name, run.relay_name.clone()])?;
         let status = loop {

@@ -46,6 +46,12 @@ mod repository_assignments;
 mod repository_lifecycle;
 
 #[cfg(test)]
+mod repository_evidence;
+
+#[cfg(test)]
+mod repository_runs;
+
+#[cfg(test)]
 mod experiments_execution;
 
 #[cfg(test)]

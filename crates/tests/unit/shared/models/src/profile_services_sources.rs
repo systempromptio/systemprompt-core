@@ -21,6 +21,7 @@ pub(crate) fn valid_key_b64() -> String {
 pub(crate) fn local_profile() -> Profile {
     Profile {
         storage: Default::default(),
+        evaluator: None,
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,

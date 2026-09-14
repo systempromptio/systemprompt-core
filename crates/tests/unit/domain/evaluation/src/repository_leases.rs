@@ -104,6 +104,23 @@ async fn completion_records_its_outcome_and_finishes_the_experiment() {
     assert_eq!(harness.execution_status(&execution.id).await, "completed");
     assert_eq!(
         harness.experiment_status().await,
+        "running",
+        "the second variant's execution is still queued"
+    );
+
+    let (second, second_lease) = harness.claimed_lease().await;
+    harness
+        .experiments()
+        .complete(
+            &harness.owner,
+            &second_lease,
+            &completion(TerminalOutcome::Completed, "specification published"),
+        )
+        .await
+        .expect("complete second variant");
+    assert_eq!(harness.execution_status(&second.id).await, "completed");
+    assert_eq!(
+        harness.experiment_status().await,
         "completed",
         "the last terminal execution closes its experiment"
     );
@@ -113,7 +130,12 @@ async fn completion_records_its_outcome_and_finishes_the_experiment() {
         .get(&harness.owner, &harness.experiment)
         .await
         .expect("detail");
-    let stored = detail.executions[0].result.as_ref().expect("result");
+    let stored = detail
+        .executions
+        .iter()
+        .find(|record| record.id == execution.id)
+        .and_then(|record| record.result.as_ref())
+        .expect("result");
     assert_eq!(stored.outcome, TerminalOutcome::Completed);
     assert_eq!(stored.summary, "specification published");
 

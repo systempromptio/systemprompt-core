@@ -14,19 +14,17 @@ pub(super) fn execution_prompt(case: &CaseContent) -> SchedulerResult<String> {
     ))
 }
 
-#[allow(single_use_lifetimes)]
-pub(super) fn judgment_prompt<'a>(
+pub(super) fn judgment_prompt(
     case: &CaseContent,
     rubric: &RubricContent,
-    evidence: impl Iterator<Item = &'a String>,
+    evidence: &[&String],
 ) -> SchedulerResult<String> {
-    let evidence = evidence.cloned().collect::<Vec<_>>();
     Ok(format!(
         "Judge the completed evaluation using only the retained files listed below. Read evidence/client-events.jsonl when needed. Return only one JSON object matching {{\"dimensions\":[{{\"name\":string,\"score\":integer 1..5,\"evidence\":[exact retained reference]}}],\"hard_gates\":{{string:boolean}},\"rationale\":string}}. Include every rubric dimension and exactly every hard gate. Never invent a reference. A missing or ambiguous fact must reduce the score.\n\nCASE:\n{}\n\nEXPECTED:\n{}\n\nRUBRIC:\n{}\n\nRETAINED REFERENCES:\n{}",
         case.prompt,
         serde_json::to_string(&case.expected_behavior).map_err(internal)?,
         serde_json::to_string(rubric).map_err(internal)?,
-        serde_json::to_string(&evidence).map_err(internal)?,
+        serde_json::to_string(evidence).map_err(internal)?,
     ))
 }
 
@@ -103,16 +101,15 @@ fn parse_client_json<T: serde::de::DeserializeOwned>(
     )))
 }
 
-#[allow(single_use_lifetimes)]
-pub(super) fn suggestion_prompt<'a>(
+pub(super) fn suggestion_prompt(
     case: &CaseContent,
     failures: &[String],
-    evidence: impl Iterator<Item = &'a String>,
+    evidence: &[&String],
 ) -> SchedulerResult<String> {
     Ok(format!(
         "Using only the retained development-case evidence, propose a candidate skill change. Never use or reveal holdout content. Return only one JSON object matching {{\"proposed_changes\":object,\"hypothesis\":string,\"supporting_failures\":[string],\"originating_evidence\":[exact retained reference]}}.\n\nCASE:\n{}\n\nFAILURES:\n{}\n\nEVIDENCE:\n{}",
         case.prompt,
         serde_json::to_string(failures).map_err(internal)?,
-        serde_json::to_string(&evidence.cloned().collect::<Vec<_>>()).map_err(internal)?,
+        serde_json::to_string(evidence).map_err(internal)?,
     ))
 }
