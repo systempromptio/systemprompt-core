@@ -33,6 +33,18 @@ impl FeedbackFactsRepository {
         change: &AnalyticsChange,
     ) -> Result<ChangeReceipt> {
         validation::validate(change)?;
+        sqlx::query!(
+            "INSERT INTO analytics_fact_checkpoints(owner_id) VALUES($1) ON CONFLICT DO NOTHING",
+            owner.as_str()
+        )
+        .execute(&mut **tx)
+        .await?;
+        sqlx::query!(
+            "SELECT generation FROM analytics_fact_checkpoints WHERE owner_id=$1 FOR UPDATE",
+            owner.as_str()
+        )
+        .fetch_one(&mut **tx)
+        .await?;
         let kind = validation::kind(change.key.kind);
         let revision = i64::try_from(change.revision).map_err(|_error| validation::invalid())?;
         let digest = ContentDigest::of(&serde_json::to_vec(&(

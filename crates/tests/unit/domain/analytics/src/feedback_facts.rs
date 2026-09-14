@@ -86,3 +86,6 @@ mod backfill;
 
 #[path = "feedback_reference.rs"]
 mod reference;
+
+#[path = "snapshot_support.rs"]
+mod snapshots;

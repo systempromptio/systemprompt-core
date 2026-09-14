@@ -19,7 +19,21 @@ impl FeedbackFactsRepository {
         if source.is_empty() || source.len() > 128 || source.chars().any(char::is_control) {
             return Err(validation::invalid());
         }
-        sqlx::query!("INSERT INTO analytics_fact_backfills(owner_id,job_id,source) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", owner.as_str(), job.as_str(), source).execute(&self.pool).await?;
+        let mut tx = self.pool.begin().await?;
+        sqlx::query!(
+            "INSERT INTO analytics_fact_checkpoints(owner_id) VALUES($1) ON CONFLICT DO NOTHING",
+            owner.as_str()
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "SELECT generation FROM analytics_fact_checkpoints WHERE owner_id=$1 FOR UPDATE",
+            owner.as_str()
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        sqlx::query!("INSERT INTO analytics_fact_backfills(owner_id,job_id,source) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", owner.as_str(), job.as_str(), source).execute(&mut *tx).await?;
+        tx.commit().await?;
         let progress = self.backfill(owner, job).await?;
         if progress.source != source {
             return Err(validation::invalid());
@@ -55,6 +69,19 @@ impl FeedbackFactsRepository {
         }
         let digest = ContentDigest::of(&serde_json::to_vec(page)?);
         let mut tx = self.pool.begin().await?;
+        sqlx::query!(
+            "INSERT INTO analytics_fact_checkpoints(owner_id) VALUES($1) ON CONFLICT DO NOTHING",
+            owner.as_str()
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "SELECT generation FROM analytics_fact_checkpoints WHERE owner_id=$1 FOR UPDATE",
+            owner.as_str()
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
         let progress = sqlx::query!("SELECT source,generation,complete FROM analytics_fact_backfills WHERE owner_id=$1 AND job_id=$2 FOR UPDATE", owner.as_str(), job.as_str()).fetch_optional(&mut *tx).await?.ok_or_else(validation::invalid)?;
         let previous = sqlx::query_scalar!("SELECT digest FROM analytics_fact_backfill_pages WHERE owner_id=$1 AND job_id=$2 AND page_generation=$3", owner.as_str(), job.as_str(), page.expected_generation).fetch_optional(&mut *tx).await?;
         if let Some(previous) = previous {

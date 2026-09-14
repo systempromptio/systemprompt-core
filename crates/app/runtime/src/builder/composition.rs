@@ -28,6 +28,7 @@ pub(super) fn build_data_plane(
         ai_repositories: repositories.ai,
         analytics_repositories: repositories.analytics,
         feedback_facts_repository: repositories.feedback_facts,
+        feedback_snapshots_repository: repositories.feedback_snapshots,
         file_repository: repositories.files,
         mcp_session_repository: repositories.mcp_sessions,
         managed_repository: repositories.managed,
@@ -77,6 +78,7 @@ pub(super) struct RepositoryBundles {
     services: Arc<systemprompt_database::ServiceRepository>,
     ai: Arc<systemprompt_ai::repository::AiRepositories>,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
+    feedback_snapshots: Arc<systemprompt_analytics::snapshots::FeedbackSnapshotsRepository>,
     feedback_facts: Arc<systemprompt_analytics::feedback::FeedbackFactsRepository>,
     files: Arc<systemprompt_files::FileRepository>,
     mcp_sessions: Arc<systemprompt_mcp::repository::McpSessionRepository>,
@@ -142,6 +144,11 @@ pub(super) fn build_repositories(
         )?),
         ai: Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?),
         analytics,
+        feedback_snapshots: Arc::new(
+            systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
+                database.write_pool_arc()?.as_ref().clone(),
+            ),
+        ),
         feedback_facts: Arc::new(
             systemprompt_analytics::feedback::FeedbackFactsRepository::new(
                 database.write_pool_arc()?.as_ref().clone(),
