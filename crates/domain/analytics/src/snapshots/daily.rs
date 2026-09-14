@@ -58,7 +58,7 @@ impl FeedbackSnapshotsRepository {
         Ok(sqlx::query_scalar!(r#"SELECT DISTINCT day AS "day!" FROM analytics_snapshot_dimensions d WHERE owner_id=$1 AND (
    (fact_kind=$2 AND source=$3 AND fact_id=$4) OR
    ($2='invocation' AND fact_kind='assessment' AND invocation_source=$3 AND invocation_id=$4) OR
-   ($2='resource_association' AND fact_kind='request' AND source=$5->'value'->'request_key'->>'source' AND fact_id=$5->'value'->'request_key'->>'id') OR
-   ($2='assessment' AND fact_kind='assessment' AND conversation_source=$5->'value'->'conversation_key'->>'source' AND conversation_id=$5->'value'->'conversation_key'->>'id'))"#,owner.as_str(),kind,source,id,fact.as_ref()).fetch_all(&mut **tx).await?)
+   ($2='resource_association' AND fact_kind='request' AND source=$5::jsonb->'value'->'request_key'->>'source' AND fact_id=$5::jsonb->'value'->'request_key'->>'id') OR
+   ($2='assessment' AND fact_kind='assessment' AND conversation_source=$5::jsonb->'value'->'conversation_key'->>'source' AND conversation_id=$5::jsonb->'value'->'conversation_key'->>'id'))"#,owner.as_str(),kind,source,id,fact.as_ref()).fetch_all(&mut **tx).await?)
     }
 }

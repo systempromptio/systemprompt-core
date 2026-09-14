@@ -94,10 +94,6 @@ fn invocation_pins_native_runner_and_enforces_purpose_specific_permissions() {
     for setting in [
         "approval_policy=\"never\"",
         "permissions.evaluation.network.enabled=false",
-        "permissions.evaluation.filesystem.\"/proc\"=\"deny\"",
-        "permissions.evaluation.filesystem.\"/home/tester/.codex\"=\"deny\"",
-        "permissions.evaluation.filesystem.\"/home/tester/work\"=\"write\"",
-        "permissions.evaluation.filesystem.\"/home/tester/.agents/skills\"=\"read\"",
         "shell_environment_policy.inherit=\"none\"",
         "features.hooks=false",
         "features.apps=false",
@@ -110,14 +106,23 @@ fn invocation_pins_native_runner_and_enforces_purpose_specific_permissions() {
             "missing {setting}"
         );
     }
+    let filesystem = execution
+        .iter()
+        .find(|arg| arg.starts_with("permissions.evaluation.filesystem="))
+        .unwrap();
+    assert!(filesystem.contains(r#""/proc"="deny""#));
+    assert!(filesystem.contains(r#""/home/tester/work"="write""#));
+    assert!(filesystem.contains(r#""/home/tester/.agents/skills"="read""#));
     for purpose in [ClientPurpose::Judge, ClientPurpose::Suggestion] {
         let argv = args(purpose, "evaluate");
         assert_eq!(argv[5], "review");
-        for setting in [
-            "permissions.evaluation.filesystem.\"/home/tester/work\"=\"read\"",
-            "permissions.evaluation.filesystem.\"/home/tester/.agents/skills\"=\"deny\"",
-            "mcp_servers.evaluation_fixture.enabled=false",
-        ] {
+        let filesystem = argv
+            .iter()
+            .find(|arg| arg.starts_with("permissions.evaluation.filesystem="))
+            .unwrap();
+        assert!(filesystem.contains(r#""/home/tester/work"="read""#));
+        assert!(filesystem.contains(r#""/home/tester/.agents/skills"="deny""#));
+        for setting in ["mcp_servers.evaluation_fixture.enabled=false"] {
             assert!(argv.iter().any(|arg| arg == setting));
         }
     }

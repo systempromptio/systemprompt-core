@@ -85,10 +85,6 @@ impl NativeAdapter for CodexAdapter {
             "approval_policy=\"never\"",
             "allow_login_shell=false",
             "default_permissions=\"evaluation\"",
-            "permissions.evaluation.filesystem.\":minimal\"=\"read\"",
-            "permissions.evaluation.filesystem.\"/proc\"=\"deny\"",
-            "permissions.evaluation.filesystem.\"/home/tester/.codex\"=\"deny\"",
-            "permissions.evaluation.filesystem.\"/home/tester/work/.codex\"=\"deny\"",
             "permissions.evaluation.network.enabled=false",
             "shell_environment_policy.inherit=\"none\"",
             "shell_environment_policy.set.PATH=\"/usr/local/bin:/usr/bin:/bin\"",
@@ -126,28 +122,22 @@ impl NativeAdapter for CodexAdapter {
             "web_search=\"disabled\"",
             "tools.view_image=false",
             "project_doc_max_bytes=0",
-            "projects.\"/home/tester/work\".trust_level=\"untrusted\"",
+            "projects={\"/home/tester/work\"={trust_level=\"untrusted\"}}",
             "history.persistence=\"none\"",
             "check_for_update_on_startup=false",
             "analytics.enabled=false",
         ] {
             config(&mut arguments, setting);
         }
+        // Why: CLI overrides split dotted keys without TOML quoting; path keys belong
+        // in a table value.
+        let workspace_access = if execution { "write" } else { "read" };
+        let skill_access = if execution { "read" } else { "deny" };
         config(
             &mut arguments,
-            if execution {
-                "permissions.evaluation.filesystem.\"/home/tester/work\"=\"write\""
-            } else {
-                "permissions.evaluation.filesystem.\"/home/tester/work\"=\"read\""
-            },
-        );
-        config(
-            &mut arguments,
-            if execution {
-                "permissions.evaluation.filesystem.\"/home/tester/.agents/skills\"=\"read\""
-            } else {
-                "permissions.evaluation.filesystem.\"/home/tester/.agents/skills\"=\"deny\""
-            },
+            &format!(
+                r#"permissions.evaluation.filesystem={{":minimal"="read","/proc"="deny","/opt/systemprompt/codex"="read","/home/tester/.codex"="deny","/home/tester/work/.codex"="deny","/home/tester/work"="{workspace_access}","/home/tester/.agents/skills"="{skill_access}"}}"#
+            ),
         );
         config(
             &mut arguments,
