@@ -50,14 +50,11 @@ pub fn execute(
     };
     let (sender, receiver) = mpsc::channel();
     let mut readers = Vec::new();
-    for (is_stdout, stream, limit) in [
-        (
-            true,
-            Box::new(stdout) as Box<dyn Read + Send>,
-            limits.output_bytes,
-        ),
-        (false, Box::new(stderr) as Box<dyn Read + Send>, 64 * 1024),
-    ] {
+    let streams: [(bool, Box<dyn Read + Send>, u64); 2] = [
+        (true, Box::new(stdout), limits.output_bytes),
+        (false, Box::new(stderr), 64 * 1024),
+    ];
+    for (is_stdout, stream, limit) in streams {
         let sender = sender.clone();
         readers.push(std::thread::spawn(move || {
             let mut bytes = Vec::new();

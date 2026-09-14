@@ -125,6 +125,13 @@ impl EvaluationLifecycleRepository {
                 "Suggestion requires development failures and a hypothesis",
             ));
         }
+        super::super::admission::experiment(
+            &self.pool,
+            owner,
+            &request.experiment_id,
+            self.admission.as_ref(),
+        )
+        .await?;
         let valid = sqlx::query_scalar!("SELECT count(*) FROM eval_executions x JOIN eval_experiments e ON e.id=x.experiment_id JOIN eval_resource_revisions c ON c.id=x.case_revision_id WHERE e.owner_id=$1 AND e.id=$2 AND x.id=ANY($3) AND c.content->'content'->>'partition'='development'",
             owner.as_str(), request.experiment_id.as_str(), &request.supporting_execution_ids.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).fetch_one(&self.pool).await?.unwrap_or(0);
         if usize::try_from(valid).ok() != Some(request.supporting_execution_ids.len()) {

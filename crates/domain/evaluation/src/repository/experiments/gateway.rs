@@ -40,11 +40,23 @@ impl EvaluationTrafficClass {
 pub struct GatewayEvaluationRepository {
     pool: PgPool,
     budgets: BudgetRepository,
+    admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
 }
 
 impl GatewayEvaluationRepository {
     pub fn new(pool: PgPool) -> Self {
+        Self::with_admission(
+            pool,
+            std::sync::Arc::new(crate::capabilities::VerifiedExecutionAdmission),
+        )
+    }
+
+    pub fn with_admission(
+        pool: PgPool,
+        admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
+    ) -> Self {
         Self {
+            admission,
             budgets: BudgetRepository::new(pool.clone()),
             pool,
         }
@@ -140,6 +152,13 @@ impl GatewayEvaluationRepository {
                 "Execution session is stale, cancelled, foreign or requests another model",
             ));
         }
+        super::admission::execution(
+            &mut tx,
+            input.owner,
+            &systemprompt_identifiers::EvalExecutionId::new(bound.execution_id.clone()),
+            self.admission.as_ref(),
+        )
+        .await?;
         let audited = sqlx::query_scalar!(
             "SELECT EXISTS(SELECT 1 FROM ai_requests WHERE id=$1 AND user_id=$2 AND session_id=$3 AND status='pending')",
             input.request.as_str(), input.owner.as_str(), input.session.as_str()

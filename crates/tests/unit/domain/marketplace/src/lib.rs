@@ -162,6 +162,11 @@ async fn errors_propagate() {
 }
 
 #[cfg(test)]
+mod consumer_evidence;
+#[cfg(test)]
+mod consumer_fixture;
+
+#[cfg(test)]
 mod git_execution;
 
 #[cfg(test)]

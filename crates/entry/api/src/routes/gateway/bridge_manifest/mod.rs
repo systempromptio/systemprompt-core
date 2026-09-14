@@ -99,7 +99,7 @@ pub async fn manifest(
     seal_manifest(&manifest).map(Json)
 }
 
-async fn assemble_candidate(
+pub(crate) async fn assemble_candidate(
     ctx: &AppContext,
     profile: &systemprompt_models::Profile,
     user_id: &UserId,

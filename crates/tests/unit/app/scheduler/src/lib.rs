@@ -73,3 +73,12 @@ mod state_verifier_seeded_db;
 mod test_jobs;
 #[cfg(test)]
 mod unit_tests;
+
+#[cfg(test)]
+mod evaluator_admission;
+
+#[cfg(all(test, unix))]
+mod evaluator_probe_cleanup;
+
+#[cfg(test)]
+mod evaluator_claude_adapter;

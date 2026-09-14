@@ -4,20 +4,25 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::client::{ClientPurpose, NativeClient};
+use super::docker::command as docker_command;
 use crate::{SchedulerError, SchedulerResult};
 
 #[path = "network.rs"]
 mod network;
+#[path = "container_verification.rs"]
+mod verification;
 pub use network::ExecutionNetwork;
 use network::{private_log, safe_label, safe_name, wait_bounded};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, ExitStatus, Stdio};
 use std::time::Instant;
 use systemprompt_models::subprocess::{place_in_own_process_group, spawn_owned_supervised};
+pub use verification::{ClientVerifier, PinnedClientVerifier};
 
 #[derive(Debug)]
 pub struct ContainerExecution {
     child: Child,
+    _docker_configuration: tempfile::TempDir,
     docker: PathBuf,
     name: String,
     output: PathBuf,
@@ -39,6 +44,7 @@ pub struct ContainerLaunch {
     owner_label: String,
     execution_label: String,
     runtime_user: String,
+    verifier: std::sync::Arc<dyn ClientVerifier>,
 }
 
 impl ContainerLaunch {
@@ -52,6 +58,7 @@ impl ContainerLaunch {
             output_stem: "client".to_owned(),
             owner_label: String::new(),
             execution_label: String::new(),
+            verifier: std::sync::Arc::new(PinnedClientVerifier),
         }
     }
 
@@ -69,6 +76,7 @@ impl ContainerLaunch {
         purpose: ClientPurpose,
         prompt: &str,
     ) -> SchedulerResult<ContainerExecution> {
+        self.verifier.verify(self, client)?;
         let output = self
             .directory
             .join(format!("{}-events.jsonl", self.output_stem));
@@ -77,7 +85,7 @@ impl ContainerLaunch {
             .directory
             .join(format!("{}-stderr.log", self.output_stem));
         let errors = private_log(&errors_path)?;
-        let mut command = Command::new(&self.docker);
+        let (mut command, docker_configuration) = docker_command(&self.docker)?;
         command.args([
             "run",
             "--rm",
@@ -108,9 +116,11 @@ impl ContainerLaunch {
         command
             .arg("--env-file")
             .arg(self.directory.join("client.env"));
-        command
-            .arg(&self.image)
-            .args(client.arguments_for(purpose, prompt));
+        command.arg(&self.image).args(
+            client
+                .arguments_for(purpose, prompt)
+                .map_err(|error| SchedulerError::config_error(error.to_string()))?,
+        );
         command
             .stdin(Stdio::null())
             .stdout(Stdio::from(log))
@@ -119,6 +129,7 @@ impl ContainerLaunch {
         let child = spawn_owned_supervised(command)?;
         Ok(ContainerExecution {
             child,
+            _docker_configuration: docker_configuration,
             docker: self.docker.clone(),
             name: self.name.clone(),
             output,
@@ -163,7 +174,7 @@ impl ContainerExecution {
     }
 
     pub fn cancel(&mut self) -> SchedulerResult<()> {
-        let mut command = Command::new(&self.docker);
+        let (mut command, _docker_configuration) = docker_command(&self.docker)?;
         command
             .args(["rm", "--force", &self.name])
             .stdout(Stdio::null())
@@ -217,9 +228,15 @@ pub struct ContainerLaunchBuilder {
     output_stem: String,
     owner_label: String,
     execution_label: String,
+    verifier: std::sync::Arc<dyn ClientVerifier>,
 }
 
 impl ContainerLaunchBuilder {
+    pub fn verifier(mut self, verifier: std::sync::Arc<dyn ClientVerifier>) -> Self {
+        self.verifier = verifier;
+        self
+    }
+
     pub fn image(mut self, image: String) -> Self {
         self.image = Some(image);
         self
@@ -290,6 +307,7 @@ impl ContainerLaunchBuilder {
             owner_label: self.owner_label,
             execution_label: self.execution_label,
             runtime_user,
+            verifier: self.verifier,
         })
     }
 }

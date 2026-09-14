@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::super::adapters::{NativeCompletion, normalize_evidence};
 use super::{
     BTreeSet, ClientPurpose, ContainerExecution, ContainerLaunch, EvaluationTrafficClass,
     EvaluatorSupervisor, EvidenceArchive, ExecutionOutcome, ExecutionStage, PreparedExecution,
@@ -44,6 +45,7 @@ impl EvaluatorSupervisor {
             .as_ref()
             .map_or(0, |frozen| frozen.cost_envelope.suggestion_calls);
         let allowed = outcome.status.success()
+            && outcome.native_completion == NativeCompletion::Completed
             && failed
             && suggestion_limit > 0
             && self
@@ -75,8 +77,16 @@ impl EvaluatorSupervisor {
             )
             .await?;
         let bytes = capture_outputs(&execution, "suggestion", &mut outcome.artifacts)?;
-        if status.success() {
-            self.persist_generated_suggestion(run, &retained, &bytes)
+        let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &bytes);
+        outcome.artifacts.insert(
+            "suggestion-normalized.json".to_owned(),
+            super::ArtifactFile {
+                bytes: serde_json::to_vec(&normalized).map_err(internal)?,
+                executable: false,
+            },
+        );
+        if status.success() && normalized.output.completion == NativeCompletion::Completed {
+            self.persist_generated_suggestion(run, &retained, normalized.output.text.as_bytes())
                 .await?;
         }
         self.append_event(

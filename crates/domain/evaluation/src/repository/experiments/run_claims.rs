@@ -43,6 +43,13 @@ impl ExperimentRepository {
             tx.commit().await?;
             return Ok(None);
         };
+        super::super::admission::execution(
+            &mut tx,
+            owner,
+            &systemprompt_identifiers::EvalExecutionId::new(row.id.clone()),
+            self.admission.as_ref(),
+        )
+        .await?;
         let execution = sqlx::query_scalar!(r#"UPDATE eval_executions SET status='running',lease_owner=$2,lease_expires_at=NOW()+INTERVAL '60 seconds',deadline_at=NOW()+((1800000-active_runtime_ms)::TEXT || ' milliseconds')::INTERVAL,last_heartbeat_at=NOW(),fencing_token=fencing_token+1 WHERE id=$1 RETURNING to_jsonb(eval_executions) AS "record!: Json<ExecutionRecord>""#, row.id, worker.as_str())
             .fetch_one(&mut *tx).await?;
         sqlx::query!(

@@ -22,11 +22,18 @@ pub(super) fn install_case_fixtures(case: &CaseContent, root: &Path) -> Schedule
 
 pub(super) fn workspace_state(root: &Path) -> SchedulerResult<BTreeMap<String, String>> {
     let mut files = BTreeMap::new();
-    visit_workspace(root, root, &mut |relative, bytes, _| {
-        files.insert(relative, hex::encode(Sha256::digest(bytes)));
+    visit_workspace(root, root, &mut |relative, bytes, executable| {
+        files.insert(relative, file_state_digest(bytes, executable));
         Ok(())
     })?;
     Ok(files)
+}
+
+fn file_state_digest(bytes: &[u8], executable: bool) -> String {
+    let mut digest = Sha256::new();
+    digest.update([u8::from(executable)]);
+    digest.update(bytes);
+    hex::encode(digest.finalize())
 }
 
 pub(super) fn changed_workspace(
@@ -36,7 +43,7 @@ pub(super) fn changed_workspace(
     let mut files = BTreeMap::new();
     let mut bytes_total = 0usize;
     visit_workspace(root, root, &mut |relative, bytes, executable| {
-        let digest = hex::encode(Sha256::digest(bytes));
+        let digest = file_state_digest(bytes, executable);
         if baseline.get(&relative) != Some(&digest) {
             bytes_total = bytes_total
                 .checked_add(bytes.len())

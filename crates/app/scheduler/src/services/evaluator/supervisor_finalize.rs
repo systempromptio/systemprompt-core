@@ -39,7 +39,12 @@ impl EvaluatorSupervisor {
             .capabilities(ClientCapabilities {
                 client: run.variant.client,
                 client_version: run.variant.client_version.clone(),
-                adapter_version: "rust-evaluator-supervisor-v1".to_owned(),
+                adapter_version: run
+                    .client
+                    .adapter()
+                    .map_err(internal)?
+                    .adapter_version()
+                    .to_owned(),
                 image_digest: image_digest(&self.config.client_image)?,
                 supports_session_resume: false,
             })
@@ -65,7 +70,10 @@ impl EvaluatorSupervisor {
             )
             .await
             .map_err(internal)?;
-        let terminal = if outcome.status.success() && cleanup_confirmed {
+        let terminal = if outcome.status.success()
+            && cleanup_confirmed
+            && outcome.native_completion == super::super::adapters::NativeCompletion::Completed
+        {
             TerminalOutcome::Completed
         } else {
             TerminalOutcome::Error

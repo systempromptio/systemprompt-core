@@ -146,11 +146,23 @@ pub struct GeneratedSuggestion {
 pub struct EvaluationLifecycleRepository {
     pub(crate) pool: PgPool,
     budgets: BudgetRepository,
+    admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
 }
 
 impl EvaluationLifecycleRepository {
     pub fn new(pool: PgPool) -> Self {
+        Self::with_admission(
+            pool,
+            std::sync::Arc::new(crate::capabilities::VerifiedExecutionAdmission),
+        )
+    }
+
+    pub fn with_admission(
+        pool: PgPool,
+        admission: std::sync::Arc<dyn crate::capabilities::ExecutionAdmission>,
+    ) -> Self {
         Self {
+            admission,
             budgets: BudgetRepository::new(pool.clone()),
             pool,
         }

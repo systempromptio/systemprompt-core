@@ -58,7 +58,7 @@ impl From<ContentDigest> for String {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum FeedbackContractError {
     #[error("Expected a lowercase SHA-256 digest")]
     InvalidDigest,

@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::super::adapters::{NativeCompletion, normalize_evidence};
 use super::{
     ArtifactFile, BTreeMap, ClientPurpose, ContainerExecution, ContainerLaunch, Duration,
     EvaluationTrafficClass, EvaluatorSupervisor, EvidenceJudgment, ExecutionStage, ExitStatus,
@@ -14,6 +15,7 @@ use systemprompt_evaluation::repository::experiments::CleanupReport;
 
 pub(super) struct ExecutionOutcome {
     pub status: ExitStatus,
+    pub native_completion: NativeCompletion,
     pub started: Instant,
     pub last_heartbeat: Instant,
     pub artifacts: BTreeMap<String, ArtifactFile>,
@@ -35,7 +37,7 @@ impl EvaluatorSupervisor {
             StageEvent {
                 sequence: 1,
                 stage: ExecutionStage::Context,
-                summary: "Started isolated Claude Code execution and authenticated relay",
+                summary: "Started isolated native client execution and authenticated relay",
             },
         )
         .await?;
@@ -60,9 +62,25 @@ impl EvaluatorSupervisor {
         )
         .await?;
         let mut artifacts = BTreeMap::new();
-        capture_outputs(&execution, "client", &mut artifacts)?;
+        artifacts.insert(
+            "native-environment.json".to_owned(),
+            ArtifactFile {
+                bytes: std::fs::read(run.directory.join("native-environment.json"))?,
+                executable: false,
+            },
+        );
+        let stdout = capture_outputs(&execution, "client", &mut artifacts)?;
+        let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &stdout);
+        let native_completion = normalized.output.completion;
+        artifacts.insert(
+            "client-normalized.json".to_owned(),
+            ArtifactFile {
+                bytes: serde_json::to_vec(&normalized).map_err(internal)?,
+                executable: false,
+            },
+        );
         artifacts.extend(changed_workspace(&run.home.join("work"), &run.baseline)?);
-        let observed = workspace_state(&run.home.join(".claude/skills"))?;
+        let observed = workspace_state(&run.skill_directory)?;
         artifacts.insert(
             "installation-integrity.json".to_owned(),
             ArtifactFile {
@@ -77,6 +95,7 @@ impl EvaluatorSupervisor {
         );
         Ok(ExecutionOutcome {
             status,
+            native_completion,
             started,
             last_heartbeat,
             artifacts,
@@ -89,7 +108,7 @@ impl EvaluatorSupervisor {
         run: &mut PreparedExecution,
         outcome: &mut ExecutionOutcome,
     ) -> SchedulerResult<Option<EvidenceJudgment>> {
-        if !outcome.status.success() {
+        if !outcome.status.success() || outcome.native_completion != NativeCompletion::Completed {
             return Ok(None);
         }
         let stdout = outcome
@@ -144,7 +163,18 @@ impl EvaluatorSupervisor {
         if !status.success() {
             return Ok(None);
         }
-        match parse_judgment(&bytes) {
+        let normalized = normalize_evidence(run.client.adapter().map_err(internal)?, &bytes);
+        outcome.artifacts.insert(
+            "judge-normalized.json".to_owned(),
+            ArtifactFile {
+                bytes: serde_json::to_vec(&normalized).map_err(internal)?,
+                executable: false,
+            },
+        );
+        if normalized.output.completion != NativeCompletion::Completed {
+            return Ok(None);
+        }
+        match parse_judgment(normalized.output.text.as_bytes()) {
             Ok(judgment) => Ok(Some(judgment)),
             Err(error) => {
                 tracing::warn!(
@@ -229,6 +259,14 @@ pub(super) fn capture_outputs(
         format!("{stem}-stderr.log"),
         ArtifactFile {
             bytes: std::fs::read(stderr_path)?,
+            executable: false,
+        },
+    );
+    let verification_path = stdout_path.with_file_name(format!("{stem}-native-verification.json"));
+    artifacts.insert(
+        format!("{stem}-native-verification.json"),
+        ArtifactFile {
+            bytes: std::fs::read(verification_path)?,
             executable: false,
         },
     );

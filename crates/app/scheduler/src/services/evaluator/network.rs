@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    Child, Command, ContainerExecution, ExitStatus, Instant, Path, PathBuf, SchedulerError,
-    SchedulerResult, Stdio,
+    Child, ContainerExecution, ExitStatus, Instant, Path, PathBuf, SchedulerError, SchedulerResult,
+    Stdio, docker_command,
 };
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -120,9 +120,8 @@ impl ExecutionNetwork {
     }
 
     pub fn verify(&self, expected: &[String]) -> SchedulerResult<()> {
-        let output = Command::new(&self.docker)
-            .args(["network", "inspect", &self.name])
-            .output()?;
+        let (mut command, _docker_configuration) = docker_command(&self.docker)?;
+        let output = command.args(["network", "inspect", &self.name]).output()?;
         if !output.status.success() {
             return Err(SchedulerError::config_error(
                 "Execution network inspection failed",
@@ -196,7 +195,8 @@ impl Drop for ExecutionNetwork {
 }
 
 pub(super) fn docker_status(docker: &Path, arguments: &[&str]) -> SchedulerResult<()> {
-    let status = Command::new(docker)
+    let (mut command, _docker_configuration) = docker_command(docker)?;
+    let status = command
         .args(arguments)
         .stdout(Stdio::null())
         .stderr(Stdio::null())

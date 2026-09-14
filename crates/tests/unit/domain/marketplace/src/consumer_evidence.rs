@@ -1,0 +1,396 @@
+use crate::consumer_fixture::fixture;
+use systemprompt_identifiers::{DeviceCertId, NativeSessionId};
+use systemprompt_models::feedback::receipts::{ReadbackStatus, ReceiptAcknowledgement};
+use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
+
+#[tokio::test]
+async fn consumer_identity_is_derived_from_enrolled_device_not_publisher_or_body() {
+    let f = fixture().await;
+    assert_ne!(f.owner, f.consumer);
+    let identity = f
+        .repo
+        .authenticate_consumer_device(&f.credential.credential)
+        .await
+        .unwrap();
+    assert_eq!(identity.consumer_id, f.consumer);
+    assert_eq!(identity.device_id.as_str(), f.cert.as_str());
+    assert!(
+        f.repo
+            .authenticate_consumer_device(f.cert.as_str())
+            .await
+            .is_err()
+    );
+    assert!(
+        f.repo
+            .authenticate_consumer_device("per-user-bridge-secret")
+            .await
+            .is_err()
+    );
+    assert!(
+        f.repo
+            .issue_consumer_credential(&DeviceCertId::generate())
+            .await
+            .is_err()
+    );
+    let receipt = f
+        .repo
+        .record_consumer_receipt(&f.credential.credential, &f.request)
+        .await
+        .unwrap();
+    let row = sqlx::query!(
+        "SELECT owner_id,consumer_id,device_id FROM managed_installation_receipts WHERE id=$1",
+        receipt.receipt_id.as_str()
+    )
+    .fetch_one(&f.pool)
+    .await
+    .unwrap();
+    assert_eq!(row.owner_id, f.owner.as_str());
+    assert_eq!(row.consumer_id.as_deref(), Some(f.consumer.as_str()));
+    assert_eq!(row.device_id.as_deref(), Some(f.cert.as_str()));
+    let mut forged = serde_json::to_value(&f.request).unwrap();
+    forged["consumer_id"] = serde_json::json!(f.owner);
+    assert!(
+        serde_json::from_value::<systemprompt_models::feedback::receipts::ConsumerReceiptRequest>(
+            forged
+        )
+        .is_err()
+    );
+}
+
+#[tokio::test]
+async fn identical_retries_acknowledge_but_conflicting_observations_are_rejected() {
+    let f = fixture().await;
+    let first = f
+        .repo
+        .record_consumer_receipt(&f.credential.credential, &f.request)
+        .await
+        .unwrap();
+    let mut reordered = f.request.clone();
+    reordered.files.reverse();
+    let retry = f
+        .repo
+        .record_consumer_receipt(&f.credential.credential, &reordered)
+        .await
+        .unwrap();
+    assert_eq!(first.receipt_id, retry.receipt_id);
+    assert_eq!(
+        retry.acknowledgement,
+        ReceiptAcknowledgement::IdenticalRetry
+    );
+    reordered.files[0].mode_check = ReadbackStatus::Unavailable;
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &reordered)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn tampered_content_modes_partial_installs_and_wrong_generations_fail() {
+    let f = fixture().await;
+    let mut tampered = f.request.clone();
+    tampered.files[0].digest = ContentDigest::of(b"tampered");
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &tampered)
+            .await
+            .is_err()
+    );
+    tampered = f.request.clone();
+    tampered.files[0].executable = !tampered.files[0].executable;
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &tampered)
+            .await
+            .is_err()
+    );
+    tampered = f.request.clone();
+    tampered.files.pop();
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &tampered)
+            .await
+            .is_err()
+    );
+    tampered = f.request.clone();
+    tampered.generation += 1;
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &tampered)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn unavailable_platform_checks_are_retained_without_verified_session_binding() {
+    let mut f = fixture().await;
+    f.request.files[0].mode_check = ReadbackStatus::Unavailable;
+    let binding = f.receipt_binding().await;
+    let receipt = f
+        .repo
+        .consumer_receipt_status(&f.credential.credential, &binding.receipt_id)
+        .await
+        .unwrap();
+    assert!(!receipt.fully_verified);
+    assert!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &binding)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn grant_changes_credential_rotation_and_certificate_revocation_are_enforced() {
+    let f = fixture().await;
+    f.grant(false).await;
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &f.request)
+            .await
+            .is_err()
+    );
+    f.grant(true).await;
+    let rotated = f.repo.issue_consumer_credential(&f.cert).await.unwrap();
+    assert!(
+        f.repo
+            .authenticate_consumer_device(&f.credential.credential)
+            .await
+            .is_err()
+    );
+    assert!(
+        f.repo
+            .record_consumer_receipt(&rotated.credential, &f.request)
+            .await
+            .is_ok()
+    );
+    sqlx::query!(
+        "UPDATE user_device_certs SET revoked_at=now() WHERE id=$1",
+        f.cert.as_str()
+    )
+    .execute(&f.pool)
+    .await
+    .unwrap();
+    assert!(
+        f.repo
+            .authenticate_consumer_device(&rotated.credential)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn late_receipt_and_session_binding_correct_unknown_without_duplicate_usage() {
+    let f = fixture().await;
+    let input = f.invocation();
+    let unknown = f
+        .repo
+        .record_consumer_invocation(&f.credential.credential, &input)
+        .await
+        .unwrap();
+    assert!(unknown.receipt_id.is_none());
+    let binding = f.receipt_binding().await;
+    let before_session = f
+        .repo
+        .record_consumer_invocation(&f.credential.credential, &input)
+        .await
+        .unwrap();
+    assert!(before_session.receipt_id.is_none());
+    f.repo
+        .bind_consumer_session(&f.credential.credential, &binding)
+        .await
+        .unwrap();
+    let corrected = f
+        .repo
+        .record_consumer_invocation(&f.credential.credential, &input)
+        .await
+        .unwrap();
+    assert_eq!(corrected.receipt_id, Some(binding.receipt_id));
+    assert_eq!(corrected.version, 2);
+    let count = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM managed_consumer_invocation_evidence WHERE consumer_id=$1",
+        f.consumer.as_str()
+    )
+    .fetch_one(&f.pool)
+    .await
+    .unwrap();
+    assert_eq!(count, Some(1));
+    let history = sqlx::query_scalar!("SELECT COUNT(*) FROM managed_consumer_attribution_history h JOIN managed_consumer_invocation_evidence e ON e.id=h.evidence_id WHERE e.consumer_id=$1", f.consumer.as_str()).fetch_one(&f.pool).await.unwrap();
+    assert_eq!(history, Some(2));
+    let mut conflicting = input;
+    conflicting.evidence = serde_json::json!({"forged":true});
+    assert!(
+        f.repo
+            .record_consumer_invocation(&f.credential.credential, &conflicting)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn foreign_device_host_and_unbound_session_cannot_attribute_receipt() {
+    let f = fixture().await;
+    let binding = f.receipt_binding().await;
+    let other = fixture().await;
+    assert!(
+        f.repo
+            .bind_consumer_session(&other.credential.credential, &binding)
+            .await
+            .is_err()
+    );
+    let mut wrong_host = binding.clone();
+    wrong_host.host = EvaluatorClient::Hermes;
+    assert!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &wrong_host)
+            .await
+            .is_err()
+    );
+    f.repo
+        .bind_consumer_session(&f.credential.credential, &binding)
+        .await
+        .unwrap();
+    let mut input = f.invocation();
+    input.session_id = NativeSessionId::new("unbound-session");
+    assert!(
+        f.repo
+            .record_consumer_invocation(&f.credential.credential, &input)
+            .await
+            .unwrap()
+            .receipt_id
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn concurrent_binding_and_ingestion_converge_and_retries_do_not_change_history() {
+    let f = fixture().await;
+    let binding = f.receipt_binding().await;
+    let input = f.invocation();
+    let (bound, ingested) = tokio::join!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &binding),
+        f.repo
+            .record_consumer_invocation(&f.credential.credential, &input),
+    );
+    bound.unwrap();
+    ingested.unwrap();
+    let corrected = f
+        .repo
+        .record_consumer_invocation(&f.credential.credential, &input)
+        .await
+        .unwrap();
+    assert_eq!(corrected.receipt_id, Some(binding.receipt_id.clone()));
+    f.repo
+        .bind_consumer_session(&f.credential.credential, &binding)
+        .await
+        .unwrap();
+    assert_eq!(
+        f.repo
+            .record_consumer_invocation(&f.credential.credential, &input)
+            .await
+            .unwrap()
+            .version,
+        corrected.version
+    );
+}
+
+#[tokio::test]
+async fn catalog_cannot_restore_explicit_revocation_and_revoked_credentials_fail() {
+    let f = fixture().await;
+    f.grant(false).await;
+    f.repo
+        .retain_consumer_catalog_grant(&f.owner, &f.request.resource_id, &f.consumer)
+        .await
+        .unwrap();
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &f.request)
+            .await
+            .is_err()
+    );
+    f.repo.revoke_consumer_credential(&f.cert).await.unwrap();
+    assert!(
+        f.repo
+            .authenticate_consumer_device(&f.credential.credential)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn historical_receipts_keep_unknown_consumer_and_device_without_session_binding() {
+    use systemprompt_marketplace::managed::{
+        AssetDigest, InstallationReceiptRequest, InstalledFile,
+    };
+    let f = fixture().await;
+    let delivery = f.repo.claim_distribution(&f.owner, "historical-distribution").await.unwrap().unwrap();
+    f.repo.complete_distribution(&f.owner, &delivery, true, None).await.unwrap();
+    let historical = InstallationReceiptRequest {
+        installation_id: "historical-install".to_owned(),
+        publication_id: f.request.publication_id.clone(),
+        resource_id: f.request.resource_id.clone(),
+        generation: f.request.generation,
+        bundle_digest: AssetDigest::try_from(f.request.bundle_digest.as_str().to_owned()).unwrap(),
+        files: f
+            .request
+            .files
+            .iter()
+            .map(|file| InstalledFile {
+                revision_id: file.revision_id.clone(),
+                path: file.path.clone(),
+                digest: AssetDigest::try_from(file.digest.as_str().to_owned()).unwrap(),
+                bytes: file.bytes,
+                executable: file.executable,
+            })
+            .collect(),
+        client_evidence: serde_json::json!({"session_id":"historical-session", "owner_id":f.owner}),
+    };
+    let receipt = f
+        .repo
+        .record_installation(&f.owner, &historical)
+        .await
+        .unwrap();
+    let row = sqlx::query!("SELECT consumer_id,device_id,fully_verified FROM managed_installation_receipts WHERE id=$1", receipt.id.as_str()).fetch_one(&f.pool).await.unwrap();
+    assert!(row.consumer_id.is_none());
+    assert!(row.device_id.is_none());
+    assert!(row.fully_verified.is_none());
+    let binding = systemprompt_models::feedback::receipts::SessionBindingRequest {
+        receipt_id: receipt.id,
+        host: f.request.host,
+        session_id: NativeSessionId::new("historical-session"),
+    };
+    assert!(
+        f.repo
+            .bind_consumer_session(&f.credential.credential, &binding)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn rollback_generations_remain_distinct_even_when_revision_and_session_match() {
+    use systemprompt_marketplace::managed::{PublicationAction, PublicationRequest};
+    let mut f = fixture().await;
+    let original = f.receipt_binding().await;
+    f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap();
+    let old_input = f.invocation();
+    let old_attribution = f.repo.record_consumer_invocation(&f.credential.credential, &old_input).await.unwrap();
+    assert_eq!(old_attribution.receipt_id, Some(original.receipt_id.clone()));
+    let rollback = f.repo.review_and_publish(&f.owner, &f.owner, &PublicationRequest {
+        resource_id: f.request.resource_id.clone(), revision_id: Some(f.request.revision_id.clone()),
+        action: PublicationAction::Rollback, expected_generation: 1, operation_key: "rollback".to_owned(),
+        comparison_evidence: serde_json::json!({}), limitations: String::new(),
+    }).await.unwrap();
+    f.request.publication_id = rollback.publication_id;
+    f.request.generation = rollback.generation;
+    let rebound = f.receipt_binding().await;
+    f.repo.bind_consumer_session(&f.credential.credential, &rebound).await.unwrap();
+    assert_ne!(original.receipt_id, rebound.receipt_id);
+    let mut new_input = f.invocation();
+    new_input.invocation_id = systemprompt_identifiers::ResourceInvocationId::new("rollback-invocation");
+    assert_eq!(f.repo.record_consumer_invocation(&f.credential.credential, &new_input).await.unwrap().receipt_id, Some(rebound.receipt_id));
+    assert_eq!(f.repo.record_consumer_invocation(&f.credential.credential, &old_input).await.unwrap().receipt_id, Some(original.receipt_id));
+}
