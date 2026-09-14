@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_files::FilesConfig;
-use systemprompt_traits::validation_report::ValidationError;
+use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{ConfigProvider, ValidationReport};
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -45,7 +45,7 @@ impl systemprompt_traits::DomainConfig for FilesConfigValidator {
         let errors = files_config.ensure_storage_structure();
         for error_msg in errors {
             report.add_error(
-                ValidationError::new("storage", &error_msg)
+                ValidationIssue::new("storage", &error_msg)
                     .with_suggestion("Check filesystem permissions for storage directory"),
             );
         }

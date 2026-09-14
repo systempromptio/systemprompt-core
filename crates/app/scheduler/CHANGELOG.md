@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- The evaluator materialises `ExecutionAssignment` workspaces from the typed `RevisionBundle` carried on the assignment instead of re-decoding a JSON value per run.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

@@ -25,7 +25,7 @@ use systemprompt_evaluation::repository::experiments::{
     TerminalOutcome, WorkerRecord,
 };
 use systemprompt_identifiers::{EvalExecutionId, EvalWorkerId, UserId};
-use systemprompt_marketplace::managed::RevisionBundle;
+use systemprompt_models::managed::RevisionBundle;
 
 use super::client::{ClientPurpose, NativeClient};
 use super::container::{ContainerExecution, ContainerLaunch, ExecutionNetwork};

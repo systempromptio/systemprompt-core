@@ -208,7 +208,7 @@ impl SkillOptimizationOrchestrator {
                 &ManagedWorkspaceRegistration {
                     managed_revision_id: revision.as_str(),
                     publication_generation: None,
-                    manifest: &serde_json::to_value(&bundle)?,
+                    manifest: &bundle,
                     expected_digest: digest.as_str(),
                     file_count: files.len(),
                     byte_count: bytes,

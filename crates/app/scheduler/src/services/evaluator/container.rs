@@ -13,7 +13,7 @@ use network::{private_log, safe_label, safe_name, wait_bounded};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::Instant;
-use systemprompt_models::subprocess::{place_in_own_process_group, spawn_owned_supervised};
+use systemprompt_loader::subprocess::{place_in_own_process_group, spawn_owned_supervised};
 
 #[derive(Debug)]
 pub struct ContainerExecution {

@@ -24,7 +24,7 @@ use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     RateLimitsConfigValidator, ValidationConfigProvider, WebConfigValidator,
 };
-use systemprompt_traits::validation_report::ValidationError;
+use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{DomainConfigRegistry, StartupValidationReport, ValidationReport};
 
 use config_loaders::{create_spinner, load_content_config, load_web_config, load_web_metadata};
@@ -120,7 +120,7 @@ impl StartupValidator {
                 }
                 CliService::error(&format!("Services config: {}", e));
                 let mut domain_report = ValidationReport::new("services");
-                domain_report.add_error(ValidationError::new(
+                domain_report.add_error(ValidationIssue::new(
                     "services_config",
                     format!("Failed to load: {}", e),
                 ));
@@ -179,7 +179,7 @@ impl StartupValidator {
                     ));
 
                     let mut domain_report = ValidationReport::new(domain_id);
-                    domain_report.add_error(ValidationError::new(
+                    domain_report.add_error(ValidationIssue::new(
                         format!("{}_config", domain_id),
                         format!("Failed to load: {}", e),
                     ));
@@ -222,7 +222,7 @@ impl StartupValidator {
                     ));
 
                     let mut domain_report = ValidationReport::new(domain_id);
-                    domain_report.add_error(ValidationError::new(
+                    domain_report.add_error(ValidationIssue::new(
                         format!("{}_validation", domain_id),
                         format!("Validation error: {}", e),
                     ));

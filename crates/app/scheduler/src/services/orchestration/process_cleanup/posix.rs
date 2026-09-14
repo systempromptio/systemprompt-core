@@ -92,7 +92,7 @@ async fn wait_for_exit(pid: u32, grace_period_ms: u64) -> bool {
 }
 
 fn process_is_live(pid: u32) -> bool {
-    process_exists(pid) && !systemprompt_models::subprocess::is_zombie(pid)
+    process_exists(pid) && !systemprompt_loader::subprocess::is_zombie(pid)
 }
 
 // Why: POSIX reuses process IDs; negative kill targets address groups.

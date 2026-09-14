@@ -20,13 +20,14 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{
     Database, MigrationConfig, PoolConfig, install_extension_schemas_full,
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{AppPaths, Config};
+use systemprompt_models::Config;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_traits::FileStorage;
 

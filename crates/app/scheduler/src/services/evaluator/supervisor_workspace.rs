@@ -111,18 +111,8 @@ pub(super) fn evidence_references(evidence: &ExecutionEvidence) -> BTreeSet<Stri
     references
 }
 
-fn decoded_bundle(value: &serde_json::Value) -> SchedulerResult<RevisionBundle> {
-    let bundle: RevisionBundle = serde_json::from_value(value.clone())
-        .map_err(|error| SchedulerError::Internal(error.to_string()))?;
+pub(super) fn materialize_root(bundle: &RevisionBundle, destination: &Path) -> SchedulerResult<()> {
     bundle.verify().map_err(internal)?;
-    Ok(bundle)
-}
-
-pub(super) fn materialize_root(
-    value: &serde_json::Value,
-    destination: &Path,
-) -> SchedulerResult<()> {
-    let bundle = decoded_bundle(value)?;
     install_files(
         &bundle.revision_files(&bundle.root).map_err(internal)?.0,
         destination,
@@ -130,10 +120,10 @@ pub(super) fn materialize_root(
 }
 
 pub(super) fn materialize_skills(
-    value: &serde_json::Value,
+    bundle: &RevisionBundle,
     destination: &Path,
 ) -> SchedulerResult<()> {
-    let bundle = decoded_bundle(value)?;
+    bundle.verify().map_err(internal)?;
     for revision in bundle.revisions.keys() {
         let files = bundle.revision_files(revision).map_err(internal)?;
         let config = files.0.get("config.yaml").and_then(|file| {
@@ -173,7 +163,7 @@ pub(super) fn materialize_skills(
 }
 
 fn install_files(
-    files: &BTreeMap<String, systemprompt_marketplace::managed::AssetFile>,
+    files: &BTreeMap<String, systemprompt_models::managed::AssetFile>,
     destination: &Path,
 ) -> SchedulerResult<()> {
     for (path, file) in files {
@@ -184,7 +174,7 @@ fn install_files(
 
 fn install_file(
     path: &Path,
-    file: &systemprompt_marketplace::managed::AssetFile,
+    file: &systemprompt_models::managed::AssetFile,
 ) -> SchedulerResult<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
