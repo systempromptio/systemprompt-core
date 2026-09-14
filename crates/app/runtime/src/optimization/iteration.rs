@@ -4,7 +4,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::Deserialize;
 use systemprompt_evaluation::experiments::Objective;
 use systemprompt_evaluation::experiments::records::ExperimentStatus;
 use systemprompt_evaluation::experiments::resources::{Partition, ResourceContent};
@@ -12,22 +11,9 @@ use systemprompt_evaluation::repository::experiments::{
     CampaignExperiment, ManagedWorkspaceRegistration,
 };
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, ResourceRevisionId, UserId};
-use systemprompt_marketplace::managed::TextCandidate;
 
 use super::{OptimizationError, SkillOptimizationOrchestrator};
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProposedChanges {
-    files: Vec<ProposedFile>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProposedFile {
-    path: String,
-    content: String,
-}
 
 impl SkillOptimizationOrchestrator {
     pub async fn launch(
@@ -144,56 +130,14 @@ impl SkillOptimizationOrchestrator {
         else {
             return Ok(None);
         };
-        let edits: ProposedChanges = serde_json::from_value(suggestion.proposed_changes.clone())?;
-        if edits.files.is_empty() || edits.files.len() > 16 {
-            return Err(OptimizationError::Source(
-                "Suggestions require 1–16 bounded file edits".to_owned(),
-            ));
-        }
-        let workspace = self
-            .evaluations
-            .evidence
-            .get_managed_workspace(
+        let revision = self
+            .apply_suggestion(
                 owner,
-                &detail.experiment.spec.variants[1].skill_bundle_digest,
+                &campaign.policy,
+                &detail.experiment.spec.variants[1],
+                suggestion,
             )
             .await?;
-        let mut revision = ResourceRevisionId::new(workspace.managed_revision_id);
-        let previous_content = self
-            .managed
-            .get_revision_bundle(owner, &revision)
-            .await?
-            .content_digest()?;
-        if self.managed.revision_resource(owner, &revision).await? != campaign.policy.resource_id {
-            return Err(OptimizationError::Source(
-                "Suggestion candidate belongs to another resource".to_owned(),
-            ));
-        }
-        for edit in edits.files {
-            revision = self
-                .managed
-                .create_text_candidate(
-                    owner,
-                    &revision,
-                    &TextCandidate {
-                        path: edit.path,
-                        content: edit.content,
-                        rationale: suggestion.hypothesis.clone(),
-                    },
-                )
-                .await?;
-        }
-        if self
-            .managed
-            .get_revision_bundle(owner, &revision)
-            .await?
-            .content_digest()?
-            == previous_content
-        {
-            return Err(OptimizationError::Source(
-                "Suggestion does not change the retained candidate content".to_owned(),
-            ));
-        }
         let digest = self.register_workspace(owner, &revision).await?;
         let mut spec = detail.experiment.spec;
         let mut development = Vec::new();

@@ -2,8 +2,8 @@
 //! any database I/O. The resulting [`PreparedSchema`] is executed by the
 //! installer in the correct global phase.
 //!
-//! `foreign_keys`: Foreign keys split out of the structural `CREATE TABLE`s; applied
-//! after every extension's dependent phase.
+//! `foreign_keys`: Foreign keys split out of the structural `CREATE TABLE`s;
+//! applied after every extension's dependent phase.
 //!
 //! `CreateTable`: A `CREATE TABLE`, with its foreign keys deferred.
 //!
@@ -117,7 +117,10 @@ enum StatementPhase {
     Dependent,
 }
 
-fn require_declarative_schema(extension_id: &str, lint_errors: &[String]) -> Result<(), LoaderError> {
+fn require_declarative_schema(
+    extension_id: &str,
+    lint_errors: &[String],
+) -> Result<(), LoaderError> {
     if lint_errors.is_empty() {
         return Ok(());
     }

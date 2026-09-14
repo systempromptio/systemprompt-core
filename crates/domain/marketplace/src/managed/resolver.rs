@@ -29,7 +29,7 @@ pub enum ResolvedManagedResource {
 #[derive(Debug, Clone)]
 pub enum ManagedSkillResolution {
     NotManaged,
-    Published(ManagedSkill),
+    Published(Box<ManagedSkill>),
     Withheld(WithheldReason),
 }
 
@@ -201,7 +201,7 @@ impl ManagedResourceResolver {
                     .ok_or(ManagedError::Integrity)?;
                 let raw = std::str::from_utf8(&content.bytes)
                     .map_err(|_corrupt| ManagedError::Integrity)?;
-                Ok(ManagedSkillResolution::Published(ManagedSkill {
+                Ok(ManagedSkillResolution::Published(Box::new(ManagedSkill {
                     publication_id,
                     resource_id,
                     revision_id,
@@ -222,7 +222,7 @@ impl ManagedResourceResolver {
                     files,
                     generation,
                     bundle_digest,
-                }))
+                })))
             },
         }
     }

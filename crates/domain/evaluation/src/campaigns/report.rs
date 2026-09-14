@@ -79,40 +79,11 @@ pub async fn build(
         .comparison(owner, experiment_id)
         .await?;
     let rows: Vec<MeasurementRow> = serde_json::from_value(report.variants)?;
-    let mut pairs: BTreeMap<(EvalRevisionId, i32), [Option<Outcome>; 2]> = BTreeMap::new();
-    let mut limitations = Vec::new();
-    for row in rows {
-        if row.variant > 1 {
-            return Err(conflict("Unexpected experiment variant"));
-        }
-        let pair = pairs
-            .entry((row.case_revision_id, row.repetition))
-            .or_insert([None, None]);
-        if pair[row.variant].is_some() {
-            return Err(conflict("Duplicate paired measurement"));
-        }
-        if let Some(measurement) = row.measurement.filter(|_| row.status == "completed") {
-            pair[row.variant] = outcome(&measurement);
-        }
-        if pair[row.variant].is_none() {
-            limitations.push(format!(
-                "Execution {} has incomplete outcome evidence",
-                row.execution_id
-            ));
-        }
-    }
+    let retained = pair_measurements(rows)?;
+    let mut limitations = retained.limitations;
     let mut development = Vec::new();
     let mut holdout = Vec::new();
-    let mut cases: BTreeMap<EvalRevisionId, Vec<PairedOutcome>> = BTreeMap::new();
-    for ((case, _), pair) in pairs {
-        if let [Some(baseline), Some(candidate)] = pair {
-            cases.entry(case).or_default().push(PairedOutcome {
-                baseline,
-                candidate,
-            });
-        }
-    }
-    for (case, repetitions) in cases {
+    for (case, repetitions) in retained.cases {
         let ResourceContent::Case(case) = revisions.get(owner, &case).await? else {
             return Err(conflict("Invalid case revision"));
         };
@@ -153,6 +124,46 @@ pub async fn build(
         holdout,
         limitations,
     })
+}
+
+struct RetainedPairs {
+    cases: BTreeMap<EvalRevisionId, Vec<PairedOutcome>>,
+    limitations: Vec<String>,
+}
+
+fn pair_measurements(rows: Vec<MeasurementRow>) -> Result<RetainedPairs> {
+    let mut pairs: BTreeMap<(EvalRevisionId, i32), [Option<Outcome>; 2]> = BTreeMap::new();
+    let mut limitations = Vec::new();
+    for row in rows {
+        if row.variant > 1 {
+            return Err(conflict("Unexpected experiment variant"));
+        }
+        let pair = pairs
+            .entry((row.case_revision_id, row.repetition))
+            .or_insert([None, None]);
+        if pair[row.variant].is_some() {
+            return Err(conflict("Duplicate paired measurement"));
+        }
+        if let Some(measurement) = row.measurement.filter(|_| row.status == "completed") {
+            pair[row.variant] = outcome(&measurement);
+        }
+        if pair[row.variant].is_none() {
+            limitations.push(format!(
+                "Execution {} has incomplete outcome evidence",
+                row.execution_id
+            ));
+        }
+    }
+    let mut cases: BTreeMap<EvalRevisionId, Vec<PairedOutcome>> = BTreeMap::new();
+    for ((case, _), pair) in pairs {
+        if let [Some(baseline), Some(candidate)] = pair {
+            cases.entry(case).or_default().push(PairedOutcome {
+                baseline,
+                candidate,
+            });
+        }
+    }
+    Ok(RetainedPairs { cases, limitations })
 }
 
 fn outcome(measurement: &RetainedMeasurement) -> Option<Outcome> {

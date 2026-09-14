@@ -40,7 +40,7 @@ pub enum CampaignAction {
 }
 
 impl CampaignAction {
-    fn status(self) -> &'static str {
+    const fn status(self) -> &'static str {
         match self {
             Self::Pause => "paused",
             Self::Resume => "active",
@@ -194,7 +194,7 @@ impl CampaignRepository {
             ));
         }
         let iteration =
-            i32::try_from(count + 1).map_err(|_| conflict("Iteration limit exceeded"))?;
+            i32::try_from(count + 1).map_err(|_error| conflict("Iteration limit exceeded"))?;
         sqlx::query!("INSERT INTO eval_campaign_experiments(campaign_id,owner_id,experiment_id,iteration,created_by) VALUES($1,$2,$3,$4,$5)", id.as_str(), owner.as_str(), experiment.as_str(), iteration, actor.as_str()).execute(&mut *tx).await?;
         sqlx::query!(
             "UPDATE eval_campaigns SET generation=generation+1,updated_at=NOW() WHERE id=$1",

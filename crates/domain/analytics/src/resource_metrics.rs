@@ -89,10 +89,28 @@ pub fn aggregate<'a>(facts: impl IntoIterator<Item = &'a ResourceFact> + 'a) -> 
         last_used_at: last_used,
         ..ResourceMetrics::default()
     };
+    aggregate_requests(&mut result, requests.into_values());
+    result.average_quality_score = mean(
+        &assessments
+            .values()
+            .filter_map(|(score, _)| *score)
+            .collect::<Vec<_>>(),
+    );
+    result.successful_conversations = assessments
+        .values()
+        .filter(|(_, success)| *success == Some(true))
+        .count();
+    result
+}
+
+fn aggregate_requests<'a>(
+    result: &mut ResourceMetrics,
+    facts: impl IntoIterator<Item = &'a ResourceFact> + 'a,
+) {
     let mut token_sum = 0i128;
     let mut latencies = Vec::new();
     let mut cost = 0i128;
-    for fact in requests.values() {
+    for fact in facts {
         result.failed_requests += usize::from(fact.failed);
         if let Some(amount) = fact.cost_microdollars.filter(|value| *value >= 0) {
             result.priced_requests += 1;
@@ -119,17 +137,6 @@ pub fn aggregate<'a>(facts: impl IntoIterator<Item = &'a ResourceFact> + 'a) -> 
     result.average_tokens_per_measured_request =
         (result.measured_requests > 0).then(|| token_sum as f64 / result.measured_requests as f64);
     result.average_latency_ms = mean(&latencies);
-    result.average_quality_score = mean(
-        &assessments
-            .values()
-            .filter_map(|(score, _)| *score)
-            .collect::<Vec<_>>(),
-    );
-    result.successful_conversations = assessments
-        .values()
-        .filter(|(_, success)| *success == Some(true))
-        .count();
-    result
 }
 
 fn mean(values: &[f64]) -> Option<f64> {

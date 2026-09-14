@@ -13,8 +13,8 @@
 //! declared in the same extension are skipped, as every other cross-extension
 //! reference is.
 //!
-//! `declared_keys`: Every foreign key on the table with its constrained columns, table-level
-//! and column-level alike.
+//! `declared_keys`: Every foreign key on the table with its constrained
+//! columns, table-level and column-level alike.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

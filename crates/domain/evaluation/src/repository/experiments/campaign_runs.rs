@@ -55,16 +55,28 @@ impl ExperimentRepository {
                 budget: preflight.available_microdollars,
             });
         }
+        self.insert_campaign_run(owner, actor, input).await
+    }
+
+    async fn insert_campaign_run(
+        &self,
+        owner: &UserId,
+        actor: &UserId,
+        input: &CampaignExperiment,
+    ) -> Result<EvalExperimentId> {
+        let digest = content_digest(&input.spec)?;
+        let key = format!("campaign:{}:{}", input.campaign_id, input.idempotency_key);
         let mut tx = self.pool.begin().await?;
         super::lock_owner(&mut tx, owner).await?;
         let campaign = sqlx::query!(
-            "SELECT status,generation FROM eval_campaigns WHERE owner_id=$1 AND id=$2 FOR UPDATE",
+            "SELECT policy,budget_id,status,generation FROM eval_campaigns WHERE owner_id=$1 AND id=$2 FOR UPDATE",
             owner.as_str(),
             input.campaign_id.as_str()
         )
         .fetch_optional(&mut *tx)
         .await?
         .ok_or_else(|| missing("Campaign unavailable"))?;
+        let policy: CampaignPolicy = serde_json::from_value(campaign.policy)?;
         if let Some(row) = sqlx::query!(
             "SELECT id,spec_digest FROM eval_experiments WHERE owner_id=$1 AND idempotency_key=$2",
             owner.as_str(),
@@ -99,7 +111,7 @@ impl ExperimentRepository {
             sqlx::query!("INSERT INTO eval_holdout_consumption(owner_id,case_revision_id,experiment_id) SELECT $1,c.id,$2 FROM eval_resource_revisions c WHERE c.owner_id=$1 AND c.id=ANY($3) AND c.content->'content'->>'partition'='holdout'", owner.as_str(), id.as_str(), &input.spec.cases.iter().map(|case| case.as_str().to_owned()).collect::<Vec<_>>()).execute(&mut *tx).await?;
         }
         let iteration =
-            i32::try_from(count + 1).map_err(|_| conflict("Iteration limit exceeded"))?;
+            i32::try_from(count + 1).map_err(|_error| conflict("Iteration limit exceeded"))?;
         sqlx::query!("INSERT INTO eval_campaign_experiments(campaign_id,owner_id,experiment_id,iteration,created_by) VALUES($1,$2,$3,$4,$5)", input.campaign_id.as_str(), owner.as_str(), id.as_str(), iteration, actor.as_str()).execute(&mut *tx).await?;
         sqlx::query!(
             "UPDATE eval_campaigns SET generation=generation+1,updated_at=NOW() WHERE id=$1",

@@ -11,6 +11,7 @@ use systemprompt_evaluation::repository::experiments::{
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, ResourceRevisionId, UserId};
 use systemprompt_marketplace::managed::evaluation::EvaluationAttestation;
 use systemprompt_marketplace::managed::{AssetDigest, ManagedRepository};
+mod candidate;
 mod capture;
 mod iteration;
 

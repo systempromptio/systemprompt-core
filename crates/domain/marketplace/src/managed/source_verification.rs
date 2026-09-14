@@ -46,10 +46,11 @@ impl ManagedRepository {
             ));
         }
         let capture = input.clone();
-        let files =
-            tokio::task::spawn_blocking(move || import_source(capture, repository, subdirectory))
-                .await
-                .map_err(|error| ManagedError::Io(std::io::Error::other(error)))??;
+        let files = tokio::task::spawn_blocking(move || {
+            import_source(&capture, &repository, subdirectory.as_deref())
+        })
+        .await
+        .map_err(|error| ManagedError::Io(std::io::Error::other(error)))??;
         let retained = bundle.revision_files(&bundle.root)?;
         if files.0.len() != retained.0.len()
             || files.0.iter().any(|(path, file)| {
@@ -83,9 +84,9 @@ impl ManagedRepository {
 }
 
 fn import_source(
-    input: GitContentVerification,
-    repository: String,
-    subdirectory: Option<String>,
+    input: &GitContentVerification,
+    repository: &str,
+    subdirectory: Option<&str>,
 ) -> Result<crate::managed::RevisionFiles> {
     let temp = std::env::temp_dir().join(format!(
         "systemprompt-verification-{}",
@@ -94,9 +95,9 @@ fn import_source(
     std::fs::create_dir(&temp)?;
     let imported = import_tree(&GitCheckout {
         temp: &temp,
-        repository: &repository,
+        repository,
         commit: &input.commit,
-        subdirectory: subdirectory.as_deref(),
+        subdirectory,
         root: &input.upstream_root,
         credential: None,
     });
