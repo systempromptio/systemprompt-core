@@ -10,6 +10,8 @@ use systemprompt_identifiers::{EvalBudgetId, ManagedResourceId, ResourceRevision
 use crate::{EvaluationError, Result};
 
 pub mod comparison;
+pub mod diagnostics;
+pub mod holdout;
 pub mod report;
 pub mod repository;
 pub mod suggestions;

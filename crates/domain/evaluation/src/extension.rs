@@ -32,6 +32,10 @@ impl Extension for EvaluationExtension {
             ),
             SchemaDefinition::new("eval_cases", include_str!("../schema/eval_cases.sql"))
                 .with_required_columns(vec!["id".into(), "name".into(), "prompt_body".into()]),
+            SchemaDefinition::new(
+                "eval_campaign_completion",
+                include_str!("../schema/campaign_completion.sql"),
+            ),
         ]
     }
 

@@ -8,6 +8,7 @@ mod assignments;
 mod campaign_runs;
 pub use campaign_runs::CampaignExperiment;
 mod events;
+mod holdout;
 pub use assignments::{AssignmentRepository, ExecutionAssignment, ManagedWorkspaceReference};
 pub use events::{ExecutionEvent, ExecutionEventBuilder, ExecutionEventRepository, ExecutionStage};
 mod budget;
@@ -98,4 +99,14 @@ pub(super) async fn lock_owner(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+/// Current admission decision for the exact frozen execution variants.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CampaignAvailability {
+    pub platform: String,
+    pub architecture: String,
+    pub admitted: bool,
+    pub reason: Option<String>,
+    pub variants: Vec<crate::experiments::VariantSpec>,
 }

@@ -17,7 +17,7 @@ use super::{OptimizationError, SkillOptimizationOrchestrator};
 
 
 impl SkillOptimizationOrchestrator {
-    pub async fn launch(
+    pub(super) async fn launch_inner(
         &self,
         owner: &UserId,
         actor: &UserId,
@@ -93,7 +93,7 @@ impl SkillOptimizationOrchestrator {
         Ok(())
     }
 
-    pub async fn advance(
+    pub(super) async fn advance_inner(
         &self,
         owner: &UserId,
         actor: &UserId,
@@ -105,19 +105,40 @@ impl SkillOptimizationOrchestrator {
             .campaigns
             .list_experiments(owner, id)
             .await?;
-        if campaign.status != "active"
-            || !campaign.policy.automatic
-            || experiments.len() >= campaign.policy.maximum_iterations as usize
-        {
+        if campaign.status != "active" || !campaign.policy.automatic {
+            return Ok(None);
+        }
+        if experiments.len() >= campaign.policy.maximum_iterations as usize {
+            self.blocked(
+                owner,
+                actor,
+                id,
+                "automatic",
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup,
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::IterationLimit,
+            )
+            .await?;
             return Ok(None);
         }
         let Some(previous) = experiments.last() else {
+            self.blocked(
+                owner,
+                actor,
+                id,
+                "automatic",
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup,
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::MissingTemplate,
+            )
+            .await?;
             return Ok(None);
         };
         let detail = self.evaluations.experiments.get(owner, previous).await?;
         if detail.experiment.status != ExperimentStatus::Completed
             || detail.experiment.spec.variants.len() != 2
         {
+            return Ok(None);
+        }
+        if detail.experiment.spec.claim_independent_improvement {
             return Ok(None);
         }
         let suggestions = self
@@ -129,8 +150,26 @@ impl SkillOptimizationOrchestrator {
             .iter()
             .find(|suggestion| suggestion.status == "draft")
         else {
+            self.blocked(
+                owner,
+                actor,
+                id,
+                "automatic",
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup,
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::MissingSuggestion,
+            )
+            .await?;
             return Ok(None);
         };
+        if !self
+            .evaluations
+            .experiments
+            .execution_availability(&detail.experiment.spec)
+            .admitted
+        {
+            self.blocked(owner, actor, id, "automatic", systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup, systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::UnsupportedCapability).await?;
+            return Ok(None);
+        }
         let revision = self
             .apply_suggestion(
                 owner,

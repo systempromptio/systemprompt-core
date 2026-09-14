@@ -13,7 +13,9 @@ use systemprompt_marketplace::managed::evaluation::EvaluationAttestation;
 use systemprompt_marketplace::managed::{AssetDigest, ManagedRepository};
 mod candidate;
 mod capture;
+mod diagnostics;
 pub mod git_sources;
+pub mod holdout;
 pub mod inventory;
 mod iteration;
 
@@ -59,7 +61,7 @@ impl SkillOptimizationOrchestrator {
         }
     }
 
-    pub async fn report(
+    pub(super) async fn report_inner(
         &self,
         owner: &UserId,
         campaign: &EvalCampaignId,

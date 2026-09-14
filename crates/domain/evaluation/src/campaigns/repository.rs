@@ -16,7 +16,7 @@ use crate::experiments::{conflict, content_digest, missing};
 
 #[derive(Debug, Clone)]
 pub struct CampaignRepository {
-    pool: PgPool,
+    pub(super) pool: PgPool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +62,28 @@ impl CampaignRepository {
         key: &str,
         policy: &CampaignPolicy,
     ) -> Result<EvalCampaignId> {
+        let result = self.create_inner(owner, actor, key, policy).await;
+        if let Err(error) = &result {
+            self.record_diagnostic(
+                owner,
+                actor,
+                None,
+                &format!("setup:{}", content_digest(&key)?),
+                super::diagnostics::DiagnosticStage::Setup,
+                super::diagnostics::DiagnosticCode::from_error(error),
+            )
+            .await?;
+        }
+        result
+    }
+
+    async fn create_inner(
+        &self,
+        owner: &UserId,
+        actor: &UserId,
+        key: &str,
+        policy: &CampaignPolicy,
+    ) -> Result<EvalCampaignId> {
         policy.validate()?;
         if key.trim().is_empty() || key.len() > 200 {
             return Err(crate::experiments::invalid(
@@ -74,7 +96,7 @@ impl CampaignRepository {
             "SELECT pg_advisory_xact_lock(hashtextextended($1,0))",
             format!("campaign:{}:{key}", owner.as_str())
         )
-        .execute(&mut *tx)
+        .fetch_one(&mut *tx)
         .await?;
         if let Some(row) = sqlx::query!(
             "SELECT id,policy_digest FROM eval_campaigns WHERE owner_id=$1 AND operation_key=$2",

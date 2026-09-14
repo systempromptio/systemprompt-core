@@ -46,6 +46,17 @@ impl ExperimentRepository {
         }
     }
 
+    pub fn execution_availability(&self, spec: &ExperimentSpec) -> super::CampaignAvailability {
+        let result = self.admission.admit(spec);
+        super::CampaignAvailability {
+            platform: std::env::consts::OS.to_owned(),
+            architecture: std::env::consts::ARCH.to_owned(),
+            admitted: result.is_ok(),
+            reason: result.err().map(|_| "Exact client/platform/version has not passed execution admission; inspect evaluator capabilities.".to_owned()),
+            variants: spec.variants.clone(),
+        }
+    }
+
     pub async fn create_with_budget(
         &self,
         owner: &UserId,
@@ -116,6 +127,7 @@ impl ExperimentRepository {
         sqlx::query!("INSERT INTO eval_experiments(id,owner_id,spec,spec_digest,budget_id,idempotency_key) VALUES($1,$2,$3,$4,$5,$6)", id.as_str(), owner.as_str(), Json(spec) as _, digest, budget.as_str(), key)
             .execute(&mut *tx).await?;
         Self::insert_executions(&mut tx, &id, spec).await?;
+        super::holdout::consume(&mut tx, owner, &id, spec).await?;
         if spec.claim_independent_improvement {
             sqlx::query!("INSERT INTO eval_holdout_consumption(owner_id,case_revision_id,experiment_id) SELECT $1,c.id,$2 FROM eval_resource_revisions c WHERE c.owner_id=$1 AND c.id=ANY($3) AND c.content->'content'->>'partition'='holdout'",
                 owner.as_str(), id.as_str(), &spec.cases.iter().map(|value| value.as_str().to_owned()).collect::<Vec<_>>()).execute(&mut *tx).await?;

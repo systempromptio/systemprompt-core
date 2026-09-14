@@ -20,6 +20,8 @@ use crate::repository::experiments::{EvaluationRepositories, RevisionRepository}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CampaignReport {
+    pub execution_availability: crate::repository::experiments::CampaignAvailability,
+    pub diagnostics: Vec<super::diagnostics::CampaignDiagnostic>,
     pub suggestions: Vec<super::suggestions::RetainedSuggestion>,
     pub campaign: CampaignRecord,
     pub experiment_id: EvalExperimentId,
@@ -105,6 +107,13 @@ pub async fn build(
     let development = comparison::compare(&campaign.policy, &development)?;
     let holdout = comparison::compare(&campaign.policy, &holdout)?;
     Ok(CampaignReport {
+        execution_availability: repositories
+            .experiments
+            .execution_availability(&experiment.experiment.spec),
+        diagnostics: repositories
+            .campaigns
+            .diagnostics(owner, Some(campaign_id), None, 100)
+            .await?,
         suggestions: repositories
             .lifecycle
             .list_suggestions(owner, experiment_id)

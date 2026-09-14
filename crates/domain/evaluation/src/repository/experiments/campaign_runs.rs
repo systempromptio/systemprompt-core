@@ -108,6 +108,7 @@ impl ExperimentRepository {
         let id = EvalExperimentId::generate();
         sqlx::query!("INSERT INTO eval_experiments(id,owner_id,spec,spec_digest,budget_id,idempotency_key) VALUES($1,$2,$3,$4,$5,$6)", id.as_str(), owner.as_str(), Json(&input.spec) as _, digest, policy.budget_id.as_str(), key).execute(&mut *tx).await?;
         Self::insert_executions(&mut tx, &id, &input.spec).await?;
+        super::holdout::consume(&mut tx, owner, &id, &input.spec).await?;
         if input.spec.claim_independent_improvement {
             sqlx::query!("INSERT INTO eval_holdout_consumption(owner_id,case_revision_id,experiment_id) SELECT $1,c.id,$2 FROM eval_resource_revisions c WHERE c.owner_id=$1 AND c.id=ANY($3) AND c.content->'content'->>'partition'='holdout'", owner.as_str(), id.as_str(), &input.spec.cases.iter().map(|case| case.as_str().to_owned()).collect::<Vec<_>>()).execute(&mut *tx).await?;
         }

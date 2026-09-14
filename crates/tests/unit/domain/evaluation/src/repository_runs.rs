@@ -653,3 +653,6 @@ async fn claim_completes_an_experiment_once_its_executions_are_terminal() {
 
 #[path = "repository_admission.rs"]
 mod admission;
+
+#[path = "campaign_completion.rs"]
+mod campaign_completion;

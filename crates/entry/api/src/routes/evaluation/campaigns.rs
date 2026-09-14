@@ -21,6 +21,7 @@ pub fn router() -> Router<AppContext> {
     Router::new()
         .merge(super::optimization_resources::router())
         .merge(super::inventory::router())
+        .merge(super::campaign_completion::router())
         .merge(super::consumer::admin_router())
         .route("/campaigns", get(list).post(create))
         .route("/campaigns/{id}", get(show))
@@ -59,32 +60,53 @@ async fn create(
     Json(input): Json<Create>,
 ) -> Result<impl axum::response::IntoResponse, OptimizationHttpError> {
     let owner = ctx.system_admin().id();
-    let resource = ctx
-        .managed_repository()
-        .revision_resource(owner, &input.policy.baseline_revision_id)
-        .await
-        .map_err(OptimizationHttpError::Managed)?;
-    if resource != input.policy.resource_id {
-        return Err(systemprompt_evaluation::EvaluationError::InvalidSpec(
-            "Baseline must belong to the campaign resource".to_owned(),
-        )
-        .into());
+    let operation = format!(
+        "setup:{}",
+        systemprompt_evaluation::experiments::content_digest(&input.idempotency_key)?
+    );
+    let result: Result<_, OptimizationHttpError> = async {
+        let resource = ctx
+            .managed_repository()
+            .revision_resource(owner, &input.policy.baseline_revision_id)
+            .await
+            .map_err(OptimizationHttpError::Managed)?;
+        if resource != input.policy.resource_id {
+            return Err(systemprompt_evaluation::EvaluationError::InvalidSpec(
+                "Baseline must belong to the campaign resource".to_owned(),
+            )
+            .into());
+        }
+        let id = ctx
+            .evaluation_repositories()
+            .campaigns
+            .create(
+                owner,
+                actor.user_id(),
+                &input.idempotency_key,
+                &input.policy,
+            )
+            .await?;
+        Ok((
+            StatusCode::CREATED,
+            [("location", format!("/api/v1/campaigns/{id}"))],
+            Json(id),
+        ))
     }
-    let id = ctx
-        .evaluation_repositories()
-        .campaigns
-        .create(
-            owner,
-            actor.user_id(),
-            &input.idempotency_key,
-            &input.policy,
-        )
-        .await?;
-    Ok((
-        StatusCode::CREATED,
-        [("location", format!("/api/v1/campaigns/{id}"))],
-        Json(id),
-    ))
+    .await;
+    if result.is_err() {
+        ctx.evaluation_repositories()
+            .campaigns
+            .record_diagnostic(
+                owner,
+                actor.user_id(),
+                None,
+                &operation,
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::Setup,
+                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::InvalidInput,
+            )
+            .await?;
+    }
+    result
 }
 
 async fn list(
