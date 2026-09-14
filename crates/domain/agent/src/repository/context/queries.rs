@@ -11,6 +11,10 @@ use crate::repository::task::constructor::TaskConstructor;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
+fn stored_context_id(raw: String) -> Result<ContextId, RepositoryError> {
+    ContextId::try_new(raw).map_err(|e| RepositoryError::InvalidData(e.to_string()))
+}
+
 impl ContextRepository {
     pub async fn find_user_id_for_context(
         &self,
@@ -54,7 +58,7 @@ impl ContextRepository {
         })?;
 
         Ok(UserContext {
-            context_id: ContextId::new_unchecked(row.context_id),
+            context_id: stored_context_id(row.context_id)?,
             user_id: UserId::new(row.user_id),
             name: row.name,
             kind: row.kind,
@@ -82,17 +86,18 @@ impl ContextRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| UserContext {
-                context_id: ContextId::new_unchecked(r.context_id),
-                user_id: UserId::new(r.user_id),
-                name: r.name,
-                kind: r.kind,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
+        rows.into_iter()
+            .map(|r| {
+                Ok(UserContext {
+                    context_id: stored_context_id(r.context_id)?,
+                    user_id: UserId::new(r.user_id),
+                    name: r.name,
+                    kind: r.kind,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                })
             })
-            .collect())
+            .collect()
     }
 
     pub async fn list_contexts_with_stats(
@@ -122,20 +127,21 @@ impl ContextRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| UserContextWithStats {
-                context_id: ContextId::new_unchecked(r.context_id),
-                user_id: UserId::new(r.user_id),
-                name: r.name,
-                kind: r.kind,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
-                task_count: r.task_count,
-                message_count: r.message_count,
-                last_message_at: r.last_message_at,
+        rows.into_iter()
+            .map(|r| {
+                Ok(UserContextWithStats {
+                    context_id: stored_context_id(r.context_id)?,
+                    user_id: UserId::new(r.user_id),
+                    name: r.name,
+                    kind: r.kind,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                    task_count: r.task_count,
+                    message_count: r.message_count,
+                    last_message_at: r.last_message_at,
+                })
             })
-            .collect())
+            .collect()
     }
 
     pub async fn find_by_session_id(
@@ -158,14 +164,17 @@ impl ContextRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        Ok(row.map(|r| UserContext {
-            context_id: ContextId::new_unchecked(r.context_id),
-            user_id: UserId::new(r.user_id),
-            name: r.name,
-            kind: r.kind,
-            created_at: r.created_at,
-            updated_at: r.updated_at,
-        }))
+        row.map(|r| {
+            Ok(UserContext {
+                context_id: stored_context_id(r.context_id)?,
+                user_id: UserId::new(r.user_id),
+                name: r.name,
+                kind: r.kind,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+            })
+        })
+        .transpose()
     }
 
     pub async fn get_context_events_since(
@@ -217,7 +226,7 @@ impl ContextRepository {
 
         for row in context_updates {
             events.push(ContextStateEvent::ContextUpdated {
-                context_id: ContextId::new_unchecked(row.context_id),
+                context_id: stored_context_id(row.context_id)?,
                 name: row.name,
                 timestamp: row.updated_at,
             });

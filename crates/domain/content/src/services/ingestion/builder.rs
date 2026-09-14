@@ -48,7 +48,7 @@ pub(super) fn create_content_from_metadata(
         locale: metadata
             .locale
             .clone()
-            .unwrap_or_else(|| LocaleCode::new("en")),
+            .unwrap_or_else(|| LocaleCode::english()),
         title: metadata.title.clone(),
         description: metadata.description.clone(),
         body: content_text.to_owned(),

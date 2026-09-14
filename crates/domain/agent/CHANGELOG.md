@@ -6,6 +6,11 @@
 
 - `ContextRepository::ensure_system_context(context_id, system_admin, name, kind)` re-homes a system-owned context onto the current system admin; `ensure_context` keeps refusing cross-user adoption.
 
+### Changed
+
+- Agent-card `securitySchemes` / `security` are read from the typed config; `services::registry::security::convert_json_security_to_struct` is removed. A malformed block is a config load error rather than a warning that drops the schemes.
+- Registry, JWT and tool-provider seams use `AgentName`, `UserId` and `McpServerId` where strings were accepted.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

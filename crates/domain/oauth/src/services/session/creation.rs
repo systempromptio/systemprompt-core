@@ -7,7 +7,7 @@ use super::{AnonymousSessionInfo, SessionCreationParams, SessionCreationService}
 use crate::error::{OauthError, OauthResult};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_traits::{CreateSessionInput, UserEvent};
+use systemprompt_traits::CreateSessionInput;
 use uuid::Uuid;
 
 impl SessionCreationService {
@@ -49,14 +49,6 @@ impl SessionCreationService {
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)
             .map_err(|e| OauthError::TokenInvalid(e.to_string()))?;
-
-        self.publish_event(UserEvent::UserCreated {
-            user_id: user_id.clone(),
-        });
-        self.publish_event(UserEvent::SessionCreated {
-            user_id: user_id.clone(),
-            session_id: session_id.clone(),
-        });
 
         Ok(AnonymousSessionInfo {
             session_id,

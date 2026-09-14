@@ -24,7 +24,7 @@ impl ManagedRepository {
         owner: &UserId,
         input: &GitContentVerification,
     ) -> Result<AssetDigest> {
-        crate::managed::assets::validate_path(&input.upstream_root)?;
+        systemprompt_models::managed::validate_path(&input.upstream_root)?;
         if !matches!(input.commit.len(), 40 | 64)
             || !input
                 .commit

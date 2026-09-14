@@ -116,7 +116,7 @@ async fn restart_stale_binary(
 }
 
 fn get_stale_binary_mtimes(
-    paths: &systemprompt_models::AppPaths,
+    paths: &systemprompt_config::paths::AppPaths,
     name: &str,
     service_info: &ServiceInfo,
 ) -> Option<(i64, i64)> {

@@ -3,6 +3,12 @@
 - Add a versioned, fail-closed evaluator capability registry covering Claude Code,
   OpenCode, Codex, Hermes and Claude Desktop.
 
+## [0.53.0] - 2026-09-14
+
+### Breaking
+
+- **Breaking:** `ManagedWorkspaceReference::manifest` is a `systemprompt_models::managed::RevisionBundle` and `ManagedWorkspaceRegistration::manifest` is `&RevisionBundle`; a stored projection that does not decode as a bundle is `InvalidSpec` on read. Migrate by passing the bundle instead of `serde_json::to_value(&bundle)`.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

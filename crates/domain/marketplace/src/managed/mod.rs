@@ -6,17 +6,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod assets;
 mod bundle;
-pub use bundle::{ASSEMBLER_VERSION, RevisionBundle};
 mod diff;
 pub use diff::{ChangeKind, FileChange, diff_files};
-mod content_identity;
 mod error;
 pub mod evaluation;
 mod import;
 mod installation;
-mod manifest;
 mod provenance;
 mod publication;
 mod reconciliation;
@@ -26,14 +22,12 @@ mod source_sync;
 mod text;
 mod tree;
 
-pub use assets::{AssetDigest, AssetFile, RevisionFiles};
 pub use error::{ManagedError, Result};
 pub use import::ImportedSkills;
 pub use installation::{
     DistributionClaim, DistributionStatus, InstallationReceipt, InstallationReceiptRequest,
     InstalledFile, InvocationAttribution, InvocationAttributionRequest, TrafficClass,
 };
-pub use manifest::{DependencyRef, FileEntry, RevisionManifest};
 pub use provenance::{SnapshotProvenance, SourceSpec};
 pub use publication::{
     ManagedResolution, PublicationAction, PublicationDecision, PublicationHistoryEntry,
@@ -51,5 +45,9 @@ pub use resolver::{
     ManagedResourceResolver, ManagedSkill, ManagedSkillResolution, ResolvedManagedResource,
 };
 pub use source_sync::{GitContentVerification, GitSyncRequest, GitSyncResult, WithdrawalProposal};
+pub use systemprompt_models::managed::{
+    ASSEMBLER_VERSION, AssetDigest, AssetFile, DependencyRef, FileEntry, RevisionBundle,
+    RevisionBundleError, RevisionFiles, RevisionManifest,
+};
 pub use text::normalize_form_text;
 pub use tree::{CapturedSkills, capture_skills};

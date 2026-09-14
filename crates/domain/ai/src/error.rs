@@ -3,18 +3,16 @@
 //! Two error families live here:
 //!
 //! - [`AiError`] — the top-level public error returned by [`crate::services`].
-//!   It composes provider-level failures ([`LlmProviderError`]) and
-//!   repository-level failures ([`RepositoryError`]) via `#[from]`, plus common
-//!   transport / parsing errors ([`reqwest::Error`], [`serde_json::Error`],
-//!   [`sqlx::Error`]).
+//!   It composes repository-level failures ([`RepositoryError`]) via `#[from]`,
+//!   plus common transport / parsing errors ([`reqwest::Error`],
+//!   [`serde_json::Error`], [`sqlx::Error`]).
 //! - [`RepositoryError`] — the persistence-layer error returned by every
 //!   `*Repository` type in [`crate::repository`].
 //!
 //! All public service signatures use [`Result<T>`] (i.e. `Result<T, AiError>`).
-//! Provider-trait signatures continue to use the boxed
-//! [`systemprompt_models::errors::ProviderResult`] and bridge through
-//! `AiProvider for AiService` in
-//! `crate::services::core::ai_service` (the `provider_impl` submodule).
+//! The dyn `AiProvider` seam returns
+//! [`AiInferenceError`](systemprompt_models::errors::AiInferenceError); the
+//! `From<AiError>` impl below is the single mapping onto it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,7 +24,6 @@ use uuid::Uuid;
 
 use systemprompt_database::resilience::Outcome;
 use systemprompt_identifiers::{AiRequestId, McpServerId};
-use systemprompt_provider_contracts::LlmProviderError;
 
 #[derive(Debug, Error)]
 pub enum AiError {
@@ -56,9 +53,6 @@ pub enum AiError {
 
     #[error("No configured provider supports model {model}")]
     NoProviderForModel { model: String },
-
-    #[error(transparent)]
-    Provider(#[from] LlmProviderError),
 
     #[error("Serialization failed: {0}")]
     SerializationError(#[from] serde_json::Error),
@@ -139,6 +133,55 @@ pub enum AiError {
 
     #[error("internal: {0}")]
     Internal(String),
+}
+
+impl From<AiError> for systemprompt_models::errors::AiInferenceError {
+    fn from(err: AiError) -> Self {
+        use systemprompt_models::errors::AiInferenceError as Seam;
+        match err {
+            AiError::ModelNotSpecified { ref provider }
+            | AiError::EmptyProviderResponse { ref provider } => Seam::Provider {
+                provider: provider.clone(),
+                message: err.to_string(),
+            },
+            AiError::ProviderError { provider, message } => Seam::Provider { provider, message },
+            AiError::NoProviderForModel { model } => Seam::NoProviderForModel { model },
+            AiError::RateLimit { provider, details } => Seam::RateLimited { provider, details },
+            AiError::AuthenticationFailed { provider } => Seam::AuthenticationFailed { provider },
+            AiError::HttpStatus { ref provider, .. }
+            | AiError::Timeout { ref provider, .. }
+            | AiError::CircuitOpen { ref provider }
+            | AiError::DependencyUnavailable { ref provider } => Seam::Unavailable {
+                provider: provider.clone(),
+                message: err.to_string(),
+            },
+            AiError::MissingMetadata { .. }
+            | AiError::MissingUserContext
+            | AiError::InvalidToolSchema { .. }
+            | AiError::StructuredOutputFailed { .. }
+            | AiError::MessageSerializationFailed
+            | AiError::MissingToolField { .. }
+            | AiError::EmptyToolDescription { .. }
+            | AiError::InvalidInput(_)
+            | AiError::WireParse(_) => Seam::InvalidRequest(err.to_string()),
+            AiError::NoToolCalls
+            | AiError::McpServiceNotFound { .. }
+            | AiError::McpAuthenticationMissing { .. }
+            | AiError::ServiceAuthCheckFailed { .. }
+            | AiError::ToolProvider(_) => Seam::Tool(err.to_string()),
+            AiError::AuthenticationRequired { .. }
+            | AiError::ConfigurationError { .. }
+            | AiError::Secrets(_) => Seam::Configuration(err.to_string()),
+            AiError::DatabaseError { .. } | AiError::StorageError { .. } => {
+                Seam::Storage(err.to_string())
+            },
+            AiError::SerializationError(_)
+            | AiError::Http(_)
+            | AiError::Io(_)
+            | AiError::Regex(_)
+            | AiError::Internal(_) => Seam::Internal(err.to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Error)]

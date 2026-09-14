@@ -48,7 +48,7 @@ fn classify_port_holder(pid: u32, service_name: &str) -> PortHolder {
     if !systemprompt_models::subprocess::identity_verification_supported() {
         return PortHolder::Unverifiable;
     }
-    if systemprompt_models::subprocess::live_pid_is_subprocess(
+    if systemprompt_loader::subprocess::live_pid_is_subprocess(
         pid,
         systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
         service_name,

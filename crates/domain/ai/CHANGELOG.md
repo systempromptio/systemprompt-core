@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- `AiProvider` implementations return `AiInferenceError` (`From<AiError>`) instead of a boxed error; tool definitions carry `ToolModelConfig` directly, so a model override is no longer round-tripped through JSON.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

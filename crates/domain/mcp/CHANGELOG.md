@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- The registry and tool-provider seams return `McpRegistryError`; `McpServerState` carries a `McpServerId` and a `McpServerStatus`.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

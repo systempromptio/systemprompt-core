@@ -102,21 +102,17 @@ async fn persist_file_record(
     let image_metadata = ImageMetadata::new().with_generation(generation_info);
     let metadata = serde_json::to_value(image_metadata).map_err(AiError::SerializationError)?;
 
-    let id = Uuid::parse_str(response.id.as_str())
+    let file_id = Uuid::parse_str(response.id.as_str())
+        .map(|uuid| FileId::new(uuid.to_string()))
         .map_err(|e| AiError::InvalidInput(format!("Invalid UUID: {e}")))?;
 
-    let params = InsertAiFileParams {
-        id,
-        path: file_path.to_owned(),
-        public_url: public_url.to_owned(),
-        mime_type: response.mime_type.clone(),
-        size_bytes: response.file_size_bytes.map(|s| s as i64),
-        metadata,
-        user_id: Some(request.user_id.clone()),
-        session_id: request.session_id.clone(),
-        trace_id: request.trace_id.clone(),
-        context_id: None,
-    };
+    let params =
+        InsertAiFileParams::new(file_id, file_path, public_url, response.mime_type.clone())
+            .with_size_bytes(response.file_size_bytes.map(|s| s as i64))
+            .with_metadata(metadata)
+            .with_user_id(Some(request.user_id.clone()))
+            .with_session_id(request.session_id.clone())
+            .with_trace_id(request.trace_id.clone());
 
     file_provider
         .insert_file(params)

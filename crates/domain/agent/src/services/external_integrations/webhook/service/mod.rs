@@ -19,8 +19,8 @@ use reqwest::Client;
 use serde_json::Value;
 use sha2::Sha256;
 use std::collections::HashMap;
+use systemprompt_client::{GuardedClientConfig, guarded_client};
 use systemprompt_identifiers::WebhookEndpointId;
-use systemprompt_models::net::{GuardedClientConfig, guarded_client};
 use tokio::sync::RwLock;
 
 use crate::models::external_integrations::{

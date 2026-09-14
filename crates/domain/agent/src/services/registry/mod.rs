@@ -18,7 +18,7 @@ use crate::error::{AgentError, AgentResult};
 use crate::models::a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, TransportProtocol,
 };
-use security::{convert_json_security_to_struct, oauth_to_security_config, override_oauth_urls};
+use security::{oauth_to_security_config, override_oauth_urls};
 use skills::load_skill_from_disk;
 use std::path::Path;
 
@@ -111,14 +111,11 @@ impl AgentRegistry {
 
         let (security_schemes, security) =
             if agent.card.security_schemes.is_some() || agent.card.security.is_some() {
-                let (mut schemes, sec) = convert_json_security_to_struct(
-                    agent.card.security_schemes.as_ref(),
-                    agent.card.security.as_ref(),
-                );
+                let mut schemes = agent.card.security_schemes.clone();
                 if let Some(ref mut s) = schemes {
                     override_oauth_urls(s, api_external_url);
                 }
-                (schemes, sec)
+                (schemes, agent.card.security.clone())
             } else {
                 oauth_to_security_config(&agent.oauth, api_external_url)
             };

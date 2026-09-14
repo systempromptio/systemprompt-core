@@ -5,7 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::assets::validate_path;
+use systemprompt_models::managed::{validate_key, validate_path};
+
 use super::error::invalid;
 use super::{AssetDigest, Result};
 
@@ -108,16 +109,4 @@ impl SnapshotProvenance {
         }
         Ok(())
     }
-}
-
-pub(super) fn validate_key(key: &str) -> Result<()> {
-    if key.is_empty()
-        || key.len() > 200
-        || !key
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b'/'))
-    {
-        return Err(invalid("Invalid resource key"));
-    }
-    Ok(())
 }

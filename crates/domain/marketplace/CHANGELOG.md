@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.0] - 2026-09-14
+
+### Changed
+
+- `managed::{RevisionBundle, RevisionManifest, FileEntry, DependencyRef, AssetDigest, AssetFile, RevisionFiles}` are re-exports of `systemprompt_models::managed`; `ManagedError` implements `From<RevisionBundleError>` so `?` on bundle verification keeps returning the same variants (`Invalid`, `Integrity`, `Unavailable`).
+
 ## [0.52.0] - 2026-09-14
 
 ### Added

@@ -46,7 +46,12 @@ impl StreamProcessor {
         let ai_service = Arc::clone(&self.ai_service);
         let agent_runtime = agent_runtime.clone();
         let agent_name_string = agent_name.to_owned();
-        let agent_name_typed = AgentName::new(agent_name);
+        let agent_name_typed = AgentName::try_new(agent_name).map_err(|e| {
+            crate::services::shared::AgentServiceError::Validation(
+                "agent_name".to_owned(),
+                e.to_string(),
+            )
+        })?;
         let (user_text, user_parts) = Self::extract_message_content(a2a_message);
 
         let context_id = &a2a_message.context_id;

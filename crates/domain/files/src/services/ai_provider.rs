@@ -16,7 +16,7 @@ use crate::repository::{FileRepository, InsertFileRequest};
 
 fn to_ai_generated(f: File) -> AiGeneratedFile {
     AiGeneratedFile {
-        id: f.id,
+        id: FileId::new(f.id.to_string()),
         path: f.path,
         public_url: f.public_url,
         mime_type: f.mime_type,

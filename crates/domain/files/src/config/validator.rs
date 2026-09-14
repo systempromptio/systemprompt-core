@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::AppPaths;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_traits::validation_report::{
-    ValidationError, ValidationReport, ValidationWarning,
+    ValidationIssue, ValidationReport, ValidationWarning,
 };
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
@@ -67,7 +67,7 @@ impl DomainConfig for FilesConfigValidator {
             })?;
 
         if !config.url_prefix.starts_with('/') {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 "files.urlPrefix",
                 "URL prefix must start with '/'",
             ));
@@ -76,7 +76,7 @@ impl DomainConfig for FilesConfigValidator {
         if let Some(cache_control) = config.cache_control.as_deref()
             && !is_valid_header_value(cache_control)
         {
-            report.add_error(ValidationError::new(
+            report.add_error(ValidationIssue::new(
                 "files.cacheControl",
                 "Cache-Control must be a non-empty string of printable ASCII characters",
             ));

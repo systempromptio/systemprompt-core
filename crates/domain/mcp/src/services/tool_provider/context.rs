@@ -69,11 +69,10 @@ pub(super) fn create_request_context(
     Ok(request_ctx)
 }
 
-pub(super) fn load_agent_servers(agent_name: &str) -> McpDomainResult<Vec<String>> {
+pub(super) fn load_agent_servers(agent_name: &AgentName) -> McpDomainResult<Vec<String>> {
     let config = DeploymentService::load_config()?;
-    let agent_name_type = AgentName::new(agent_name);
 
-    let agent = config.agents.get(agent_name_type.as_str()).ok_or_else(|| {
+    let agent = config.agents.get(agent_name.as_str()).ok_or_else(|| {
         crate::error::McpDomainError::Configuration(format!(
             "Agent {agent_name} not found in services.yaml"
         ))

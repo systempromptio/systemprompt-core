@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::managed::RevisionBundleError;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ManagedError {
     #[error("Invalid managed resource: {0}")]
@@ -19,6 +21,17 @@ pub enum ManagedError {
     Io(#[from] std::io::Error),
     #[error("Managed resource serialization failed: {0}")]
     Json(#[from] serde_json::Error),
+}
+
+impl From<RevisionBundleError> for ManagedError {
+    fn from(error: RevisionBundleError) -> Self {
+        match error {
+            RevisionBundleError::Invalid(message) => Self::Invalid(message),
+            RevisionBundleError::Integrity => Self::Integrity,
+            RevisionBundleError::MissingRevision(_) => Self::Unavailable,
+            RevisionBundleError::Json(error) => Self::Json(error),
+        }
+    }
 }
 
 pub type Result<T> = std::result::Result<T, ManagedError>;

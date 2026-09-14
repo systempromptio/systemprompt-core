@@ -106,7 +106,7 @@ impl ManagedRepository {
         request: &GitSyncRequest,
         credential: Option<&str>,
     ) -> Result<GitSyncResult> {
-        super::assets::validate_path(&request.upstream_root)?;
+        systemprompt_models::managed::validate_path(&request.upstream_root)?;
         let (repository, reference, subdirectory) =
             git_spec(self.get_source(owner, &request.source_id).await?)?;
         if credential.is_some_and(str::is_empty) {

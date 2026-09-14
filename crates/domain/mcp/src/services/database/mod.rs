@@ -13,8 +13,8 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::registry::RegistryService;
 use std::sync::Arc;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
-use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseService {

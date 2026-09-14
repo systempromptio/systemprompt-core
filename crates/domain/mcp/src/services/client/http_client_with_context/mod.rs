@@ -15,10 +15,10 @@ use crate::services::client::challenge::{AuthChallenge, McpTransportError};
 use http::{HeaderName, HeaderValue};
 use rmcp::model::ClientCapabilities;
 use std::collections::HashMap;
+use systemprompt_client::{GuardedClientConfig, guarded_client_builder};
 use systemprompt_models::RequestContext;
 use systemprompt_models::net::{
-    GuardedClientConfig, HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT,
-    guarded_client_builder, validate_outbound_url,
+    HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT, validate_outbound_url,
 };
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 use systemprompt_traits::ContextPropagation;
