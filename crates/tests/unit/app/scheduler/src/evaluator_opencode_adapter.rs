@@ -111,13 +111,16 @@ fn native_invocation_enforces_limits_and_purpose_permissions() {
         }
         assert_eq!(cfg["permission"]["*"], "deny");
         assert_eq!(cfg["permission"]["read"]["../*"], "deny");
-        assert_eq!(cfg["permission"]["edit"]["../*"], "deny");
+        if purpose == ClientPurpose::Execution {
+            assert_eq!(cfg["permission"]["edit"]["../*"], "deny");
+        }
         assert_eq!(
             cfg["provider"]["systemprompt"]["models"]["claude-opus-5"]["limit"]["output"],
             4096
         );
         if purpose != ClientPurpose::Execution {
-            assert_eq!(cfg["permission"]["edit"]["*"], "deny");
+            assert_eq!(cfg["permission"]["edit"], "deny");
+            assert_eq!(cfg["agent"]["evaluation"]["permission"]["edit"], "deny");
             assert_eq!(cfg["permission"]["skill"], "deny");
             assert_eq!(
                 cfg["permission"]["evaluation_fixture_evaluation_fixture"],

@@ -58,12 +58,17 @@ impl NativeAdapter for OpenCodeAdapter {
             ClientPurpose::Judge => input.limits.max_turns.min(2),
             ClientPurpose::Suggestion => input.limits.max_turns.min(3),
         };
+        let edits = if execution {
+            serde_json::json!({"*":"allow",
+                "../*":"deny", "home/tester/.config/*":"deny", ".opencode/*":"deny", "opencode.json":"deny", "opencode.jsonc":"deny", "home/tester/work/.opencode/*":"deny", "home/tester/work/opencode.json":"deny", "home/tester/work/opencode.jsonc":"deny"})
+        } else {
+            serde_json::json!("deny")
+        };
         let permission = serde_json::json!({
             "*": "deny",
             "read": {"*":"allow", "../*":"deny", "/proc/*":"deny", "../.config/opencode/skills/*": if execution {"allow"} else {"deny"}},
             "glob":"allow", "grep":"allow",
-            "edit": {"*": if execution {"allow"} else {"deny"},
-                "../*":"deny", "home/tester/.config/*":"deny", ".opencode/*":"deny", "opencode.json":"deny", "opencode.jsonc":"deny", "home/tester/work/.opencode/*":"deny", "home/tester/work/opencode.json":"deny", "home/tester/work/opencode.jsonc":"deny"},
+            "edit": edits,
             "skill": if execution {"allow"} else {"deny"},
             "external_directory": {"*":"deny", "/home/tester/.config/opencode/skills/*": if execution {"allow"} else {"deny"}},
             "evaluation_fixture_evaluation_fixture": if execution {"allow"} else {"deny"}
