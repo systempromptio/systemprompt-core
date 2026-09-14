@@ -53,10 +53,9 @@ impl ManagedRepository {
         credential: &str,
         request: &ConsumerReceiptRequest,
     ) -> Result<ConsumerReceiptResponse> {
-        let mut tx = self.pool.begin().await?;
-        let identity = credentials::authenticate(&mut tx, credential).await?;
+        self.authenticate_consumer_device(credential).await?;
         let publication = sqlx::query!("SELECT owner_id,resource_id,revision_id,generation,bundle_digest FROM managed_publications WHERE id=$1", request.publication_id.as_str())
-            .fetch_optional(&mut *tx).await?.ok_or(ManagedError::Unavailable)?;
+            .fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
         if publication.resource_id != request.resource_id.as_str()
             || publication.revision_id.as_deref() != Some(request.revision_id.as_str())
             || publication.generation != request.generation
@@ -65,13 +64,43 @@ impl ManagedRepository {
             return Err(ManagedError::Integrity);
         }
         let owner = UserId::new(publication.owner_id);
-        credentials::require_grant(&mut tx, &owner, &request.resource_id, &identity.consumer_id)
-            .await?;
         let bundle = self
             .get_revision_bundle(&owner, &request.revision_id)
             .await?;
         verify_readback(&bundle, request)?;
+        let key = sqlx::query_scalar!(
+            "SELECT resource_key FROM managed_resources WHERE id=$1",
+            request.resource_id.as_str()
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        let expected_runtime = super::plan::runtime_files(&bundle, request.host, &key)?;
+        if !request.runtime_files.is_empty() {
+            if request.runtime_files.len() != expected_runtime.len() {
+                return Err(ManagedError::Integrity);
+            }
+            for expected in expected_runtime {
+                let actual = request
+                    .runtime_files
+                    .iter()
+                    .find(|file| file.path == expected.path)
+                    .ok_or(ManagedError::Integrity)?;
+                if actual.digest
+                    != systemprompt_models::feedback::ContentDigest::of(&expected.bytes)
+                    || actual.bytes != expected.bytes.len() as u64
+                    || actual.executable != expected.executable
+                {
+                    return Err(ManagedError::Integrity);
+                }
+            }
+        }
+
+        let mut tx = self.pool.begin().await?;
+        let identity = credentials::authenticate(&mut tx, credential).await?;
+        credentials::require_grant(&mut tx, &owner, &request.resource_id, &identity.consumer_id)
+            .await?;
         let mut normalized = request.clone();
+        normalized.runtime_files.sort_by(|a, b| a.path.cmp(&b.path));
         normalized
             .files
             .sort_by(|a, b| (&a.revision_id, &a.path).cmp(&(&b.revision_id, &b.path)));
@@ -136,7 +165,7 @@ impl ManagedRepository {
         receipt: &InstallationReceiptId,
     ) -> Result<ConsumerReceiptResponse> {
         let identity = self.authenticate_consumer_device(credential).await?;
-        let row = sqlx::query!("SELECT id,verified_at,fully_verified FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3", receipt.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str())
+        let row = sqlx::query!("SELECT id,verified_at,(fully_verified AND jsonb_array_length(COALESCE(consumer_evidence->'runtime_files','[]'::jsonb))>0) AS fully_verified FROM managed_installation_receipts WHERE id=$1 AND consumer_id=$2 AND device_id=$3", receipt.as_str(), identity.consumer_id.as_str(), identity.device_id.as_str())
             .fetch_optional(&self.pool).await?.ok_or(ManagedError::Unavailable)?;
         Ok(ConsumerReceiptResponse {
             receipt_id: InstallationReceiptId::new(row.id),

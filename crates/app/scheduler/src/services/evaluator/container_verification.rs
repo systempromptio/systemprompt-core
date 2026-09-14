@@ -18,7 +18,7 @@ pub trait ClientVerifier: Send + Sync + std::fmt::Debug {
     fn verify(&self, launch: &ContainerLaunch, client: &NativeClient) -> SchedulerResult<()>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PinnedClientVerifier;
 
 impl ClientVerifier for PinnedClientVerifier {

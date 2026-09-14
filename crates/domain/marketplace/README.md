@@ -110,3 +110,13 @@ Git source synchronization and dependency verification use HTTPS with source-sco
 Dependency verification compares every retained revision with its registered source, exact snapshot commit, relative root, bytes and executable modes. Cycles, missing or extra revisions, incorrect bindings, submodules and nested Git metadata prevent attestation. Local-authored root candidates require an immutable administrative source binding through `POST /api/v1/sources/{id}/verification-bindings` before committed bytes can be verified; their local snapshot is preserved. Imported dependencies continue to require their exact retained Git commit. Complete immutable manifests are retained separately from historical single-resource evidence; publication of an improvement requires this complete manifest. `POST /api/v1/source-verifications` accepts a `DependencyVerificationRequest`; identical evidence returns the retained manifest, whose ID resolves through `GET /api/v1/source-verifications/{id}`. Administrative authentication and existing cookie-origin checks apply.
 
 The test fixtures separate actual local TLS Git transport acceptance (authentication, rotation, redirect refusal and redacted errors) from injected authenticated dependency-tree fixtures (retained provenance, independent credentials, exact bytes/modes and manifest retry). Local TLS transport tests do not relax production outbound URL restrictions or establish acceptance against an external private Git provider.
+
+
+Consumer installation plans are downloaded from
+`GET /api/v1/consumer/resources/{resource}/publications/{publication}/bundle?host={client}`.
+They derive active native entrypoint, supporting files and dependency targets from
+the exact retained publication. Receipts carry separate `runtime_files` readback;
+canonical source-cache evidence without the complete active runtime projection is
+never fully verified. Host aliases preserve `codex-cli`/`codex` and
+`opencode`/`open-code` compatibility. The retained resource owner supplies grant
+ownership; changing the configured administrator does not invent a new publisher.

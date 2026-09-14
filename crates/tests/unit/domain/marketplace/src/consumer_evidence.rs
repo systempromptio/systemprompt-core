@@ -442,3 +442,52 @@ async fn rollback_generations_remain_distinct_even_when_revision_and_session_mat
         Some(original.receipt_id)
     );
 }
+
+#[tokio::test]
+async fn active_script_and_entrypoint_checks_cannot_be_replaced_by_source_cache_proof() {
+    let f = fixture().await;
+    let mut cache_only = f.request.clone();
+    cache_only
+        .runtime_files
+        .retain(|file| file.path.starts_with(".systemprompt-source/"));
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &cache_only)
+            .await
+            .is_err()
+    );
+    let mut tampered = f.request.clone();
+    tampered
+        .runtime_files
+        .iter_mut()
+        .find(|file| file.path == "run.sh")
+        .unwrap()
+        .digest = ContentDigest::of(b"tampered runtime script");
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &tampered)
+            .await
+            .is_err()
+    );
+    let mut tampered = f.request.clone();
+    tampered
+        .runtime_files
+        .iter_mut()
+        .find(|file| file.path == "SKILL.md")
+        .unwrap()
+        .digest = ContentDigest::of(b"tampered active instructions");
+    assert!(
+        f.repo
+            .record_consumer_receipt(&f.credential.credential, &tampered)
+            .await
+            .is_err()
+    );
+    let mut unavailable = f.request.clone();
+    unavailable.runtime_files.clear();
+    let receipt = f
+        .repo
+        .record_consumer_receipt(&f.credential.credential, &unavailable)
+        .await
+        .unwrap();
+    assert!(!receipt.fully_verified);
+}

@@ -5,6 +5,7 @@
 
 mod attribution;
 mod credentials;
+mod plan;
 mod receipts;
 mod sessions;
 

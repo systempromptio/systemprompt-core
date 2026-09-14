@@ -125,3 +125,19 @@ impl ManagedRepository {
         Ok(())
     }
 }
+
+impl ManagedRepository {
+    pub async fn consumer_resource_owner(
+        &self,
+        resource: &systemprompt_identifiers::ManagedResourceId,
+    ) -> Result<UserId> {
+        let owner = sqlx::query_scalar!(
+            "SELECT owner_id FROM managed_resources WHERE id=$1",
+            resource.as_str()
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(ManagedError::Unavailable)?;
+        Ok(UserId::new(owner))
+    }
+}

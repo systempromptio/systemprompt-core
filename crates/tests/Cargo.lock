@@ -7442,10 +7442,12 @@ name = "systemprompt-bridge-sync-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "http",
  "reqwest",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-test-fixtures",
  "temp-env",
  "tempfile",
@@ -8363,6 +8365,7 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "base64 0.23.0",
+ "chrono",
  "ed25519-dalek 3.0.0",
  "serde_json",
  "serde_yaml_ng",
@@ -8786,6 +8789,7 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-traits",
  "systemprompt-users",
+ "tempfile",
  "thiserror 2.0.19",
  "tokio",
  "tokio-cron-scheduler",
@@ -8836,6 +8840,7 @@ dependencies = [
  "systemprompt-scheduler",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "temp-env",
  "tempfile",
  "tokio",
  "tokio-cron-scheduler",

@@ -118,3 +118,5 @@ const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
 }
 
 crate::register_host_sync!(CodexCliSync);
+
+pub(crate) use managed_resources::feedback_skill_roots;

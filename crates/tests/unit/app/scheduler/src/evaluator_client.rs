@@ -117,7 +117,7 @@ fn opencode_arguments_namespace_the_model_to_the_gateway() {
         .expect("default execution limits are within the supported envelope");
     let arguments = strings(&client.arguments("prompt").expect("adapter arguments"));
 
-    assert_eq!(arguments.first().map(String::as_str), Some("opencode"));
+    assert_eq!(arguments.first().map(String::as_str), Some("/usr/bin/env"));
     let model = arguments
         .iter()
         .position(|value| value == "--model")

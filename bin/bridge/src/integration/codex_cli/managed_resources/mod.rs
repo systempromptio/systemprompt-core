@@ -168,3 +168,17 @@ fn io_err(context: &str, path: &Path, source: std::io::Error) -> ApplyError {
         source,
     }
 }
+
+pub(crate) fn feedback_skill_roots(
+    loopback: &LoopbackEndpoint,
+    manifest: &SignedManifest,
+    skill: &crate::gateway::manifest::SkillEntry,
+) -> Vec<PathBuf> {
+    vec![
+        plugin_src_dir().join("skills").join(skill.id.as_str()),
+        cache_plugin_dir()
+            .join(bundle_version(loopback, manifest))
+            .join("skills")
+            .join(skill.id.as_str()),
+    ]
+}

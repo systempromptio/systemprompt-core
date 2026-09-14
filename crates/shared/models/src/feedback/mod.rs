@@ -23,6 +23,18 @@ pub enum EvaluatorClient {
     ClaudeDesktop,
 }
 
+impl EvaluatorClient {
+    pub fn accepts_host_name(self, name: &str) -> bool {
+        match self {
+            Self::ClaudeCode => name == "claude-code",
+            Self::ClaudeDesktop => name == "claude-desktop",
+            Self::Codex => matches!(name, "codex" | "codex-cli"),
+            Self::OpenCode => matches!(name, "opencode" | "open-code"),
+            Self::Hermes => name == "hermes",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct ContentDigest(String);

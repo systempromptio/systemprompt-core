@@ -132,3 +132,7 @@ const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
 }
 
 crate::register_host_sync!(HermesSync);
+
+pub(crate) fn feedback_skill_root() -> std::path::PathBuf {
+    config::skills_dir()
+}

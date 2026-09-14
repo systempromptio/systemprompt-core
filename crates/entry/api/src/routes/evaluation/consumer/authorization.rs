@@ -35,10 +35,9 @@ pub(super) async fn resource(
         .map_err(|_| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
     let services = crate::routes::gateway::bridge_data::load_services_config()
         .map_err(|_| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
-    let host = systemprompt_marketplace::managed::consumer::host_key(host);
     if !crate::routes::gateway::bridge::instance_enabled_hosts(&services)
         .iter()
-        .any(|value| value == host)
+        .any(|value| host.accepts_host_name(value))
     {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
@@ -56,12 +55,20 @@ pub(super) async fn resource(
             .publication
             .as_ref()
             .is_some_and(|publication| &publication.resource_id == resource)
-            && (skill.hosts.is_empty() || skill.hosts.iter().any(|value| value == host))
+            && (skill.hosts.is_empty()
+                || skill
+                    .hosts
+                    .iter()
+                    .any(|value| host.accepts_host_name(value)))
     }) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
+    let owner = ctx
+        .managed_repository()
+        .consumer_resource_owner(resource)
+        .await?;
     ctx.managed_repository()
-        .retain_consumer_catalog_grant(ctx.system_admin().id(), resource, &identity.consumer_id)
+        .retain_consumer_catalog_grant(&owner, resource, &identity.consumer_id)
         .await?;
     Ok(())
 }

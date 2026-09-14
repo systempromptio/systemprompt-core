@@ -174,6 +174,11 @@ pub(crate) async fn forward(
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context).await?;
 
+    if let Err(error) =
+        crate::feedback::sessions::observe(gateway_base.as_str(), &parts.headers, &buffered_body)
+    {
+        tracing::debug!(%error,"Native session binding remains unacknowledged");
+    }
     let mut upstream_headers = build_upstream_headers(
         &parts.headers,
         &upstream_bearer,
