@@ -9,7 +9,8 @@ mod profile;
 
 pub(crate) use model_filter::{on_model_filter_set_finished, on_model_filter_set_requested};
 pub(crate) use probe::{
-    on_probe_finished, on_probe_requested, on_proxy_probe_finished, on_proxy_probe_requested,
+    ProbeResult, on_probe_finished, on_probe_requested, on_proxy_probe_finished,
+    on_proxy_probe_requested,
 };
 pub(crate) use profile::{
     on_profile_generate_finished, on_profile_generate_requested, on_profile_install_finished,

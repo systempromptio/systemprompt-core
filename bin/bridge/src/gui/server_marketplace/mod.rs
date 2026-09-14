@@ -17,10 +17,11 @@ pub mod source;
 mod types;
 
 pub use plugins::{mark_shared_mcp, plugin_children};
-pub(crate) use types::{
-    ChangeKind, FrontmatterExtra, MarketplaceExtra, McpServerEntry, PluginManifest,
+pub use types::{
+    ChangeKind, ChildKind, FrontmatterExtra, ItemSource, MarketplaceDiff, MarketplaceExtra,
+    MarketplaceItem, MarketplaceItemBuilder, MarketplaceListing, McpServerEntry, PluginChild,
+    PluginManifest,
 };
-pub use types::{MarketplaceDiff, MarketplaceItem, MarketplaceListing, PluginChild};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;

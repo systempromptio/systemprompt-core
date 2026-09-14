@@ -20,7 +20,7 @@ use super::state::{FirstRunState, StepStatus};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostOutcome {
     pub host_id: String,
-    pub status: String,
+    pub status: StepStatus,
     #[serde(default)]
     pub error: Option<String>,
 }
@@ -68,7 +68,7 @@ pub fn write(state: &FirstRunState) {
             .iter()
             .map(|h| HostOutcome {
                 host_id: h.host_id.clone(),
-                status: h.status.as_str().to_owned(),
+                status: h.status,
                 error: h.error.clone(),
             })
             .collect(),

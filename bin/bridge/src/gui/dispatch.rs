@@ -62,7 +62,6 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::ProxyStatsTick => "ProxyStatsTick",
         UiEvent::IpcInbound(_) => "IpcInbound",
         UiEvent::IpcEmit { .. } => "IpcEmit",
-        UiEvent::IpcReply { .. } => "IpcReply",
         UiEvent::CancelInFlight { .. } => "CancelInFlight",
     }
 }
@@ -82,7 +81,7 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop, event
         Ok(()) => return,
         Err(e) => *e,
     };
-    let event = match dispatch_request(app, event) {
+    let event = match dispatch_request(app, event_loop, event) {
         Ok(()) => return,
         Err(e) => *e,
     };
@@ -90,7 +89,7 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop, event
         Ok(()) => return,
         Err(e) => *e,
     };
-    let event = match dispatch_lifecycle(app, event) {
+    let event = match dispatch_lifecycle(app, event_loop, event) {
         Ok(()) => return,
         Err(e) => *e,
     };
@@ -123,7 +122,11 @@ fn dispatch_window(
     Ok(())
 }
 
-fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>> {
+fn dispatch_request(
+    app: &mut GuiApp,
+    event_loop: &dyn ActiveEventLoop,
+    event: UiEvent,
+) -> Result<(), Box<UiEvent>> {
     match event {
         UiEvent::SyncRequested { reply_to } => handlers::sync::on_sync_requested(app, reply_to),
         UiEvent::ValidateRequested { reply_to } => {
@@ -177,7 +180,7 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
             handlers::update::on_update_install_requested(app, reply_to);
         },
         UiEvent::UpdateRestartRequested => {
-            handlers::update::on_update_restart_requested(app);
+            handlers::update::on_update_restart_requested(app, event_loop);
         },
         UiEvent::AutostartToggleRequested => {
             handlers::settings_write::on_autostart_toggled(app);
@@ -240,9 +243,13 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
     Ok(())
 }
 
-fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>> {
+fn dispatch_lifecycle(
+    app: &mut GuiApp,
+    event_loop: &dyn ActiveEventLoop,
+    event: UiEvent,
+) -> Result<(), Box<UiEvent>> {
     match event {
-        UiEvent::Quit => handlers::quit::on_quit(),
+        UiEvent::Quit => handlers::quit::on_quit(event_loop),
         UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
         UiEvent::SyncStep(step) => crate::gui::emit::emit_sync_step(app, &step),
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
@@ -264,16 +271,18 @@ fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEven
     Ok(())
 }
 
-fn dispatch_ipc(app: &GuiApp, event: UiEvent) {
+fn dispatch_ipc(app: &mut GuiApp, event: UiEvent) {
     match event {
         UiEvent::IpcInbound(raw) => crate::gui::ipc_runtime::handle_inbound(app, &raw),
         UiEvent::IpcEmit { channel, payload } => {
             crate::gui::emit::send_emit(app, channel, &payload);
         },
-        UiEvent::IpcReply { id, payload, ok } => crate::gui::emit::send_reply(app, id, payload, ok),
         UiEvent::CancelInFlight { scope, reply_to } => {
             handlers::cancel::on_cancel_in_flight(app, scope, reply_to);
         },
-        _ => unreachable!("event should have been handled by an earlier dispatcher"),
+        other => tracing::warn!(
+            event_kind = event_kind(&other),
+            "ui event without a dispatcher"
+        ),
     }
 }

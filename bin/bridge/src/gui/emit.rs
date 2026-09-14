@@ -1,14 +1,17 @@
 //! Outbound GUI event and reply emission to the webview channel.
 //!
+//! A reply is addressed to the webview mount that issued the request; a mount
+//! that has since been replaced (page reload) never receives it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
+use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::gui::GuiApp;
-use crate::gui::events::UiEvent;
-use crate::wire::ipc::{self, BridgeError, IpcReplyPayload};
+use crate::gui::events::{ReplyId, UiEvent};
+use crate::wire::ipc::{self, BridgeError, IpcReplyPayload, ReplyTarget};
 
 pub(crate) fn deliver(app: &GuiApp, script: &str) -> bool {
     let Some(win) = &app.settings_window else {
@@ -27,17 +30,41 @@ pub(crate) fn send_emit(app: &GuiApp, channel: &str, payload: &Value) {
     deliver(app, &ipc::emit_script(channel, payload));
 }
 
-pub(crate) fn send_reply(app: &GuiApp, id: u64, payload: Value, ok: bool) {
-    let body = if ok {
-        IpcReplyPayload::ok(payload)
-    } else {
-        IpcReplyPayload::err(BridgeError::internal(payload.to_string()))
-    };
-    send_reply_payload(app, id, &body);
+pub(crate) fn send_reply_payload(app: &GuiApp, target: ReplyTarget, payload: &IpcReplyPayload) {
+    if app.stale_mount(target.mount) {
+        tracing::debug!(
+            mount = target.mount,
+            id = target.id,
+            "reply dropped: webview mount replaced"
+        );
+        return;
+    }
+    deliver(app, &ipc::reply_script(target, payload));
 }
 
-pub(crate) fn send_reply_payload(app: &GuiApp, id: u64, payload: &IpcReplyPayload) {
-    deliver(app, &ipc::reply_script(id, payload));
+pub(crate) fn finish<T: Serialize>(
+    app: &GuiApp,
+    reply_to: ReplyId,
+    result: Result<T, BridgeError>,
+) {
+    let result = result.and_then(|value| {
+        serde_json::to_value(value)
+            .map_err(|e| BridgeError::internal(format!("reply encode failed: {e}")))
+    });
+    let Some(target) = reply_to else {
+        if let Err(err) = result {
+            emit_error(app, &err);
+        }
+        return;
+    };
+    let payload = match result {
+        Ok(value) => IpcReplyPayload::ok(value),
+        Err(err) => {
+            emit_error(app, &err);
+            IpcReplyPayload::err(err)
+        },
+    };
+    send_reply_payload(app, target, &payload);
 }
 
 pub(crate) fn emit_proxy_stats(app: &GuiApp) {
@@ -48,7 +75,7 @@ pub(crate) fn emit_proxy_stats(app: &GuiApp) {
 pub(crate) fn emit_gateway_changed(app: &GuiApp) {
     let snap = app.state.snapshot();
     let value = json!({
-        "state": gateway_state_str(&snap.gateway_status),
+        "state": snap.gateway_status.code(),
         "identity": crate::gui::server_json::identity_value(&snap),
         "verified_identity": crate::gui::server_json::identity_value(&snap),
         "lastProbeAtUnix": snap.last_probe_at_unix,
@@ -136,15 +163,6 @@ pub(crate) fn emit_theme_changed(app: &GuiApp, theme: &str) {
 pub(crate) fn emit_error(app: &GuiApp, error: &BridgeError) {
     let value = serde_json::to_value(error).unwrap_or(Value::Null);
     send_emit(app, "error", &value);
-}
-
-const fn gateway_state_str(status: &crate::gui::state::GatewayStatus) -> &'static str {
-    match status {
-        crate::gui::state::GatewayStatus::Unknown => "unknown",
-        crate::gui::state::GatewayStatus::Probing => "probing",
-        crate::gui::state::GatewayStatus::Reachable { .. } => "reachable",
-        crate::gui::state::GatewayStatus::Unreachable { .. } => "unreachable",
-    }
 }
 
 pub(crate) fn install_log_emitter(

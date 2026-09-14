@@ -151,6 +151,7 @@ agent-reason-awaiting = Waiting for its first launch
 agent-reason-app-missing = The app is not installed on this computer
 agent-reason-stale = Its settings are out of date — repair, then restart the app
 agent-reason-partial = Some of its settings are missing ({ $missing })
+agent-reason-unverifiable = Its settings could not be checked ({ $detail })
 agent-reason-absent = This agent is not routed through systemprompt yet
 agent-reason-no-key = No usable model — add an API key for { $providers }
 agent-reason-no-models = No model this agent can use is available
@@ -327,6 +328,7 @@ marketplace-detail-copied = Copied
 # Agents (the coding agents on this computer) ----------------------------------
 host-profile-installed = configuration profile installed
 host-profile-partial = configuration profile incomplete (missing: { $missing })
+host-profile-unverifiable = configuration profile could not be verified — repair to re-apply it
 host-process-running = running
 host-process-not-running = not running
 host-jwt-warn = This agent's session expires in { $ttl }. Repair the agent to renew it.

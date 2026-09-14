@@ -40,6 +40,7 @@ pub struct VerifiedIdentity {
 
 #[derive(Debug, Clone)]
 pub struct GatewayProbeOutcome {
+    pub gateway: systemprompt_identifiers::ValidatedUrl,
     pub status: GatewayStatus,
     pub identity: Option<VerifiedIdentity>,
     pub at_unix: u64,

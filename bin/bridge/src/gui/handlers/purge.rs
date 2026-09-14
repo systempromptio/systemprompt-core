@@ -45,8 +45,8 @@ pub(crate) fn on_disconnect_requested(app: &GuiApp, reply_to: ReplyId) {
     app.ctx.spawn(async move {
         let worker = Arc::clone(&ctx);
         let result = match tokio::task::spawn_blocking(move || {
-            crate::install::uninstall(false, &worker)
-                .map(|_| crate::integration::uninstall::clear_hosts())
+            crate::integration::uninstall::uninstall(false, &worker)
+                .map(|summary| summary.host_warnings)
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
         })

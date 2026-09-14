@@ -18,9 +18,7 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
     if app.state.gateway_probe_in_flight() {
-        if let Some(id) = reply_to {
-            emit::send_reply(app, id, json!({ "inFlight": true }), true);
-        }
+        emit::finish(app, reply_to, Ok(json!({ "inFlight": true })));
         return;
     }
     app.state.mark_probing();
@@ -39,11 +37,26 @@ pub(crate) fn on_gateway_probe_finished(
         app.state.abandon_probe();
         app.refresh_ui();
         emit::emit_gateway_changed(app);
-        if let Some(id) = reply_to {
-            emit::send_reply(app, id, json!({ "state": "cancelled" }), true);
-        }
+        emit::finish(app, reply_to, Ok(json!({ "state": "cancelled" })));
         return;
     };
+    // Why: the outcome belongs to the gateway it probed; a reply that lands
+    // after the user switched gateways must not paint the new one with the
+    // old one's health.
+    let current = app.state.snapshot().gateway_url;
+    if outcome.gateway.as_str() != current {
+        tracing::info!(
+            probed = %outcome.gateway,
+            current = %current,
+            "gateway probe outcome discarded: gateway changed while it ran"
+        );
+        app.state.clear_cancel(CancelScope::GatewayProbe);
+        app.state.abandon_probe();
+        app.refresh_ui();
+        emit::emit_gateway_changed(app);
+        emit::finish(app, reply_to, Ok(json!({ "state": "superseded" })));
+        return;
+    }
     if matches!(outcome.status, GatewayStatus::Reachable { .. }) && outcome.identity.is_some() {
         // Why: a token just minted at this gateway is proof the credential
         // works; a latched proxy would otherwise keep refusing traffic while
@@ -95,11 +108,8 @@ fn announce(app: &mut GuiApp) {
     let snap = app.state.snapshot();
     let app_name = crate::brand::brand().app_name;
     match &snap.gateway_status {
-        // Why: "ungoverned until it comes back" is about a gateway agents were
-        // routed through, and only a synced gateway ever was. A URL that has
-        // never synced — including one still being typed into the setup form,
-        // whose save has just dropped the previous gateway's sentinel — has
-        // nothing to come back to; the form shows its own probe result.
+        // Why: only a gateway that has synced ever governed agents; an
+        // unreachable URL that never synced has nothing to "come back" to.
         GatewayStatus::Unreachable { .. } if snap.last_sync_summary.is_none() => {
             app.signal_cleared(Signal::GatewayUnreachable);
         },
@@ -151,8 +161,12 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     });
 }
 
-fn unreachable_outcome(reason: String) -> GatewayProbeOutcome {
+fn unreachable_outcome(
+    gateway: systemprompt_identifiers::ValidatedUrl,
+    reason: String,
+) -> GatewayProbeOutcome {
     GatewayProbeOutcome {
+        gateway,
         status: GatewayStatus::Unreachable { reason },
         identity: None,
         at_unix: now_unix(),
@@ -164,10 +178,15 @@ fn unreachable_outcome(reason: String) -> GatewayProbeOutcome {
 async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome {
     let cfg = match config::load() {
         Ok(cfg) => cfg,
-        Err(e) => return unreachable_outcome(e.to_string()),
+        Err(e) => {
+            return unreachable_outcome(
+                config::gateway_url_or_default(&config::Config::default()),
+                e.to_string(),
+            );
+        },
     };
     let gateway = config::gateway_url_or_default(&cfg);
-    let client = GatewayClient::new(gateway, http.clone());
+    let client = GatewayClient::new(gateway.clone(), http.clone());
 
     let started = std::time::Instant::now();
     let status = match client.health().await {
@@ -218,6 +237,7 @@ async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome
     };
 
     GatewayProbeOutcome {
+        gateway,
         status,
         identity,
         at_unix: now_unix(),

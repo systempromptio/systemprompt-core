@@ -14,11 +14,11 @@ use crate::gui::state::AppState;
 use crate::stdio::diag;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Server {
+pub struct FocusServer {
     port: u16,
 }
 
-impl Server {
+impl FocusServer {
     #[tracing::instrument(skip(_state, tx))]
     pub fn start(_state: Arc<AppState>, tx: Sender<UiEvent>) -> std::io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -51,10 +51,6 @@ impl Server {
 
     pub fn url(&self) -> String {
         format!("http://127.0.0.1:{}/", self.port)
-    }
-
-    pub const fn port(&self) -> u16 {
-        self.port
     }
 }
 
