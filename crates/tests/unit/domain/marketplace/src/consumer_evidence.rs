@@ -326,8 +326,16 @@ async fn historical_receipts_keep_unknown_consumer_and_device_without_session_bi
         AssetDigest, InstallationReceiptRequest, InstalledFile,
     };
     let f = fixture().await;
-    let delivery = f.repo.claim_distribution(&f.owner, "historical-distribution").await.unwrap().unwrap();
-    f.repo.complete_distribution(&f.owner, &delivery, true, None).await.unwrap();
+    let delivery = f
+        .repo
+        .claim_distribution(&f.owner, "historical-distribution")
+        .await
+        .unwrap()
+        .unwrap();
+    f.repo
+        .complete_distribution(&f.owner, &delivery, true, None)
+        .await
+        .unwrap();
     let historical = InstallationReceiptRequest {
         installation_id: "historical-install".to_owned(),
         publication_id: f.request.publication_id.clone(),
@@ -375,22 +383,62 @@ async fn rollback_generations_remain_distinct_even_when_revision_and_session_mat
     use systemprompt_marketplace::managed::{PublicationAction, PublicationRequest};
     let mut f = fixture().await;
     let original = f.receipt_binding().await;
-    f.repo.bind_consumer_session(&f.credential.credential, &original).await.unwrap();
+    f.repo
+        .bind_consumer_session(&f.credential.credential, &original)
+        .await
+        .unwrap();
     let old_input = f.invocation();
-    let old_attribution = f.repo.record_consumer_invocation(&f.credential.credential, &old_input).await.unwrap();
-    assert_eq!(old_attribution.receipt_id, Some(original.receipt_id.clone()));
-    let rollback = f.repo.review_and_publish(&f.owner, &f.owner, &PublicationRequest {
-        resource_id: f.request.resource_id.clone(), revision_id: Some(f.request.revision_id.clone()),
-        action: PublicationAction::Rollback, expected_generation: 1, operation_key: "rollback".to_owned(),
-        comparison_evidence: serde_json::json!({}), limitations: String::new(),
-    }).await.unwrap();
+    let old_attribution = f
+        .repo
+        .record_consumer_invocation(&f.credential.credential, &old_input)
+        .await
+        .unwrap();
+    assert_eq!(
+        old_attribution.receipt_id,
+        Some(original.receipt_id.clone())
+    );
+    let rollback = f
+        .repo
+        .review_and_publish(
+            &f.owner,
+            &f.owner,
+            &PublicationRequest {
+                resource_id: f.request.resource_id.clone(),
+                revision_id: Some(f.request.revision_id.clone()),
+                action: PublicationAction::Rollback,
+                expected_generation: 1,
+                operation_key: "rollback".to_owned(),
+                comparison_evidence: serde_json::json!({}),
+                limitations: String::new(),
+            },
+        )
+        .await
+        .unwrap();
     f.request.publication_id = rollback.publication_id;
     f.request.generation = rollback.generation;
     let rebound = f.receipt_binding().await;
-    f.repo.bind_consumer_session(&f.credential.credential, &rebound).await.unwrap();
+    f.repo
+        .bind_consumer_session(&f.credential.credential, &rebound)
+        .await
+        .unwrap();
     assert_ne!(original.receipt_id, rebound.receipt_id);
     let mut new_input = f.invocation();
-    new_input.invocation_id = systemprompt_identifiers::ResourceInvocationId::new("rollback-invocation");
-    assert_eq!(f.repo.record_consumer_invocation(&f.credential.credential, &new_input).await.unwrap().receipt_id, Some(rebound.receipt_id));
-    assert_eq!(f.repo.record_consumer_invocation(&f.credential.credential, &old_input).await.unwrap().receipt_id, Some(original.receipt_id));
+    new_input.invocation_id =
+        systemprompt_identifiers::ResourceInvocationId::new("rollback-invocation");
+    assert_eq!(
+        f.repo
+            .record_consumer_invocation(&f.credential.credential, &new_input)
+            .await
+            .unwrap()
+            .receipt_id,
+        Some(rebound.receipt_id)
+    );
+    assert_eq!(
+        f.repo
+            .record_consumer_invocation(&f.credential.credential, &old_input)
+            .await
+            .unwrap()
+            .receipt_id,
+        Some(original.receipt_id)
+    );
 }

@@ -38,7 +38,7 @@ pub struct StoredFact {
     pub generation: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct FactsHealth {
     pub generation: i64,
     pub pending: i64,

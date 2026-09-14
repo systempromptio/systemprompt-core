@@ -37,6 +37,7 @@ pub(crate) fn router_from_context(
         .build()?;
     Ok(router(state))
 }
+mod inventory;
 mod optimization_error;
 pub(crate) mod optimization_origin;
 mod optimization_resources;

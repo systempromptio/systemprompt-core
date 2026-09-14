@@ -39,7 +39,7 @@ pub(super) struct Columns {
 }
 
 impl Columns {
-    pub fn of(source: &str, fact: Option<&NormalizedAnalyticsFact>) -> Result<Self> {
+    pub(super) fn of(source: &str, fact: Option<&NormalizedAnalyticsFact>) -> Result<Self> {
         let mut columns = Self::default();
         match fact {
             Some(NormalizedAnalyticsFact::Invocation(value)) => {
