@@ -60,8 +60,6 @@ impl SkillService {
         })
     }
 
-    /// Enable fail-closed managed resolution for runtime loads. Disk remains
-    /// available only for keys that are not registered as managed resources.
     pub fn with_managed_repository(mut self, db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc().map_err(|error| {
             AgentServiceError::Internal(format!("Managed skill repository unavailable: {error}"))

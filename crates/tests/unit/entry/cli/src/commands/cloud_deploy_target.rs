@@ -16,6 +16,7 @@ use systemprompt_models::{
 fn profile(cloud: Option<CloudConfig>) -> Profile {
     Profile {
         storage: Default::default(),
+        evaluator: None,
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Cloud,

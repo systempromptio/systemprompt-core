@@ -179,7 +179,14 @@ fn directory_bytes(root: &Path) -> std::io::Result<u64> {
     let mut total = 0u64;
     let mut pending = vec![root.to_path_buf()];
     while let Some(directory) = pending.pop() {
-        for entry in std::fs::read_dir(directory)? {
+        let entries = match std::fs::read_dir(&directory) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && directory == root => {
+                return Ok(0);
+            },
+            Err(error) => return Err(error),
+        };
+        for entry in entries {
             let entry = entry?;
             let metadata = std::fs::symlink_metadata(entry.path())?;
             if metadata.file_type().is_symlink() {

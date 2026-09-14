@@ -4,6 +4,9 @@
 //! template owns the meaning of its authored assertion names and registers one
 //! verifier in the final binary. Missing or ambiguous registration fails every
 //! deterministic category closed.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 

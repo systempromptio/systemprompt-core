@@ -14,6 +14,7 @@
 mod cloud;
 mod database;
 mod error;
+mod evaluator;
 mod from_env;
 mod governance;
 mod info;
@@ -34,6 +35,7 @@ mod vault;
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
+pub use evaluator::EvaluatorConfig;
 pub use governance::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
@@ -148,6 +150,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub storage: StorageConfig,
+
+    #[serde(default)]
+    pub evaluator: Option<EvaluatorConfig>,
 }
 
 const MOVED_SECTIONS: &[(&str, &str)] = &[

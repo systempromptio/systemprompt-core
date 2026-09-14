@@ -38,18 +38,30 @@ async fn evidence_pool() -> Option<PgPool> {
     Some(write.as_ref().clone())
 }
 
-fn new_owner() -> UserId {
-    UserId::new(format!("eval-evidence-{}", Uuid::new_v4()))
+async fn new_owner(pool: &PgPool) -> UserId {
+    let owner = UserId::new(format!("eval-evidence-{}", Uuid::new_v4()));
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(owner.as_str())
+        .bind(format!("{}@eval.invalid", owner.as_str()))
+        .execute(pool)
+        .await
+        .expect("seed owner");
+    owner
 }
 
 fn workspace(files: &[(&str, &str)]) -> EvidenceArchive {
     EvidenceArchive {
         files: files
             .iter()
-            .map(|(path, body)| ((*path).to_owned(), ArtifactFile {
-                bytes: body.as_bytes().to_vec(),
-                executable: false,
-            }))
+            .map(|(path, body)| {
+                (
+                    (*path).to_owned(),
+                    ArtifactFile {
+                        bytes: body.as_bytes().to_vec(),
+                        executable: false,
+                    },
+                )
+            })
             .collect(),
     }
 }
@@ -86,7 +98,13 @@ fn variant() -> VariantSpec {
     }
 }
 
-fn spec(case: EvalRevisionId, rubric: EvalRevisionId, dataset: EvalRevisionId, dataset_digest: String, rubric_digest: String) -> ExperimentSpec {
+fn spec(
+    case: EvalRevisionId,
+    rubric: EvalRevisionId,
+    dataset: EvalRevisionId,
+    dataset_digest: String,
+    rubric_digest: String,
+) -> ExperimentSpec {
     let mut candidate = variant();
     candidate.skill_bundle_digest = "d".repeat(64);
     ExperimentSpec {
@@ -130,7 +148,7 @@ struct Fixture {
 }
 
 async fn fixture(pool: &PgPool) -> Fixture {
-    let owner = new_owner();
+    let owner = new_owner(pool).await;
     let revisions = RevisionRepository::new(pool.clone());
     let case = revisions
         .create(
@@ -163,11 +181,21 @@ async fn fixture(pool: &PgPool) -> Fixture {
         .await
         .expect("rubric revision");
     let dataset_content = ResourceContent::Dataset(vec![case.clone()]);
-    let dataset = revisions.create(&owner, "dataset-key", &dataset_content).await.expect("dataset revision");
-    for (revision, digest) in [("base", "a".repeat(64)), ("configuration", "b".repeat(64)), ("candidate", "d".repeat(64))] {
+    let dataset = revisions
+        .create(&owner, "dataset-key", &dataset_content)
+        .await
+        .expect("dataset revision");
+    for (revision, digest) in [
+        ("base", "a".repeat(64)),
+        ("configuration", "b".repeat(64)),
+        ("candidate", "d".repeat(64)),
+    ] {
         sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)", owner.as_str(), &digest, revision, serde_json::json!({"projection": revision})).execute(pool).await.expect("managed projection");
     }
-    let budget = BudgetRepository::new(pool.clone()).create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 100).await.expect("budget");
+    let budget = BudgetRepository::new(pool.clone())
+        .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 100)
+        .await
+        .expect("budget");
     let experiments = ExperimentRepository::new(pool.clone());
     let rubric_content = ResourceContent::Rubric(RubricContent {
         dimensions: vec![WeightedDimension {
@@ -179,7 +207,20 @@ async fn fixture(pool: &PgPool) -> Fixture {
         hard_gates: Vec::new(),
     });
     experiments
-        .create_with_budget(&owner, "key-1", &budget, &spec(case, rubric, dataset, systemprompt_evaluation::experiments::content_digest(&dataset_content).expect("dataset digest"), systemprompt_evaluation::experiments::content_digest(&rubric_content).expect("rubric digest")))
+        .create_with_budget(
+            &owner,
+            "key-1",
+            &budget,
+            &spec(
+                case,
+                rubric,
+                dataset,
+                systemprompt_evaluation::experiments::content_digest(&dataset_content)
+                    .expect("dataset digest"),
+                systemprompt_evaluation::experiments::content_digest(&rubric_content)
+                    .expect("rubric digest"),
+            ),
+        )
         .await
         .expect("experiment");
     let worker = EvalWorkerId::new("worker-1");
@@ -221,23 +262,52 @@ async fn managed_workspace_projections_are_stored_once_and_read_back_in_scope() 
         return;
     };
     let evidence = EvidenceRepository::new(pool.clone());
-    let owner = new_owner();
+    let owner = new_owner(&pool).await;
     let manifest = managed_projection();
     let digest = systemprompt_evaluation::experiments::content_digest(&manifest).expect("digest");
-    evidence.register_managed_workspace(&owner, "managed-revision-1", Some(1), &manifest, &digest, 1, 5).await.expect("register");
-    evidence.register_managed_workspace(&owner, "managed-revision-1", Some(1), &manifest, &digest, 1, 5).await.expect("idempotent register");
+    evidence
+        .register_managed_workspace(
+            &owner,
+            "managed-revision-1",
+            Some(1),
+            &manifest,
+            &digest,
+            1,
+            5,
+        )
+        .await
+        .expect("register");
+    evidence
+        .register_managed_workspace(
+            &owner,
+            "managed-revision-1",
+            Some(1),
+            &manifest,
+            &digest,
+            1,
+            5,
+        )
+        .await
+        .expect("idempotent register");
 
-    let loaded = evidence.get_managed_workspace(&owner, &digest).await.expect("get workspace");
+    let loaded = evidence
+        .get_managed_workspace(&owner, &digest)
+        .await
+        .expect("get workspace");
     assert_eq!(loaded.managed_revision_id, "managed-revision-1");
     assert_eq!(loaded.manifest, manifest);
 
     assert!(matches!(
-        evidence.get_managed_workspace(&owner, &"f".repeat(64)).await,
+        evidence
+            .get_managed_workspace(&owner, &"f".repeat(64))
+            .await,
         Err(EvaluationError::ResourceNotFound(_))
     ));
     assert!(
         matches!(
-            evidence.get_managed_workspace(&new_owner(), &digest).await,
+            evidence
+                .get_managed_workspace(&new_owner(&pool).await, &digest)
+                .await,
             Err(EvaluationError::ResourceNotFound(_))
         ),
         "frozen workspaces are owner-scoped"
@@ -250,7 +320,7 @@ async fn a_managed_workspace_stored_under_the_wrong_digest_is_refused_on_read() 
         return;
     };
     let evidence = EvidenceRepository::new(pool.clone());
-    let owner = new_owner();
+    let owner = new_owner(&pool).await;
     let claimed = "d".repeat(64);
 
     sqlx::query!(
@@ -340,7 +410,7 @@ async fn evidence_reads_are_owner_scoped() {
         .await
         .expect("submit");
 
-    let stranger = new_owner();
+    let stranger = new_owner(&pool).await;
     assert!(matches!(
         f.evidence.get(&stranger, &f.lease.execution_id).await,
         Err(EvaluationError::ResourceNotFound(_))
@@ -489,7 +559,7 @@ async fn evidence_must_carry_the_lease_it_was_issued_under() {
         matches!(
             f.evidence
                 .submit(
-                    &new_owner(),
+                    &new_owner(&pool).await,
                     &f.lease,
                     &evidence_for(&f.lease, 10),
                     &artifacts

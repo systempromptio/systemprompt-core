@@ -31,8 +31,15 @@ async fn runs_pool() -> Option<PgPool> {
     Some(write.as_ref().clone())
 }
 
-fn new_owner() -> UserId {
-    UserId::new(format!("eval-runs-{}", Uuid::new_v4()))
+async fn new_owner(pool: &PgPool) -> UserId {
+    let owner = UserId::new(format!("eval-runs-{}", Uuid::new_v4()));
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(owner.as_str())
+        .bind(format!("{}@eval.invalid", owner.as_str()))
+        .execute(pool)
+        .await
+        .expect("seed owner");
+    owner
 }
 
 fn case_content(prompt: &str) -> ResourceContent {
@@ -81,8 +88,14 @@ struct Fixture {
 }
 
 impl Fixture {
-    fn spec(&self, cases: Vec<EvalRevisionId>, rubric: EvalRevisionId, repetitions: u32) -> ExperimentSpec {
-        let executions = i64::try_from(cases.len()).expect("case count") * 2 * i64::from(repetitions);
+    fn spec(
+        &self,
+        cases: Vec<EvalRevisionId>,
+        rubric: EvalRevisionId,
+        repetitions: u32,
+    ) -> ExperimentSpec {
+        let executions =
+            i64::try_from(cases.len()).expect("case count") * 2 * i64::from(repetitions);
         ExperimentSpec {
             schema_version: 1,
             name: "matrix".to_owned(),
@@ -119,7 +132,7 @@ impl Fixture {
 }
 
 async fn fixture(pool: &PgPool) -> Fixture {
-    let owner = new_owner();
+    let owner = new_owner(pool).await;
     let revisions = RevisionRepository::new(pool.clone());
     let case = revisions
         .create(&owner, "case-key", &case_content("Write a specification"))
@@ -130,12 +143,22 @@ async fn fixture(pool: &PgPool) -> Fixture {
         .await
         .expect("rubric revision");
     let dataset_content = ResourceContent::Dataset(vec![case.clone()]);
-    let dataset = revisions.create(&owner, "dataset-key", &dataset_content).await.expect("dataset revision");
-    for (revision, digest) in [("base", "a".repeat(64)), ("configuration", "b".repeat(64)), ("candidate", "d".repeat(64))] {
+    let dataset = revisions
+        .create(&owner, "dataset-key", &dataset_content)
+        .await
+        .expect("dataset revision");
+    for (revision, digest) in [
+        ("base", "a".repeat(64)),
+        ("configuration", "b".repeat(64)),
+        ("candidate", "d".repeat(64)),
+    ] {
         let manifest = serde_json::json!({"projection": revision});
         sqlx::query!("INSERT INTO eval_managed_workspace_projections(owner_id,digest,managed_revision_id,manifest,verified_file_count,verified_byte_count) VALUES($1,$2,$3,$4,0,0)", owner.as_str(), &digest, revision, manifest).execute(pool).await.expect("managed projection");
     }
-    let budget = BudgetRepository::new(pool.clone()).create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000).await.expect("budget");
+    let budget = BudgetRepository::new(pool.clone())
+        .create_shared(&owner, &format!("budget-{}", Uuid::new_v4()), 5_000_000)
+        .await
+        .expect("budget");
     Fixture {
         experiments: ExperimentRepository::new(pool.clone()),
         owner,
@@ -228,7 +251,9 @@ async fn create_is_idempotent_per_key_and_conflicts_on_a_changed_spec() {
     let mut changed = first_spec;
     changed.name = "different".to_owned();
     assert!(matches!(
-        f.experiments.create_with_budget(&f.owner, "key-1", &f.budget, &changed).await,
+        f.experiments
+            .create_with_budget(&f.owner, "key-1", &f.budget, &changed)
+            .await,
         Err(EvaluationError::ExperimentConflict(_))
     ));
 }
@@ -244,7 +269,9 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
     for key in ["", "   "] {
         assert!(
             matches!(
-                f.experiments.create_with_budget(&f.owner, key, &f.budget, &valid).await,
+                f.experiments
+                    .create_with_budget(&f.owner, key, &f.budget, &valid)
+                    .await,
                 Err(EvaluationError::InvalidSpec(_))
             ),
             "key {key:?} must be rejected"
@@ -252,7 +279,9 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
     }
     let long_key = "k".repeat(256);
     assert!(matches!(
-        f.experiments.create_with_budget(&f.owner, &long_key, &f.budget, &valid).await,
+        f.experiments
+            .create_with_budget(&f.owner, &long_key, &f.budget, &valid)
+            .await,
         Err(EvaluationError::InvalidSpec(_))
     ));
 
@@ -260,7 +289,9 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
     empty_matrix.variants.clear();
     assert!(
         matches!(
-            f.experiments.create_with_budget(&f.owner, "key-2", &f.budget, &empty_matrix).await,
+            f.experiments
+                .create_with_budget(&f.owner, "key-2", &f.budget, &empty_matrix)
+                .await,
             Err(EvaluationError::InvalidSpec(_))
         ),
         "the spec is validated before anything is persisted"
@@ -269,7 +300,9 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
     let swapped = f.spec(vec![f.rubric.clone()], f.case.clone(), 1);
     assert!(
         matches!(
-            f.experiments.create_with_budget(&f.owner, "key-3", &f.budget, &swapped).await,
+            f.experiments
+                .create_with_budget(&f.owner, "key-3", &f.budget, &swapped)
+                .await,
             Err(EvaluationError::InvalidSpec(_))
         ),
         "a case revision cannot stand in for the rubric"
@@ -288,7 +321,9 @@ async fn create_rejects_invalid_keys_and_mistyped_resource_references() {
 
     let foreign = f.spec(vec![EvalRevisionId::generate()], f.rubric.clone(), 1);
     assert!(matches!(
-        f.experiments.create_with_budget(&f.owner, "key-5", &f.budget, &foreign).await,
+        f.experiments
+            .create_with_budget(&f.owner, "key-5", &f.budget, &foreign)
+            .await,
         Err(EvaluationError::InvalidSpec(_))
     ));
 }
@@ -322,7 +357,7 @@ async fn reads_are_owner_scoped_and_listed_newest_first() {
     assert_eq!(ids, vec![&second, &first], "newest first");
     assert!(listed.iter().all(|record| record.owner_id == f.owner));
 
-    let stranger = new_owner();
+    let stranger = new_owner(&pool).await;
     assert!(
         f.experiments
             .list(&stranger)
@@ -357,7 +392,7 @@ async fn cancellation_leaves_the_budget_open_and_drains_only_its_queue() {
 
     assert!(
         matches!(
-            f.experiments.cancel(&new_owner(), &id).await,
+            f.experiments.cancel(&new_owner(&pool).await, &id).await,
             Err(EvaluationError::ExperimentConflict(_))
         ),
         "cancellation is owner-scoped"
@@ -413,13 +448,20 @@ async fn claim_leases_one_execution_and_starts_its_experiment() {
     let detail = f.experiments.get(&f.owner, &id).await.expect("get");
     assert_eq!(detail.experiment.status, ExperimentStatus::Running);
 
+    let second = f
+        .experiments
+        .claim(&f.owner, &worker)
+        .await
+        .expect("claim")
+        .expect("the second variant's execution is queued");
+    assert_ne!(second.id, claimed.id);
     assert!(
         f.experiments
             .claim(&f.owner, &worker)
             .await
             .expect("claim")
             .is_none(),
-        "the queue is drained while the single execution is leased"
+        "the queue is drained while both executions are leased"
     );
     assert_eq!(
         f.experiments
@@ -434,7 +476,7 @@ async fn claim_leases_one_execution_and_starts_its_experiment() {
 
     assert!(
         f.experiments
-            .claim(&new_owner(), &worker)
+            .claim(&new_owner(&pool).await, &worker)
             .await
             .expect("claim")
             .is_none(),
@@ -571,19 +613,21 @@ async fn claim_completes_an_experiment_once_its_executions_are_terminal() {
         .expect("create");
     let worker = EvalWorkerId::new("worker-1");
 
-    let leased = f
-        .experiments
-        .claim(&f.owner, &worker)
+    for _ in 0..2 {
+        let leased = f
+            .experiments
+            .claim(&f.owner, &worker)
+            .await
+            .expect("claim")
+            .expect("a queued execution");
+        sqlx::query(
+            "UPDATE eval_executions SET status = 'completed', finished_at = NOW() WHERE id = $1",
+        )
+        .bind(leased.id.as_str())
+        .execute(&pool)
         .await
-        .expect("claim")
-        .expect("first");
-    sqlx::query(
-        "UPDATE eval_executions SET status = 'completed', finished_at = NOW() WHERE id = $1",
-    )
-    .bind(leased.id.as_str())
-    .execute(&pool)
-    .await
-    .expect("finish the execution");
+        .expect("finish the execution");
+    }
 
     assert!(
         f.experiments

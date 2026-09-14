@@ -347,6 +347,24 @@ impl Harness {
 
     pub async fn cleanup(&self) {
         for statement in [
+            "ALTER TABLE eval_approved_operation_receipts DISABLE TRIGGER \
+             eval_operation_receipts_immutable",
+            "DELETE FROM eval_approved_operation_receipts WHERE execution_id IN (SELECT x.id \
+             FROM eval_executions x JOIN eval_experiments e ON e.id = x.experiment_id WHERE \
+             e.owner_id = $1)",
+            "ALTER TABLE eval_approved_operation_receipts ENABLE TRIGGER \
+             eval_operation_receipts_immutable",
+            "DELETE FROM eval_execution_cleanup WHERE execution_id IN (SELECT x.id FROM \
+             eval_executions x JOIN eval_experiments e ON e.id = x.experiment_id WHERE e.owner_id \
+             = $1)",
+            "DELETE FROM eval_execution_approvals WHERE owner_id = $1",
+            "DELETE FROM eval_execution_measurements WHERE execution_id IN (SELECT x.id FROM \
+             eval_executions x JOIN eval_experiments e ON e.id = x.experiment_id WHERE e.owner_id \
+             = $1)",
+            "DELETE FROM eval_suggestions WHERE owner_id = $1",
+            "DELETE FROM eval_holdout_consumption WHERE owner_id = $1",
+            "DELETE FROM eval_fixture_test_records WHERE owner_id = $1",
+            "DELETE FROM eval_fixture_payloads WHERE owner_id = $1",
             "DELETE FROM eval_execution_capabilities WHERE execution_id IN (SELECT x.id FROM \
              eval_executions x JOIN eval_experiments e ON e.id = x.experiment_id WHERE e.owner_id \
              = $1)",
@@ -371,16 +389,27 @@ impl Harness {
             "DELETE FROM eval_experiments WHERE owner_id = $1",
             "DELETE FROM eval_budget_accounts WHERE owner_id = $1",
             "DELETE FROM eval_resource_revisions WHERE owner_id = $1",
+            "ALTER TABLE eval_managed_workspace_assets DISABLE TRIGGER \
+             eval_managed_workspace_assets_immutable",
+            "ALTER TABLE eval_managed_workspace_projections DISABLE TRIGGER \
+             eval_managed_workspace_projection_immutable",
+            "DELETE FROM eval_managed_workspace_assets WHERE owner_id = $1",
             "DELETE FROM eval_managed_workspace_projections WHERE owner_id = $1",
+            "ALTER TABLE eval_managed_workspace_assets ENABLE TRIGGER \
+             eval_managed_workspace_assets_immutable",
+            "ALTER TABLE eval_managed_workspace_projections ENABLE TRIGGER \
+             eval_managed_workspace_projection_immutable",
             "DELETE FROM eval_workers WHERE owner_id = $1",
             "DELETE FROM user_sessions WHERE user_id = $1",
             "DELETE FROM users WHERE id = $1",
         ] {
-            sqlx::query(statement)
-                .bind(self.owner.as_str())
-                .execute(&self.pg)
-                .await
-                .expect("cleanup");
+            let query = sqlx::query(statement);
+            let query = if statement.contains("$1") {
+                query.bind(self.owner.as_str())
+            } else {
+                query
+            };
+            query.execute(&self.pg).await.expect("cleanup");
         }
     }
 }
