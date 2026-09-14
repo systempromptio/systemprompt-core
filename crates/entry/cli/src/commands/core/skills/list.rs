@@ -37,7 +37,9 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
         return show_resolved_skill(&name, ctx).await;
     }
     let mut skills = scan_skills(&skills_path)?;
-    let (repository, owner) = managed_context(ctx).await?;
+    let Some((repository, owner)) = managed_context(ctx).await? else {
+        return render_list(args.enabled, args.disabled, skills);
+    };
     let resolver = systemprompt_marketplace::ManagedResourceResolver::new(repository.clone());
     let mut offset = 0;
     loop {
@@ -108,37 +110,43 @@ fn render_list(enabled: bool, disabled: bool, skills: Vec<SkillSummary>) -> Resu
 
 async fn managed_context(
     ctx: &CommandContext,
-) -> Result<(
-    systemprompt_marketplace::ManagedRepository,
-    systemprompt_identifiers::UserId,
-)> {
+) -> Result<
+    Option<(
+        systemprompt_marketplace::ManagedRepository,
+        systemprompt_identifiers::UserId,
+    )>,
+> {
     let app = ctx.app_context().await?;
     let pool = app.db_pool().pool_arc()?;
-    Ok((
+    if pool.is_closed() {
+        return Ok(None);
+    }
+    Ok(Some((
         systemprompt_marketplace::ManagedRepository::new(pool.as_ref().clone()),
         app.system_admin().id().clone(),
-    ))
+    )))
 }
 
 pub async fn show_resolved_skill(skill_name: &str, ctx: &CommandContext) -> Result<CommandOutput> {
-    let (repository, owner) = managed_context(ctx).await?;
-    let resolver = systemprompt_marketplace::ManagedResourceResolver::new(repository);
-    if let Some(skill) = resolver.resolve_skill(&owner, skill_name).await? {
-        let output = SkillDetailOutput {
-            skill_id: skill.id,
-            name: skill.name.clone(),
-            display_name: skill.name,
-            description: skill.description,
-            enabled: true,
-            tags: Vec::new(),
-            category: Some(format!("managed generation {}", skill.generation)),
-            file_path: Some(format!("managed:{}", skill.bundle_digest.as_str())),
-            instructions_preview: truncate_with_ellipsis(&skill.instructions, 200),
-        };
-        return Ok(CommandOutput::card_value(
-            format!("Skill: {skill_name}"),
-            &output,
-        ));
+    if let Some((repository, owner)) = managed_context(ctx).await? {
+        let resolver = systemprompt_marketplace::ManagedResourceResolver::new(repository);
+        if let Some(skill) = resolver.resolve_skill(&owner, skill_name).await? {
+            let output = SkillDetailOutput {
+                skill_id: skill.id,
+                name: skill.name.clone(),
+                display_name: skill.name,
+                description: skill.description,
+                enabled: true,
+                tags: Vec::new(),
+                category: Some(format!("managed generation {}", skill.generation)),
+                file_path: Some(format!("managed:{}", skill.bundle_digest.as_str())),
+                instructions_preview: truncate_with_ellipsis(&skill.instructions, 200),
+            };
+            return Ok(CommandOutput::card_value(
+                format!("Skill: {skill_name}"),
+                &output,
+            ));
+        }
     }
     show_skill_detail(skill_name, &get_skills_path()?)
 }

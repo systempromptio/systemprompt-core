@@ -727,6 +727,7 @@ fn execution_prompt(case: &CaseContent) -> SchedulerResult<String> {
     ))
 }
 
+#[allow(single_use_lifetimes)]
 fn judgment_prompt<'a>(
     case: &CaseContent,
     rubric: &RubricContent,
@@ -815,6 +816,7 @@ fn parse_client_json<T: serde::de::DeserializeOwned>(
     )))
 }
 
+#[allow(single_use_lifetimes)]
 fn suggestion_prompt<'a>(
     case: &CaseContent,
     failures: &[String],

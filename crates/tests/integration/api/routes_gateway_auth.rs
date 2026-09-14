@@ -347,7 +347,7 @@ mod bridge_stream_auth {
 }
 
 #[tokio::test]
-async fn coverage_manifest_database_failure_preserves_instance_host_defaults() -> Result<()> {
+async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
     let (pool, auth_ctx) = setup_ctx().await?;
     systemprompt_test_fixtures::install_test_signing_key();
     let cred = systemprompt_test_fixtures::seed_admin_credential(
@@ -366,18 +366,10 @@ async fn coverage_manifest_database_failure_preserves_instance_host_defaults() -
         http::header::AUTHORIZATION,
         format!("Bearer {}", cred.jwt.as_str()).parse()?,
     );
-    let envelope = bridge_manifest::manifest(extractor, (*offline_ctx).clone(), headers)
+    let error = bridge_manifest::manifest(extractor, (*offline_ctx).clone(), headers)
         .await
-        .map_err(|(status, message)| anyhow::anyhow!("{status}: {message}"))?
-        .0;
-    let payload: serde_json::Value = serde_json::from_str(&envelope.payload)?;
-    assert_eq!(payload["user_id"], cred.user_id.as_str());
-    assert!(payload["user"].is_null());
-    assert_eq!(payload["revocations"], serde_json::json!([]));
-    assert_eq!(payload["host_model_protocols"], serde_json::json!({}));
-    let services = systemprompt_api::routes::gateway::bridge_data::load_services_config()?;
-    let expected = systemprompt_api::routes::gateway::bridge::instance_enabled_hosts(&services);
-    assert_eq!(payload["enabled_hosts"], serde_json::json!(expected));
-    assert!(!envelope.signature.as_str().is_empty());
+        .expect_err("managed-resource authority must be available");
+    assert_eq!(error.0, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(error.1.contains("catalogue load failed"));
     Ok(())
 }
