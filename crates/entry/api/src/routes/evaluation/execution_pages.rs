@@ -12,7 +12,7 @@ use systemprompt_runtime::AppContext;
 /// Experiment status includes only the first bounded page of execution
 /// evidence.
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
-pub struct ExperimentPage {
+pub(crate) struct ExperimentPage {
     pub experiment: ExperimentRecord,
     pub executions: Page<ExecutionRecord>,
 }

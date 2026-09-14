@@ -4,8 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::Json;
-use axum::http::{StatusCode, header};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use systemprompt_marketplace::managed::ManagedError;
 
@@ -28,17 +27,17 @@ impl From<ManagedError> for ConsumerHttpError {
 
 impl IntoResponse for ConsumerHttpError {
     fn into_response(self) -> Response {
-        (
+        super::super::contract::problem(
             self.0,
-            [
-                (header::CONTENT_TYPE, "application/problem+json"),
-                (header::CACHE_CONTROL, "no-store"),
-            ],
-            Json(serde_json::json!({
-                "type": "about:blank", "status": self.0.as_u16(),
-                "title": self.0.canonical_reason().unwrap_or("Request failed")
-            })),
+            match self.0 {
+                StatusCode::UNAUTHORIZED => "Valid enrolled-device authentication is required",
+                StatusCode::FORBIDDEN => "Consumer evidence is unavailable to this identity",
+                StatusCode::BAD_REQUEST => "Invalid consumer evidence request",
+                StatusCode::CONFLICT => {
+                    "Evidence conflicts with retained installation or session records"
+                },
+                _ => "The consumer evidence operation could not be completed",
+            },
         )
-            .into_response()
     }
 }

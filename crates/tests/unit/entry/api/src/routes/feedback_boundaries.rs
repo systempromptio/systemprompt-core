@@ -66,6 +66,12 @@ async fn submitted_identity_user_secret_and_unenrolled_credentials_do_not_authen
             response.headers()["content-type"],
             "application/problem+json"
         );
+        let body = axum::body::to_bytes(response.into_body(), 4096)
+            .await
+            .unwrap();
+        let problem: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(problem["type"], "about:blank");
+        assert!(problem["detail"].is_string());
     }
     for supplied in [
         None,

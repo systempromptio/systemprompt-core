@@ -29,7 +29,7 @@ async fn expired_claim_cannot_borrow_successors_fence_or_replace_checkpoint() {
         ApiOperationClaim::Retained(_)
     ));
     f.repo
-        .checkpoint_api_input(&f.owner, &first, &vec!["frozen"])
+        .checkpoint_api_input(&f.owner, &first, &vec!["frozen".to_owned()])
         .await
         .unwrap();
     assert!(
@@ -54,7 +54,7 @@ async fn expired_claim_cannot_borrow_successors_fence_or_replace_checkpoint() {
     );
     assert!(
         f.repo
-            .checkpoint_api_input(&f.owner, &first, &vec!["changed"])
+            .checkpoint_api_input(&f.owner, &first, &vec!["changed".to_owned()])
             .await
             .is_err()
     );

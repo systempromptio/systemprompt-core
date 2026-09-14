@@ -126,6 +126,7 @@ async fn enroll(
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct BundleQuery {
     host: systemprompt_models::feedback::EvaluatorClient,
 }

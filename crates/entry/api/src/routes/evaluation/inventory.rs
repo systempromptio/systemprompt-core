@@ -168,7 +168,7 @@ async fn reconciliations(
     Json<super::collections::Page<systemprompt_marketplace::inventory::InventoryReconciliation>>,
     OptimizationHttpError,
 > {
-    let mut items = ctx
+    let items = ctx
         .managed_repository()
         .inventory_reconciliations(ctx.system_admin().id(), &id, query.after.as_ref())
         .await?;

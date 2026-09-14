@@ -18,6 +18,7 @@ use systemprompt_runtime::AppContext;
 #[serde(deny_unknown_fields)]
 pub(crate) struct HistoryQuery {
     before: Option<i64>,
+    #[schemars(range(min = 1, max = 100))]
     limit: Option<u32>,
 }
 pub(super) fn router() -> Router<AppContext> {

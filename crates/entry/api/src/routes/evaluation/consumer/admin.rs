@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::{Json, Router};
 use serde::Deserialize;
@@ -24,14 +24,14 @@ pub(crate) fn router() -> Router<AppContext> {
 /// The token exists only in the first successful response; retry status never
 /// rotates it.
 #[derive(serde::Serialize, schemars::JsonSchema)]
-pub struct CredentialIssueResponse {
+pub(crate) struct CredentialIssueResponse {
     pub operation: super::super::operations::OperationStatus,
     pub result: Option<super::CredentialIssueStatus>,
     pub credential: Option<String>,
 }
 async fn issue(
     State(ctx): State<AppContext>,
-    headers: axum::http::HeaderMap,
+    headers: HeaderMap,
     Path(id): Path<DeviceCertId>,
 ) -> Result<
     impl axum::response::IntoResponse,

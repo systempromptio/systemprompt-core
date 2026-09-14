@@ -186,3 +186,5 @@ mod installation_coverage;
 
 #[cfg(test)]
 mod api_operations;
+
+mod api_consumer_status;
