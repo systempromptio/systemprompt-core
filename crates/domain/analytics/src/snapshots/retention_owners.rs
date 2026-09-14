@@ -9,8 +9,6 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::UserId;
 
 impl FeedbackSnapshotsRepository {
-    /// Locks global admission gates and compacts every initialized owner in the
-    /// same transaction.
     pub async fn compact_all_in(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         now: DateTime<Utc>,

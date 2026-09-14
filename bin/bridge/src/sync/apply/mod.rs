@@ -164,8 +164,6 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         {
             continue;
         }
-        // Sibling emitters can share a host; no receipt is acknowledged before all
-        // finish.
         if let Err(error) = crate::feedback::capture_host(host_id, &ctx).await {
             warnings.push(
                 host_id,

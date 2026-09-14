@@ -78,8 +78,6 @@ pub struct EmbeddedNativeProof {
     pub metering: &'static str,
 }
 
-// Only reviewed, retained include_str! artifacts belong here. Runtime input
-// cannot add declarations; fixture validation never modifies this collection.
 const REVIEWED: &[EmbeddedNativeProof] = &[];
 static MANIFESTS: LazyLock<Vec<NativeProofManifest>> = LazyLock::new(|| {
     REVIEWED
