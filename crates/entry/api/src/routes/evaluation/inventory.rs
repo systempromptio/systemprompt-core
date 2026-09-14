@@ -22,6 +22,11 @@ pub(super) fn router() -> Router<AppContext> {
     Router::new()
         .route("/inventory", get(list))
         .route("/inventory/status", get(status))
+        .route("/inventory/installations/status", get(installation_status))
+        .route(
+            "/inventory/{id}/installation-coverage",
+            get(installation_coverage),
+        )
         .route("/inventory/reconciliations", post(refresh))
         .route("/inventory/baselines", post(baselines))
         .route("/inventory/{id}", get(entry))
@@ -179,4 +184,37 @@ async fn git_binding(
             .inventory_git_binding(ctx.system_admin().id(), &id)
             .await?,
     ))
+}
+
+async fn installation_status(
+    State(ctx): State<AppContext>,
+) -> Result<
+    Json<systemprompt_marketplace::inventory::InstallationCoverageStatus>,
+    OptimizationHttpError,
+> {
+    Ok(Json(
+        ctx.managed_repository()
+            .installation_coverage_status(ctx.system_admin().id())
+            .await?,
+    ))
+}
+async fn installation_coverage(
+    State(ctx): State<AppContext>,
+    Path(id): Path<InventoryEntryId>,
+) -> Result<
+    Json<Option<systemprompt_marketplace::inventory::InstallationCoverage>>,
+    OptimizationHttpError,
+> {
+    let entry = ctx
+        .managed_repository()
+        .inventory_entry(ctx.system_admin().id(), &id)
+        .await?;
+    let coverage = if let Some(resource) = entry.resource_id {
+        ctx.managed_repository()
+            .installation_coverage(ctx.system_admin().id(), &resource)
+            .await?
+    } else {
+        None
+    };
+    Ok(Json(coverage))
 }

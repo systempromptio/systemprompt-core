@@ -16,3 +16,6 @@ mod types;
 pub use catalog::scan_configured_inventory;
 pub use service::InventoryService;
 pub use types::*;
+
+mod installation_coverage;
+pub use installation_coverage::{InstallationCoverage, InstallationCoverageStatus};

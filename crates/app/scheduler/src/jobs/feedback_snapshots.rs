@@ -62,6 +62,10 @@ impl Job for FeedbackSnapshotsJob {
                 break;
             }
         }
+        app.managed_repository()
+            .refresh_installation_coverage(owner)
+            .await
+            .map_err(|error| SchedulerError::config_error(error.to_string()))?;
         repository
             .refresh(owner, &resources, now)
             .await

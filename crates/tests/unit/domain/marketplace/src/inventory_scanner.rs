@@ -49,3 +49,20 @@ async fn empty_observed_inventory_is_distinct_from_unknown_historical_membership
     assert!(coverage.observation_available);
     assert_eq!(coverage.known_total, 0);
 }
+
+#[test]
+fn configured_marketplace_is_included_without_inventing_historical_plugin_membership() {
+    let root = tempfile::tempdir().expect("root");
+    let directory = root.path().join("marketplaces/team");
+    std::fs::create_dir_all(&directory).expect("directory");
+    std::fs::write(
+        directory.join("config.yaml"),
+        "id: team\nenabled: true\nplugins: [shared]\n",
+    )
+    .expect("config");
+    let entries = scan_configured_inventory(root.path(), &ServicesConfig::default()).expect("scan");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].kind, "marketplace");
+    assert_eq!(entries[0].resource_key, "team");
+    assert_eq!(entries[0].relative_root, "marketplaces/team");
+}

@@ -180,3 +180,6 @@ mod inventory;
 
 #[cfg(test)]
 mod consumer_plan;
+
+#[cfg(test)]
+mod installation_coverage;
