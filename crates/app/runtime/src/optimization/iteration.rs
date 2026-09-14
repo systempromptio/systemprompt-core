@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_evaluation::campaigns::OptimizationObjective;
 use systemprompt_evaluation::experiments::Objective;
 use systemprompt_evaluation::experiments::records::ExperimentStatus;
 use systemprompt_evaluation::experiments::resources::{Partition, ResourceContent};
@@ -157,14 +158,10 @@ impl SkillOptimizationOrchestrator {
         spec.claim_independent_improvement = false;
         spec.variants[1].skill_bundle_digest = digest;
         spec.objective = match campaign.policy.objective {
-            systemprompt_evaluation::campaigns::OptimizationObjective::Quality => {
-                Objective::Quality
-            },
-            systemprompt_evaluation::campaigns::OptimizationObjective::Tokens => Objective::Tokens,
-            systemprompt_evaluation::campaigns::OptimizationObjective::Cost => Objective::Cost,
-            systemprompt_evaluation::campaigns::OptimizationObjective::Latency => {
-                Objective::Latency
-            },
+            OptimizationObjective::Quality => Objective::Quality,
+            OptimizationObjective::Tokens => Objective::Tokens,
+            OptimizationObjective::Cost => Objective::Cost,
+            OptimizationObjective::Latency => Objective::Latency,
         };
         let input = CampaignExperiment {
             campaign_id: id.clone(),
