@@ -179,6 +179,14 @@ fn validate_api_paths_rejects_non_api_prefix() {
 }
 
 #[test]
+fn validate_api_paths_accepts_the_web_root() {
+    let registry = registry_with(vec![Arc::new(RouterExt::new("site").with_base_path("/"))]);
+    registry
+        .validate_api_paths(&StubCtx)
+        .expect("the web root is the one sanctioned base outside /api/");
+}
+
+#[test]
 fn validate_api_paths_rejects_reserved_path_collision() {
     let registry = registry_with(vec![Arc::new(
         RouterExt::new("colliding").with_base_path("/api/v1/oauth/extra"),

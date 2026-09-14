@@ -85,7 +85,7 @@ fn loader_error_invalid_base_path_display() {
     let msg = err.to_string();
     assert!(msg.contains("bad-path-ext"));
     assert!(msg.contains("/not-api/v1"));
-    assert!(msg.contains("must start with /api/"));
+    assert!(msg.contains("must be / or start with /api/"));
 }
 
 #[test]

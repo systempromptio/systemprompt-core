@@ -62,7 +62,9 @@ pub enum LoaderError {
     #[error("Extension '{extension}' uses reserved API path '{path}'")]
     ReservedPathCollision { extension: String, path: String },
 
-    #[error("Extension '{extension}' has invalid base path '{path}': must start with /api/")]
+    #[error(
+        "Extension '{extension}' has invalid base path '{path}': must be / or start with /api/"
+    )]
     InvalidBasePath { extension: String, path: String },
 
     #[error("Dependency cycle detected while ordering extensions: {chain}")]

@@ -81,7 +81,7 @@ pub(super) fn mount_extension_routes(
             tracing::debug!("Startup event receiver dropped");
         }
 
-        if base_path == "/" {
+        if base_path == systemprompt_extension::registry::WEB_ROOT_BASE_PATH {
             router = router.merge(ext_router);
         } else {
             router = router.nest(base_path, ext_router);

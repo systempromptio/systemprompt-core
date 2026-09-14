@@ -18,7 +18,7 @@ use crate::error::LoaderError;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-pub use validation::RESERVED_PATHS;
+pub use validation::{RESERVED_PATHS, WEB_ROOT_BASE_PATH};
 
 #[derive(Default)]
 pub struct ExtensionRegistry {

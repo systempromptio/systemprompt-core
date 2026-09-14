@@ -11,7 +11,7 @@
 
 ### Fixed
 
-- Extension routers are validated against the reserved API prefixes before mounting, so an extension cannot shadow a core route.
+- Extension routers are validated before mounting: a base path is either the web root `/` (merged, `WEB_ROOT_BASE_PATH`) or nested under `/api/` outside the reserved prefixes, so an extension cannot shadow a core route. Any other base path is `InvalidBasePath` at boot.
 
 ## [0.49.0] - 2026-09-09
 
