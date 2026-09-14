@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT fence,state FROM managed_api_operations WHERE owner_id=$1 AND id=$2 FOR SHARE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fence",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "managed_api_operations",
+            "name": "fence"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_api_operations",
+            "name": "state"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "a90cbf6f371bebbdb3ca529eeee7c3b0a3e47b43cd6a64f56b614b31d2323c20"
+}

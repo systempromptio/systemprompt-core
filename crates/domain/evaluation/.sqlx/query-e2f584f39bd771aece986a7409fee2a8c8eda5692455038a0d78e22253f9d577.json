@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT to_jsonb(e) || jsonb_build_object('accounting',to_jsonb(b)) AS \"record!: sqlx::types::Json<ExperimentRecord>\" FROM eval_experiments e JOIN eval_budget_accounts b ON b.id=e.budget_id WHERE e.owner_id=$1 AND e.id=$2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "record!: sqlx::types::Json<ExperimentRecord>",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e2f584f39bd771aece986a7409fee2a8c8eda5692455038a0d78e22253f9d577"
+}

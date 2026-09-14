@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE managed_api_operations SET state='completed',result=$4,input_checkpoint=NULL,problem=NULL,updated_at=clock_timestamp() WHERE owner_id=$1 AND id=$2 AND fence=$3 AND state='pending' RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_api_operations",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b719f175d5c19ecf09f8cf8428614718a8d681844661cbc2b4b128ae368884c6"
+}

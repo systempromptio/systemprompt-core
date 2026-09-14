@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT input_checkpoint FROM managed_api_operations WHERE owner_id=$1 AND id=$2 AND fence=$3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "input_checkpoint",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "managed_api_operations",
+            "name": "input_checkpoint"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "317cfd253a2f6738de15661d25f16e46d6c3d741e524a885fe207ffc924e5ddf"
+}

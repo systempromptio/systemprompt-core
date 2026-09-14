@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE managed_api_operations SET state='completed',result=$3,input_checkpoint=NULL,updated_at=clock_timestamp() WHERE owner_id=$1 AND id=$2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2780a10e6d000f79e6d826b41f606b6a70a5490ec28cfc4822f9b947c75743d1"
+}

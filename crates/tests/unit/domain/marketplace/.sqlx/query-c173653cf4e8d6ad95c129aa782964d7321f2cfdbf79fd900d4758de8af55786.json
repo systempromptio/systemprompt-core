@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) FROM managed_consumer_attribution_history h JOIN managed_consumer_invocation_evidence e ON e.id=h.evidence_id WHERE e.consumer_id=$1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c173653cf4e8d6ad95c129aa782964d7321f2cfdbf79fd900d4758de8af55786"
+}
