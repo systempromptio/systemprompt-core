@@ -119,9 +119,9 @@ fn to_db_value_returns_string_variant() {
 }
 
 #[test]
-#[should_panic(expected = "ProfileName validation failed")]
-fn new_panics_on_invalid() {
-    let _ = ProfileName::try_new("has spaces").expect("valid ProfileName");
+fn try_new_rejects_invalid() {
+    let err = ProfileName::try_new("has spaces").expect_err("ProfileName must reject `has spaces`");
+    assert!(err.to_string().contains("alphanumeric"), "{err}");
 }
 
 #[test]

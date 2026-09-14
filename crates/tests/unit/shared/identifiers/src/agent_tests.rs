@@ -177,13 +177,13 @@ fn agent_name_to_db_value() {
 }
 
 #[test]
-#[should_panic(expected = "AgentName validation failed")]
-fn agent_name_new_panics_on_empty() {
-    let _ = AgentName::try_new("").expect("valid AgentName");
+fn agent_name_try_new_rejects_empty() {
+    let err = AgentName::try_new("").expect_err("AgentName must reject ``");
+    assert!(err.to_string().contains("cannot be empty"), "{err}");
 }
 
 #[test]
-#[should_panic(expected = "'unknown' is reserved")]
-fn agent_name_new_panics_on_unknown() {
-    let _ = AgentName::try_new("unknown").expect("valid AgentName");
+fn agent_name_try_new_rejects_unknown() {
+    let err = AgentName::try_new("unknown").expect_err("AgentName must reject `unknown`");
+    assert!(err.to_string().contains("'unknown' is reserved"), "{err}");
 }

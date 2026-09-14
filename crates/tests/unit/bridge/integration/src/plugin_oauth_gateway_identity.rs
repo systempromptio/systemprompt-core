@@ -78,8 +78,10 @@ fn a_stored_gateway_with_a_trailing_slash_is_the_same_gateway() {
             };
             plugin_oauth::store_creds(&stored).unwrap();
 
-            let client =
-                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("valid gateway url"),
+                reqwest::Client::new(),
+            );
             let out = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .expect("the stored client is reused without contacting the gateway");
@@ -113,8 +115,10 @@ fn a_stored_gateway_that_cannot_be_parsed_is_an_error_not_a_silent_reprovision()
             };
             plugin_oauth::store_creds(&stored).unwrap();
 
-            let client =
-                GatewayClient::new(ValidatedUrl::new(server.uri()), reqwest::Client::new());
+            let client = GatewayClient::new(
+                ValidatedUrl::try_new(server.uri()).expect("valid gateway url"),
+                reqwest::Client::new(),
+            );
             let err = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
                 .await
                 .expect_err("a malformed recorded gateway is not the absence of one");

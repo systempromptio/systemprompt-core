@@ -63,7 +63,7 @@ fn manifest() -> SignedManifest {
         agents: vec![],
         hooks: vec![],
         managed_mcp_servers: vec![ManagedMcpServer {
-            id: systemprompt_identifiers::McpServerId::new("primary"),
+            id: systemprompt_identifiers::McpServerId::try_new("primary").expect("valid server id"),
             name: ManagedMcpServerName::try_new("primary").unwrap(),
             url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
             transport: Some("http".into()),

@@ -205,7 +205,7 @@ fn equality_across_construction_paths() {
 }
 
 #[test]
-#[should_panic(expected = "Email validation failed")]
-fn new_panics_on_invalid() {
-    let _ = Email::try_new("no-at-sign").expect("valid Email");
+fn try_new_rejects_invalid() {
+    let err = Email::try_new("no-at-sign").expect_err("Email must reject `no-at-sign`");
+    assert!(err.to_string().contains("exactly one '@'"), "{err}");
 }

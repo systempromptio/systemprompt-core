@@ -14,9 +14,12 @@ fn mcp_server_id_rejects_empty() {
 }
 
 #[test]
-#[should_panic(expected = "McpServerId cannot be empty")]
-fn mcp_server_id_new_panics_on_empty() {
-    let _ = McpServerId::try_new("").expect("valid McpServerId");
+fn mcp_server_id_try_new_rejects_empty() {
+    let err = McpServerId::try_new("").expect_err("McpServerId must reject ``");
+    assert!(
+        err.to_string().contains("McpServerId cannot be empty"),
+        "{err}"
+    );
 }
 
 #[test]

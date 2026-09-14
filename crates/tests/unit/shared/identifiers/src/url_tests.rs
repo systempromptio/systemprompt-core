@@ -182,9 +182,9 @@ fn equality_across_construction_paths() {
 }
 
 #[test]
-#[should_panic(expected = "ValidatedUrl validation failed")]
-fn new_panics_on_invalid() {
-    let _ = ValidatedUrl::try_new("not-a-url").expect("valid ValidatedUrl");
+fn try_new_rejects_invalid() {
+    let err = ValidatedUrl::try_new("not-a-url").expect_err("ValidatedUrl must reject `not-a-url`");
+    assert!(err.to_string().contains("must have a scheme"), "{err}");
 }
 
 #[test]

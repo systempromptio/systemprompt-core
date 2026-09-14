@@ -174,9 +174,10 @@ fn to_db_value_returns_string_variant() {
 }
 
 #[test]
-#[should_panic(expected = "ValidatedFilePath validation failed")]
-fn new_panics_on_traversal() {
-    let _ = ValidatedFilePath::try_new("../secret").expect("valid ValidatedFilePath");
+fn try_new_rejects_traversal() {
+    let err = ValidatedFilePath::try_new("../secret")
+        .expect_err("ValidatedFilePath must reject `../secret`");
+    assert!(err.to_string().contains("path traversal"), "{err}");
 }
 
 #[test]
