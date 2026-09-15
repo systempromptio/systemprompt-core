@@ -164,7 +164,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         {
             continue;
         }
-        if let Err(error) = crate::feedback::capture_host(host_id, &ctx).await {
+        if let Err(error) = crate::feedback_capture::capture_host(host_id, &ctx).await {
             warnings.push(
                 host_id,
                 format!("Installation evidence unacknowledged: {error}"),

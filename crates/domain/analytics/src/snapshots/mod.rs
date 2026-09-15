@@ -24,11 +24,8 @@ pub struct FeedbackSnapshotsRepository {
     facts: crate::feedback::FeedbackFactsRepository,
 }
 impl FeedbackSnapshotsRepository {
-    pub fn new(pool: sqlx::PgPool) -> Self {
-        Self {
-            facts: crate::feedback::FeedbackFactsRepository::new(pool.clone()),
-            pool,
-        }
+    pub const fn new(pool: sqlx::PgPool, facts: crate::feedback::FeedbackFactsRepository) -> Self {
+        Self { pool, facts }
     }
 }
 fn invalid(message: &str) -> crate::AnalyticsError {

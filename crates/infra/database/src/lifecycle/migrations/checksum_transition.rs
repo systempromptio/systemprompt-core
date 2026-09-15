@@ -4,6 +4,10 @@
 //! (including its terminator), and unpadded lowercase hexadecimal. Only an
 //! exact match for the currently declared SQL is eligible; this is not drift
 //! repair and never executes migration SQL. Slot identity is checked first.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use super::{AppliedMigration, MigrationService};
 use std::hash::{Hash, Hasher};
 use systemprompt_extension::{LoaderError, Migration};

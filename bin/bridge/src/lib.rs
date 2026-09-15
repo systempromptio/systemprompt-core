@@ -32,6 +32,7 @@ pub mod cowork_compat;
 pub mod dev_preview;
 pub mod diagnostics_state;
 pub mod feedback;
+pub mod feedback_capture;
 pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]

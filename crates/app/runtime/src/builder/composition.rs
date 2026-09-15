@@ -123,6 +123,11 @@ pub(super) fn build_repositories(
             pool.as_ref(),
         ),
     );
+    let feedback_facts = Arc::new(
+        systemprompt_analytics::feedback::FeedbackFactsRepository::new(
+            database.write_pool_arc()?.as_ref().clone(),
+        ),
+    );
     Ok(RepositoryBundles {
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,
@@ -145,13 +150,10 @@ pub(super) fn build_repositories(
         feedback_snapshots: Arc::new(
             systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
                 database.write_pool_arc()?.as_ref().clone(),
+                (*feedback_facts).clone(),
             ),
         ),
-        feedback_facts: Arc::new(
-            systemprompt_analytics::feedback::FeedbackFactsRepository::new(
-                database.write_pool_arc()?.as_ref().clone(),
-            ),
-        ),
+        feedback_facts,
         files: Arc::new(systemprompt_files::FileRepository::new(database)?),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,

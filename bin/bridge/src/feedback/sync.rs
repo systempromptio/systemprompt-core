@@ -6,61 +6,8 @@
 use super::credentials::Enrollment;
 use super::outbox::{Delivery, Outbox};
 use super::{FeedbackError, Result};
-use crate::host_sync::HostSyncCtx;
 use systemprompt_identifiers::NativeSessionId;
 use systemprompt_models::feedback::receipts::SessionBindingRequest;
-
-pub async fn capture_host(host: &str, ctx: &HostSyncCtx<'_>) -> Result<()> {
-    let kind = super::client_kind(host).ok_or(FeedbackError::Scope)?;
-    let skills: Vec<_> = ctx
-        .manifest
-        .skills
-        .iter()
-        .filter(|skill| {
-            skill.publication.is_some()
-                && (skill.hosts.is_empty()
-                    || skill
-                        .hosts
-                        .iter()
-                        .any(|host| super::client_kind(host) == Some(kind)))
-        })
-        .collect();
-    if skills.is_empty() {
-        return Ok(());
-    }
-    let root = super::metadata_root()?;
-    let enrollment = Enrollment::load(&root, ctx.client.base_url_str())?;
-    if enrollment.consumer_id != ctx.manifest.user_id {
-        return Err(FeedbackError::Scope);
-    }
-    let outbox = Outbox::new(
-        enrollment.outbox_path(&root),
-        crate::feedback::outbox::OutboxScope::from_enrollment(&enrollment),
-    );
-    for skill in skills {
-        let roots = super::hosts::roots(host, ctx, skill)?;
-        if roots.is_empty() {
-            return Err(FeedbackError::HostUnavailable);
-        }
-        outbox.reserve_installation(super::outbox::PendingInstallation::new(
-            skill.publication.clone().ok_or(FeedbackError::Scope)?,
-            kind,
-            roots,
-        ))?;
-    }
-    tokio::time::timeout(
-        std::time::Duration::from_secs(30),
-        recover_pending(&enrollment, &outbox, kind, ctx.manifest),
-    )
-    .await
-    .map_err(|_| FeedbackError::Transport)??;
-    tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        deliver(&enrollment, &outbox),
-    )
-    .await
-    .map_err(|_| FeedbackError::Transport)?
-}
 
 pub async fn retry_pending(gateway: &str) -> Result<()> {
     let root = super::metadata_root()?;
@@ -169,7 +116,7 @@ async fn recover_installation(
     Ok(())
 }
 
-async fn recover_pending(
+pub async fn recover_pending(
     enrollment: &Enrollment,
     outbox: &Outbox,
     host: systemprompt_models::feedback::EvaluatorClient,

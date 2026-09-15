@@ -6,7 +6,10 @@ use systemprompt_identifiers::{DeviceId, NativeSessionId};
 use systemprompt_models::feedback::EvaluatorClient;
 
 fn repository(f: &Fixture) -> FeedbackSnapshotsRepository {
-    FeedbackSnapshotsRepository::new(f.pool.clone())
+    FeedbackSnapshotsRepository::new(
+        f.pool.clone(),
+        systemprompt_analytics::feedback::FeedbackFactsRepository::new(f.pool.clone()),
+    )
 }
 fn request(id: &str, revision: u64, at: chrono::DateTime<Utc>, micros: u64) -> AnalyticsChange {
     let key = key(AnalyticsFactKind::Request, id);

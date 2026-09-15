@@ -21,13 +21,12 @@ gateway
 mcp_registry last_sync
 auth
 validate update
-proxy_probe
+proxy_probe feedback
 proxy
 context
 host_sync
-feedback
 install
-integration
+integration feedback_capture
 sync diagnostics_state
 wire
 gui

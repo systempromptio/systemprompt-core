@@ -5,7 +5,6 @@
 
 pub mod credentials;
 pub mod hooks;
-mod hosts;
 pub mod outbox;
 pub mod readback;
 pub mod sessions;
@@ -13,7 +12,8 @@ mod sync;
 pub mod transport;
 
 pub use sync::{
-    capture_host, deliver, recover_current_manifest, recover_manifest_installations, retry_pending,
+    deliver, recover_current_manifest, recover_manifest_installations, recover_pending,
+    retry_pending,
 };
 
 #[derive(Debug, thiserror::Error)]

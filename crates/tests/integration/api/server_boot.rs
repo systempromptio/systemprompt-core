@@ -93,6 +93,9 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 feedback_snapshots_repository: Arc::new(
                     systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
                         sqlx_pool.clone(),
+                        systemprompt_analytics::feedback::FeedbackFactsRepository::new(
+                            sqlx_pool.clone(),
+                        ),
                     ),
                 ),
                 feedback_facts_repository: Arc::new(

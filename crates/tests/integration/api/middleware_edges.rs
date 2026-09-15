@@ -98,6 +98,9 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
                 feedback_snapshots_repository: Arc::new(
                     systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
                         sqlx_pool.clone(),
+                        systemprompt_analytics::feedback::FeedbackFactsRepository::new(
+                            sqlx_pool.clone(),
+                        ),
                     ),
                 ),
                 feedback_facts_repository: Arc::new(

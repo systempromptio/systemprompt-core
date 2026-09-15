@@ -91,7 +91,10 @@ async fn plane_debug_impls_flag_optional_members() {
                 .expect("mcp session repository"),
         ),
         feedback_snapshots_repository: Arc::new(
-            systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(sqlx_pool.clone()),
+            systemprompt_analytics::snapshots::FeedbackSnapshotsRepository::new(
+                sqlx_pool.clone(),
+                systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
+            ),
         ),
         feedback_facts_repository: Arc::new(
             systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
