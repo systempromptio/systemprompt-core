@@ -6,7 +6,8 @@
 use chrono::{TimeZone, Utc};
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_runtime::{
-    AiRequestFilter, LogSearchFilter, RequestCursor, ToolExecutionFilter, TraceListFilter,
+    AiRequestFilter, LogSearchFilter, RequestCursor, RequestCursorError, ToolExecutionFilter,
+    TraceListFilter,
 };
 
 mod ai_request_filter {
@@ -60,15 +61,31 @@ mod ai_request_filter {
         };
         let wire = cursor.to_string();
         assert_eq!(wire, "2026-09-12T13:14:15.000000Z@req_last");
-        assert_eq!(RequestCursor::parse(&wire), Some(cursor));
+        assert_eq!(wire.parse::<RequestCursor>(), Ok(cursor));
     }
 
     #[test]
-    fn request_cursor_rejects_malformed_input() {
-        assert!(RequestCursor::parse("").is_none());
-        assert!(RequestCursor::parse("not-a-date@req").is_none());
-        assert!(RequestCursor::parse("2026-09-12T13:14:15Z|").is_none());
-        assert!(RequestCursor::parse("2026-09-12T13:14:15Z").is_none());
+    fn request_cursor_rejects_malformed_input_with_a_typed_reason() {
+        assert_eq!(
+            "".parse::<RequestCursor>(),
+            Err(RequestCursorError::MissingSeparator)
+        );
+        assert_eq!(
+            "2026-09-12T13:14:15Z".parse::<RequestCursor>(),
+            Err(RequestCursorError::MissingSeparator)
+        );
+        assert_eq!(
+            "2026-09-12T13:14:15Z|req".parse::<RequestCursor>(),
+            Err(RequestCursorError::MissingSeparator)
+        );
+        assert_eq!(
+            "2026-09-12T13:14:15Z@".parse::<RequestCursor>(),
+            Err(RequestCursorError::EmptyId)
+        );
+        assert!(matches!(
+            "not-a-date@req".parse::<RequestCursor>(),
+            Err(RequestCursorError::InvalidTimestamp { stamp, .. }) if stamp == "not-a-date"
+        ));
     }
 
     #[test]

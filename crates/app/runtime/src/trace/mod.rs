@@ -30,8 +30,9 @@ pub use models::{
     AiRequestSummary, AuditLookupResult, AuditPage, AuditToolCallRow, ConversationMessage,
     ExecutionStep, ExecutionStepSummary, LevelCount, LinkedMcpCall, LogSearchFilter, LogSearchItem,
     LogTimeRange, McpExecutionSummary, McpToolExecution, ModelStatsRow, ModuleCount,
-    ProviderStatsRow, RequestCursor, TaskArtifact, TaskInfo, ToolExecutionFilter,
-    ToolExecutionItem, ToolLogEntry, TraceEvent, TraceListFilter, TraceListItem,
+    ProviderStatsRow, RequestCursor, RequestCursorError, TaskArtifact, TaskInfo,
+    ToolExecutionFilter, ToolExecutionItem, ToolLogEntry, TraceEvent, TraceListFilter,
+    TraceListItem,
 };
 pub use service::TraceQueryService;
 

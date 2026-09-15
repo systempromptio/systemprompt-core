@@ -52,9 +52,9 @@ pub use trace::{
     AiRequestSummary, AiTraceService, AuditLookupResult, AuditPage, AuditToolCallRow,
     ConversationMessage, ExecutionStep, ExecutionStepSummary, LevelCount, LinkedMcpCall,
     LogSearchFilter, LogSearchItem, LogTimeRange, McpExecutionSummary, McpToolExecution,
-    ModelStatsRow, ModuleCount, ProviderStatsRow, RequestCursor, TaskArtifact, TaskInfo,
-    ToolExecutionFilter, ToolExecutionItem, ToolLogEntry, TraceError, TraceEvent, TraceListFilter,
-    TraceListItem, TraceQueryService,
+    ModelStatsRow, ModuleCount, ProviderStatsRow, RequestCursor, RequestCursorError, TaskArtifact,
+    TaskInfo, ToolExecutionFilter, ToolExecutionItem, ToolLogEntry, TraceError, TraceEvent,
+    TraceListFilter, TraceListItem, TraceQueryService,
 };
 pub use validation::{validate_database_path, validate_system};
 pub use wellknown::{WellKnownMetadata, get_wellknown_metadata};

@@ -6,7 +6,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_runtime::{AiRequestFilter, RequestCursor, TraceQueryService};
+use systemprompt_runtime::{AiRequestFilter, RequestCursor, RequestCursorError, TraceQueryService};
 
 use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::{parse_since, parse_until};
@@ -66,10 +66,10 @@ async fn execute_with_pool_inner(
         filter = filter.with_until(until);
     }
     if let Some(raw) = args.before.as_deref() {
-        let cursor = RequestCursor::parse(raw).ok_or_else(|| {
+        let cursor: RequestCursor = raw.parse().map_err(|e: RequestCursorError| {
             anyhow::anyhow!(
-                "Invalid --before cursor: {raw}. Pass the `cursor` value of the last row from a \
-                 previous `infra logs request list` page"
+                "Invalid --before cursor `{raw}`: {e}. Pass the `cursor` value of the last row \
+                 from a previous `infra logs request list` page"
             )
         })?;
         filter = filter.with_before(cursor);

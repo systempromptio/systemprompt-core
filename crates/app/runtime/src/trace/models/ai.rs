@@ -69,14 +69,39 @@ pub struct RequestCursor {
 
 impl RequestCursor {
     pub const SEPARATOR: char = '@';
+}
 
-    pub fn parse(raw: &str) -> Option<Self> {
-        let (stamp, id) = raw.trim().split_once(Self::SEPARATOR)?;
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum RequestCursorError {
+    #[error("cursor is missing the `@` between the timestamp and the request id")]
+    MissingSeparator,
+    #[error("cursor has an empty request id")]
+    EmptyId,
+    #[error("cursor timestamp `{stamp}` is not RFC 3339: {source}")]
+    InvalidTimestamp {
+        stamp: String,
+        source: chrono::ParseError,
+    },
+}
+
+impl std::str::FromStr for RequestCursor {
+    type Err = RequestCursorError;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        let (stamp, id) = raw
+            .trim()
+            .split_once(Self::SEPARATOR)
+            .ok_or(RequestCursorError::MissingSeparator)?;
         if id.is_empty() {
-            return None;
+            return Err(RequestCursorError::EmptyId);
         }
-        let created_at = DateTime::parse_from_rfc3339(stamp).ok()?.with_timezone(&Utc);
-        Some(Self {
+        let created_at = DateTime::parse_from_rfc3339(stamp)
+            .map_err(|source| RequestCursorError::InvalidTimestamp {
+                stamp: stamp.to_owned(),
+                source,
+            })?
+            .with_timezone(&Utc);
+        Ok(Self {
             created_at,
             id: AiRequestId::new(id),
         })
@@ -88,7 +113,8 @@ impl std::fmt::Display for RequestCursor {
         write!(
             f,
             "{}{}{}",
-            self.created_at.to_rfc3339_opts(chrono::SecondsFormat::Micros, true),
+            self.created_at
+                .to_rfc3339_opts(chrono::SecondsFormat::Micros, true),
             Self::SEPARATOR,
             self.id.as_str()
         )
@@ -188,7 +214,11 @@ impl AuditPage {
     };
 
     pub const fn sql_limit(self) -> Option<i64> {
-        if self.limit > 0 { Some(self.limit) } else { None }
+        if self.limit > 0 {
+            Some(self.limit)
+        } else {
+            None
+        }
     }
 }
 
