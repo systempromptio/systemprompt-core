@@ -299,8 +299,9 @@ mod guarded_client_tests {
     }
 }
 
-// Why: these cases need outbound DNS, so they are gated on `SP_SSRF_NET_TESTS=1`
-// and otherwise pass after printing that they were skipped.
+// Why: these cases need outbound DNS, so they are gated on
+// `SP_SSRF_NET_TESTS=1` and otherwise pass after printing that they were
+// skipped.
 mod ssrf_live_dns_tests {
     use reqwest::dns::Resolve;
     use systemprompt_client::{GuardedConnectError, GuardedResolver};
