@@ -4,7 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod credentials;
+pub mod enrol;
 pub mod hooks;
+pub mod opencode_session;
 pub mod outbox;
 pub mod readback;
 pub mod sessions;
@@ -48,6 +50,8 @@ pub enum FeedbackError {
     Contract(#[from] systemprompt_models::feedback::FeedbackContractError),
     #[error("feedback request rejected with status {0}")]
     Rejected(u16),
+    #[error("device enrolment failed: {0}")]
+    Gateway(#[from] crate::gateway::errors::GatewayError),
 }
 
 #[derive(Debug, thiserror::Error)]

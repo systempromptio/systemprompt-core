@@ -13,7 +13,7 @@ use systemprompt_models::api::cloud::BridgeProfileUsage;
 
 use crate::gateway::errors::GatewayError;
 use crate::gateway::identity_source::whoami_path;
-use crate::gateway::types::{BridgeProfile, WhoamiResponse};
+use crate::gateway::types::{BridgeProfile, SelfEnrollRequest, SelfEnrollResponse, WhoamiResponse};
 use crate::gateway::{GatewayClient, record_span};
 
 impl GatewayClient {
@@ -133,5 +133,37 @@ impl GatewayClient {
         resp.json::<BridgeProfileUsage>()
             .await
             .map_err(|e| GatewayError::ProfileUsageDecode(Box::new(e)))
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip(self, bearer, request),
+        fields(endpoint = "device", status, latency_ms)
+    )]
+    pub async fn enroll_device(
+        &self,
+        bearer: &BearerToken,
+        request: &SelfEnrollRequest,
+    ) -> Result<SelfEnrollResponse, GatewayError> {
+        let url = self.url("/v1/bridge/device");
+        let started = Instant::now();
+        let resp = self
+            .http()
+            .post(&url)
+            .bearer_auth(bearer.expose())
+            .json(request)
+            .send()
+            .await
+            .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
+        record_span(&resp, started);
+        if !resp.status().is_success() {
+            return Err(GatewayError::HttpStatus {
+                status: resp.status(),
+                endpoint: "device",
+            });
+        }
+        resp.json::<SelfEnrollResponse>()
+            .await
+            .map_err(|e| GatewayError::DeviceEnrollDecode(Box::new(e)))
     }
 }

@@ -87,6 +87,7 @@ fn finish_login(
             stdio::print_line(&format!("  config: {}", paths.config_file.display()));
             stdio::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
             stdio::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
+            enroll_device_after_login(ctx, gateway);
             reapply_after_login(ctx, has_flag(args, "--no-reapply"));
             ExitCode::SUCCESS
         },
@@ -252,6 +253,46 @@ pub fn default_device_name() -> Option<String> {
                 .map(|h| h.trim().to_owned())
                 .filter(|h| !h.is_empty())
         })
+}
+
+// Why: attribution is best-effort — a login that stored a working PAT must
+// succeed even when the gateway cannot enrol this device right now.
+fn enroll_device_after_login(ctx: &BridgeContext, gateway: Option<&str>) {
+    let result = (|| -> Result<systemprompt_identifiers::DeviceId, String> {
+        let cfg = crate::config::load().map_err(|e| e.to_string())?;
+        let base_url = resolve_gateway(gateway)?;
+        let client = ctx.gateway_client(base_url);
+        let http = ctx.http.clone();
+        let install_id = ctx.install_id().clone();
+        ctx.block_on(async move {
+            let live = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
+                .await
+                .map_err(|e| e.to_string())?;
+            let whoami = client
+                .fetch_whoami(&live.token)
+                .await
+                .map_err(|e| e.to_string())?;
+            let user_id = whoami
+                .user_id
+                .ok_or_else(|| "whoami carried no user id".to_owned())?;
+            crate::feedback::enrol::ensure_self_enrolled(
+                &client,
+                &live.token,
+                &install_id,
+                &user_id,
+                true,
+            )
+            .await
+            .map(|enrollment| enrollment.device_id)
+            .map_err(|e| e.to_string())
+        })
+    })();
+    match result {
+        Ok(device_id) => stdio::print_line(&format!(
+            "Device {device_id} enrolled for installation feedback"
+        )),
+        Err(e) => diag(&format!("login: device enrolment skipped: {e}")),
+    }
 }
 
 fn reapply_after_login(ctx: &BridgeContext, opted_out: bool) {

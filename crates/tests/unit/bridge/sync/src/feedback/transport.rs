@@ -1,6 +1,6 @@
 use super::*;
 
-fn mock_server(
+pub(super) fn mock_server(
     responses: Vec<(u16, String, String)>,
 ) -> (String, std::thread::JoinHandle<Vec<String>>) {
     use std::io::{Read, Write};

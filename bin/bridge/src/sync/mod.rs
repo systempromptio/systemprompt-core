@@ -60,6 +60,32 @@ pub struct SyncOptions {
     pub cancel: tokio_util::sync::CancellationToken,
 }
 
+// Why: the credential is only attribution; a sync must never fail because
+// the gateway declined to enrol this install.
+async fn ensure_device_enrolled(
+    bridge: &crate::context::BridgeContext,
+    fetch: &manifest::ManifestFetch,
+    user_id: &systemprompt_identifiers::UserId,
+) {
+    let Ok(root) = crate::feedback::metadata_root() else {
+        return;
+    };
+    if crate::feedback::credentials::Enrollment::load(&root, fetch.client.base_url_str()).is_ok() {
+        return;
+    }
+    if let Err(error) = crate::feedback::enrol::ensure_self_enrolled(
+        &fetch.client,
+        &fetch.bearer,
+        bridge.install_id(),
+        user_id,
+        false,
+    )
+    .await
+    {
+        tracing::warn!(%error, "device self-enrolment failed; installation feedback stays unattributed");
+    }
+}
+
 #[tracing::instrument(level = "info", skip(bridge))]
 pub async fn run_once(
     bridge: &crate::context::BridgeContext,
@@ -97,6 +123,7 @@ pub async fn run_once(
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();
+    ensure_device_enrolled(bridge, &fetch, &synced.user_id).await;
 
     #[cfg_attr(
         not(target_os = "windows"),
