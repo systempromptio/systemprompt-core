@@ -24,6 +24,7 @@ impl Extension for LoggingExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
+            SchemaDefinition::sql_only(include_str!("../schema/reporting_privacy.sql")),
             SchemaDefinition::new("logs", include_str!("../schema/log.sql")).with_required_columns(
                 vec![
                     "id".into(),

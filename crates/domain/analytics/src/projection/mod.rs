@@ -147,7 +147,10 @@ impl ReportingProjector {
                 "a snapshot cannot contain deleted rows",
             ));
         }
-        Self::write_row(connection, fact).await
+        if Self::retained(connection, fact).await? {
+            Self::write_row(connection, fact).await?;
+        }
+        Ok(())
     }
 
     pub async fn finish_rebuild(
@@ -210,9 +213,17 @@ impl ReportingProjector {
         Ok(true)
     }
 
+    async fn retained(connection: &mut PgConnection, fact: &ReportingRow) -> Result<bool> {
+        Ok(sqlx::query_scalar("SELECT reporting_row_retained($1, $2)")
+            .bind(fact.source.definition().table)
+            .bind(&fact.row)
+            .fetch_one(connection)
+            .await?)
+    }
+
     async fn write_row(connection: &mut PgConnection, fact: &ReportingRow) -> Result<()> {
         let definition = fact.source.definition();
-        if fact.deleted {
+        if fact.deleted || !Self::retained(connection, fact).await? {
             sqlx::query(sqlx::AssertSqlSafe(format!(
                 "DELETE FROM {} WHERE {} = CAST($1 AS {})",
                 definition.target, definition.key, definition.key_type,

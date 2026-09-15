@@ -21,14 +21,19 @@ pub async fn rebuild(db: &DbPool) -> RuntimeResult<()> {
 async fn configure(db: &DbPool, force_rebuild: bool) -> RuntimeResult<()> {
     let pool = db.write_pool_arc()?;
     let mut transaction = pool.begin().await.map_err(AnalyticsError::from)?;
+    sqlx::query("SELECT public.lock_user_deletion_for_retention()")
+        .execute(&mut *transaction)
+        .await
+        .map_err(AnalyticsError::from)?;
+    lock_sources(&mut transaction).await?;
     super::lock(&mut transaction).await?;
+    install_capture(&mut transaction).await?;
     let initialized: bool =
         sqlx::query_scalar("SELECT initialized FROM analytics_projection_state WHERE singleton")
             .fetch_one(&mut *transaction)
             .await
             .map_err(AnalyticsError::from)?;
     if force_rebuild || !initialized {
-        install_capture(&mut transaction).await?;
         rebuild_locked(&mut transaction).await?;
     }
     transaction.commit().await.map_err(AnalyticsError::from)?;
@@ -50,7 +55,7 @@ async fn install_capture(connection: &mut PgConnection) -> Result<(), AnalyticsE
     Ok(())
 }
 
-async fn rebuild_locked(connection: &mut PgConnection) -> Result<(), AnalyticsError> {
+async fn lock_sources(connection: &mut PgConnection) -> Result<(), AnalyticsError> {
     let tables = SOURCE_DEFINITIONS
         .iter()
         .map(|definition| definition.table)
@@ -61,6 +66,10 @@ async fn rebuild_locked(connection: &mut PgConnection) -> Result<(), AnalyticsEr
     )))
     .execute(&mut *connection)
     .await?;
+    Ok(())
+}
+
+async fn rebuild_locked(connection: &mut PgConnection) -> Result<(), AnalyticsError> {
     let cutoff: i64 = sqlx::query_scalar("SELECT nextval('event_outbox_reporting_revision')")
         .fetch_one(&mut *connection)
         .await?;
