@@ -47,10 +47,10 @@ impl GitSourceOrchestrator {
         })?;
         let mut credentials = BTreeMap::new();
         for revision in &request.revisions {
-            if !credentials.contains_key(&revision.source_id) {
-                if let Some(credential) = self.credential(owner, &revision.source_id).await? {
-                    credentials.insert(revision.source_id.clone(), credential);
-                }
+            if !credentials.contains_key(&revision.source_id)
+                && let Some(credential) = self.credential(owner, &revision.source_id).await?
+            {
+                credentials.insert(revision.source_id.clone(), credential);
             }
         }
         Ok(self

@@ -43,7 +43,13 @@ async fn receipt(
     Json(input): Json<ConsumerReceiptRequest>,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
-    authorization::resource(&ctx, credential, &input.resource_id, input.host).await?;
+    Box::pin(authorization::resource(
+        &ctx,
+        credential,
+        &input.resource_id,
+        input.host,
+    ))
+    .await?;
     let result = ctx
         .managed_repository()
         .record_consumer_receipt(credential, &input)
@@ -81,7 +87,10 @@ async fn bind_session(
         .managed_repository()
         .consumer_receipt_resource(credential, &input.receipt_id)
         .await?;
-    authorization::resource(&ctx, credential, &resource, input.host).await?;
+    Box::pin(authorization::resource(
+        &ctx, credential, &resource, input.host,
+    ))
+    .await?;
     Ok(Json(
         ctx.managed_repository()
             .bind_consumer_session(credential, &input)
@@ -95,7 +104,13 @@ async fn invocation(
     Json(input): Json<ConsumerInvocationRequest>,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
-    authorization::resource(&ctx, credential, &input.resource_id, input.host).await?;
+    Box::pin(authorization::resource(
+        &ctx,
+        credential,
+        &input.resource_id,
+        input.host,
+    ))
+    .await?;
     Ok(Json(
         ctx.managed_repository()
             .record_consumer_invocation(credential, &input)
@@ -118,7 +133,7 @@ async fn enroll(
         .managed_repository()
         .authenticate_consumer_device(credential)
         .await
-        .map_err(|_| ConsumerHttpError(StatusCode::UNAUTHORIZED))?;
+        .map_err(|_error| ConsumerHttpError(StatusCode::UNAUTHORIZED))?;
     Ok(Json(Enrollment {
         device_id: identity.device_id,
         consumer_id: identity.consumer_id,
@@ -141,7 +156,10 @@ async fn bundle(
     axum::extract::Query(query): axum::extract::Query<BundleQuery>,
 ) -> Result<impl axum::response::IntoResponse, ConsumerHttpError> {
     let credential = authorization::credential(&headers)?;
-    authorization::resource(&ctx, credential, &resource, query.host).await?;
+    Box::pin(authorization::resource(
+        &ctx, credential, &resource, query.host,
+    ))
+    .await?;
     Ok(Json(
         ctx.managed_repository()
             .consumer_installation_plan(credential, &resource, &publication, query.host)

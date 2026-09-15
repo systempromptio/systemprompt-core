@@ -101,7 +101,7 @@ async fn decide(
     )
     .await?;
     let response = match claim {
-        ApiOperationClaim::Retained(operation) => super::operations::response(operation)?,
+        ApiOperationClaim::Retained(operation) => super::operations::response(&operation)?,
         ApiOperationClaim::Acquired(operation) => {
             let result = async {
                 ctx.evaluation_repositories()

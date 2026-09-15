@@ -2,12 +2,14 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+use super::diagnostics::DiagnosticContext;
 use super::{OptimizationError, SkillOptimizationOrchestrator};
 use serde::{Deserialize, Serialize};
 use systemprompt_evaluation::campaigns::diagnostics::{DiagnosticCode, DiagnosticStage};
 use systemprompt_evaluation::campaigns::holdout::HoldoutProposal;
-use systemprompt_evaluation::experiments::content_digest;
-use systemprompt_evaluation::experiments::resources::{Partition, ResourceContent};
+use systemprompt_evaluation::experiments::records::ExperimentStatus;
+use systemprompt_evaluation::experiments::resources::{CaseContent, Partition, ResourceContent};
+use systemprompt_evaluation::experiments::{ExperimentSpec, content_digest};
 use systemprompt_evaluation::repository::experiments::{CampaignAvailability, CampaignExperiment};
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, EvalRevisionId, UserId};
 
@@ -27,12 +29,31 @@ pub struct ConfirmHoldout {
     pub spec_digest: String,
     pub confirm_independent_holdout: bool,
 }
+/// The proposal a confirmation targets, and who is approving it.
+#[derive(Debug, Clone, Copy)]
+pub struct HoldoutConfirmationTarget<'a> {
+    pub actor: &'a UserId,
+    pub campaign: &'a EvalCampaignId,
+    pub id: &'a str,
+}
 /// Reviewable proposal and current actual execution admission, without reserved
 /// spend.
 #[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct HoldoutReview {
     pub proposal: HoldoutProposal,
     pub execution_availability: CampaignAvailability,
+}
+struct PartitionedCases {
+    development: Vec<EvalRevisionId>,
+    holdout: Vec<EvalRevisionId>,
+}
+fn case_digest(case: &CaseContent) -> Result<String, OptimizationError> {
+    Ok(content_digest(&(
+        &case.prompt,
+        &case.expected_behavior,
+        &case.fixtures,
+        &case.assertions,
+    ))?)
 }
 impl SkillOptimizationOrchestrator {
     pub async fn prepare_holdout(
@@ -43,28 +64,18 @@ impl SkillOptimizationOrchestrator {
         input: &PrepareHoldout,
     ) -> Result<HoldoutReview, OptimizationError> {
         let result = self.prepare_holdout_inner(owner, campaign, input).await;
+        let ctx = DiagnosticContext {
+            owner,
+            actor,
+            campaign,
+            key: &input.idempotency_key,
+            stage: DiagnosticStage::Holdout,
+        };
         match &result {
-            Err(error) => {
-                self.retain_failure(
-                    owner,
-                    actor,
-                    campaign,
-                    &input.idempotency_key,
-                    DiagnosticStage::Holdout,
-                    error,
-                )
-                .await?
-            },
+            Err(error) => self.retain_failure(&ctx, error).await?,
             Ok(review) if !review.execution_availability.admitted => {
-                self.blocked(
-                    owner,
-                    actor,
-                    campaign,
-                    &input.idempotency_key,
-                    DiagnosticStage::Holdout,
-                    DiagnosticCode::UnsupportedCapability,
-                )
-                .await?
+                self.blocked(&ctx, DiagnosticCode::UnsupportedCapability)
+                    .await?;
             },
             Ok(_) => {},
         }
@@ -82,13 +93,53 @@ impl SkillOptimizationOrchestrator {
         if !report.development.eligible {
             return Err(OptimizationError::Source("Complete a qualifying development comparison before independent holdout preparation".to_owned()));
         }
-        let detail = self
-            .evaluations
-            .experiments
-            .get(owner, &input.development_experiment_id)
+        let mut spec = self
+            .completed_development_spec(owner, &input.development_experiment_id)
             .await?;
-        if detail.experiment.status
-            != systemprompt_evaluation::experiments::records::ExperimentStatus::Completed
+        let cases = self
+            .partition_cases(owner, &spec.cases, &input.holdout_dataset_id)
+            .await?;
+        let counts = (
+            i32::try_from(cases.development.len()).unwrap_or(i32::MAX),
+            i32::try_from(cases.holdout.len()).unwrap_or(i32::MAX),
+        );
+        let minimum = i32::try_from(report.campaign.policy.minimum_pairs).unwrap_or(i32::MAX);
+        if counts.0 < minimum || counts.1 < minimum {
+            return Err(OptimizationError::Source(
+                "Both partitions must meet the unchanged campaign minimum paired-case threshold"
+                    .to_owned(),
+            ));
+        }
+        self.freeze_holdout_spec(owner, &mut spec, cases).await?;
+        let proposal = self
+            .evaluations
+            .campaigns
+            .propose_holdout(
+                owner,
+                systemprompt_evaluation::campaigns::holdout::HoldoutProposalRequest {
+                    campaign,
+                    development: &input.development_experiment_id,
+                    key: &input.idempotency_key,
+                    spec: &spec,
+                    counts,
+                },
+            )
+            .await?;
+        Ok(HoldoutReview {
+            execution_availability: self
+                .evaluations
+                .experiments
+                .execution_availability(&proposal.spec),
+            proposal,
+        })
+    }
+    async fn completed_development_spec(
+        &self,
+        owner: &UserId,
+        experiment: &EvalExperimentId,
+    ) -> Result<ExperimentSpec, OptimizationError> {
+        let detail = self.evaluations.experiments.get(owner, experiment).await?;
+        if detail.experiment.status != ExperimentStatus::Completed
             || detail.experiment.accounting.reserved != 0
             || detail.experiment.accounting.frozen
         {
@@ -96,24 +147,25 @@ impl SkillOptimizationOrchestrator {
                 "Development execution and accounting must be complete".to_owned(),
             ));
         }
-        let mut spec = detail.experiment.spec;
+        Ok(detail.experiment.spec)
+    }
+    async fn partition_cases(
+        &self,
+        owner: &UserId,
+        development_cases: &[EvalRevisionId],
+        holdout_dataset: &EvalRevisionId,
+    ) -> Result<PartitionedCases, OptimizationError> {
         let mut development = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
-        for id in &spec.cases {
-            if let ResourceContent::Case(case) = self.revisions.get(owner, id).await? {
-                if case.partition == Partition::Development {
-                    seen.insert(content_digest(&(
-                        &case.prompt,
-                        &case.expected_behavior,
-                        &case.fixtures,
-                        &case.assertions,
-                    ))?);
-                    development.push(id.clone());
-                }
+        for id in development_cases {
+            if let ResourceContent::Case(case) = self.revisions.get(owner, id).await?
+                && case.partition == Partition::Development
+            {
+                seen.insert(case_digest(&case)?);
+                development.push(id.clone());
             }
         }
-        let ResourceContent::Dataset(ids) =
-            self.revisions.get(owner, &input.holdout_dataset_id).await?
+        let ResourceContent::Dataset(ids) = self.revisions.get(owner, holdout_dataset).await?
         else {
             return Err(OptimizationError::Source(
                 "Select a retained holdout dataset".to_owned(),
@@ -129,30 +181,28 @@ impl SkillOptimizationOrchestrator {
             if case.partition != Partition::Holdout {
                 continue;
             }
-            if !seen.insert(content_digest(&(
-                &case.prompt,
-                &case.expected_behavior,
-                &case.fixtures,
-                &case.assertions,
-            ))?) {
+            if !seen.insert(case_digest(&case)?) {
                 return Err(OptimizationError::Source(
                     "Holdout must not duplicate development or another holdout case".to_owned(),
                 ));
             }
             holdout.push(id);
         }
-        let counts = (
-            i32::try_from(development.len()).unwrap_or(i32::MAX),
-            i32::try_from(holdout.len()).unwrap_or(i32::MAX),
-        );
-        if counts.0 < i32::try_from(report.campaign.policy.minimum_pairs).unwrap_or(i32::MAX)
-            || counts.1 < i32::try_from(report.campaign.policy.minimum_pairs).unwrap_or(i32::MAX)
-        {
-            return Err(OptimizationError::Source(
-                "Both partitions must meet the unchanged campaign minimum paired-case threshold"
-                    .to_owned(),
-            ));
-        }
+        Ok(PartitionedCases {
+            development,
+            holdout,
+        })
+    }
+    async fn freeze_holdout_spec(
+        &self,
+        owner: &UserId,
+        spec: &mut ExperimentSpec,
+        cases: PartitionedCases,
+    ) -> Result<(), OptimizationError> {
+        let PartitionedCases {
+            mut development,
+            holdout,
+        } = cases;
         development.extend(holdout);
         spec.cases = development;
         let dataset = ResourceContent::Dataset(spec.cases.clone());
@@ -176,63 +226,34 @@ impl SkillOptimizationOrchestrator {
             .saturating_mul(u64::from(spec.repetitions));
         spec.budget_microdollars = frozen.cost_envelope.maximum_microdollars(executions)?;
         spec.validate()?;
-        let proposal = self
-            .evaluations
-            .campaigns
-            .propose_holdout(
-                owner,
-                systemprompt_evaluation::campaigns::holdout::HoldoutProposalRequest {
-                    campaign,
-                    development: &input.development_experiment_id,
-                    key: &input.idempotency_key,
-                    spec: &spec,
-                    counts,
-                },
-            )
-            .await?;
-        Ok(HoldoutReview {
-            execution_availability: self
-                .evaluations
-                .experiments
-                .execution_availability(&proposal.spec),
-            proposal,
-        })
+        Ok(())
     }
     pub async fn confirm_holdout(
         &self,
         owner: &UserId,
-        actor: &UserId,
-        campaign: &EvalCampaignId,
-        id: &str,
+        target: &HoldoutConfirmationTarget<'_>,
         input: &ConfirmHoldout,
     ) -> Result<HoldoutProposal, OptimizationError> {
-        let result = self
-            .confirm_holdout_inner(owner, actor, campaign, id, input)
-            .await;
+        let ctx = DiagnosticContext {
+            owner,
+            actor: target.actor,
+            campaign: target.campaign,
+            key: target.id,
+            stage: DiagnosticStage::Holdout,
+        };
+        let result = self.confirm_holdout_inner(&ctx, input).await;
         if let Err(error) = &result {
-            self.retain_failure(owner, actor, campaign, id, DiagnosticStage::Holdout, error)
-                .await?;
+            self.retain_failure(&ctx, error).await?;
         }
         result
     }
     async fn confirm_holdout_inner(
         &self,
-        owner: &UserId,
-        actor: &UserId,
-        campaign: &EvalCampaignId,
-        id: &str,
+        ctx: &DiagnosticContext<'_>,
         input: &ConfirmHoldout,
     ) -> Result<HoldoutProposal, OptimizationError> {
         if !input.confirm_independent_holdout {
-            self.blocked(
-                owner,
-                actor,
-                campaign,
-                id,
-                DiagnosticStage::Holdout,
-                DiagnosticCode::InvalidInput,
-            )
-            .await?;
+            self.blocked(ctx, DiagnosticCode::InvalidInput).await?;
             return Err(OptimizationError::Source(
                 "Explicit independent holdout confirmation is required".to_owned(),
             ));
@@ -241,11 +262,11 @@ impl SkillOptimizationOrchestrator {
             .evaluations
             .campaigns
             .confirm_holdout(
-                owner,
+                ctx.owner,
                 systemprompt_evaluation::campaigns::holdout::HoldoutConfirmation {
-                    actor,
-                    campaign,
-                    id,
+                    actor: ctx.actor,
+                    campaign: ctx.campaign,
+                    id: ctx.key,
                     digest: &input.spec_digest,
                 },
             )
@@ -255,10 +276,10 @@ impl SkillOptimizationOrchestrator {
         }
         let experiment = self
             .launch(
-                owner,
-                actor,
+                ctx.owner,
+                ctx.actor,
                 &CampaignExperiment {
-                    campaign_id: campaign.clone(),
+                    campaign_id: ctx.campaign.clone(),
                     idempotency_key: format!("holdout:{}", proposal.id),
                     spec: proposal.spec,
                 },
@@ -267,7 +288,7 @@ impl SkillOptimizationOrchestrator {
         Ok(self
             .evaluations
             .campaigns
-            .attach_holdout_run(owner, campaign, id, &experiment)
+            .attach_holdout_run(ctx.owner, ctx.campaign, ctx.key, &experiment)
             .await?)
     }
 }

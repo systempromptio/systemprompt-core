@@ -30,11 +30,11 @@ pub(super) async fn resource(
         .managed_repository()
         .authenticate_consumer_device(credential)
         .await
-        .map_err(|_| ConsumerHttpError(StatusCode::UNAUTHORIZED))?;
+        .map_err(|_error| ConsumerHttpError(StatusCode::UNAUTHORIZED))?;
     let profile = systemprompt_config::ProfileBootstrap::get()
-        .map_err(|_| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
+        .map_err(|_error| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
     let services = crate::routes::gateway::bridge_data::load_services_config()
-        .map_err(|_| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
+        .map_err(|_error| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
     if !crate::routes::gateway::bridge::instance_enabled_hosts(&services)
         .iter()
         .any(|value| host.accepts_host_name(value))
@@ -48,7 +48,7 @@ pub(super) async fn resource(
         services,
     )
     .await
-    .map_err(|_| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
+    .map_err(|_error| ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE))?;
     let (entries, _) = candidate.into_manifest_parts();
     if !entries.skills.iter().any(|skill| {
         skill

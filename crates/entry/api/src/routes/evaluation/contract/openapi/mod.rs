@@ -1,4 +1,4 @@
-//! OpenAPI 3.1 schemas are generated from the same DTOs used by handlers.
+//! `OpenAPI` 3.1 schemas are generated from the same DTOs used by handlers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

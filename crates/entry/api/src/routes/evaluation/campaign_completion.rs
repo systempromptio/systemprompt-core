@@ -13,7 +13,9 @@ use systemprompt_evaluation::campaigns::holdout::HoldoutProposal;
 use systemprompt_identifiers::EvalCampaignId;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::optimization::holdout::{ConfirmHoldout, HoldoutReview, PrepareHoldout};
+use systemprompt_runtime::optimization::holdout::{
+    ConfirmHoldout, HoldoutConfirmationTarget, HoldoutReview, PrepareHoldout,
+};
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
@@ -95,9 +97,11 @@ async fn confirm(
         orchestrator(&ctx)
             .confirm_holdout(
                 ctx.system_admin().id(),
-                actor.user_id(),
-                &id,
-                &proposal,
+                &HoldoutConfirmationTarget {
+                    actor: actor.user_id(),
+                    campaign: &id,
+                    id: &proposal,
+                },
                 &input,
             )
             .await?,

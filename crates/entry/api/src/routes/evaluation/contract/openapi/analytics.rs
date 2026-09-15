@@ -5,7 +5,9 @@
 use super::builder::Document;
 use crate::routes::evaluation::snapshot_stream::FeedbackWake;
 use crate::routes::evaluation::snapshots as api;
-use systemprompt_analytics::snapshots::*;
+use systemprompt_analytics::snapshots::{
+    FeedbackSnapshot, SnapshotHealth, SnapshotRangeJob, SnapshotRangeRequest,
+};
 pub(super) fn register(d: &mut Document) {
     d.add::<(), api::Page>("/analytics/snapshots", "get", 200, false);
     d.query::<api::Cursor>("/analytics/snapshots", "get");

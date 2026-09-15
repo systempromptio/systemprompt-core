@@ -1,4 +1,4 @@
-//! One shared PostgreSQL listener wakes bounded streams and exits after their
+//! One shared `PostgreSQL` listener wakes bounded streams and exits after their
 //! guards close.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,12 +11,13 @@ static HINTS: LazyLock<watch::Sender<u64>> = LazyLock::new(|| watch::channel(0).
 static RELAY: Mutex<Option<tokio::task::JoinHandle<()>>> = Mutex::const_new(None);
 
 pub(super) async fn subscribe(ctx: &AppContext) -> watch::Receiver<u64> {
-    let mut relay = RELAY.lock().await;
-    if relay
-        .as_ref()
-        .is_none_or(tokio::task::JoinHandle::is_finished)
     {
-        if let Some(pool) = ctx.db_pool().write_pool() {
+        let mut relay = RELAY.lock().await;
+        if relay
+            .as_ref()
+            .is_none_or(tokio::task::JoinHandle::is_finished)
+            && let Some(pool) = ctx.db_pool().write_pool()
+        {
             *relay = Some(tokio::spawn(run(pool.as_ref().clone())));
         }
     }
@@ -35,12 +36,11 @@ async fn run(pool: sqlx::PgPool) {
         {
             break;
         }
-        if listener.is_none() {
-            if let Ok(Ok(connected)) =
+        if listener.is_none()
+            && let Ok(Ok(connected)) =
                 tokio::time::timeout(std::time::Duration::from_secs(2), connect(&pool)).await
-            {
-                listener = Some(connected);
-            }
+        {
+            listener = Some(connected);
         }
     }
 }

@@ -28,37 +28,36 @@ pub(super) async fn refresh(
 ) -> Result<impl axum::response::IntoResponse, OptimizationHttpError> {
     let claim = operations::begin(&ctx, &headers, "inventory_refresh", &()).await?;
     let response: OperationResponse<InventoryStatus> = match claim {
-        ApiOperationClaim::Retained(operation) => operations::response(operation)?,
+        ApiOperationClaim::Retained(operation) => operations::response(&operation)?,
         ApiOperationClaim::Acquired(operation) => {
             let result: Result<InventoryStatus, OptimizationHttpError> = async {
-                let configured = match ctx
+                let configured = if let Some(configured) = ctx
                     .managed_repository()
                     .api_input::<Vec<ConfiguredInventoryEntry>>(ctx.system_admin().id(), &operation)
                     .await?
                 {
-                    Some(configured) => configured,
-                    None => {
-                        let services = systemprompt_loader::ConfigLoader::load().map_err(|_| {
-                            systemprompt_evaluation::EvaluationError::InvalidSpec(
-                                "Configured inventory unavailable".to_owned(),
-                            )
-                        })?;
-                        let root = ctx.app_paths().system().services().to_path_buf();
-                        let configured = tokio::task::spawn_blocking(move || {
-                            systemprompt_marketplace::inventory::scan_configured_inventory(
-                                &root, &services,
-                            )
-                        })
-                        .await
-                        .map_err(|_| {
-                            systemprompt_evaluation::EvaluationError::InvalidSpec(
-                                "Inventory scan unavailable".to_owned(),
-                            )
-                        })??;
-                        ctx.managed_repository()
-                            .checkpoint_api_input(ctx.system_admin().id(), &operation, &configured)
-                            .await?
-                    },
+                    configured
+                } else {
+                    let services = systemprompt_loader::ConfigLoader::load().map_err(|_error| {
+                        systemprompt_evaluation::EvaluationError::InvalidSpec(
+                            "Configured inventory unavailable".to_owned(),
+                        )
+                    })?;
+                    let root = ctx.app_paths().system().services().to_path_buf();
+                    let configured = tokio::task::spawn_blocking(move || {
+                        systemprompt_marketplace::inventory::scan_configured_inventory(
+                            &root, &services,
+                        )
+                    })
+                    .await
+                    .map_err(|_error| {
+                        systemprompt_evaluation::EvaluationError::InvalidSpec(
+                            "Inventory scan unavailable".to_owned(),
+                        )
+                    })??;
+                    ctx.managed_repository()
+                        .checkpoint_api_input(ctx.system_admin().id(), &operation, &configured)
+                        .await?
                 };
                 Ok(ctx
                     .managed_repository()
@@ -72,7 +71,7 @@ pub(super) async fn refresh(
             .await;
             match result {
                 Ok(_) => operations::response(
-                    ctx.managed_repository()
+                    &ctx.managed_repository()
                         .api_operation(ctx.system_admin().id(), &operation.id)
                         .await?,
                 )?,
@@ -114,28 +113,27 @@ pub(super) async fn capture(
     }
     let claim = operations::begin(&ctx, &headers, "source_capture", &(&source, &input)).await?;
     let response: OperationResponse<ImportedSkills> = match claim {
-        ApiOperationClaim::Retained(operation) => operations::response(operation)?,
+        ApiOperationClaim::Retained(operation) => operations::response(&operation)?,
         ApiOperationClaim::Acquired(operation) => {
             let result = async {
-                let captured = match ctx
+                let captured = if let Some(captured) = ctx
                     .managed_repository()
                     .api_input::<CapturedSkills>(ctx.system_admin().id(), &operation)
                     .await?
                 {
-                    Some(captured) => captured,
-                    None => {
-                        let captured = super::campaigns::orchestrator(&ctx)
-                            .capture_authoring_input(
-                                ctx.system_admin().id(),
-                                &source,
-                                ctx.app_paths().system().services(),
-                                input.skill_ids,
-                            )
-                            .await?;
-                        ctx.managed_repository()
-                            .checkpoint_api_input(ctx.system_admin().id(), &operation, &captured)
-                            .await?
-                    },
+                    captured
+                } else {
+                    let captured = super::campaigns::orchestrator(&ctx)
+                        .capture_authoring_input(
+                            ctx.system_admin().id(),
+                            &source,
+                            ctx.app_paths().system().services(),
+                            input.skill_ids,
+                        )
+                        .await?;
+                    ctx.managed_repository()
+                        .checkpoint_api_input(ctx.system_admin().id(), &operation, &captured)
+                        .await?
                 };
                 Ok(ctx
                     .managed_repository()
@@ -160,14 +158,14 @@ pub(super) async fn verify(
     headers: HeaderMap,
     Json(input): Json<DependencyVerificationRequest>,
 ) -> Result<impl axum::response::IntoResponse, OptimizationHttpError> {
-    input.validate().map_err(|_| {
+    input.validate().map_err(|_error| {
         systemprompt_evaluation::EvaluationError::InvalidSpec(
             "Dependency verification manifest is incomplete".to_owned(),
         )
     })?;
     let claim = operations::begin(&ctx, &headers, "source_verification", &input).await?;
     let response: OperationResponse<DependencyVerificationManifest> = match claim {
-        ApiOperationClaim::Retained(operation) => operations::response(operation)?,
+        ApiOperationClaim::Retained(operation) => operations::response(&operation)?,
         ApiOperationClaim::Acquired(operation) => {
             let result =
                 systemprompt_runtime::optimization::git_sources::GitSourceOrchestrator::new(

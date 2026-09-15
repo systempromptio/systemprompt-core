@@ -84,7 +84,7 @@ pub(super) async fn begin<T: Serialize + Sync>(
         .await?)
 }
 pub(super) fn response<T: serde::de::DeserializeOwned>(
-    operation: ApiOperation,
+    operation: &ApiOperation,
 ) -> Result<OperationResponse<T>, OptimizationHttpError> {
     let result = operation
         .result
@@ -93,7 +93,7 @@ pub(super) fn response<T: serde::de::DeserializeOwned>(
         .transpose()
         .map_err(systemprompt_evaluation::EvaluationError::from)?;
     Ok(OperationResponse {
-        operation: OperationStatus::from(&operation),
+        operation: OperationStatus::from(operation),
         result,
     })
 }
@@ -108,7 +108,7 @@ pub(super) async fn finish<T: Serialize + serde::de::DeserializeOwned + Sync>(
                 .finish_api_operation(ctx.system_admin().id(), operation, &result)
                 .await?;
             response(
-                ctx.managed_repository()
+                &ctx.managed_repository()
                     .api_operation(ctx.system_admin().id(), &operation.id)
                     .await?,
             )

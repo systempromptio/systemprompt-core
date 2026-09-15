@@ -39,7 +39,7 @@ pub(super) async fn validate(request: Request) -> Result<Request, Response> {
     let (parts, body) = request.into_parts();
     let bytes = to_bytes(body, BODY_LIMIT)
         .await
-        .map_err(|_| problem(StatusCode::PAYLOAD_TOO_LARGE, "JSON request exceeds 1 MiB"))?;
+        .map_err(|_error| problem(StatusCode::PAYLOAD_TOO_LARGE, "JSON request exceeds 1 MiB"))?;
     // JSON: inspect the bounded transport envelope before its typed extractor;
     // values remain immutable and are not used as application contracts.
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {

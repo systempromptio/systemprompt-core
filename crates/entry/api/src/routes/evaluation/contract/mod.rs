@@ -1,4 +1,4 @@
-//! Uniform request bounds, problem details and generated OpenAPI contracts.
+//! Uniform request bounds, problem details and generated `OpenAPI` contracts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

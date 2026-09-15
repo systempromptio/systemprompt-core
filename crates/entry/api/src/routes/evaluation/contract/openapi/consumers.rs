@@ -7,7 +7,10 @@ use crate::routes::evaluation::consumer;
 use systemprompt_marketplace::managed::consumer::{
     ConsumerAttribution, ConsumerInvocationRequest, ConsumerSessionBinding,
 };
-use systemprompt_models::feedback::receipts::*;
+use systemprompt_models::feedback::receipts::{
+    ConsumerInstallationPlan, ConsumerReceiptRequest, ConsumerReceiptResponse,
+    SessionBindingRequest,
+};
 pub(super) fn register(d: &mut Document) {
     d.add::<(), consumer::Enrollment>("/consumer-devices/enrollment", "post", 200, true);
     d.add::<(), consumer::admin::CredentialIssueResponse>(

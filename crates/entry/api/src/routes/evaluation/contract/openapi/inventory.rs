@@ -6,7 +6,11 @@ use super::builder::Document;
 use crate::routes::evaluation::collections::Page;
 use crate::routes::evaluation::inventory as api;
 use crate::routes::evaluation::operations::OperationResponse;
-use systemprompt_marketplace::inventory::*;
+use systemprompt_marketplace::inventory::{
+    BaselineCapture, BaselinePreparation, InstallationCoverage, InstallationCoverageStatus,
+    InventoryEntry, InventoryGitBinding, InventoryReconciliation, InventoryStatus,
+    ObservedMembership,
+};
 pub(super) fn register(d: &mut Document) {
     d.add::<(), api::Page>("/inventory", "get", 200, false);
     d.query::<api::Cursor>("/inventory", "get");

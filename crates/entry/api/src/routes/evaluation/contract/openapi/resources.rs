@@ -14,7 +14,9 @@ use systemprompt_evaluation::experiments::records::{
 use systemprompt_evaluation::experiments::resources::ResourceContent;
 use systemprompt_identifiers::{EvalBudgetId, EvalRevisionId, ManagedSourceId};
 use systemprompt_marketplace::managed::{ImportedSkills, RevisionBundle, SourceSpec};
-use systemprompt_models::feedback::verification::*;
+use systemprompt_models::feedback::verification::{
+    DependencyVerificationManifest, DependencyVerificationRequest,
+};
 pub(super) fn register(d: &mut Document) {
     d.add::<(), Page<ExperimentRecord>>("/experiments", "get", 200, false);
     d.query::<Cursor>("/experiments", "get");

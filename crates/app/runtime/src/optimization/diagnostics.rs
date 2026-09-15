@@ -9,30 +9,35 @@ use systemprompt_evaluation::campaigns::report::CampaignReport;
 use systemprompt_evaluation::repository::experiments::CampaignExperiment;
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, UserId};
 
+#[derive(Debug, Clone, Copy)]
+pub(super) struct DiagnosticContext<'a> {
+    pub owner: &'a UserId,
+    pub actor: &'a UserId,
+    pub campaign: &'a EvalCampaignId,
+    pub key: &'a str,
+    pub stage: DiagnosticStage,
+}
+
 impl SkillOptimizationOrchestrator {
     pub(super) async fn blocked(
         &self,
-        owner: &UserId,
-        actor: &UserId,
-        campaign: &EvalCampaignId,
-        key: &str,
-        stage: DiagnosticStage,
+        ctx: &DiagnosticContext<'_>,
         code: DiagnosticCode,
     ) -> Result<(), OptimizationError> {
         let operation = format!(
             "{}:{}",
-            campaign,
-            systemprompt_evaluation::experiments::content_digest(&key)?
+            ctx.campaign,
+            systemprompt_evaluation::experiments::content_digest(&ctx.key)?
         );
         self.evaluations
             .campaigns
             .record_diagnostic(
-                owner,
+                ctx.owner,
                 systemprompt_evaluation::campaigns::diagnostics::DiagnosticRecord {
-                    actor,
-                    campaign: Some(campaign),
+                    actor: ctx.actor,
+                    campaign: Some(ctx.campaign),
                     operation: &operation,
-                    stage,
+                    stage: ctx.stage,
                     code,
                 },
             )
@@ -58,18 +63,14 @@ impl SkillOptimizationOrchestrator {
     }
     pub(super) async fn retain_failure(
         &self,
-        owner: &UserId,
-        actor: &UserId,
-        campaign: &EvalCampaignId,
-        key: &str,
-        stage: DiagnosticStage,
+        ctx: &DiagnosticContext<'_>,
         error: &OptimizationError,
     ) -> Result<(), OptimizationError> {
         let code = match error {
             OptimizationError::Evaluation(error) => DiagnosticCode::from_error(error),
             _ => DiagnosticCode::InvalidInput,
         };
-        self.blocked(owner, actor, campaign, key, stage, code).await
+        self.blocked(ctx, code).await
     }
     pub async fn launch(
         &self,
@@ -79,15 +80,14 @@ impl SkillOptimizationOrchestrator {
     ) -> Result<EvalExperimentId, OptimizationError> {
         let result = self.launch_inner(owner, actor, input).await;
         if let Err(error) = &result {
-            self.retain_failure(
+            let ctx = DiagnosticContext {
                 owner,
                 actor,
-                &input.campaign_id,
-                &input.idempotency_key,
-                DiagnosticStage::Launch,
-                error,
-            )
-            .await?;
+                campaign: &input.campaign_id,
+                key: &input.idempotency_key,
+                stage: DiagnosticStage::Launch,
+            };
+            self.retain_failure(&ctx, error).await?;
         } else {
             self.resolve_blocked(owner, &input.campaign_id, &input.idempotency_key)
                 .await?;
@@ -102,15 +102,14 @@ impl SkillOptimizationOrchestrator {
     ) -> Result<Option<EvalExperimentId>, OptimizationError> {
         let result = self.advance_inner(owner, actor, campaign).await;
         if let Err(error) = &result {
-            self.retain_failure(
+            let ctx = DiagnosticContext {
                 owner,
                 actor,
                 campaign,
-                "automatic",
-                DiagnosticStage::AutomaticFollowup,
-                error,
-            )
-            .await?;
+                key: "automatic",
+                stage: DiagnosticStage::AutomaticFollowup,
+            };
+            self.retain_failure(&ctx, error).await?;
         } else if matches!(&result, Ok(Some(_))) {
             self.resolve_blocked(owner, campaign, "automatic").await?;
         }
@@ -124,15 +123,14 @@ impl SkillOptimizationOrchestrator {
     ) -> Result<CampaignReport, OptimizationError> {
         let result = self.report_inner(owner, campaign, experiment).await;
         if let Err(error) = &result {
-            self.retain_failure(
+            let ctx = DiagnosticContext {
                 owner,
-                owner,
+                actor: owner,
                 campaign,
-                experiment.as_str(),
-                DiagnosticStage::Report,
-                error,
-            )
-            .await?;
+                key: experiment.as_str(),
+                stage: DiagnosticStage::Report,
+            };
+            self.retain_failure(&ctx, error).await?;
         } else {
             self.resolve_blocked(owner, campaign, experiment.as_str())
                 .await?;

@@ -4,17 +4,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_evaluation::campaigns::OptimizationObjective;
-use systemprompt_evaluation::experiments::Objective;
-use systemprompt_evaluation::experiments::records::ExperimentStatus;
+use systemprompt_evaluation::campaigns::diagnostics::{DiagnosticCode, DiagnosticStage};
+use systemprompt_evaluation::campaigns::suggestions::RetainedSuggestion;
+use systemprompt_evaluation::campaigns::{CampaignPolicy, OptimizationObjective};
+use systemprompt_evaluation::experiments::records::{ExperimentDetail, ExperimentStatus};
 use systemprompt_evaluation::experiments::resources::{Partition, ResourceContent};
+use systemprompt_evaluation::experiments::{ExperimentSpec, Objective};
 use systemprompt_evaluation::repository::experiments::{
     CampaignExperiment, ManagedWorkspaceRegistration,
 };
 use systemprompt_identifiers::{EvalCampaignId, EvalExperimentId, ResourceRevisionId, UserId};
 
+use super::diagnostics::DiagnosticContext;
 use super::{OptimizationError, SkillOptimizationOrchestrator};
-
 
 impl SkillOptimizationOrchestrator {
     pub(super) async fn launch_inner(
@@ -58,7 +60,7 @@ impl SkillOptimizationOrchestrator {
         &self,
         owner: &UserId,
         campaign_id: &EvalCampaignId,
-        spec: &systemprompt_evaluation::experiments::ExperimentSpec,
+        spec: &ExperimentSpec,
     ) -> Result<(), OptimizationError> {
         let campaign = self.evaluations.campaigns.get(owner, campaign_id).await?;
         let baseline = self
@@ -108,57 +110,70 @@ impl SkillOptimizationOrchestrator {
         if campaign.status != "active" || !campaign.policy.automatic {
             return Ok(None);
         }
+        let ctx = DiagnosticContext {
+            owner,
+            actor,
+            campaign: id,
+            key: "automatic",
+            stage: DiagnosticStage::AutomaticFollowup,
+        };
         if experiments.len() >= campaign.policy.maximum_iterations as usize {
-            self.blocked(
-                owner,
-                actor,
-                id,
-                "automatic",
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup,
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::IterationLimit,
-            )
-            .await?;
+            self.blocked(&ctx, DiagnosticCode::IterationLimit).await?;
             return Ok(None);
         }
         let Some(previous) = experiments.last() else {
-            self.blocked(
-                owner,
-                actor,
-                id,
-                "automatic",
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup,
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::MissingTemplate,
-            )
-            .await?;
+            self.blocked(&ctx, DiagnosticCode::MissingTemplate).await?;
             return Ok(None);
         };
-        let detail = self.evaluations.experiments.get(owner, previous).await?;
+        let Some((detail, suggestion)) = self.select_followup(&ctx, previous).await? else {
+            return Ok(None);
+        };
+        let revision = self
+            .apply_suggestion(
+                owner,
+                &campaign.policy,
+                &detail.experiment.spec.variants[1],
+                &suggestion,
+            )
+            .await?;
+        let digest = self.register_workspace(owner, &revision).await?;
+        let spec = self
+            .development_followup_spec(owner, detail.experiment.spec, digest, &campaign.policy)
+            .await?;
+        let input = CampaignExperiment {
+            campaign_id: id.clone(),
+            idempotency_key: format!("suggestion:{}", suggestion.id),
+            spec,
+        };
+        Ok(Some(self.launch(owner, actor, &input).await?))
+    }
+
+    async fn select_followup(
+        &self,
+        ctx: &DiagnosticContext<'_>,
+        previous: &EvalExperimentId,
+    ) -> Result<Option<(ExperimentDetail, RetainedSuggestion)>, OptimizationError> {
+        let detail = self
+            .evaluations
+            .experiments
+            .get(ctx.owner, previous)
+            .await?;
         if detail.experiment.status != ExperimentStatus::Completed
             || detail.experiment.spec.variants.len() != 2
+            || detail.experiment.spec.claim_independent_improvement
         {
-            return Ok(None);
-        }
-        if detail.experiment.spec.claim_independent_improvement {
             return Ok(None);
         }
         let suggestions = self
             .evaluations
             .lifecycle
-            .list_suggestions(owner, previous)
+            .list_suggestions(ctx.owner, previous)
             .await?;
         let Some(suggestion) = suggestions
-            .iter()
+            .into_iter()
             .find(|suggestion| suggestion.status == "draft")
         else {
-            self.blocked(
-                owner,
-                actor,
-                id,
-                "automatic",
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup,
-                systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::MissingSuggestion,
-            )
-            .await?;
+            self.blocked(ctx, DiagnosticCode::MissingSuggestion).await?;
             return Ok(None);
         };
         if !self
@@ -167,19 +182,20 @@ impl SkillOptimizationOrchestrator {
             .execution_availability(&detail.experiment.spec)
             .admitted
         {
-            self.blocked(owner, actor, id, "automatic", systemprompt_evaluation::campaigns::diagnostics::DiagnosticStage::AutomaticFollowup, systemprompt_evaluation::campaigns::diagnostics::DiagnosticCode::UnsupportedCapability).await?;
+            self.blocked(ctx, DiagnosticCode::UnsupportedCapability)
+                .await?;
             return Ok(None);
         }
-        let revision = self
-            .apply_suggestion(
-                owner,
-                &campaign.policy,
-                &detail.experiment.spec.variants[1],
-                suggestion,
-            )
-            .await?;
-        let digest = self.register_workspace(owner, &revision).await?;
-        let mut spec = detail.experiment.spec;
+        Ok(Some((detail, suggestion)))
+    }
+
+    async fn development_followup_spec(
+        &self,
+        owner: &UserId,
+        mut spec: ExperimentSpec,
+        candidate_digest: String,
+        policy: &CampaignPolicy,
+    ) -> Result<ExperimentSpec, OptimizationError> {
         let mut development = Vec::new();
         for case in &spec.cases {
             if let ResourceContent::Case(content) = self.revisions.get(owner, case).await?
@@ -195,20 +211,16 @@ impl SkillOptimizationOrchestrator {
         }
         spec.cases = development;
         spec.claim_independent_improvement = false;
-        spec.variants[1].skill_bundle_digest = digest;
-        spec.objective = match campaign.policy.objective {
+        spec.variants[1].skill_bundle_digest = candidate_digest;
+        spec.objective = match policy.objective {
             OptimizationObjective::Quality => Objective::Quality,
             OptimizationObjective::Tokens => Objective::Tokens,
             OptimizationObjective::Cost => Objective::Cost,
             OptimizationObjective::Latency => Objective::Latency,
         };
-        let input = CampaignExperiment {
-            campaign_id: id.clone(),
-            idempotency_key: format!("suggestion:{}", suggestion.id),
-            spec,
-        };
-        Ok(Some(self.launch(owner, actor, &input).await?))
+        Ok(spec)
     }
+
 
     pub async fn register_workspace(
         &self,
