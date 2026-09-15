@@ -151,7 +151,10 @@ async fn get_user_usage_for_a_user_with_no_requests_is_zero() {
     };
     let uid = user();
 
-    let usage = repo.get_user_usage(&uid).await.expect("zero usage, not RowNotFound");
+    let usage = repo
+        .get_user_usage(&uid)
+        .await
+        .expect("zero usage, not RowNotFound");
     assert_eq!(usage.user_id, uid);
     assert_eq!(usage.request_count, 0);
     assert_eq!(usage.total_tokens, 0);
@@ -331,42 +334,4 @@ async fn insert_and_get_tool_calls() {
     assert_eq!(calls[0].tool_name, "search");
     assert_eq!(calls[0].tool_input, r#"{"q":"rust"}"#);
     assert!(calls[0].mcp_execution_id.is_none());
-}
-
-#[tokio::test]
-async fn link_tool_calls_empty_input_returns_zero() {
-    let Some((repo, _pool)) = repo_or_skip().await else {
-        return;
-    };
-    let affected = repo
-        .link_tool_calls_to_recent_executions(&[])
-        .await
-        .expect("link");
-    assert_eq!(affected, 0);
-}
-
-#[tokio::test]
-async fn link_tool_calls_no_matching_executions_affects_zero() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
-    let uid = user();
-    let id = seed_request(&pool, &uid).await;
-    let call_id = AiToolCallId::new(Uuid::new_v4().to_string());
-    repo.insert_tool_call(InsertToolCallParams {
-        request_id: &id,
-        ai_tool_call_id: &call_id,
-        tool_name: "noop",
-        tool_input: "{}",
-        sequence_number: 0,
-    })
-    .await
-    .expect("insert");
-
-    // No mcp_tool_executions row references this call id, so nothing links.
-    let affected = repo
-        .link_tool_calls_to_recent_executions(&[call_id])
-        .await
-        .expect("link");
-    assert_eq!(affected, 0);
 }

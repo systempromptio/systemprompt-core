@@ -6644,7 +6644,6 @@ dependencies = [
  "chrono",
  "futures",
  "hex",
- "hmac 0.13.0",
  "http",
  "inventory",
  "nix",
@@ -6655,7 +6654,6 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.0",
  "sqlx",
- "systemprompt-client",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",
@@ -6680,7 +6678,6 @@ version = "0.0.11"
 dependencies = [
  "anyhow",
  "chrono",
- "rmcp",
  "serde_json",
  "sqlx",
  "systemprompt-agent",

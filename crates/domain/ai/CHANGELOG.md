@@ -34,6 +34,10 @@
 
 - `AiProvider` implementations return `AiInferenceError` (`From<AiError>`) instead of a boxed error; tool definitions carry `ToolModelConfig` directly, so a model override is no longer round-tripped through JSON.
 
+### Removed
+
+- `AiRequestRepository::link_tool_calls_to_recent_executions`: the ai crate no longer reads the mcp-owned `mcp_tool_executions` table.
+
 ## [0.52.0] - 2026-09-14
 
 ### Breaking

@@ -20,7 +20,6 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-test-mocks = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
-rmcp = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }

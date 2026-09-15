@@ -386,7 +386,11 @@ async fn dropped_stream_persists_a_failed_audit_row_with_the_usage_seen_so_far()
     let request = user_request(ANTHROPIC_MODEL, ctx);
 
     let mut stream = svc.generate_stream(&request).await.expect("stream ok");
-    let first = stream.next().await.expect("a first chunk").expect("chunk ok");
+    let first = stream
+        .next()
+        .await
+        .expect("a first chunk")
+        .expect("chunk ok");
     assert!(matches!(first, StreamChunk::Text(_)));
     drop(stream);
 

@@ -29,7 +29,6 @@ systemprompt-extension = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true, features = ["web", "sqlx"] }
-systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-traits = { workspace = true }
 inventory = { workspace = true }
@@ -77,7 +76,6 @@ chrono = { workspace = true }
 reqwest = { workspace = true }
 
 # Cryptographic hashing for webhooks
-hmac = { workspace = true }
 
 # Hex encoding/decoding
 hex = { workspace = true }
