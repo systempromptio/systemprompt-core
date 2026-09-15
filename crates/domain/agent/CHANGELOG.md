@@ -39,6 +39,7 @@
 
 - Agent-card `securitySchemes` / `security` are read from the typed config; `services::registry::security::convert_json_security_to_struct` is removed. A malformed block is a config load error rather than a warning that drops the schemes.
 - Registry, JWT and tool-provider seams use `AgentName`, `UserId` and `McpServerId` where strings were accepted.
+- `PersistOutcome::record_undelivered_broadcasts` is called by both persistence consumers; the persistence step no longer logs undelivered artifact broadcasts itself.
 
 ### Removed
 

@@ -98,6 +98,7 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
             code: "PERSISTENCE_ERROR",
             message: format!("Failed to complete task and persist messages: {e}"),
         })?;
+    outcome.record_undelivered_broadcasts();
 
     broadcast_task_success(BroadcastTaskSuccessParams {
         tx,

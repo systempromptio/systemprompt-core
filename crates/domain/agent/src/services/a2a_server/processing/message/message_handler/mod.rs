@@ -22,7 +22,7 @@ use self::helpers::{
 };
 use crate::models::a2a::{Message, Task, TaskState};
 use crate::services::a2a_server::processing::message::persistence::{
-    broadcast_completion, persist_completed_task,
+    PersistOutcome, broadcast_completion, persist_completed_task,
 };
 use crate::services::a2a_server::processing::message::stream_processor::StreamProcessor;
 use crate::services::a2a_server::processing::message::{
@@ -135,7 +135,8 @@ impl MessageProcessor {
         }
 
         self.persist_or_mark_failed(&task, &message, &agent_message, context)
-            .await?;
+            .await?
+            .record_undelivered_broadcasts();
 
         broadcast_completion(self.webhooks(), &task, context).await;
 
@@ -252,8 +253,8 @@ impl MessageProcessor {
         user_message: &Message,
         agent_message: &Message,
         context: &RequestContext,
-    ) -> Result<()> {
-        let Err(e) = persist_completed_task(
+    ) -> Result<PersistOutcome> {
+        let outcome = persist_completed_task(
             crate::services::a2a_server::processing::message::persistence::PersistCompletedTaskParams {
                 task,
                 user_message,
@@ -265,9 +266,10 @@ impl MessageProcessor {
                 artifacts_already_published: false,
             },
         )
-        .await
-        else {
-            return Ok(());
+        .await;
+        let e = match outcome {
+            Ok(outcome) => return Ok(outcome),
+            Err(e) => e,
         };
 
         let error_msg = format!("Failed to persist completed task: {e}");

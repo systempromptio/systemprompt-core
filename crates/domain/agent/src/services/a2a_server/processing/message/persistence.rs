@@ -23,11 +23,25 @@ use crate::services::a2a_server::streaming::webhook_client::{
 };
 
 /// The persisted task plus the artifact broadcasts that could not be
-/// delivered. The task is committed whether or not the list is empty.
+/// delivered. The task is committed whether or not the list is empty; the
+/// consumer records each undelivered broadcast, never this module.
 #[derive(Debug)]
 pub struct PersistOutcome {
     pub task: Task,
     pub undelivered_broadcasts: Vec<(ArtifactId, WebhookError)>,
+}
+
+impl PersistOutcome {
+    pub fn record_undelivered_broadcasts(&self) {
+        for (artifact_id, error) in &self.undelivered_broadcasts {
+            tracing::warn!(
+                artifact_id = %artifact_id,
+                task_id = %self.task.id,
+                error = %error,
+                "artifact persisted but its broadcast was not delivered"
+            );
+        }
+    }
 }
 
 pub struct PersistCompletedTaskParams<'a> {
@@ -99,12 +113,6 @@ pub async fn persist_completed_task(
             if let Err(e) =
                 broadcast_artifact_created(&webhooks, artifact, &task.id, context_id).await
             {
-                tracing::warn!(
-                    artifact_id = %artifact.id,
-                    task_id = %task.id,
-                    error = %e,
-                    "artifact persisted but its broadcast was not delivered"
-                );
                 undelivered_broadcasts.push((artifact.id.clone(), e));
             }
         }
