@@ -128,3 +128,86 @@ async fn increment_ai_usage_maps_pool_failure_to_internal() {
         .expect_err("closed pool must fail");
     assert!(matches!(err, AiProviderError::Internal(_)));
 }
+
+#[tokio::test]
+async fn find_live_session_reports_only_a_live_session() {
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    ensure_test_bootstrap();
+    let pool = fixture_db_pool(&url).await.expect("pool");
+    let repo = SessionRepository::new(&pool).expect("session repository");
+    let provider = UsersAiSessionProvider::from_repository(
+        SessionRepository::new(&pool).expect("session repository"),
+    );
+
+    let live = unique_session_id();
+    let expired = unique_session_id();
+    let revoked = unique_session_id();
+    for (sid, expires_at) in [
+        (&live, Utc::now() + Duration::hours(1)),
+        (&expired, Utc::now() - Duration::minutes(1)),
+        (&revoked, Utc::now() + Duration::hours(1)),
+    ] {
+        provider
+            .create_session(CreateAiSessionParams {
+                session_id: sid,
+                user_id: None,
+                session_source: SessionSource::Cli,
+                expires_at,
+            })
+            .await
+            .expect("create");
+    }
+    repo.revoke_session(&revoked).await.expect("revoke");
+
+    assert!(
+        provider
+            .find_live_session(&live)
+            .await
+            .expect("lookup")
+            .is_some(),
+        "an unexpired, unrevoked session is live"
+    );
+    assert!(
+        provider
+            .find_live_session(&expired)
+            .await
+            .expect("lookup")
+            .is_none(),
+        "an expired session is not live"
+    );
+    assert!(
+        provider
+            .find_live_session(&revoked)
+            .await
+            .expect("lookup")
+            .is_none(),
+        "a revoked session is not live"
+    );
+    assert!(
+        provider
+            .find_live_session(&unique_session_id())
+            .await
+            .expect("lookup")
+            .is_none()
+    );
+
+    for sid in [&live, &expired, &revoked] {
+        cleanup(&pool, sid).await;
+    }
+}
+
+#[tokio::test]
+async fn find_live_session_maps_pool_failure_to_internal() {
+    let pool = closed_db_pool().await;
+    let provider = UsersAiSessionProvider::from_repository(
+        SessionRepository::new(&pool).expect("session repository"),
+    );
+
+    let err = provider
+        .find_live_session(&unique_session_id())
+        .await
+        .expect_err("closed pool must fail");
+    assert!(matches!(err, AiProviderError::Internal(_)));
+}

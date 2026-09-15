@@ -135,7 +135,7 @@ pub(super) async fn find_active_by_id(
         r#"
         SELECT user_id as "user_id?: UserId"
         FROM user_sessions
-        WHERE session_id = $1 AND revoked_at IS NULL
+        WHERE session_id = $1 AND revoked_at IS NULL AND expires_at > CURRENT_TIMESTAMP
         "#,
         id
     )

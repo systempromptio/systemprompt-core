@@ -6,7 +6,7 @@
 use async_trait::async_trait;
 use systemprompt_identifiers::SessionId;
 use systemprompt_traits::{
-    AiProviderError, AiProviderResult, AiSessionProvider, CreateAiSessionParams,
+    ActiveSession, AiProviderError, AiProviderResult, AiSessionProvider, CreateAiSessionParams,
 };
 
 use super::SessionRepository;
@@ -70,5 +70,19 @@ impl AiSessionProvider for UsersAiSessionProvider {
             .increment_ai_usage(session_id, tokens, cost_microdollars)
             .await
             .map_err(|e| AiProviderError::Internal(e.to_string()))
+    }
+
+    async fn find_live_session(
+        &self,
+        session_id: &SessionId,
+    ) -> AiProviderResult<Option<ActiveSession>> {
+        let session = self
+            .session_repo
+            .find_active_by_id(session_id)
+            .await
+            .map_err(|e| AiProviderError::Internal(e.to_string()))?;
+        Ok(session.map(|row| ActiveSession {
+            user_id: row.user_id,
+        }))
     }
 }
