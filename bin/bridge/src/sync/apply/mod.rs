@@ -169,7 +169,11 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
                 host_id,
                 format!("Installation evidence unacknowledged: {error}"),
             );
-            if matches!(error, crate::feedback::FeedbackError::Readback) {
+            if matches!(
+                error,
+                crate::feedback::FeedbackError::Readback
+                    | crate::feedback::FeedbackError::Contract(_)
+            ) {
                 report.host_failures.push(HostFailure {
                     host_id: HostId::new(host_id),
                     emitter: "installation-evidence".to_owned(),
