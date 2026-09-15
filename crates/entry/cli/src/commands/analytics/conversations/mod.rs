@@ -62,7 +62,6 @@ pub struct ConversationTrendsOutput {
 pub struct ConversationListRow {
     #[serde(rename = "context_id")]
     pub context: String,
-    /// `agent` for an A2A task context, `gateway` for a `/v1/messages` session.
     pub source: String,
     pub user_id: UserId,
     pub name: Option<String>,

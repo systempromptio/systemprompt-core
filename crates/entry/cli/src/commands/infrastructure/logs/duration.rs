@@ -44,7 +44,6 @@ pub fn parse_since(since: Option<&String>) -> Result<Option<DateTime<Utc>>> {
     parse_bound(since, "--since")
 }
 
-/// Same grammar as `--since`; a duration means "that long ago".
 pub fn parse_until(until: Option<&String>) -> Result<Option<DateTime<Utc>>> {
     parse_bound(until, "--until")
 }

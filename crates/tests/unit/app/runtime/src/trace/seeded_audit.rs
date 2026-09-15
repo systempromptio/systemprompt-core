@@ -372,10 +372,16 @@ async fn audit_and_request_queries_map_seeded_rows() {
     assert_eq!(svc.count_audit_messages(&request_id).await.unwrap(), 1);
     assert_eq!(svc.count_audit_tool_calls(&request_id).await.unwrap(), 1);
     assert!(
-        svc.list_audit_messages(&request_id, AuditPage { offset: 1, limit: 20 })
-            .await
-            .unwrap()
-            .is_empty(),
+        svc.list_audit_messages(
+            &request_id,
+            AuditPage {
+                offset: 1,
+                limit: 20
+            }
+        )
+        .await
+        .unwrap()
+        .is_empty(),
         "an offset past the last row yields an empty page"
     );
 
@@ -687,6 +693,12 @@ async fn request_list_pages_backwards_with_until_and_before_cursor() {
         .await
         .unwrap();
     let bounded_ids: Vec<&str> = bounded.iter().map(|r| r.id.as_str()).collect();
-    assert!(bounded_ids.contains(&ids[2].as_str()), "3 minutes old is before --until");
-    assert!(!bounded_ids.contains(&ids[0].as_str()), "1 minute old is after --until");
+    assert!(
+        bounded_ids.contains(&ids[2].as_str()),
+        "3 minutes old is before --until"
+    );
+    assert!(
+        !bounded_ids.contains(&ids[0].as_str()),
+        "1 minute old is after --until"
+    );
 }

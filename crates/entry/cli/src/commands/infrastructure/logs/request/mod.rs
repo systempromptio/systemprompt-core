@@ -98,8 +98,6 @@ pub enum RequestCommands {
 pub struct RequestListRow {
     pub request_id: String,
     pub timestamp: String,
-    /// Keyset cursor (`<created_at RFC3339>@<request_id>`) for `--before`; serialized
-    /// for machine readers, not a terminal column.
     pub cursor: String,
     pub user_id: UserId,
     pub actor: String,
