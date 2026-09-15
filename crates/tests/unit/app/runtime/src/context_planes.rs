@@ -105,9 +105,10 @@ async fn plane_debug_impls_flag_optional_members() {
         feedback_facts_repository: Arc::new(
             systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
         ),
-        managed_repository: Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-            sqlx_pool.clone(),
-        )),
+        managed_repository: Arc::new(
+            systemprompt_marketplace::managed::ManagedRepository::new(&pool)
+                .expect("managed repository"),
+        ),
         evaluation_repositories: Arc::new(
             systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)
                 .expect("evaluation repositories"),

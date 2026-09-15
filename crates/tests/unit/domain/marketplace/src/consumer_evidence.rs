@@ -323,7 +323,7 @@ async fn catalog_cannot_restore_explicit_revocation_and_revoked_credentials_fail
 #[tokio::test]
 async fn historical_receipts_keep_unknown_consumer_and_device_without_session_binding() {
     use systemprompt_marketplace::managed::{
-        AssetDigest, InstallationReceiptRequest, InstalledFile,
+        AssetDigest, ClientEvidence, InstallationReceiptRequest, InstalledFile,
     };
     let f = fixture().await;
     let delivery = f
@@ -337,7 +337,9 @@ async fn historical_receipts_keep_unknown_consumer_and_device_without_session_bi
         .await
         .unwrap();
     let historical = InstallationReceiptRequest {
-        installation_id: "historical-install".to_owned(),
+        installation_id: systemprompt_identifiers::ConsumerInstallationId::new(
+            "historical-install",
+        ),
         publication_id: f.request.publication_id.clone(),
         resource_id: f.request.resource_id.clone(),
         generation: f.request.generation,
@@ -354,7 +356,11 @@ async fn historical_receipts_keep_unknown_consumer_and_device_without_session_bi
                 executable: file.executable,
             })
             .collect(),
-        client_evidence: serde_json::json!({"session_id":"historical-session", "owner_id":f.owner}),
+        client_evidence: ClientEvidence {
+            session_id: systemprompt_identifiers::SessionId::new("historical-session"),
+            owner_id: f.owner.clone(),
+            recorded: std::collections::BTreeMap::new(),
+        },
     };
     let receipt = f
         .repo
@@ -408,7 +414,8 @@ async fn rollback_requires_new_session_and_preserves_original_attribution_after_
                 action: PublicationAction::Rollback,
                 expected_generation: 1,
                 operation_key: "rollback".to_owned(),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )

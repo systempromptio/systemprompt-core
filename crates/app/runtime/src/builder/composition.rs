@@ -91,8 +91,8 @@ pub(super) fn build_repositories(
         .pool_arc()
         .map_err(|error| crate::error::RuntimeError::Internal(error.to_string()))?;
     let managed = Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
-        pool.as_ref().clone(),
-    ));
+        database,
+    )?);
     let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?);
     let managed_revisions: systemprompt_traits::DynManagedRevisionOwnership =
         Arc::new(managed.as_ref().clone());

@@ -61,15 +61,34 @@ pub enum GitSyncResult {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+pub enum WithdrawalStatus {
+    Pending,
+    Approved,
+    Rejected,
+}
+
+impl WithdrawalStatus {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Approved => "approved",
+            Self::Rejected => "rejected",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithdrawalProposal {
-    pub id: String,
-    pub resource_id: String,
-    pub snapshot_id: String,
+    pub id: WithdrawalProposalId,
+    pub resource_id: ManagedResourceId,
+    pub snapshot_id: SourceSnapshotId,
     pub reason: String,
-    pub status: String,
+    pub status: WithdrawalStatus,
     pub created_at: chrono::DateTime<chrono::Utc>,
-    pub decided_by: Option<String>,
+    pub decided_by: Option<UserId>,
     pub decided_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -78,7 +97,7 @@ impl ManagedRepository {
         &self,
         owner: &UserId,
     ) -> Result<Vec<WithdrawalProposal>> {
-        Ok(sqlx::query_as!(WithdrawalProposal, "SELECT id,resource_id,snapshot_id,reason,status,created_at,decided_by,decided_at FROM managed_withdrawal_proposals WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 100",
+        Ok(sqlx::query_as!(WithdrawalProposal, r#"SELECT id AS "id: WithdrawalProposalId",resource_id AS "resource_id: ManagedResourceId",snapshot_id AS "snapshot_id: SourceSnapshotId",reason,status AS "status: WithdrawalStatus",created_at,decided_by AS "decided_by?: UserId",decided_at FROM managed_withdrawal_proposals WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 100"#,
             owner.as_str()).fetch_all(&self.pool).await?)
     }
 
@@ -89,9 +108,13 @@ impl ManagedRepository {
         proposal: &WithdrawalProposalId,
         approved: bool,
     ) -> Result<()> {
-        let status = if approved { "approved" } else { "rejected" };
+        let status = if approved {
+            WithdrawalStatus::Approved
+        } else {
+            WithdrawalStatus::Rejected
+        };
         let changed = sqlx::query!("UPDATE managed_withdrawal_proposals SET status=$4,decided_by=$2,decided_at=NOW() WHERE id=$1 AND owner_id=$3 AND status='pending'",
-            proposal.as_str(), actor.as_str(), owner.as_str(), status).execute(&self.pool).await?;
+            proposal.as_str(), actor.as_str(), owner.as_str(), status.as_str()).execute(&self.pool).await?;
         if changed.rows_affected() != 1 {
             return Err(ManagedError::Conflict(
                 "Withdrawal proposal is stale or unavailable".to_owned(),

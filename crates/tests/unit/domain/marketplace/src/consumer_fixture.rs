@@ -47,7 +47,7 @@ pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
         .expect("consumer");
     let cert = DeviceCertId::generate();
     sqlx::query!("INSERT INTO user_device_certs(id,user_id,fingerprint,label) VALUES($1,$2,$3,'consumer test')", cert.as_str(), consumer.as_str(), cert.as_str()).execute(&pool).await.expect("enrolled device");
-    let repo = ManagedRepository::new(pool.clone());
+    let repo = ManagedRepository::new(&db).expect("managed repository");
     let source = repo
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await
@@ -126,7 +126,8 @@ pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
                 action: PublicationAction::InitialAdoption,
                 expected_generation: 0,
                 operation_key: "initial".to_owned(),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )

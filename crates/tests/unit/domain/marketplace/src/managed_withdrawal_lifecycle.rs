@@ -3,8 +3,8 @@
 
 use crate::source_sync_fixture::{Fixture, files};
 use systemprompt_marketplace::managed::{
-    GitSyncResult, ManagedResolution, PublicationAction, PublicationRequest, ResourceKind,
-    RevisionFiles,
+    ComparisonEvidence, GitSyncResult, ManagedResolution, PublicationAction, PublicationRequest,
+    ResourceKind, RevisionFiles, WithdrawalStatus,
 };
 
 #[tokio::test]
@@ -29,8 +29,8 @@ async fn approved_removal_keeps_content_until_explicit_withdrawal_and_retains_bo
         .unwrap();
     let reviewed = f.repo.list_withdrawal_proposals(&f.owner).await.unwrap();
     assert_eq!(reviewed.len(), 1);
-    assert_eq!(reviewed[0].status, "approved");
-    assert_eq!(reviewed[0].decided_by.as_deref(), Some(f.owner.as_str()));
+    assert_eq!(reviewed[0].status, WithdrawalStatus::Approved);
+    assert_eq!(reviewed[0].decided_by.as_ref(), Some(&f.owner));
     assert!(reviewed[0].decided_at.is_some());
     assert_eq!(
         f.repo
@@ -56,7 +56,13 @@ async fn approved_removal_keeps_content_until_explicit_withdrawal_and_retains_bo
                 action: PublicationAction::Withdraw,
                 expected_generation: 1,
                 operation_key: "approved-source-removal".into(),
-                comparison_evidence: serde_json::json!({"withdrawal_proposal": proposal_id}),
+                comparison_evidence: ComparisonEvidence {
+                    experiment_id: None,
+                    recorded: std::collections::BTreeMap::from([(
+                        "withdrawal_proposal".to_owned(),
+                        serde_json::to_value(&proposal_id).unwrap(),
+                    )]),
+                },
                 limitations: "source removed; retained evidence remains available".into(),
             },
         )
@@ -74,8 +80,8 @@ async fn approved_removal_keeps_content_until_explicit_withdrawal_and_retains_bo
             .same_content(&files("base"))
     );
     let inventory = f.repo.list_resources(&f.owner, 0).await.unwrap();
-    assert_eq!(inventory.len(), 1);
-    assert_eq!(inventory[0].revision_count, 1);
+    assert_eq!(inventory.items.len(), 1);
+    assert_eq!(inventory.items[0].revision_count, 1);
     let history = f
         .repo
         .list_publication_history(&f.owner, &f.request.resource_id)
@@ -85,11 +91,11 @@ async fn approved_removal_keeps_content_until_explicit_withdrawal_and_retains_bo
     assert_eq!(history[0].decision, withdrawal);
     assert_eq!(history[1].decision.revision_id.as_ref(), Some(&revision_id));
     assert_eq!(
-        history[0].comparison_evidence["withdrawal_proposal"],
+        history[0].comparison_evidence.recorded["withdrawal_proposal"],
         serde_json::to_value(&proposal_id).unwrap()
     );
     assert_eq!(
         f.repo.list_withdrawal_proposals(&f.owner).await.unwrap()[0].status,
-        "approved"
+        WithdrawalStatus::Approved
     );
 }

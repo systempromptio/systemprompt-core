@@ -15,12 +15,11 @@ async fn missing_private_credentials_fail_identically_for_initial_import_sync_an
     let db = fixture_db_pool(&bootstrap.database_url)
         .await
         .expect("database");
-    let pool = db.write_pool_arc().expect("write pool");
     let owner = UserId::new(format!("git-credentials-{}", TraceId::generate()));
     seed_user_row(&db, &owner, &format!("{owner}@credentials.invalid"))
         .await
         .expect("owner");
-    let repository = ManagedRepository::new(pool.as_ref().clone());
+    let repository = ManagedRepository::new(&db).expect("managed repository");
     let reference = format!("absent-private-reference-{}", TraceId::generate());
     let source = repository
         .register_source(
@@ -82,7 +81,6 @@ async fn verification_resolves_each_dependency_source_and_rejects_non_git_regist
     let db = fixture_db_pool(&bootstrap.database_url)
         .await
         .expect("database");
-    let pool = db.write_pool_arc().expect("write pool");
     let owner = UserId::new(format!(
         "git-dependency-credentials-{}",
         TraceId::generate()
@@ -90,7 +88,7 @@ async fn verification_resolves_each_dependency_source_and_rejects_non_git_regist
     seed_user_row(&db, &owner, &format!("{owner}@credentials.invalid"))
         .await
         .expect("owner");
-    let repository = ManagedRepository::new(pool.as_ref().clone());
+    let repository = ManagedRepository::new(&db).expect("managed repository");
     let public = repository
         .register_source(
             &owner,

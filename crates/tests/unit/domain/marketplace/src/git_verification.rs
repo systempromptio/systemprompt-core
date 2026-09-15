@@ -67,12 +67,11 @@ impl Fixture {
         let db = fixture_db_pool(&bootstrap.database_url)
             .await
             .expect("test database");
-        let pool = db.write_pool_arc().expect("write pool");
         let owner = UserId::new(uuid::Uuid::new_v4().to_string());
         seed_user_row(&db, &owner, &format!("{}@git.invalid", owner.as_str()))
             .await
             .expect("owner");
-        let repository = ManagedRepository::new(pool.as_ref().clone());
+        let repository = ManagedRepository::new(&db).expect("managed repository");
         let mut credentials = BTreeMap::new();
         let mut files_by_revision = BTreeMap::new();
         let mut inputs = Vec::new();

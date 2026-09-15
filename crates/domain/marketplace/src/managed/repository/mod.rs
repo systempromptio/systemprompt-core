@@ -6,7 +6,7 @@
 mod candidates;
 pub use candidates::{RevisionComparison, TextCandidate};
 mod listing;
-pub use listing::{ResourceSummary, RevisionSummary};
+pub use listing::{Page, ResourceSummary, RevisionSummary};
 mod revisions;
 mod sources;
 
@@ -26,15 +26,20 @@ pub struct ManagedRepository {
 }
 
 impl ManagedRepository {
-    pub const PAGE_SIZE: i64 = 51;
+    pub const PAGE_SIZE: i64 = 50;
 
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(db: &systemprompt_database::DbPool) -> crate::managed::Result<Self> {
+        Ok(Self {
+            pool: db.write_pool_arc()?.as_ref().clone(),
+        })
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema, sqlx::Type,
+)]
 #[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum ResourceKind {
     Skill,
     Plugin,

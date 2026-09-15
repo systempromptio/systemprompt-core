@@ -54,12 +54,11 @@ pub(super) async fn fixture() -> Option<Fixture> {
 pub(super) async fn fixture_with_key(key: String) -> Option<Fixture> {
     let bootstrap = ensure_test_bootstrap();
     let db = fixture_db_pool(&bootstrap.database_url).await.ok()?;
-    let pool = db.write_pool_arc().ok()?;
     let owner = UserId::new(format!("managed-res-{}", Uuid::new_v4()));
     seed_user_row(&db, &owner, &format!("{}@managed.invalid", owner.as_str()))
         .await
         .ok()?;
-    let repository = ManagedRepository::new(pool.as_ref().clone());
+    let repository = ManagedRepository::new(&db).ok()?;
     let source = repository
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await
@@ -124,7 +123,8 @@ pub(super) async fn publish(f: &Fixture) {
                 action: PublicationAction::InitialAdoption,
                 expected_generation: 0,
                 operation_key: format!("adopt-{}", f.key),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )
@@ -143,7 +143,8 @@ pub(super) async fn withdraw(f: &Fixture) {
                 action: PublicationAction::Withdraw,
                 expected_generation: 1,
                 operation_key: format!("withdraw-{}", f.key),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )

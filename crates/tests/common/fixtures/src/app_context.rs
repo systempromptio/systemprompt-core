@@ -269,7 +269,7 @@ fn fixture_app_context_assembled(
                 systemprompt_analytics::feedback::FeedbackFactsRepository::new(sqlx_pool.clone()),
             ),
             managed_repository: Arc::new(
-                systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
+                systemprompt_marketplace::managed::ManagedRepository::new(pool)?,
             ),
             evaluation_repositories: Arc::new(
                 systemprompt_evaluation::repository::experiments::EvaluationRepositories::new(

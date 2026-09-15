@@ -1,12 +1,21 @@
 use crate::consumer_fixture::{Fixture, fixture};
+use systemprompt_identifiers::{ConsumerInstallationId, ResourceInvocationId, SessionId};
 use systemprompt_marketplace::managed::{
-    AssetDigest, InstallationReceiptRequest, InstalledFile, InvocationAttributionRequest,
-    ManagedError, TrafficClass,
+    AssetDigest, AttributionStatus, ClientEvidence, DistributionState, InstallationReceiptRequest,
+    InstalledFile, InvocationAttributionRequest, ManagedError, TrafficClass,
 };
+
+fn evidence(f: &Fixture, session: &str) -> ClientEvidence {
+    ClientEvidence {
+        session_id: SessionId::new(session),
+        owner_id: f.owner.clone(),
+        recorded: std::collections::BTreeMap::new(),
+    }
+}
 
 fn receipt(f: &Fixture) -> InstallationReceiptRequest {
     InstallationReceiptRequest {
-        installation_id: "retained-install".to_owned(),
+        installation_id: ConsumerInstallationId::new("retained-install"),
         publication_id: f.request.publication_id.clone(),
         resource_id: f.request.resource_id.clone(),
         generation: f.request.generation,
@@ -23,7 +32,7 @@ fn receipt(f: &Fixture) -> InstallationReceiptRequest {
                 executable: file.executable,
             })
             .collect(),
-        client_evidence: serde_json::json!({"session_id":"retained-session","owner_id":f.owner}),
+        client_evidence: evidence(f, "retained-session"),
     }
 }
 
@@ -91,7 +100,7 @@ async fn delivery_retry_retains_identity_failure_and_terminal_fencing() {
         .unwrap();
     let failed = f.repo.list_distribution_status(&f.owner).await.unwrap();
     assert_eq!(failed.len(), 1);
-    assert_eq!(failed[0].status, "failed");
+    assert_eq!(failed[0].status, DistributionState::Failed);
     assert_eq!(failed[0].error.as_deref(), Some("offline"));
     assert!(failed[0].delivered_at.is_none());
     f.repo
@@ -123,7 +132,7 @@ async fn delivery_retry_retains_identity_failure_and_terminal_fencing() {
             .is_empty()
     );
     let completed = f.repo.list_distribution_status(&f.owner).await.unwrap();
-    assert_eq!(completed[0].status, "distributed");
+    assert_eq!(completed[0].status, DistributionState::Distributed);
     assert!(completed[0].delivered_at.is_some());
 }
 
@@ -139,7 +148,7 @@ async fn completion_rejects_mutated_retained_claim_before_acknowledging_outbox()
     for change in 0..3 {
         let mut forged = claim.clone();
         match change {
-            0 => forged.outbox_id = "another-outbox".to_owned(),
+            0 => forged.outbox_id = systemprompt_identifiers::EventOutboxId::new("another-outbox"),
             1 => forged.publication_id = systemprompt_identifiers::PublicationId::generate(),
             _ => forged.generation += 1,
         }
@@ -152,7 +161,7 @@ async fn completion_rejects_mutated_retained_claim_before_acknowledging_outbox()
     }
     assert_eq!(
         f.repo.list_distribution_status(&f.owner).await.unwrap()[0].status,
-        "claimed"
+        DistributionState::Claimed
     );
     f.repo
         .complete_distribution(&f.owner, &claim, true, None)
@@ -207,7 +216,7 @@ async fn historical_readback_rejects_undelivered_partial_duplicate_and_mode_tamp
     assert_eq!(first.id, retry.id);
     assert_eq!(first.verified_at, retry.verified_at);
     let mut conflict = request.clone();
-    conflict.client_evidence["session_id"] = "different-session".into();
+    conflict.client_evidence.session_id = SessionId::new("different-session");
     assert!(matches!(
         f.repo.record_installation(&f.owner, &conflict).await,
         Err(ManagedError::Conflict(_))
@@ -243,12 +252,17 @@ async fn historical_evidence_rejects_forged_owner_missing_session_and_oversize_p
     for mutation in 0..6 {
         let mut changed = request.clone();
         match mutation {
-            0 => changed.installation_id.clear(),
-            1 => changed.installation_id = "x".repeat(201),
+            0 => changed.installation_id = ConsumerInstallationId::new(""),
+            1 => changed.installation_id = ConsumerInstallationId::new("x".repeat(201)),
             2 => changed.generation = 0,
-            3 => changed.client_evidence["session_id"] = "".into(),
-            4 => changed.client_evidence["owner_id"] = f.consumer.as_str().into(),
-            _ => changed.client_evidence["oversize"] = "x".repeat(65_537).into(),
+            3 => changed.client_evidence.session_id = SessionId::new(""),
+            4 => changed.client_evidence.owner_id = f.consumer.clone(),
+            _ => {
+                changed
+                    .client_evidence
+                    .recorded
+                    .insert("oversize".to_owned(), "x".repeat(65_537).into());
+            },
         }
         assert!(
             f.repo
@@ -276,7 +290,7 @@ async fn historical_attribution_matches_exact_session_and_preserves_unknown_immu
         .await
         .unwrap();
     let request = InvocationAttributionRequest {
-        invocation_id: "historical-invocation".to_owned(),
+        invocation_id: ResourceInvocationId::new("historical-invocation"),
         installation_id: Some(receipt.installation_id.clone()),
         resource_key: Some("skill".to_owned()),
         resource_revision_id: Some(f.request.revision_id.clone()),
@@ -289,7 +303,7 @@ async fn historical_attribution_matches_exact_session_and_preserves_unknown_immu
         .attribute_invocation(&f.owner, &request)
         .await
         .unwrap();
-    assert_eq!(verified.status, "verified");
+    assert_eq!(verified.status, AttributionStatus::Verified);
     assert_eq!(verified.resource_id.as_ref(), Some(&f.request.resource_id));
     assert_eq!(
         f.repo
@@ -314,9 +328,9 @@ async fn historical_attribution_matches_exact_session_and_preserves_unknown_immu
     }
     for mismatch in 0..4 {
         let mut unknown = request.clone();
-        unknown.invocation_id = format!("unknown-{mismatch}");
+        unknown.invocation_id = ResourceInvocationId::new(format!("unknown-{mismatch}"));
         match mismatch {
-            0 => unknown.authenticated_evidence["session_id"] = "other-session".into(),
+            0 => unknown.authenticated_evidence.session_id = SessionId::new("other-session"),
             1 => unknown.publication_generation = Some(2),
             2 => unknown.resource_revision_id = None,
             _ => unknown.installation_id = None,
@@ -326,7 +340,7 @@ async fn historical_attribution_matches_exact_session_and_preserves_unknown_immu
             .attribute_invocation(&f.owner, &unknown)
             .await
             .unwrap();
-        assert_eq!(retained.status, "revision_unknown");
+        assert_eq!(retained.status, AttributionStatus::RevisionUnknown);
         assert!(retained.resource_id.is_none());
         assert!(retained.revision_id.is_none());
         let retry = f
@@ -337,14 +351,14 @@ async fn historical_attribution_matches_exact_session_and_preserves_unknown_immu
         assert_eq!(retained.id, retry.id);
     }
     let mut forged = request.clone();
-    forged.authenticated_evidence["owner_id"] = f.consumer.as_str().into();
+    forged.authenticated_evidence.owner_id = f.consumer.clone();
     assert!(
         f.repo
             .attribute_invocation(&f.owner, &forged)
             .await
             .is_err()
     );
-    forged.authenticated_evidence = serde_json::json!({"owner_id":f.owner});
+    forged.authenticated_evidence = evidence(&f, "");
     assert!(
         f.repo
             .attribute_invocation(&f.owner, &forged)

@@ -2,7 +2,7 @@ use crate::consumer_fixture::{Fixture, fixture};
 use systemprompt_identifiers::ResourceRevisionId;
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ConflictDecision, ConflictResolution, ManagedError, NewRevision,
-    ReconciliationRequest, RevisionFiles,
+    ReconciliationRequest, ReconciliationStatus, RevisionFiles,
 };
 
 async fn files(f: &Fixture) -> RevisionFiles {
@@ -106,7 +106,7 @@ async fn mode_or_media_changes_conflict_with_independent_content_edits_and_remai
             .await
             .unwrap();
         let retained = f.repo.begin_reconciliation(&f.owner, &input).await.unwrap();
-        assert_eq!(retained.status, "resolved");
+        assert_eq!(retained.status, ReconciliationStatus::Resolved);
         assert_eq!(retained.resolved_revision_id, Some(candidate));
         assert!(matches!(
             retained.conflicts[0].resolution,
@@ -145,7 +145,7 @@ async fn each_explicit_resolution_is_durable_owner_scoped_and_checks_resolved_co
             Err(ManagedError::Unavailable)
         ));
         let opened = f.repo.begin_reconciliation(&f.owner, &input).await.unwrap();
-        assert_eq!(opened.status, "open");
+        assert_eq!(opened.status, ReconciliationStatus::Open);
         assert_eq!(opened.conflicts.len(), 1);
         assert_eq!(
             f.repo
@@ -253,7 +253,7 @@ async fn each_explicit_resolution_is_durable_owner_scoped_and_checks_resolved_co
                 .is_err()
         );
         let retained = f.repo.begin_reconciliation(&f.owner, &input).await.unwrap();
-        assert_eq!(retained.status, "resolved");
+        assert_eq!(retained.status, ReconciliationStatus::Resolved);
         assert_eq!(retained.resolved_revision_id, Some(resolved));
     }
 }

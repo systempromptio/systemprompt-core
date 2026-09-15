@@ -4,9 +4,19 @@
 use crate::managed_resolution::{fixture, publish, withdraw};
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::managed::{
-    AssetDigest, ManagedError, ManagedResolution, NewResource, NewRevision, PublicationAction,
-    PublicationRequest, ResourceKind, TextCandidate,
+    AssetDigest, ComparisonEvidence, ManagedError, ManagedRepository, ManagedResolution,
+    NewResource, NewRevision, PublicationAction, PublicationRequest, ResourceKind, TextCandidate,
 };
+
+fn human_review() -> ComparisonEvidence {
+    ComparisonEvidence {
+        experiment_id: None,
+        recorded: std::collections::BTreeMap::from([(
+            "review".to_owned(),
+            serde_json::Value::from("independent human"),
+        )]),
+    }
+}
 
 #[tokio::test]
 async fn text_candidate_preserves_baseline_metadata_and_publication_while_inventory_advances() {
@@ -93,24 +103,32 @@ async fn text_candidate_preserves_baseline_metadata_and_publication_while_invent
             .is_empty()
     );
     let inventory = f.repository.list_resources(&f.owner, 0).await.unwrap();
-    assert_eq!(inventory.len(), 1);
-    assert_eq!(inventory[0].id, f.resource);
-    assert_eq!(inventory[0].revision_count, 2);
-    assert_eq!(inventory[0].latest_revision.as_ref(), Some(&candidate));
+    assert!(!inventory.has_more);
+    assert_eq!(inventory.items.len(), 1);
+    assert_eq!(inventory.items[0].id, f.resource);
+    assert_eq!(inventory.items[0].kind, ResourceKind::Skill);
+    assert_eq!(inventory.items[0].revision_count, 2);
+    assert_eq!(
+        inventory.items[0].latest_revision.as_ref(),
+        Some(&candidate)
+    );
     let revisions = f
         .repository
         .list_revisions(&f.owner, &f.resource, 0)
         .await
         .unwrap();
-    assert_eq!(revisions.len(), 2);
-    assert_eq!(revisions[0].id, candidate);
-    assert_eq!(revisions[0].parent_id.as_ref(), Some(&f.revision));
-    assert_eq!(revisions[0].rationale, "candidate is not publication");
+    assert!(!revisions.has_more);
+    assert_eq!(revisions.items.len(), 2);
+    assert_eq!(revisions.items[0].id, candidate);
+    assert_eq!(revisions.items[0].parent_id.as_ref(), Some(&f.revision));
+    assert_eq!(revisions.items[0].rationale, "candidate is not publication");
+    assert!(revisions.items[0].created_at >= revisions.items[1].created_at);
     assert_eq!(
         f.repository
             .list_revisions(&f.owner, &f.resource, 1)
             .await
-            .unwrap()[0]
+            .unwrap()
+            .items[0]
             .id,
         f.revision
     );
@@ -119,6 +137,7 @@ async fn text_candidate_preserves_baseline_metadata_and_publication_while_invent
             .list_resources(&f.owner, 1)
             .await
             .unwrap()
+            .items
             .is_empty()
     );
     assert_eq!(
@@ -195,7 +214,12 @@ async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
             .await,
         Err(ManagedError::Invalid(_))
     ));
-    let source = f.repository.list_resources(&f.owner, 0).await.unwrap()[0]
+    let source = f
+        .repository
+        .list_resources(&f.owner, 0)
+        .await
+        .unwrap()
+        .items[0]
         .source_id
         .clone();
     let other = f
@@ -262,6 +286,7 @@ async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
             .list_resources(&stranger, 0)
             .await
             .unwrap()
+            .items
             .is_empty()
     );
     assert!(matches!(
@@ -282,6 +307,7 @@ async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
             .list_revisions(&f.owner, &f.resource, 0)
             .await
             .unwrap()
+            .items
             .len(),
         2
     );
@@ -327,7 +353,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
         action: PublicationAction::Rollback,
         expected_generation: 1,
         operation_key: "retained-rollback".into(),
-        comparison_evidence: serde_json::json!({"review": "independent human"}),
+        comparison_evidence: human_review(),
         limitations: "prior content only".into(),
     };
     assert!(matches!(
@@ -386,10 +412,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
         vec![3, 2, 1]
     );
     assert_eq!(all[0].reviewer_id, f.owner);
-    assert_eq!(
-        all[0].comparison_evidence,
-        serde_json::json!({"review": "independent human"})
-    );
+    assert_eq!(all[0].comparison_evidence, human_review());
     assert_eq!(all[0].limitations, "prior content only");
     assert!(
         all.iter()
@@ -468,4 +491,53 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
             .await,
         Err(ManagedError::Integrity)
     ));
+}
+
+#[tokio::test]
+async fn resource_listing_reports_has_more_across_the_page_boundary() {
+    let Some(f) = fixture().await else {
+        return;
+    };
+    let source = f
+        .repository
+        .list_resources(&f.owner, 0)
+        .await
+        .unwrap()
+        .items[0]
+        .source_id
+        .clone();
+    for index in 0..ManagedRepository::PAGE_SIZE {
+        f.repository
+            .bind_resource(
+                &f.owner,
+                &NewResource {
+                    source_id: source.clone(),
+                    upstream_key: format!("paged_{index:03}"),
+                    kind: ResourceKind::Skill,
+                    resource_key: format!("paged_{index:03}"),
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let first = f.repository.list_resources(&f.owner, 0).await.unwrap();
+    assert!(first.has_more, "51 resources overflow a 50-item page");
+    assert_eq!(
+        i64::try_from(first.items.len()).unwrap(),
+        ManagedRepository::PAGE_SIZE
+    );
+    let second = f
+        .repository
+        .list_resources(&f.owner, ManagedRepository::PAGE_SIZE)
+        .await
+        .unwrap();
+    assert!(!second.has_more);
+    assert_eq!(second.items.len(), 1);
+    let ids: std::collections::BTreeSet<_> = first
+        .items
+        .iter()
+        .chain(second.items.iter())
+        .map(|item| item.id.clone())
+        .collect();
+    assert_eq!(ids.len(), 51, "the two pages partition the listing");
 }

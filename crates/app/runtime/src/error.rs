@@ -22,6 +22,7 @@ use systemprompt_content::ContentError;
 use systemprompt_database::RepositoryError;
 use systemprompt_extension::LoaderError;
 use systemprompt_files::FilesError;
+use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::ConfigError as ModelConfigError;
 use systemprompt_oauth::OauthError;
@@ -80,6 +81,9 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     Governance(#[from] GovernanceEngineError),
+
+    #[error(transparent)]
+    Managed(#[from] ManagedError),
 
     #[error(
         "Configured system admin '{username}' was not found in the users table. Run `systemprompt \

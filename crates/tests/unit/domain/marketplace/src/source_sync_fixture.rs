@@ -54,7 +54,7 @@ impl Fixture {
         seed_user_row(&db, &owner, &format!("{owner}@source-sync.invalid"))
             .await
             .unwrap();
-        let repo = ManagedRepository::new(db.write_pool_arc().unwrap().as_ref().clone());
+        let repo = ManagedRepository::new(&db).expect("managed repository");
         let source = repo
             .register_source(
                 &owner,
@@ -117,7 +117,8 @@ impl Fixture {
                     action: PublicationAction::InitialAdoption,
                     expected_generation: 0,
                     operation_key: "initial-source-sync-publication".into(),
-                    comparison_evidence: serde_json::json!({}),
+                    comparison_evidence:
+                        systemprompt_marketplace::managed::ComparisonEvidence::default(),
                     limitations: String::new(),
                 },
             )

@@ -28,21 +28,22 @@ mod tree;
 pub use error::{ManagedError, Result};
 pub use import::ImportedSkills;
 pub use installation::{
-    DistributionClaim, DistributionStatus, InstallationReceipt, InstallationReceiptRequest,
-    InstalledFile, InvocationAttribution, InvocationAttributionRequest, TrafficClass,
+    AttributionStatus, ClientEvidence, DistributionClaim, DistributionState, DistributionStatus,
+    InstallationReceipt, InstallationReceiptRequest, InstalledFile, InvocationAttribution,
+    InvocationAttributionRequest, TrafficClass,
 };
 pub use provenance::{SnapshotProvenance, SourceSpec};
 pub use publication::{
-    ManagedResolution, PublicationAction, PublicationDecision, PublicationHistoryEntry,
-    PublicationRequest,
+    ComparisonEvidence, ManagedResolution, PublicationAction, PublicationDecision,
+    PublicationHistoryEntry, PublicationRequest,
 };
 pub use reconciliation::{
     ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,
-    ReconciliationRequest,
+    ReconciliationRequest, ReconciliationStatus,
 };
 pub use repository::{
-    ManagedRepository, NewResource, NewRevision, ResourceKind, ResourceSummary, RevisionComparison,
-    RevisionSummary, TextCandidate,
+    ManagedRepository, NewResource, NewRevision, Page, ResourceKind, ResourceSummary,
+    RevisionComparison, RevisionSummary, TextCandidate,
 };
 pub use resolver::{
     ManagedResourceResolver, ManagedSkill, ManagedSkillResolution, ResolvedManagedResource,
@@ -50,6 +51,7 @@ pub use resolver::{
 pub use source_sync::{
     GitContentVerification, GitSourceBinding, GitSyncRequest, GitSyncResult, GitTreeRead,
     GitTreeReader, GitVerificationService, NativeGitTreeReader, WithdrawalProposal,
+    WithdrawalStatus,
 };
 pub use systemprompt_models::managed::{
     ASSEMBLER_VERSION, AssetDigest, AssetFile, DependencyRef, FileEntry, RevisionBundle,

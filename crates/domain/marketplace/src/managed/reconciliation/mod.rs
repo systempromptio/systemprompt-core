@@ -3,107 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{
-    ManagedReconciliationId, ManagedResourceId, ResourceRevisionId, UserId,
-};
+use systemprompt_identifiers::{ManagedReconciliationId, ResourceRevisionId, UserId};
 
 mod merge;
-use super::{ManagedError, ManagedRepository, Result};
-use merge::{RecordedConflict, ThreeWay, same_file, verify_merge};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "the request names four distinct revisions; the `_id` suffix is the typed-identifier convention"
-)]
-pub struct ReconciliationRequest {
-    pub resource_id: ManagedResourceId,
-    pub upstream_base_revision_id: ResourceRevisionId,
-    pub managed_candidate_revision_id: ResourceRevisionId,
-    pub incoming_revision_id: ResourceRevisionId,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReconciliationConflict {
-    pub path: String,
-    pub base_digest: Option<String>,
-    pub candidate_digest: Option<String>,
-    pub incoming_digest: Option<String>,
-    pub resolution: Option<ConflictResolution>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ConflictResolution {
-    Candidate,
-    Incoming,
-    Manual,
-    Delete,
-}
-
-impl ConflictResolution {
-    fn parse(value: Option<&str>) -> Result<Option<Self>> {
-        Ok(match value {
-            None => None,
-            Some("candidate") => Some(Self::Candidate),
-            Some("incoming") => Some(Self::Incoming),
-            Some("manual") => Some(Self::Manual),
-            Some("delete") => Some(Self::Delete),
-            Some(_) => return Err(ManagedError::Integrity),
-        })
-    }
-
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Candidate => "candidate",
-            Self::Incoming => "incoming",
-            Self::Manual => "manual",
-            Self::Delete => "delete",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReconciliationRecord {
-    pub id: ManagedReconciliationId,
-    pub status: String,
-    pub conflicts: Vec<ReconciliationConflict>,
-    pub resolved_revision_id: Option<ResourceRevisionId>,
-}
-
-fn detect_conflicts(
-    base: &super::RevisionFiles,
-    candidate: &super::RevisionFiles,
-    incoming: &super::RevisionFiles,
-) -> Vec<ReconciliationConflict> {
-    let mut paths = std::collections::BTreeSet::new();
-    paths.extend(base.0.keys().cloned());
-    paths.extend(candidate.0.keys().cloned());
-    paths.extend(incoming.0.keys().cloned());
-    let digest = |files: &super::RevisionFiles, path: &str| {
-        files
-            .0
-            .get(path)
-            .map(|file| super::AssetDigest::of(&file.bytes).as_str().to_owned())
-    };
-    paths
-        .into_iter()
-        .filter(|path| {
-            !same_file(candidate.0.get(path), base.0.get(path))
-                && !same_file(incoming.0.get(path), base.0.get(path))
-                && !same_file(candidate.0.get(path), incoming.0.get(path))
-        })
-        .map(|path| ReconciliationConflict {
-            base_digest: digest(base, &path),
-            candidate_digest: digest(candidate, &path),
-            incoming_digest: digest(incoming, &path),
-            path,
-            resolution: None,
-        })
-        .collect()
-}
+mod model;
+use super::{AssetDigest, ManagedError, ManagedRepository, Result};
+use merge::{RecordedConflict, ThreeWay, verify_merge};
+use model::detect_conflicts;
+pub use model::{
+    ConflictDecision, ConflictResolution, ReconciliationConflict, ReconciliationRecord,
+    ReconciliationRequest, ReconciliationStatus,
+};
 
 impl ManagedRepository {
     pub async fn begin_reconciliation(
@@ -143,7 +53,7 @@ impl ManagedRepository {
         let mut tx = self.pool.begin().await?;
         sqlx::query!("INSERT INTO managed_reconciliations(id,owner_id,resource_id,upstream_base_revision_id,managed_candidate_revision_id,incoming_revision_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(owner_id,resource_id,managed_candidate_revision_id,incoming_revision_id) DO NOTHING",
             id.as_str(), owner.as_str(), request.resource_id.as_str(), request.upstream_base_revision_id.as_str(), request.managed_candidate_revision_id.as_str(), request.incoming_revision_id.as_str()).execute(&mut *tx).await?;
-        let stored = sqlx::query!("SELECT id,upstream_base_revision_id,status,resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND managed_candidate_revision_id=$3 AND incoming_revision_id=$4 FOR UPDATE",
+        let stored = sqlx::query!(r#"SELECT id,upstream_base_revision_id,status AS "status: ReconciliationStatus",resolved_revision_id FROM managed_reconciliations WHERE owner_id=$1 AND resource_id=$2 AND managed_candidate_revision_id=$3 AND incoming_revision_id=$4 FOR UPDATE"#,
             owner.as_str(), request.resource_id.as_str(), request.managed_candidate_revision_id.as_str(), request.incoming_revision_id.as_str()).fetch_one(&mut *tx).await?;
         if stored.upstream_base_revision_id != request.upstream_base_revision_id.as_str() {
             return Err(ManagedError::Conflict(
@@ -152,19 +62,22 @@ impl ManagedRepository {
         }
         for conflict in &conflicts {
             sqlx::query!("INSERT INTO managed_reconciliation_conflicts(reconciliation_id,path,base_digest,candidate_digest,incoming_digest) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
-                &stored.id, &conflict.path, conflict.base_digest.as_deref(), conflict.candidate_digest.as_deref(), conflict.incoming_digest.as_deref()).execute(&mut *tx).await?;
+                &stored.id, &conflict.path, conflict.base_digest.as_ref().map(AssetDigest::as_str), conflict.candidate_digest.as_ref().map(AssetDigest::as_str), conflict.incoming_digest.as_ref().map(AssetDigest::as_str)).execute(&mut *tx).await?;
         }
-        let retained = sqlx::query!("SELECT path,base_digest,candidate_digest,incoming_digest,resolution FROM managed_reconciliation_conflicts WHERE reconciliation_id=$1 ORDER BY path",
+        let retained = sqlx::query!(r#"SELECT path,base_digest,candidate_digest,incoming_digest,resolution AS "resolution?: ConflictResolution" FROM managed_reconciliation_conflicts WHERE reconciliation_id=$1 ORDER BY path"#,
             &stored.id).fetch_all(&mut *tx).await?;
         let conflicts = retained
             .into_iter()
             .map(|row| {
                 Ok(ReconciliationConflict {
                     path: row.path,
-                    base_digest: row.base_digest,
-                    candidate_digest: row.candidate_digest,
-                    incoming_digest: row.incoming_digest,
-                    resolution: ConflictResolution::parse(row.resolution.as_deref())?,
+                    base_digest: row.base_digest.map(AssetDigest::try_from).transpose()?,
+                    candidate_digest: row
+                        .candidate_digest
+                        .map(AssetDigest::try_from)
+                        .transpose()?,
+                    incoming_digest: row.incoming_digest.map(AssetDigest::try_from).transpose()?,
+                    resolution: row.resolution,
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -282,11 +195,4 @@ impl ManagedRepository {
         }
         Ok(())
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ConflictDecision<'a> {
-    pub path: &'a str,
-    pub resolution: ConflictResolution,
-    pub resolved_digest: Option<&'a str>,
 }

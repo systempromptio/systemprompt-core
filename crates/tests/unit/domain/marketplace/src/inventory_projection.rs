@@ -108,7 +108,8 @@ async fn upstream_removal_retains_publication_and_records_effective_membership()
                 action: PublicationAction::InitialAdoption,
                 expected_generation: 0,
                 operation_key: "adopt-local".to_owned(),
-                comparison_evidence: serde_json::json!({}),
+                comparison_evidence: systemprompt_marketplace::managed::ComparisonEvidence::default(
+                ),
                 limitations: String::new(),
             },
         )

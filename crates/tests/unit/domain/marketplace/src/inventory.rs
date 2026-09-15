@@ -23,13 +23,12 @@ impl Fixture {
         let db = fixture_db_pool(&bootstrap.database_url)
             .await
             .expect("database");
-        let pool = db.write_pool_arc().expect("pool");
         let owner = UserId::new(uuid::Uuid::new_v4().to_string());
         seed_user_row(&db, &owner, &format!("{owner}@inventory.invalid"))
             .await
             .expect("owner");
         Self {
-            repository: ManagedRepository::new(pool.as_ref().clone()),
+            repository: ManagedRepository::new(&db).expect("managed repository"),
             owner,
             root: tempfile::tempdir().expect("services root"),
         }

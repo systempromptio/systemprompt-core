@@ -239,7 +239,7 @@ async fn record_publication(
 
     sqlx::query!("INSERT INTO managed_publication_reviews(id,owner_id,resource_id,revision_id,action,bundle_digest,comparison_evidence,limitations,reviewer_id,expected_generation,request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
         review_id.as_str(), owner.as_str(), request.resource_id.as_str(), revision, action, digest,
-        &request.comparison_evidence, &request.limitations, reviewer.as_str(), request.expected_generation, request_digest)
+        serde_json::to_value(&request.comparison_evidence)?, &request.limitations, reviewer.as_str(), request.expected_generation, request_digest)
         .execute(&mut **tx)
         .await?;
     sqlx::query!("INSERT INTO managed_publications(id,owner_id,resource_id,review_id,generation,action,revision_id,bundle_digest,operation_key,request_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",

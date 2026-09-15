@@ -40,7 +40,7 @@ hex = { workspace = true }
 tokio = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-identifiers = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
 

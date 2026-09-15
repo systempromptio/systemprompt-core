@@ -115,7 +115,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
                     ),
                 ),
                 managed_repository: Arc::new(
-                    systemprompt_marketplace::managed::ManagedRepository::new(sqlx_pool.clone()),
+                    systemprompt_marketplace::managed::ManagedRepository::new(&pool)?,
                 ),
                 evaluation_repositories: Arc::new(
                     systemprompt_test_fixtures::fixture_evaluation_repositories(&pool)?,

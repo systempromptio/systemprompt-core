@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 use systemprompt_marketplace::managed::{
     GitSyncResult, ManagedResolution, NewRevision, ResourceKind, RevisionFiles, SourceSpec,
+    WithdrawalStatus,
 };
 
 #[tokio::test]
@@ -148,8 +149,8 @@ async fn upstream_removal_retains_publication_and_requires_owner_review_without_
     );
     let proposals = f.repo.list_withdrawal_proposals(&f.owner).await.unwrap();
     assert_eq!(proposals.len(), 1);
-    assert_eq!(proposals[0].status, "rejected");
-    assert_eq!(proposals[0].decided_by.as_deref(), Some(f.owner.as_str()));
+    assert_eq!(proposals[0].status, WithdrawalStatus::Rejected);
+    assert_eq!(proposals[0].decided_by.as_ref(), Some(&f.owner));
     assert_eq!(
         f.repo
             .resolve_managed(&f.owner, ResourceKind::Skill, "alpha")

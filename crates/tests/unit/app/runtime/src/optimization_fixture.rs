@@ -56,7 +56,7 @@ impl Fixture {
         seed_user_row(&db, &owner, &format!("{owner}@optimization.invalid"))
             .await
             .expect("owner");
-        let managed = ManagedRepository::new(pool.clone());
+        let managed = ManagedRepository::new(&db).expect("managed repository");
         let (resource, baseline) = resource(&managed, &owner, "baseline").await;
         let candidate = managed
             .create_text_candidate(

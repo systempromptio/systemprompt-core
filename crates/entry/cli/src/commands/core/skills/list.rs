@@ -19,6 +19,7 @@ use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 use super::types::{SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config};
 use systemprompt_marketplace::ManagedSkillResolution;
+use systemprompt_marketplace::managed::ResourceKind;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -45,8 +46,12 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
     let mut offset = 0;
     loop {
         let page = repository.list_resources(&owner, offset).await?;
-        let count = i64::try_from(page.len()).unwrap_or(i64::MAX);
-        for resource in page.into_iter().filter(|resource| resource.kind == "skill") {
+        let has_more = page.has_more;
+        for resource in page
+            .items
+            .into_iter()
+            .filter(|resource| resource.kind == ResourceKind::Skill)
+        {
             skills.retain(|item| item.skill_id.as_str() != resource.resource_key);
             match resolver
                 .resolve_skill(&owner, &resource.resource_key)
@@ -73,7 +78,7 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
                 },
             }
         }
-        if count < systemprompt_marketplace::ManagedRepository::PAGE_SIZE {
+        if !has_more {
             break;
         }
         offset += systemprompt_marketplace::ManagedRepository::PAGE_SIZE;

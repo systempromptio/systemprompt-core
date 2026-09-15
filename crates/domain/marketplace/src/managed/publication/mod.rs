@@ -3,10 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    EventOutboxId, ManagedResourceId, PublicationId, PublicationReviewId, ResourceRevisionId,
-    UserId,
+    EvalExperimentId, EventOutboxId, ManagedResourceId, PublicationId, PublicationReviewId,
+    ResourceRevisionId, UserId,
 };
 
 use super::error::invalid;
@@ -53,8 +55,27 @@ pub struct PublicationRequest {
     pub action: PublicationAction,
     pub expected_generation: i64,
     pub operation_key: String,
-    pub comparison_evidence: serde_json::Value,
+    pub comparison_evidence: ComparisonEvidence,
     pub limitations: String,
+}
+
+/// The reviewer's evidence for a publication. `PublishImprovement` requires
+/// `experiment_id` naming an attested experiment; everything else the
+/// reviewer attaches is retained verbatim with the review.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ComparisonEvidence {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub experiment_id: Option<EvalExperimentId>,
+    #[serde(flatten)]
+    // JSON: reviewer-attached evidence is retained verbatim, never interpreted
+    pub recorded: BTreeMap<String, serde_json::Value>,
+}
+
+impl ComparisonEvidence {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.experiment_id.is_none() && self.recorded.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -99,7 +120,7 @@ pub struct PublicationHistoryEntry {
     pub distributed: bool,
     pub installation_verified: bool,
     pub reviewer_id: UserId,
-    pub comparison_evidence: serde_json::Value,
+    pub comparison_evidence: ComparisonEvidence,
     pub limitations: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
@@ -111,10 +132,7 @@ fn validate_request(request: &PublicationRequest) -> Result<()> {
         || request.limitations.len() > 4000
         || serde_jcs::to_vec(&request.comparison_evidence)?.len() > 65_536
         || (request.action == PublicationAction::PublishImprovement
-            && request
-                .comparison_evidence
-                .as_object()
-                .is_none_or(serde_json::Map::is_empty))
+            && request.comparison_evidence.is_empty())
     {
         return Err(invalid("Invalid publication review input"));
     }

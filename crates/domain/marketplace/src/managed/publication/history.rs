@@ -38,7 +38,7 @@ impl ManagedRepository {
                     distributed: row.distributed,
                     installation_verified: row.installation_verified,
                     reviewer_id: UserId::new(row.reviewer_id),
-                    comparison_evidence: row.comparison_evidence,
+                    comparison_evidence: serde_json::from_value(row.comparison_evidence)?,
                     limitations: row.limitations,
                     created_at: row.created_at,
                 })
@@ -79,7 +79,7 @@ impl ManagedRepository {
                     distributed: row.distributed,
                     installation_verified: row.installation_verified,
                     reviewer_id: UserId::new(row.reviewer_id),
-                    comparison_evidence: row.comparison_evidence,
+                    comparison_evidence: serde_json::from_value(row.comparison_evidence)?,
                     limitations: row.limitations,
                     created_at: row.created_at,
                 })

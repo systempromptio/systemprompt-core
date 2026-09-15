@@ -4,8 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    AssetDigest, BTreeMap, DistributionClaim, DistributionId, DistributionStatus,
-    InstallationReceipt, InstallationReceiptId, InstallationReceiptRequest, InvocationAttribution,
+    AssetDigest, AttributionStatus, BTreeMap, ConsumerInstallationId, DistributionClaim,
+    DistributionId, DistributionState, DistributionStatus, EventOutboxId, InstallationReceipt,
+    InstallationReceiptId, InstallationReceiptRequest, InvocationAttribution,
     InvocationAttributionId, InvocationAttributionRequest, ManagedError, ManagedRepository,
     ManagedResourceId, PublicationId, ResourceRevisionId, Result, UserId,
 };
@@ -15,7 +16,7 @@ impl ManagedRepository {
         &self,
         owner: &UserId,
     ) -> Result<Vec<DistributionStatus>> {
-        Ok(sqlx::query_as!(DistributionStatus, "SELECT id,publication_id,generation,status,claimed_at,delivered_at,error FROM managed_distribution_deliveries WHERE owner_id=$1 ORDER BY claimed_at DESC LIMIT 100",
+        Ok(sqlx::query_as!(DistributionStatus, r#"SELECT id AS "id: DistributionId",publication_id AS "publication_id: PublicationId",generation,status AS "status: DistributionState",claimed_at,delivered_at,error FROM managed_distribution_deliveries WHERE owner_id=$1 ORDER BY claimed_at DESC LIMIT 100"#,
             owner.as_str()).fetch_all(&self.pool).await?)
     }
 
@@ -30,13 +31,13 @@ impl ManagedRepository {
             .map(|row| {
                 Ok(InstallationReceipt {
                     id: InstallationReceiptId::new(row.id),
-                    installation_id: row.installation_id,
+                    installation_id: ConsumerInstallationId::new(row.installation_id),
                     publication_id: PublicationId::new(row.publication_id),
                     resource_id: ManagedResourceId::new(row.resource_id),
                     generation: row.generation,
                     bundle_digest: AssetDigest::try_from(row.bundle_digest)?,
                     installed_manifest: serde_json::from_value(row.installed_manifest)?,
-                    client_evidence: row.client_evidence,
+                    client_evidence: serde_json::from_value(row.client_evidence)?,
                     verified_at: row.verified_at,
                 })
             })
@@ -56,7 +57,7 @@ impl ManagedRepository {
         let mut tx = self.pool.begin().await?;
         if let Some(row) = sqlx::query!("SELECT d.id,d.outbox_id,d.publication_id,d.generation,o.payload,d.claim_token FROM managed_distribution_deliveries d JOIN managed_distribution_outbox o ON o.id=d.outbox_id WHERE d.owner_id=$1 AND d.claim_token=$2",
             owner.as_str(), claim_token).fetch_optional(&mut *tx).await? {
-            let claim = DistributionClaim { id: DistributionId::new(row.id), outbox_id: row.outbox_id, publication_id: PublicationId::new(row.publication_id), generation: row.generation, payload: row.payload, claim_token: row.claim_token }; tx.commit().await?; return Ok(Some(claim));
+            let claim = DistributionClaim { id: DistributionId::new(row.id), outbox_id: EventOutboxId::new(row.outbox_id), publication_id: PublicationId::new(row.publication_id), generation: row.generation, payload: serde_json::from_value(row.payload)?, claim_token: row.claim_token }; tx.commit().await?; return Ok(Some(claim));
         }
         let row = sqlx::query!("SELECT id,publication_id,generation,payload FROM managed_distribution_outbox WHERE owner_id=$1 AND delivered_at IS NULL ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1",
             owner.as_str()).fetch_optional(&mut *tx).await?;
@@ -73,10 +74,10 @@ impl ManagedRepository {
         tx.commit().await?;
         Ok(Some(DistributionClaim {
             id,
-            outbox_id,
+            outbox_id: EventOutboxId::new(outbox_id),
             publication_id: PublicationId::new(publication_id),
             generation,
-            payload: row.payload,
+            payload: serde_json::from_value(row.payload)?,
             claim_token: claim_token.to_owned(),
         }))
     }
@@ -89,10 +90,14 @@ impl ManagedRepository {
         error: Option<&str>,
     ) -> Result<()> {
         let mut tx = self.pool.begin().await?;
-        let status = if delivered { "distributed" } else { "failed" };
-        let existing = sqlx::query!("SELECT status,error,outbox_id,publication_id,generation FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE",
+        let status = if delivered {
+            DistributionState::Distributed
+        } else {
+            DistributionState::Failed
+        };
+        let existing = sqlx::query!(r#"SELECT status AS "status: DistributionState",error,outbox_id,publication_id,generation FROM managed_distribution_deliveries WHERE id=$1 AND owner_id=$2 AND claim_token=$3 FOR UPDATE"#,
             claim.id.as_str(), owner.as_str(), &claim.claim_token).fetch_optional(&mut *tx).await?.ok_or_else(|| ManagedError::Conflict("Distribution claim is stale or unavailable".to_owned()))?;
-        if existing.outbox_id != claim.outbox_id
+        if existing.outbox_id != claim.outbox_id.as_str()
             || existing.publication_id != claim.publication_id.as_str()
             || existing.generation != claim.generation
         {
@@ -105,7 +110,7 @@ impl ManagedRepository {
             return Ok(());
         }
         let changed = sqlx::query!("UPDATE managed_distribution_deliveries SET status=$4,delivered_at=CASE WHEN $5 THEN NOW() ELSE NULL END,error=$6 WHERE id=$1 AND owner_id=$2 AND claim_token=$3 AND status IN ('claimed','failed')",
-            claim.id.as_str(), owner.as_str(), &claim.claim_token, status, delivered, error).execute(&mut *tx).await?;
+            claim.id.as_str(), owner.as_str(), &claim.claim_token, status.as_str(), delivered, error).execute(&mut *tx).await?;
         if changed.rows_affected() != 1 {
             return Err(ManagedError::Conflict(
                 "Distribution claim is stale or already completed".to_owned(),
@@ -113,7 +118,7 @@ impl ManagedRepository {
         }
         if delivered {
             sqlx::query!("UPDATE managed_distribution_outbox SET delivered_at=NOW() WHERE id=$1 AND owner_id=$2 AND delivered_at IS NULL",
-                &claim.outbox_id, owner.as_str()).execute(&mut *tx).await?;
+                claim.outbox_id.as_str(), owner.as_str()).execute(&mut *tx).await?;
         }
         tx.commit().await?;
         Ok(())
@@ -124,21 +129,14 @@ impl ManagedRepository {
         owner: &UserId,
         request: &InstallationReceiptRequest,
     ) -> Result<InstallationReceipt> {
-        let evidence_session = request
-            .client_evidence
-            .get("session_id")
-            .and_then(serde_json::Value::as_str);
-        let evidence_owner = request
-            .client_evidence
-            .get("owner_id")
-            .and_then(serde_json::Value::as_str);
-        if request.installation_id.trim().is_empty()
-            || request.installation_id.len() > 200
+        let client_evidence = serde_json::to_value(&request.client_evidence)?;
+        if request.installation_id.as_str().trim().is_empty()
+            || request.installation_id.as_str().len() > 200
             || request.generation < 1
             || request.files.len() > 256
-            || evidence_session.is_none_or(str::is_empty)
-            || evidence_owner != Some(owner.as_str())
-            || serde_jcs::to_vec(&request.client_evidence)?.len() > 65_536
+            || request.client_evidence.session_id.as_str().is_empty()
+            || request.client_evidence.owner_id != *owner
+            || serde_jcs::to_vec(&client_evidence)?.len() > 65_536
         {
             return Err(super::super::error::invalid(
                 "Invalid authenticated installation receipt",
@@ -181,9 +179,9 @@ impl ManagedRepository {
         }
         let id = InstallationReceiptId::generate();
         sqlx::query!("INSERT INTO managed_installation_receipts(id,owner_id,installation_id,publication_id,resource_id,generation,bundle_digest,installed_manifest,client_evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_id,installation_id,resource_id,generation) DO NOTHING",
-            id.as_str(), owner.as_str(), &request.installation_id, request.publication_id.as_str(), request.resource_id.as_str(), request.generation, request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &request.client_evidence).execute(&self.pool).await?;
+            id.as_str(), owner.as_str(), request.installation_id.as_str(), request.publication_id.as_str(), request.resource_id.as_str(), request.generation, request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &client_evidence).execute(&self.pool).await?;
         let row = sqlx::query!("SELECT id,verified_at FROM managed_installation_receipts WHERE owner_id=$1 AND installation_id=$2 AND resource_id=$3 AND generation=$4 AND publication_id=$5 AND bundle_digest=$6 AND installed_manifest=$7 AND client_evidence=$8",
-            owner.as_str(), &request.installation_id, request.resource_id.as_str(), request.generation, request.publication_id.as_str(), request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &request.client_evidence).fetch_optional(&self.pool).await?.ok_or_else(|| ManagedError::Conflict("Installation receipt conflicts with existing immutable evidence".to_owned()))?;
+            owner.as_str(), request.installation_id.as_str(), request.resource_id.as_str(), request.generation, request.publication_id.as_str(), request.bundle_digest.as_str(), serde_json::to_value(&request.files)?, &client_evidence).fetch_optional(&self.pool).await?.ok_or_else(|| ManagedError::Conflict("Installation receipt conflicts with existing immutable evidence".to_owned()))?;
         Ok(InstallationReceipt {
             id: InstallationReceiptId::new(row.id),
             installation_id: request.installation_id.clone(),
@@ -202,26 +200,23 @@ impl ManagedRepository {
         owner: &UserId,
         request: &InvocationAttributionRequest,
     ) -> Result<InvocationAttribution> {
-        let session = request
-            .authenticated_evidence
-            .get("session_id")
-            .and_then(serde_json::Value::as_str);
-        let attested_owner = request
-            .authenticated_evidence
-            .get("owner_id")
-            .and_then(serde_json::Value::as_str);
-        if request.invocation_id.trim().is_empty()
-            || request.invocation_id.len() > 200
-            || session.is_none_or(str::is_empty)
-            || attested_owner.is_some_and(|value| value != owner.as_str())
-            || serde_jcs::to_vec(&request.authenticated_evidence)?.len() > 65_536
+        let authenticated_evidence = serde_json::to_value(&request.authenticated_evidence)?;
+        let session = request.authenticated_evidence.session_id.as_str();
+        if request.invocation_id.as_str().trim().is_empty()
+            || request.invocation_id.as_str().len() > 200
+            || session.is_empty()
+            || request.authenticated_evidence.owner_id != *owner
+            || serde_jcs::to_vec(&authenticated_evidence)?.len() > 65_536
         {
             return Err(super::super::error::invalid(
                 "Invalid authenticated invocation attribution",
             ));
         }
         let verified = if let (Some(installation), Some(key), Some(revision), Some(generation)) = (
-            request.installation_id.as_deref(),
+            request
+                .installation_id
+                .as_ref()
+                .map(ConsumerInstallationId::as_str),
             request.resource_key.as_deref(),
             request.resource_revision_id.as_ref(),
             request.publication_generation,
@@ -235,26 +230,26 @@ impl ManagedRepository {
         let (status, receipt_id, resource_id, revision_id, generation) = if let Some(row) = verified
         {
             (
-                "verified",
+                AttributionStatus::Verified,
                 Some(row.receipt_id),
                 Some(row.resource_id),
                 row.revision_id,
                 Some(row.generation),
             )
         } else {
-            ("revision_unknown", None, None, None, None)
+            (AttributionStatus::RevisionUnknown, None, None, None, None)
         };
         sqlx::query!("INSERT INTO managed_invocation_attributions(id,owner_id,invocation_id,installation_id,resource_id,revision_id,publication_generation,traffic_class,status,receipt_id,authenticated_evidence) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(owner_id,invocation_id) DO NOTHING",
-            id.as_str(), owner.as_str(), &request.invocation_id, request.installation_id.as_deref(), resource_id.as_deref(), revision_id.as_deref(), generation, request.traffic_class.as_str(), status, receipt_id.as_deref(), &request.authenticated_evidence).execute(&self.pool).await?;
-        let stored = sqlx::query!("SELECT id,installation_id,resource_id,revision_id,publication_generation,traffic_class,status,authenticated_evidence FROM managed_invocation_attributions WHERE owner_id=$1 AND invocation_id=$2",
-            owner.as_str(), &request.invocation_id).fetch_one(&self.pool).await?;
+            id.as_str(), owner.as_str(), request.invocation_id.as_str(), request.installation_id.as_ref().map(ConsumerInstallationId::as_str), resource_id.as_deref(), revision_id.as_deref(), generation, request.traffic_class.as_str(), status.as_str(), receipt_id.as_deref(), &authenticated_evidence).execute(&self.pool).await?;
+        let stored = sqlx::query!(r#"SELECT id,installation_id AS "installation_id?: ConsumerInstallationId",resource_id,revision_id,publication_generation,traffic_class,status AS "status: AttributionStatus",authenticated_evidence FROM managed_invocation_attributions WHERE owner_id=$1 AND invocation_id=$2"#,
+            owner.as_str(), request.invocation_id.as_str()).fetch_one(&self.pool).await?;
         if stored.installation_id != request.installation_id
             || stored.resource_id != resource_id
             || stored.revision_id != revision_id
             || stored.publication_generation != generation
             || stored.traffic_class != request.traffic_class.as_str()
             || stored.status != status
-            || stored.authenticated_evidence != request.authenticated_evidence
+            || stored.authenticated_evidence != authenticated_evidence
         {
             return Err(ManagedError::Conflict(
                 "Invocation attribution replay conflicts with immutable evidence".to_owned(),

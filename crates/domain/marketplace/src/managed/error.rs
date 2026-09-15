@@ -17,6 +17,8 @@ pub enum ManagedError {
     Integrity,
     #[error("Managed resource storage failed: {0}")]
     Database(#[from] sqlx::Error),
+    #[error("Managed repository pool unavailable: {0}")]
+    Pool(#[from] systemprompt_database::RepositoryError),
     #[error("Managed authoring I/O failed: {0}")]
     Io(#[from] std::io::Error),
     #[error("Managed resource serialization failed: {0}")]

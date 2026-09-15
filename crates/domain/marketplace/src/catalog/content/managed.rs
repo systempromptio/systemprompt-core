@@ -5,7 +5,9 @@
 
 use super::CatalogContent;
 use crate::error::MarketplaceError;
-use crate::managed::{ManagedRepository, ManagedSkillResolution, OrganizationSkillResolver};
+use crate::managed::{
+    ManagedRepository, ManagedSkillResolution, OrganizationSkillResolver, ResourceKind,
+};
 use systemprompt_identifiers::UserId;
 
 impl CatalogContent {
@@ -21,8 +23,12 @@ impl CatalogContent {
                 .list_resources(owner, offset)
                 .await
                 .map_err(MarketplaceError::Managed)?;
-            let page_len = page.len();
-            for resource in page.into_iter().filter(|item| item.kind == "skill") {
+            let has_more = page.has_more;
+            for resource in page
+                .items
+                .into_iter()
+                .filter(|item| item.kind == ResourceKind::Skill)
+            {
                 let resolution = resolver
                     .resolve_skill(owner, &resource.resource_key)
                     .await
@@ -50,7 +56,7 @@ impl CatalogContent {
                     },
                 }
             }
-            if i64::try_from(page_len).unwrap_or(i64::MAX) < ManagedRepository::PAGE_SIZE {
+            if !has_more {
                 break;
             }
             offset += ManagedRepository::PAGE_SIZE;
@@ -76,8 +82,12 @@ impl CatalogContent {
                 .list_resources(owner, offset)
                 .await
                 .map_err(MarketplaceError::Managed)?;
-            let count = page.len();
-            for resource in page.into_iter().filter(|resource| resource.kind == "skill") {
+            let has_more = page.has_more;
+            for resource in page
+                .items
+                .into_iter()
+                .filter(|resource| resource.kind == ResourceKind::Skill)
+            {
                 catalog.remove_managed_key(&resource.resource_key);
                 if let ManagedSkillResolution::Published(skill) = resolver
                     .resolve_skill(consumer, &resource.resource_key)
@@ -89,7 +99,7 @@ impl CatalogContent {
                     catalog.skills.push(entry);
                 }
             }
-            if i64::try_from(count).unwrap_or(i64::MAX) < ManagedRepository::PAGE_SIZE {
+            if !has_more {
                 break;
             }
             offset += ManagedRepository::PAGE_SIZE;
@@ -111,11 +121,15 @@ impl CatalogContent {
                 .list_resources(owner, offset)
                 .await
                 .map_err(MarketplaceError::Managed)?;
-            let count = page.len();
-            for resource in page.into_iter().filter(|resource| resource.kind == "skill") {
+            let has_more = page.has_more;
+            for resource in page
+                .items
+                .into_iter()
+                .filter(|resource| resource.kind == ResourceKind::Skill)
+            {
                 self.remove_managed_key(&resource.resource_key);
             }
-            if i64::try_from(count).unwrap_or(i64::MAX) < ManagedRepository::PAGE_SIZE {
+            if !has_more {
                 break;
             }
             offset += ManagedRepository::PAGE_SIZE;
