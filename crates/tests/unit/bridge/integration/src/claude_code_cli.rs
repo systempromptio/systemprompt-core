@@ -188,8 +188,12 @@ fn manifest(plugins: Vec<PluginEntry>, marketplaces: Vec<ManifestMarketplace>) -
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-09-05T00:00:00Z-deadbeef").unwrap(),
-        issued_at: "2026-09-05T00:00:00Z".into(),
-        not_before: "2026-09-05T00:00:00Z".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-09-05T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-09-05T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: systemprompt_identifiers::UserId::new("test-user"),
         tenant_id: None,
         user: None,

@@ -98,31 +98,31 @@ fn manifest_version_rejects_bad_timestamp() {
 #[test]
 fn not_before_ten_minutes_in_past_rejected() {
     let now = chrono::Utc::now();
-    let nb = (now - chrono::Duration::minutes(10)).to_rfc3339();
-    let err = check_skew(&nb, now).expect_err("10m past should reject");
+    let nb = now - chrono::Duration::minutes(10);
+    let err = check_skew(nb, now).expect_err("10m past should reject");
     assert!(matches!(err, SyncError::ManifestSkew { .. }));
 }
 
 #[test]
 fn not_before_ten_minutes_in_future_rejected() {
     let now = chrono::Utc::now();
-    let nb = (now + chrono::Duration::minutes(10)).to_rfc3339();
-    let err = check_skew(&nb, now).expect_err("10m future should reject");
+    let nb = now + chrono::Duration::minutes(10);
+    let err = check_skew(nb, now).expect_err("10m future should reject");
     assert!(matches!(err, SyncError::ManifestSkew { .. }));
 }
 
 #[test]
 fn not_before_thirty_seconds_past_accepted() {
     let now = chrono::Utc::now();
-    let nb = (now - chrono::Duration::seconds(30)).to_rfc3339();
-    check_skew(&nb, now).expect("30s past should pass");
+    let nb = now - chrono::Duration::seconds(30);
+    check_skew(nb, now).expect("30s past should pass");
 }
 
 #[test]
 fn not_before_thirty_seconds_future_accepted() {
     let now = chrono::Utc::now();
-    let nb = (now + chrono::Duration::seconds(30)).to_rfc3339();
-    check_skew(&nb, now).expect("30s future should pass");
+    let nb = now + chrono::Duration::seconds(30);
+    check_skew(nb, now).expect("30s future should pass");
 }
 
 #[test]
@@ -131,8 +131,8 @@ fn force_replay_bypasses_replay_and_skew() {
     assert!(check_replay(&s, &version("2026-04-21T09:00:00Z-aaaaaaaa")).is_err());
 
     let now = chrono::Utc::now();
-    let nb = (now - chrono::Duration::minutes(30)).to_rfc3339();
-    assert!(check_skew(&nb, now).is_err());
+    let nb = now - chrono::Duration::minutes(30);
+    assert!(check_skew(nb, now).is_err());
 }
 
 #[test]

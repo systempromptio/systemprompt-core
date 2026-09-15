@@ -211,8 +211,12 @@ fn manifest(enabled_hosts: Vec<String>, populated: bool, suffix: &str) -> Signed
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(suffix),
-        issued_at: "2026-07-01T12:00:00+00:00".into(),
-        not_before: "2026-07-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-07-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-07-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: Some(UserInfo {

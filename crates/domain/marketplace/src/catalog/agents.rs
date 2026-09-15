@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AgentId, AgentName};
+use systemprompt_identifiers::{AgentId, AgentName, ModelId, ProviderId};
 use systemprompt_models::bridge::manifest::AgentEntry;
 use systemprompt_models::services::{AgentConfig, ServicesConfig};
 
@@ -68,8 +68,8 @@ fn build_agent_entry(
         enabled: cfg.enabled,
         is_default: cfg.default,
         is_primary: cfg.is_primary,
-        provider: cfg.metadata.provider.clone(),
-        model: cfg.metadata.model.clone(),
+        provider: cfg.metadata.provider.clone().map(ProviderId::new),
+        model: cfg.metadata.model.clone().map(ModelId::new),
         mcp_servers: cfg.metadata.mcp_servers.clone(),
         skills: cfg.metadata.skills.clone(),
         tags: cfg.tags.clone(),

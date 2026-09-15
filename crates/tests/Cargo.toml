@@ -165,6 +165,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
+semver = "1"
 uuid = { version = "1.26", features = ["v4", "serde"] }
 pg_query = "6.2"
 validator = { version = "0.21", features = ["derive"] }

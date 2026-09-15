@@ -310,8 +310,12 @@ fn run_once_applies_full_manifest_end_to_end() {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
             min_bridge_version: None,
             manifest_version: version(),
-            issued_at: "2026-05-01T12:00:00+00:00".into(),
-            not_before: "2026-05-01T12:00:00+00:00".into(),
+            issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
+            not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
             user_id: fixture_user_id(),
             tenant_id: None,
             user: Some(UserInfo {
@@ -487,8 +491,12 @@ fn run_once_empty_manifest_writes_no_plugins() {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
             min_bridge_version: None,
             manifest_version: version(),
-            issued_at: "2026-05-01T12:00:00+00:00".into(),
-            not_before: "2026-05-01T12:00:00+00:00".into(),
+            issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
+            not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
             user_id: fixture_user_id(),
             tenant_id: None,
             user: None,
@@ -547,8 +555,12 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             min_schema_version: MANIFEST_SCHEMA_VERSION,
             min_bridge_version: None,
             manifest_version: version(),
-            issued_at: "2026-05-01T12:00:00+00:00".into(),
-            not_before: "2026-05-01T12:00:00+00:00".into(),
+            issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
+            not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+                .expect("rfc3339")
+                .with_timezone(&chrono::Utc),
             user_id: fixture_user_id(),
             tenant_id: None,
             user: None,
@@ -604,8 +616,12 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -776,8 +792,12 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -1273,8 +1293,12 @@ fn empty_manifest() -> SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version(),
-        issued_at: "2026-05-01T12:00:00+00:00".into(),
-        not_before: "2026-05-01T12:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-01T12:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,

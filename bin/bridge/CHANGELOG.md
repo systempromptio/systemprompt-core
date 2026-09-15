@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** `SignedManifestBuilder::new` takes `issued_at` / `not_before` as `DateTime<Utc>` and `sync::check_skew` takes the typed `not_before`; the manifest fields are typed at the shared model. Migrate by parsing RFC 3339 strings before building.
 - **Breaking:** the `mtls` credential source is removed: `[mtls] cert_keystore_ref`, `AuthProvider` `mtls`, `GatewayClient::mtls_exchange`, `MtlsRequest`, the `KeystoreRef`/`CertFingerprint` ids and the `<PREFIX>_DEVICE_CERT*` variables. Migrate by signing in with `login` (session or PAT); the chain is session → PAT.
 - **Breaking:** `[sync] pinned_pubkey` / `pinned_pubkey_gateway` and `<PREFIX>_POLICY_PUBKEY` are no longer read; a bare key is never adopted as trust. Migrate by writing a gateway-bound `[sync.trust]` record (`gateway`, `key`, `source = "operator"`) or provisioning `<PREFIX>_POLICY_TRUST` / the managed `manifestTrust` key.
 - **Breaking:** `hooks/hooks.json` and the Claude Desktop managed preferences no longer carry the loopback secret. Hooks carry a per-plugin `hook:<plugin_id>` token accepted only on that plugin's `/api/public/hooks/*` routes; Claude Desktop's `inferenceGatewayApiKey` and `managedMcpServers[].headers.Authorization` carry a `host:claude-desktop` token accepted on inference and `/mcp/*` only. Re-run `sync` (and re-apply the desktop profile) after upgrading so every surface holds a current token.

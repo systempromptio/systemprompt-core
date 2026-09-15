@@ -38,8 +38,12 @@ fn manifest(
 ) -> systemprompt_bridge::gateway::manifest::SignedManifest {
     SignedManifestBuilder::new(
         ManifestVersion::try_new("2026-09-11T00:00:00Z-00000000").unwrap(),
-        "2026-09-11T00:00:00Z",
-        "2026-09-11T00:00:00Z",
+        chrono::DateTime::parse_from_rfc3339("2026-09-11T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        chrono::DateTime::parse_from_rfc3339("2026-09-11T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         systemprompt_identifiers::UserId::new("test-user"),
     )
     .with_managed_mcp_servers(servers)

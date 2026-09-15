@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+chrono = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true }

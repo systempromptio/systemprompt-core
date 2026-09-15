@@ -148,7 +148,7 @@ pub async fn run_once(
                 return Err(SyncError::from(e));
             },
         };
-        check_skew(&synced.not_before, now)?;
+        check_skew(synced.not_before, now)?;
         if last_state.manifest_version.as_ref() == Some(&synced.manifest_version) {
             ensure_not_superseded(&run_gateway)?;
             if let Err(error) =

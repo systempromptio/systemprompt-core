@@ -19,7 +19,7 @@ workspace = true
 [dependencies]
 # Serialization
 serde = { workspace = true }
-semver = { workspace = true }
+semver = { workspace = true, features = ["serde"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }

@@ -553,8 +553,12 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: version.clone(),
-        issued_at: "2026-05-29T00:00:00Z".to_owned(),
-        not_before: "2026-05-29T00:00:00Z".to_owned(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-05-29T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-05-29T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,

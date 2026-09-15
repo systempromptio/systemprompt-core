@@ -212,7 +212,7 @@ fn mirror_marketplace(
         manifest.manifest_version.as_str(),
         &entries,
     )?;
-    upsert_known_marketplace(plugins, &marketplace.id, &manifest.issued_at)?;
+    upsert_known_marketplace(plugins, &marketplace.id, &manifest.issued_at.to_rfc3339())?;
     upsert_installed_plugins(plugins, manifest, &marketplace.id, &ids)?;
     Ok(Mirrored {
         id: marketplace.id.clone(),

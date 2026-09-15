@@ -854,7 +854,7 @@ fn mcp_file_absent_when_only_referenced_server_is_disabled() {
 #[test]
 fn agent_md_carries_model_when_set() {
     let mut agent = agent_entry("modelled", "an agent with a model", None);
-    agent.model = Some("claude-fable-5".to_owned());
+    agent.model = Some(systemprompt_identifiers::ModelId::new("claude-fable-5"));
     let agents = vec![agent];
     let content = BundleContent {
         skills: &[],
@@ -879,7 +879,7 @@ fn agent_md_carries_model_when_set() {
 #[test]
 fn agent_with_empty_model_omits_model_line() {
     let mut agent = agent_entry("blank_model", "no model", None);
-    agent.model = Some(String::new());
+    agent.model = Some(systemprompt_identifiers::ModelId::new(""));
     let agents = vec![agent];
     let content = BundleContent {
         skills: &[],

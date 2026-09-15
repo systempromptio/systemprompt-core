@@ -25,6 +25,7 @@ mod managed_mcp;
 
 use std::collections::BTreeMap;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 pub use crate::bridge::ids::ManifestSignature;
@@ -41,18 +42,18 @@ pub use managed_mcp::ManagedMcpServer;
 
 pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
 
-pub const MIN_BRIDGE_VERSION: &str = "0.28.0";
+#[must_use]
+pub const fn min_bridge_version() -> semver::Version {
+    semver::Version::new(0, 28, 0)
+}
 
 #[must_use]
-pub fn bridge_version_is_supported(reported: &str, floor: &str) -> bool {
-    match (
-        semver::Version::parse(reported),
-        semver::Version::parse(floor),
-    ) {
-        (Ok(reported), Ok(floor)) => reported >= floor,
+pub fn bridge_version_is_supported(reported: &str, floor: &semver::Version) -> bool {
+    match semver::Version::parse(reported) {
+        Ok(reported) => reported >= *floor,
         // Why: a version that cannot be parsed cannot be shown to meet the
         // floor, so it is refused rather than admitted.
-        _ => false,
+        Err(_) => false,
     }
 }
 
@@ -67,10 +68,10 @@ pub struct SignedManifest {
     #[serde(default)]
     pub min_schema_version: u32,
     #[serde(default)]
-    pub min_bridge_version: Option<String>,
+    pub min_bridge_version: Option<semver::Version>,
     pub manifest_version: ManifestVersion,
-    pub issued_at: String,
-    pub not_before: String,
+    pub issued_at: DateTime<Utc>,
+    pub not_before: DateTime<Utc>,
     pub user_id: UserId,
     pub tenant_id: Option<TenantId>,
     #[serde(default)]

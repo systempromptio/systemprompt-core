@@ -11,7 +11,7 @@ use crate::bridge::ids::{
 };
 use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
-use systemprompt_identifiers::{AgentId, AgentName, HookId};
+use systemprompt_identifiers::{AgentId, AgentName, HookId, ModelId, ProviderId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginEntry {
@@ -103,9 +103,9 @@ pub struct AgentEntry {
     pub is_default: bool,
     pub is_primary: bool,
     #[serde(default)]
-    pub provider: Option<String>,
+    pub provider: Option<ProviderId>,
     #[serde(default)]
-    pub model: Option<String>,
+    pub model: Option<ModelId>,
     #[serde(default)]
     pub mcp_servers: PluginComponentRef,
     #[serde(default)]

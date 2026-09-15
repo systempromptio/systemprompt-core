@@ -13,8 +13,12 @@ fn version(s: &str) -> ManifestVersion {
 fn payload_value() -> serde_json::Value {
     let manifest = SignedManifestBuilder::new(
         version("2026-04-22T00:00:00Z-01abcdef"),
-        "2026-04-22T00:00:00Z",
-        "2026-04-22T00:00:00Z",
+        chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        chrono::DateTime::parse_from_rfc3339("2026-04-22T00:00:00Z")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         fixture_user_id(),
     )
     .with_enabled_hosts(vec!["claude-desktop".into()])

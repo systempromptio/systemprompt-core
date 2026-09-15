@@ -34,8 +34,12 @@ fn manifest() -> SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
         manifest_version: ManifestVersion::try_new("2026-07-02T00:00:00Z-cafecafe").unwrap(),
-        issued_at: "2026-07-02T00:00:00+00:00".into(),
-        not_before: "2026-07-02T00:00:00+00:00".into(),
+        issued_at: chrono::DateTime::parse_from_rfc3339("2026-07-02T00:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
+        not_before: chrono::DateTime::parse_from_rfc3339("2026-07-02T00:00:00+00:00")
+            .expect("rfc3339")
+            .with_timezone(&chrono::Utc),
         user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
@@ -401,7 +405,7 @@ fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_versio
     use systemprompt_bridge::brand::COMPAT_VERSION;
     let accepted = SignedManifestEnvelope {
         payload: serde_json::to_string(&SignedManifest {
-            min_bridge_version: Some(COMPAT_VERSION.to_owned()),
+            min_bridge_version: Some(semver::Version::parse(COMPAT_VERSION).expect("semver")),
             ..manifest()
         })
         .unwrap(),
@@ -412,7 +416,7 @@ fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_versio
 
     let rejected = SignedManifestEnvelope {
         payload: serde_json::to_string(&SignedManifest {
-            min_bridge_version: Some("999.0.0".to_owned()),
+            min_bridge_version: Some(semver::Version::new(999, 0, 0)),
             ..manifest()
         })
         .unwrap(),

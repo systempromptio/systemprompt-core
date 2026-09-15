@@ -5843,6 +5843,10 @@ name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
+dependencies = [
+ "serde",
+ "serde_core",
+]
 
 [[package]]
 name = "serde"
@@ -7266,6 +7270,7 @@ dependencies = [
 name = "systemprompt-bridge-install-tests"
 version = "0.0.11"
 dependencies = [
+ "chrono",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
@@ -7277,6 +7282,7 @@ dependencies = [
 name = "systemprompt-bridge-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "chrono",
  "keyring-core",
  "linux-keyutils-keyring-store",
  "reqwest",
@@ -7317,6 +7323,8 @@ dependencies = [
 name = "systemprompt-bridge-manifest-tests"
 version = "0.0.11"
 dependencies = [
+ "chrono",
+ "semver",
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
@@ -7431,6 +7439,7 @@ dependencies = [
  "chrono",
  "ed25519-dalek 3.0.0",
  "hex",
+ "semver",
  "serde_json",
  "sha2 0.11.0",
  "systemprompt-bridge",

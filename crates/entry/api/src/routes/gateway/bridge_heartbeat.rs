@@ -14,7 +14,7 @@ use axum::http::{HeaderMap, StatusCode};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{JwtToken, SessionId};
-use systemprompt_models::bridge::manifest::{MIN_BRIDGE_VERSION, bridge_version_is_supported};
+use systemprompt_models::bridge::manifest::{bridge_version_is_supported, min_bridge_version};
 use systemprompt_oauth::repository::UpsertBridgeSession;
 use systemprompt_runtime::AppContext;
 
@@ -62,11 +62,12 @@ pub async fn handle(
 
     let repo = &ctx.oauth_repositories().bridge_sessions;
 
-    let compatible = bridge_version_is_supported(&payload.bridge_version, MIN_BRIDGE_VERSION);
+    let floor = min_bridge_version();
+    let compatible = bridge_version_is_supported(&payload.bridge_version, &floor);
     if !compatible {
         tracing::warn!(
             bridge_version = %payload.bridge_version,
-            min_bridge_version = %MIN_BRIDGE_VERSION,
+            min_bridge_version = %floor,
             hostname = %payload.hostname,
             "bridge below the supported floor checked in",
         );
@@ -92,7 +93,7 @@ pub async fn handle(
     })?;
 
     Ok(Json(BridgeHeartbeatResponse {
-        min_bridge_version: MIN_BRIDGE_VERSION.to_owned(),
+        min_bridge_version: floor.to_string(),
         compatible,
     }))
 }

@@ -11,12 +11,12 @@ use std::sync::Arc;
 
 use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ApiKeyId, JwtToken, UserId};
 use systemprompt_marketplace::{AssembleRequest, ManifestService, MarketplaceCandidate, NoopTrace};
 use systemprompt_models::bridge::manifest::{
-    MANIFEST_SCHEMA_VERSION, MIN_BRIDGE_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo,
+    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, UserInfo, min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::BridgePolicyConfig;
@@ -41,7 +41,11 @@ pub async fn manifest(
         .filter(|t| !t.as_str().is_empty())
         .cloned();
 
-    let (manifest_version, issued_at, not_before) = build_version()?;
+    let ManifestStamp {
+        manifest_version,
+        issued_at,
+        not_before,
+    } = build_version()?;
 
     let services = bridge_data::load_services_config().map_err(|e| {
         tracing::warn!(error = %e, "manifest: services config load failed");
@@ -73,7 +77,7 @@ pub async fn manifest(
 
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
-        min_bridge_version: Some(MIN_BRIDGE_VERSION.to_owned()),
+        min_bridge_version: Some(min_bridge_version()),
         manifest_version,
         issued_at,
         not_before,
@@ -249,10 +253,16 @@ fn profile_bootstrap() -> Result<&'static systemprompt_models::Profile, (StatusC
     })
 }
 
-fn build_version() -> Result<(ManifestVersion, String, String), (StatusCode, String)> {
+struct ManifestStamp {
+    manifest_version: ManifestVersion,
+    issued_at: DateTime<Utc>,
+    not_before: DateTime<Utc>,
+}
+
+fn build_version() -> Result<ManifestStamp, (StatusCode, String)> {
     let now = Utc::now();
-    let issued_at = now.to_rfc3339();
-    let not_before = (now - Duration::seconds(60)).to_rfc3339();
+    let issued_at = now;
+    let not_before = now - Duration::seconds(60);
     let ts_millis = u64::try_from(now.timestamp_millis()).map_err(|_e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -266,5 +276,9 @@ fn build_version() -> Result<(ManifestVersion, String, String), (StatusCode, Str
             format!("manifest version: {e}"),
         )
     })?;
-    Ok((version, issued_at, not_before))
+    Ok(ManifestStamp {
+        manifest_version: version,
+        issued_at,
+        not_before,
+    })
 }
